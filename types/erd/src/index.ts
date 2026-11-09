@@ -55,7 +55,10 @@ export interface ErdSource {
   relations?: unknown[];
 }
 
-const cardinalities = ['many-to-one', 'one-to-one', 'one-to-many', 'many-to-many', 'zero-or-one-to-one'] as const;
+// "<from side>-to-<to side>": many is zero or more, one-or-many has the bar of "at least one".
+const sides = ['zero-or-one', 'one', 'many', 'one-or-many'] as const;
+const cardinalities = sides.flatMap((a) => sides.map((b) => `${a}-to-${b}`));
+const sideMarker: Record<(typeof sides)[number], Marker> = { 'zero-or-one': 'zeroOrOne', one: 'one', many: 'zeroOrMany', 'one-or-many': 'oneOrMany' };
 
 /** "uuid fk customers.id unique null default now()" → Column */
 export function parseColumn(spec: string | Column | null): Column {
@@ -210,18 +213,8 @@ function build(src: ErdSource, ctx: BuildContext): Graph {
 }
 
 function markers(cardinality: string | undefined): [Marker, Marker] {
-  switch (cardinality) {
-    case 'one-to-one':
-      return ['one', 'one'];
-    case 'zero-or-one-to-one':
-      return ['zeroOrOne', 'one'];
-    case 'one-to-many':
-      return ['one', 'zeroOrMany'];
-    case 'many-to-many':
-      return ['zeroOrMany', 'zeroOrMany'];
-    default:
-      return ['zeroOrMany', 'one'];
-  }
+  const m = new RegExp(`^(${sides.join('|')})-to-(${sides.join('|')})$`).exec(cardinality ?? '');
+  return m ? [sideMarker[m[1] as (typeof sides)[number]], sideMarker[m[2] as (typeof sides)[number]]] : ['zeroOrMany', 'one'];
 }
 
 const column = {

@@ -1,5 +1,7 @@
 // Mermaid flowchart / graph → systems. Nodes with shapes, subgraphs as nested groups, edges with
 // labels: -.-> becomes async, ==> becomes sync (the main path), --> stays a plain arrow.
+// Flow logic keeps its shapes: {…}, {{…}} and questions become decisions, ([…]) and ((…)) at the
+// ends of the flow start and end; in such a process flow every other box is a plain step.
 import { guessGroupKind, guessKind, systemsYaml, type SysDiagram, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
 import { cleanLabel, faIcon, Ids, slug, type Warnings } from './text.ts';
 
@@ -24,8 +26,9 @@ const SHAPES: [string, string[], Shape][] = [
 // Shape names of the newer `id@{ shape: … }` syntax.
 const NAMED: Record<string, Shape> = {
   cyl: 'cylinder', cylinder: 'cylinder', db: 'cylinder', database: 'cylinder', das: 'cylinder', 'h-cyl': 'cylinder', 'lin-cyl': 'cylinder', disk: 'cylinder',
-  circle: 'circle', circ: 'circle', 'dbl-circ': 'circle', diamond: 'rhombus', decision: 'rhombus', diam: 'rhombus', hex: 'hexagon', hexagon: 'hexagon',
-  stadium: 'stadium', pill: 'stadium', rounded: 'round', event: 'round', subproc: 'subroutine', subroutine: 'subroutine',
+  circle: 'circle', circ: 'circle', 'dbl-circ': 'circle', 'sm-circ': 'circle', 'fr-circ': 'circle', start: 'circle', stop: 'circle',
+  diamond: 'rhombus', decision: 'rhombus', diam: 'rhombus', question: 'rhombus', hex: 'hexagon', hexagon: 'hexagon', prepare: 'hexagon',
+  stadium: 'stadium', pill: 'stadium', terminal: 'stadium', rounded: 'round', event: 'round', subproc: 'subroutine', subroutine: 'subroutine',
 };
 
 interface Node {
@@ -101,15 +104,28 @@ export function importFlowchart(body: string[], header: string, title: string | 
 
   const ids = new Ids();
   const groupList: SysGroup[] = [];
-  const depth = (id: string | undefined): number => (id ? 1 + depth(groups.get(id)?.parent) : 0);
-  for (const g of groups.values())
-    groupList.push({ id: ids.get(g.source), label: g.label, kind: guessGroupKind(g.label, depth(g.parent) > 0), parent: g.parent && ids.get(g.parent) });
+  for (const g of groups.values()) groupList.push({ id: ids.get(g.source), label: g.label, kind: guessGroupKind(g.label), parent: g.parent && ids.get(g.parent) });
 
+  // Where the flow starts and ends: nodes without lines in, or without lines out.
+  const into = new Set<string>();
+  const outOf = new Set<string>();
+  for (const { from, to, link } of links)
+    if (link.line !== 'invisible')
+      for (const a of from)
+        for (const b of to) {
+          const back = link.start && !link.end;
+          into.add(back ? a : b);
+          outOf.add(back ? b : a);
+        }
+  const kinds = new Map([...nodes.values()].map((n) => [n, kindFor(n.label ?? n.source, n.source, n.shape, n.hint, !into.has(n.source), !outOf.has(n.source))]));
+  // Where decisions and terminals are a good part of the drawing it is a process: its boxes are
+  // steps, whatever their words suggest. One stray question in an architecture changes nothing.
+  const logic = [...kinds.values()].filter((k) => k === 'decision' || k === 'start' || k === 'end').length;
+  const process = logic >= 2 && logic * 4 >= kinds.size;
   const nodeList: SysNode[] = [];
-  for (const n of nodes.values()) {
-    const label = n.label ?? n.source;
-    if (n.shape === 'rhombus') warn.onceFor('rhombus', 'Decision shapes ({…}) become ordinary cards: Cartography draws systems, not flow logic');
-    nodeList.push({ id: ids.get(n.source), label, kind: kindFor(label, n.source, n.shape, n.hint), parent: n.parent && ids.get(n.parent) });
+  for (const [n, kind] of kinds) {
+    const box = !n.shape || ['rect', 'round', 'subroutine', 'asymmetric', 'parallelogram', 'trapezoid'].includes(n.shape);
+    nodeList.push({ id: ids.get(n.source), label: n.label ?? n.source, kind: process && box && !n.hint ? 'step' : kind, parent: n.parent && ids.get(n.parent) });
   }
 
   const edges: SysEdge[] = [];
@@ -131,10 +147,18 @@ export function importFlowchart(body: string[], header: string, title: string | 
   return systemsYaml(d);
 }
 
-function kindFor(label: string, source: string, shape: Shape | undefined, hint: string | undefined): string {
+function kindFor(label: string, source: string, shape: Shape | undefined, hint: string | undefined, first: boolean, last: boolean): string {
+  // A diamond or a question is a decision whatever it mentions ("Valid session?").
+  if (shape === 'rhombus' || /\?\s*$/.test(label)) return 'decision';
   const byWords = guessKind(label) ?? (hint && guessKind(hint)) ?? guessKind(source.replace(/([a-z])([A-Z])/g, '$1 $2'));
   if (shape === 'cylinder') return byWords && ['cache', 'queue', 'topic', 'storage', 'warehouse', 'search', 'database'].includes(byWords) ? byWords : 'database';
-  return byWords ?? 'service';
+  if (byWords) return byWords;
+  // {{API Gateway}} is a gateway by its words; a hexagon that says nothing more is a decision.
+  if (shape === 'hexagon') return 'decision';
+  // Pills and circles are terminals only where the flow begins or stops; mid-flow they are boxes.
+  if ((shape === 'stadium' || shape === 'circle') && (first || last)) return first ? 'start' : 'end';
+  // Nothing says what it is: a plain step, without a guessed kind to caption it.
+  return 'step';
 }
 
 /** `id[Title]`, `id ["Title"]`, `"Title"` or `Some title`. */

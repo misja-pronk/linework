@@ -35,7 +35,7 @@ flowchart LR
     const d = parse(yaml);
     expect(d).toMatchObject({ type: 'systems', title: 'Checkout' });
     expect(d.direction).toBeUndefined();
-    expect(d.groups).toEqual({ backend: { kind: 'system', label: 'Backend services' } });
+    expect(d.groups).toEqual({ backend: { kind: 'group', label: 'Backend services' } });
     expect(d.nodes).toEqual({
       U: { kind: 'user', label: 'Customer' },
       W: { kind: 'client', label: 'Web shop' },
@@ -86,14 +86,14 @@ flowchart LR
     expect(d.nodes.C1).toEqual({ kind: 'server', label: 'App server 1' });
     expect(d.nodes.D).toEqual({ kind: 'database', label: 'Postgres primary' });
     expect(d.nodes.X).toEqual({ kind: 'external', label: 'External CRM' });
-    expect(d.nodes['D-backup']).toEqual({ kind: 'service', label: 'D.backup' });
+    expect(d.nodes['D-backup']).toEqual({ kind: 'step', label: 'D.backup' });
+    expect(d.nodes.F).toEqual({ kind: 'decision', label: 'Is cached?' });
     expect(d.edges).toContainEqual({ 'A -> B': 'HTTPS' });
     expect(d.edges).toContainEqual({ 'D -> E': { label: 'replicates', style: 'async' } });
     expect(d.edges).toContainEqual('C1 <-> X');
     expect(d.edges).toContainEqual('C2 -> D');
     expect(warnings).toEqual([
       'Circle and cross arrow ends (--o, --x) are drawn as arrows',
-      'Decision shapes ({…}) become ordinary cards: Cartography draws systems, not flow logic',
       'Invisible links (~~~) are left out',
     ]);
     await clean(yaml);
@@ -125,6 +125,60 @@ flowchart LR
   it('quotes labels that YAML would misread', () => {
     const { yaml } = importMermaid('flowchart LR\n  a["yes"] -->|"#1: fast, {cheap}"| b["Price: 10"]\n');
     expect(parse(yaml)).toMatchObject({ nodes: { a: { label: 'yes' }, b: { label: 'Price: 10' } }, edges: [{ 'a -> b': '#1: fast, {cheap}' }] });
+  });
+});
+
+describe('flow logic', () => {
+  it('keeps decisions, start and end, and makes plain boxes uncaptioned steps', async () => {
+    const { yaml, warnings } = importMermaid(`%% title: Password reset
+flowchart TD
+  a([Forgot password]) --> b[Enter email]
+  b --> c{Known address?}
+  c -->|no| d[Show generic notice]
+  c -->|yes| e[Send reset link]
+  e --> f{{Link used in time}}
+  f -->|yes| g[Set new password] --> z((Done))
+  f -->|no| d
+  q@{ shape: diamond, label: "Retry" } --> b
+  d --> q
+`);
+    const d = parse(yaml);
+    expect(d.title).toBe('Password reset');
+    expect(d.nodes).toEqual({
+      a: { kind: 'start', label: 'Forgot password' },
+      b: { kind: 'step', label: 'Enter email' },
+      c: { kind: 'decision', label: 'Known address?' },
+      d: { kind: 'step', label: 'Show generic notice' },
+      e: { kind: 'step', label: 'Send reset link' },
+      f: { kind: 'decision', label: 'Link used in time' },
+      g: { kind: 'step', label: 'Set new password' },
+      z: { kind: 'end', label: 'Done' },
+      q: { kind: 'decision', label: 'Retry' },
+    });
+    expect(d.edges).toContainEqual({ 'c -> d': 'no' });
+    expect(warnings).toEqual([]);
+    const r = await clean(yaml);
+    // Steps, decisions and terminals speak for themselves: no "Service" captions.
+    const cards = r.graph!.nodes.map((n) => n.shape).filter((s) => s.kind === 'card');
+    expect(cards.map((s) => s.caption)).toEqual(cards.map(() => undefined));
+    expect(cards.map((s) => s.form)).toEqual(['terminal', 'plain', 'decision', 'plain', 'plain', 'decision', 'plain', 'terminal', 'decision']);
+    expect(cards[1]!.icon).toBeUndefined();
+  });
+
+  it('keeps word kinds in architectures, and pills mid-flow are boxes', () => {
+    const d = parse(importMermaid('flowchart LR\n  u((Customer)) --> g{{API Gateway}} --> s([Billing]) --> db[(Ledger)]\n').yaml);
+    expect(d.nodes).toEqual({ u: { kind: 'user', label: 'Customer' }, g: { kind: 'gateway', label: 'API Gateway' }, s: { kind: 'step', label: 'Billing' }, db: { kind: 'database', label: 'Ledger' } });
+    expect(d.title).toBe('Imported diagram');
+  });
+
+  it('imports untitled subgraphs as neutral groups without a caption', async () => {
+    const { yaml } = importMermaid('flowchart LR\n  subgraph s [Sources]\n    a[CRM]\n  end\n  subgraph p [Payment platform]\n    b[Ledger service]\n  end\n  a --> b\n');
+    const d = parse(yaml);
+    expect(d.groups).toEqual({ s: { kind: 'group', label: 'Sources' }, p: { kind: 'system', label: 'Payment platform' } });
+    const r = await clean(yaml);
+    expect(r.graph!.groups.map((g) => g.caption)).toEqual([undefined, 'System']);
+    // "Ledger service" already says what it is.
+    expect(r.graph!.nodes[1]!.shape).toMatchObject({ label: 'Ledger service', caption: undefined });
   });
 });
 
@@ -199,11 +253,11 @@ describe('erDiagram', () => {
     expect(d.tables['loyalty-card']).toEqual({ columns: {} });
     expect(d.relations).toEqual([
       { 'order.customer_id -> customer.id': 'places' },
-      { 'line-item.order_id -> order.id': 'contains' },
+      { 'line-item.order_id -> order.id': { label: 'contains', cardinality: 'one-or-many-to-one' } },
       { 'line-item.product_code -> product.code': 'ordered in' },
       { 'loyalty-card -> customer': { label: 'holds', cardinality: 'zero-or-one-to-one' } },
     ]);
-    expect(warnings).toEqual(['1 attribute comment was left out']);
+    expect(warnings).toEqual(['1 attribute comment was left out', 'Table ids are lowercased: CUSTOMER → customer, ORDER → order, LINE-ITEM → line-item, PRODUCT → product, and 1 more']);
     const r = await clean(yaml);
     expect(r.graph!.edges).toHaveLength(4);
   });
@@ -221,12 +275,46 @@ describe('erDiagram', () => {
     const d = parse(yaml);
     expect(d.tables.p.label).toBe('Person');
     expect(d.relations).toEqual([
-      { 'student --> course': { label: 'enrolls', cardinality: 'many-to-many' } },
+      { 'student --> course': { label: 'enrolls', cardinality: 'one-or-many-to-one-or-many' } },
       { 'p.team_id -> team': 'member of' },
       { 'p -> badge': { label: 'wears', cardinality: 'one-to-one' } },
     ]);
-    expect(warnings).toEqual([]);
+    expect(warnings).toEqual(['Table ids are lowercased: STUDENT → student, COURSE → course, TEAM → team, BADGE → badge']);
     await clean(yaml);
+  });
+});
+
+describe('erDiagram cardinality', () => {
+  it('keeps one-or-more ends and both key marks', async () => {
+    const { yaml } = importMermaid(`erDiagram
+    ORDER ||--|{ LINE : has
+    LINE }|--o| COUPON : uses
+    ORDER {
+      int id PK
+    }
+    LINE {
+      int order_id PK, FK
+      string code UK
+    }
+    COUPON {
+      int id PK
+    }
+`);
+    const d = parse(yaml);
+    expect(d.tables.line.columns).toEqual({ order_id: 'int pk fk order', code: 'string unique' });
+    expect(d.relations).toEqual([
+      { 'line.order_id -> order.id': { label: 'has', cardinality: 'one-or-many-to-one' } },
+      { 'line -> coupon': { label: 'uses', cardinality: 'one-or-many-to-zero-or-one' } },
+    ]);
+    const r = await clean(yaml);
+    expect(r.graph!.edges.map((e) => [e.start, e.end])).toEqual([['oneOrMany', 'one'], ['oneOrMany', 'zeroOrOne']]);
+    const line = r.graph!.nodes.find((n) => n.id === 'line')!.shape;
+    expect(line.kind === 'table' && line.rows.map((row) => row.kind === 'row' && row.marks)).toEqual([['pk', 'fk'], ['unique']]);
+  });
+
+  it('names the lowercased table in warnings', () => {
+    const { warnings } = importMermaid('erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y\n  B ||--o{ C : z\n  C {\n    int other FK\n  }\n');
+    expect(warnings).toContain('c.other is a foreign key, but it is not clear to which table');
   });
 });
 
@@ -265,7 +353,7 @@ sequenceDiagram
     expect(['Users', 'Admin', 'User Service', 'User DB', 'Customer events', 'Kafka consumer', 'Web server', 'Web app', 'S3 bucket', 'Auth0'].map((l) => guessKind(l))).toEqual([
       'users',
       'user',
-      undefined,
+      'service',
       'database',
       'topic',
       'worker',

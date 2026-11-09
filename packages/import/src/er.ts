@@ -93,27 +93,24 @@ export function importEr(body: string[], title: string | undefined, warn: Warnin
   }
   if (comments) warn.add(`${comments} attribute comment${comments > 1 ? 's were' : ' was'} left out`);
 
-  // Who is the child: the "many" side, or the optional side of a one-to-one.
+  // Who is the child: the "many" side, or the optional side of a one-to-one. Each end keeps its
+  // own Mermaid marker as an erd side (|o zero-or-one, || one, }o many, }| one-or-many).
   const many = (marker: string) => marker.includes('{') || marker.includes('}');
   const optional = (marker: string) => marker.includes('o');
+  const side = (marker: string) => (many(marker) ? (optional(marker) ? 'many' : 'one-or-many') : optional(marker) ? 'zero-or-one' : 'one');
   const out: { from: string; to: string; cardinality?: string; label?: string; dashed: boolean }[] = [];
   for (const r of relations) {
     const [ma, mb] = [many(r.left), many(r.right)];
-    let from = r.a;
-    let to = r.b;
-    let cardinality: string | undefined;
-    if (ma && mb) cardinality = 'many-to-many';
-    else if (!ma && mb) [from, to] = [r.b, r.a];
-    else if (!ma && !mb) {
-      if (optional(r.right) && !optional(r.left)) [from, to] = [r.b, r.a];
-      cardinality = optional(from === r.a ? r.left : r.right) ? 'zero-or-one-to-one' : 'one-to-one';
-    }
-    out.push({ from, to, cardinality, label: r.label, dashed: r.dashed });
+    const flip = (!ma && mb) || (!ma && !mb && optional(r.right) && !optional(r.left));
+    const [from, to] = flip ? [r.b, r.a] : [r.a, r.b];
+    const cardinality = `${side(flip ? r.right : r.left)}-to-${side(flip ? r.left : r.right)}`;
+    // many-to-one is what a relation without cardinality draws.
+    out.push({ from, to, cardinality: cardinality === 'many-to-one' ? undefined : cardinality, label: r.label, dashed: r.dashed });
   }
 
   // FK columns: find the parent they point at, by name first, else the only parent left.
   for (const e of entities.values()) {
-    const parents = out.filter((o) => o.from === e.source && o.cardinality !== 'many-to-many').map((o) => o.to);
+    const parents = out.filter((o) => o.from === e.source && !/-to-(many|one-or-many)$/.test(o.cardinality ?? '')).map((o) => o.to);
     const fks = e.columns.filter((c) => c.fk);
     for (const c of fks) {
       const n = norm(c.name);
@@ -122,8 +119,13 @@ export function importEr(body: string[], title: string | undefined, warn: Warnin
     const unmatched = fks.filter((c) => !c.target);
     const free = parents.filter((p) => !fks.some((c) => c.target === p));
     if (unmatched.length === 1 && free.length === 1) unmatched[0]!.target = free[0];
-    for (const c of fks.filter((c) => !c.target)) warn.add(`${e.source}.${c.name} is a foreign key, but it is not clear to which table`);
+    for (const c of fks.filter((c) => !c.target)) warn.add(`${e.id}.${c.name} is a foreign key, but it is not clear to which table`);
   }
+
+  // Ids are lowercase; say so, or "ORDER" in the Mermaid is hard to find as "order" in the YAML.
+  const renamed = [...entities.values()].filter((e) => e.id !== e.source);
+  if (renamed.length)
+    warn.add(`Table ids are lowercased: ${renamed.slice(0, 4).map((e) => `${e.source} → ${e.id}`).join(', ')}${renamed.length > 4 ? `, and ${renamed.length - 4} more` : ''}`);
 
   const lines = ['type: erd'];
   if (title) lines.push(`title: ${scalar(title)}`);

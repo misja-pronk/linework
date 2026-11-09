@@ -65,6 +65,7 @@ const rules: [string, RegExp][] = [
   ['device', /\b(iot|devices?|sensors?|meters?|thermostats?)\b/],
   ['client', /\b(browser|frontend|front-end|web ?app|webapp|spa|ui|web client|website|portal|dashboards?|web|desktop|globe)\b/],
   ['external', /\b(external|third[- ]party|3rd party|partners?|vendors?|saas|legacy|upstream|internet|github|slack|twilio|salesforce)\b/],
+  ['service', /\b(services?|svc|microservices?|backend|back-end)\b/],
 ];
 
 const PEOPLE = /\b(users?|customers?|people|persons?|actors?|visitors?|shoppers?|admins?|administrators?|operators?|guests?|members?|employees?|developers?|buyers?|sellers?|patients?|students?|clients?|staff|agents?)\b/;
@@ -79,7 +80,7 @@ export function guessKind(text: string): string | undefined {
   return rules.find(([, r]) => r.test(t))?.[0];
 }
 
-export function guessGroupKind(text: string, nested: boolean): string {
+export function guessGroupKind(text: string): string {
   const t = text.toLowerCase();
   if (/\b(aws|azure|gcp|google cloud|cloud)\b/.test(t)) return 'cloud';
   if (/\b(clusters?|k8s|kubernetes|eks|aks|gke|namespace)\b/.test(t)) return 'cluster';
@@ -89,7 +90,9 @@ export function guessGroupKind(text: string, nested: boolean): string {
   if (/\b(teams?|squads?|owners?)\b/.test(t)) return 'team';
   if (/\b(domains?|context|layers?)\b/.test(t)) return 'domain';
   if (/\b(external|third[- ]party|partners?|vendors?)\b/.test(t)) return 'boundary';
-  return nested ? 'boundary' : 'system';
+  if (/\b(systems?|platform|applications?)\b/.test(t)) return 'system';
+  // Nothing in the title says what it is: a neutral group, not a guess the caption would repeat.
+  return 'group';
 }
 
 // Labels the systems type shows when an entry has no label of its own: leave those out.

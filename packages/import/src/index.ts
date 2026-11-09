@@ -25,6 +25,8 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
     title = /^title:\s*(.+)$/m.exec(front[1]!)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? title;
     src = src.slice(front[0].length);
   }
+  // A `%% title: …` comment names the diagram too, when the front matter does not.
+  if (!front) title = /^\s*%%\s*title\s*:?\s+(.+?)\s*$/im.exec(src)?.[1] ?? title;
   const lines = src
     .replace(/%%\{[\s\S]*?\}%%/g, '')
     .split('\n')
@@ -40,6 +42,7 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
     body.splice(body.findIndex((l) => l.trim().startsWith('title ')), 1);
   }
 
+  title ??= 'Imported diagram';
   const kind = header.split(/\s+/)[0]!;
   let yaml = '';
   if (/^(flowchart|graph)$/i.test(kind)) yaml = importFlowchart(body, header, title, warn);

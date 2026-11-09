@@ -29,7 +29,7 @@ export function importArchitecture(body: string[], title: string | undefined, wa
       const text = label ? cleanLabel(label) : id!;
       const iconWords = icon.replace(/^[\w-]+:/, '').replace(/-/g, ' ');
       if (what === 'group') {
-        const kind = icon === 'cloud' && guessGroupKind(text, false) === 'system' ? 'cloud' : guessGroupKind(text, !!parent);
+        const kind = icon === 'cloud' && guessGroupKind(text) === 'group' ? 'cloud' : guessGroupKind(text);
         groups.push({ id: ids.get(id!), label: text, kind, parent: parent && ids.get(parent) });
       } else nodes.push({ id: ids.get(id!), label: text, kind: guessKind(text) ?? ICONS[icon] ?? guessKind(iconWords) ?? 'service', parent: parent && ids.get(parent) });
       continue;
