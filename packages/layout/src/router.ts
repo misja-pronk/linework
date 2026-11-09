@@ -29,6 +29,8 @@ export interface RouteRequest {
   order?: number;
   /** How the line is drawn (pattern, colour, markers). Lines drawn alike may share a trunk. */
   style?: string;
+  /** Bends set by hand: the line runs through them in order (corners added where needed), not searched for. */
+  via?: Point[];
 }
 
 export interface RouterInput {
@@ -84,7 +86,8 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
       if (previous) mark(grid, previous, -1);
       let points: Point[];
       loose.delete(e.id);
-      if (e.from.node === e.to.node) points = selfLoop(p);
+      if (e.via?.length) points = throughVia(p, e.via);
+      else if (e.from.node === e.to.node) points = selfLoop(p);
       else {
         // Siblings' lines are cheap to run on, so the lines merge into one trunk.
         const friends = (members.get(trunk.get(e.id) ?? '') ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c);
@@ -722,6 +725,31 @@ class Heap {
 function selfLoop(p: Ports): Point[] {
   const x = Math.max(p.start.x, p.goal.x) + 14;
   return [p.from, { x, y: p.from.y }, { x, y: p.to.y }, p.to];
+}
+
+/**
+ * A line with bends set by hand: out of its port, through every bend point in order, into the other port.
+ * Points that do not line up get a corner, so the line stays orthogonal when the boxes have moved since.
+ */
+export function throughVia(p: Pick<Ports, 'from' | 'to' | 'start' | 'goal' | 'fromSide' | 'toSide'>, via: Point[]): Point[] {
+  const horizontal = (s: Side) => s === 'E' || s === 'W';
+  const corner = (a: Point, b: Point, hFirst: boolean) => (a.x === b.x || a.y === b.y ? undefined : hFirst ? { x: b.x, y: a.y } : { x: a.x, y: b.y });
+  // Out of the port: on along the stub, unless the first bend lies behind it (then turn first).
+  const first = via[0]!;
+  const ahead = (first.x - p.start.x) * normal[p.fromSide].x + (first.y - p.start.y) * normal[p.fromSide].y > 0;
+  const pts: Point[] = [p.from, p.start];
+  const c0 = corner(p.start, first, horizontal(p.fromSide) === ahead);
+  if (c0) pts.push(c0);
+  via.forEach((q, i) => {
+    const c = i ? corner(via[i - 1]!, q, true) : undefined;
+    if (c) pts.push(c);
+    pts.push(q);
+  });
+  // Into the port: the last leg runs along the side's normal, so the corner turns onto it.
+  const c1 = corner(via.at(-1)!, p.goal, !horizontal(p.toSide));
+  if (c1) pts.push(c1);
+  pts.push(p.goal, p.to);
+  return pts;
 }
 
 function fallback(p: Ports): Point[] {

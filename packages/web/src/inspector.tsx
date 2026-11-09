@@ -16,6 +16,11 @@ export interface InspectorProps {
   /** Entries in a map can be renamed; list items (edges) cannot. */
   renamable: boolean;
   pinned: boolean;
+  /** Nodes and groups: whether it is locked in place (undefined for lines). */
+  locked?: boolean;
+  onLock?(): void;
+  /** A line bent by hand: back to the automatic route. */
+  onResetLine?(): void;
   onField(key: string, value: unknown): void;
   onRename(id: string): boolean;
   onReveal(): void;
@@ -171,7 +176,17 @@ export function Inspector(p: InspectorProps) {
       </div>
 
       <footer>
-        {p.pinned && (
+        {p.onResetLine && (
+          <button className="button ghost" onClick={p.onResetLine} title="Route this line automatically again">
+            <Icon name="route" /> Reset line
+          </button>
+        )}
+        {p.locked != null && p.onLock && (
+          <button className="button ghost" onClick={p.onLock} title={`${p.locked ? 'Unlock' : 'Lock it where it is, so it cannot be dragged by accident'} (⇧⌘L)`} aria-pressed={p.locked}>
+            <Icon name={p.locked ? 'lock-open' : 'lock'} /> {p.locked ? 'Unlock' : 'Lock'}
+          </button>
+        )}
+        {p.pinned && !p.locked && (
           <button className="button ghost" onClick={p.onUnpin} title="Let the layout place it again">
             <Icon name="pin-off" /> Unpin
           </button>

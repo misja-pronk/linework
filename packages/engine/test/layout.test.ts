@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { measure, routeEdges } from '@cartography/layout';
+import { measure, routeEdges, throughVia } from '@cartography/layout';
 import { render } from '../src/index.ts';
 import { big } from './perf.ts';
 
@@ -75,6 +75,45 @@ describe('pins', () => {
     const overlap = nb.x < nc.x + nc.width && nc.x < nb.x + nb.width && nb.y < nc.y + nc.height && nc.y < nb.y + nb.height;
     expect(overlap).toBe(false);
     expect({ x: nc.x + pinned.placed!.shift!.x, y: nc.y + pinned.placed!.shift!.y }).toEqual({ x: b.x + shift.x, y: b.y + shift.y });
+  });
+});
+
+describe('lines bent by hand', () => {
+  const text = 'type: azure\nnodes:\n  a: app-service\n  b: sql-database\n  c: key-vault\nedges:\n  - a -> b\n  - a -> c\n';
+  const orthogonal = (pts: { x: number; y: number }[]) => pts.slice(1).every((q, i) => q.x === pts[i]!.x || q.y === pts[i]!.y);
+  it('run through their bend points, stay orthogonal and leave the boxes where they were', async () => {
+    const free = await render(text, { fonts: 'none' });
+    const s = free.placed!.shift!;
+    const pts = free.placed!.edges.get('e0')!.points;
+    // A detour 120px below the line's lowest point, entered and left from its first and last bends.
+    const low = Math.max(...pts.map((q) => q.y)) + 120;
+    const via = [{ x: pts[0]!.x + 20 + s.x, y: low + s.y }, { x: pts.at(-1)!.x - 20 + s.x, y: low + s.y }];
+    const bent = await render(text, { fonts: 'none', sidecar: { version: 1, edges: { e0: { via } } } });
+    const p = bent.placed!;
+    const out = p.edges.get('e0')!.points.map((q) => ({ x: q.x + p.shift!.x, y: q.y + p.shift!.y }));
+    expect(orthogonal(out)).toBe(true);
+    for (const v of via) expect(out).toContainEqual(v);
+    for (const id of ['a', 'b', 'c']) {
+      const before = free.placed!.nodes.get(id)!;
+      const after = p.nodes.get(id)!;
+      expect({ x: after.x + p.shift!.x, y: after.y + p.shift!.y }).toEqual({ x: before.x + s.x, y: before.y + s.y });
+    }
+    // The other line still leaves and arrives where it did (its trunk partner went its own way, so the middle may differ).
+    const e1 = (q: { x: number; y: number }[], o: { x: number; y: number }) => [q[0], q.at(-1)].map((r) => ({ x: r!.x + o.x, y: r!.y + o.y }));
+    expect(e1(p.edges.get('e1')!.points, p.shift!)).toEqual(e1(free.placed!.edges.get('e1')!.points, s));
+  });
+  it('are ignored once the line at that position joins other nodes', async () => {
+    const free = await render(text, { fonts: 'none' });
+    const via = [{ x: 0, y: 900 }];
+    const stale = await render(text, { fonts: 'none', sidecar: { version: 1, edges: { e0: { via, from: 'a', to: 'c' } } } });
+    expect(stale.placed!.edges.get('e0')!.points).toEqual(free.placed!.edges.get('e0')!.points);
+  });
+  it('get corners where bends no longer line up with the ports', () => {
+    const ports = { from: { x: 0, y: 0 }, start: { x: 16, y: 0 }, fromSide: 'E' as const, to: { x: 200, y: 100 }, goal: { x: 184, y: 100 }, toSide: 'W' as const };
+    const pts = throughVia(ports, [{ x: 100, y: 40 }]);
+    expect(orthogonal(pts)).toBe(true);
+    expect(pts).toContainEqual({ x: 100, y: 40 });
+    expect(pts.slice(-2)).toEqual([{ x: 184, y: 100 }, { x: 200, y: 100 }]);
   });
 });
 
