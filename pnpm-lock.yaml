@@ -87,6 +87,9 @@ importers:
       '@cartography/github':
         specifier: workspace:*
         version: link:../../types/github
+      '@cartography/kubernetes':
+        specifier: workspace:*
+        version: link:../../types/kubernetes
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
@@ -115,13 +118,13 @@ importers:
       '@cartography/systems':
         specifier: workspace:*
         version: link:../../types/systems
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
     devDependencies:
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
 
   packages/layout:
     dependencies:
@@ -252,6 +255,19 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+
+  types/kubernetes:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
 
   types/systems:
     dependencies:

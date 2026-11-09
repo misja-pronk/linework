@@ -1,0 +1,97 @@
+---
+# Source: podinfo/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-podinfo
+  labels:
+    helm.sh/chart: podinfo-6.7.0
+    app.kubernetes.io/name: release-podinfo
+    app.kubernetes.io/version: "6.7.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9898
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9999
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    app.kubernetes.io/name: release-podinfo
+---
+# Source: podinfo/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-podinfo
+  labels:
+    helm.sh/chart: podinfo-6.7.0
+    app.kubernetes.io/name: release-podinfo
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: release-podinfo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: release-podinfo
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9898"
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: podinfo
+          image: "ghcr.io/stefanprodan/podinfo:6.7.0"
+          imagePullPolicy: IfNotPresent
+          command:
+            - ./podinfo
+            - --port=9898
+          ports:
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+            - name: grpc
+              containerPort: 9999
+              protocol: TCP
+          volumeMounts:
+          - name: data
+            mountPath: /data
+      volumes:
+      - name: data
+        emptyDir: {}
+---
+# Source: podinfo/templates/tests/grpc.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: release-podinfo-grpc-test-x1yz
+  labels:
+    app.kubernetes.io/name: release-podinfo
+  annotations:
+    "helm.sh/hook": test-success
+spec:
+  containers:
+    - name: grpc-health-probe
+      image: stefanprodan/grpc_health_probe:v0.3.0
+  restartPolicy: Never
+---
+# Source: podinfo/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: release-podinfo
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: release-podinfo

@@ -19,6 +19,7 @@ const names = `
   layout-template save undo-2 redo-2 panel-left keyboard mouse-pointer-2 pin pin-off grip-vertical trash
   arrow-left clipboard-paste circle-stop panel-left-close
   square circle-play circle-question-mark
+  ship-wheel route calendar-clock file-sliders file-key scaling
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

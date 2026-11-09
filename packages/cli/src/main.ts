@@ -5,7 +5,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { toPng } from './png.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
-import { importMarkdown, importMermaid } from '@cartography/import';
+import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
 import type { Diagnostic, LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -14,9 +14,10 @@ const help = `carto — architecture diagrams that look good
   carto watch  <file.yaml…> [same options]      re-render on every save
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template
-  carto import <file.mmd|.md…> [-o out|-] [--force]
+  carto import <file.mmd|.md|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
-                                                erDiagram) to YAML; .md: every mermaid block
+                                                erDiagram) to YAML; .md: every mermaid block;
+                                                Kubernetes manifests: all files in one diagram
   carto types                                   list diagram types
 
 Manual positions are read from <file>.layout.json next to the diagram.`;
@@ -124,6 +125,30 @@ async function importFile(file: string): Promise<boolean> {
   return ok;
 }
 
+/** Kubernetes manifests, all files merged into one diagram grouped by namespace. */
+async function importManifests(list: string[]): Promise<boolean> {
+  const base = list.length === 1 ? path.basename(list[0]!).replace(/\.(ya?ml|json)$/i, '') : 'kubernetes';
+  const toFile = values.out && values.out !== '-' ? (path.extname(values.out) ? values.out : path.join(values.out, `${base}.yaml`)) : undefined;
+  const title = path.basename(toFile ?? base).replace(/\.ya?ml$/i, '');
+  const text = list.map((f) => fs.readFileSync(f, 'utf8')).join('\n---\n');
+  const r = importKubernetes(text, title);
+  const where = list.length === 1 ? list[0]! : `${list.length} manifest files`;
+  for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+  if (!r.yaml) return false;
+  const check = await render(r.yaml, { fonts: 'none' });
+  report(`${where} (imported)`, check.diagnostics);
+  if (values.out === '-') return (process.stdout.write(r.yaml), true);
+  const out = toFile ?? path.join(path.dirname(list[0]!), `${base}.diagram.yaml`);
+  if (fs.existsSync(out) && !values.force) {
+    console.error(`${out} already exists, use --force to overwrite`);
+    return false;
+  }
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, r.yaml);
+  console.log(`${where} → ${out}`);
+  return !check.diagnostics.some((d) => d.severity === 'error');
+}
+
 async function main(): Promise<number> {
   if (values.help || !command) {
     console.log(help);
@@ -164,8 +189,10 @@ async function main(): Promise<number> {
     }
     case 'import': {
       if (!files.length) return (console.error(help), 1);
-      let ok = true;
-      for (const f of files) ok = (await importFile(f)) && ok;
+      // Manifests are read together: a platform is spread over many files, but it is one drawing.
+      const manifests = files.filter((f) => /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
+      let ok = manifests.length ? await importManifests(manifests) : true;
+      for (const f of files) if (!manifests.includes(f)) ok = (await importFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'render': {

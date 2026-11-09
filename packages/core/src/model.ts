@@ -36,6 +36,8 @@ export interface GraphNode {
   parent?: string;
   shape: CardShape | TableShape | MatrixShape;
   path: Path;
+  /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
+  folded?: boolean;
 }
 
 /** Icon tile + label + caption: resources, services, devices, principals. */

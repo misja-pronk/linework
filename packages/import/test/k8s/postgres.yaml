@@ -1,0 +1,75 @@
+# Postgres for the shop: a headless service and a StatefulSet with its own claim template.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: shop
+spec:
+  clusterIP: None
+  selector: { app: postgres }
+  ports: [{ port: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: shop
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.4
+          ports: [{ containerPort: 5432 }]
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: fast-ssd
+        resources: { requests: { storage: 50Gi } }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: shop
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: acme/pg-backup:2.0
+              envFrom: [{ secretRef: { name: db-credentials } }]
+              volumeMounts: [{ name: dumps, mountPath: /dumps }]
+          volumes:
+            - name: dumps
+              persistentVolumeClaim: { claimName: backups }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  namespace: shop
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 200Gi } }
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ssd
+provisioner: pd.csi.storage.gke.io
