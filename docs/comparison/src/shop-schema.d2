@@ -1,0 +1,50 @@
+title: Shop schema {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+customer: {
+  shape: sql_table
+  id: uuid {constraint: primary_key}
+  email: text {constraint: unique}
+  name: text
+  created_at: timestamptz
+}
+address: {
+  shape: sql_table
+  id: uuid {constraint: primary_key}
+  customer_id: uuid {constraint: foreign_key}
+  street: text
+  city: text
+  country: text
+}
+order: {
+  shape: sql_table
+  id: uuid {constraint: primary_key}
+  customer_id: uuid {constraint: foreign_key}
+  placed_at: timestamptz
+  total: numeric
+}
+order_line: {
+  shape: sql_table
+  order_id: uuid {constraint: [primary_key; foreign_key]}
+  product_id: uuid {constraint: [primary_key; foreign_key]}
+  quantity: int
+  price: numeric
+}
+product: {
+  shape: sql_table
+  id: uuid {constraint: primary_key}
+  category_id: uuid {constraint: foreign_key}
+  name: text
+  price: numeric
+}
+category: {
+  shape: sql_table
+  id: uuid {constraint: primary_key}
+  name: text
+}
+
+order.customer_id -> customer.id: places
+address.customer_id -> customer.id: ships to
+order_line.order_id -> order.id: contains
+order_line.product_id -> product.id: sold as
+product.category_id -> category.id: groups

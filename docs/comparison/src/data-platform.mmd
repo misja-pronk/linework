@@ -1,0 +1,38 @@
+---
+title: Analytics platform
+---
+flowchart TD
+    subgraph sources [Sources]
+        crm[Salesforce CRM]
+        shop[(Shop database)]
+        events[Clickstream events]
+    end
+
+    subgraph ingest [Ingestion]
+        cdc[Debezium CDC]
+        kafka[[Kafka topics]]
+        batch[Nightly batch job]
+    end
+
+    subgraph lake [Lakehouse]
+        raw[(Raw zone S3)]
+        dbt[dbt transformations]
+        wh[(Snowflake warehouse)]
+    end
+
+    subgraph serve [Serving]
+        bi[Looker dashboards]
+        ml[Churn model]
+        api[Metrics API]
+    end
+
+    shop --> cdc --> kafka
+    events --> kafka
+    crm --> batch
+    kafka --> raw
+    batch --> raw
+    raw --> dbt --> wh
+    wh --> bi
+    wh --> ml
+    wh --> api
+    ml -.->|scores| crm

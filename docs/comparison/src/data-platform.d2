@@ -1,0 +1,37 @@
+title: Analytics platform {near: top-center; shape: text; style.font-size: 24}
+direction: down
+
+sources: Sources {
+  crm: Salesforce CRM
+  shop: Shop database {shape: cylinder}
+  events: Clickstream events
+}
+
+ingest: Ingestion {
+  cdc: Debezium CDC
+  kafka: Kafka topics {shape: queue}
+  batch: Nightly batch job
+}
+
+lake: Lakehouse {
+  raw: Raw zone S3 {shape: cylinder}
+  dbt: dbt transformations
+  wh: Snowflake warehouse {shape: cylinder}
+}
+
+serve: Serving {
+  bi: Looker dashboards
+  ml: Churn model
+  api: Metrics API
+}
+
+sources.shop -> ingest.cdc -> ingest.kafka
+sources.events -> ingest.kafka
+sources.crm -> ingest.batch
+ingest.kafka -> lake.raw
+ingest.batch -> lake.raw
+lake.raw -> lake.dbt -> lake.wh
+lake.wh -> serve.bi
+lake.wh -> serve.ml
+lake.wh -> serve.api
+serve.ml -> sources.crm: scores {style.stroke-dash: 3}

@@ -1,0 +1,29 @@
+---
+title: Order platform
+---
+flowchart LR
+    customer((Customer)) --> web[Web shop]
+    customer --> app[Mobile app]
+    web --> gw{{API Gateway}}
+    app --> gw
+
+    subgraph platform [Kubernetes cluster]
+        gw --> orders[Order Service]
+        gw --> catalog[Catalog Service]
+        orders --> payments[Payment Service]
+        orders -.->|OrderPlaced| bus[[Kafka: order-events]]
+        bus -.-> shipping[Shipping worker]
+        bus -.-> notify[Notification worker]
+    end
+
+    subgraph data [Data stores]
+        ordersdb[(Orders DB)]
+        catalogdb[(Catalog DB)]
+        cache[(Redis cache)]
+    end
+
+    orders --> ordersdb
+    catalog --> catalogdb
+    catalog --> cache
+    payments == charge ==> stripe[Stripe]
+    notify --> mail[SendGrid email]

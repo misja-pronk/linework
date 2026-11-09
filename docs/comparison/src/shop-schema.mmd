@@ -1,0 +1,45 @@
+---
+title: Shop schema
+---
+erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--|{ ORDER_LINE : contains
+    PRODUCT ||--o{ ORDER_LINE : "sold as"
+    CATEGORY ||--o{ PRODUCT : groups
+    CUSTOMER ||--o{ ADDRESS : "ships to"
+
+    CUSTOMER {
+        uuid id PK
+        text email UK
+        text name
+        timestamptz created_at
+    }
+    ADDRESS {
+        uuid id PK
+        uuid customer_id FK
+        text street
+        text city
+        text country
+    }
+    ORDER {
+        uuid id PK
+        uuid customer_id FK
+        timestamptz placed_at
+        numeric total
+    }
+    ORDER_LINE {
+        uuid order_id PK, FK
+        uuid product_id PK, FK
+        int quantity
+        numeric price
+    }
+    PRODUCT {
+        uuid id PK
+        uuid category_id FK
+        text name
+        numeric price
+    }
+    CATEGORY {
+        uuid id PK
+        text name
+    }

@@ -1,0 +1,42 @@
+title: Order platform {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+customer: Customer {shape: person}
+web: Web shop
+app: Mobile app
+
+# Mermaid puts the gateway in the cluster too: it is mentioned inside the subgraph.
+platform: Kubernetes cluster {
+  gw: API Gateway {shape: hexagon}
+  orders: Order Service
+  catalog: Catalog Service
+  payments: Payment Service
+  bus: "Kafka: order-events" {shape: queue}
+  shipping: Shipping worker
+  notify: Notification worker
+}
+
+data: Data stores {
+  ordersdb: Orders DB {shape: cylinder}
+  catalogdb: Catalog DB {shape: cylinder}
+  cache: Redis cache {shape: cylinder}
+}
+
+stripe: Stripe
+mail: SendGrid email
+
+customer -> web
+customer -> app
+web -> platform.gw
+app -> platform.gw
+platform.gw -> platform.orders
+platform.gw -> platform.catalog
+platform.orders -> platform.payments
+platform.orders -> platform.bus: OrderPlaced {style.stroke-dash: 3}
+platform.bus -> platform.shipping {style.stroke-dash: 3}
+platform.bus -> platform.notify {style.stroke-dash: 3}
+platform.orders -> data.ordersdb
+platform.catalog -> data.catalogdb
+platform.catalog -> data.cache
+platform.payments -> stripe: charge {style.stroke-width: 3}
+platform.notify -> mail

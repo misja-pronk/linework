@@ -1,0 +1,24 @@
+title: Sign-in flow {near: top-center; shape: text; style.font-size: 24}
+direction: down
+
+start: User opens app {shape: oval}
+session: Valid session? {shape: diamond}
+home: Show home screen
+login: Login page
+idp: Redirect to identity provider
+mfa: MFA required? {shape: diamond}
+otp: Ask one-time code
+token: Issue tokens
+check: Code correct? {shape: diamond}
+
+start -> session
+session -> home: yes
+session -> login: no
+login -> idp
+idp -> mfa
+mfa -> otp: yes
+mfa -> token: no
+otp -> check
+check -> token: yes
+check -> otp: no, retry
+token -> home

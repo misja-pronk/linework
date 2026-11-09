@@ -1,0 +1,46 @@
+type: erd
+title: Shop schema
+
+tables:
+  customer:
+    columns:
+      id: uuid pk
+      email: text unique
+      name: text
+      created_at: timestamptz
+  order:
+    columns:
+      id: uuid pk
+      customer_id: uuid fk customer
+      placed_at: timestamptz
+      total: numeric
+  order_line:
+    columns:
+      order_id: uuid pk fk order
+      product_id: uuid pk fk product
+      quantity: int
+      price: numeric
+  product:
+    columns:
+      id: uuid pk
+      category_id: uuid fk category
+      name: text
+      price: numeric
+  category:
+    columns:
+      id: uuid pk
+      name: text
+  address:
+    columns:
+      id: uuid pk
+      customer_id: uuid fk customer
+      street: text
+      city: text
+      country: text
+
+relations:
+  - order.customer_id -> customer.id: places
+  - order_line.order_id -> order.id: contains
+  - order_line.product_id -> product.id: sold as
+  - product.category_id -> category.id: groups
+  - address.customer_id -> customer.id: ships to
