@@ -232,13 +232,25 @@ export function parseLinks(list: unknown): Link[] | undefined {
 
 /** Where a link goes in an exported SVG: diagrams become the SVG the CLI writes next to them. */
 export function linkHref(link: Link, self?: string): string | undefined {
-  if (link.kind === 'url') return link.target;
+  if (link.kind === 'url') return safeHref(link.target);
   const file = link.file || self;
   if (!file) return undefined;
   // Other files (an ADR, a runbook) are linked as they are.
-  if (!/\.ya?ml$/i.test(file)) return link.target;
+  if (!/\.ya?ml$/i.test(file)) return safeHref(link.target);
   const base = file.replace(/\.ya?ml$/i, '');
-  return link.view ? `${base}-${link.view}.svg` : `${base}.svg`;
+  return safeHref(link.view ? `${base}-${link.view}.svg` : `${base}.svg`);
+}
+
+/**
+ * A link that is safe to put in an href: http, https, mailto or a relative path. Diagrams may come
+ * from someone else (a docs site renders what is in the repo), so "javascript:" and friends are dropped,
+ * also when hidden behind the tabs, newlines and control characters a browser strips from a URL.
+ */
+export function safeHref(href: string): string | undefined {
+  const clean = href.replace(/[\t\n\r]/g, '').replace(/^[\u0000-\u0020]+/, '');
+  if (!clean) return undefined;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(clean)?.[1]?.toLowerCase();
+  return !scheme || scheme === 'http' || scheme === 'https' || scheme === 'mailto' ? clean : undefined;
 }
 
 // ---------------------------------------------------------------- schemas

@@ -32,6 +32,10 @@ CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) 
 
 AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude Code, Claude Desktop and other MCP clients write diagrams that are checked against the schema and scored for layout quality before you see them. See [docs/mcp.md](docs/mcp.md).
 
+## In your docs
+
+Keep the diagram as YAML next to the docs and let the site draw it. A remark plugin (Docusaurus, Astro, MDX) and a markdown-it plugin (VitePress, Eleventy) turn a fenced `cartography` block or `![Web shop](./shop.yaml)` into plain SVG while the site builds, a light and a dark one: no headless browser, no build server. `<carto-diagram src="shop.yaml">` draws in the reader's browser instead and adds zoom, pan and drill-down into linked diagrams; `carto embed shop.yaml` writes one HTML file with all of it. See [docs/embed.md](docs/embed.md) and the working sites in [examples/docs](examples/docs) (Docusaurus, VitePress, MkDocs, a plain page).
+
 ## Try it
 
 ```sh

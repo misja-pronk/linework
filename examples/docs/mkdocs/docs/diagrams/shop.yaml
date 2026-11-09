@@ -1,0 +1,10 @@
+type: systems
+title: Web shop
+subtitle: System context
+nodes:
+  customer: { kind: user, label: Customer }
+  shop: { kind: service, label: Web shop, description: Sells things, links: [containers.yaml] }
+  payments: { kind: payments, label: Payments, links: ['https://example.com/payments'] }
+edges:
+  - customer -> shop: Orders
+  - shop -> payments: Charges

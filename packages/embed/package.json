@@ -1,0 +1,29 @@
+{
+  "name": "@cartography/embed",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "<carto-diagram>: a Cartography diagram in any web page, with zoom, pan and drill-down",
+  "exports": {
+    ".": "./src/index.ts",
+    "./shared": "./src/shared.ts",
+    "./build": "./build.mjs"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "e2e": "node e2e/embed.mjs"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/engine": "workspace:*",
+    "@cartography/theme": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "esbuild": "^0.28.2"
+  }
+}

@@ -1,0 +1,117 @@
+// What the web component and the docs plugins share, and nothing that needs a browser or the engine:
+// where a link leads, the text alternative of a drawing, and the cleaning of an SVG before it goes
+// into someone's page. Diagrams in a docs site may be written by anyone with access to the repo, so
+// everything from the YAML is treated as untrusted here.
+import type { Diagnostic, Graph, Link } from '@cartography/core';
+
+export const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** http, https, mailto or a relative path; the same rule as `safeHref` in core, kept here so the loader stays small. */
+export function safeHref(href: string): string | undefined {
+  const clean = href.replace(/[\t\n\r]/g, '').replace(/^[\u0000- ]+/, '');
+  if (!clean) return undefined;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(clean)?.[1]?.toLowerCase();
+  return !scheme || scheme === 'http' || scheme === 'https' || scheme === 'mailto' ? clean : undefined;
+}
+
+export type LinkTarget =
+  /** A web address or a file that is not a diagram: the browser opens it. */
+  | { kind: 'url'; href: string; external: boolean }
+  /** Another view of the diagram that is open. */
+  | { kind: 'view'; view: string }
+  /** Another diagram, as written (relative to the open one), and maybe one of its views. */
+  | { kind: 'diagram'; file: string; view?: string }
+  | { kind: 'none' };
+
+/** Where a link on an element leads from inside an embedded diagram. */
+export function linkTarget(link: Link): LinkTarget {
+  if (link.kind === 'url') {
+    const href = safeHref(link.target);
+    return href ? { kind: 'url', href, external: true } : { kind: 'none' };
+  }
+  if (!link.file) return link.view ? { kind: 'view', view: link.view } : { kind: 'none' };
+  if (/\.ya?ml$/i.test(link.file)) return { kind: 'diagram', file: link.file, ...(link.view ? { view: link.view } : {}) };
+  const href = safeHref(link.target);
+  return href ? { kind: 'url', href, external: false } : { kind: 'none' };
+}
+
+export const linkText = (l: Link) => l.label ?? (l.kind === 'url' ? l.target.replace(/^https?:\/\//, '') : l.kind === 'view' && !l.file ? `${l.view} view` : l.target);
+
+export interface Description {
+  title?: string;
+  subtitle?: string;
+  elements: { id: string; label: string; detail?: string; in?: string; description?: string; links: Link[] }[];
+  relations: { from: string; to: string; label?: string }[];
+}
+
+/** The drawing in words: what is in it and what connects to what. Read by screen readers and by search. */
+export function describe(graph: Graph): Description {
+  const groups = new Map(graph.groups.map((g) => [g.id, g]));
+  const names = new Map<string, string>(graph.groups.map((g) => [g.id, g.label]));
+  const elements: Description['elements'] = [];
+  const relations: Description['relations'] = [];
+  for (const g of graph.groups) {
+    const parent = g.parent ? groups.get(g.parent)?.label : undefined;
+    elements.push({ id: g.id, label: g.label, detail: g.caption, ...(parent ? { in: parent } : {}), description: g.description, links: g.links ?? [] });
+  }
+  for (const n of graph.nodes) {
+    if (n.folded) continue;
+    const parent = n.parent ? groups.get(n.parent)?.label : undefined;
+    const s = n.shape;
+    if (s.kind === 'sequence') {
+      // A sequence diagram is one shape: its participants are the elements, its messages the relations.
+      for (const p of s.participants) {
+        names.set(p.id, p.label);
+        elements.push({ id: p.id, label: p.label, detail: p.caption, links: [] });
+      }
+      for (const e of s.events) if (e.kind === 'message') relations.push({ from: e.from, to: e.to, label: e.label });
+      continue;
+    }
+    const label = s.kind === 'card' ? s.label : s.kind === 'table' ? s.title : (s.corner ?? n.id);
+    const detail =
+      s.kind === 'card'
+        ? s.caption
+        : s.kind === 'table'
+          ? [s.caption, `${s.rows.filter((r) => r.kind === 'row').length} rows`].filter(Boolean).join(', ')
+          : `table of ${s.rows.length} by ${s.columns.length}`;
+    names.set(n.id, label);
+    elements.push({ id: n.id, label, detail, ...(parent ? { in: parent } : {}), description: n.description, links: n.links ?? [] });
+  }
+  for (const e of graph.edges) relations.push({ from: e.from.node, to: e.to.node, label: e.label });
+  return {
+    title: graph.title,
+    subtitle: graph.subtitle,
+    elements,
+    relations: relations.map((r) => ({ from: names.get(r.from) ?? r.from, to: names.get(r.to) ?? r.to, ...(r.label ? { label: r.label } : {}) })),
+  };
+}
+
+/** "diagram.yaml:12:5: message", the way compilers say it. */
+export function diagnosticText(d: Diagnostic, file?: string): string {
+  const where = [file, d.line, d.line ? d.column : undefined].filter((x) => x != null && x !== '').join(':');
+  return where ? `${where}: ${d.message}` : d.message;
+}
+
+// ---------------------------------------------------------------- SVG cleaning
+
+/** What our renderer draws with. Anything else in an SVG does not belong there and is dropped. */
+export const SVG_ELEMENTS = new Set([
+  'svg', 'g', 'defs', 'title', 'desc', 'a', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'image', 'filter', 'feDropShadow',
+  'clipPath', 'mask', 'linearGradient', 'radialGradient', 'stop', 'marker', 'use', 'symbol', 'pattern', 'style',
+]); // prettier-ignore
+
+/**
+ * Whether an attribute may stay on an element: no event handlers, links only to safe places, images
+ * only as data: pictures or safe paths, `use` only within the drawing.
+ */
+export function safeAttribute(element: string, name: string, value: string): boolean {
+  const n = name.toLowerCase();
+  if (n.startsWith('on')) return false;
+  if (n === 'href' || n === 'xlink:href') {
+    if (element === 'a') return safeHref(value) === value;
+    if (element === 'image') return /^data:image\/(png|jpeg|gif|webp|svg\+xml)[;,]/i.test(value) || safeHref(value) === value;
+    return value.startsWith('#');
+  }
+  if (n === 'style') return !/url\s*\(|expression\s*\(|@import/i.test(value);
+  return true;
+}
