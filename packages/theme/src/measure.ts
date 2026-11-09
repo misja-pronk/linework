@@ -2,7 +2,8 @@
 // measure exactly the same and the CLI output equals the web output (requirement E2).
 // Each bundled family is measured by its own advance widths; a brand font that brings its own
 // files is measured as Inter times its width ratio.
-import { bundledFont, MONO_ADVANCE, type BundledFont } from './fonts.ts';
+import { bundledFont, loadFonts, MONO_ADVANCE, type BundledFont } from './fonts.ts';
+import type { Theme } from './tokens.ts';
 
 export type Weight = 400 | 500 | 600;
 /** Which of the theme's two faces a text is set in. */
@@ -33,6 +34,16 @@ export function withTextFonts<T>(fonts: TextFonts | undefined, fn: () => T): T {
   } finally {
     [sans, mono, textScale] = before;
   }
+}
+
+/** The faces a theme's text is measured in; `scale` is the width of a brand font when the theme does not say. */
+export const themeTextFonts = (theme: Theme, scale?: number): TextFonts => ({ sans: theme.font.sans, mono: theme.font.monoFace, scale: theme.font.scale ?? scale });
+
+/** Measures and draws in the theme's own faces, loading the optional bundled ones first. Every export wraps its drawing in this. */
+export async function inThemeFonts<T>(theme: Theme, fn: () => T): Promise<T> {
+  const fonts = themeTextFonts(theme);
+  await loadFonts([fonts.sans, fonts.mono]);
+  return withTextFonts(fonts, fn);
 }
 
 /** Inter times a width ratio: how a brand font was measured before each face had its own table. */

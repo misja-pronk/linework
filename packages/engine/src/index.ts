@@ -21,7 +21,7 @@ import {
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
-import { loadFonts, resolveTheme, themes, withTextFonts, type FontFace, type TextFonts, type Theme } from '@cartography/theme';
+import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconPackFile } from './icons.ts';
 import { c4, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
@@ -171,7 +171,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const theme = pickTheme(opts, themeRef, source, diagnostics);
   // Text is measured in the theme's own faces: a bundled family by its advance widths, a brand font as Inter times its width.
   const brandFaces = theme.font.faces?.filter((f) => !f.mono);
-  const fonts: TextFonts = { sans: theme.font.sans, mono: theme.font.monoFace, scale: theme.font.scale ?? (brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined) };
+  const fonts = themeTextFonts(theme, brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined);
   await loadFonts([fonts.sans, fonts.mono]);
   // Cards are sized with their badge chips; layout and routing never see the badged edges.
   const measured = withTextFonts(fonts, () => size(graph, theme));

@@ -4,3 +4,6 @@ export * from './matrix.ts';
 export * from './sequence.ts';
 export * from './gitflow.ts';
 export * from './roadmap.ts';
+export { groundOf, groupDepths, type Ground } from './ground.ts';
+export { keyLayout, LEGEND } from './legend.ts';
+export { cardStroke, labelInk, labelString, tagRadius } from './paint.ts';

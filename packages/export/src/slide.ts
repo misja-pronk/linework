@@ -1,10 +1,10 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type TableShape } from '@cartography/core';
-import { besideShortLine, byDepth, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, rowMarks, split, tableHeader, toOutline } from '@cartography/render';
-import { fitText, measureText, type Theme, type Weight } from '@cartography/theme';
-import { connector, group, picture, shape, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
+import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type TableShape } from '@cartography/core';
+import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, groundOf, groupIconRoom, keyLayout, labelInk, labelString, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, rowMarks, split, STACK, tableHeader, tagRadius, toOutline, type Ground } from '@cartography/render';
+import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
+import { connector, group, picture, shape, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 /** EMU per CSS pixel at 96 dpi. */
 export const PX = 9525;
@@ -29,30 +29,55 @@ interface Item {
   box: Frame;
 }
 
-/** Content size in layout px: the drawing plus the legend row under it. */
-export function contentSize(graph: Graph, placed: Placed, theme: Theme) {
-  const legend = graph.legend?.length ? 40 : 0;
-  return { width: Math.max(placed.width, legendWidth(graph, theme)), height: placed.height + legend };
+/** The deck's two typefaces: text, and the theme's monospace face for the text it sets in it. */
+export interface SlideFonts {
+  sans: string;
+  mono: string;
 }
 
-export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, font: string, icons: IconSink, ids: () => number): string {
-  return new SlideDrawing(graph, placed, theme, at, font, icons, ids).draw();
+/** How a text is set, besides size, weight and colour. */
+interface Style {
+  mono?: boolean;
+  /** Letter-spacing in layout px. */
+  tracking?: number;
+}
+
+/** The legend under the drawing: one row of samples, or the KEY of a paper look, wrapped to the drawing's width. */
+function legendLayout(graph: Graph, placed: Placed, theme: Theme) {
+  const items = graph.legend ?? [];
+  if (!items.length) return { key: false, rows: [] as { item: LegendItem; x: number }[][], width: 0, height: 0 };
+  if (look(theme).legend !== 'key') return { key: false, rows: [legendItems(graph, theme).map(({ item, x }) => ({ item, x }))], width: legendWidth(graph, theme), height: 40 };
+  const lay = keyLayout(items, theme, placed.width);
+  return { key: true, rows: lay.rows, width: Math.max(...lay.ends), height: 54 + (lay.rows.length - 1) * LEGEND.ROW };
+}
+
+/** Content size in layout px: the drawing plus the legend under it. */
+export function contentSize(graph: Graph, placed: Placed, theme: Theme) {
+  const legend = legendLayout(graph, placed, theme);
+  return { width: Math.max(placed.width, legend.width), height: placed.height + legend.height };
+}
+
+export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, fonts: SlideFonts, icons: IconSink, ids: () => number): string {
+  return new SlideDrawing(graph, placed, theme, at, fonts, icons, ids).draw();
 }
 
 class SlideDrawing {
   private frameIds = new Map<string, number>();
   private chipsByNode: Map<string, Chip[]>;
+  /** What lies under a point: the depth tint of the group there, or the page. */
+  private ground: Ground;
 
   constructor(
     private graph: Graph,
     private placed: Placed,
     private theme: Theme,
     private at: Placement,
-    private font: string,
+    private fonts: SlideFonts,
     private icons: IconSink,
     private next: () => number,
   ) {
     this.chipsByNode = chips(graph);
+    this.ground = groundOf(graph, placed, theme);
   }
 
   private X = (px: number) => this.at.x + px * this.at.k;
@@ -70,24 +95,54 @@ class SlideDrawing {
   }
 
   private sp(s: Omit<ShapeSpec, 'id'> & { id?: number }): Item {
-    return { xml: shape({ ...s, id: s.id ?? this.next() }, this.font), box: s.frame };
+    return { xml: shape({ ...s, id: s.id ?? this.next() }, this.fonts.sans), box: s.frame };
   }
 
-  private run(text: string, size: number, weight: Weight, color: string): Run {
-    return { text, size: this.pt(size), bold: weight >= 600, color };
+  private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
+    return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
 
+  /** Nothing on a theme without shadows, so flat looks stay flat on the slide too. */
   private shadow() {
-    return { color: this.theme.shadow.color, alpha: Math.min(0.3, this.theme.shadow.opacity * 1.6), blur: this.L(8), dist: this.L(2) };
+    const s = this.theme.shadow;
+    return s.opacity > 0 ? { color: s.color, alpha: Math.min(0.3, s.opacity * 1.6), blur: this.L(8), dist: this.L(2) } : undefined;
   }
 
   /** One line of text, vertically centred on cy, anchored like SVG text-anchor. */
-  private text(x: number, cy: number, s: string, size: number, weight: Weight, color: string, anchor: 'start' | 'middle' | 'end' = 'start', name = 'Text'): Item {
-    const w = measureText(s, size, weight) * 1.12 + 6;
+  private text(x: number, cy: number, s: string, size: number, weight: Weight, color: string, anchor: 'start' | 'middle' | 'end' = 'start', name = 'Text', style: Style = {}): Item {
+    const w = measureText(s, size, weight, style.mono ? 'mono' : 'sans', style.tracking ?? 0) * 1.12 + 6;
     const h = size * 1.6;
     const x0 = anchor === 'start' ? x : anchor === 'middle' ? x - w / 2 : x - w;
     const align = anchor === 'start' ? 'l' : anchor === 'middle' ? 'ctr' : 'r';
-    return this.sp({ name, frame: this.frame(x0, cy - h / 2, w, h), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras: [{ align, runs: [this.run(s, size, weight, color)] }] } });
+    return this.sp({ name, frame: this.frame(x0, cy - h / 2, w, h), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras: [{ align, runs: [this.run(s, size, weight, color, style)] }] } });
+  }
+
+  /**
+   * An icon in its slot, in the theme's tile style (the shapes of render's iconTile): on a soft tint,
+   * a solid tone or an outlined square; bare; or on a filled roundel or in a ring.
+   */
+  private tile(x: number, y: number, slot: number, tone: ToneColors, name: string | undefined, o: { round?: boolean; muted?: boolean; rx?: number; iconSize?: number } = {}): (Item | undefined)[] {
+    if (!name) return [];
+    const t = this.theme;
+    const lk = look(t);
+    const style = lk.tile;
+    const size = o.iconSize ?? Math.round((lk.iconSize * slot) / 34);
+    const at = (color: string) => this.icon(name, x + (slot - size) / 2, y + (slot - size) / 2, size, color, t.stroke.icon);
+    if (style === 'bare') return [at(tone.fg)];
+    const circle = o.round || style === 'disc' || style === 'ring';
+    const geom: Geometry = circle ? { prst: 'ellipse' } : this.roundRect({ x: 0, y: 0, width: slot, height: slot }, o.rx ?? t.radius.tile);
+    const back = (fill: string, line?: Line) => this.sp({ name: 'Tile', frame: this.frame(x, y, slot, slot), geom, fill: { color: fill }, line: line ?? null });
+    if (style === 'disc' && !o.muted) return [back(tone.fg), at(t.surface)];
+    if (style === 'disc' || style === 'ring') return [back(t.surface, { color: tone.fg, width: this.L(1.5) }), at(tone.fg)];
+    if (style === 'outline') return [back(t.surface, { color: tone.line, width: this.L(1) }), at(tone.fg)];
+    const solid = style === 'solid' && !o.muted;
+    return [back(o.muted ? t.surface : solid ? tone.fg : tone.bg), at(solid ? t.surface : tone.fg)];
+  }
+
+  /** A chip or tag: filled with the tone's tint, or outlined where the theme's chips are. */
+  private chipLook(tone: ToneColors): { fill: Fill; line: Line | null } {
+    const t = this.theme;
+    return look(t).chip === 'outline' ? { fill: { color: t.surface }, line: { color: mix(tone.fg, t.surface, 0.45), width: this.L(1) } } : { fill: { color: tone.bg }, line: null };
   }
 
   private icon(name: string | undefined, x: number, y: number, size: number, color: string, stroke: number): Item | undefined {
@@ -135,9 +190,9 @@ class SlideDrawing {
     }
     for (const e of edges) {
       const pe = placed.edges.get(e.id)!;
-      if (e.label && pe.label) out.push(this.edgeLabel(e.label, besideShortLine(pe.points, pe.label)).xml);
+      if (e.label && pe.label) out.push(this.edgeLabel(e, e.label, besideShortLine(pe.points, pe.label, placed)).xml);
     }
-    if (graph.legend?.length) out.push(this.drawLegend(placed.height + 26).xml);
+    if (graph.legend?.length) out.push(this.drawLegend(placed.height).xml);
     return out.join('');
   }
 
@@ -145,24 +200,31 @@ class SlideDrawing {
 
   private drawGroup(g: GraphGroup, b: Box): Item {
     const t = this.theme;
+    const lk = look(t).group;
     const tone = t.tones[g.tone];
-    const label = fitText(g.label, t.size.group, 600, b.width - 56);
-    const runs = [this.run(label, t.size.group, 600, t.text)];
-    const room = b.width - 56 - measureText(label, t.size.group, 600) - 8;
-    if (g.caption && measureText(g.caption, t.size.caption, 400) <= room) runs.push(this.run(`  ${g.caption}`, t.size.caption, 400, t.textFaint));
+    // As drawn in the SVG: capitals with tracking where the theme asks, the depth tint as fill, one contour colour.
+    const lab = groupLabel(t, g.label);
+    const iconRoom = groupIconRoom(t);
+    const max = b.width - 32 - iconRoom;
+    const label = fitText(lab.text, lab.size, 600, max, 'sans', lab.tracking);
+    const runs = [this.run(label, lab.size, 600, groupLabelInk(t, tone), { tracking: lab.tracking })];
+    const room = max - measureText(label, lab.size, 600, 'sans', lab.tracking) - 8;
+    if (g.caption && measureText(g.caption, t.size.caption, 400) <= room) runs.push(this.run(`  ${g.caption}`, t.size.caption, 400, groupCaptionInk(t)));
+    // Where a theme draws no outline, a dashed boundary still gets one.
+    const outline = groupLine(t, tone) ?? (g.border === 'dashed' ? t.border : undefined);
     // The label sits in the frame's own text, so renaming the group in PowerPoint is a double-click.
-    const lineH = t.size.group * 1.21;
+    const lineH = lab.size * 1.21;
     const frame = this.sp({
       id: this.idFor(`group:${g.id}`),
       name: `Group: ${g.label}`,
       descr: [g.label, g.caption].filter(Boolean).join(' — '),
       frame: this.frame(b.x, b.y, b.width, b.height),
       geom: this.roundRect(b, t.radius.group),
-      fill: { color: tone.wash },
-      line: { color: tone.line, width: this.L(t.stroke.group), dash: g.border === 'dashed' ? 'dashed' : 'solid' },
-      text: { anchor: 't', inset: { l: this.L(40), t: this.L(22 - lineH / 2), r: this.L(16) }, paras: [{ runs }] },
+      fill: { color: this.ground.fill(g) },
+      line: outline ? { color: outline, width: this.L(t.stroke.group), dash: g.border === 'dashed' ? 'dashed' : 'solid' } : null,
+      text: { anchor: 't', inset: { l: this.L(16 + iconRoom), t: this.L(22 - lineH / 2), r: this.L(16) }, paras: [{ runs }] },
     });
-    return this.group(`Group: ${g.label}`, [frame, this.icon(g.icon, b.x + 16, b.y + 14, 16, tone.fg, 1.75)]);
+    return this.group(`Group: ${g.label}`, [frame, lk.icon ? this.icon(g.icon, b.x + 16, b.y + 22 - lk.icon / 2, lk.icon, tone.fg, 1.75) : undefined]);
   }
 
   private drawCard(n: GraphNode, s: CardShape, b: Box): Item {
@@ -170,36 +232,51 @@ class SlideDrawing {
     const c = t.space.card;
     const tone = t.tones[s.tone];
     const badges = this.chipsByNode.get(n.id) ?? [];
-    const top = badges.length ? c.height : b.height;
+    const items: (Item | undefined)[] = [];
+    // A stacked pair: the second card peeks out below and to the right.
+    if (s.stack) {
+      const back = { x: b.x + STACK, y: b.y + STACK, width: b.width - STACK, height: b.height - STACK };
+      items.push(this.sp({ name: 'Second of a pair', frame: this.frame(back.x, back.y, back.width, back.height), geom: this.roundRect(back, t.radius.card), fill: { color: t.surface }, line: { color: t.textFaint, alpha: 0.45, width: this.L(t.stroke.card) }, shadow: this.shadow() }));
+      b = { ...b, width: b.width - STACK, height: b.height - STACK };
+    }
+    const body = s.body && !badges.length ? bodyLines(s.body, b.width, t) : [];
+    const top = badges.length || body.length ? c.height : b.height;
+    const muted = !!s.muted;
     const inset = cardInsets(s, t);
     const centred = inset.centred && !badges.length;
     const room = b.width - inset.left - inset.right;
     const caption = cardCaption(s);
     const cy = b.y + top / 2;
-    const paras: Para[] = [{ align: centred ? 'ctr' : 'l', runs: [this.run(fitText(s.label, t.size.label, 600, room), t.size.label, 600, t.text)] }];
+    const paras: Para[] = [{ align: centred ? 'ctr' : 'l', runs: [this.run(fitText(s.label, t.size.label, 600, room), t.size.label, 600, muted ? t.textMuted : t.text)] }];
     // Label and caption centres sit 17.5 px apart in the SVG; 100% line spacing gives ~15, add the rest above.
-    if (caption) paras.push({ align: centred ? 'ctr' : 'l', before: this.pt(2.4), runs: [this.run(fitText(caption, t.size.caption, 400, room), t.size.caption, 400, t.textMuted)] });
+    if (caption) paras.push({ align: centred ? 'ctr' : 'l', before: this.pt(2.4), runs: [this.run(fitText(caption, t.size.caption, 400, room), t.size.caption, 400, muted ? t.textFaint : t.textMuted)] });
     const text: TextBody = { anchor: 'ctr', inset: { l: this.L(inset.left), r: this.L(inset.right), b: this.L(b.height - top) }, paras };
-    const items: (Item | undefined)[] = [];
-    const base = { id: this.idFor(`node:${n.id}`), name: s.label, descr: [s.label, caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), fill: { color: t.surface }, shadow: this.shadow(), text };
+    // Out of scope (an external system): a flat grey card, so what is in scope stands out.
+    const base = { id: this.idFor(`node:${n.id}`), name: s.label, descr: [s.label, caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), fill: { color: muted ? t.tones.slate.bg : t.surface }, shadow: muted ? undefined : this.shadow(), text };
     if (s.form === 'decision') {
       items.push(this.sp({ ...base, geom: this.decisionPath(b), line: { color: tone.fg, alpha: 0.45, width: this.L(t.stroke.card + 0.2) } }));
-      const tcx = b.x + DECISION_TIP + 23;
-      const side = 26;
-      items.push(this.sp({ name: 'Tile', frame: this.frame(tcx - side / 2, cy - side / 2, side, side, 45), geom: this.roundRect({ x: 0, y: 0, width: side, height: side }, 6), fill: { color: tone.bg }, line: null }));
-      items.push(this.icon(s.icon, tcx - 8, cy - 8, 16, tone.fg, t.stroke.icon));
+      items.push(...this.diamond(tone, b.x + DECISION_TIP + 23, cy, s.icon));
     } else {
       const pill = s.form === 'terminal';
-      items.push(this.sp({ ...base, geom: pill ? { prst: 'roundRect', adj: { adj: 50000 } } : this.roundRect(b, t.radius.card), line: { color: t.border, width: this.L(t.stroke.card) } }));
-      if (s.icon) {
-        const tileY = b.y + (top - c.tile) / 2;
-        const tile = { x: b.x + c.padX, y: tileY, width: c.tile, height: c.tile };
-        items.push(this.sp({ name: 'Tile', frame: this.frame(tile.x, tile.y, c.tile, c.tile), geom: pill ? { prst: 'ellipse' } : this.roundRect(tile, t.radius.tile), fill: { color: tone.bg }, line: null }));
-        items.push(this.icon(s.icon, tile.x + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, tone.fg, t.stroke.icon));
-      }
+      items.push(this.sp({ ...base, geom: pill ? { prst: 'roundRect', adj: { adj: 50000 } } : this.roundRect(b, t.radius.card), line: { color: muted ? t.tones.slate.line : cardStroke(t, tone), width: this.L(t.stroke.card) } }));
+      items.push(...this.tile(b.x + c.padX, b.y + (top - c.tile) / 2, c.tile, tone, s.icon, { round: pill || s.form === 'person', muted }));
     }
+    for (const [i, line] of body.entries()) items.push(this.text(b.x + c.padX + 1, b.y + c.height + BODY.top + BODY.line * (i + 0.5), line, t.size.caption, 400, muted ? t.textFaint : t.textMuted, 'start', 'Description'));
     for (const p of chipRows(badges, room, t).placed) items.push(this.chip(p.chip, b.x + inset.left + p.x, b.y + CHIP.top + p.y, p.width));
     return this.group(`Card: ${s.label}`, items);
+  }
+
+  /** The tile of a decision: a square on its point, in the theme's tile style. */
+  private diamond(tone: ToneColors, cx: number, cy: number, name: string | undefined): (Item | undefined)[] {
+    const t = this.theme;
+    const style = look(t).tile;
+    const side = 26;
+    const box = (fill: string, line?: Line) => this.sp({ name: 'Tile', frame: this.frame(cx - side / 2, cy - side / 2, side, side, 45), geom: this.roundRect({ x: 0, y: 0, width: side, height: side }, Math.min(6, t.radius.tile)), fill: { color: fill }, line: line ?? null });
+    const at = (color: string) => this.icon(name, cx - 8, cy - 8, 16, color, t.stroke.icon);
+    if (style === 'solid' || style === 'disc') return [box(tone.fg), at(t.surface)];
+    if (style === 'soft') return [box(tone.bg), at(tone.fg)];
+    // Bare, ring and outline tiles: the diamond is a thin line around the icon.
+    return [box(t.surface, style === 'outline' ? { color: tone.line, width: this.L(1.2) } : { color: tone.fg, alpha: 0.55, width: this.L(1.2) }), at(tone.fg)];
   }
 
   /** The decision outline: pointed ends with rounded corners, sites placed like a rectangle's. */
@@ -220,16 +297,16 @@ class SlideDrawing {
     const t = this.theme;
     const tone = t.tones[ch.tone ?? 'slate'];
     const ix = ch.icon && this.icons(ch.icon, tone.fg, CHIP.icon, 1.6) ? CHIP.icon + CHIP.iconGap : 0;
-    const label = fitText(ch.label, t.size.edgeLabel, 500, w - 2 * CHIP.padX - ix);
+    const size = chipText(t);
+    const label = fitText(ch.label, size, 500, w - 2 * CHIP.padX - ix);
     const box = { x, y, width: w, height: CHIP.height };
     const frame = this.sp({
       name: `Badge: ${ch.label}`,
       descr: ch.title,
       frame: this.frame(x, y, w, CHIP.height),
       geom: this.roundRect(box, t.radius.chip),
-      fill: { color: tone.bg },
-      line: null,
-      text: { anchor: 'ctr', inset: { l: this.L(CHIP.padX + ix) }, paras: [{ runs: [this.run(label, t.size.edgeLabel, 500, tone.fg)] }] },
+      ...this.chipLook(tone),
+      text: { anchor: 'ctr', inset: { l: this.L(CHIP.padX + ix) }, paras: [{ runs: [this.run(label, size, 500, tone.fg)] }] },
     });
     return this.group(`Badge: ${ch.label}`, [frame, ix ? this.icon(ch.icon, x + CHIP.padX, y + (CHIP.height - CHIP.icon) / 2, CHIP.icon, tone.fg, 1.6) : undefined]);
   }
@@ -249,6 +326,10 @@ class SlideDrawing {
     const ts = t.space.table;
     const tone = t.tones[s.tone];
     const head = tableHeader(s, t);
+    const lk = look(t);
+    // The header in the tone, in paper with the contour under it, or left plain.
+    const headFill = lk.tableHead === 'tone' ? tone.bg : lk.tableHead === 'paper' ? (paperTint(t, 1) ?? tone.bg) : undefined;
+    const rule = lk.tableHead === 'paper' ? (groupLine(t, tone) ?? t.border) : t.border;
     const items: (Item | undefined)[] = [];
     items.push(this.sp({ id: this.idFor(`node:${n.id}`), name: s.title, descr: [s.title, s.caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), geom: this.roundRect(b, t.radius.card), fill: { color: t.surface }, line: { color: t.border, width: this.L(t.stroke.card) }, shadow: this.shadow() }));
     const titleY = s.caption ? head / 2 - 7 : head / 2;
@@ -257,14 +338,14 @@ class SlideDrawing {
       this.sp({
         name: 'Header',
         frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, head - 0.5),
-        geom: { prst: 'round2SameRect', adj: { adj1: (r / Math.min(b.width - 1, head - 0.5)) * 100000, adj2: 0 } },
-        fill: { color: tone.bg },
+        geom: { prst: 'round2SameRect', adj: { adj1: (Math.max(0, r) / Math.min(b.width - 1, head - 0.5)) * 100000, adj2: 0 } },
+        fill: headFill ? { color: headFill } : null,
         line: null,
         // Centre the title on titleY: trim the bottom of the text area by twice the offset.
         text: { anchor: 'ctr', inset: { l: this.L(ts.padX + 24 - 0.5), b: this.L(Math.max(0, head - 2 * titleY)) }, paras: [{ runs: [this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text)] }] },
       }),
     );
-    items.push(this.hline(b.x, b.x + b.width, b.y + head, t.border));
+    items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
     items.push(this.icon(s.icon, b.x + ts.padX, b.y + titleY - 8, 16, tone.fg, 1.75));
     if (s.caption) items.push(this.text(b.x + ts.padX, b.y + titleY + 17, fitText(s.caption, t.size.caption, 400, b.width - 2 * ts.padX), t.size.caption, 400, t.textMuted));
     let y = b.y + head;
@@ -292,7 +373,8 @@ class SlideDrawing {
           text: { anchor: 'ctr', inset: { l: this.L(ts.padX + marks), r: this.L(ts.padX) }, paras: [{ runs: [this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text)] }] },
         }),
       );
-      if (type?.text) items.push(this.text(b.x + b.width - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
+      // The type column is set in the monospace face where the theme asks, a step smaller.
+      if (type?.text) items.push(lk.mono.type ? this.text(b.x + b.width - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(b.x + b.width - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
       y += ts.row;
     }
     return this.group(`Table: ${s.title}`, items);
@@ -304,8 +386,12 @@ class SlideDrawing {
     const g = matrixGeometry(m, t);
     const tone = (x?: MatrixShape['rows'][number]['tone']) => t.tones[x ?? 'slate'];
     const items: (Item | undefined)[] = [];
-    items.push(this.sp({ id: this.idFor(`node:${n.id}`), name: m.corner ?? 'Matrix', frame: this.frame(b.x, b.y, b.width, b.height), geom: this.roundRect(b, t.radius.card), fill: { color: t.surface }, line: { color: t.border, width: this.L(1) }, shadow: this.shadow() }));
-    items.push(this.hline(b.x, b.x + b.width, b.y + HEAD, t.border));
+    items.push(this.sp({ id: this.idFor(`node:${n.id}`), name: m.corner ?? 'Matrix', frame: this.frame(b.x, b.y, b.width, b.height), geom: this.roundRect(b, t.radius.card), fill: { color: t.surface }, line: { color: t.border, width: this.L(t.stroke.card) }, shadow: this.shadow() }));
+    // Header band: on a paper look it lies on the paper tint, with the contour under it, like a table's header.
+    const paper = look(t).tableHead === 'paper' ? paperTint(t, 0) : undefined;
+    const pr = Math.max(0, t.radius.card - 0.5);
+    if (paper) items.push(this.sp({ name: 'Header', frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5), geom: { prst: 'round2SameRect', adj: { adj1: (pr / Math.min(b.width - 1, HEAD - 0.5)) * 100000, adj2: 0 } }, fill: { color: paper }, line: null }));
+    items.push(this.hline(b.x, b.x + b.width, b.y + HEAD, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
     if (m.corner) items.push(this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
@@ -314,7 +400,8 @@ class SlideDrawing {
       const iconW = col.icon ? COL_ICON : 0;
       const label = fitText(col.label, t.size.cell, 600, w - 2 * PAD - iconW);
       const labelW = Math.min(w - 2 * PAD - iconW, measureText(col.label, t.size.cell, 600));
-      const start = cx - (labelW + iconW) / 2;
+      // A plain table reads like a spreadsheet: everything flush left.
+      const start = m.plain ? x + PAD : cx - (labelW + iconW) / 2;
       const cy = col.caption ? b.y + HEAD / 2 - 7 : b.y + HEAD / 2;
       items.push(this.icon(col.icon, start, cy - 7, 14, tone(col.tone).fg, 1.75));
       items.push(this.text(start + iconW, cy, label, t.size.cell, 600, t.text));
@@ -325,12 +412,13 @@ class SlideDrawing {
     let y = b.y + HEAD;
     for (const [i, row] of m.rows.entries()) {
       const cy = y + g.rowHeight / 2;
-      if (i > 0) items.push(this.hline(b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
+      // A row without a label continues the one above: the rule skips its header.
+      if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
       const rt = tone(row.tone);
       let tx = b.x + PAD;
       if (row.icon) {
-        items.push(this.sp({ name: 'Tile', frame: this.frame(tx, cy - 11, 22, 22), geom: this.roundRect({ x: 0, y: 0, width: 22, height: 22 }, 6), fill: { color: rt.bg }, line: null }));
-        items.push(this.icon(row.icon, tx + 4, cy - 7, 14, rt.fg, 1.75));
+        const style = look(t).tile;
+        items.push(...this.tile(tx, cy - 11, 22, rt, row.icon, { rx: Math.min(6, t.radius.tile), iconSize: style === 'bare' ? 17 : style === 'disc' || style === 'ring' ? 12 : 14 }));
         tx += ROW_ICON;
       }
       const room = g.rowHeader - (tx - b.x) - PAD;
@@ -341,7 +429,9 @@ class SlideDrawing {
       let cx = b.x + g.rowHeader;
       for (const [j] of m.columns.entries()) {
         const w = g.columns[j]!;
-        items.push(...this.cell(m.cells[i]?.[j], cx + w / 2, cy, w - 2 * PAD));
+        const c = m.cells[i]?.[j];
+        if (m.plain) items.push(this.text(cx + PAD, cy, fitText(c?.text ?? '–', t.size.cell, c?.strong ? 600 : 400, w - 2 * PAD), t.size.cell, c?.strong ? 600 : 400, c?.text ? t.text : t.textFaint));
+        else items.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD));
         cx += w;
       }
       y += g.rowHeight;
@@ -362,16 +452,17 @@ class SlideDrawing {
       out.push(this.sp({ name: c.inherited ? 'Inherited' : 'Granted', frame: this.frame(cx - r, py - r, CHECK, CHECK), geom: { prst: 'ellipse' }, fill: { color: c.inherited ? t.surface : tone.fg }, line: c.inherited ? outline : null }));
       out.push(this.icon('check', cx - 6, py - 6, 12, c.inherited ? tone.fg : t.surface, 2.4));
     } else if (c.text) {
-      const label = fitText(c.text, t.size.edgeLabel, 500, room - 2 * PILL_X);
-      const w = measureText(label, t.size.edgeLabel, 500) + 2 * PILL_X;
+      const size = chipText(t);
+      const label = fitText(c.text, size, 500, room - 2 * PILL_X);
+      const w = measureText(label, size, 500) + 2 * PILL_X;
+      // Direct: a filled tag (outlined where the theme's chips are). Inherited: always a dashed outline.
       out.push(
         this.sp({
           name: `Cell: ${c.text}`,
           frame: this.frame(cx - w / 2, py - PILL_H / 2, w, PILL_H),
-          geom: { prst: 'roundRect', adj: { adj: 50000 } },
-          fill: { color: c.inherited ? t.surface : tone.bg },
-          line: c.inherited ? outline : null,
-          text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(label, t.size.edgeLabel, 500, tone.fg)] }] },
+          geom: this.roundRect({ x: 0, y: 0, width: w, height: PILL_H }, tagRadius(t, PILL_H)),
+          ...(c.inherited ? { fill: { color: t.surface }, line: outline } : this.chipLook(tone)),
+          text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(label, size, 500, tone.fg)] }] },
         }),
       );
     }
@@ -382,13 +473,16 @@ class SlideDrawing {
   // ------------------------------------------------------------ lines
 
   private edgeLine(e: GraphEdge): Line {
+    // The theme's arrowhead: filled, slim, or two open strokes.
+    const style = look(this.theme).line.arrow;
+    const arrow: End = style === 'open' ? 'open' : style === 'slim' ? 'slim' : 'triangle';
     return {
       color: e.tone ? this.theme.tones[e.tone].fg : this.theme.edge,
       alpha: e.tone ? 0.9 : undefined,
-      width: this.L(this.theme.stroke.edge),
+      width: this.L(this.theme.stroke.edge * (e.width ?? 1)),
       dash: e.line,
-      head: e.start === 'arrow' ? 'triangle' : 'none',
-      tail: e.end === 'arrow' ? 'triangle' : 'none',
+      head: e.start === 'arrow' ? arrow : 'none',
+      tail: e.end === 'arrow' ? arrow : 'none',
     };
   }
 
@@ -433,8 +527,8 @@ class SlideDrawing {
         return { xml, box: fit.frame };
       }
     }
-    // Long routed paths stay as drawn: a freeform with the same rounded bends as the SVG.
-    const path = this.freeform(name, roundedPath(pts, this.theme.radius.corner), line);
+    // Long routed paths stay as drawn: a freeform with the same bends as the SVG (round, cut or square).
+    const path = this.freeform(name, bentPath(pts, this.theme.radius.corner, look(this.theme).line.corner), line);
     if (plain(e.start) && plain(e.end)) return path;
     return this.group(name, [path, ...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)]);
   }
@@ -481,45 +575,98 @@ class SlideDrawing {
         const pa = this.placed.edges.get(a.id)!.points;
         const pb = this.placed.edges.get(b.id)!.points;
         const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;
-        if (at) dots.set(`${Math.round(at.x)},${Math.round(at.y)}`, this.sp({ name: 'Junction', frame: this.frame(at.x - 3, at.y - 3, 6, 6), geom: { prst: 'ellipse' }, fill: { color: this.edgeLine(a).color }, line: null }));
+        if (!at) continue;
+        // A filled dot, or a ring with the card colour inside.
+        const l = look(this.theme).line;
+        const r = l.junctionSize;
+        const color = this.edgeLine(a).color;
+        const mark = l.junction === 'ring' ? { fill: { color: this.theme.surface }, line: { color, width: this.L(this.theme.stroke.edge) } } : { fill: { color }, line: null };
+        dots.set(`${Math.round(at.x)},${Math.round(at.y)}`, this.sp({ name: 'Junction', frame: this.frame(at.x - r, at.y - r, 2 * r, 2 * r), geom: { prst: 'ellipse' }, ...mark }));
       }
     return [...dots.values()];
   }
 
-  private edgeLabel(label: string, b: Box): Item {
+  /**
+   * A label on a line: in a pill, on a bordered plate, or (halo) on a borderless patch in the colour
+   * of the ground it lies on, so the words sit in a gap in the line.
+   */
+  private edgeLabel(e: GraphEdge, label: string, b: Box): Item {
     const t = this.theme;
+    const lk = look(t).edgeLabel;
     const h = 20;
+    const y = b.y + (b.height - h) / 2;
+    const box = lk.style === 'halo' ? { x: b.x + 2, y: y + 2, width: b.width - 4, height: h - 4 } : lk.style === 'plate' ? { x: b.x, y: y + 1, width: b.width, height: h - 2 } : { x: b.x, y, width: b.width, height: h };
+    const border: Line = { color: t.border, width: this.L(1) };
+    const back =
+      lk.style === 'halo' ? { geom: this.roundRect(box, 2), fill: { color: this.ground.under(b) }, line: null }
+      : lk.style === 'plate' ? { geom: this.roundRect(box, t.radius.chip), fill: { color: t.surface }, line: border }
+      : { geom: { prst: 'roundRect', adj: { adj: 50000 } } as Geometry, fill: { color: t.surface }, line: border };
     return this.sp({
       name: `Label: ${label}`,
-      frame: this.frame(b.x, b.y + (b.height - h) / 2, b.width, h),
-      geom: { prst: 'roundRect', adj: { adj: 50000 } },
-      fill: { color: t.surface },
-      line: { color: t.border, width: this.L(1) },
-      text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(label, t.size.edgeLabel, 500, t.textMuted)] }] },
+      frame: this.frame(box.x, box.y, box.width, box.height),
+      ...back,
+      text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(labelString(t, label), t.size.edgeLabel, 500, labelInk(t, this.edgeLine(e).color), { mono: lk.mono, tracking: lk.tracking })] }] },
     });
   }
 
   // ------------------------------------------------------------ legend
 
-  private drawLegend(cy: number): Item {
+  private drawLegend(top: number): Item {
     const t = this.theme;
+    const lay = legendLayout(this.graph, this.placed, t);
     const items: (Item | undefined)[] = [];
-    for (const { item, x } of legendItems(this.graph, t)) {
-      const color = item.tone ? t.tones[item.tone].fg : t.edge;
-      const tone = t.tones[item.tone ?? (item.swatch === 'badge' ? 'slate' : 'blue')];
-      if (item.swatch === 'badge') {
-        items.push(this.sp({ name: 'Swatch', frame: this.frame(x, cy - 7, 20, 14), geom: this.roundRect({ x: 0, y: 0, width: 20, height: 14 }, 4), fill: { color: tone.bg }, line: null }));
-        items.push(this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) }));
-      } else if (item.swatch === 'fill') items.push(this.sp({ name: 'Swatch', frame: this.frame(x, cy - 7, 20, 14), geom: { prst: 'roundRect', adj: { adj: 50000 } }, fill: { color: tone.bg }, line: null }));
-      else if (item.swatch === 'outline') items.push(this.sp({ name: 'Swatch', frame: this.frame(x + 0.5, cy - 6.5, 19, 13), geom: { prst: 'roundRect', adj: { adj: 50000 } }, fill: null, line: { color, alpha: 0.7, width: this.L(1), dash: 'dashed' } }));
-      else if (item.swatch === 'check' || item.swatch === 'check-outline') {
-        const filled = item.swatch === 'check';
-        items.push(this.sp({ name: 'Swatch', frame: this.frame(x + 2, cy - 8, 16, 16), geom: { prst: 'ellipse' }, fill: filled ? { color: tone.fg } : null, line: filled ? null : { color: tone.fg, width: this.L(1.2), dash: 'dashed' } }));
-        items.push(this.icon('check', x + 5, cy - 5, 10, filled ? t.surface : tone.fg, 2));
-      } else items.push(this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color, width: this.L(t.stroke.edge + 0.4), dash: item.line ?? 'solid' } }));
-      items.push(this.text(x + 28, cy, item.label, t.size.caption, 500, t.textMuted, 'start', `Legend: ${item.label}`));
+    // The KEY of a paper look: a rule across, the word KEY, then the samples; else one plain row.
+    const first = lay.key ? top + 40 : top + 26;
+    if (lay.key) {
+      items.push(this.hline(0, Math.max(this.placed.width, lay.width), top + 16, t.border));
+      items.push(this.text(0, first, 'KEY', 9.5, 600, t.textFaint, 'start', 'Legend', { tracking: 1.2 }));
     }
+    for (const [i, row] of lay.rows.entries())
+      for (const { item, x } of row) {
+        const cy = first + i * LEGEND.ROW;
+        items.push(...this.swatch(item, x, cy));
+        items.push(this.text(x + 28, cy, item.label, t.size.caption, 500, t.textMuted, 'start', `Legend: ${item.label}`));
+      }
     return this.group('Legend', items);
+  }
+
+  /** One legend sample, as render's legendItem draws it. */
+  private swatch(item: LegendItem, x: number, cy: number): (Item | undefined)[] {
+    const t = this.theme;
+    const lk = look(t);
+    const color = item.tone ? t.tones[item.tone].fg : t.edge;
+    const tone = t.tones[item.tone ?? (item.swatch === 'badge' || item.swatch === 'tile' ? 'slate' : 'blue')];
+    const box = (w: number, h: number, rx: number, fill: Fill | null, line: Line | null, dx = 0) => this.sp({ name: 'Swatch', frame: this.frame(x + dx, cy - h / 2, w, h), geom: this.roundRect({ x: 0, y: 0, width: w, height: h }, rx), fill, line });
+    if (item.swatch === 'badge') {
+      const arrow = this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) });
+      const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { color: t.surface }, { color: tone.fg, alpha: 0.55, width: this.L(1) }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { color: tone.bg }, null);
+      return [back, arrow];
+    }
+    if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
+      // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.
+      const kind = t.tones[item.tone ?? 'slate'];
+      return this.tile(x, cy - 10, 20, kind, item.icon, { muted: item.muted, rx: Math.min(5.5, t.radius.tile), iconSize: lk.tile === 'bare' ? 16 : lk.tile === 'disc' || lk.tile === 'ring' ? 11 : 13 });
+    }
+    if (item.swatch === 'tile') {
+      const slate = t.tones.slate;
+      return [box(19, 19, 5.5, { color: item.muted ? slate.bg : tone.bg }, item.muted ? { color: slate.line, width: this.L(1) } : null, 0.5), this.icon(item.icon, x + 3.5, cy - 6.5, 13, tone.fg, 1.6)];
+    }
+    if (item.swatch === 'boundary') {
+      // A boundary is a group: on a paper look its sample is the tint inside the contour.
+      const paper = paperTint(t, 0);
+      const line: Line = { color: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, width: this.L(1.2), dash: 'dashed' };
+      return [box(19, 15, Math.min(4, t.radius.group), paper ? { color: paper } : null, line, 0.5)];
+    }
+    if (item.swatch === 'fill') return [box(20, 14, Math.min(7, t.radius.chip + 3), { color: tone.bg }, null)];
+    if (item.swatch === 'outline') return [box(19, 13, Math.min(6.5, t.radius.chip + 2.5), null, { color, alpha: 0.7, width: this.L(1), dash: 'dashed' }, 0.5)];
+    if (item.swatch === 'check' || item.swatch === 'check-outline') {
+      const filled = item.swatch === 'check';
+      return [
+        this.sp({ name: 'Swatch', frame: this.frame(x + 2, cy - 8, 16, 16), geom: { prst: 'ellipse' }, fill: filled ? { color: tone.fg } : null, line: filled ? null : { color: tone.fg, width: this.L(1.2), dash: 'dashed' } }),
+        this.icon('check', x + 5, cy - 5, 10, filled ? t.surface : tone.fg, 2),
+      ];
+    }
+    return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color, width: this.L(t.stroke.edge * (item.width ?? 1) + 0.4), dash: item.line ?? 'solid' } })];
   }
 }
 
@@ -543,7 +690,8 @@ export function clean(points: Point[]): Point[] {
   return out;
 }
 
-function roundedPath(pts: Point[], radius: number): PxCmd[] {
+/** An orthogonal line whose bends are rounded, cut at 45 degrees, or square. */
+function bentPath(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square'): PxCmd[] {
   const out: PxCmd[] = [{ op: 'm', pts: [pts[0]!] }];
   for (let i = 1; i < pts.length - 1; i++) {
     const p = pts[i - 1]!;
@@ -551,13 +699,14 @@ function roundedPath(pts: Point[], radius: number): PxCmd[] {
     const n = pts[i + 1]!;
     const l1 = Math.hypot(c.x - p.x, c.y - p.y);
     const l2 = Math.hypot(n.x - c.x, n.y - c.y);
-    const r = Math.min(radius, l1 / 2, l2 / 2);
+    const r = corner === 'square' ? 0 : Math.min(radius, l1 / 2, l2 / 2);
     if (r < 0.5) {
       out.push({ op: 'l', pts: [c] });
       continue;
     }
+    const after = { x: c.x + ((n.x - c.x) / l2) * r, y: c.y + ((n.y - c.y) / l2) * r };
     out.push({ op: 'l', pts: [{ x: c.x - ((c.x - p.x) / l1) * r, y: c.y - ((c.y - p.y) / l1) * r }] });
-    out.push({ op: 'q', pts: [c, { x: c.x + ((n.x - c.x) / l2) * r, y: c.y + ((n.y - c.y) / l2) * r }] });
+    out.push(corner === 'chamfer' ? { op: 'l', pts: [after] } : { op: 'q', pts: [c, after] });
   }
   out.push({ op: 'l', pts: [pts.at(-1)!] });
   return out;

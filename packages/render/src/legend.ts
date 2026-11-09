@@ -41,6 +41,33 @@ export interface LegendBlock {
 
 const NONE: LegendBlock = { width: 0, height: 0, draw: () => '' };
 
+/** Row pitch of a wrapped KEY, and the room its heading takes. */
+export const LEGEND = { ROW, KEY } as const;
+
+/**
+ * The samples of a KEY wrapped into rows. `room` is the width the page has anyway; `after` is what
+ * else wants to end the last row (the imprint). Continuation rows start under the first sample,
+ * not under the heading.
+ */
+export function keyLayout(items: LegendItem[], theme: Theme, room: number, after = 0) {
+  const head = items.length ? KEY : 0;
+  const widths = items.map((item) => SAMPLE + labelWidth(item, theme));
+  const natural = head + widths.reduce((a, w) => a + w + GAP, 0) - (items.length ? GAP : 0);
+  const limit = Math.max(room, Math.min(natural + (after ? after + 32 : 0), WRAP), head + Math.max(0, ...widths), after);
+  const rows: { item: LegendItem; x: number }[][] = [[]];
+  let x = head;
+  for (const [i, item] of items.entries()) {
+    if (x > head && x + widths[i]! > limit) {
+      rows.push([]);
+      x = head;
+    }
+    rows.at(-1)!.push({ item, x });
+    x += widths[i]! + GAP;
+  }
+  const ends = rows.map((r) => (r.length ? r.at(-1)!.x + SAMPLE + labelWidth(r.at(-1)!.item, theme) : 0));
+  return { rows, ends, limit };
+}
+
 /** The one line of the imprint: the title block's fields as the author gave them, never an invented date. */
 export function imprintOf(theme: Theme): string | undefined {
   const b = theme.titleBlock;
@@ -72,23 +99,8 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
       draw: (x, y, total) => placed.map((p) => legendItem(p.item, theme, x + p.x, y + cy)).join('') + (imprint ? mark(x + total, y + cy) : ''),
     };
   }
-  const head = items.length ? KEY : 0;
-  const widths = items.map((item) => SAMPLE + labelWidth(item, theme));
-  const natural = head + widths.reduce((a, w) => a + w + GAP, 0) - (items.length ? GAP : 0);
   const iw = imprint ? imprintWidth(imprint) : 0;
-  const limit = Math.max(room, Math.min(natural + (iw ? iw + 32 : 0), WRAP), head + Math.max(0, ...widths), iw);
-  // Wrap the samples into rows; continuation rows start under the first sample, not under the heading.
-  const rows: { item: LegendItem; x: number }[][] = [[]];
-  let x = head;
-  for (const [i, item] of items.entries()) {
-    if (x > head && x + widths[i]! > limit) {
-      rows.push([]);
-      x = head;
-    }
-    rows.at(-1)!.push({ item, x });
-    x += widths[i]! + GAP;
-  }
-  const ends = rows.map((r) => (r.length ? r.at(-1)!.x + SAMPLE + labelWidth(r.at(-1)!.item, theme) : 0));
+  const { rows, ends, limit } = keyLayout(items, theme, room, iw);
   // The imprint ends the last row when there is room beside the samples, else it takes a row of its own.
   const beside = !iw || ends.at(-1)! + (ends.at(-1)! ? 32 : 0) + iw <= limit;
   const count = rows.length + (beside ? 0 : 1);
