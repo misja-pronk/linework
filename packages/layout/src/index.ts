@@ -24,13 +24,29 @@ export interface Tuning {
   tidy?: boolean;
   /** Ask dot this way only, instead of trying the usual variants. */
   dot?: DotVariant;
+  /** The source left the direction open: a drawing far wider than a slide may turn top-down. */
+  autoDirection?: boolean;
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
   if (tuning.direction) sized = { ...sized, graph: { ...sized.graph, direction: tuning.direction } };
+  const first = await layoutOnce(sized, spacing, sidecar, tuning);
+  // A long chain drawn left to right can end up many times wider than tall: unreadable on a slide
+  // or a page. When the source did not choose a direction, top-down is tried too and kept when it
+  // scores better. Not with pins: they were placed on the drawing as it was.
+  const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
+  if (!tuning.autoDirection || tuning.direction || pinned || sized.graph.direction !== 'right' || first.placed.width < WIDE * first.placed.height) return first.placed;
+  const down = await layoutOnce({ ...sized, graph: { ...sized.graph, direction: 'down' } }, spacing, sidecar, tuning);
+  return down.score < first.score - 1e-9 ? { ...down.placed, direction: 'down' } : first.placed;
+}
+
+/** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
+const WIDE = 3;
+
+async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning): Promise<{ placed: Placed; score: number }> {
   const { graph } = sized;
   // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
-  if (!graph.nodes.length && !graph.groups.length) return { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } };
+  if (!graph.nodes.length && !graph.groups.length) return { placed: { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } }, score: 0 };
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
   // dot ranks and orders differently when asked differently, and no one way suits every diagram.
   // Small diagrams also try a few other ways, each drawn once cheaply; the most promising of those
@@ -43,9 +59,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     const sc = (await candidates(sized, spacing, sidecar, { ...tuning, compact: tuning.compact ?? true, align: tuning.align ?? false }, variant)).score;
     if (!pick || sc < pick.score - 1e-9) pick = { variant, score: sc };
   }
-  if (!pick) return own.placed;
+  if (!pick) return own;
   const other = await candidates(sized, spacing, sidecar, tuning, pick.variant);
-  return other.score < own.score - 1e-9 ? other.placed : own.placed;
+  return other.score < own.score - 1e-9 ? other : own;
 }
 
 /** The best drawing from one dot placement: compacted or not, straightened or not. */
