@@ -3,9 +3,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { measure, routeEdges, throughVia } from '@cartography/layout';
+import { boxOverlaps, measure, routeEdges, throughVia } from '@cartography/layout';
 import { render } from '../src/index.ts';
-import { big } from './perf.ts';
+import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
@@ -36,7 +36,7 @@ const crossingBudget: Record<string, number> = {
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
   'network/campus.yaml': 0,
-  'network/hybrid-cloud.yaml': 0,
+  'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
   'network/office-ip-plan.yaml': 0,
   'network/small-office.yaml': 0,
   'github/setup.yaml': 0,
@@ -74,9 +74,40 @@ describe('layout quality', () => {
       const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', load, view });
       if (file.startsWith('c4/')) expect(r.diagnostics).toEqual([]);
       const m = measure(r.graph!, r.placed!);
-      expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward }).toEqual({ through: 0, labels: 0, backward: 0 });
+      expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward, overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
     });
+
+  const c4 = fs.readFileSync(path.join(examples, 'c4/kestrel-bank.yaml'), 'utf8');
+  it('keeps groups apart in a deployment view drawn top-down', async () => {
+    const down = c4.replace('    kind: deployment\n', '    kind: deployment\n    direction: down\n');
+    expect(down).not.toBe(c4);
+    const r = await render(down, { fonts: 'none', view: 'production' });
+    expect(r.placed!.memory!.variant).toMatch(/^down\//);
+    expect(boxOverlaps(r.graph!, r.placed!)).toEqual([]);
+  });
+  it('keeps the wide deployment view within 2600 px', async () => {
+    const r = await render(c4, { fonts: 'none', view: 'production' });
+    expect(r.placed!.width).toBeLessThan(2600);
+  });
+  it('starts the cards of one row on one line, top-down', async () => {
+    const r = await render(c4, { fonts: 'none', view: 'containers' });
+    expect(r.placed!.memory!.variant).toMatch(/^down\//);
+    const tops = new Map<number, Set<number>>();
+    for (const [id, b] of r.placed!.nodes) {
+      if (r.graph!.edges.some((e) => e.from.node === id || e.to.node === id) === false) continue;
+      const row = Math.round((b.y + b.height / 2) / 24);
+      tops.set(row, (tops.get(row) ?? new Set()).add(b.y));
+    }
+    // Rows whose cards are joined by a line stay centred; the others share a top.
+    const ragged = [...tops.values()].filter((t) => t.size > 1 && Math.max(...t) - Math.min(...t) < 24);
+    expect(ragged).toEqual([]);
+  });
+  it('starts the cards of one column on one line, left to right', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none' });
+    const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
+    expect(new Set(left).size).toBe(1);
+  });
 
   it('lays out 200 nodes in under a second', async () => {
     await render(big(2, 5), { fonts: 'none' }); // load Graphviz first
@@ -84,6 +115,21 @@ describe('layout quality', () => {
     const r = await render(big(10, 20), { fonts: 'none' });
     expect(r.graph!.nodes).toHaveLength(200);
     expect(performance.now() - t).toBeLessThan(1000);
+  });
+
+  it('and as fast one line later, knowing the drawing before', async () => {
+    const text = big(10, 20);
+    const before = await render(text, { fonts: 'none' });
+    // A line right across the drawing: the longest route there can be. Best of two, so a busy machine does not fail it.
+    const { ms, result } = await timed(text + '  - n0_1 -> n9_19\n', { previous: before.placed!.memory }, 2);
+    expect(result.graph!.edges).toHaveLength(before.graph!.edges.length + 1);
+    expect(ms).toBeLessThan(1000);
+    // Drawn the way the drawing before was, and nothing that was there moved.
+    expect(result.placed!.memory!.variant).toBe(before.placed!.memory!.variant);
+    const was = before.placed!.memory!.nodes!;
+    const now = result.placed!.memory!.nodes!;
+    const far = [...was].filter(([id, p]) => Math.hypot(now.get(id)!.x - p.x, now.get(id)!.y - p.y) > 16);
+    expect(far.length / was.size).toBeLessThan(0.1);
   });
 });
 
@@ -139,6 +185,31 @@ describe('lines bent by hand', () => {
     expect(orthogonal(pts)).toBe(true);
     expect(pts).toContainEqual({ x: 100, y: 40 });
     expect(pts.slice(-2)).toEqual([{ x: 184, y: 100 }, { x: 200, y: 100 }]);
+  });
+  it('are in the way of other lines: none runs on top of one', () => {
+    // a and b side by side, their line straight between them; c and d below, their line bent up by
+    // hand into exactly that corridor.
+    const box = (x: number, y: number) => ({ x, y, width: 100, height: 60 });
+    const end = (node: string, x: number, y: number) => ({ node, box: box(x, y), stub: 16 });
+    const obstacles = new Map([['a', box(0, 0)], ['b', box(400, 0)], ['c', box(0, 200)], ['d', box(400, 200)]]);
+    const straight = { id: 'ab', from: end('a', 0, 0), to: end('b', 400, 0) };
+    const hand = { id: 'cd', from: end('c', 0, 200), to: end('d', 400, 200), via: [{ x: 150, y: 30 }, { x: 350, y: 30 }] };
+    /** Length two polylines run on top of each other. */
+    const shared = (p: { x: number; y: number }[], q: { x: number; y: number }[]) => {
+      let total = 0;
+      for (let i = 1; i < p.length; i++)
+        for (let j = 1; j < q.length; j++) {
+          const [a, b, c, d] = [p[i - 1]!, p[i]!, q[j - 1]!, q[j]!];
+          if (a.y === b.y && c.y === d.y && a.y === c.y) total += Math.max(0, Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)));
+          if (a.x === b.x && c.x === d.x && a.x === c.x) total += Math.max(0, Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)));
+        }
+      return total;
+    };
+    const alone = routeEdges({ obstacles, soft: [], direction: 'right', edges: [straight] });
+    expect(alone.get('ab')!.points.every((q) => q.y === 30)).toBe(true);
+    const both = routeEdges({ obstacles, soft: [], direction: 'right', edges: [straight, hand] });
+    for (const v of hand.via) expect(both.get('cd')!.points).toContainEqual(v);
+    expect(shared(both.get('ab')!.points, both.get('cd')!.points)).toBe(0);
   });
 });
 

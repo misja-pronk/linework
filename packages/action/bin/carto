@@ -1,0 +1,4 @@
+#!/bin/sh
+# carto on the PATH of a workflow, after the action's setup: the same CLI as `pnpm carto`.
+here=$(cd "$(dirname "$0")/.." && pwd)
+exec "$here/node_modules/.bin/tsx" "$here/../cli/src/main.ts" "$@"

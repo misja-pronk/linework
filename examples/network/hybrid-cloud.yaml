@@ -18,8 +18,8 @@ nodes:
   core: { kind: l3-switch, label: core-ams, in: dc, model: Nexus 93180, ha: vPC }
   esx: { kind: server, label: esx-cluster, in: servers, model: 6 hosts }
   ad: { kind: dns, label: dc-01, in: servers, ip: 10.0.100.10 }
-  ergw: { kind: cloud-gateway, label: ergw-hub, in: gw, model: ExpressRoute ErGw2AZ, tier: core }
-  vpngw: { kind: vpn-gateway, label: vpngw-hub, in: gw, model: VpnGw2AZ, tier: core }
+  ergw: { kind: cloud-gateway, label: ergw-hub, in: gw, model: ExpressRoute ErGw2AZ, tier: edge }
+  vpngw: { kind: vpn-gateway, label: vpngw-hub, in: gw, model: VpnGw2AZ, tier: edge }
   azfw: { kind: firewall, label: afw-hub, in: afw, model: Azure Firewall Premium, ip: 10.100.1.4 }
   app: { kind: load-balancer, label: agw-prod, in: prod, model: Application Gateway }
   vms: { kind: server, label: vmss-api, in: prod, ip: 10.101.1.0/24 }

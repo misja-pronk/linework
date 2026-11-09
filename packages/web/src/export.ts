@@ -1,7 +1,7 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 import { render, themes } from '@cartography/engine';
-import type { LayoutSidecar } from '@cartography/core';
+import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
 import { brand } from './brand.ts';
 
 export interface ExportInput {
@@ -12,6 +12,8 @@ export interface ExportInput {
   /** The view on screen, and the file name (for "#view" links in the SVG). */
   view?: string;
   file?: string;
+  /** The drawing on screen (its `placed.memory`): the export is that drawing, not a new one from scratch. */
+  previous?: LayoutMemory;
   /** The step on screen: SVG and PNG show it; PowerPoint and PDF get every step, one per slide or page. */
   step?: number;
 }
@@ -20,7 +22,7 @@ export interface ExportInput {
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, step: input.step, fonts: 'embed' as const });
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, options(input));

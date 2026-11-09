@@ -16,6 +16,7 @@ import {
   type Diagnostic,
   type DiagramType,
   type Graph,
+  type LayoutMemory,
   type LayoutSidecar,
   type ModelContext,
   type Path,
@@ -71,6 +72,11 @@ export interface RenderOptions extends SvgOptions {
   sidecar?: LayoutSidecar;
   /** Layout overrides, for experiments. */
   tuning?: Tuning;
+  /**
+   * The drawing before this one (a result's `placed.memory`): what was there keeps its place unless
+   * another placement is clearly better. Without it the sidecar's `layout` note is used; null forgets both.
+   */
+  previous?: LayoutMemory | null;
   /** Reads files the diagram refers to, relative to the diagram (contracts, includes). Leave out where there are no files. */
   load?: (file: string) => string;
   /** One of the diagram's `views:`; without it the diagram as written (or its first view when it only has views). */
@@ -207,7 +213,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
-  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
@@ -255,4 +261,5 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 }
 
 export { themes };
+export { drift, type DriftItem, type DriftResult } from './drift.ts';
 export type { IconPackFile };

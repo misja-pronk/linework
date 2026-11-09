@@ -2,7 +2,7 @@
 // together, so a node outside a group can sit beside it in the same column. (ELK, tried first,
 // lays out each group as one block, which reverses lines that go into a group, out and back in.)
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Box, Graph, NodeSize, Sized } from '@cartography/core';
+import type { Box, Graph, GraphEdge, NodeSize, Sized } from '@cartography/core';
 
 export interface Spacing {
   nodeGap: number;
@@ -80,6 +80,10 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
   // Edges to a group attach to one of its nodes and are clipped at the cluster (lhead/ltail).
   const groupIds = new Set(graph.groups.map((g) => g.id));
   const back = feedback(graph);
+  // What hangs on weak lines alone (a laptop on its wireless link): there the weak line is the one
+  // that says where it belongs, and it pulls like any other.
+  const held = new Set(graph.edges.filter((e) => e.line !== 'dotted').flatMap((e) => [e.from.node, e.to.node]));
+  const weak = (e: GraphEdge) => e.line === 'dotted' && held.has(e.from.node) && held.has(e.to.node);
   for (const e of graph.edges) {
     const a = groupIds.has(e.from.node) ? kids.get(e.from.node) : e.from.node;
     const b = groupIds.has(e.to.node) ? kids.get(e.to.node) : e.to.node;
@@ -96,7 +100,7 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
       groupIds.has(e.from.node) ? `ltail=${q('cluster_' + e.from.node)}` : '',
       groupIds.has(e.to.node) ? `lhead=${q('cluster_' + e.to.node)}` : '',
       // Weak lines (dotted: management, lookups) should not pull the layout around.
-      e.line === 'dotted' ? 'weight=0' : e.line === 'dashed' ? 'weight=1' : 'weight=2',
+      weak(e) ? 'weight=0' : e.line === 'dashed' || e.line === 'dotted' ? 'weight=1' : 'weight=2',
     ].filter(Boolean);
     lines.push(`  ${q(a)}${pa} -> ${q(b)}${pb} [${attrs.join(', ')}];`);
   }

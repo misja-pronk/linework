@@ -30,11 +30,32 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
 
+  packages/action:
+    dependencies:
+      '@cartography/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   packages/cli:
     dependencies:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@cartography/docs-plugins':
         specifier: workspace:*
         version: link:../docs-plugins
@@ -84,6 +105,18 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  packages/diff:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/docs-plugins:
     dependencies:

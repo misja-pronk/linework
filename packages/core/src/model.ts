@@ -225,6 +225,8 @@ export interface Placed {
   shift?: Point;
   /** The direction drawn, when layout chose one other than the graph's (the source left it open). */
   direction?: Direction;
+  /** What to remember of this drawing so the next one stays close to it: how it was made and where things are, before pins. */
+  memory?: LayoutMemory;
 }
 
 export interface PlacedEdge {
@@ -269,6 +271,30 @@ export interface ViewPins {
   edges?: Record<string, EdgeOverride>;
   /** Pinned nodes and groups that cannot be dragged by accident (the editor's concern; the layout ignores it). */
   locked?: string[];
+  /** What the drawing looked like when this was written, so the next drawing stays close to it. */
+  layout?: LayoutNote;
+}
+
+/** The previous drawing of a view, as kept in the sidecar. */
+export interface LayoutNote {
+  /** How the placement was made: direction / way of asking dot / compact and align, e.g. "down/out/ca". */
+  variant?: string;
+  /**
+   * Where nodes and groups were, in one line so a change is one line in a diff:
+   * "id@x,y;…;#group@x,y,w,h" (centres of nodes, boxes of groups, pin space). Only written when asked for.
+   */
+  at?: string;
+}
+
+/** The previous drawing of a view, as the layout uses it. */
+export interface LayoutMemory {
+  variant?: string;
+  /** Boxes were kept where the drawing before had them, so the variant alone does not give this placement back. */
+  held?: boolean;
+  /** Node centres in pin space. */
+  nodes?: Map<string, Point>;
+  /** Group boxes in pin space. */
+  groups?: Map<string, Box>;
 }
 
 /** Manual tweaks stored next to the diagram as <name>.layout.json. */
