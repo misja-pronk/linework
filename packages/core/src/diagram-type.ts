@@ -31,6 +31,8 @@ export interface DiagramType<Source = any> {
    * saying why these two cannot be connected. Without it, connections go to `edges` as "a -> b".
    */
   connect?(source: Source, from: string, to: string): Connection | string;
+  /** No lines between entries at all (a journey): the builder offers no connect handle. */
+  unconnected?: true;
   /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
   references?(source: Source): Reference[];
   /** Layout hints for the shared graph layout, e.g. room for long labels. */

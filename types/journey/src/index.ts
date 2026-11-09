@@ -602,6 +602,7 @@ metrics:
   },
   refKeys: { in: ['phases'] },
   ordered: { steps: 'in', phases: true },
+  unconnected: true,
   connect() {
     return 'A journey has no lines to draw: steps follow each other in the order written';
   },
