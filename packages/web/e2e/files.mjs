@@ -17,6 +17,7 @@ const fail = (m) => problems.push(m);
 await page.goto('http://localhost:5178/');
 await page.evaluate(async (files) => {
   localStorage.clear();
+  localStorage.setItem('cartography:started', 'true');
   const opfs = await navigator.storage.getDirectory();
   for await (const [name] of opfs.entries()) await opfs.removeEntry(name, { recursive: true });
   const dir = await opfs.getDirectoryHandle('shop-data', { create: true });

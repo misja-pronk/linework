@@ -9,7 +9,10 @@ for (const scheme of ['light', 'dark']) {
   page.on('pageerror', (e) => errors.push(`${scheme}: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`${scheme} console: ${m.text()}`));
   await page.goto(url);
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('cartography:started', 'true');
+});
   await page.reload();
   await page.waitForSelector('.drawing svg');
   await page.waitForTimeout(300);

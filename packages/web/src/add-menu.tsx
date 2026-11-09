@@ -8,7 +8,8 @@ export const PALETTE_MIME = 'application/x-cartography-palette';
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ');
 
-export function AddMenu({ items, onAdd, onClose }: { items: PaletteItem[]; onAdd(item: PaletteItem): void; onClose(): void }) {
+/** `inline`: the always-open shapes panel of the builder view, instead of the popup over the drawing. */
+export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[]; onAdd(item: PaletteItem): void; onClose(): void; inline?: boolean }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -24,12 +25,12 @@ export function AddMenu({ items, onAdd, onClose }: { items: PaletteItem[]; onAdd
   }, [index]);
 
   return (
-    <div className="add-menu" role="dialog" aria-label="Add to diagram" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+    <div className={inline ? 'add-menu inline' : 'add-menu'} role={inline ? undefined : 'dialog'} aria-label="Add to diagram" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
       <div className="palette-input">
         <Icon name="search" />
         <input
-          autoFocus
-          placeholder="Add a shape…"
+          autoFocus={!inline}
+          placeholder={inline ? 'Search shapes…' : 'Add a shape…'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -53,7 +54,7 @@ export function AddMenu({ items, onAdd, onClose }: { items: PaletteItem[]; onAdd
             <div
               id={`add-${i}`}
               role="option"
-              aria-selected={n === index}
+              aria-selected={!inline && n === index}
               className="add-item"
               draggable
               data-palette={i}

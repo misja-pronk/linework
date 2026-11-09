@@ -6,7 +6,7 @@ import type { Diagnostic, GraphNode, LayoutSidecar, PaletteItem, Path, Point } f
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type Selection } from './preview.tsx';
 import { Palette, type Command } from './palette.tsx';
-import { Templates } from './templates.tsx';
+import { Start, type Opened, type View } from './start.tsx';
 import { Inspector } from './inspector.tsx';
 import { AddMenu } from './add-menu.tsx';
 import { Menu } from './menu.tsx';
@@ -83,7 +83,14 @@ export function App() {
   const systemDark = useSystemDark();
   const theme: 'light' | 'dark' = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
   const [selected, setSelected] = useState<Selection>();
-  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts'>();
+  // A first visit starts with choosing what to make and how.
+  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
+  /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
+  const [view, setViewState] = useState<View>(() => store.get<View>('view') ?? 'code');
+  const setView = (v: View) => {
+    setViewState(v);
+    store.set('view', v);
+  };
   const [adding, setAdding] = useState(false);
   /** On narrow screens one pane shows at a time. */
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
@@ -251,6 +258,16 @@ export function App() {
     fileHandle.current = undefined;
     open(s.text, { name: s.file, starter: s.id });
     focusDrawing();
+  };
+
+  /** From the start dialog: the chosen template or generated YAML, in the chosen way of working. */
+  const start = (o: Opened) => {
+    closeModal();
+    fileHandle.current = undefined;
+    setView(o.view);
+    open(o.text, { name: o.name, starter: o.starter });
+    if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
+    else focusDrawing();
   };
 
   /** Saves where the document lives: its folder, its file, or a new file. Returns false when cancelled. */
@@ -596,7 +613,7 @@ export function App() {
     else if (e.key === 'ArrowDown') nudge(0, step);
     else if (e.key === 'Tab' && !mod(e)) {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
-    } else if (e.key === 'a' && !mod(e) && !e.altKey) setAdding(true);
+    } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
     else if (e.key === 'F2' && selected) (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
@@ -626,7 +643,10 @@ export function App() {
   // ------------------------------------------------------------ commands
 
   const buildCommands = (): Command[] => [
-    { id: 'new', group: 'File', label: 'New from template…', icon: 'layout-template', run: () => setModal('templates') },
+    { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
+    view === 'visual'
+      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
+      : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
     { id: 'open', group: 'File', label: 'Open YAML file…', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
@@ -666,7 +686,7 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       // F6 moves between the editor, the drawing and the properties, like panes in other apps.
       if (e.key === 'F6') {
-        const panes = ['.cm-content', '.preview', '.inspector input, .inspector select'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x);
+        const panes = ['.cm-content', '.preview', '.inspector input, .inspector select'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
         const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.inspector') && p.closest('.inspector')!.contains(document.activeElement)));
         panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
         return e.preventDefault();
@@ -683,6 +703,7 @@ export function App() {
       else if (k === 's' && !e.shiftKey) saveYaml();
       else if (k === 'o' && !e.shiftKey) openFile();
       else if (k === 'e') e.shiftKey ? savePng() : saveSvg();
+      else if (e.key === '\\') setView(view === 'visual' ? 'code' : 'visual');
       else return;
       e.preventDefault();
     };
@@ -705,7 +726,16 @@ export function App() {
     el.addEventListener('pointercancel', up);
   };
 
-  const closeModal = () => setModal(undefined);
+  const closeModal = () => {
+    setModal(undefined);
+    store.set('started', true);
+  };
+  /** A: the popup over the drawing, or in the builder view the shapes panel that is already open. */
+  function addShape() {
+    const search = view === 'visual' ? (document.querySelector('.shapes input') as HTMLInputElement | null) : null;
+    if (search) search.focus();
+    else setAdding((a) => !a);
+  }
   const typeId = type?.id;
   return (
     <div className="app" style={{ ['--split' as string]: `${split * 100}%` }}>
@@ -731,8 +761,16 @@ export function App() {
               <Icon name="folder-open" /> {ws ? 'Folder' : 'Open folder'}
             </button>
           )}
+          <div className="segmented view-switch" role="radiogroup" aria-label="Way of working">
+            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Build visually (⌘\\)">
+              <Icon name="mouse-pointer-2" /> Builder
+            </button>
+            <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => setView('code')} title="YAML and drawing side by side (⌘\\)">
+              <Icon name="code" /> YAML
+            </button>
+          </div>
           <button className="button ghost" onClick={() => setModal('templates')}>
-            <Icon name="layout-template" /> Templates
+            <Icon name="file-plus" /> New
           </button>
           <button className="button ghost" onClick={() => setModal('palette')} title="Command palette">
             <Icon name="search" /> Commands <kbd>⌘K</kbd>
@@ -793,7 +831,7 @@ export function App() {
           <Icon name="image" /> Drawing
         </button>
       </nav>
-      <main className={`workspace${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''} show-${pane}`}>
+      <main className={`workspace view-${view}${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''} show-${pane}`}>
         {ws && (
           <nav className="files" aria-label={`Diagrams in ${ws.name}`}>
             <header>
@@ -808,6 +846,11 @@ export function App() {
             ))}
             {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
           </nav>
+        )}
+        {view === 'visual' && type && (
+          <aside className="shapes" aria-label="Shapes">
+            <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
+          </aside>
         )}
         <section className="pane editor-pane" aria-label="YAML">
           <Editor
@@ -873,7 +916,7 @@ export function App() {
             onKeyDown={onCanvasKey}
           >
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-              <button className={adding ? 'tool active' : 'tool'} onClick={() => setAdding((a) => !a)} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
+              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
                 <Icon name="plus" /> Add <kbd>A</kbd>
               </button>
               <button className="tool" onClick={() => editor.current?.undo()} title="Undo (⌘Z)" aria-label="Undo">
@@ -891,7 +934,15 @@ export function App() {
             {hint && !adding && (
               <div className="hint" role="note">
                 <span>
-                  Edit the YAML on the left, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                  {view === 'visual' ? (
+                    <>
+                      Drag shapes from the left onto the drawing or into a group, drag the dot on a shape to connect it, and edit in the panel on the right. <kbd>?</kbd> shows all keys.
+                    </>
+                  ) : (
+                    <>
+                      Edit the YAML on the left, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                    </>
+                  )}
                 </span>
                 <button className="icon-button small" onClick={dismissHint} aria-label="Dismiss hint">
                   <Icon name="x" size={14} />
@@ -989,7 +1040,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
-      {modal === 'templates' && <Templates theme={theme} onPick={pick} onClose={closeModal} />}
+      {modal === 'templates' && <Start theme={theme} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
           placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}

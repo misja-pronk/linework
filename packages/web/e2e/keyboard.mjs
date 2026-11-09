@@ -8,7 +8,10 @@ page.on('pageerror', (e) => problems.push(e.message));
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
 const wait = (ms = 300) => page.waitForTimeout(ms);
 await page.goto('http://localhost:5178/');
-await page.evaluate(() => localStorage.clear());
+await page.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('cartography:started', 'true');
+});
 await page.reload();
 await page.waitForSelector('.drawing svg');
 await page.keyboard.press('Meta+k');

@@ -11,7 +11,10 @@ const yaml = () => page.evaluate(() => document.querySelector('.cm-content').inn
 const wait = (ms = 250) => page.waitForTimeout(ms);
 
 await page.goto('http://localhost:5178/');
-await page.evaluate(() => localStorage.clear());
+await page.evaluate(() => {
+  localStorage.clear();
+  localStorage.setItem('cartography:started', 'true');
+});
 await page.reload();
 await page.waitForSelector('.drawing svg');
 await page.click('button[aria-label="Dismiss hint"]');
