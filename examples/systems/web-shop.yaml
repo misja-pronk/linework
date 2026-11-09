@@ -1,0 +1,26 @@
+type: systems
+title: Web shop
+subtitle: How an order flows through the system
+
+groups:
+  shop: { kind: system, label: Web shop }
+  backend: { kind: zone, label: Private network, in: shop }
+
+nodes:
+  customers: users
+  web: { kind: client, label: Storefront, in: shop }
+  gateway: { kind: gateway, label: API gateway, in: shop }
+  orders: { kind: service, label: Orders, in: backend }
+  db: { kind: database, label: Orders DB, in: backend }
+  bus: { kind: queue, label: order-events, in: backend }
+  mailer: { kind: worker, label: Mailer, in: backend }
+  stripe: { kind: payments, label: Stripe }
+
+edges:
+  - customers -> web: HTTPS
+  - web -> gateway: { label: REST, style: sync }
+  - gateway -> orders: { style: sync }
+  - orders -> db: { label: SQL, style: data }
+  - orders -> bus: { label: OrderPlaced, style: async }
+  - bus -> mailer: { style: async }
+  - orders -> stripe: { label: charge, style: sync }

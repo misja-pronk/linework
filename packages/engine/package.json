@@ -11,6 +11,7 @@
     "@cartography/theme": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/render": "workspace:*",
+    "@cartography/systems": "workspace:*",
     "@cartography/azure": "workspace:*",
     "@cartography/erd": "workspace:*",
     "@cartography/access": "workspace:*",
