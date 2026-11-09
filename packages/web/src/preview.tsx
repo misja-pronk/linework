@@ -271,9 +271,8 @@ export function Preview(p: Props) {
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
     if (!d.moved) {
       d.moved = true;
+      // Selecting happens on release: opening the inspector now would shift the drawing under the pointer.
       setDragging(d.mode);
-      if (d.mode === 'node') p.onSelect({ kind: 'node', id: d.node! });
-      if (d.mode === 'group') p.onSelect({ kind: 'group', id: d.group! });
     }
     if (d.mode === 'pan') return setView((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
     if (d.mode === 'group') {
@@ -338,6 +337,7 @@ export function Preview(p: Props) {
     if (d.moved && d.mode === 'group') {
       const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
       p.onMoveGroup(d.group!, pin, true);
+      p.onSelect({ kind: 'group', id: d.group! });
       return;
     }
     if (d.mode === 'group') {
@@ -350,6 +350,7 @@ export function Preview(p: Props) {
         const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
         const target = dropGroup(d, e.clientX, e.clientY);
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
+        p.onSelect({ kind: 'node', id: d.node! });
       }
       return;
     }
@@ -380,6 +381,22 @@ export function Preview(p: Props) {
   };
 
   const box = selectedBox(result, selected);
+
+  // A selection made elsewhere (editor, Tab, ⌘K, a new element) is brought into view when it is off screen.
+  useEffect(() => {
+    const f = frame.current;
+    if (!f || !box || drag.current) return;
+    const m = 40;
+    const x0 = view.x + box.x * view.scale;
+    const y0 = view.y + box.y * view.scale;
+    const x1 = x0 + box.width * view.scale;
+    const y1 = y0 + box.height * view.scale;
+    const dx = x0 < m ? m - x0 : x1 > f.clientWidth - m ? Math.max(m - x0, f.clientWidth - m - x1) : 0;
+    const dy = y0 < m + 50 ? m + 50 - y0 : y1 > f.clientHeight - m - 50 ? Math.max(m + 50 - y0, f.clientHeight - m - 50 - y1) : 0;
+    if (dx || dy) setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    // Only when the selection changes, not on every view change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.kind, selected?.id, result]);
   const hoverBox = !dragging && hover && !stale && p.canConnect(hover) ? result?.placed?.nodes.get(hover) : undefined;
   const from = dragging === 'connect' && drag.current?.node ? result?.placed?.nodes.get(drag.current.node) : undefined;
   const linkTarget = link?.target ? result?.placed?.nodes.get(link.target) : undefined;
@@ -402,6 +419,13 @@ export function Preview(p: Props) {
       onDragOver={onDragOver}
       onDragLeave={() => setDropTarget(undefined)}
       onDrop={onDrop}
+      onDoubleClick={(e) => {
+        // Double-click: straight into the label field.
+        const hit = (e.target as Element).closest('[data-node],[data-group]') as HTMLElement | null;
+        if (!hit) return;
+        p.onSelect(hit.dataset.node != null ? { kind: 'node', id: hit.dataset.node } : { kind: 'group', id: hit.dataset.group! });
+        requestAnimationFrame(() => requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select()));
+      }}
       onKeyDown={(e) => {
         if (drag.current && e.key === 'Escape') {
           e.preventDefault();

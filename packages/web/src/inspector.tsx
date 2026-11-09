@@ -27,6 +27,9 @@ export interface InspectorProps {
   onDeleteEdge?(id: string): void;
 }
 
+/** Back to the drawing, so the next drawing shortcut (A, C, Tab…) works right away. */
+const toDrawing = () => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
+
 function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: string): void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -38,9 +41,14 @@ function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: st
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
-        else if (e.key === 'Escape') setDraft(value);
-        else return;
+        // Enter keeps the change, Esc drops it; both go back to the drawing.
+        if (e.key === 'Enter') {
+          commit();
+          toDrawing();
+        } else if (e.key === 'Escape') {
+          setDraft(value);
+          toDrawing();
+        } else return;
         e.preventDefault();
       }}
     />
@@ -52,7 +60,15 @@ export function Inspector(p: InspectorProps) {
   useEffect(() => setIdError(false), [p.id]);
 
   return (
-    <aside className="inspector" aria-label="Properties" onKeyDown={(e) => e.stopPropagation()}>
+    <aside
+      className="inspector"
+      aria-label="Properties"
+      onKeyDown={(e) => {
+        // Esc anywhere in the panel (selects, buttons) also returns to the drawing. Other keys pass on,
+        // so ⌘K, ⌘S and F6 work from here too; drawing shortcuts only listen on the drawing itself.
+        if (e.key === 'Escape') toDrawing();
+      }}
+    >
       <header>
         <span className="inspector-icon">
           <Icon name={p.icon ?? 'box'} />
@@ -96,7 +112,7 @@ export function Inspector(p: InspectorProps) {
                 {f.value && !f.options.includes(f.value) && <option value={f.value}>{f.value}</option>}
                 {f.options.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {f.labels?.[o] && f.labels[o] !== o ? `${f.labels[o]} (${o})` : o}
                   </option>
                 ))}
               </select>

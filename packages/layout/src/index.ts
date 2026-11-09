@@ -24,6 +24,8 @@ export interface Tuning {
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
   if (tuning.direction) sized = { ...sized, graph: { ...sized.graph, direction: tuning.direction } };
   const { graph } = sized;
+  // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
+  if (!graph.nodes.length && !graph.groups.length) return { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } };
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? 24 : 0) + (rows ? 48 : 0));
@@ -42,7 +44,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     for (const a of aligns) {
       const c = finish(base, a);
       const sc = score(measure(graph, c));
-      if (sc < bestScore - 1e-9) {
+      if (!best || sc < bestScore - 1e-9) {
         best = c;
         bestScore = sc;
       }

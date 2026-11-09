@@ -76,6 +76,21 @@ const markField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+/** Enter keeps the indentation, and goes one level deeper after "key:" (also "- key:"). */
+function yamlEnter(view: EditorView): boolean {
+  const { state } = view;
+  const r = state.selection.main;
+  if (!r.empty) return false;
+  const line = state.doc.lineAt(r.head);
+  const before = line.text.slice(0, r.head - line.from);
+  const indent = /^\s*/.exec(before)![0];
+  const item = /^\s*- /.test(before);
+  const opens = /:\s*(#.*)?$/.test(before) && !/^\s*#/.test(before);
+  const next = opens ? indent + (item ? '    ' : '  ') : item ? indent + '  ' : indent;
+  view.dispatch(state.update({ changes: { from: r.head, insert: '\n' + next }, selection: { anchor: r.head + 1 + next.length }, scrollIntoView: true, userEvent: 'input' }));
+  return true;
+}
+
 const highlight = HighlightStyle.define([
   { tag: [t.propertyName, t.definition(t.propertyName)], color: 'var(--syn-key)' },
   { tag: [t.string, t.special(t.string)], color: 'var(--syn-string)' },
@@ -132,7 +147,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
     theme,
     EditorView.lineWrapping,
     EditorState.tabSize.of(2),
-    keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, indentWithTab]),
+    keymap.of([...closeBracketsKeymap, { key: 'Enter', run: yamlEnter }, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) callbacks.current.onChange(u.state.doc.toString());
       if (u.startState.field(pinsField) !== u.state.field(pinsField)) callbacks.current.onPins(u.state.field(pinsField));

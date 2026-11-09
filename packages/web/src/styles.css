@@ -1278,3 +1278,25 @@ kbd {
     display: none;
   }
 }
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(640px, calc(100% - 32px));
+  padding: 9px 8px 9px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.hint kbd {
+  color: var(--text);
+}

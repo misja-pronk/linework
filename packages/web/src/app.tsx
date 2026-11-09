@@ -87,6 +87,12 @@ export function App() {
   const [adding, setAdding] = useState(false);
   /** On narrow screens one pane shows at a time. */
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
+  /** The first-visit hint, until it is dismissed once. */
+  const [hint, setHint] = useState(() => !store.get('hinted'));
+  const dismissHint = () => {
+    setHint(false);
+    store.set('hinted', true);
+  };
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
@@ -238,10 +244,13 @@ export function App() {
     return window.confirm(`${doc.name} has changes that are not saved in a file. Discard them?`);
   };
 
+  const focusDrawing = () => requestAnimationFrame(() => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true }));
+
   const pick = (s: Starter) => {
     setModal(undefined);
     fileHandle.current = undefined;
     open(s.text, { name: s.file, starter: s.id });
+    focusDrawing();
   };
 
   /** Saves where the document lives: its folder, its file, or a new file. Returns false when cancelled. */
@@ -404,6 +413,23 @@ export function App() {
     if (Object.keys(groups).length) out.groups = groups;
     return out.nodes || out.groups ? out : null;
   };
+ /** A moved group carries everything inside, including elements and groups that have their own pins. */
+  const moveGroupPins = (id: string, at: Point): LayoutSidecar | null => {
+    const graph = result?.graph;
+    const box = result?.placed?.groups.get(id);
+    const shift = result?.placed?.shift ?? { x: 0, y: 0 };
+    const next = withPin(id, at, true);
+    if (!graph || !box || !next) return next;
+    const dx = at.x - (box.x + shift.x);
+    const dy = at.y - (box.y + shift.y);
+    const inside = new Set<string>();
+    const walk = (g: string) => graph.groups.filter((c) => c.parent === g).forEach((c) => (inside.add(c.id), walk(c.id)));
+    walk(id);
+    const move = (p: Point) => ({ x: p.x + dx, y: p.y + dy });
+    for (const n of graph.nodes) if (n.parent && (n.parent === id || inside.has(n.parent)) && next.nodes?.[n.id]) next.nodes[n.id] = move(next.nodes[n.id]!);
+    for (const g of inside) if (next.groups?.[g]) next.groups[g] = move(next.groups[g]!);
+    return next;
+  };
   const pinCount = Object.keys(pins?.nodes ?? {}).length + Object.keys(pins?.groups ?? {}).length;
   const textNow = () => editor.current?.text() ?? text;
   /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
@@ -412,6 +438,19 @@ export function App() {
     notify(result?.graph ? 'One moment: the drawing is catching up with the text' : 'Fix the problems in the YAML first', { tone: 'error' });
     return false;
   };
+  const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; count: number }>();
+  useEffect(() => {
+    if (!pendingEdge || !result?.graph || !current) return;
+    const edges = result.graph.edges;
+    if (edges.length <= pendingEdge.count) return;
+    const e = [...edges].reverse().find((x) => x.from.node === pendingEdge.from && x.to.node === pendingEdge.to);
+    setPendingEdge(undefined);
+    if (!e) return;
+    setSelected({ kind: 'edge', id: e.id });
+    setInspector(true);
+    requestAnimationFrame(() => (document.querySelector('.inspector .field input:not([type="checkbox"])') as HTMLInputElement | null)?.focus());
+  }, [pendingEdge, result, current]);
+
   /** After an add, select the new element once it is drawn (node or group, whatever its type makes it). */
   const [pendingPath, setPendingPath] = useState<string>();
   useEffect(() => {
@@ -516,6 +555,8 @@ export function App() {
     if ('error' in r) return notify(r.error, { tone: 'error' });
     apply(r.text);
     notify(`Connected ${nodeName(from)} to ${nodeName(to)}`);
+    // The new line is selected once drawn, with its label ready to type.
+    setPendingEdge({ from, to, count: result?.graph?.edges.length ?? 0 });
   };
 
   const nudge = (dx: number, dy: number) => {
@@ -525,13 +566,19 @@ export function App() {
     if (box) editor.current?.pin(withPin(selected.id, { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) }) ?? undefined);
   };
 
+  /** Tab order: elements, then groups, then lines. */
   const cycle = (dir: 1 | -1): boolean => {
-    const nodes = result?.graph?.nodes ?? [];
-    if (!nodes.length) return false;
-    const i = selected?.kind === 'node' ? nodes.findIndex((n) => n.id === selected.id) : -1;
+    const g = result?.graph;
+    if (!g) return false;
+    const all: Selection[] = [
+      ...g.nodes.map((n) => ({ kind: 'node' as const, id: n.id })),
+      ...g.groups.filter((x) => result?.placed?.groups.has(x.id)).map((x) => ({ kind: 'group' as const, id: x.id })),
+      ...g.edges.map((e) => ({ kind: 'edge' as const, id: e.id })),
+    ];
+    const i = selected ? all.findIndex((s) => s.kind === selected.kind && s.id === selected.id) : -1;
     const next = i + dir;
-    if (next < 0 || next >= nodes.length) return false;
-    select({ kind: 'node', id: nodes[next]!.id });
+    if (next < 0 || next >= all.length) return false;
+    select(all[next]);
     return true;
   };
 
@@ -551,6 +598,7 @@ export function App() {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) setAdding(true);
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
+    else if (e.key === 'F2' && selected) (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
     e.preventDefault();
@@ -602,12 +650,13 @@ export function App() {
     ...(selected?.kind === 'node'
       ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: 'C', run: () => setTimeout(() => setModal('connect')) }]
       : []),
+    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', run: () => select({ kind: 'group', id: g.id }) })),
     ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => select({ kind: 'node', id: n.id }) })),
     ...starters.map((s) => ({
       id: `starter:${s.id}`,
       group: 'Start from',
       label: s.title,
-      hint: `${s.kind === 'template' ? 'Template' : 'Example'} · ${typeName(s.type)}`,
+      hint: `${s.kind === 'template' ? 'Template' : s.kind === 'empty' ? 'Empty' : 'Example'} · ${typeName(s.type)}`,
       icon: 'layout-template',
       run: () => pick(s),
     })),
@@ -615,6 +664,13 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // F6 moves between the editor, the drawing and the properties, like panes in other apps.
+      if (e.key === 'F6') {
+        const panes = ['.cm-content', '.preview', '.inspector input, .inspector select'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x);
+        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.inspector') && p.closest('.inspector')!.contains(document.activeElement)));
+        panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
+        return e.preventDefault();
+      }
       // "?" opens the shortcuts, unless someone is typing.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
       if (e.key === '?' && !typing && !modal) {
@@ -800,7 +856,7 @@ export function App() {
             onMoveGroup={(id, at, done) => {
               if (!done) return setDraft({ id, at, group: true });
               setDraft(undefined);
-              editor.current?.pin(withPin(id, at, true) ?? undefined);
+              editor.current?.pin(moveGroupPins(id, at) ?? undefined);
             }}
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
@@ -832,6 +888,16 @@ export function App() {
                 </button>
               )}
             </div>
+            {hint && !adding && (
+              <div className="hint" role="note">
+                <span>
+                  Edit the YAML on the left, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                </span>
+                <button className="icon-button small" onClick={dismissHint} aria-label="Dismiss hint">
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+            )}
             {adding && type && (
               <AddMenu
                 items={type.palette}
@@ -913,7 +979,10 @@ export function App() {
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
           placeholder={`Connect ${nodeName(selected.id)} to…`}
-          onClose={closeModal}
+          onClose={() => {
+            closeModal();
+            focusDrawing();
+          }}
           commands={(result?.graph?.nodes ?? [])
             .filter((n) => n.id !== selected.id)
             .map((n) => ({ id: `to:${n.id}`, group: `Connect ${nodeName(selected.id)} to`, label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => connect(selected.id, n.id) }))}
@@ -923,7 +992,7 @@ export function App() {
       {modal === 'templates' && <Templates theme={theme} onPick={pick} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
-          placeholder={diagnostics.length ? 'Filter problems…' : 'No problems'}
+          placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}
           onClose={closeModal}
           commands={diagnostics.map((d, i) => ({
             id: `p${i}`,

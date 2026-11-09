@@ -54,9 +54,13 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   }
 
   out.push(`<g transform="translate(${origin.x} ${origin.y})">`);
+  const filled = new Set([...graph.nodes.map((n) => n.parent), ...graph.groups.map((g) => g.parent)].filter(Boolean));
   for (const g of byDepth(graph.groups)) {
     const box = placed.groups.get(g.id);
-    if (box) out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme)}</g>`);
+    if (!box) continue;
+    // In the editor an empty group says what it is for; exports stay clean.
+    const hint = opts.interactive && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
+    out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme)}${hint}</g>`);
   }
   for (const e of graph.edges) {
     const pe = placed.edges.get(e.id);

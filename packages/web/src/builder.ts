@@ -205,7 +205,7 @@ function duplicateEntryUnsafe(text: string, path: Path): Added | undefined {
 export type Field =
   | { key: string; kind: 'text'; label: string; value: string; hint?: string }
   | { key: string; kind: 'number'; label: string; value: string; hint?: string }
-  | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean }
+  | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean; labels?: Record<string, string> }
   | { key: string; kind: 'toggle'; label: string; value: boolean; hint?: string }
   | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string }
   | { key: string; kind: 'yaml'; label: string; summary: string; hint?: string };
@@ -239,13 +239,20 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
     const label = titleCase(key);
     const enumAlt = alts.find((a) => Array.isArray(a.enum));
     const refs = refKeys[key];
-    if (enumAlt && !alts.some((a) => a.type === 'object'))
-      fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options: enumAlt.enum.map(String), hint, allowEmpty: true });
-    else if (key === 'icon' && alts.some((a) => a.type === 'string'))
+    if (enumAlt && !alts.some((a) => a.type === 'object')) {
+      // Kinds read as their names ("Key Vault"), from the palette of this collection.
+      const names = Object.fromEntries(type.palette.filter((p) => p.collection === collection).map((p) => [p.kind, p.label]));
+      fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options: enumAlt.enum.map(String), hint, allowEmpty: true, labels: names });
+    } else if (key === 'icon' && alts.some((a) => a.type === 'string'))
       fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options: iconNames(), hint, allowEmpty: true });
     else if (refs) {
       const options = refs.flatMap((c) => idsIn(text, c)).filter((id) => id !== path.at(-1));
-      fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true });
+      // Entries read as their labels ("rg-shop-prod"), the id stays what is written.
+      const data = (doc.toJS() ?? {}) as Record<string, Record<string, unknown>>;
+      const labels: Record<string, string> = {};
+      for (const c of refs)
+        for (const [id, e] of Object.entries(data[c] ?? {})) if (e && typeof e === 'object' && typeof (e as { label?: unknown }).label === 'string') labels[id] = (e as { label: string }).label;
+      fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true, labels });
     } else if (alts.some((a) => a.type === 'boolean')) fields.push({ key, kind: 'toggle', label, value: v === true, hint });
     else if (alts.some((a) => a.type === 'array') && (v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
       fields.push({ key, kind: 'list', label, value: (v as string[] | undefined) ?? [], hint });

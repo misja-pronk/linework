@@ -41,6 +41,8 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0):
         `${indent}  graph [margin=${s.groupPad}, labeljust=l, labelloc=t, label=<<TABLE BORDER="0" CELLPADDING="0" CELLSPACING="0"><TR><TD FIXEDSIZE="TRUE" WIDTH="${Math.round(minW)}" HEIGHT="${sized.groupHeader - s.groupPad}"></TD></TR></TABLE>>];`,
       );
       emit(g.id, indent + '  ');
+      // An empty group still needs a box (to show it, and to drop things into): a placeholder the size of a card.
+      if (!kids.has(g.id) && !graph.groups.some((c) => c.parent === g.id)) lines.push(`${indent}  ${q('__empty__' + g.id)} [width=${inch(200)}, height=${inch(58)}];`);
       lines.push(`${indent}}`);
     }
     for (const n of graph.nodes.filter((x) => x.parent === parent)) {

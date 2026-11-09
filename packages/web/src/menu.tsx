@@ -39,7 +39,11 @@ export function useRestoreFocus() {
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     return () => {
-      requestAnimationFrame(() => before?.isConnected && before.focus?.());
+      // Only when nothing else took focus meanwhile (a command may have focused the drawing).
+      requestAnimationFrame(() => {
+        const now = document.activeElement;
+        if ((!now || now === document.body) && before?.isConnected) before.focus?.();
+      });
     };
   }, []);
 }

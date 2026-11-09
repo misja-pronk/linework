@@ -26,6 +26,20 @@ await page.locator('.connections li button[aria-label^="Remove"]').first().click
 await page.waitForTimeout(400);
 const after = await page.locator('.drawing [data-edge]').count();
 if (after !== before - 1) problems.push(`remove line: ${before} → ${after}`);
+// A group dragged by its header moves with its contents, relative to what is outside it.
+await page.keyboard.press('Meta+k');
+await page.keyboard.type('azure infrastructure template');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(600);
+const gap = async () => (await page.locator('.drawing [data-node="web"]').boundingBox()).y - (await page.locator('.drawing [data-node="users"]').boundingBox()).y;
+const g0 = await gap();
+const gb = await page.locator('.drawing [data-group="prod"]').boundingBox();
+await page.mouse.move(gb.x + 60, gb.y + 10);
+await page.mouse.down();
+for (let i = 1; i <= 6; i++) await page.mouse.move(gb.x + 60 + i * 5, gb.y + 10 + i * 8);
+await page.mouse.up();
+await page.waitForTimeout(500);
+if (Math.abs((await gap()) - g0) < 20) problems.push(`group move: contents did not move relative to Users (${g0} → ${await gap()})`);
 await page.setViewportSize({ width: 600, height: 860 });
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/p-narrow.png` });

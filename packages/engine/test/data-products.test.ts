@@ -61,3 +61,10 @@ describe('data products', () => {
     ]);
   });
 });
+
+describe('schema messages', () => {
+  it('points at the wrong field, not at the short form', async () => {
+    const r = await render('type: data-products\nconsumers:\n  bi: { kind: dashboard, inputs: [x] }\n', { fonts: 'none' });
+    expect(r.diagnostics.map((d) => d.message)).toEqual([expect.stringMatching(/inputs/)]);
+  });
+});

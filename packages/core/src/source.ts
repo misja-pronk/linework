@@ -102,7 +102,10 @@ function simplify(errors: ErrorObject[]): ErrorObject[] {
     if (deeper && concrete.every((e) => e.keyword === 'type' || e.keyword === 'pattern')) continue;
     // A value that has the right type for one branch but fails it there: the other branches'
     // "must be object" errors are noise.
-    const specific = concrete.filter((e) => e.keyword !== 'type');
+    // A map that fails its own branch: the short-form branch's "must be one of …" says nothing useful.
+    const isMap = (e: ErrorObject) => e.data !== null && typeof e.data === 'object' && !Array.isArray(e.data);
+    const scalarNoise = (e: ErrorObject) => isMap(e) && ['enum', 'const', 'pattern', 'format'].includes(e.keyword);
+    const specific = concrete.filter((e) => e.keyword !== 'type' && !(scalarNoise(e) && concrete.some((x) => !scalarNoise(x) && x.keyword !== 'type')));
     const chosen = specific.length ? specific : concrete.length ? concrete : list;
     out.push(...dedupe(chosen));
   }

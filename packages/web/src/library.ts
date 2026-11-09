@@ -9,7 +9,7 @@ export interface Starter {
   type: string;
   title: string;
   /** "Template" or the example's file name. */
-  kind: 'template' | 'example';
+  kind: 'template' | 'example' | 'empty';
   file: string;
   text: string;
 }
@@ -19,6 +19,8 @@ const typeOf = (text: string) => /^type:\s*([\w-]+)/m.exec(text)?.[1] ?? '';
 
 export const starters: Starter[] = [
   ...types.map((t): Starter => ({ id: `template:${t.id}`, type: t.id, title: t.name, kind: 'template', file: `${t.id}.yaml`, text: t.template })),
+  // A clean start per type, to build from the palette.
+  ...types.map((t): Starter => ({ id: `empty:${t.id}`, type: t.id, title: `Empty ${t.name.toLowerCase()}`, kind: 'empty', file: `${t.id}.yaml`, text: `type: ${t.id}\ntitle: Untitled\n` })),
   ...Object.entries(raw)
     .filter(([p]) => !p.includes('/contracts/'))
     .map(([p, text]): Starter => {

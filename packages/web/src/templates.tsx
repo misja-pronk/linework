@@ -64,7 +64,7 @@ export function Templates({ theme, onPick, onClose }: { theme: 'light' | 'dark';
                 <div className="template-meta">
                   <span className="template-title">{s.title}</span>
                   <span className="template-sub">
-                    {s.kind === 'template' ? 'Template' : 'Example'} · {typeName(s.type)}
+                    {s.kind === 'template' ? 'Template' : s.kind === 'empty' ? 'Empty' : 'Example'} · {typeName(s.type)}
                   </span>
                 </div>
               </button>

@@ -86,3 +86,13 @@ describe('templates', () => {
     expect(rg.y + rg.height).toBeGreaterThanOrEqual(vault.y + vault.height);
   });
 });
+
+describe('empty diagrams', () => {
+  it('render as a title only, for every type', async () => {
+    for (const t of ['azure', 'erd', 'access', 'github', 'data-products']) {
+      const r = await render(`type: ${t}\ntitle: Untitled\n`, { fonts: 'none' });
+      expect(r.diagnostics).toEqual([]);
+      expect(r.svg).toContain('Untitled');
+    }
+  });
+});

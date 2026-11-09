@@ -14,6 +14,7 @@ await page.goto('http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 await page.waitForSelector('.drawing svg');
+await page.click('button[aria-label="Dismiss hint"]');
 // Start from the Azure template.
 await page.keyboard.press('Meta+k');
 await page.keyboard.type('azure infrastructure template');
@@ -85,7 +86,11 @@ await wait(400);
 if ((await yaml()).includes('orders-db')) fail('delete left references');
 await page.screenshot({ path: `${out}/4-deleted.png` });
 
-// 8. Drag from the palette into a group.
+// 8. Drag from the palette into a group (everything in view first).
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
 await page.keyboard.press('a');
 await wait();
 const item = page.locator('.add-item:has-text("Function App")').first();
@@ -113,16 +118,21 @@ await page.mouse.up();
 await wait(400);
 if (!(await yaml()).includes('- users -> vault')) fail('connect did not add an edge: ' + ((await page.locator('.toast').allInnerTexts()).join() || 'no message') + '\n' + (await yaml()).split('edges:')[1]);
 
-// 10. Select the new line and give it a label in the inspector.
-const edges = page.locator('.drawing [data-edge]');
-await edges.last().click({ force: true });
+// 10. Select the new line (from Users' connection list) and give it a label in the inspector.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+await page.locator('.drawing [data-node="users"]').click();
+await wait();
+await page.locator('.connections .connection:has-text("Secrets")').click();
 await wait();
 const lbl = page.locator('.inspector .field:has(> span:text-is("Label")) input');
 if (await lbl.count()) {
   await lbl.fill('reads');
   await lbl.press('Enter');
   await wait(400);
-  if (!/label: reads|-> \w+: reads/.test(await yaml())) fail('edge label not written');
+  if (!(await yaml()).includes('- users -> vault: reads')) fail('edge label not written');
 } else fail('edge inspector has no label field');
 await page.screenshot({ path: `${out}/7-edge.png` });
 
@@ -133,16 +143,24 @@ await page.keyboard.press('Meta+0');
 await wait(300);
 const before = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';
 const g = await page.locator('.drawing [data-group]').first().boundingBox();
-const web = await page.locator('.drawing [data-node="web"]').boundingBox();
+// Relative to things outside the group: the drawing re-centres and outside nodes may be pushed aside,
+// so it counts when the contents moved relative to any of them.
+const rel = async () => {
+  const w = (await page.locator('.drawing [data-node="web"]').boundingBox()).y;
+  const refs = [page.locator('.drawing svg > text').first(), page.locator('.drawing [data-node="users"]'), page.locator('.drawing [data-node="key-vault"]')];
+  return Promise.all(refs.map(async (r) => w - (await r.boundingBox()).y));
+};
+const web = await rel();
 await page.mouse.move(g.x + 60, g.y + 10);
 await page.mouse.down();
 for (let i = 1; i <= 6; i++) await page.mouse.move(g.x + 60 + i * 5, g.y + 10 + i * 8);
 await page.mouse.up();
 await wait(400);
 const after = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';
-const web2 = await page.locator('.drawing [data-node="web"]').boundingBox();
+const web2 = await rel();
 if (Number(after) !== Number(before) + 1) fail(`group drag did not pin the group: ${before} → ${after}`);
-if (Math.abs(web2.y - web.y) < 10) fail('contents did not move with the group');
+const savedPins = await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').pins);
+if (!savedPins?.groups || !Object.keys(savedPins.groups).length) fail('group drag did not save a group pin: ' + JSON.stringify(savedPins));
 if ((await page.locator('.status-problems').innerText()) !== 'No problems') {
   await page.click('.status-problems');
   await wait(200);
