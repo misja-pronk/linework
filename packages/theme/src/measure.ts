@@ -13,6 +13,23 @@ interface WeightMetrics {
 const table = metrics.weights as unknown as Record<string, WeightMetrics>;
 const upm = metrics.unitsPerEm;
 
+// A brand font is measured as Inter times its width ratio. Set around the synchronous measure and draw
+// steps only (withTextScale), so concurrent renders with other themes never see it.
+let textScale = 1;
+
+export function withTextScale<T>(scale: number | undefined, fn: () => T): T {
+  const before = textScale;
+  textScale = scale ?? 1;
+  try {
+    return fn();
+  } finally {
+    textScale = before;
+  }
+}
+
+/** Width of a sample in Inter, to compare a brand font against: scale = brand width / this. */
+export const SCALE_SAMPLE = 'Orders API · Customer database 0123456789 Key Vault';
+
 export function measureText(text: string, size: number, weight: Weight = 400): number {
   const m = table[weight] ?? table[400]!;
   let units = 0;
@@ -22,7 +39,7 @@ export function measureText(text: string, size: number, weight: Weight = 400): n
     if (prev) units += m.kern[prev + ch] ?? 0;
     prev = ch;
   }
-  return (units * size) / upm;
+  return (units * size * textScale) / upm;
 }
 
 /** Cut text to fit a width, ending in an ellipsis. */

@@ -18,6 +18,7 @@ import { blankText, exampleLoader, starters, typeName, type Starter } from './li
 import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
 import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
+import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
@@ -968,6 +969,7 @@ export function App() {
               </Menu>
             )}
           </div>
+          <BrandMenu ws={ws} onError={(m) => notify(m, { tone: 'error' })} />
           <button
             className="icon-button wide-only"
             onClick={() => setPref(theme === 'dark' ? 'light' : 'dark')}

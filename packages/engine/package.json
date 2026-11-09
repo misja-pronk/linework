@@ -11,6 +11,8 @@
     "@cartography/theme": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/render": "workspace:*",
+    "@cartography/icons": "workspace:*",
+    "yaml": "^2.9.1",
     "@cartography/systems": "workspace:*",
     "@cartography/azure": "workspace:*",
     "@cartography/kubernetes": "workspace:*",

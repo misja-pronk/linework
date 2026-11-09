@@ -1,6 +1,6 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
+import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type LegendItem, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, markWidth, rowMarks, tableHeader } from './size.ts';
@@ -13,6 +13,8 @@ export interface SvgOptions {
   idPrefix?: string;
   /** Add data-* attributes that the editor uses to find elements. */
   interactive?: boolean;
+  /** Official icons (BYO packs) as data URIs, by node and group id: drawn as-is instead of the line icon. */
+  images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
 }
 
 export interface SvgResult {
@@ -29,29 +31,38 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOptions = {}): SvgResult {
   const pad = theme.space.pad;
   const id = opts.idPrefix ?? 'carto';
-  const header = graph.title ? (graph.subtitle ? 64 : 44) : 0;
-  const legend = graph.legend?.length ? 40 : 0;
-  const width = Math.ceil(Math.max(placed.width, titleWidth(graph, theme), legendWidth(graph, theme)) + 2 * pad);
-  const height = Math.ceil(placed.height + header + legend + 2 * pad);
-  const origin = { x: pad, y: pad + header };
+  const block = theme.titleBlock && Object.keys(theme.titleBlock).length ? theme.titleBlock : undefined;
+  const brand = block ? brandHeader(graph, theme, block) : undefined;
+  const header = brand ? brand.height : graph.title ? (graph.subtitle ? 64 : 44) : 0;
+  const where = graph.legend?.length ? (theme.legend ?? 'bottom') : 'none';
+  const legend = where === 'bottom' || where === 'top' ? 40 : 0;
+  const side = where === 'right' ? 40 + legendColumnWidth(graph, theme) : 0;
+  const footer = block?.footer || block?.classification ? 44 : 0;
+  const width = Math.ceil(Math.max(placed.width + side, brand ? brand.width : titleWidth(graph, theme), legend ? legendWidth(graph, theme) : 0) + 2 * pad);
+  const height = Math.ceil(Math.max(placed.height, side ? legendColumnHeight(graph) : 0) + header + legend + footer + 2 * pad);
+  const origin = { x: pad, y: pad + header + (where === 'top' ? legend : 0) };
   const data = (kind: string, key: string) => (opts.interactive ? ` data-${kind}="${esc(key)}"` : '');
+  const nodeImages = opts.images?.nodes;
+  const groupImages = opts.images?.groups;
 
   const out: string[] = [];
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${esc(theme.font.family)}" text-rendering="geometricPrecision">`,
   );
   out.push('<defs>');
-  if (opts.fonts !== 'none') out.push(`<style>${fontFaces()}</style>`);
+  if (opts.fonts !== 'none') out.push(`<style>${fontFaces(theme)}</style>`);
   out.push(
     `<filter id="${id}-shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="${theme.shadow.color}" flood-opacity="${theme.shadow.opacity * 1.2}"/><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="${theme.shadow.color}" flood-opacity="${theme.shadow.opacity}"/></filter>`,
   );
   out.push('</defs>');
   out.push(`<rect width="${width}" height="${height}" fill="${theme.canvas}"/>`);
 
-  if (graph.title) {
+  if (brand) out.push(brand.draw(pad, width));
+  else if (graph.title) {
     out.push(text(pad, pad + 16, graph.title, theme.size.title, 600, theme.text));
     if (graph.subtitle) out.push(text(pad, pad + 40, graph.subtitle, theme.size.subtitle, 400, theme.textMuted));
   }
+  if (where === 'top') out.push(drawLegend(graph, theme, pad, pad + header + 6));
 
   out.push(`<g transform="translate(${origin.x} ${origin.y})">`);
   const filled = new Set([...graph.nodes.map((n) => n.parent), ...graph.groups.map((g) => g.parent)].filter(Boolean));
@@ -60,7 +71,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     if (!box) continue;
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
-    out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme)}${hint}</g>`);
+    out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme, groupImages?.get(g.id))}${hint}</g>`);
   }
   const badges = chips(graph);
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
@@ -74,8 +85,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     if (!box) continue;
     const shape = n.shape;
     const body =
-      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge))
-      : shape.kind === 'table' ? drawTable(shape, box, theme, id)
+      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge), nodeImages?.get(n.id))
+      : shape.kind === 'table' ? drawTable(shape, box, theme, id, nodeImages?.get(n.id))
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     out.push(`<g${data('node', n.id)}>${body}</g>`);
   }
@@ -87,15 +98,78 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   }
   out.push('</g>');
 
-  if (legend) out.push(drawLegend(graph, theme, pad, height - pad - 14));
+  if (where === 'bottom') out.push(drawLegend(graph, theme, pad, height - pad - footer - 14));
+  if (where === 'right') out.push(drawLegendColumn(graph, theme, pad + placed.width + 40, origin.y));
+  if (footer) out.push(drawFooter(block!, theme, pad, width, height - pad));
   out.push('</svg>');
   return { svg: out.join(''), width, height, origin };
 }
 
-function fontFaces(): string {
-  return Object.entries(embeddedFonts)
+function fontFaces(theme: Theme): string {
+  const inter = Object.entries(embeddedFonts)
     .map(([w, b64]) => `@font-face{font-family:Inter;font-style:normal;font-weight:${w};src:url(data:font/woff2;base64,${b64}) format('woff2')}`)
     .join('');
+  // A brand font comes first; Inter stays as the fallback for glyphs the brand font lacks.
+  const mime = { woff2: 'font/woff2', woff: 'font/woff', truetype: 'font/ttf', opentype: 'font/otf' };
+  const brand = (theme.font.faces ?? [])
+    .map((f) => `@font-face{font-family:'${f.family.replace(/'/g, '')}';font-style:${f.style};font-weight:${f.weight};src:url(data:${mime[f.format]};base64,${f.data}) format('${f.format}')}`)
+    .join('');
+  return brand + inter;
+}
+
+/** An image from a BYO pack or a logo, scaled into the box without stretching. */
+function image(href: string, x: number, y: number, w: number, h: number): string {
+  return `<image href="${href}" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" preserveAspectRatio="xMidYMid meet"/>`;
+}
+
+/** Behind official icons: a neutral tile, never the tone, because their colours are the vendor's. */
+const neutralTile = (theme: Theme) => (theme.mode === 'dark' ? '#E9ECF1' : '#F3F5F8');
+
+/** Header of a brand title block: logo, title and subtitle on the left, client and version on the right, a rule below. */
+function brandHeader(graph: Graph, theme: Theme, block: NonNullable<Theme['titleBlock']>) {
+  const LOGO = 32;
+  const logo = block.logo;
+  const logoW = logo ? Math.min(180, (LOGO * logo.width) / Math.max(1, logo.height)) : 0;
+  const titleX = logoW ? logoW + 16 : 0;
+  const meta = [block.project, block.version, block.date].filter(Boolean).join('  ·  ');
+  const rightW = Math.max(block.client ? measureText(block.client, theme.size.subtitle, 600) : 0, meta ? measureText(meta, theme.size.caption, 400) : 0);
+  const content = Math.max(logo ? LOGO : 0, graph.subtitle ? 44 : graph.title ? 24 : 0, meta && block.client ? 36 : 18);
+  const height = content + 40;
+  const width = titleX + titleWidth(graph, theme) + (rightW ? rightW + 48 : 0);
+  const draw = (pad: number, total: number) => {
+    let s = '';
+    const top = pad;
+    if (logo) s += image(logo.href, pad, top + (content - LOGO) / 2, logoW, LOGO);
+    const tx = pad + titleX;
+    // Title and subtitle centred as a pair on the logo.
+    const ty = graph.subtitle ? top + content / 2 - 6 : top + content / 2 + baselineOffset(theme.size.title);
+    if (graph.title) s += text(tx, ty, graph.title, theme.size.title, 600, theme.text);
+    if (graph.subtitle) s += text(tx, ty + 22, graph.subtitle, theme.size.subtitle, 400, theme.textMuted);
+    const rx = total - pad;
+    if (block.client && meta) {
+      s += text(rx, top + content / 2 - 4, block.client, theme.size.subtitle, 600, theme.text, 'end');
+      s += text(rx, top + content / 2 + 14, meta, theme.size.caption, 400, theme.textMuted, 'end');
+    } else if (block.client || meta)
+      s += textMid(rx, top + content / 2, block.client ?? meta, block.client ? theme.size.subtitle : theme.size.caption, block.client ? 600 : 400, block.client ? theme.text : theme.textMuted, 'end');
+    // A hairline across with a short accent segment: the brand mark of the frame.
+    const ry = top + content + 16;
+    s += `<rect x="${pad}" y="${r1(ry)}" width="${r1(total - 2 * pad)}" height="1" fill="${theme.border}"/>`;
+    s += `<rect x="${pad}" y="${r1(ry - 1)}" width="64" height="3" rx="1.5" fill="${theme.accent ?? theme.tones.blue.fg}"/>`;
+    return s;
+  };
+  return { height, width, draw };
+}
+
+function drawFooter(block: NonNullable<Theme['titleBlock']>, theme: Theme, pad: number, width: number, bottom: number): string {
+  const y = bottom - 28;
+  let s = `<rect x="${pad}" y="${r1(y)}" width="${r1(width - 2 * pad)}" height="1" fill="${theme.border}"/>`;
+  const cy = bottom - 8;
+  if (block.footer) s += textMid(pad, cy, fitText(block.footer, theme.size.caption, 400, width - 2 * pad - 160), theme.size.caption, 400, theme.textFaint);
+  if (block.classification) {
+    const label = block.classification.toUpperCase();
+    s += `<text x="${r1(width - pad)}" y="${r1(cy + baselineOffset(10.5))}" font-size="10.5" font-weight="600" letter-spacing="0.9" fill="${theme.accent ?? theme.textMuted}" text-anchor="end">${esc(label)}</text>`;
+  }
+  return s;
 }
 
 function text(x: number, y: number, s: string, size: number, weight: number, fill: string, anchor?: 'end' | 'middle'): string {
@@ -122,7 +196,7 @@ function byDepth(groups: GraphGroup[]): GraphGroup[] {
   return [...groups].sort((a, b) => depth(a) - depth(b));
 }
 
-function drawGroup(g: GraphGroup, b: Box, theme: Theme): string {
+function drawGroup(g: GraphGroup, b: Box, theme: Theme, img?: string): string {
   const tone = theme.tones[g.tone];
   const dash = g.border === 'dashed' ? ' stroke-dasharray="5 4"' : '';
   const cy = b.y + 22;
@@ -131,14 +205,14 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme): string {
   const maxLabel = b.width - 56;
   const label = fitText(g.label, theme.size.group, 600, maxLabel);
   let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.group}" fill="${tone.wash}" stroke="${tone.line}" stroke-width="${theme.stroke.group}"${dash}/>`;
-  s += drawIcon(g.icon, x, cy - 8, 16, tone.fg, 1.75);
+  s += img ? image(img, x - 1, cy - 9, 18, 18) : drawIcon(g.icon, x, cy - 8, 16, tone.fg, 1.75);
   s += textMid(x + 24, cy, label, theme.size.group, 600, theme.text);
   if (g.caption && groupLabelWidth(g.label, g.caption, theme) + 32 <= b.width)
     s += textMid(x + 24 + labelW + 8, cy, g.caption, theme.size.caption, 400, theme.textFaint);
   return s;
 }
 
-function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => ''): string {
+function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => '', img?: string): string {
   const c = theme.space.card;
   const tone = theme.tones[shape.tone];
   // With badges the tile and text keep the top of the card and the chips fill the rest.
@@ -172,10 +246,21 @@ function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Ch
     // A terminal is a pill, its tile a circle in the round end.
     const pill = shape.form === 'terminal';
     s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${pill ? r1(b.height / 2) : theme.radius.card}" ${frame}/>`;
-    if (shape.icon) {
-      const tileY = b.y + (top - c.tile) / 2;
-      s += `<rect x="${r1(b.x + c.padX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${pill ? c.tile / 2 : theme.radius.tile}" fill="${tone.bg}"/>`;
-      s += drawIcon(shape.icon, b.x + c.padX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, tone.fg, theme.stroke.icon);
+    if (theme.cardBar && !pill) s += leftBar(b, theme.radius.card, tone.fg);
+    const tileX = b.x + c.padX;
+    const tileY = b.y + (top - c.tile) / 2;
+    const rx = pill ? c.tile / 2 : theme.radius.tile;
+    if (img && shape.form !== 'plain') {
+      s += `<rect x="${r1(tileX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${rx}" fill="${neutralTile(theme)}"/>`;
+      s += image(img, tileX + 5, tileY + 5, c.tile - 10, c.tile - 10);
+    } else if (shape.icon) {
+      // Solid tiles carry the tone with a light icon; outline tiles print well; soft is the default tint.
+      const style = theme.tile ?? 'soft';
+      const fill = style === 'solid' ? tone.fg : style === 'outline' ? theme.surface : tone.bg;
+      const stroke = style === 'outline' ? ` stroke="${tone.line}" stroke-width="1"` : '';
+      const inset = style === 'outline' ? 0.5 : 0;
+      s += `<rect x="${r1(tileX + inset)}" y="${r1(tileY + inset)}" width="${c.tile - 2 * inset}" height="${c.tile - 2 * inset}" rx="${rx}" fill="${fill}"${stroke}/>`;
+      s += drawIcon(shape.icon, tileX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, style === 'solid' ? theme.surface : tone.fg, theme.stroke.icon);
     }
   }
   const x = centred ? b.x + b.width / 2 : tx;
@@ -188,6 +273,17 @@ function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Ch
   for (const p of chipRows(badges, room, theme).placed)
     s += `<g${data(p.chip.edge)}><title>${esc(p.chip.title)}</title>${drawChip(p.chip, tx + p.x, b.y + CHIP.top + p.y, p.width, theme)}</g>`;
   return s;
+}
+
+/** A tone strip on the card's left edge that follows its rounded corners. */
+function leftBar(b: Box, r: number, color: string): string {
+  const w = 3;
+  if (r <= w) return `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${w}" height="${r1(b.height)}" fill="${color}"/>`;
+  const dy = Math.sqrt(r * r - (r - w) * (r - w));
+  const x = b.x;
+  const y0 = b.y;
+  const y1 = b.y + b.height;
+  return `<path d="M${r1(x + w)} ${r1(y0 + r - dy)}A${r} ${r} 0 0 0 ${r1(x)} ${r1(y0 + r)}V${r1(y1 - r)}A${r} ${r} 0 0 0 ${r1(x + w)} ${r1(y1 - r + dy)}Z" fill="${color}"/>`;
 }
 
 /** A closed polygon with rounded corners. */
@@ -249,7 +345,7 @@ function chipSwatch(x: number, cy: number, tone: ToneColors): string {
   );
 }
 
-function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string {
+function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: string): string {
   const t = theme.space.table;
   const tone = theme.tones[shape.tone];
   const head = tableHeader(shape, theme);
@@ -264,7 +360,7 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string 
   s += `<path d="M${r1(x0)} ${r1(yh)}V${r1(y0 + r)}A${r} ${r} 0 0 1 ${r1(x0 + r)} ${r1(y0)}H${r1(x1 - r)}A${r} ${r} 0 0 1 ${r1(x1)} ${r1(y0 + r)}V${r1(yh)}Z" fill="${tone.bg}"/>`;
   s += `<line x1="${r1(b.x)}" y1="${r1(yh)}" x2="${r1(b.x + b.width)}" y2="${r1(yh)}" stroke="${theme.border}" stroke-width="1"/>`;
   const titleY = shape.caption ? b.y + head / 2 - 7 : b.y + head / 2;
-  s += drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
+  s += img ? image(img, b.x + t.padX - 1, titleY - 9, 18, 18) : drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
   s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text);
   if (shape.caption)
     s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX), theme.size.caption, 400, theme.textMuted);
@@ -464,27 +560,45 @@ function legendWidth(g: Graph, theme: Theme): number {
 
 function drawLegend(g: Graph, theme: Theme, x0: number, cy: number): string {
   return legendItems(g, theme)
-    .map(({ item, x }) => {
-      const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
-      const label = textMid(x0 + x + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
-      if (item.swatch === 'badge') return chipSwatch(x0 + x, cy, theme.tones[item.tone ?? 'slate']) + label;
-      if (item.swatch === 'fill')
-        return `<rect x="${x0 + x}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
-      if (item.swatch === 'check' || item.swatch === 'check-outline') {
-        // The same filled or dashed check circle as the matrix cells.
-        const t = theme.tones[item.tone ?? 'blue'];
-        const cx = x0 + x + 10;
-        const circle =
-          item.swatch === 'check'
-            ? `<circle cx="${cx}" cy="${cy}" r="8" fill="${t.fg}"/>`
-            : `<circle cx="${cx}" cy="${cy}" r="7.5" fill="none" stroke="${t.fg}" stroke-width="1.2" stroke-dasharray="2.5 2"/>`;
-        const tick = `<path d="M${cx - 3.5} ${cy}l2.4 2.4 4.6-4.8" fill="none" stroke="${item.swatch === 'check' ? theme.surface : t.fg}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
-        return circle + tick + label;
-      }
-      if (item.swatch === 'outline')
-        return `<rect x="${x0 + x + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="6.5" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
-      const dash = item.line === 'dashed' ? ' stroke-dasharray="6 4"' : item.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';
-      return `<path d="M${x0 + x} ${cy}H${x0 + x + 20}" stroke="${color}" stroke-width="${theme.stroke.edge + 0.4}" stroke-linecap="round"${dash}/>` + label;
-    })
+    .map(({ item, x }) => legendItem(item, theme, x0 + x, cy))
     .join('');
+}
+
+const LEGEND_ROW = 26;
+
+function legendColumnWidth(g: Graph, theme: Theme): number {
+  return Math.max(0, ...(g.legend ?? []).map((item) => 28 + measureText(item.label, theme.size.caption, 500)));
+}
+
+const legendColumnHeight = (g: Graph) => (g.legend?.length ?? 0) * LEGEND_ROW + 32;
+
+/** The legend as a column beside the drawing, under a small heading. */
+function drawLegendColumn(g: Graph, theme: Theme, x: number, y: number): string {
+  let s = `<text x="${r1(x)}" y="${r1(y + 10)}" font-size="10" font-weight="600" letter-spacing="0.8" fill="${theme.textFaint}">LEGEND</text>`;
+  for (const [i, item] of (g.legend ?? []).entries()) s += legendItem(item, theme, x, y + 36 + i * LEGEND_ROW);
+  return s;
+}
+
+/** One legend sample and its label, starting at x0. */
+function legendItem(item: LegendItem, theme: Theme, x0: number, cy: number): string {
+  const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
+  const label = textMid(x0 + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
+  if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate']) + label;
+  if (item.swatch === 'fill')
+    return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
+  if (item.swatch === 'check' || item.swatch === 'check-outline') {
+    // The same filled or dashed check circle as the matrix cells.
+    const t = theme.tones[item.tone ?? 'blue'];
+    const cx = x0 + 10;
+    const circle =
+      item.swatch === 'check'
+        ? `<circle cx="${cx}" cy="${cy}" r="8" fill="${t.fg}"/>`
+        : `<circle cx="${cx}" cy="${cy}" r="7.5" fill="none" stroke="${t.fg}" stroke-width="1.2" stroke-dasharray="2.5 2"/>`;
+    const tick = `<path d="M${cx - 3.5} ${cy}l2.4 2.4 4.6-4.8" fill="none" stroke="${item.swatch === 'check' ? theme.surface : t.fg}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+    return circle + tick + label;
+  }
+  if (item.swatch === 'outline')
+    return `<rect x="${x0 + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="6.5" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
+  const dash = item.line === 'dashed' ? ' stroke-dasharray="6 4"' : item.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';
+  return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${color}" stroke-width="${theme.stroke.edge + 0.4}" stroke-linecap="round"${dash}/>` + label;
 }

@@ -1,0 +1,34 @@
+# Acme Corporation: a fictional client brand, to show what a theme file can do.
+# Use it from a diagram with `theme: ./acme.theme.yaml`, or `carto render x.yaml --theme acme.theme.yaml`.
+name: acme
+extends: light
+
+colors:
+  primary: '#E4572E'      # Acme vermilion: the main tone (the blue slot)
+  accent: '#178F8A'       # Acme lagoon: the second tone (the teal slot), title rule
+  canvas: '#FBF8F4'       # warm paper
+  text: '#1E2B3C'         # Acme ink
+
+tones:                    # brand names on our tone slots; slots not named are derived
+  ink: { slot: indigo, color: '#2E4A6B' }
+  saffron: { slot: amber, color: '#E0A526' }
+  plum: { slot: violet, color: '#7A4E8C' }
+
+font:
+  family: Space Grotesk   # must match the name inside the font files
+  files:                  # relative to this file; embedded in SVG, used for PNG
+    400: fonts/SpaceGrotesk-400.woff2
+    500: fonts/SpaceGrotesk-500.woff2
+    600: fonts/SpaceGrotesk-600.woff2
+
+radius: 0.7               # a little crisper than the default
+lineWeight: 1.2
+
+titleBlock:
+  logo: acme-logo.svg
+  client: Acme Corporation
+  project: Platform modernisation
+  classification: Confidential
+  footer: Acme Corporation is a fictional brand used to illustrate Cartography brand themes.
+
+legend: bottom

@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-// carto render | watch | validate | new | import | types
+// carto render | watch | validate | new | import | icons | themes | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { toPng } from './png.ts';
+import { fontScale, ttfFiles } from './fonts.ts';
+import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
+import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
 import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
 import type { Diagnostic, LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
 
-  carto render <file.yaml…> [-o out] [--format svg|png] [--theme light|dark] [--scale 2]
+  carto render <file.yaml…> [-o out] [--format svg|png] [--theme name|file.theme.yaml]
+               [--pack azure] [--scale 2]           --theme wins over the diagram's theme:
   carto watch  <file.yaml…> [same options]      re-render on every save
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template
@@ -18,6 +22,11 @@ const help = `carto — architecture diagrams that look good
                                                 Mermaid (flowchart, architecture-beta,
                                                 erDiagram) to YAML; .md: every mermaid block;
                                                 Kubernetes manifests: all files in one diagram
+  carto icons import <folder|file.zip> --pack azure
+                                                index an official icon download (Azure, AWS,
+                                                GCP) into a pack in ${configDir()}
+  carto icons list                              packs and how many kinds each maps
+  carto themes                                  built-in themes
   carto types                                   list diagram types
 
 Manual positions are read from <file>.layout.json next to the diagram.`;
@@ -27,7 +36,8 @@ const { positionals, values } = parseArgs({
   options: {
     out: { type: 'string', short: 'o' },
     format: { type: 'string', short: 'f', default: 'svg' },
-    theme: { type: 'string', short: 't', default: 'light' },
+    theme: { type: 'string', short: 't' },
+    pack: { type: 'string', multiple: true },
     scale: { type: 'string', default: '2' },
     'no-fonts': { type: 'boolean' },
     force: { type: 'boolean' },
@@ -56,7 +66,7 @@ function sidecarFor(file: string): LayoutSidecar | undefined {
 function outputPath(file: string, format: string): string {
   const base = path.basename(file).replace(/\.ya?ml$/, '') + '.' + format;
   if (!values.out) return path.join(path.dirname(file), base);
-  if (files.length === 1 && path.extname(values.out)) return values.out;
+  if (files.length === 1 && path.extname(values.out)) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), values.out);
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
 }
@@ -73,12 +83,36 @@ function loaderFor(file: string) {
   };
 }
 
+/** Binary files next to a diagram (fonts, PNG logos). */
+const assetsFor = (file: string) => (rel: string) => {
+  const p = path.resolve(path.dirname(file), rel);
+  loaded.get(file)?.add(p);
+  return fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : undefined;
+};
+
+/** --theme: a name, or a theme file relative to where carto runs; read once for all files. */
+let forced: Theme | undefined;
+function themeFlag(): boolean {
+  if (!values.theme) return true;
+  if (themes[values.theme]) return ((forced = themes[values.theme]), true);
+  if (!isThemeFile(values.theme)) return (console.error(`Unknown theme "${values.theme}", use one of: ${Object.keys(themes).join(', ')}, or a .theme.yaml file`), false);
+  const cwd = path.resolve(values.theme);
+  const r = resolveTheme(path.basename(cwd), { load: loaderFor(cwd), assets: assetsFor(cwd) });
+  for (const w of r.warnings) console.error(`${values.theme}  ${yellow('warning')}  ${w.path.length ? w.path.join('.') + ': ' : ''}${w.message}`);
+  forced = r.theme;
+  return true;
+}
+
 async function renderFile(file: string): Promise<boolean> {
   const format = values.format === 'png' ? 'png' : 'svg';
   const opts: RenderOptions = {
-    theme: values.theme === 'dark' ? 'dark' : 'light',
+    themeOverride: forced,
     sidecar: sidecarFor(file),
     load: loaderFor(file),
+    assets: assetsFor(file),
+    fontScale,
+    packs: values.pack,
+    pack: readPack,
     // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
     fonts: values['no-fonts'] || format === 'png' ? 'none' : 'embed',
   };
@@ -86,7 +120,8 @@ async function renderFile(file: string): Promise<boolean> {
   report(file, result.diagnostics);
   if (!result.svg) return false;
   const out = outputPath(file, format);
-  fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2) : result.svg);
+  const faces = result.theme?.font.faces ?? [];
+  fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2, await ttfFiles(faces)) : result.svg);
   console.log(`${file} → ${out} ${dim(`${result.width}×${result.height}`)}`);
   return !result.diagnostics.some((d) => d.severity === 'error');
 }
@@ -158,6 +193,33 @@ async function main(): Promise<number> {
     case 'types':
       for (const t of types) console.log(`${t.id.padEnd(14)} ${t.name} ${dim('— ' + t.description)}`);
       return 0;
+    case 'themes':
+      console.log(`${'light'.padEnd(10)} ${dim('— the default')}\n${'dark'.padEnd(10)} ${dim('— the default, dark')}`);
+      for (const [k, s] of Object.entries(builtinSpecs)) console.log(`${k.padEnd(10)} ${dim('— ' + s.description)}`);
+      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md)'));
+      return 0;
+    case 'icons': {
+      const [sub, src] = files;
+      if (sub === 'list') {
+        const packs = listPacks();
+        if (!packs.length) console.log(`No icon packs yet. Import one: carto icons import <folder|zip> --pack azure`);
+        for (const p of packs) console.log(`${p.name.padEnd(12)} ${Object.keys(p.icons).length} kinds ${dim(`← ${p.source ?? '?'}  (${p.root})`)}`);
+        return 0;
+      }
+      if (sub !== 'import' || !src) return (console.error(help), 1);
+      const name = values.pack?.[0];
+      if (!name) return (console.error('Name the pack: carto icons import <folder|zip> --pack azure'), 1);
+      try {
+        const r = importIcons(src, name);
+        console.log(`${src} → ${r.dir}\n  ${r.files} SVG files, ${Object.keys(r.pack.icons).length} kinds mapped`);
+        if (r.unmatched.length) console.log(dim(`  not matched (map by hand under icons: in a diagram, names in ${path.join(r.dir, 'index.json')}):\n  ${r.unmatched.join(', ')}`));
+        console.log(dim(`  use it: carto render diagram.yaml --pack ${name}, or icons: { pack: ${name} } in the diagram`));
+        return 0;
+      } catch (e) {
+        console.error(`${src}  ${red('error')}  ${(e as Error).message}`);
+        return 1;
+      }
+    }
     case 'new': {
       const [id, target] = files;
       const type = findType(id);
@@ -197,11 +259,13 @@ async function main(): Promise<number> {
     }
     case 'render': {
       if (!files.length) return (console.error(help), 1);
+      if (!themeFlag()) return 1;
       let ok = true;
       for (const f of files) ok = (await renderFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'watch': {
+      if (!themeFlag()) return 1;
       for (const f of files) {
         let timer: NodeJS.Timeout | undefined;
         const followed = new Set<string>();

@@ -1,6 +1,7 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, and the YAML itself.
 import { render, themes } from '@cartography/engine';
 import type { LayoutSidecar } from '@cartography/core';
+import { brand } from './brand.ts';
 
 export interface ExportInput {
   text: string;
@@ -12,14 +13,17 @@ export interface ExportInput {
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
 
+/** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, fonts: 'embed' as const });
+
 export async function exportSvg(input: ExportInput): Promise<string> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, options(input));
   if (!r.svg) throw new Error('Nothing to export: fix the problems first');
   return r.svg;
 }
 
 export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
@@ -39,7 +43,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
 
 /** A 1920×1080 slide: the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const W = 1920;
   const H = 1080;
@@ -53,7 +57,7 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext('2d')!;
-  g.fillStyle = themes[input.theme].canvas;
+  g.fillStyle = r.theme?.canvas ?? themes[input.theme].canvas;
   g.fillRect(0, 0, W, H);
   const w = r.width * scale;
   const h = r.height * scale;
