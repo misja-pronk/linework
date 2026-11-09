@@ -35,6 +35,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
@@ -78,6 +81,18 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  packages/diff:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/engine:
     dependencies:

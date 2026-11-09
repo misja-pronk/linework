@@ -113,3 +113,107 @@ describe('carto validate --drift', () => {
     expect(exists('gone.layout.json')).toBe(false);
   }, 60_000);
 });
+
+describe('carto diff', () => {
+  const grown = shop.replace('  kv: key-vault\n', '  kv: { kind: key-vault, label: Secrets }\n  cache: { kind: redis, in: rg }\n').replace('  - web -> kv\n', '  - web -> cache\n');
+
+  it('compares two files: words, json, a picture, an exit code', () => {
+    write('old.yaml', shop);
+    write('new.yaml', grown);
+    const text = carto('diff', 'old.yaml', 'new.yaml');
+    expect(text.code).toBe(0);
+    expect(text.out).toContain('new.yaml against old.yaml: 2 added, 1 removed, 1 changed');
+    expect(text.out).toMatch(/\+ node  cache/);
+    expect(text.out).toMatch(/~ node  kv +label: "Key Vault" → "Secrets"/);
+    expect(text.out).toMatch(/- line  web -> kv/);
+    expect(text.out).toMatch(/\+ line  web -> cache/);
+
+    const json = JSON.parse(carto('diff', 'old.yaml', 'new.yaml', '--json').out);
+    expect(json).toMatchObject({ file: 'new.yaml', against: 'old.yaml', summary: '2 added, 1 removed, 1 changed', counts: { added: 2, removed: 1, changed: 1 }, same: false });
+    expect(json.nodes.map((n: { id: string; status: string }) => `${n.status} ${n.id}`).sort()).toEqual(['added cache', 'changed kv']);
+
+    // No picture unless asked; with -o one file, svg or png by its name.
+    expect(exists('new.diff.svg')).toBe(false);
+    const svg = carto('diff', 'old.yaml', 'new.yaml', '-o', 'out/shop.svg');
+    expect(svg.code).toBe(0);
+    expect(read('out/shop.svg')).toContain('<g data-diff="added" data-node="cache">');
+    expect(read('out/shop.svg')).toContain('against old.yaml');
+    expect(carto('diff', 'old.yaml', 'new.yaml', '-o', 'out/shop.png', '--side-by-side').code).toBe(0);
+    expect(fs.readFileSync(path.join(tmp, 'out/shop.png')).subarray(1, 4).toString()).toBe('PNG');
+    // A folder: named after the diagram, and after the view when one is asked for.
+    expect(carto('diff', 'old.yaml', 'new.yaml', '-o', 'pics', '--view', 'data').code).toBe(0);
+    expect(read('pics/new-data.diff.svg')).toContain('No changes against old.yaml');
+
+    // For CI: the exit code says whether anything changed, only when asked.
+    expect(carto('diff', 'old.yaml', 'new.yaml', '--exit-code').code).toBe(1);
+    const same = carto('diff', 'old.yaml', 'old.yaml', '--exit-code');
+    expect(same.code).toBe(0);
+    expect(same.out).toContain('no changes');
+  }, 120_000);
+
+  it('says what is wrong with the arguments', () => {
+    const one = carto('diff', 'old.yaml');
+    expect(one.code).toBe(1);
+    expect(one.err).toContain('Two files');
+    const none = carto('diff', 'nope-a.yaml', 'nope-b.yaml');
+    expect(none.code).toBe(1);
+    expect(none.err).toContain('not found');
+  }, 60_000);
+
+  it('compares the working tree with a commit, through included files too', () => {
+    const repo = path.join(tmp, 'repo');
+    fs.mkdirSync(path.join(repo, 'docs'), { recursive: true });
+    const git = (...args: string[]) => {
+      const r = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' });
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    const run = (...args: string[]) => {
+      const r = spawnSync(path.join(root, 'node_modules/.bin/tsx'), [path.join(root, 'packages/cli/src/main.ts'), ...args], { cwd: path.join(repo, 'docs'), encoding: 'utf8' });
+      return { code: r.status, out: r.stdout, err: r.stderr };
+    };
+    const model = `type: model
+elements:
+  customer: { kind: person, label: Customer }
+  shop: { kind: system, label: Web shop }
+  mail: { kind: email, label: SendGrid }
+relations:
+  - customer -> shop: Orders
+  - shop -> mail: Sends receipts
+`;
+    const context = 'type: systems\ntitle: Context\ninclude: [model.yaml]\nnodes:\n  customer:\n  shop:\n  mail:\n';
+    fs.writeFileSync(path.join(repo, 'docs/model.yaml'), model);
+    fs.writeFileSync(path.join(repo, 'docs/context.yaml'), context);
+    fs.writeFileSync(path.join(repo, 'docs/shop.yaml'), shop);
+    git('init', '-q', '-b', 'main');
+    git('add', '.');
+    git('commit', '-q', '-m', 'first');
+
+    // Only the model changes; the diagram that draws it shows the difference.
+    fs.writeFileSync(path.join(repo, 'docs/model.yaml'), model.replace('label: SendGrid', 'label: Postmark').replace('Sends receipts', 'Sends mail'));
+    fs.writeFileSync(path.join(repo, 'docs/shop.yaml'), grown);
+    fs.writeFileSync(path.join(repo, 'docs/fresh.yaml'), shop);
+    const r = run('diff', '--git', 'HEAD', 'context.yaml', 'shop.yaml', 'fresh.yaml', '--json', '-o', 'diffs', '--format', 'png');
+    expect(r.err).not.toContain('error');
+    expect(r.code).toBe(0);
+    const [ctx, shp, fresh] = JSON.parse(r.out);
+    expect(ctx).toMatchObject({ file: 'context.yaml', against: 'HEAD', counts: { added: 0, removed: 0, changed: 2 } });
+    expect(ctx.nodes).toEqual([{ kind: 'node', id: 'mail', status: 'changed', label: 'Postmark', changes: [{ field: 'label', before: 'SendGrid', after: 'Postmark' }] }]);
+    expect(ctx.edges[0]).toMatchObject({ id: 'shop -> mail', status: 'changed', changes: [{ field: 'label', before: 'Sends receipts', after: 'Sends mail' }] });
+    expect(shp.summary).toBe('2 added, 1 removed, 1 changed');
+    expect(fresh).toMatchObject({ file: 'fresh.yaml', state: 'new', counts: { added: 6, removed: 0, changed: 0 } });
+    for (const name of ['context', 'shop', 'fresh']) expect(fs.readFileSync(path.join(repo, 'docs/diffs', `${name}.diff.png`)).subarray(1, 4).toString()).toBe('PNG');
+
+    // Committed: nothing differs from HEAD any more, and the first commit is still there to compare with.
+    git('add', '.');
+    git('commit', '-q', '-m', 'second');
+    expect(run('diff', '--git', 'HEAD', 'context.yaml', '--exit-code').code).toBe(0);
+    const back = run('diff', '--git', 'HEAD~1', 'context.yaml', 'shop.yaml', '--exit-code');
+    expect(back.code).toBe(1);
+    expect(back.out).toContain('context.yaml against HEAD~1: 2 changed');
+
+    const bad = run('diff', '--git', 'no-such-ref', 'context.yaml');
+    expect(bad.code).toBe(1);
+    expect(bad.err).toContain('"no-such-ref" is not a commit, branch or tag here');
+  }, 120_000);
+});
