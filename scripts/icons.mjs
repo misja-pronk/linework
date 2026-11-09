@@ -15,6 +15,8 @@ const names = `
   split square-dashed square-function square-stack star store table table-2 tag target terminal timer triangle-exclamation-point
   user user-cog user-round users variable waypoints webhook wifi workflow x zap
   arrow-right-to-line arrow-right-from-line file-check radio chart-column-big
+  minus plus maximize sun moon command download folder-open file-plus image copy chevron-down circle-exclamation-point
+  layout-template save undo-2 redo-2 panel-left keyboard mouse-pointer-2 pin pin-off grip-vertical trash
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

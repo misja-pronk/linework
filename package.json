@@ -11,7 +11,9 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "icons": "node scripts/icons.mjs",
-    "lab": "tsx packages/cli/src/lab.ts"
+    "lab": "tsx packages/cli/src/lab.ts",
+    "web": "pnpm --filter @cartography/web dev",
+    "web:build": "pnpm --filter @cartography/web build"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

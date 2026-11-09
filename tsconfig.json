@@ -14,5 +14,5 @@
     "jsx": "react-jsx",
     "types": ["node"]
   },
-  "include": ["packages/*/src", "packages/*/test", "types/*/src", "types/*/test", "vitest.config.ts"]
+  "include": ["packages/web/vite-env.d.ts", "packages/*/src", "packages/*/test", "types/*/src", "types/*/test", "vitest.config.ts"]
 }

@@ -1,5 +1,5 @@
 import { Resvg } from '@resvg/resvg-js';
-import { fontFiles } from '@cartography/theme';
+import { fontFiles } from '@cartography/theme/node';
 
 /** PNG without a browser; fonts come from the bundled TTFs so the result is the same on every machine. */
 export function toPng(svg: string, scale: number): Buffer {
