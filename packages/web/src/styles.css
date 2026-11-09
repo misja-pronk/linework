@@ -718,7 +718,9 @@ kbd {
   cursor: grabbing;
 }
 .preview.dragging-node,
-.preview.dragging-node * {
+.preview.dragging-node *,
+.preview.dragging-group,
+.preview.dragging-group * {
   cursor: grabbing !important;
 }
 .drawing [data-node] {

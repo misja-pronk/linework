@@ -22,6 +22,8 @@ interface Props {
   /** A node dragged to a new top-left, in pin coordinates; `done` on release, with the group it was
    * dropped into when that changed (null: out of all groups). */
   onMove(id: string, pin: Point, done: boolean, group?: string | null): void;
+  /** A group dragged by its header to a new top-left (pin coordinates). */
+  onMoveGroup(id: string, pin: Point, done: boolean): void;
   /** A palette item dropped at a point (pin coordinates), inside a group or not. */
   onPaletteDrop(index: number, at: Point, group: string | null): void;
   onKeyDown(e: React.KeyboardEvent): void;
@@ -44,8 +46,10 @@ interface Drag {
   pointer: number;
   x: number;
   y: number;
-  mode: 'pan' | 'node' | 'connect';
+  mode: 'pan' | 'node' | 'connect' | 'group';
   moved: boolean;
+  /** The group being moved, in group mode. */
+  group?: string;
   vx: number;
   vy: number;
   node?: string;
@@ -61,6 +65,8 @@ const MIN = 0.1;
 const MAX = 4;
 const clamp = (v: number) => Math.min(MAX, Math.max(MIN, v));
 const BAR = 64;
+/** Height of a group's label strip, which is where a group is picked up. */
+const HEADER = 40;
 
 const toPinSpace = (groups: Map<string, Box>, s: Point = { x: 0, y: 0 }) =>
   new Map([...groups].map(([id, b]) => [id, { ...b, x: b.x + s.x, y: b.y + s.y }]));
@@ -77,7 +83,7 @@ export function Preview(p: Props) {
   const { result, stale, selected, docKey } = p;
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
-  const [dragging, setDragging] = useState<'pan' | 'node' | 'connect'>();
+  const [dragging, setDragging] = useState<'pan' | 'node' | 'connect' | 'group'>();
   /** The node under the pointer, for its connect handle. */
   const [hover, setHover] = useState<string>();
   /** While connecting: where the pointer is (SVG coordinates) and the node it is over. */
@@ -99,9 +105,12 @@ export function Preview(p: Props) {
   }, []);
   const hovered = useRef(false);
 
+  /** The pane size the view was last placed for (see the resize observer below). */
+  const paneSize = useRef({ w: 0, h: 0 });
   const fit = useCallback(() => {
     const f = frame.current;
     if (!f || !result?.width || !result.height) return;
+    paneSize.current = { w: f.clientWidth, h: f.clientHeight };
     const pad = 32;
     const w = f.clientWidth - 2 * pad;
     const h = f.clientHeight - pad - BAR;
@@ -140,11 +149,11 @@ export function Preview(p: Props) {
   // When the pane changes size (inspector opens, splitter moves), keep the centre where it was.
   useEffect(() => {
     const f = frame.current!;
-    let size = { w: f.clientWidth, h: f.clientHeight };
+    paneSize.current = { w: f.clientWidth, h: f.clientHeight };
     const ro = new ResizeObserver(() => {
-      const dw = f.clientWidth - size.w;
-      const dh = f.clientHeight - size.h;
-      size = { w: f.clientWidth, h: f.clientHeight };
+      const dw = f.clientWidth - paneSize.current.w;
+      const dh = f.clientHeight - paneSize.current.h;
+      paneSize.current = { w: f.clientWidth, h: f.clientHeight };
       if (dw || dh) setView((v) => ({ ...v, x: v.x + dw / 2, y: v.y + dh / 2 }));
     });
     ro.observe(f);
@@ -204,6 +213,24 @@ export function Preview(p: Props) {
     const hit = e.button === 0 ? ((e.target as Element).closest('[data-node]') as HTMLElement | null) : null;
     const id = hit?.dataset.node;
     const box = id ? result?.placed?.nodes.get(id) : undefined;
+    // A group's header (its label strip) moves the whole group; the rest of it pans the canvas.
+    const header = !id && e.button === 0 && !stale ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
+    if (header) {
+      drag.current = {
+        pointer: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        mode: 'group',
+        moved: false,
+        vx: view.x,
+        vy: view.y,
+        group: header,
+        box: result!.placed!.groups.get(header),
+        shift: result?.placed?.shift ?? { x: 0, y: 0 },
+      };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
     drag.current = {
       pointer: e.pointerId,
       x: e.clientX,
@@ -244,13 +271,28 @@ export function Preview(p: Props) {
       d.moved = true;
       setDragging(d.mode);
       if (d.mode === 'node') p.onSelect({ kind: 'node', id: d.node! });
+      if (d.mode === 'group') p.onSelect({ kind: 'group', id: d.group! });
     }
     if (d.mode === 'pan') return setView((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
+    if (d.mode === 'group') {
+      const pin = { x: Math.round(d.box!.x + d.shift!.x + dx / view.scale), y: Math.round(d.box!.y + d.shift!.y + dy / view.scale) };
+      cancelAnimationFrame(frameReq.current);
+      frameReq.current = requestAnimationFrame(() => p.onMoveGroup(d.group!, pin, false));
+      return;
+    }
     const pin = { x: Math.round(d.box!.x + d.shift!.x + dx / view.scale), y: Math.round(d.box!.y + d.shift!.y + dy / view.scale) };
     cancelAnimationFrame(frameReq.current);
     frameReq.current = requestAnimationFrame(() => p.onMove(d.node!, pin, false));
     const target = dropGroup(d, e.clientX, e.clientY);
     setDropTarget(target !== (d.parent ?? null) ? target : undefined);
+  };
+
+  /** The innermost group whose header strip is under a layout point. */
+  const headerAt = (q: Point): string | undefined => {
+    let best: [string, number] | undefined;
+    for (const [id, b] of result?.placed?.groups ?? [])
+      if (q.x >= b.x && q.x <= b.x + b.width && q.y >= b.y && q.y <= b.y + HEADER && (!best || b.width * b.height < best[1])) best = [id, b.width * b.height];
+    return best?.[0];
   };
 
   /** The group under the pointer that can take the dragged node (pin space, so shifts do not matter). */
@@ -270,7 +312,7 @@ export function Preview(p: Props) {
     setDragging(undefined);
     setDropTarget(undefined);
     setLink(undefined);
-    if (d.mode === 'node' && d.moved) p.onDragCancel();
+    if ((d.mode === 'node' || d.mode === 'group') && d.moved) p.onDragCancel();
   };
 
   const end = (e: React.PointerEvent, cancelled: boolean) => {
@@ -291,6 +333,16 @@ export function Preview(p: Props) {
       return;
     }
     if (cancelled) return;
+    if (d.moved && d.mode === 'group') {
+      const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
+      p.onMoveGroup(d.group!, pin, true);
+      return;
+    }
+    if (d.mode === 'group') {
+      // A click on a header selects the group.
+      p.onSelect({ kind: 'group', id: d.group! });
+      return;
+    }
     if (d.moved) {
       if (d.mode === 'node') {
         const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };

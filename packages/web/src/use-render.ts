@@ -29,6 +29,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
         setOut((prev) => ({ result, drawn: result.svg ? result : same ? prev?.drawn : undefined, ms: Math.round(performance.now() - t), text, docKey }));
       })
       .catch((e: unknown) => {
+        console.error('render failed', e);
         if (n === seq.current)
           setOut((prev) => ({
             result: { diagnostics: [{ severity: 'error', message: `Render failed: ${e instanceof Error ? e.message : String(e)}` }] },

@@ -64,3 +64,19 @@ describe('pins', () => {
     expect({ x: nc.x + pinned.placed!.shift!.x, y: nc.y + pinned.placed!.shift!.y }).toEqual({ x: b.x + shift.x, y: b.y + shift.y });
   });
 });
+
+describe('moved groups', () => {
+  it('carry their contents, also with an empty group inside', async () => {
+    const text = 'type: azure\ngroups:\n  rg: resource-group\n  empty: { kind: subnet, in: rg }\nnodes:\n  a: { kind: app-service, in: rg }\n  b: sql-database\nedges:\n  - a -> b\n';
+    const free = await render(text, { fonts: 'none' });
+    const g = free.placed!.groups.get('rg')!;
+    const s = free.placed!.shift!;
+    const moved = await render(text, { fonts: 'none', sidecar: { version: 1, groups: { rg: { x: g.x + s.x, y: g.y + s.y + 200 } } } });
+    expect(moved.diagnostics).toEqual([]);
+    const a0 = free.placed!.nodes.get('a')!;
+    const a1 = moved.placed!.nodes.get('a')!;
+    const g1 = moved.placed!.groups.get('rg')!;
+    // Same offset inside the group as before.
+    expect(a1.y - g1.y).toBeCloseTo(a0.y - g.y, 0);
+  });
+});

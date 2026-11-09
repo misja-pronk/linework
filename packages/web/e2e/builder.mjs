@@ -5,6 +5,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
+page.on('console', async (m) => { if (m.type() === 'error' && m.text().includes('render failed')) problems.push('console: ' + (await Promise.all(m.args().map((a) => a.evaluate((v) => (v instanceof Error ? v.stack : String(v)))))).join(' ')); });
 const fail = (m) => problems.push(m);
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
 const wait = (ms = 250) => page.waitForTimeout(ms);
@@ -124,6 +125,31 @@ if (await lbl.count()) {
   if (!/label: reads|-> \w+: reads/.test(await yaml())) fail('edge label not written');
 } else fail('edge inspector has no label field');
 await page.screenshot({ path: `${out}/7-edge.png` });
+
+// 11. Drag a group by its header: the group and everything in it move.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+const before = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';
+const g = await page.locator('.drawing [data-group]').first().boundingBox();
+const web = await page.locator('.drawing [data-node="web"]').boundingBox();
+await page.mouse.move(g.x + 60, g.y + 10);
+await page.mouse.down();
+for (let i = 1; i <= 6; i++) await page.mouse.move(g.x + 60 + i * 5, g.y + 10 + i * 8);
+await page.mouse.up();
+await wait(400);
+const after = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';
+const web2 = await page.locator('.drawing [data-node="web"]').boundingBox();
+if (Number(after) !== Number(before) + 1) fail(`group drag did not pin the group: ${before} → ${after}`);
+if (Math.abs(web2.y - web.y) < 10) fail('contents did not move with the group');
+if ((await page.locator('.status-problems').innerText()) !== 'No problems') {
+  await page.click('.status-problems');
+  await wait(200);
+  fail('after group drag: ' + (await page.locator('.palette-list').innerText()));
+  await page.keyboard.press('Escape');
+}
+await page.screenshot({ path: `${out}/8-group.png` });
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all builder steps ok');
 await browser.close();

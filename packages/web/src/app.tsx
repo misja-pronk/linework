@@ -76,7 +76,7 @@ export function App() {
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
   const [pins, setPins] = useState<LayoutSidecar | undefined>(saved?.pins);
   /** A node being dragged: its pin before it is committed to the history. */
-  const [draft, setDraft] = useState<{ id: string; at: Point }>();
+  const [draft, setDraft] = useState<{ id: string; at: Point; group?: boolean }>();
   const [docKey, setDocKey] = useState(0);
   const [pref, setPref] = useState<ThemePref>(store.get('theme') ?? 'system');
   const systemDark = useSystemDark();
@@ -116,7 +116,12 @@ export function App() {
     [ws, doc.path, doc.starter],
   );
   const sidecar = useMemo<LayoutSidecar | undefined>(
-    () => (draft ? { version: 1, nodes: { ...(pins?.nodes ?? {}), [draft.id]: draft.at } } : pins),
+    () =>
+      !draft
+        ? pins
+        : draft.group
+          ? { version: 1, nodes: pins?.nodes, groups: { ...(pins?.groups ?? {}), [draft.id]: draft.at } }
+          : { version: 1, nodes: { ...(pins?.nodes ?? {}), [draft.id]: draft.at }, groups: pins?.groups },
     [pins, draft],
   );
   const rendered = useRender(useDebounced(text, 40, docKey), theme, sidecar, load, docKey);
@@ -203,9 +208,15 @@ export function App() {
   const save = async (): Promise<boolean> => {
     const now = textNow();
     // Pins of elements that are no longer drawn are left out of the saved layout.
-    const drawnIds = new Set(result?.graph?.nodes.map((n) => n.id) ?? []);
-    const kept = pins?.nodes && result?.graph ? Object.fromEntries(Object.entries(pins.nodes).filter(([k]) => drawnIds.has(k))) : pins?.nodes;
-    const pinsToSave: LayoutSidecar | undefined = kept && Object.keys(kept).length ? { version: 1, nodes: kept } : undefined;
+    const drawn = (ids: string[] | undefined, map: Record<string, Point> | undefined) => {
+      if (!map || !ids) return map;
+      const keep = Object.fromEntries(Object.entries(map).filter(([k]) => ids.includes(k)));
+      return Object.keys(keep).length ? keep : undefined;
+    };
+    const keptNodes = drawn(result?.graph?.nodes.map((n) => n.id), pins?.nodes);
+    const keptGroups = drawn(result?.graph?.groups.map((g) => g.id), pins?.groups);
+    const pinsToSave: LayoutSidecar | undefined =
+      keptNodes || keptGroups ? { version: 1, ...(keptNodes ? { nodes: keptNodes } : {}), ...(keptGroups ? { groups: keptGroups } : {}) } : undefined;
     try {
       if (ws && doc.path) await saveInFolder(ws, doc.path, now, pinsToSave);
       else if (fileHandle.current) await saveFile(fileHandle.current, now);
@@ -334,12 +345,19 @@ export function App() {
     if (next == null) return notify('That change did not work on this YAML: fix the problems in the editor, or make it there', { tone: 'error' });
     editor.current?.replace(next, { pins: nextPins });
   };
-  const withPin = (id: string, at: Point | undefined): LayoutSidecar | null => {
+  /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
+  const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => {
     const nodes = { ...(pins?.nodes ?? {}) };
-    if (at) nodes[id] = at;
-    else delete nodes[id];
-    return Object.keys(nodes).length ? { version: 1, nodes } : null;
+    const groups = { ...(pins?.groups ?? {}) };
+    const target = group ? groups : nodes;
+    if (at) target[id] = at;
+    else delete target[id];
+    const out: LayoutSidecar = { version: 1 };
+    if (Object.keys(nodes).length) out.nodes = nodes;
+    if (Object.keys(groups).length) out.groups = groups;
+    return out.nodes || out.groups ? out : null;
   };
+  const pinCount = Object.keys(pins?.nodes ?? {}).length + Object.keys(pins?.groups ?? {}).length;
   const textNow = () => editor.current?.text() ?? text;
   /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
   const ready = () => {
@@ -386,7 +404,8 @@ export function App() {
       return;
     }
     const next = deleteEntry(textNow(), type, path);
-    apply(next, selected.kind === 'node' && pins?.nodes?.[selected.id] ? withPin(selected.id, undefined) : undefined);
+    const pinned = selected.kind === 'node' ? pins?.nodes?.[selected.id] : selected.kind === 'group' ? pins?.groups?.[selected.id] : undefined;
+    apply(next, pinned ? withPin(selected.id, undefined, selected.kind === 'group') : undefined);
     if (next != null) setSelected(undefined);
   };
 
@@ -711,6 +730,11 @@ export function App() {
             onSelect={select}
             onMove={move}
             onConnect={connect}
+            onMoveGroup={(id, at, done) => {
+              if (!done) return setDraft({ id, at, group: true });
+              setDraft(undefined);
+              editor.current?.pin(withPin(id, at, true) ?? undefined);
+            }}
             onDragCancel={() => setDraft(undefined)}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
@@ -758,7 +782,7 @@ export function App() {
             kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
-            pinned={selected.kind === 'node' && !!pins?.nodes?.[selected.id]}
+            pinned={selected.kind === 'node' ? !!pins?.nodes?.[selected.id] : selected.kind === 'group' && !!pins?.groups?.[selected.id]}
             onField={(key, value) =>
               type && selectedPath && apply(isEdgeItem ? setEdgeField(textNow(), selectedPath, key, value) : setField(textNow(), type, selectedPath, key, value))
             }
@@ -770,7 +794,7 @@ export function App() {
             }}
             onDuplicate={isEntry ? duplicate : undefined}
             onDelete={remove}
-            onUnpin={() => editor.current?.pin(withPin(selected.id, undefined) ?? undefined)}
+            onUnpin={() => editor.current?.pin(withPin(selected.id, undefined, selected.kind === 'group') ?? undefined)}
             onClose={() => setInspector(false)}
           />
         )}
@@ -787,9 +811,9 @@ export function App() {
             {result.graph.nodes.length} elements · {result.graph.edges.length} connections
           </span>
         )}
-        {pins?.nodes && Object.keys(pins.nodes).length > 0 && (
+        {pinCount > 0 && (
           <span className="status-selected">
-            <Icon name="pin" size={13} /> {Object.keys(pins.nodes).length} pinned
+            <Icon name="pin" size={13} /> {pinCount} pinned
           </span>
         )}
         {selected && (

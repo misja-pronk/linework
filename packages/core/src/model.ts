@@ -177,4 +177,6 @@ export interface NodeSize {
 export interface LayoutSidecar {
   version: 1;
   nodes?: Record<string, Point>;
+  /** Groups moved as a whole: their top-left; what is inside moves along unless pinned itself. */
+  groups?: Record<string, Point>;
 }
