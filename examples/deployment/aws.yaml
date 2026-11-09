@@ -4,7 +4,7 @@
 #   carto render examples/deployment/aws.yaml --view prod
 type: cloud
 provider: aws
-title: Web shop on AWS
+title: Web shop on AWS, per environment
 subtitle: Every environment at once
 direction: down
 include: [model.yaml]
