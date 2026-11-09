@@ -1,0 +1,73 @@
+// Imports from other diagram languages. Pure functions (text in, YAML out), shared by the CLI and the web app.
+//
+//   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd
+//   importMarkdown(text)   every ```mermaid block in a Markdown file
+import { importArchitecture } from './architecture.ts';
+import { importEr } from './er.ts';
+import { importFlowchart } from './flowchart.ts';
+import { Warnings } from './text.ts';
+
+export interface Imported {
+  /** Cartography YAML; empty when nothing could be imported. */
+  yaml: string;
+  warnings: string[];
+}
+
+export { guessKind } from './systems.ts';
+
+export function importMermaid(text: string, fallbackTitle?: string): Imported {
+  const warn = new Warnings();
+  let src = text.replace(/\r\n?/g, '\n');
+  let title = fallbackTitle;
+  // Front matter: only the title means something here.
+  const front = /^\s*---\n([\s\S]*?)\n---\s*\n/.exec(src);
+  if (front) {
+    title = /^title:\s*(.+)$/m.exec(front[1]!)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? title;
+    src = src.slice(front[0].length);
+  }
+  const lines = src
+    .replace(/%%\{[\s\S]*?\}%%/g, '')
+    .split('\n')
+    .filter((l) => !/^\s*%%/.test(l))
+    .map((l) => l.replace(/\s+%%.*$/, ''));
+  const start = lines.findIndex((l) => l.trim());
+  if (start < 0) return { yaml: '', warnings: ['The Mermaid text is empty'] };
+  const header = lines[start]!.trim();
+  const body = lines.slice(start + 1);
+  const t = /^title\s+(.+)$/m.exec(body.join('\n'));
+  if (t) {
+    title = t[1]!.trim();
+    body.splice(body.findIndex((l) => l.trim().startsWith('title ')), 1);
+  }
+
+  const kind = header.split(/\s+/)[0]!;
+  let yaml = '';
+  if (/^(flowchart|graph)$/i.test(kind)) yaml = importFlowchart(body, header, title, warn);
+  else if (/^architecture(-beta)?$/.test(kind)) yaml = importArchitecture(body, title, warn);
+  else if (kind === 'erDiagram') yaml = importEr(body, title, warn);
+  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta and erDiagram can`);
+  return { yaml, warnings: warn.list };
+}
+
+export interface ImportedBlock extends Imported {
+  /** 1-based line of the ```mermaid fence. */
+  line: number;
+}
+
+/** Every ```mermaid (or ~~~mermaid) block; the nearest heading above one becomes its title when it has none. */
+export function importMarkdown(text: string): ImportedBlock[] {
+  const out: ImportedBlock[] = [];
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  let heading: string | undefined;
+  for (let i = 0; i < lines.length; i++) {
+    const h = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(lines[i]!);
+    if (h) heading = h[1]!.replace(/[*_`]/g, '');
+    const fence = /^\s*(`{3,}|~{3,})\s*mermaid\b/.exec(lines[i]!);
+    if (!fence) continue;
+    const end = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence[1]!));
+    const block = lines.slice(i + 1, end < 0 ? lines.length : end).join('\n');
+    out.push({ ...importMermaid(block, heading), line: i + 1 });
+    i = end < 0 ? lines.length : end;
+  }
+  return out;
+}

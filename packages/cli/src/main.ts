@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// carto render | watch | validate | new | types
+// carto render | watch | validate | new | import | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { toPng } from './png.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
+import { importMarkdown, importMermaid } from '@cartography/import';
 import type { Diagnostic, LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -13,6 +14,9 @@ const help = `carto — architecture diagrams that look good
   carto watch  <file.yaml…> [same options]      re-render on every save
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template
+  carto import <file.mmd|.md…> [-o out|-] [--force]
+                                                Mermaid (flowchart, architecture-beta,
+                                                erDiagram) to YAML; .md: every mermaid block
   carto types                                   list diagram types
 
 Manual positions are read from <file>.layout.json next to the diagram.`;
@@ -25,6 +29,7 @@ const { positionals, values } = parseArgs({
     theme: { type: 'string', short: 't', default: 'light' },
     scale: { type: 'string', default: '2' },
     'no-fonts': { type: 'boolean' },
+    force: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -85,6 +90,40 @@ async function renderFile(file: string): Promise<boolean> {
   return !result.diagnostics.some((d) => d.severity === 'error');
 }
 
+/** Mermaid or Markdown → <name>.yaml (or <name>-<n>.yaml per block), checked by rendering it once. */
+async function importFile(file: string): Promise<boolean> {
+  const text = fs.readFileSync(file, 'utf8');
+  const base = path.basename(file).replace(/\.(mmd|mermaid|md|markdown)$/i, '');
+  const blocks = /\.(md|markdown)$/i.test(file) ? importMarkdown(text) : [{ ...importMermaid(text), line: 0 }];
+  if (!blocks.length) console.error(`${file}  ${yellow('warning')}  no \`\`\`mermaid blocks found`);
+  let ok = blocks.length > 0;
+  for (const [i, b] of blocks.entries()) {
+    const where = b.line ? `${file}:${b.line}` : file;
+    for (const w of b.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+    if (!b.yaml) {
+      ok = false;
+      continue;
+    }
+    const check = await render(b.yaml, { fonts: 'none' });
+    report(`${where} (imported)`, check.diagnostics);
+    if (values.out === '-') {
+      process.stdout.write((i ? '---\n' : '') + b.yaml);
+      continue;
+    }
+    const name = blocks.length > 1 ? `${base}-${i + 1}.yaml` : `${base}.yaml`;
+    const out = !values.out ? path.join(path.dirname(file), name) : files.length === 1 && blocks.length === 1 && path.extname(values.out) ? values.out : path.join(values.out, name);
+    if (fs.existsSync(out) && !values.force) {
+      console.error(`${out} already exists, use --force to overwrite`);
+      ok = false;
+      continue;
+    }
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, b.yaml);
+    console.log(`${where} → ${out}`);
+  }
+  return ok;
+}
+
 async function main(): Promise<number> {
   if (values.help || !command) {
     console.log(help);
@@ -121,6 +160,12 @@ async function main(): Promise<number> {
         if (r.diagnostics.some((d) => d.severity === 'error')) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
+      return ok ? 0 : 1;
+    }
+    case 'import': {
+      if (!files.length) return (console.error(help), 1);
+      let ok = true;
+      for (const f of files) ok = (await importFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'render': {
