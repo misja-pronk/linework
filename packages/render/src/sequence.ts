@@ -2,7 +2,7 @@
 // tinted bands with a small tab. Text is measured first, then the lanes engine spaces the lifelines
 // (each gap as wide as its widest label) and stacks the rows, so labels never collide: every message
 // owns its row, and a row is as tall as its wrapped label.
-import type { Box, SequenceEvent, SequenceParticipant, SequenceShape, Tone } from '@cartography/core';
+import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
@@ -445,8 +445,11 @@ function rect(b: Box, rx: number, attrs: string) {
   return `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${rx}" ${attrs}/>`;
 }
 
-export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadowId: string): string {
+/** `upTo`: one step of a presentation. The conversation has reached that message: what came before is drawn quiet, what comes after is not there yet. */
+export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadowId: string, upTo?: { message: number; quiet: Theme }): string {
   const g = sequenceGeometry(shape, theme);
+  const now = upTo ? g.messages[Math.min(g.messages.length, upTo.message) - 1] : undefined;
+  const limit = now ? now.y + (now.self?.h ?? 0) + 4 : Infinity;
   const out: string[] = [`<g transform="translate(${r1(at.x)} ${r1(at.y)})">`];
   const tone = (t: Tone) => theme.tones[t];
 
@@ -466,23 +469,25 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     if (look(theme).group.tints) for (const b of g.boxes) if (inside(b.box, x, y)) return groupFill(theme, 0, tone(b.tone));
     return theme.canvas;
   };
-  for (const [i, f] of g.frames.entries()) out.push(drawFrameBack(f, theme, fills[i]!));
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrameBack(f, theme, fills[i]!));
 
   const [y1, y2] = g.lifeline;
   for (const h of g.headers)
     out.push(`<path d="M${r1(h.x)} ${r1(y1)}V${r1(y2)}" stroke="${theme.edge}" stroke-opacity="0.75" stroke-width="1.2" stroke-dasharray="1.5 4" stroke-linecap="round"/>`);
 
-  for (const d of g.dividers) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
+  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
 
   for (const b of g.bars) {
+    if (b.box.y > limit) continue;
     const t = tone(b.tone);
-    out.push(rect(b.box, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
+    // An activation grows with the conversation.
+    out.push(rect({ ...b.box, height: Math.min(b.box.height, limit - b.box.y + 6) }, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
   }
 
-  for (const [i, f] of g.frames.entries()) out.push(drawFrame(f, theme, fills[i]!));
-  for (const m of g.messages) out.push(drawMessage(m, theme, ground));
-  for (const n of g.notes) out.push(drawNote(n.box, n.lines, n.centred, theme));
-  for (const r of g.refs) out.push(drawRef(r, theme));
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, ground));
+  for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme));
+  for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));
 
   for (const h of g.headers) {
     out.push(drawHeader(h, g.headerY, g.headerHeight, theme, shadowId));
@@ -628,7 +633,9 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
     const x = cx - (lw + 22) / 2;
     s += text(x, cy, r.label, theme.size.label, 600, theme.tones.blue.fg);
     s += glyph('link', x + lw + 8, cy - 7, 14, theme.tones.blue.fg);
-    return `<a href="${esc(r.link)}">${s}</a>`;
+    // Only links a page can safely carry (http, https, mailto, relative): the text stays, the link goes.
+    const href = safeHref(r.link);
+    return href ? `<a href="${esc(href)}">${s}</a>` : s;
   }
   return s + text(cx, cy, r.label, theme.size.label, 600, theme.text, 'middle');
 }

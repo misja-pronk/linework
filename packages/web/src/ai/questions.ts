@@ -35,6 +35,47 @@ const parts = (type: DiagramType, label: string, help?: string): Question => ({
 });
 
 const specific: Record<string, (type: DiagramType) => Question[]> = {
+  systems: (t) => [
+    { ...about, placeholder: 'E.g. our order platform: web shop, orders, payments and warehouse, and how they call each other.' },
+    parts(t, 'What kinds of things are in it?', 'Pick what you know; Claude adds what is clearly missing.'),
+    { id: 'grouping', label: 'Group them by', kind: 'choice', options: ['Team or domain', 'Layer (front, services, data)', 'Environment', 'No groups'], initial: 'Team or domain' },
+    { id: 'external', label: 'Outside systems and people', kind: 'text', placeholder: 'Customers, a payment provider, the ERP…' },
+  ],
+  c4: () => [
+    { ...about, label: 'Which software system?', placeholder: 'E.g. internet banking: customers view accounts and pay; it uses the mainframe and sends e-mail.' },
+    { id: 'people', label: 'Who uses it?', kind: 'text', placeholder: 'Customers, back-office staff, support' },
+    { id: 'external', label: 'Systems it depends on', kind: 'text', placeholder: 'Mainframe banking system, e-mail, identity provider' },
+    { id: 'containers', label: 'Apps and data stores inside it (if you know them)', kind: 'text', placeholder: 'Web app, mobile app, API, database' },
+    { id: 'views', label: 'Which views?', kind: 'chips', options: ['System landscape', 'System context', 'Containers', 'Components', 'Dynamic (numbered steps)', 'Deployment'], initial: ['System context', 'Containers'] },
+  ],
+  kubernetes: (t) => [
+    { ...about, label: 'Which workloads?', placeholder: 'E.g. a shop: web and API deployments behind an ingress, a worker, Postgres as a StatefulSet.' },
+    parts(t, 'What should appear?', 'Pick what you know; Claude adds what is clearly missing.'),
+    { id: 'namespaces', label: 'Namespaces', kind: 'text', placeholder: 'shop, monitoring, ingress-nginx' },
+    { id: 'traffic', label: 'How does traffic get in?', kind: 'choice', options: ['Ingress', 'Gateway API', 'LoadBalancer service', 'Internal only'], initial: 'Ingress' },
+    { id: 'focus', label: 'Show', kind: 'choice', options: ['Traffic path', 'Config and storage too', 'Security (service accounts, network policies)'], initial: 'Traffic path' },
+  ],
+  sequence: () => [
+    { ...about, label: 'Which interaction?', placeholder: 'E.g. checkout with a card: the shop creates a payment, the provider confirms by webhook.' },
+    { id: 'participants', label: 'Who takes part, left to right', kind: 'text', placeholder: 'Shopper, Storefront, Orders API, Orders DB, Payment provider' },
+    { id: 'steps', label: 'The steps, roughly', kind: 'long', placeholder: 'One per line is enough: place order, create payment, confirm card, webhook, mark paid…' },
+    { id: 'branches', label: 'Include', kind: 'chips', options: ['Failure path', 'Retries or loops', 'Async messages', 'Notes'], initial: ['Failure path'] },
+  ],
+  gitflow: () => [
+    { ...about, label: 'Which way of working?', placeholder: 'E.g. how a feature goes from branch to production in our team, including a hotfix.' },
+    { id: 'preset', label: 'Branching model', kind: 'choice', options: ['GitHub Flow', 'Trunk-based', 'Git Flow', 'Release branches', 'Not sure'], initial: 'GitHub Flow' },
+    { id: 'view', label: 'Show it as', kind: 'choice', options: ['Branches (commits, merges, tags)', 'Delivery (stages and environments)'], initial: 'Branches (commits, merges, tags)' },
+    { id: 'environments', label: 'Environments', kind: 'text', placeholder: 'dev, test, acceptance, production' },
+    { id: 'events', label: 'Include', kind: 'chips', options: ['Pull request review', 'Release tag', 'Hotfix', 'Cherry-pick', 'Deployments'], initial: ['Pull request review', 'Release tag'] },
+  ],
+  roadmap: () => [
+    { ...about, label: 'Which plan?', placeholder: 'E.g. the data platform migration: foundation first, then three waves of workloads, old platform off in Q4.' },
+    { id: 'period', label: 'Period', kind: 'text', placeholder: 'Q1 2027 to Q4 2027, or January to June' },
+    { id: 'unit', label: 'Time in', kind: 'choice', options: ['Months', 'Quarters', 'Sprints', 'Now / next / later'], initial: 'Quarters' },
+    { id: 'lanes', label: 'Workstreams or teams', kind: 'text', placeholder: 'Platform, Migration, Governance, Change' },
+    { id: 'milestones', label: 'Milestones and deadlines', kind: 'text', placeholder: 'Go-live 1 June, audit in September, old contract ends 31 December' },
+    { id: 'show', label: 'Include', kind: 'chips', options: ['Dependencies', 'Progress and status', 'Phases', 'Today line'], initial: ['Dependencies', 'Phases'] },
+  ],
   azure: (t) => [
     { ...about, placeholder: 'E.g. an order platform on Container Apps with a public API, events on Service Bus and SQL.' },
     parts(t, 'Which Azure services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),

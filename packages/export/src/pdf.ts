@@ -5,6 +5,7 @@ import SVGtoPDF from 'svg-to-pdfkit';
 import { drawSvg } from '@cartography/render';
 import { bundledFamily, inThemeFonts, themes, type Theme } from '@cartography/theme';
 import type { Drawing } from './pptx.ts';
+import { pages } from './steps.ts';
 
 /** Inter as TTF bytes per weight. WOFF2 will not do: fontkit cannot subset it. */
 export type FontBytes = Record<400 | 500 | 600, Uint8Array>;
@@ -28,6 +29,8 @@ export interface PdfOptions {
   title?: string;
   /** Deflate content streams (default). Off only to read the PDF as text, in tests. */
   compress?: boolean;
+  /** A page per step is the default for written steps. True: also for steps nobody wrote; false: one page per drawing. */
+  steps?: boolean;
 }
 
 /** As render writes attribute values, so the monospace family can be found in its output. */
@@ -72,11 +75,11 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   }
   const monoFamily = `font-family="${escAttr(theme.font.mono)}"`;
 
-  for (const d of drawings) {
+  for (const { drawing: d, view } of pages(drawings, opts.steps)) {
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');
     // Drawn in the theme's own faces, as the engine measured it.
     const { graph, placed } = d;
-    const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none' }));
+    const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view }));
     const svg = nameFaces(out.svg, monoFamily);
     const foot = footer ? FOOTER : 0;
     const sheet = opts.page === 'a4' || opts.page === 'a3';

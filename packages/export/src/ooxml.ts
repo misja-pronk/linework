@@ -229,6 +229,7 @@ export function notesRels(slide: number): string {
   ]);
 }
 
-export function slideXml(tree: string): string {
-  return `${HEAD}<p:sld ${PML}><p:cSld><p:spTree>${GRP}${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+/** `fade`: a short fade into this slide, for the steps of one drawing. */
+export function slideXml(tree: string, fade = false): string {
+  return `${HEAD}<p:sld ${PML}><p:cSld><p:spTree>${GRP}${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${fade ? '<p:transition spd="fast"><p:fade/></p:transition>' : ''}</p:sld>`;
 }

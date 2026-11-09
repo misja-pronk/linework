@@ -45,6 +45,23 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Steps and presenting',
+    [
+      ['P / ⌘↩', 'Present full screen'],
+      ['S', 'Add a step: the selection stands out in it'],
+      ['[ / ]', 'Previous / next step in the drawing'],
+      ['F2', 'Name the step (on its chip)'],
+      ['⌥← / ⌥→', 'Move the step earlier / later (on its chip)'],
+      ['⌫', 'Remove the step (on its chip)'],
+      ['→ Space / ←', 'Presenting: next / previous'],
+      ['Home / End', 'Presenting: first / last'],
+      ['3 ↵', 'Presenting: jump to a number'],
+      ['B or .', 'Presenting: blank the screen'],
+      ['Tab ↵ / ⌘-click', 'Presenting: follow a link, ⌫ comes back'],
+      ['Esc', 'Presenting: stop'],
+    ],
+  ],
+  [
     'Mouse and trackpad',
     [
       ['Drag an element', 'Move it (pins it), snapping to guides; drop into a group to nest'],

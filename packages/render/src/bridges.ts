@@ -15,7 +15,8 @@ interface Segment {
 /** Crossings stay clear of bends and line ends by this much, so a bridge never lands on a corner. */
 const CLEAR = 7;
 
-export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Ground, color: (e: GraphEdge) => string, skip: Set<string> = new Set()): string {
+/** `step`: in one step of a presentation the line that matters more goes over, as heavy as that step draws it. */
+export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Ground, color: (e: GraphEdge) => string, skip: Set<string> = new Set(), step?: { rank: (e: GraphEdge) => number; scale: (e: GraphEdge) => number }): string {
   const gap = look(theme).line.bridge;
   if (!gap) return '';
   const level: Segment[] = [];
@@ -41,14 +42,15 @@ export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Grou
       if (!within(x, h.a.x, h.b.x) || !within(y, v.a.y, v.b.y)) continue;
       // The upright line goes over, unless it is dashed and the level one is solid: a gap in a dashed
       // line is just another dash. Two dashed lines cross as they are.
-      const over = v.edge.line !== 'solid' && h.edge.line === 'solid' ? h : v;
+      const first = step ? step.rank(h.edge) - step.rank(v.edge) : 0;
+      const over = first > 0 || (!first && v.edge.line !== 'solid' && h.edge.line === 'solid') ? h : v;
       if (over.edge.line !== 'solid') continue;
       const key = `${r1(x)},${r1(y)}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const w = theme.stroke.edge * (over.edge.width ?? 1);
+      const w = theme.stroke.edge * (over.edge.width ?? 1) * (step?.scale(over.edge) ?? 1);
       const under = over === v ? h : v;
-      const wu = theme.stroke.edge * (under.edge.width ?? 1);
+      const wu = theme.stroke.edge * (under.edge.width ?? 1) * (step?.scale(under.edge) ?? 1);
       // Cut the line underneath back on both sides of the one on top, then draw that one again across the cut.
       const half = w / 2 + gap;
       const cut = over === v ? `M${r1(x - half)} ${r1(y)}H${r1(x + half)}` : `M${r1(x)} ${r1(y - half)}V${r1(y + half)}`;

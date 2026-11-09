@@ -1,0 +1,11 @@
+type: systems
+title: Inside the web shop
+groups:
+  shop: { kind: system, label: Web shop }
+nodes:
+  web: { kind: client, label: Storefront, in: shop }
+  api: { kind: api, label: Orders API, in: shop }
+  db: { kind: database, label: Orders DB, in: shop }
+edges:
+  - web -> api: REST
+  - api -> db: SQL

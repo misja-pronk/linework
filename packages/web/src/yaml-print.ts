@@ -79,10 +79,23 @@ function pairSpan(text: string, p: Pair): [number, number] | undefined {
   return [lineStart(text, k[0]), contentEnd(text, k[0], v ? v[1] : k[1])];
 }
 
+/** Text span of a list item: its whole lines, with the comment lines above it that are its own. */
 function itemSpan(text: string, item: Node): [number, number] | undefined {
   const r = item.range;
   if (!r) return undefined;
-  return [lineStart(text, dashBefore(text, r[0])), contentEnd(text, r[0], r[1])];
+  let from = lineStart(text, dashBefore(text, r[0]));
+  // The comment goes where the item goes: removed with it, and printed once when the item is printed again.
+  let left = item.commentBefore ? item.commentBefore.split('\n').length : 0;
+  for (let at = from; left > 0 && at > 0; ) {
+    const start = lineStart(text, at - 1);
+    const line = text.slice(start, at - 1).trim();
+    if (line.startsWith('#')) {
+      from = start;
+      left--;
+    } else if (line) break;
+    at = start;
+  }
+  return [from, contentEnd(text, r[0], r[1])];
 }
 
 /** The "-" of a list item: its value can start lines later ("- # note\n  from: a", "- &anchor"). */
@@ -200,7 +213,11 @@ function diffSeq(text: string, a: YAMLSeq, b: YAMLSeq, column: number, indent: n
       if (oj[i] === nj[i]) continue;
       const span = itemSpan(text, oi[i]!);
       if (!span) return false;
-      out.push({ from: span[0], to: span[1], text: printItem(ni[i], column, indent) });
+      // An item changed where it stands keeps the comment above it; one that moved here brings its own.
+      const kept = oi[i]!.commentBefore;
+      if (kept && ni[i] && typeof ni[i] === 'object' && !ni[i]!.commentBefore && !oj.includes(nj[i]!)) ni[i]!.commentBefore = kept;
+      // The blank line above a commented item is still in the text: it is not printed again.
+      out.push({ from: span[0], to: span[1], text: printItem(ni[i], column, indent).replace(/^\n+/, '') });
     }
     return true;
   }

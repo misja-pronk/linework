@@ -223,3 +223,70 @@ describe('pdf', () => {
     expect(pdf).toMatch(/\/MediaBox \[0 0 1190\.55 841\.89\]/);
   });
 });
+
+describe('steps', () => {
+  /** Where each named card and group sits on a slide. */
+  const frames = (slide: string) => new Map([...slide.matchAll(/<p:cNvPr id="\d+" name="((?:Card|Group): [^"]*)"[\s\S]*?<a:off x="(-?\d+)" y="(-?\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [m[1]!, m.slice(2, 6).join(' ')]));
+  const slideCount = (zip: Uint8Array) => Object.keys(parts(zip).files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length;
+
+  it('pptx: a slide per step, every shape in the same place, the caption on the slide and in the notes', async () => {
+    const r = await draw('systems/invoice-walkthrough.yaml');
+    expect(r.steps).toHaveLength(7);
+    const zip = await toPptx({ ...r, name: 'invoice-walkthrough.yaml' });
+    const { text } = parts(zip);
+    expect(slideCount(zip)).toBe(7);
+    expect(text('ppt/presentation.xml').match(/<p:sldId /g)).toHaveLength(7);
+    const last = frames(text('ppt/slides/slide7.xml'));
+    expect(last.size).toBe(r.graph!.nodes.length + r.graph!.groups.length);
+    for (let n = 1; n <= 7; n++) {
+      const slide = text(`ppt/slides/slide${n}.xml`);
+      const state = r.steps![n - 1]!;
+      expect(wellFormed(slide), `slide ${n}`).toBe(true);
+      // What a slide shows sits exactly where it sits on every other slide.
+      const here = frames(slide);
+      for (const [name, frame] of here) expect(frame, `${name} on slide ${n}`).toBe(last.get(name));
+      expect(here.size, `slide ${n}`).toBe(last.size - Object.values({ ...state.nodes, ...state.groups }).filter((s) => s === 'hidden').length);
+      expect(slide).toContain(`<a:t>${state.title}</a:t>`);
+      expect(slide).toContain(`<a:t>${n} / 7</a:t>`);
+      const notes = text(`ppt/notesSlides/notesSlide${n}.xml`);
+      expect(notes).toContain(state.title!);
+      expect(notes).toContain(state.caption!.slice(0, 40));
+      expect(notes).toContain(`Step ${n} of 7`);
+      // The steps of one drawing fade into each other; the first slide comes in as any other.
+      expect(slide.includes('<p:fade/>'), `slide ${n}`).toBe(n > 1);
+    }
+    // What is not shown yet is not on the slide at all, and a callout is there for its step only.
+    expect(text('ppt/slides/slide1.xml')).not.toContain('<a:t>order-events</a:t>');
+    expect(text('ppt/slides/slide5.xml')).toContain('<a:t>order-events</a:t>');
+    expect(text('ppt/slides/slide3.xml')).toContain('Maintenance 02:00 to 04:00');
+    expect(text('ppt/slides/slide4.xml')).not.toContain('Maintenance 02:00 to 04:00');
+  });
+
+  it('pptx: one slide on request, one step on request, and steps nobody wrote only when asked for', async () => {
+    const r = await draw('azure/web-shop.yaml');
+    expect(slideCount(await toPptx(r))).toBe(r.steps!.length);
+    expect(slideCount(await toPptx(r, { steps: false }))).toBe(1);
+    expect(slideCount(await toPptx({ ...r, step: 2 }))).toBe(1);
+    expect(slideCount(await toPptx([r, await draw('systems/web-shop.yaml')], { title: 'Both' }))).toBe(r.steps!.length + 2);
+    expect(parts(await toPptx(r, { steps: false })).text('ppt/slides/slide1.xml')).not.toContain('name="Step caption"');
+    const seq = await draw('sequence/checkout.yaml');
+    expect(seq.stepsImplied).toBe(true);
+    expect(slideCount(await toPptx(seq))).toBe(1);
+    expect(slideCount(await toPptx(seq, { steps: true }))).toBe(seq.steps!.length);
+  });
+
+  it('pdf: a page per step with its place in the story, one page on request', async () => {
+    const r = await draw('data-products/customer.yaml');
+    const steps = r.steps!.length;
+    expect(steps).toBeGreaterThan(2);
+    const pdf = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false })).toString('latin1');
+    expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(steps);
+    // Every page is the same size: the drawing does not move between steps.
+    expect(new Set(pdf.match(/\/MediaBox \[[^\]]*\]/g)).size).toBe(1);
+    const said = pdfText(pdf).join('');
+    for (let n = 1; n <= steps; n++) expect(said).toContain(`${n} / ${steps}`);
+    const one = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false, steps: false })).toString('latin1');
+    expect(one.match(/\/Type \/Page\b/g)).toHaveLength(1);
+    expect(pdfText(one).join('')).not.toContain(`1 / ${steps}`);
+  });
+});

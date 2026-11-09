@@ -7,3 +7,4 @@ export * from './roadmap.ts';
 export { groundOf, groupDepths, type Ground } from './ground.ts';
 export { keyLayout, LEGEND } from './legend.ts';
 export { cardStroke, labelInk, labelString, tagRadius } from './paint.ts';
+export * from './steps.ts';
