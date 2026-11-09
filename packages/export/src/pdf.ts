@@ -5,6 +5,7 @@ import SVGtoPDF from 'svg-to-pdfkit';
 import { drawSvg } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
 import type { Drawing } from './pptx.ts';
+import { pages } from './steps.ts';
 
 /** Inter as TTF bytes per weight. WOFF2 will not do: fontkit cannot subset it. */
 export type FontBytes = Record<400 | 500 | 600, Uint8Array>;
@@ -21,6 +22,8 @@ export interface PdfOptions {
   title?: string;
   /** Deflate content streams (default). Off only to read the PDF as text, in tests. */
   compress?: boolean;
+  /** A page per step is the default for written steps. True: also for steps nobody wrote; false: one page per drawing. */
+  steps?: boolean;
 }
 
 const SHEETS = { a4: [841.89, 595.28], a3: [1190.55, 841.89] } as const;
@@ -40,9 +43,9 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   const done = new Promise<void>((ok, fail) => (doc.on('end', ok), doc.on('error', fail)));
   for (const w of [400, 500, 600] as const) doc.registerFont(`Inter-${w}`, opts.fonts[w] as unknown as string);
 
-  for (const d of drawings) {
+  for (const { drawing: d, view } of pages(drawings, opts.steps)) {
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');
-    const out = drawSvg(d.graph, d.placed, theme, { fonts: 'none' });
+    const out = drawSvg(d.graph, d.placed, theme, { fonts: 'none', stepView: view });
     // svg-to-pdfkit only knows bold or not; name the medium weight by family so it keeps its face.
     const svg = out.svg.replace(/font-weight="500"/g, 'font-weight="500" font-family="Inter-500"');
     const foot = footer ? FOOTER : 0;

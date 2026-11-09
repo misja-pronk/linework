@@ -1,8 +1,8 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type TableShape } from '@cartography/core';
-import { besideShortLine, byDepth, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, rowMarks, split, tableHeader, toOutline } from '@cartography/render';
+import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
+import { besideShortLine, byDepth, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, strongTheme, tableHeader, toOutline, type PlacedNote, type StepView } from '@cartography/render';
 import { fitText, measureText, type Theme, type Weight } from '@cartography/theme';
 import { connector, group, picture, shape, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -29,14 +29,16 @@ interface Item {
   box: Frame;
 }
 
-/** Content size in layout px: the drawing plus the legend row under it. */
-export function contentSize(graph: Graph, placed: Placed, theme: Theme) {
+/** Content size in layout px: the drawing plus the legend row under it, and the room callouts of any step need around it (left, top: where the drawing starts). */
+export function contentSize(graph: Graph, placed: Placed, theme: Theme, view?: StepView) {
   const legend = graph.legend?.length ? 40 : 0;
-  return { width: Math.max(placed.width, legendWidth(graph, theme)), height: placed.height + legend };
+  const room = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
+  return { width: Math.max(placed.width + room.left + room.right, legendWidth(graph, theme)), height: placed.height + room.top + room.bottom + legend, left: room.left, top: room.top };
 }
 
-export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, font: string, icons: IconSink, ids: () => number): string {
-  return new SlideDrawing(graph, placed, theme, at, font, icons, ids).draw();
+/** `view`: one step of the drawing. Shapes keep their place and name on every step's slide. */
+export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, font: string, icons: IconSink, ids: () => number, view?: StepView): string {
+  return new SlideDrawing(graph, placed, theme, at, font, icons, ids, view).draw();
 }
 
 class SlideDrawing {
@@ -51,9 +53,16 @@ class SlideDrawing {
     private font: string,
     private icons: IconSink,
     private next: () => number,
+    private view?: StepView,
   ) {
     this.chipsByNode = chips(graph);
+    this.state = view?.states[view.index];
+    // A badge of a line that is not there yet is not there either.
+    const state = this.state;
+    if (state) for (const [id, list] of this.chipsByNode) this.chipsByNode.set(id, list.filter((c) => state.edges[c.edge] !== 'hidden'));
   }
+
+  private state?: StepState;
 
   private X = (px: number) => this.at.x + px * this.at.k;
   private Y = (px: number) => this.at.y + px * this.at.k;
@@ -78,6 +87,7 @@ class SlideDrawing {
   }
 
   private shadow() {
+    if (!this.theme.shadow.opacity) return undefined;
     return { color: this.theme.shadow.color, alpha: Math.min(0.3, this.theme.shadow.opacity * 1.6), blur: this.L(8), dist: this.L(2) };
   }
 
@@ -115,30 +125,64 @@ class SlideDrawing {
   }
 
   draw(): string {
-    const { graph, placed } = this;
+    const { graph, placed, state } = this;
     const out: string[] = [];
+    // In a step, what stands back is drawn with the quiet theme and the route in focus with heavier lines; hidden things are left out.
+    const full = this.theme;
+    const quiet = state ? quietTheme(full) : full;
+    const strong = state ? strongTheme(full) : full;
+    const as = (em: string | undefined) => (this.theme = em === 'dim' ? quiet : full);
     for (const g of byDepth(graph.groups)) {
       const box = placed.groups.get(g.id);
-      if (box) out.push(this.drawGroup(g, box).xml);
+      if (!box || state?.groups[g.id] === 'hidden') continue;
+      as(state?.groups[g.id]);
+      out.push(this.drawGroup(g, box).xml);
     }
-    const badged = new Set([...this.chipsByNode.values()].flat().map((c) => c.edge));
-    const edges = graph.edges.filter((e) => !badged.has(e.id) && (placed.edges.get(e.id)?.points.length ?? 0) > 1);
-    for (const e of edges) out.push(this.drawEdge(e, toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node)).xml);
-    out.push(...this.junctions(edges).map((i) => i.xml));
+    const badged = new Set([...chips(graph).values()].flat().map((c) => c.edge));
+    const weight = (e: GraphEdge) => (state?.edges[e.id] === 'dim' ? 0 : state?.edges[e.id] === 'focus' ? 2 : 1);
+    const edges = graph.edges.filter((e) => !badged.has(e.id) && (placed.edges.get(e.id)?.points.length ?? 0) > 1 && state?.edges[e.id] !== 'hidden');
+    if (state) edges.sort((a, b) => weight(a) - weight(b));
+    for (const e of edges) {
+      this.theme = state?.edges[e.id] === 'focus' ? strong : as(state?.edges[e.id]);
+      out.push(this.drawEdge(e, toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node)).xml);
+    }
+    if (state) {
+      this.theme = quiet;
+      out.push(...this.junctions(edges.filter((e) => state.edges[e.id] === 'dim')).map((i) => i.xml));
+      this.theme = full;
+      out.push(...this.junctions(edges.filter((e) => state.edges[e.id] !== 'dim')).map((i) => i.xml));
+    } else out.push(...this.junctions(edges).map((i) => i.xml));
     for (const n of graph.nodes) {
       const box = placed.nodes.get(n.id);
-      if (!box) continue;
+      if (!box || state?.nodes[n.id] === 'hidden') continue;
       const s = n.shape;
       // Sequence, git flow and roadmap diagrams have no native slide drawing yet.
       if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap') continue;
+      as(state?.nodes[n.id]);
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : this.drawMatrix(n, s, box)).xml);
     }
     for (const e of edges) {
       const pe = placed.edges.get(e.id)!;
+      this.theme = state?.edges[e.id] === 'focus' ? strong : as(state?.edges[e.id]);
       if (e.label && pe.label) out.push(this.edgeLabel(e.label, besideShortLine(pe.points, pe.label)).xml);
     }
-    if (graph.legend?.length) out.push(this.drawLegend(placed.height + 26).xml);
+    this.theme = full;
+    if (state) for (const n of placeNotes(state, placed)) out.push(this.note(n).xml);
+    if (graph.legend?.length) out.push(this.drawLegend(placed.height + (this.view ? noteMargins(this.view, placed).bottom : 0) + 26).xml);
     return out.join('');
+  }
+
+  /** A callout of a step: a filled bubble next to its element, its text editable. */
+  private note(n: PlacedNote): Item {
+    const t = this.theme;
+    return this.sp({
+      name: `Note: ${n.lines.join(' ')}`,
+      frame: this.frame(n.box.x, n.box.y, n.box.width, n.box.height),
+      geom: this.roundRect(n.box, 8),
+      fill: { color: t.text },
+      line: { color: t.canvas, width: this.L(2) },
+      text: { anchor: 'ctr', inset: { l: this.L(10), r: this.L(10) }, paras: n.lines.map((l) => ({ runs: [this.run(l, 12.5, 500, t.canvas)] })) },
+    });
   }
 
   // ------------------------------------------------------------ groups and cards

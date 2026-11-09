@@ -1,0 +1,62 @@
+# A customer walkthrough: one drawing, told in seven steps. Present it in the editor (P), or
+#   carto render invoice-walkthrough.yaml -o walkthrough.pptx     one slide per step
+#   carto render invoice-walkthrough.yaml --all-steps             one image per step
+type: systems
+title: Checkout without waiting
+subtitle: Proposal for the steering group
+direction: right
+
+groups:
+  shop: { kind: system, label: Web shop }
+  async: { kind: zone, label: New, in: shop }
+
+nodes:
+  customers: { kind: users, label: Customers, tags: [today] }
+  web: { kind: client, label: Storefront, in: shop, tags: [today] }
+  orders: { kind: service, label: Orders, in: shop, tags: [today] }
+  db: { kind: database, label: Orders DB, in: shop, tags: [today] }
+  bus: { kind: queue, label: order-events, in: async }
+  invoicing: { kind: worker, label: Invoicing, in: async }
+  notifier: { kind: worker, label: Notifier, in: async }
+  erp: { kind: external, label: ERP, caption: Finance, tags: [today] }
+  mail: { kind: email, label: Mail provider, tags: [today] }
+
+edges:
+  - customers -> web: HTTPS
+  - web -> orders: { label: REST, style: sync }
+  - orders -> db: { label: SQL, style: data }
+  - orders -> erp: { label: create invoice, style: sync }
+  - orders -> mail: { label: confirmation, style: sync }
+  - orders -> bus: { label: OrderPlaced, style: async }
+  - bus -> invoicing: { style: async }
+  - bus -> notifier: { style: async }
+  - invoicing -> erp: { label: create invoice, style: sync }
+  - notifier -> mail: { label: confirmation, style: sync }
+
+steps:
+  - title: Checkout today
+    caption: A customer orders, and the Orders service does everything before it answers.
+    show: tag:today
+  - title: The order itself is quick
+    caption: Storing the order takes 40 ms. This part works and stays as it is.
+    path: customers -> web -> orders -> db
+  - title: Then checkout waits for Finance
+    caption: The invoice is created in the ERP while the customer looks at a spinner.
+    path: orders -> erp
+    note: { erp: 'Maintenance 02:00 to 04:00: checkout fails' }
+  - title: And for the mail provider
+    caption: A slow confirmation mail is a slow checkout. Two outside systems decide how fast the shop feels.
+    path: [orders -> erp, orders -> mail]
+  - title: 'Proposal: say what happened, and answer'
+    caption: Orders publishes OrderPlaced and answers the customer right away.
+    show: bus
+    path: orders -> bus
+    hide: [orders -> erp, orders -> mail]
+  - title: Invoices and mail follow on their own
+    caption: Two small workers pick up the event. When the ERP is down they wait and try again; no order is lost.
+    show: [invoicing, notifier]
+    path: [bus -> invoicing -> erp, bus -> notifier -> mail]
+    note: { bus: Kept for 7 days }
+  - title: What the customer notices
+    caption: Checkout answers in under 100 ms, also at night. Nothing changes in the storefront or the order data.
+    focus: [customers, web, orders, db]

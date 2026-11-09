@@ -16,6 +16,9 @@ import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { ViewPicker } from './view-picker.tsx';
+import { Present, type PresentDoc } from './present.tsx';
+import { StepsStrip } from './steps-strip.tsx';
+import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-edit.ts';
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
@@ -157,6 +160,12 @@ export function App() {
   const docId = doc.path ?? doc.starter ?? doc.name;
   const [picked, setPicked] = useState<{ doc: string; name?: string }>();
   const viewName = picked?.doc === docId ? picked.name : undefined;
+  // Steps: the one looked at while editing (per document and view), and presenting full screen.
+  const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
+  const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
+  const [presenting, setPresenting] = useState(false);
+  /** A step just made from the selection: the strip asks for its name. */
+  const [naming, setNaming] = useState<number>();
   const drawnView = useRef<string>(undefined);
   const sidecar = useMemo<LayoutSidecar | undefined>(() => {
     if (!draft) return pins;
@@ -166,7 +175,7 @@ export function App() {
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
   const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -406,7 +415,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, step: stepNo });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -849,6 +858,8 @@ export function App() {
     else if (craftKey(e) === 'lock') toggleLock();
     else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
     else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
+    else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
+    else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
     else if (e.key === 'ArrowLeft') nudge(-step, 0);
     else if (e.key === 'ArrowRight') nudge(step, 0);
     else if (e.key === 'ArrowUp') nudge(0, -step);
@@ -865,9 +876,11 @@ export function App() {
 
   // ------------------------------------------------------------ links and views
 
+  /** This diagram's path in its folder (or under examples/): links to other diagrams are relative to it. */
+  const here = ws && doc.path ? doc.path : doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined;
+
   /** Follows a link: a URL in a new tab, another view here, or another diagram (and view) next to this one. */
   const follow = (link: Link) => {
-    const here = ws && doc.path ? doc.path : doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined;
     const t = linkTarget(link, here);
     if (t.kind === 'url') return void window.open(t.url, '_blank', 'noopener');
     if (t.kind === 'none') return notify(t.why, { tone: 'error' });
@@ -881,6 +894,52 @@ export function App() {
     if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
     setPicked({ doc: s.id, name: t.view });
     pick(s);
+  };
+
+  // ------------------------------------------------------------ steps and presenting
+
+  const stepList = drawn?.steps ?? [];
+  /** Steps somebody wrote: PowerPoint and PDF get a slide or page for each. */
+  const written = stepList.length > 0 && !drawn?.stepsImplied;
+  const pickStep = (n: number | undefined) => setStepAt(n ? { doc: docId, view: viewName, n } : undefined);
+  /** [ and ]: through the steps, and past the last one back to the whole drawing. */
+  const stepBy = (dir: 1 | -1) => {
+    if (!stepList.length) return notify('No steps yet: select what a step is about and press S');
+    pickStep(((drawn?.step ?? 0) + dir + stepList.length + 1) % (stepList.length + 1) || undefined);
+  };
+  /** A step edit as one undo step; without text the YAML could not take it. */
+  const editSteps = (next: string | undefined, show?: number) => {
+    if (next == null) return notify(drawn?.view ? `The steps of ${drawn.view} are not written in this file, or its YAML has problems: change them there` : 'That change did not work on these steps: make it in the YAML', { tone: 'error' });
+    apply(next);
+    if (show) pickStep(show);
+  };
+  /** S: a new step after the one shown, with the selection as its focus. */
+  const addStepFromSelection = () => {
+    const g = drawn?.graph;
+    if (!ready() || !g) return;
+    if (drawn?.stepsImplied) return notify(g.steps?.length ? 'This view is told by its numbered lines already' : 'A sequence diagram is told message by message already');
+    const edgeOf = (id: string) => g.edges.find((e) => e.id === id);
+    const focus = selection.flatMap((x) => (x.kind !== 'edge' ? [x.id] : edgeOf(x.id) ? [`${edgeOf(x.id)!.from.node} -> ${edgeOf(x.id)!.to.node}`] : []));
+    const names = selection.map((x) => (x.kind === 'node' ? nodeName(x.id) : x.kind === 'group' ? (g.groups.find((y) => y.id === x.id)?.label ?? x.id) : edgeOf(x.id) ? `${nodeName(edgeOf(x.id)!.from.node)} to ${nodeName(edgeOf(x.id)!.to.node)}` : x.id));
+    const n = (drawn?.step ?? stepList.length) + 1;
+    const next = addStep(textNow(), stepsPath(drawn?.view), { title: names.length === 1 ? names[0]! : names.length === 2 ? names.join(' and ') : `Step ${n}`, focus }, drawn?.step);
+    editSteps(next, n);
+    if (next) setNaming(n);
+  };
+  const present = () => {
+    if (!drawn?.svg) return notify('Nothing to present yet: fix the problems in the YAML first', { tone: 'error' });
+    setModal(undefined);
+    setPresenting(true);
+  };
+  /** Another diagram for a link followed while presenting: from the open folder, or the bundled examples. */
+  const presentOther = (path: string): PresentDoc | undefined => {
+    const file = path.split('/').pop();
+    if (ws && doc.path) {
+      const hit = ws.files.get(path);
+      return hit && { text: hit.text, path, file, sidecar: readSidecar(ws, path), load: folderLoader(ws, path) };
+    }
+    const s = starters.find((x) => x.id === `example:${path}`);
+    return s && { text: s.text, path, file, load: exampleLoader(s.id) };
   };
 
   // ------------------------------------------------------------ inspector
@@ -934,10 +993,22 @@ export function App() {
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
     { id: 'slide', group: 'Export', label: 'PNG for slides (16:9)', icon: 'monitor', run: saveSlide },
-    { id: 'pptx', group: 'Export', label: 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
-    { id: 'pdf', group: 'Export', label: 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
+    { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
+    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
+    ...(type && !drawn?.stepsImplied
+      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
+      : []),
+    ...(stepList.length
+      ? [
+          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: ']', run: () => stepBy(1) },
+          { id: 'step-previous', group: 'Present', label: 'Previous step', icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
+          ...(drawn?.step ? [{ id: 'step-none', group: 'Present', label: 'Show the whole drawing', hint: 'no step', icon: 'layers', run: () => pickStep(undefined) }] : []),
+          ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
+        ]
+      : []),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
     ...(vpins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => pinTo(null) }] : []),
@@ -997,6 +1068,11 @@ export function App() {
         setModal('shortcuts');
         return e.preventDefault();
       }
+      // "P" presents, from anywhere but a text field.
+      if (e.key.toLowerCase() === 'p' && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        present();
+        return e.preventDefault();
+      }
       if (e.defaultPrevented || e.altKey || !mod(e)) return;
       const k = e.key.toLowerCase();
       if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
@@ -1007,8 +1083,19 @@ export function App() {
       else return;
       e.preventDefault();
     };
+    // ⌘↩ presents too, also while typing YAML: caught before the editor takes it for a new line.
+    const onPresentKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !mod(e) || e.shiftKey || e.altKey || modal || presenting) return;
+      e.preventDefault();
+      e.stopPropagation();
+      present();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onPresentKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onPresentKey, true);
+    };
   });
 
   // Splitter between editor and drawing, by pointer or arrow keys.
@@ -1145,10 +1232,10 @@ export function App() {
                   <Icon name="monitor" /> PNG for slides (16:9)
                 </button>
                 <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> PowerPoint slide (.pptx)
+                  <Icon name="layout-template" /> {written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)'}
                 </button>
                 <button role="menuitem" onClick={savePdf}>
-                  <Icon name="file-text" /> PDF
+                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
                 </button>
                 <hr />
                 <button role="menuitem" onClick={copyPng}>
@@ -1239,7 +1326,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className="pane canvas-pane" aria-label="Drawing">
+        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}`} aria-label="Drawing">
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -1306,6 +1393,14 @@ export function App() {
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
+              {!stepList.length && (
+                <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
+                  <Icon name="layers" /> Step <kbd>S</kbd>
+                </button>
+              )}
+              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
+                <Icon name="play" /> Present <kbd>P</kbd>
+              </button>
             </div>
             {hint && !adding && !modal && (
               <div className="hint" role="note">
@@ -1351,6 +1446,21 @@ export function App() {
               />
             )}
           </Preview>
+          {stepList.length > 0 && (
+            <StepsStrip
+              steps={stepList}
+              implied={drawn?.stepsImplied}
+              value={drawn?.step}
+              selected={selection.length}
+              naming={current ? naming : undefined}
+              onNamed={() => setNaming(undefined)}
+              onPick={pickStep}
+              onAdd={addStepFromSelection}
+              onRename={(n, title) => editSteps(renameStep(textNow(), stepsPath(drawn?.view), n, title))}
+              onMove={(n, to) => editSteps(moveStep(textNow(), stepsPath(drawn?.view), n, to), drawn?.step === n ? to : drawn?.step === to ? n : undefined)}
+              onDelete={(n) => editSteps(deleteStep(textNow(), stepsPath(drawn?.view), n))}
+            />
+          )}
         </section>
             {selected && inspector && type && (selNode || selGroup || selEdge) && (
           <Inspector
@@ -1462,6 +1572,7 @@ export function App() {
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
+      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view} step={drawn?.step} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
