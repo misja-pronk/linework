@@ -39,6 +39,8 @@ export interface RouterInput {
   soft: (Box & { weight?: number })[];
   /** More areas labels keep out of (group borders and headers); lines may run there. */
   labelZones?: Box[];
+  /** Text lines must never cross (group header titles): ports slide clear, the search pays dearly. */
+  texts?: Box[];
   direction: 'right' | 'down';
   edges: RouteRequest[];
   /** Spread lines sharing a corridor after routing (see nudge.ts); on unless false. */
@@ -55,6 +57,8 @@ const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
+const FLOW = 150; // per end on a side across the flow, for a line into a later layer
+const TEXT = 60; // per pixel through header text: a detour of almost any length is cheaper
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -170,7 +174,7 @@ function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
   const points: Point[] = [];
   for (const e of input.edges)
     for (const [f, t] of options.get(e.id)!) {
-      const p = centrePorts(e, f, t);
+      const p = centrePorts(e, f, t, input.texts);
       probe.set(`${e.id}|${f}${t}`, p);
       points.push(p.start, p.goal);
     }
@@ -187,7 +191,10 @@ function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
     for (const pair of list) {
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!);
       if (!found) continue;
-      const cost = found.cost + pair.filter((x) => across.includes(x)).length * 25;
+      // Into a later layer (the other end wholly further along the flow), a line leaves and enters
+      // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
+      const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
+      const cost = found.cost + pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25);
       if (cost < bestCost) [best, bestCost] = [pair, cost];
     }
     out.set(e.id, best);
@@ -227,7 +234,7 @@ function candidates(e: RouteRequest): [Side, Side][] {
   return pairs;
 }
 
-function centrePorts(e: RouteRequest, f: Side, t: Side): Ports {
+function centrePorts(e: RouteRequest, f: Side, t: Side, texts: Box[] = []): Ports {
   const at = (r: RouteEnd, side: Side): Point => {
     const b = r.box;
     if (r.rowY != null) return { x: side === 'E' ? b.x + b.width : b.x, y: b.y + r.rowY };
@@ -236,10 +243,69 @@ function centrePorts(e: RouteRequest, f: Side, t: Side): Ports {
       : side === 'N' ? { x: b.x + b.width / 2, y: b.y }
       : { x: b.x + b.width / 2, y: b.y + b.height };
   };
-  const from = at(e.from, f);
-  const to = at(e.to, t);
+  const from = e.from.rowY != null ? at(e.from, f) : clearOfText(at(e.from, f), f, e.from, texts);
+  const to = e.to.rowY != null ? at(e.to, t) : clearOfText(at(e.to, t), t, e.to, texts);
   const out1 = (p: Point, side: Side, len: number) => ({ x: p.x + normal[side].x * len, y: p.y + normal[side].y * len });
   return { from, to, fromSide: f, toSide: t, start: out1(from, f, e.from.stub), goal: out1(to, t, e.to.stub) };
+}
+
+/** How far out from a side a line is likely to run straight on: past a group header above it. */
+const REACH = 72;
+
+/**
+ * Where on a side ports may go (12px from the corners): the widest stretch from which a line can
+ * run straight out for REACH without crossing header text, when `n` ports fit there 12px apart;
+ * otherwise the whole side.
+ */
+function clearSpan(box: Box, side: Side, texts: Box[], n: number): [number, number] {
+  const along = side === 'N' || side === 'S' ? 'x' : 'y';
+  const lo = along === 'x' ? box.x + 12 : box.y + 12;
+  const hi = along === 'x' ? box.x + box.width - 12 : box.y + box.height - 12;
+  if (!texts.length) return [lo, hi];
+  const nrm = normal[side];
+  const p = side === 'N' ? box.y : side === 'S' ? box.y + box.height : side === 'W' ? box.x : box.x + box.width;
+  const q = p + (along === 'x' ? nrm.y : nrm.x) * REACH;
+  const [s0, s1] = [Math.min(p, q), Math.max(p, q)];
+  const blocked: [number, number][] = [];
+  for (const t of texts) {
+    const [t0, t1, a0, a1] = along === 'x' ? [t.y, t.y + t.height, t.x, t.x + t.width] : [t.x, t.x + t.width, t.y, t.y + t.height];
+    if (s0 < t1 && s1 > t0 && a1 + 8 > lo && a0 - 8 < hi) blocked.push([a0 - 8, a1 + 8]);
+  }
+  if (!blocked.length) return [lo, hi];
+  blocked.sort((a, b) => a[0] - b[0]);
+  let best: [number, number] | undefined;
+  let at = lo;
+  for (const [a, b] of [...blocked, [hi, hi] as [number, number]]) {
+    if (a > at && (!best || a - at > best[1] - best[0])) best = [at, Math.min(a, hi)];
+    at = Math.max(at, b);
+  }
+  return best && best[1] - best[0] >= 12 * (n - 1) ? best : [lo, hi];
+}
+
+/**
+ * A port whose straight stub would run through header text slides along its side to the nearest
+ * spot where the stub is clear (keeping 12px from the corners); when the side has no such spot it
+ * stays, and the search pays for the crossing.
+ */
+function clearOfText(p: Point, side: Side, end: RouteEnd, texts: Box[]): Point {
+  if (!texts.length) return p;
+  const n = normal[side];
+  const along = n.x === 0 ? 'x' : 'y';
+  const q = { x: p.x + n.x * end.stub, y: p.y + n.y * end.stub };
+  const [s0, s1] = along === 'x' ? [Math.min(p.y, q.y), Math.max(p.y, q.y)] : [Math.min(p.x, q.x), Math.max(p.x, q.x)];
+  const blocked: [number, number][] = [];
+  for (const t of texts) {
+    const [t0, t1, a0, a1] = along === 'x' ? [t.y, t.y + t.height, t.x, t.x + t.width] : [t.x, t.x + t.width, t.y, t.y + t.height];
+    if (s0 < t1 && s1 > t0) blocked.push([a0 - 8, a1 + 8]);
+  }
+  const v = p[along];
+  if (!blocked.some(([a, b]) => v > a && v < b)) return p;
+  const b = end.box;
+  const [lo, hi] = along === 'x' ? [b.x + 12, b.x + b.width - 12] : [b.y + 12, b.y + b.height - 12];
+  const options = [lo, hi, ...blocked.flat()].filter((c) => c >= lo && c <= hi && !blocked.some(([a, z]) => c > a && c < z));
+  if (!options.length) return p;
+  const best = options.reduce((m, c) => (Math.abs(c - v) < Math.abs(m - v) ? c : m));
+  return { ...p, [along]: best };
 }
 
 interface Ports {
@@ -283,6 +349,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
   }
   for (const [slot, list] of spread) slot.other = { x: list.reduce((s, p) => s + p.x, 0) / list.length, y: list.reduce((s, p) => s + p.y, 0) / list.length };
   const pos = new Map<string, Point>();
+  const texts = input.texts ?? [];
   for (const [key, list] of slots) {
     const side = key.slice(key.lastIndexOf(':') + 1) as Side;
     const box = list[0]!.edge[list[0]!.end].box;
@@ -293,12 +360,15 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const n = normal[side];
     const angle = (o: Point) => Math.atan2(along ? o.y - c.y : o.x - c.x, Math.max(1, (o.x - c.x) * n.x + (o.y - c.y) * n.y));
     list.sort((p, q) => angle(p.other) - angle(q.other));
-    const length = along ? box.height : box.width;
+    // Spread over the part of the side clear of header text when the ports fit there.
+    const [lo, hi] = clearSpan(box, side, texts, list.length);
+    const length = hi - lo + 24;
     const room = length - 24;
     const step = Math.min(28, room / Math.max(1, list.length));
     const first = (length - step * (list.length - 1)) / 2;
+    const offset = lo - 12 - (along ? box.y : box.x);
     list.forEach((s, i) => {
-      const t = first + i * step;
+      const t = offset + first + i * step;
       const p =
         side === 'E' ? { x: box.x + box.width, y: box.y + t }
         : side === 'W' ? { x: box.x, y: box.y + t }
@@ -319,7 +389,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const isShared = (end: 'from' | 'to') => shared.has(`${e.id}:${end}`) || [...shared.values()].includes(`${e.id}:${end}`);
     const fixed = (end: 'from' | 'to', side: Side) =>
       e[end].rowY != null ? e[end].box.y + e[end].rowY! : count(e[end].node, side) > 1 || isShared(end) ? pos.get(`${e.id}:${end}`)![along] : undefined;
-    const range = (r: RouteEnd) => (along === 'y' ? [r.box.y + 12, r.box.y + r.box.height - 12] : [r.box.x + 12, r.box.x + r.box.width - 12]) as [number, number];
+    const range = (r: RouteEnd) => clearSpan(r.box, r === e.from ? sf : st, texts, 1);
     const ff = fixed('from', sf);
     const tf = fixed('to', st);
     const set = (end: 'from' | 'to', v: number) => {
@@ -349,7 +419,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const at = (end: 'from' | 'to', side: Side): Point => {
       const r = e[end];
       if (r.rowY != null) return { x: side === 'E' ? r.box.x + r.box.width : r.box.x, y: r.box.y + r.rowY };
-      return pos.get(`${e.id}:${end}`)!;
+      return clearOfText(pos.get(`${e.id}:${end}`)!, side, r, input.texts ?? []);
     };
     const from = at('from', fromSide);
     const to = at('to', toSide);
@@ -445,19 +515,24 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
     generation: 0,
   };
 
-  // Boxes, grown by the margin (minus a pixel, so lines may run exactly along the margin).
-  for (const b of boxes) {
-    const x0 = b.x - MARGIN + 1;
-    const x1 = b.x + b.width + MARGIN - 1;
-    const y0 = b.y - MARGIN + 1;
-    const y1 = b.y + b.height + MARGIN - 1;
+  const block = (x0: number, y0: number, x1: number, y1: number) => {
     for (let y = lowerBound(ys, y0); y < H && ys[y]! < y1; y++)
       for (let x = Math.max(0, lowerBound(xs, x0) - 1); x < W - 1 && xs[x]! < x1; x++) if (xs[x + 1]! > x0) g.hBlocked[y * W + x] = 1;
     for (let x = lowerBound(xs, x0); x < W && xs[x]! < x1; x++)
       for (let y = Math.max(0, lowerBound(ys, y0) - 1); y < H - 1 && ys[y]! < y1; y++) if (ys[y + 1]! > y0) g.vBlocked[y * W + x] = 1;
+  };
+  // Boxes, grown by the margin (minus a pixel, so lines may run exactly along the margin).
+  for (const b of boxes) block(b.x - MARGIN + 1, b.y - MARGIN + 1, b.x + b.width + MARGIN - 1, b.y + b.height + MARGIN - 1);
+  // Header text is a wall too, unless a line has to start or end in it (a port with no clear
+  // spot): then it is only very expensive, so that line still finds a way out.
+  const soft = [...input.soft];
+  for (const t of input.texts ?? []) {
+    const inside = points.some((p) => p.x > t.x && p.x < t.x + t.width && p.y > t.y && p.y < t.y + t.height);
+    if (inside) soft.push({ ...t, weight: TEXT / SOFT });
+    else block(t.x, t.y, t.x + t.width, t.y + t.height);
   }
-  // Group headers: allowed, but every pixel inside one costs.
-  for (const r of input.soft) {
+  // Group headers and borders: allowed, but every pixel inside one costs.
+  for (const r of soft) {
     const rx1 = r.x + r.width;
     const ry1 = r.y + r.height;
     const cost = SOFT * (r.weight ?? 1);
@@ -542,7 +617,9 @@ function search(g: Grid, p: Ports): Found | undefined {
     const cell = k >> 2;
     const x = cell % W;
     const y = (cell - x) / W;
-    if (x === gx && y === gy && d === goalDir) return unwind(g, k, p, cost[k]!);
+    // At the stub's end the line may still turn into the stub (paid as a bend on the way in), as it
+    // may turn right after leaving one: a port under header text is then reached from the side.
+    if (x === gx && y === gy && d !== ((goalDir + 2) & 3)) return unwind(g, k, p, cost[k]!);
     const base = cost[k]!;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === ((d + 2) & 3)) continue; // no U-turns
@@ -567,7 +644,7 @@ function search(g: Grid, p: Ports): Found | undefined {
         if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! && g.hUsed[ny * W + nx]!) c += CROSS;
       }
       // Arriving at the goal in the wrong heading costs a bend.
-      if (nx === gx && ny === gy && nd !== goalDir) c += BEND * 2;
+      if (nx === gx && ny === gy && nd !== goalDir) c += BEND;
       const nk = (ny * W + nx) * 4 + nd;
       if (stamp[nk] !== gen || c < cost[nk]!) {
         stamp[nk] = gen;
@@ -694,11 +771,20 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
       const middle = Math.abs(i - 0.5 - total / 2);
       for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
         const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        // On the line: prefer horizontal, long, central segments.
+        // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
+        // some line visible either side, or the line would seem to end in the label.
         if (len >= (horizontal ? width + 16 : height + 16)) {
           const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
-          candidates.push({ box, score: (horizontal ? 0 : 60) + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
+          const covers = horizontal && pts.length === 2 && len < width + 28 ? 100 : 0;
+          candidates.push({ box, score: (horizontal ? 0 : 60) + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
         }
+        // Above or below a horizontal line too short for a pill on it (a short hop between layers).
+        if (horizontal && pts.length === 2 && len >= 24 && len < width + 28 && t === 0.5)
+          for (const side of [-1, 1]) {
+            const y = side < 0 ? c.y - 4 - height : c.y + 4;
+            const box = { x: c.x - width / 2, y, width, height };
+            candidates.push({ box, score: 95 + middle * 10 + (side > 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+          }
         // Beside a vertical line, when it is too short or crowded for a pill on it.
         if (!horizontal && len >= height + 8)
           for (const side of [1, -1]) {

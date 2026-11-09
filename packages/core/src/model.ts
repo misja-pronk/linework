@@ -157,6 +157,8 @@ export interface Placed {
   height: number;
   /** What was subtracted to move the drawing to 0,0. Pins live in the unshifted space: pin = box + shift. */
   shift?: Point;
+  /** The direction drawn, when layout chose one other than the graph's (the source left it open). */
+  direction?: Direction;
 }
 
 export interface PlacedEdge {

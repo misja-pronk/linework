@@ -67,7 +67,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const measured = size(graph, theme);
   const sized = { ...measured, graph: withoutBadges(graph) };
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
-  const placed = type.layout ? await type.layout(sized, opts.sidecar) : await layout(sized, spacing, opts.sidecar, opts.tuning);
+  const placed = type.layout ? await type.layout(sized, opts.sidecar) : await layout(sized, spacing, opts.sidecar, { autoDirection: data.direction == null, ...opts.tuning });
+  // Layout may turn a very wide drawing top-down when the source did not say which way.
+  if (placed.direction) graph.direction = placed.direction;
   const out = drawSvg(graph, placed, theme, opts);
   return { svg: out.svg, width: out.width, height: out.height, origin: out.origin, diagnostics, type, graph, placed };
 }

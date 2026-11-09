@@ -17,12 +17,21 @@ export const variants: Record<string, Tuning> = {
   compact: { compact: true },
   down: { direction: 'down' },
   untidy: { tidy: false },
+  same: { dot: { sameRank: true } },
+  reverse: { dot: { reverse: true } },
+  'ord-out': { dot: { attrs: 'ordering=out' } },
+  'ord-in': { dot: { attrs: 'ordering=in' } },
+  mclimit: { dot: { attrs: 'mclimit=4, remincross=true' } },
+  search: { dot: { attrs: 'searchsize=200, nslimit=50' } },
 };
 
-const files = fs
-  .readdirSync(path.join(root, 'examples'))
-  .flatMap((d) => fs.readdirSync(path.join(root, 'examples', d)).filter((f) => f.endsWith('.yaml')).map((f) => path.join('examples', d, f)))
-  .sort();
+// The examples, plus the Mermaid imports drawn for the comparison with other tools.
+const files = [
+  ...fs
+    .readdirSync(path.join(root, 'examples'))
+    .flatMap((d) => fs.readdirSync(path.join(root, 'examples', d)).filter((f) => f.endsWith('.yaml')).map((f) => path.join('examples', d, f))),
+  ...fs.readdirSync(path.join(root, 'docs/comparison/cartography')).filter((f) => f.endsWith('.yaml')).map((f) => path.join('docs/comparison/cartography', f)),
+].sort();
 
 fs.mkdirSync(outDir, { recursive: true });
 const names = only.length ? only : Object.keys(variants);
@@ -35,7 +44,9 @@ for (const file of files) {
   for (const name of names) {
     const tuning = variants[name]!;
     const load = (rel: string) => fs.readFileSync(path.resolve(root, path.dirname(file), rel), 'utf8');
+    const t0 = performance.now();
     const r = await render(text, { fonts: 'none', tuning, load }).catch(() => undefined);
+    const ms = performance.now() - t0;
     if (!r) {
       cells.push(`<td><b>${name}</b> crashed</td>`);
       (totals[name] ??= { score: 0, m: [] }).score += 9999;
@@ -47,10 +58,10 @@ for (const file of files) {
     const sc = score(m);
     (totals[name] ??= { score: 0, m: [] }).score += sc;
     totals[name]!.m.push(m);
-    const png = `${path.basename(file, '.yaml')}--${name}.png`;
+    const png = `${file.startsWith('docs') ? 'cmp-' : ''}${path.basename(file, '.yaml')}--${name}.png`;
     fs.writeFileSync(path.join(outDir, png), toPng(r.svg, 1));
     cells.push(
-      `<td><b>${name}</b> ${sc.toFixed(0)}<br><small>cross ${m.crossings} · through ${m.edgeThroughNode} · labels ${m.labelOverlaps} · back ${m.backward} · bends ${m.bends} · len ${m.edgeLength} · detour ${m.detour} · empty ${m.groupEmpty} · aligned ${m.aligned} · tight ${m.tightPairs} · gap ${m.minGap} · uneven ${m.uneven} · borders ${m.borderHits} · ports ${m.portCrowding} · ${m.width}×${m.height}</small><br><img src="${png}"></td>`,
+      `<td><b>${name}</b> ${sc.toFixed(0)}<br><small>cross ${m.crossings} · through ${m.edgeThroughNode} · labels ${m.labelOverlaps} · back ${m.backward} · bends ${m.bends} · len ${m.edgeLength} · detour ${m.detour} · empty ${m.groupEmpty} · voids ${m.voids} · aligned ${m.aligned} · tight ${m.tightPairs} · gap ${m.minGap} · uneven ${m.uneven} · borders ${m.borderHits} · ports ${m.portCrowding} · ${m.width}×${m.height} · ${ms.toFixed(0)}ms</small><br><img src="${png}"></td>`,
     );
   }
   rows.push(`<tr><th>${file}</th>${cells.join('')}</tr>`);
@@ -67,6 +78,7 @@ const cols: [string, (m: LayoutMetrics[]) => string][] = [
   ['length', (l) => sum(l, 'edgeLength').toFixed(0)],
   ['detour', (l) => mean(l, 'detour').toFixed(2)],
   ['empty', (l) => mean(l, 'groupEmpty').toFixed(2)],
+  ['voids', (l) => mean(l, 'voids').toFixed(2)],
   ['aligned', (l) => mean(l, 'aligned').toFixed(2)],
   ['tight', (l) => String(sum(l, 'tightPairs'))],
   ['mingap', (l) => mean(l, 'minGap').toFixed(1)],
