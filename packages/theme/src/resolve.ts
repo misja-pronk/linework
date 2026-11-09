@@ -2,10 +2,26 @@
 // file, the files it extends, its fonts and its logo through the caller's loaders (CLI: disk, web: folder).
 import { parse } from 'yaml';
 import { builtinSpecs, builtinThemes, deriveTheme, mergeSpecs, parseThemeSpec, type ThemeSpec, type ThemeWarning } from './brand.ts';
-import { dark, light, type FontFace, type Theme, type TitleBlock } from './tokens.ts';
+import { builtinLooks, dark, light } from './builtin.ts';
+import type { FontFace, Theme, TitleBlock } from './tokens.ts';
 
-export const themes: { light: Theme; dark: Theme } & Record<string, Theme> = { light, dark, ...builtinThemes };
+/**
+ * Every built-in theme by name. `light` and `dark` are the default look (Survey) in its two modes,
+ * so a diagram that says `theme: dark` follows the product's default.
+ */
+export const themes: { light: Theme; dark: Theme } & Record<string, Theme> = {
+  ...Object.fromEntries(Object.entries(builtinLooks).map(([k, v]) => [k, v.theme])),
+  ...builtinThemes,
+  light,
+  dark,
+};
 export const themeNames = Object.keys(themes);
+
+/** The built-ins in the order a picker shows them, with one line on when to choose each. */
+export const themeCatalog: { name: string; description: string; mode: Theme['mode'] }[] = [
+  ...Object.entries(builtinLooks).map(([name, v]) => ({ name, description: v.description, mode: v.theme.mode })),
+  ...Object.entries(builtinSpecs).map(([name, v]) => ({ name, description: v.description, mode: themes[name]!.mode })),
+];
 
 export interface ThemeLoaders {
   /** Text of a file, relative to the diagram; throws when missing. */
@@ -100,16 +116,19 @@ export function resolveTheme(value: unknown, io: ThemeLoaders, fallback: Theme =
   // Merge outer to inner; relative paths (font files, logo) resolve against the file that names them.
   let spec: ThemeSpec = {};
   let fontFrom = '';
+  let monoFrom = '';
   let logoFrom = '';
   for (const c of chain) {
     if (c.spec.font?.files) fontFrom = c.file;
+    if (c.spec.font?.mono?.files) monoFrom = c.file;
     if (c.spec.titleBlock?.logo) logoFrom = c.file;
     spec = mergeSpecs(spec, c.spec);
   }
   const top = at([]);
   const faces = spec.font?.files ? loadFaces(spec.font.files, spec.font.family, fontFrom, io, top, files) : undefined;
+  const monoFaces = spec.font?.mono?.files ? loadFaces(spec.font.mono.files, spec.font.mono.family, monoFrom, io, top, files, ['font', 'mono']) : undefined;
   const logo = spec.titleBlock?.logo ? loadLogo(joinPath(logoFrom, spec.titleBlock.logo), io, top, files) : undefined;
-  const theme = deriveTheme(base, spec, { faces, logo }, top);
+  const theme = deriveTheme(base, spec, { faces, monoFaces, logo }, top);
   return { theme, warnings, files };
 }
 
@@ -149,8 +168,8 @@ function weightClass(b: Uint8Array): number | undefined {
   return undefined;
 }
 
-function loadFaces(files: string[] | Record<string, string>, family: string | undefined, from: string, io: ThemeLoaders, warn: (w: ThemeWarning) => void, seen: string[]): FontFace[] | undefined {
-  if (!family) return warn({ path: ['font', 'family'], message: 'font.files needs font.family: the name the SVG uses for these files' }), undefined;
+function loadFaces(files: string[] | Record<string, string>, family: string | undefined, from: string, io: ThemeLoaders, warn: (w: ThemeWarning) => void, seen: string[], at: string[] = ['font']): FontFace[] | undefined {
+  if (!family) return warn({ path: [...at, 'family'], message: `${at.join('.')}.files needs ${at.join('.')}.family: the name the SVG uses for these files` }), undefined;
   if (!io.assets) return undefined; // The browser editor shows the family if it is installed; the theme picker embeds the files.
   const list = Array.isArray(files) ? files.map((f) => [undefined, f] as const) : Object.entries(files);
   const faces: FontFace[] = [];
@@ -159,7 +178,7 @@ function loadFaces(files: string[] | Record<string, string>, family: string | un
     const bytes = read(file, io, false);
     const format = bytes && fontFormat(bytes);
     if (!bytes || !format) {
-      warn({ path: ['font', 'files'], message: bytes ? `${file} is not a font (woff2, woff, ttf or otf)` : `Cannot read font ${file}` });
+      warn({ path: [...at, 'files'], message: bytes ? `${file} is not a font (woff2, woff, ttf or otf)` : `Cannot read font ${file}` });
       continue;
     }
     seen.push(file);
