@@ -17,6 +17,17 @@ export interface GraphTypeConfig {
   groupKinds: Record<string, KindTable[string] & { border?: GraphGroup['border'] }>;
   /** Named edge styles (e.g. public, private); used ones end up in the legend. */
   edgeStyles?: Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
+  /** Legend name of a solid line without a style, listed when the legend explains other lines too. */
+  plainEdge?: string;
+}
+
+/** The kind's name as caption, unless the kind is quiet or the label already says it ("Order service"). */
+function kindCaption(label: string | undefined, kind: KindTable[string] | undefined): string | undefined {
+  if (!kind || kind.quiet || kind.form) return undefined;
+  if (label === undefined) return kind.label;
+  const l = label.toLowerCase();
+  const k = kind.label.toLowerCase();
+  return l === k || l.endsWith(` ${k}`) ? undefined : kind.label;
 }
 
 interface Entry {
@@ -127,7 +138,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       id,
       parent: parentOf('groups', id, e),
       label: e.label ?? id,
-      caption: e.caption ?? kind?.label,
+      caption: e.caption ?? kindCaption(e.label, kind),
       icon: e.icon ?? kind?.icon,
       tone: e.tone ?? kind?.tone ?? 'slate',
       border: kind?.border ?? 'solid',
@@ -145,10 +156,12 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
         kind: 'card',
         // Without a label the kind names the node ("Users"), and repeating it as caption adds nothing.
         label: e.label ?? kind?.label ?? id,
-        caption: e.caption ?? (e.label && e.label !== kind?.label ? kind?.label : undefined),
-        icon: e.icon ?? kind?.icon,
+        caption: e.caption ?? (e.label ? kindCaption(e.label, kind) : undefined),
+        // A plain step is text only, unless an icon is asked for.
+        icon: e.icon ?? (kind?.form === 'plain' ? undefined : kind?.icon),
         tone: e.tone ?? kind?.tone ?? 'slate',
         badges: e.badges,
+        ...(kind?.form ? { form: kind.form } : {}),
       },
       path: ['nodes', id],
     };
@@ -157,6 +170,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   const edges: GraphEdge[] = [];
   // Styles drawn as lines and as badges, apart: the legend shows a sample of each.
   const usedStyles = new Set<string>();
+  let plainLines = false;
   const badgeStyles = new Set<string>();
   const badgeList = new Set(src.badges ?? []);
   const nodeIds = new Set(nodeEntries.map(([id]) => id));
@@ -182,6 +196,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       badge = false;
     }
     if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
+    else if (!badge && spec.line === 'solid') plainLines = true;
     edges.push({
       id: `e${i}`,
       from: spec.from,
@@ -201,6 +216,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone }] : []),
     ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone }] : []),
   ]);
+  // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing.
+  if (cfg.plainEdge && plainLines && legend.length) legend.unshift({ label: cfg.plainEdge, line: 'solid' });
 
   return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend };
 }

@@ -10,10 +10,13 @@
 //   edges:
 //     - web -> db: SQL
 //     - api -> bus: { label: OrderPlaced, style: async }
+//
+// Process flows use step, decision, start and end: shapes that speak for themselves, so no caption.
 import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
 
 export const config: GraphTypeConfig = {
   groupKinds: {
+    group: { label: 'Group', icon: 'square-stack', tone: 'slate', quiet: true, keywords: ['subgraph'] },
     system: { label: 'System', icon: 'boxes', tone: 'blue' },
     boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
     zone: { label: 'Zone', icon: 'shield', tone: 'teal', border: 'dashed', keywords: ['network', 'dmz', 'vpc', 'subnet'] },
@@ -57,6 +60,10 @@ export const config: GraphTypeConfig = {
     ai: { label: 'AI model', icon: 'sparkles', tone: 'violet', keywords: ['llm', 'ml'] },
     payments: { label: 'Payments', icon: 'credit-card', tone: 'green', keywords: ['stripe', 'psp'] },
     external: { label: 'External system', icon: 'earth', tone: 'slate', keywords: ['third party', 'saas'] },
+    step: { label: 'Step', icon: 'square', tone: 'slate', form: 'plain', keywords: ['process', 'action', 'task', 'flow'] },
+    decision: { label: 'Decision', icon: 'circle-question-mark', tone: 'amber', form: 'decision', keywords: ['choice', 'condition', 'if', 'question', 'flow'] },
+    start: { label: 'Start', icon: 'circle-play', tone: 'green', form: 'terminal', keywords: ['begin', 'trigger', 'flow'] },
+    end: { label: 'End', icon: 'circle-stop', tone: 'slate', form: 'terminal', keywords: ['stop', 'finish', 'done', 'flow'] },
   },
   edgeStyles: {
     sync: { label: 'Request', line: 'solid', tone: 'blue' },
@@ -64,6 +71,7 @@ export const config: GraphTypeConfig = {
     data: { label: 'Data flow', line: 'solid', tone: 'teal' },
     dotted: { label: 'Supporting', line: 'dotted', tone: 'slate' },
   },
+  plainEdge: 'Connection',
 };
 
 const palette: PaletteItem[] = [

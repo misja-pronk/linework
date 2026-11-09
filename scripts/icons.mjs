@@ -18,6 +18,7 @@ const names = `
   minus plus maximize sun moon command download folder-open file-plus image copy chevron-down circle-exclamation-point
   layout-template save undo-2 redo-2 panel-left keyboard mouse-pointer-2 pin pin-off grip-vertical trash
   arrow-left clipboard-paste circle-stop panel-left-close
+  square circle-play circle-question-mark
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

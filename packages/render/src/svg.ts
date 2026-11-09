@@ -3,7 +3,7 @@
 import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardCaption, CHIP, chipLeft, chipRows, groupLabelWidth, MARK_WIDTH, tableHeader } from './size.ts';
+import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, markWidth, rowMarks, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 
 export interface SvgOptions {
@@ -66,7 +66,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
   for (const e of graph.edges) {
     const pe = placed.edges.get(e.id);
-    if (pe && pe.points.length > 1 && !badged.has(e.id)) out.push(`<g${data('edge', e.id)}>${drawEdge(e, pe.points, theme)}</g>`);
+    if (pe && pe.points.length > 1 && !badged.has(e.id)) out.push(`<g${data('edge', e.id)}>${drawEdge(e, toOutline(pe.points, graph, placed, e.from.node, e.to.node), theme)}</g>`);
   }
   out.push(junctions(graph, placed, theme));
   for (const n of graph.nodes) {
@@ -82,8 +82,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
     if (badged.has(e.id)) continue;
-    const label = placed.edges.get(e.id)?.label;
-    if (e.label && label) out.push(drawEdgeLabel(e.label, label, theme));
+    const pe = placed.edges.get(e.id);
+    if (e.label && pe?.label) out.push(drawEdgeLabel(e.label, besideShortLine(pe.points, pe.label), theme));
   }
   out.push('</g>');
 
@@ -143,22 +143,91 @@ function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Ch
   const tone = theme.tones[shape.tone];
   // With badges the tile and text keep the top of the card and the chips fill the rest.
   const top = badges.length ? c.height : b.height;
-  const tileY = b.y + (top - c.tile) / 2;
-  const tx = b.x + chipLeft(theme);
-  const room = b.width - (tx - b.x) - c.padX;
+  const inset = cardInsets(shape, theme);
+  const centred = inset.centred && !badges.length;
+  const tx = b.x + inset.left;
+  const room = b.width - inset.left - inset.right;
   const caption = cardCaption(shape);
   const cy = b.y + top / 2;
-  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.card}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"/>`;
-  s += `<rect x="${r1(b.x + c.padX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${theme.radius.tile}" fill="${tone.bg}"/>`;
-  s += drawIcon(shape.icon, b.x + c.padX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, tone.fg, theme.stroke.icon);
+  const frame = `fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"`;
+  let s: string;
+  if (shape.form === 'decision') {
+    // Pointed ends and an accent outline: a question, at a glance, without a diamond's wasted space.
+    const t = DECISION_TIP;
+    const pts = [
+      { x: b.x, y: b.y + b.height / 2 },
+      { x: b.x + t, y: b.y },
+      { x: b.x + b.width - t, y: b.y },
+      { x: b.x + b.width, y: b.y + b.height / 2 },
+      { x: b.x + b.width - t, y: b.y + b.height },
+      { x: b.x + t, y: b.y + b.height },
+    ];
+    s = `<path d="${roundedPolygon(pts, theme.radius.card - 4)}" fill="${theme.surface}" stroke="${tone.fg}" stroke-opacity="0.45" stroke-width="${theme.stroke.card + 0.2}" filter="url(#${id}-shadow)"/>`;
+    // The tile turned on its point: a diamond, the flow-chart sign for a decision.
+    const tcx = b.x + t + 23;
+    const side = 26;
+    s += `<rect x="${r1(tcx - side / 2)}" y="${r1(cy - side / 2)}" width="${side}" height="${side}" rx="6" fill="${tone.bg}" transform="rotate(45 ${r1(tcx)} ${r1(cy)})"/>`;
+    s += drawIcon(shape.icon, tcx - 8, cy - 8, 16, tone.fg, theme.stroke.icon);
+  } else {
+    // A terminal is a pill, its tile a circle in the round end.
+    const pill = shape.form === 'terminal';
+    s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${pill ? r1(b.height / 2) : theme.radius.card}" ${frame}/>`;
+    if (shape.icon) {
+      const tileY = b.y + (top - c.tile) / 2;
+      s += `<rect x="${r1(b.x + c.padX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${pill ? c.tile / 2 : theme.radius.tile}" fill="${tone.bg}"/>`;
+      s += drawIcon(shape.icon, b.x + c.padX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, tone.fg, theme.stroke.icon);
+    }
+  }
+  const x = centred ? b.x + b.width / 2 : tx;
+  const anchor = centred ? 'middle' : undefined;
   const label = fitText(shape.label, theme.size.label, 600, room);
   if (caption) {
-    s += textMid(tx, cy - 8, label, theme.size.label, 600, theme.text);
-    s += textMid(tx, cy + 9.5, fitText(caption, theme.size.caption, 400, room), theme.size.caption, 400, theme.textMuted);
-  } else s += textMid(tx, cy, label, theme.size.label, 600, theme.text);
+    s += textMid(x, cy - 8, label, theme.size.label, 600, theme.text, anchor);
+    s += textMid(x, cy + 9.5, fitText(caption, theme.size.caption, 400, room), theme.size.caption, 400, theme.textMuted, anchor);
+  } else s += textMid(x, cy, label, theme.size.label, 600, theme.text, anchor);
   for (const p of chipRows(badges, room, theme).placed)
     s += `<g${data(p.chip.edge)}><title>${esc(p.chip.title)}</title>${drawChip(p.chip, tx + p.x, b.y + CHIP.top + p.y, p.width, theme)}</g>`;
   return s;
+}
+
+/** A closed polygon with rounded corners. */
+function roundedPolygon(pts: Point[], radius: number): string {
+  const n = pts.length;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const p = pts[(i + n - 1) % n]!;
+    const c = pts[i]!;
+    const q = pts[(i + 1) % n]!;
+    const l1 = Math.hypot(c.x - p.x, c.y - p.y);
+    const l2 = Math.hypot(q.x - c.x, q.y - c.y);
+    const r = Math.min(radius, l1 / 2, l2 / 2);
+    const a = { x: c.x - ((c.x - p.x) / l1) * r, y: c.y - ((c.y - p.y) / l1) * r };
+    const e = { x: c.x + ((q.x - c.x) / l2) * r, y: c.y + ((q.y - c.y) / l2) * r };
+    d += `${i ? 'L' : 'M'}${r1(a.x)} ${r1(a.y)}Q${r1(c.x)} ${r1(c.y)} ${r1(e.x)} ${r1(e.y)}`;
+  }
+  return d + 'Z';
+}
+
+/**
+ * Lines meet a decision's side where the box is, but its pointed ends slant inwards: carry the
+ * line's end on to the outline, so nothing stops short in the air.
+ */
+function toOutline(points: Point[], graph: Graph, placed: Placed, from: string, to: string): Point[] {
+  const decision = (id: string) => {
+    const n = graph.nodes.find((x) => x.id === id);
+    return n?.shape.kind === 'card' && n.shape.form === 'decision' ? placed.nodes.get(id) : undefined;
+  };
+  const pts = points.map((p) => ({ ...p }));
+  for (const [i, j, id] of [[0, 1, from], [pts.length - 1, pts.length - 2, to]] as const) {
+    const b = decision(id);
+    const p = pts[i]!;
+    if (!b || Math.abs(p.y - pts[j]!.y) > 0.5) continue;
+    const half = b.height / 2;
+    const dy = Math.min(half, Math.abs(p.y - (b.y + half)));
+    if (Math.abs(p.x - b.x) < 0.5) p.x = b.x + (DECISION_TIP * dy) / half;
+    else if (Math.abs(p.x - b.x - b.width) < 0.5) p.x = b.x + b.width - (DECISION_TIP * dy) / half;
+  }
+  return pts;
 }
 
 /** A badge: the target's icon and name on a soft tile in the colour of the edge style. */
@@ -201,6 +270,7 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string 
     s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX), theme.size.caption, 400, theme.textMuted);
 
   let y = b.y + head;
+  const marks = markWidth(shape);
   for (const [i, row] of shape.rows.entries()) {
     if (row.kind === 'section') {
       s += textMid(b.x + t.padX, y + t.section / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
@@ -210,14 +280,9 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string 
     const cy = y + t.row / 2;
     if (i > 0 && shape.rows[i - 1]?.kind === 'row')
       s += `<line x1="${r1(b.x + t.padX)}" y1="${r1(y)}" x2="${r1(b.x + b.width - t.padX)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
-    const marks = row.marks ?? [];
-    // A row's own icon (port kind, check) wins; otherwise the strongest mark shows.
-    const markIcon = row.icon ?? (marks.includes('pk') ? 'key-round' : marks.includes('fk') ? 'link' : marks.includes('pii') ? 'eye' : undefined);
-    const markTone = row.icon ? theme.tones[row.tone ?? 'slate'].fg
-      : marks.includes('pk') ? theme.tones.amber.fg : marks.includes('fk') ? theme.tones.blue.fg : theme.tones.rose.fg;
-    s += drawIcon(markIcon, b.x + t.padX, cy - 6.5, 13, markTone, 1.75);
+    for (const [k, m] of rowMarks(row).entries()) s += drawIcon(m.icon, b.x + t.padX + k * 15, cy - 6.5, 13, theme.tones[m.tone].fg, 1.75);
     const [name, type] = row.cells;
-    if (name) s += textMid(b.x + t.padX + MARK_WIDTH, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text);
+    if (name) s += textMid(b.x + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text);
     if (type?.text) s += textMid(b.x + b.width - t.padX, cy, type.text, theme.size.cell, 400, theme.textMuted, 'end');
     y += t.row;
   }
@@ -345,6 +410,30 @@ function marker(kind: Marker, tip: Point, from: Point, color: string, theme: The
     case 'zeroOrMany':
       return crow() + circle(20);
   }
+}
+
+/**
+ * A label on a line that is hardly longer than the label would hide the line, its colour and its
+ * dashes: move it just beside the piece it sits on (above a level one, right of an upright one).
+ */
+function besideShortLine(points: Point[], b: Box): Box {
+  const c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  let total = 0;
+  let under: [Point, Point] | undefined;
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i - 1]!;
+    const q = points[i]!;
+    total += Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
+    const level = Math.abs(p.y - q.y) < 0.5;
+    if (!under && (level ? Math.abs(p.y - c.y) < 2 && c.x >= Math.min(p.x, q.x) && c.x <= Math.max(p.x, q.x) : Math.abs(p.x - c.x) < 2 && c.y >= Math.min(p.y, q.y) && c.y <= Math.max(p.y, q.y)))
+      under = [p, q];
+  }
+  if (!under) return b;
+  const [p, q] = under;
+  const level = Math.abs(p.y - q.y) < 0.5;
+  const hidden = Math.min(level ? Math.abs(q.x - p.x) : Math.abs(q.y - p.y), level ? b.width : 20);
+  if (total - hidden >= 40) return b;
+  return level ? { ...b, y: p.y - b.height / 2 - 14 } : { ...b, x: p.x + 5 };
 }
 
 function drawEdgeLabel(label: string, b: Box, theme: Theme): string {

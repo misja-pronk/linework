@@ -53,7 +53,7 @@ const edgeStyles = {
   request: { label: 'Can request', line: 'dashed', tone: 'slate' },
   grant: { label: 'Package grants', line: 'solid', tone: 'violet' },
   member: { label: 'Member of', line: 'dotted', tone: 'slate' },
-  role: { label: 'Role assignment', line: 'solid', tone: 'indigo' },
+  role: { label: 'Role assignment', line: 'solid', tone: 'sky' },
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone }>;
 
 interface Principal {

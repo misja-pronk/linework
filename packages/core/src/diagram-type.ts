@@ -1,5 +1,5 @@
 // The plugin contract: a diagram type turns its own YAML into the shared Graph.
-import type { Graph, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
+import type { CardForm, Graph, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
 
 export interface DiagramType<Source = any> {
   /** The value of `type:` in the YAML. */
@@ -71,5 +71,8 @@ export interface PaletteItem {
 
 export const idPattern = '^[A-Za-z0-9_-]+$';
 
-/** Look-up table of kinds for a type: label shown as caption, icon and tone. */
-export type KindTable = Record<string, { label: string; icon: string; tone: Tone; keywords?: string[] }>;
+/**
+ * Look-up table of kinds for a type: label shown as caption, icon and tone. `quiet` kinds are never
+ * named in a caption (a neutral group, a flow step); `form` gives a card a flow-chart outline.
+ */
+export type KindTable = Record<string, { label: string; icon: string; tone: Tone; keywords?: string[]; quiet?: boolean; form?: CardForm }>;

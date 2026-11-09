@@ -46,7 +46,11 @@ export interface CardShape {
   icon?: string;
   tone: Tone;
   badges?: string[];
+  /** Flow-chart outlines: a decision (pointed ends), a terminal (pill) or a plain step (no icon tile). */
+  form?: CardForm;
 }
+
+export type CardForm = 'decision' | 'terminal' | 'plain';
 
 /** Header + rows, with a connection point per row: tables, data products in detail. */
 export interface TableShape {

@@ -1,9 +1,23 @@
 // Measures every shape before layout, so layout can reserve exactly the space render will draw.
-import { chips, type CardShape, type Chip, type Graph, type NodeSize, type Sized, type TableShape } from '@cartography/core';
+import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@cartography/core';
 import { measureText, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
 
-export const MARK_WIDTH = 18;
+const MARK_WIDTH = 18;
+const MARK_STEP = 15;
+
+/** Icons a table row shows: its own, or one per key mark (a column can be pk and fk at once). */
+export function rowMarks(row: Extract<TableRow, { kind: 'row' }>): { icon: string; tone: Tone }[] {
+  if (row.icon) return [{ icon: row.icon, tone: row.tone ?? 'slate' }];
+  const icons: [RowMark, string, Tone][] = [['pk', 'key-round', 'amber'], ['fk', 'link', 'blue'], ['unique', 'fingerprint-pattern', 'violet'], ['pii', 'eye', 'rose']];
+  return icons.filter(([m]) => row.marks?.includes(m)).map(([, icon, tone]) => ({ icon, tone }));
+}
+
+/** Width of the mark column: room for the row with the most marks. */
+export function markWidth(shape: TableShape): number {
+  const most = Math.max(1, ...shape.rows.map((r) => (r.kind === 'row' ? rowMarks(r).length : 0)));
+  return MARK_WIDTH + (most - 1) * MARK_STEP;
+}
 const CELL_GAP = 24;
 
 export function size(graph: Graph, theme: Theme): Sized {
@@ -41,11 +55,27 @@ export function cardCaption(shape: CardShape): string | undefined {
 
 function cardSize(shape: CardShape, theme: Theme, list: Chip[] = []): NodeSize {
   const c = theme.space.card;
-  const text = 2 * c.padX + c.tile + c.gap + cardTextWidth(shape, theme) + 4;
+  const inset = cardInsets(shape, theme);
+  const text = inset.left + cardTextWidth(shape, theme) + inset.right + 4;
   // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
   const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
-  const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, chipLeft(theme) + row + c.padX)));
-  return { width, height: list.length ? cardHeight(chipRows(list, width - chipLeft(theme) - c.padX, theme).rows, theme) : c.height };
+  const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, inset.left + row + inset.right)));
+  return { width, height: list.length ? cardHeight(chipRows(list, width - inset.left - inset.right, theme).rows, theme) : c.height };
+}
+
+/** How deep a decision's pointed ends reach in from its box. */
+export const DECISION_TIP = 14;
+
+/**
+ * Where the text starts and how much room is kept on the right, per card outline: a decision's
+ * pointed ends and diamond tile, a pill's round end, a plain step without a tile (text centred).
+ */
+export function cardInsets(shape: CardShape, theme: Theme): { left: number; right: number; centred: boolean } {
+  const c = theme.space.card;
+  if (shape.form === 'decision') return { left: DECISION_TIP + 52, right: DECISION_TIP + 12, centred: false };
+  if (!shape.icon) return { left: 20, right: 20, centred: true };
+  if (shape.form === 'terminal') return { left: chipLeft(theme), right: 24, centred: false };
+  return { left: chipLeft(theme), right: c.padX, centred: false };
 }
 
 // Badge chips sit in rows under the label, aligned with it, so the card reads top to bottom:
@@ -103,7 +133,7 @@ function tableSize(shape: TableShape, theme: Theme): NodeSize {
   const cols = tableColumns(shape, theme);
   const titleWidth = 16 + 8 + measureText(shape.title, theme.size.label, 600);
   const captionWidth = shape.caption ? measureText(shape.caption, theme.size.caption, 400) : 0;
-  const rowWidth = MARK_WIDTH + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
+  const rowWidth = markWidth(shape) + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
   const width = 2 * t.padX + Math.max(titleWidth, captionWidth, rowWidth);
 
   const rowY: Record<string, number> = {};
