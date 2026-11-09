@@ -114,6 +114,10 @@ carto render containers.yaml --all-views         # → containers.svg plus conta
 
 In the editor a view menu appears in the canvas tools when the diagram has views.
 
+### C4 views
+
+A view can also say which C4 diagram it is (`kind: landscape | context | container | component | dynamic | deployment`, with `of:` the element it is about); it then picks its elements itself, and in a `type: c4` diagram (or a model file with such views) it is drawn in C4 notation. See [c4.md](c4.md).
+
 ## links: drill-down
 
 Any element can link to a URL, another diagram or a view:

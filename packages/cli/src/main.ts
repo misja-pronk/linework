@@ -8,7 +8,7 @@ import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
 import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
-import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
+import { importKubernetes, importMarkdown, importMermaid, importStructurizr, isKubernetes } from '@cartography/import';
 import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -19,7 +19,7 @@ const help = `carto — architecture diagrams that look good
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
-  carto import <file.mmd|.md|.yaml…> [-o out|-] [--force]
+  carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
                                                 erDiagram) to YAML; .md: every mermaid block;
                                                 Kubernetes manifests: all files in one diagram
@@ -145,8 +145,11 @@ async function renderFile(file: string): Promise<boolean> {
 /** Mermaid or Markdown → <name>.yaml (or <name>-<n>.yaml per block), checked by rendering it once. */
 async function importFile(file: string): Promise<boolean> {
   const text = fs.readFileSync(file, 'utf8');
-  const base = path.basename(file).replace(/\.(mmd|mermaid|md|markdown)$/i, '');
-  const blocks = /\.(md|markdown)$/i.test(file) ? importMarkdown(text) : [{ ...importMermaid(text), line: 0 }];
+  const base = path.basename(file).replace(/\.(mmd|mermaid|md|markdown|dsl)$/i, '');
+  // A Structurizr workspace becomes one C4 file: the model and all its views.
+  const dsl = /\.dsl$/i.test(file);
+  const blocks = dsl ? [{ ...importStructurizr(text, base), line: 0 }] : /\.(md|markdown)$/i.test(file) ? importMarkdown(text) : [{ ...importMermaid(text), line: 0 }];
+  if (dsl && !blocks[0]!.yaml) console.error(`${file}  ${yellow('warning')}  no workspace model found`);
   if (!blocks.length) console.error(`${file}  ${yellow('warning')}  no \`\`\`mermaid blocks found`);
   let ok = blocks.length > 0;
   for (const [i, b] of blocks.entries()) {

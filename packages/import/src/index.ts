@@ -16,6 +16,7 @@ export interface Imported {
 
 export { guessKind } from './systems.ts';
 export { importKubernetes, isKubernetes } from './kubernetes.ts';
+export { importStructurizr, isStructurizr } from './structurizr.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
   const warn = new Warnings();
