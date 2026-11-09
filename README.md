@@ -16,12 +16,17 @@ pnpm web:build    # static app in packages/web/dist, runs from any folder, offli
 
 YAML on the left, the drawing on the right; both stay in sync and select the same element.
 
-- **Start** from a template or example (live thumbnails), or open a folder of diagrams (Chrome/Edge: files are edited in place, data contracts are read next to them).
+- **Start** from a template, then pick how to work: **Describe it** (a few questions become a prompt; Claude drafts the diagram with your own API key, checked by the engine and fixed automatically — or copy the prompt into any chat), **Build visually** (shapes panel, no YAML; `⌘\` switches) or **Write YAML**. Or paste a Mermaid diagram (flowchart, architecture-beta, erDiagram) and get it back as Cartography. Open a folder of diagrams to edit files in place (Chrome/Edge).
 - **Write** with autocomplete from each type's schema; problems show on the right line, and the last good drawing stays while you type.
 - **Build** without YAML: add shapes from the palette (`A`, or drag them onto the drawing and into a group), edit them in the inspector, drag from the dot on an element to connect it, rename with every reference following.
+- **Select** several with shift-click or a marquee, `⌘C`/`⌘V` copy and paste, double-click to rename in place.
 - **Arrange**: drag elements or whole groups; positions are saved next to the diagram as `<name>.layout.json`, lines follow, nothing lands on top of something else.
 - **Undo** everything with `⌘Z`: typing, builder edits and moves share one history.
 - **Export** SVG, PNG, a 16:9 slide, or copy as PNG for slides and docs. `?` shows every shortcut.
+
+Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side.
+
+CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.
 
 ## Try it
 
