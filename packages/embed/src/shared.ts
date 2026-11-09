@@ -67,6 +67,44 @@ export function describe(graph: Graph): Description {
       for (const e of s.events) if (e.kind === 'message') relations.push({ from: e.from, to: e.to, label: e.label });
       continue;
     }
+    if (s.kind === 'gitflow') {
+      // Branches are the elements; merges and cherry-picks between branches are the relations.
+      const at = new Map(s.commits.map((c) => [c.id, c.branch]));
+      for (const b of s.branches) {
+        const own = s.commits.filter((c) => c.branch === b.name);
+        const tags = own.flatMap((c) => c.tags);
+        const detail = [`${own.length} ${own.length === 1 ? 'commit' : 'commits'}`, tags.length ? `tags ${tags.join(', ')}` : ''].filter(Boolean).join(', ');
+        names.set(b.name, b.label ?? b.name);
+        elements.push({ id: b.name, label: b.label ?? b.name, detail, links: [] });
+      }
+      for (const c of s.commits) {
+        const from = c.merge ? at.get(c.merge) : c.pick ? at.get(c.pick) : undefined;
+        if (from && from !== c.branch) relations.push({ from, to: c.branch, label: c.merge ? 'merge' : 'cherry-pick' });
+      }
+      for (const p of s.pipelines) {
+        const detail = p.steps.map((st) => (st.gate ? `${st.gate}, then ${st.label}` : st.label)).join(' → ');
+        elements.push({ id: p.label, label: p.label, detail, links: [] });
+      }
+      continue;
+    }
+    if (s.kind === 'roadmap') {
+      // Items are the elements, in their lane; "after" dependencies are the relations.
+      const lanes = new Map(s.lanes.map((l) => [l.id, l.label]));
+      const when = (at: number) => {
+        const t = s.ticks.find((k) => at >= k.start && at < k.end) ?? s.ticks.at(-1);
+        return t ? [t.label, t.group].filter(Boolean).join(' ') : '';
+      };
+      for (const i of s.items) {
+        const first = when(i.start);
+        const last = when(i.end - 1e-6);
+        const span = i.milestone ? `milestone, ${first}` : first === last ? first : `${first} to ${last}`;
+        const lane = i.lane ? lanes.get(i.lane) : undefined;
+        names.set(i.id, i.label);
+        elements.push({ id: i.id, label: i.label, detail: [span, i.status].filter(Boolean).join(', '), ...(lane ? { in: lane } : {}), links: [] });
+      }
+      for (const i of s.items) for (const a of i.after) relations.push({ from: a, to: i.id, label: 'then' });
+      continue;
+    }
     const label = s.kind === 'card' ? s.label : s.kind === 'table' ? s.title : (s.corner ?? n.id);
     const detail =
       s.kind === 'card'
