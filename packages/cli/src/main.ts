@@ -7,23 +7,28 @@ import { iconPng, interTtf, toPng } from './png.ts';
 import { toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
-import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
 import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, isKubernetes, isNetworkInventory } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
-import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
+import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
                [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--stable]                       note where things were drawn in <file>.layout.json, so the
+                                                next render after an edit keeps them there
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--page fit|a4|a3]                   page size (pdf, default fit)
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto validate <file.yaml…>                   check files, print problems
+               [--drift]                        also fail when <file>.layout.json pins, bends or locks things
+                                                (or views) that are no longer in the diagram
+               [--drift --fix]                  drop those entries from <file>.layout.json
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
@@ -39,7 +44,9 @@ const help = `carto — architecture diagrams that look good
   carto themes                                  built-in themes
   carto types [words…]                          which type to pick, best match first
 
-Manual positions are read from <file>.layout.json next to the diagram (per view under "views").`;
+Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
+The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
+so the same YAML and layout file always give the same picture. More: docs/ci.md`;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -53,6 +60,9 @@ const { positionals, values } = parseArgs({
     force: { type: 'boolean' },
     view: { type: 'string' },
     'all-views': { type: 'boolean' },
+    stable: { type: 'boolean' },
+    drift: { type: 'boolean' },
+    fix: { type: 'boolean' },
     title: { type: 'string' },
     subtitle: { type: 'string' },
     aspect: { type: 'string', default: '16:9' },
@@ -79,9 +89,60 @@ function report(file: string, diagnostics: Diagnostic[]) {
   }
 }
 
+const sidecarPath = (file: string) => file.replace(/\.ya?ml$/, '') + '.layout.json';
+
 function sidecarFor(file: string): LayoutSidecar | undefined {
-  const p = file.replace(/\.ya?ml$/, '') + '.layout.json';
+  const p = sidecarPath(file);
   return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar) : undefined;
+}
+
+/** Writes the sidecar the way the editor does; with nothing left in it the file goes. */
+function writeSidecar(file: string, sidecar: LayoutSidecar | undefined) {
+  const p = sidecarPath(file);
+  if (sidecar) fs.writeFileSync(p, JSON.stringify(sidecar, null, 2) + '\n');
+  else fs.rmSync(p, { force: true });
+}
+
+/**
+ * --stable: the note of each drawn view (how it was laid out and where things are) goes into the
+ * sidecar, so the next render after an edit keeps what was there in place. Only written when it changed.
+ */
+function noteLayout(file: string, results: RenderResult[]) {
+  const before = sidecarFor(file);
+  let sidecar = before;
+  for (const r of results) {
+    const note = packLayout(r.placed?.memory, true);
+    if (!r.svg || !note) continue;
+    const mine = viewPins(sidecar, r.view);
+    if (sameLayoutNote(mine?.layout, note)) continue;
+    sidecar = withViewPins(sidecar, r.view, { version: 1, ...mine, layout: note });
+  }
+  if (sidecar === before) return;
+  writeSidecar(file, sidecar);
+  console.log(`${file} → ${sidecarPath(file)} ${dim('layout noted')}`);
+}
+
+/** validate --drift: what the sidecar still refers to that the diagram no longer has. */
+async function checkDrift(file: string): Promise<boolean> {
+  const p = sidecarPath(file);
+  if (!fs.existsSync(p)) return true;
+  let sidecar: LayoutSidecar;
+  try {
+    sidecar = JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar;
+  } catch (e) {
+    console.error(`${p}  ${red('error')}  not valid JSON: ${(e as Error).message}`);
+    return false;
+  }
+  const r = await drift(fs.readFileSync(file, 'utf8'), sidecar, { load: loaderFor(file), file: path.basename(file), packs: values.pack, pack: readPack });
+  if (r.error) return (console.error(`${p}  ${yellow('warning')}  ${r.error}`), true);
+  if (!r.stale.length) return true;
+  const fixing = !!values.fix;
+  for (const s of r.stale) console.error(`${p}  ${fixing ? yellow('fixed') : red('stale')}  ${s.path}: ${s.message}`);
+  const count = `${r.stale.length} stale entr${r.stale.length > 1 ? 'ies' : 'y'}`;
+  if (!fixing) return (console.error(`${p}  ${count}; carto validate --drift --fix ${file} drops ${r.stale.length > 1 ? 'them' : 'it'}`), false);
+  writeSidecar(file, r.fixed);
+  console.log(r.fixed ? `${p} ${dim(`${count} dropped`)}` : `${p} ${dim(`${count} dropped, nothing left: file removed`)}`);
+  return true;
 }
 
 function outputPath(file: string, format: string, view?: string): string {
@@ -189,6 +250,7 @@ async function renderFile(file: string): Promise<boolean> {
     console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${result.width}×${result.height}`)}`);
     if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
   }
+  if (values.stable) noteLayout(file, runs);
   return ok;
 }
 
@@ -406,7 +468,8 @@ async function main(): Promise<number> {
       for (const f of files) {
         const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
         report(f, r.diagnostics);
-        if (r.diagnostics.some((d) => d.severity === 'error')) ok = false;
+        const drifted = values.drift && !(await checkDrift(f));
+        if (r.diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
       return ok ? 0 : 1;

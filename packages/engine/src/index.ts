@@ -222,4 +222,5 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 }
 
 export { themes };
+export { drift, type DriftItem, type DriftResult } from './drift.ts';
 export type { IconPackFile };
