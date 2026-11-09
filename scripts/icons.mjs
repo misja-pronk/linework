@@ -21,6 +21,8 @@ const names = `
   square circle-play circle-question-mark
   ship-wheel route calendar-clock file-sliders file-key scaling
   brick-wall brick-wall-fire brick-wall-shield radar lock-keyhole arrow-down-up signpost wifi printer cctv warehouse
+  align-start-vertical align-center-vertical align-end-vertical align-start-horizontal align-center-horizontal align-end-horizontal
+  align-horizontal-distribute-center align-vertical-distribute-center lock-open grid-3x3 map magnet focus
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

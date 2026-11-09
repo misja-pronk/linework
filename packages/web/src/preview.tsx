@@ -1,14 +1,22 @@
 // The drawing: the engine's SVG with pan and zoom, click to select, drag to move (pins), drop into a
 // group to nest, and drops from the add palette.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';
 import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { PALETTE_MIME } from './add-menu.tsx';
+import { bendsOf, dragSegment, isHorizontal, nearestSegment, snapBox, union, viewFor, type Snap } from './craft.ts';
+import { BendHandles, Guides, LockBadges, Minimap } from './craft-overlays.tsx';
 
 export interface Selection {
   kind: 'node' | 'group' | 'edge';
   id: string;
+}
+
+/** Zoom commands the app's palette can run. */
+export interface PreviewControl {
+  fit(): void;
+  zoomToSelection(): void;
 }
 
 /** What a label editor can be opened on: an element, or the diagram's title and subtitle. */
@@ -48,6 +56,20 @@ interface Props {
   canDrop(group: string, what: { node?: string; palette?: number }): boolean;
   /** ⌘-click (Ctrl elsewhere): follow the element's link instead of selecting it; true when it had one. */
   onFollow?(s: Selection): boolean;
+  /** Elements that cannot be dragged by accident: dragging them pans instead. */
+  locked?: Set<string>;
+  /** Lines with bends set by hand. */
+  bent?: Set<string>;
+  /** Snap to the 8px grid where no guide is near. */
+  grid?: boolean;
+  /** Show the overview when the drawing does not fit. */
+  minimap?: boolean;
+  onToggle?(what: 'grid' | 'minimap'): void;
+  /** A segment of the selected line dragged: the line's new bends (pin space); `done` on release. */
+  onBend?(id: string, via: Point[], done: boolean): void;
+  /** What a screen reader hears for the focused element. */
+  describe?(s: Selection): string;
+  control?: React.Ref<PreviewControl>;
   children?: React.ReactNode;
 }
 
@@ -61,7 +83,7 @@ interface Drag {
   pointer: number;
   x: number;
   y: number;
-  mode: 'pan' | 'node' | 'connect' | 'group' | 'marquee';
+  mode: 'pan' | 'node' | 'connect' | 'group' | 'marquee' | 'bend';
   moved: boolean;
   /** Moving several selected nodes at once: no regrouping on drop. */
   many?: boolean;
@@ -77,7 +99,18 @@ interface Drag {
    * and the layout's origin can shift. */
   groups?: Map<string, Box>;
   parent?: string;
+  /** What moves, as one box (pin space, as at the start), and the ids that move with it. */
+  moving?: Box;
+  movingIds?: string[];
+  /** Bend mode: the line, its points (pin space) and the segment being moved. */
+  edge?: string;
+  pts?: Point[];
+  seg?: number;
 }
+
+/** Screen pixels within which a drag snaps to a guide. */
+const SNAP = 6;
+const GRID = 8;
 
 const MIN = 0.1;
 const MAX = 4;
@@ -100,6 +133,8 @@ function groupAt(groups: Map<string, Box>, p: Point): string | null {
 export function Preview(p: Props) {
   const { result, stale, selection, docKey } = p;
   const selected = selection.length === 1 ? selection[0] : undefined;
+  /** Types with their own layout (sequence) draw lines themselves: no hand-made bends there. */
+  const bendable = !stale && !!p.onBend && !result?.type?.layout;
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
   const [dragging, setDragging] = useState<Drag['mode']>();
@@ -114,6 +149,10 @@ export function Preview(p: Props) {
   /** While connecting: where the pointer is (SVG coordinates) and the node it is over. */
   const [link, setLink] = useState<{ x: number; y: number; target?: string }>();
   const [dropTarget, setDropTarget] = useState<string | null>();
+  /** Guides and gaps of the drag in progress. */
+  const [snap, setSnap] = useState<Snap>();
+  /** Keys moved the focus last (not the pointer): the focused element gets a visible ring. */
+  const [kb, setKb] = useState(false);
   const drag = useRef<Drag>(null);
   const fitted = useRef<number | string>(-1);
   const anchor = useRef<{ doc: number | string; x: number; y: number }>(null);
@@ -202,6 +241,15 @@ export function Preview(p: Props) {
     });
   }, []);
 
+  /** ⇧2: the selection fills the pane (not closer than 200%); nothing selected fits everything. */
+  const zoomToSelection = () => {
+    const f = frame.current;
+    const boxes = selection.map((s) => selectedBox(result, s)).filter((b): b is Box => !!b);
+    if (!f || !boxes.length) return fit();
+    setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { bottom: BAR, max: 2, min: MIN }));
+  };
+  useImperativeHandle(p.control, () => ({ fit, zoomToSelection }));
+
   // When the pane changes size (inspector opens, splitter moves): a drawing that was wholly in view
   // fits again, so opening the inspector never crops it; otherwise the centre stays where it was.
   const latest = useRef({ view, width: result?.width ?? 0, height: result?.height ?? 0, fit });
@@ -274,6 +322,7 @@ export function Preview(p: Props) {
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as Element).closest('.label-editor, .canvas-empty button')) return;
     frame.current?.focus({ preventScroll: true });
+    setKb(false);
     // Space-drag and the middle button pan; a plain drag on empty canvas draws a marquee.
     if (spacePan || e.button === 1) {
       e.preventDefault();
@@ -288,11 +337,26 @@ export function Preview(p: Props) {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
+    // The selected line: a grip, or the line itself, moves the segment under the pointer.
+    const line = selected?.kind === 'edge' && bendable && e.button === 0 ? result?.placed?.edges.get(selected.id) : undefined;
+    const grip = (e.target as Element).closest('[data-bend]') as HTMLElement | null;
+    const onLine = ((e.target as Element).closest('[data-edge]') as HTMLElement | null)?.dataset.edge === selected?.id;
+    if (line && line.points.length > 1 && (grip || onLine)) {
+      const s = result!.placed!.shift ?? { x: 0, y: 0 };
+      const pts = line.points.map((q) => ({ x: q.x + s.x, y: q.y + s.y }));
+      const at = toLayout(e.clientX, e.clientY);
+      const seg = grip ? Number(grip.dataset.bend) : nearestSegment(pts, { x: at.x + s.x, y: at.y + s.y });
+      drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY, mode: 'bend', moved: false, vx: view.x, vy: view.y, edge: selected!.id, pts, seg };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
     const hit = e.button === 0 ? ((e.target as Element).closest('[data-node]') as HTMLElement | null) : null;
+    // A locked element is picked like the background: it can be selected, not moved.
     const id = hit?.dataset.node;
-    const box = id ? result?.placed?.nodes.get(id) : undefined;
+    const box = id && !p.locked?.has(id) ? result?.placed?.nodes.get(id) : undefined;
     // A group's header (its label strip) moves the whole group; the rest of it pans the canvas.
-    const header = !id && e.button === 0 && !stale ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
+    const headerHit = !id && e.button === 0 && !stale ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
+    const header = headerHit && !p.locked?.has(headerHit) ? headerHit : undefined;
     if (header) {
       drag.current = {
         pointer: e.pointerId,
@@ -305,17 +369,20 @@ export function Preview(p: Props) {
         group: header,
         box: result!.placed!.groups.get(header),
         shift: result?.placed?.shift ?? { x: 0, y: 0 },
+        moving: pinBox(result!.placed!.groups.get(header)!),
+        movingIds: [header],
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
+    const many = !!id && selection.length > 1 && selection.some((x) => x.kind === 'node' && x.id === id);
     drag.current = {
       pointer: e.pointerId,
       x: e.clientX,
       y: e.clientY,
       // A finger has no space bar: on touch, empty canvas still pans.
-      mode: id && box && !stale ? 'node' : e.pointerType === 'touch' || !result?.placed ? 'pan' : 'marquee',
-      many: !!id && selection.length > 1 && selection.some((x) => x.kind === 'node' && x.id === id),
+      mode: id && box && !stale ? 'node' : (id && !box) || headerHit || e.pointerType === 'touch' || !result?.placed ? 'pan' : 'marquee',
+      many,
       shiftKey: e.shiftKey,
       moved: false,
       vx: view.x,
@@ -325,8 +392,63 @@ export function Preview(p: Props) {
       shift: result?.placed?.shift ?? { x: 0, y: 0 },
       groups: result?.placed ? toPinSpace(result.placed.groups, result.placed.shift) : undefined,
       parent: id ? result?.graph?.nodes.find((n) => n.id === id)?.parent : undefined,
+      ...(box ? movingOf(many ? selection.filter((x) => x.kind === 'node' && !p.locked?.has(x.id)).map((x) => x.id) : [id!]) : {}),
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const pinBox = (b: Box): Box => {
+    const s = result?.placed?.shift ?? { x: 0, y: 0 };
+    return { ...b, x: b.x + s.x, y: b.y + s.y };
+  };
+  /** At the start of a node drag: the selected nodes that move, as one box. */
+  const movingOf = (ids: string[]) => ({ moving: pinBox(union(ids.map((i) => result!.placed!.nodes.get(i)).filter((b): b is Box => !!b))), movingIds: ids });
+  /**
+   * The boxes a drag can line up with, as drawn now (pin space): the first pin can redraw the rest, so not as at the start.
+   * Not what moves, nor the groups around it (they grow with it), nor what is inside a moved group.
+   */
+  const snapOthers = (d: Drag): Box[] => {
+    const pl = result?.placed;
+    if (!pl) return [];
+    const ids = new Set(d.movingIds);
+    const mine = d.mode === 'group' ? pl.groups.get(d.group!) : union([...ids].map((i) => pl.nodes.get(i)).filter((b): b is Box => !!b));
+    if (!mine) return [];
+    const within = (b: Box, o: Box) => b.x >= o.x - 0.5 && b.y >= o.y - 0.5 && b.x + b.width <= o.x + o.width + 0.5 && b.y + b.height <= o.y + o.height + 0.5;
+    const group = d.mode === 'group';
+    return [
+      ...[...pl.nodes].filter(([id, b]) => !ids.has(id) && !(group && within(b, mine))).map(([, b]) => b),
+      ...[...pl.groups].filter(([id, b]) => !ids.has(id) && !within(mine, b) && !(group && within(b, mine))).map(([, b]) => b),
+    ].map(pinBox);
+  };
+
+  /** Where a dragged node or group goes: under the pointer, snapped to guides or the grid unless ⌥ is held. */
+  const dragPin = (d: Drag, e: { clientX: number; clientY: number; altKey: boolean }): Point => {
+    const dx = (e.clientX - d.x) / view.scale;
+    const dy = (e.clientY - d.y) / view.scale;
+    let x = d.box!.x + d.shift!.x + dx;
+    let y = d.box!.y + d.shift!.y + dy;
+    if (d.moving && !e.altKey) {
+      const sn = snapBox({ ...d.moving, x: d.moving.x + dx, y: d.moving.y + dy }, snapOthers(d), SNAP / view.scale, p.grid ? GRID : undefined);
+      x += sn.dx;
+      y += sn.dy;
+      setSnap(sn.guides.length || sn.gaps.length ? sn : undefined);
+    } else setSnap(undefined);
+    return { x: Math.round(x), y: Math.round(y) };
+  };
+
+  /** The selected line's bends with the dragged segment moved; it snaps straight with the rest of the line or to the grid. */
+  const bendVia = (d: Drag, e: { clientX: number; clientY: number; altKey: boolean }): Point[] => {
+    const pts = d.pts!;
+    const i = d.seg!;
+    const h = isHorizontal(pts, i);
+    const was = h ? pts[i]!.y : pts[i]!.x;
+    let to = was + (h ? e.clientY - d.y : e.clientX - d.x) / view.scale;
+    if (!e.altKey) {
+      const near = pts.filter((_, j) => j !== i && j !== i + 1).map((q) => (h ? q.y : q.x)).filter((v) => Math.abs(v - to) <= SNAP / view.scale);
+      if (near.length) to = near.reduce((a, b) => (Math.abs(b - to) < Math.abs(a - to) ? b : a));
+      else if (p.grid) to = Math.round(to / GRID) * GRID;
+    }
+    return bendsOf(dragSegment(pts, i, Math.round(to - was)));
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -358,13 +480,18 @@ export function Preview(p: Props) {
       const r = frame.current!.getBoundingClientRect();
       return setMarquee({ x0: d.x - r.left, y0: d.y - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top });
     }
+    if (d.mode === 'bend') {
+      const via = bendVia(d, e);
+      cancelAnimationFrame(frameReq.current);
+      frameReq.current = requestAnimationFrame(() => p.onBend?.(d.edge!, via, false));
+      return;
+    }
+    const pin = dragPin(d, e);
     if (d.mode === 'group') {
-      const pin = { x: Math.round(d.box!.x + d.shift!.x + dx / view.scale), y: Math.round(d.box!.y + d.shift!.y + dy / view.scale) };
       cancelAnimationFrame(frameReq.current);
       frameReq.current = requestAnimationFrame(() => p.onMoveGroup(d.group!, pin, false));
       return;
     }
-    const pin = { x: Math.round(d.box!.x + d.shift!.x + dx / view.scale), y: Math.round(d.box!.y + d.shift!.y + dy / view.scale) };
     cancelAnimationFrame(frameReq.current);
     frameReq.current = requestAnimationFrame(() => p.onMove(d.node!, pin, false));
     if (d.many) return;
@@ -398,7 +525,8 @@ export function Preview(p: Props) {
     setDropTarget(undefined);
     setLink(undefined);
     setMarquee(undefined);
-    if ((d.mode === 'node' || d.mode === 'group') && d.moved) p.onDragCancel();
+    setSnap(undefined);
+    if ((d.mode === 'node' || d.mode === 'group' || d.mode === 'bend') && d.moved) p.onDragCancel();
   };
 
   const end = (e: React.PointerEvent, cancelled: boolean) => {
@@ -408,6 +536,7 @@ export function Preview(p: Props) {
     setDragging(undefined);
     setDropTarget(undefined);
     setMarquee(undefined);
+    setSnap(undefined);
     cancelAnimationFrame(frameReq.current);
     if (cancelled) {
       drag.current = d;
@@ -420,8 +549,10 @@ export function Preview(p: Props) {
       return;
     }
     if (cancelled) return;
+    if (d.moved && d.mode === 'bend') return p.onBend?.(d.edge!, bendVia(d, e), true);
     if (d.moved && d.mode === 'group') {
-      const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
+      const pin = dragPin(d, e);
+      setSnap(undefined);
       p.onMoveGroup(d.group!, pin, true);
       p.onSelect({ kind: 'group', id: d.group! });
       return;
@@ -435,7 +566,8 @@ export function Preview(p: Props) {
     }
     if (d.moved) {
       if (d.mode === 'node') {
-        const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
+        const pin = dragPin(d, e);
+        setSnap(undefined);
         const target = d.many ? (d.parent ?? null) : dropGroup(d, e.clientX, e.clientY);
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
         // A moved selection stays selected; a single node becomes the selection.
@@ -546,13 +678,24 @@ export function Preview(p: Props) {
   const target = dropTarget && result?.placed?.groups.get(dropTarget);
   const o = result?.origin ?? { x: 0, y: 0 };
   const empty = !result?.svg;
+  const shiftNow = result?.placed?.shift ?? { x: 0, y: 0 };
+  const pinToStage = (q: Point): Point => ({ x: q.x - shiftNow.x + o.x, y: q.y - shiftNow.y + o.y });
+  const line = selected?.kind === 'edge' && bendable && !dragging ? result?.placed?.edges.get(selected.id) : undefined;
+  const lockedBoxes = [...(p.locked ?? [])].map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
+  // The overview only earns its place when the drawing does not fit the pane.
+  const f = frame.current;
+  const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);
+  const announce = selected ? (p.describe?.(selected) ?? selected.id) : selection.length > 1 ? `${selection.length} selected` : '';
 
   return (
     <div
-      className={`preview${dragging ? ` dragging-${dragging}` : ''}${spacePan ? ' space-pan' : ''}`}
+      className={`preview${dragging ? ` dragging-${dragging}` : ''}${spacePan ? ' space-pan' : ''}${kb ? ' kb' : ''}`}
       ref={frame}
       tabIndex={0}
-      aria-label="Drawing. Tab moves between elements, arrows nudge, Delete removes."
+      role="application"
+      aria-roledescription="drawing"
+      aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
+      aria-label="Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes."
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => end(e, false)}
@@ -593,6 +736,12 @@ export function Preview(p: Props) {
         if (drag.current && e.key === 'Escape') {
           e.preventDefault();
           return cancel();
+        }
+        if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
+        // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
+        if (e.target === e.currentTarget && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && (e.code === 'Digit1' || e.code === 'Digit2')) {
+          e.preventDefault();
+          return e.code === 'Digit1' ? fit() : zoomToSelection();
         }
         p.onKeyDown(e);
       }}
@@ -637,12 +786,18 @@ export function Preview(p: Props) {
               b && (
                 <div
                   key={`${s.kind}:${s.id}`}
-                  className="selection-ring"
+                  id={s === selected ? 'canvas-focus' : undefined}
+                  role={s === selected ? 'img' : undefined}
+                  aria-label={s === selected ? announce : undefined}
+                  className={s === selected && kb ? 'selection-ring focus' : 'selection-ring'}
                   style={{ left: b.x - 5, top: b.y - 5, width: b.width + 10, height: b.height + 10, borderWidth: 2 / view.scale }}
                 />
               )
             );
           })}
+          {lockedBoxes.length > 0 && <LockBadges boxes={lockedBoxes} scale={view.scale} />}
+          {line && <BendHandles points={line.points.map((q) => ({ x: q.x + o.x, y: q.y + o.y }))} scale={view.scale} bent={!!p.bent?.has(selected!.id)} />}
+          {snap && <Guides snap={snap} at={pinToStage} scale={view.scale} />}
         </div>
       )}
       {marquee && (
@@ -667,7 +822,21 @@ export function Preview(p: Props) {
           <Icon name="circle-exclamation-point" size={14} /> Showing the last version that worked: fix the problems in the editor
         </div>
       )}
+      <div className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </div>
       {p.children}
+      {p.minimap && overflows && result?.placed && !empty && (
+        <Minimap
+          placed={result.placed}
+          origin={o}
+          width={result.width!}
+          height={result.height!}
+          view={view}
+          pane={{ w: f!.clientWidth, h: f!.clientHeight }}
+          onCentre={(x, y) => setView((v) => ({ ...v, x: f!.clientWidth / 2 - x * v.scale, y: (f!.clientHeight - BAR) / 2 - y * v.scale }))}
+        />
+      )}
       <div className="zoom" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <button onClick={() => zoomAt(1 / 1.2)} title="Zoom out (⌘−)" aria-label="Zoom out">
           <Icon name="minus" />
@@ -678,8 +847,18 @@ export function Preview(p: Props) {
         <button onClick={() => zoomAt(1.2)} title="Zoom in (⌘+)" aria-label="Zoom in">
           <Icon name="plus" />
         </button>
-        <button onClick={fit} title="Fit to screen (⌘0)" aria-label="Fit to screen">
+        <button onClick={fit} title="Fit to screen (⇧1 or ⌘0)" aria-label="Fit to screen">
           <Icon name="maximize" />
+        </button>
+        <button onClick={zoomToSelection} title="Zoom to selection (⇧2)" aria-label="Zoom to selection" disabled={!selection.length}>
+          <Icon name="focus" />
+        </button>
+        <span className="zoom-sep" />
+        <button className={p.grid ? 'on' : ''} onClick={() => p.onToggle?.('grid')} title="Snap to the 8px grid (⇧G)" aria-label="Snap to grid" aria-pressed={!!p.grid}>
+          <Icon name="grid-3x3" />
+        </button>
+        <button className={p.minimap ? 'on' : ''} onClick={() => p.onToggle?.('minimap')} title="Overview when the drawing does not fit (⇧M)" aria-label="Minimap" aria-pressed={!!p.minimap}>
+          <Icon name="map" />
         </button>
       </div>
     </div>

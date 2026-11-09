@@ -8,7 +8,7 @@
 import { parseEdge } from './edges.ts';
 import type { BuildContext, KindTable } from './diagram-type.ts';
 import { withTechnology, type ModelContext, type ModelElement, type ViewSpec } from './catalogue.ts';
-import type { Graph, LayoutSidecar, Path, Point } from './model.ts';
+import type { Graph, LayoutSidecar, Path, Point, ViewPins } from './model.ts';
 import type { Entry, GraphSource, GraphTypeConfig } from './graph-source.ts';
 
 /** Where drawn entries are written, when not at ['nodes', id] / ['edges', i]: model elements, other files. */
@@ -290,29 +290,27 @@ export function filterGraph(graph: Graph, view: ViewSpec, warn: (path: Path, mes
 
 // ---------------------------------------------------------------- pins per view
 
-const filled = (r?: Record<string, Point>) => !!r && Object.keys(r).length > 0;
+const KEYS = ['nodes', 'groups', 'edges', 'locked'] as const;
+const filled = (r?: object) => !!r && Object.keys(r).length > 0;
+/** Only the parts of a view's tweaks that hold something. */
+const own = (v: ViewPins | undefined): ViewPins => Object.fromEntries(KEYS.filter((k) => filled(v?.[k])).map((k) => [k, v![k]]));
 
 /** The pins of one view (the top level of the sidecar without a view). */
 export function viewPins(sidecar: LayoutSidecar | undefined, view?: string): LayoutSidecar | undefined {
   if (!sidecar || !view) return sidecar;
-  const v = sidecar.views?.[view];
-  return v && (filled(v.nodes) || filled(v.groups)) ? { version: 1, ...(v.nodes ? { nodes: v.nodes } : {}), ...(v.groups ? { groups: v.groups } : {}) } : undefined;
+  const v = own(sidecar.views?.[view]);
+  return Object.keys(v).length ? { version: 1, ...v } : undefined;
 }
 
 /** The sidecar with one view's pins replaced (removed with null or undefined); undefined when nothing is pinned anywhere. */
 export function withViewPins(sidecar: LayoutSidecar | undefined, view: string | undefined, pins: LayoutSidecar | null | undefined): LayoutSidecar | undefined {
-  const own = { ...(filled(pins?.nodes) ? { nodes: pins!.nodes } : {}), ...(filled(pins?.groups) ? { groups: pins!.groups } : {}) };
+  const mine = own(pins ?? undefined);
   const views = { ...(view ? (sidecar?.views ?? {}) : (pins?.views ?? sidecar?.views ?? {})) };
-  const top = view ? { nodes: sidecar?.nodes, groups: sidecar?.groups } : own;
+  const top = view ? own(sidecar) : mine;
   if (view) {
-    if (own.nodes || own.groups) views[view] = own;
+    if (Object.keys(mine).length) views[view] = mine;
     else delete views[view];
   }
-  const out: LayoutSidecar = {
-    version: 1,
-    ...(filled(top.nodes) ? { nodes: top.nodes } : {}),
-    ...(filled(top.groups) ? { groups: top.groups } : {}),
-    ...(Object.keys(views).length ? { views } : {}),
-  };
-  return out.nodes || out.groups || out.views ? out : undefined;
+  const out: LayoutSidecar = { version: 1, ...top, ...(Object.keys(views).length ? { views } : {}) };
+  return Object.keys(out).length > 1 ? out : undefined;
 }

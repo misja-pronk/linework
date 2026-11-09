@@ -2,9 +2,11 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { viewPins, withViewPins, type Diagnostic, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
+import { viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
-import { Preview, type LabelTarget, type Selection } from './preview.tsx';
+import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
+import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
+import { ArrangeBar, arrangeCommands, arrangeKey, craftKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
 import { Start, type Opened, type View } from './start.tsx';
 import { Inspector } from './inspector.tsx';
@@ -84,7 +86,7 @@ export function App() {
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
   const [pins, setPins] = useState<LayoutSidecar | undefined>(saved?.pins);
   /** A node being dragged: its pin before it is committed to the history. */
-  const [draft, setDraft] = useState<{ nodes?: Record<string, Point>; groups?: Record<string, Point> }>();
+  const [draft, setDraft] = useState<{ nodes?: Record<string, Point>; groups?: Record<string, Point>; edges?: Record<string, EdgeOverride> }>();
   const [docKey, setDocKey] = useState(0);
   const [pref, setPref] = useState<ThemePref>(store.get('theme') ?? 'system');
   const systemDark = useSystemDark();
@@ -159,7 +161,7 @@ export function App() {
   const sidecar = useMemo<LayoutSidecar | undefined>(() => {
     if (!draft) return pins;
     const v = viewPins(pins, drawnView.current);
-    return withViewPins(pins, drawnView.current, { version: 1, nodes: { ...(v?.nodes ?? {}), ...draft.nodes }, groups: { ...(v?.groups ?? {}), ...draft.groups } });
+    return withViewPins(pins, drawnView.current, { ...v, version: 1, nodes: { ...(v?.nodes ?? {}), ...draft.nodes }, groups: { ...(v?.groups ?? {}), ...draft.groups }, edges: { ...(v?.edges ?? {}), ...draft.edges } });
   }, [pins, draft]);
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
@@ -172,6 +174,10 @@ export function App() {
   const drawn = rendered?.drawn;
   drawnView.current = drawn?.view;
   const vpins = viewPins(pins, drawn?.view);
+  const locked = useMemo(() => new Set(vpins?.locked ?? []), [vpins?.locked]);
+  const bent = useMemo(() => new Set(Object.keys(vpins?.edges ?? {})), [vpins?.edges]);
+  const craft = useCraftPrefs();
+  const previewControl = useRef<PreviewControl>(null);
   const type = result?.type ?? drawn?.type;
   const diagnostics = result?.diagnostics ?? NONE;
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
@@ -480,10 +486,23 @@ export function App() {
     };
     set(nodes, movedNodes);
     set(groups, movedGroups);
-    const out: LayoutSidecar = { version: 1 };
+    // Bent lines and locks stay as they are; a lock without its pin goes (it would hold nothing).
+    const out: LayoutSidecar = { version: 1, ...(vpins?.edges ? { edges: vpins.edges } : {}) };
     if (Object.keys(nodes).length) out.nodes = nodes;
     if (Object.keys(groups).length) out.groups = groups;
-    return out.nodes || out.groups ? out : null;
+    const keep = (vpins?.locked ?? []).filter((id) => nodes[id] || groups[id]);
+    if (keep.length) out.locked = keep;
+    return out.nodes || out.groups || out.edges ? out : null;
+  };
+  /** Pins with one line's bends set (or reset with undefined). */
+  const withEdge = (id: string, via: Point[] | undefined): LayoutSidecar | null => {
+    const e = result?.graph?.edges.find((x) => x.id === id);
+    const edges = { ...(vpins?.edges ?? {}) };
+    if (via?.length && e) edges[id] = { via, from: e.from.node, to: e.to.node };
+    else delete edges[id];
+    const out: LayoutSidecar = { ...(vpins ?? {}), version: 1, edges };
+    if (!Object.keys(edges).length) delete out.edges;
+    return out.nodes || out.groups || out.edges ? out : null;
   };
   /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
   const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => (group ? withPins({}, { [id]: at }) : withPins({ [id]: at }));
@@ -692,7 +711,7 @@ export function App() {
     const dy = at.y - (box.y + shift.y);
     const out: Record<string, Point> = {};
     for (const s of selection) {
-      const b = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : undefined;
+      const b = s.kind === 'node' && !locked.has(s.id) ? result?.placed?.nodes.get(s.id) : undefined;
       if (b) out[s.id] = { x: Math.round(b.x + shift.x + dx), y: Math.round(b.y + shift.y + dy) };
     }
     out[id] = at;
@@ -741,10 +760,62 @@ export function App() {
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
     const moved: Record<string, Point> = {};
     for (const s of selection) {
-      const box = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : undefined;
+      const box = s.kind === 'node' && !locked.has(s.id) ? result?.placed?.nodes.get(s.id) : undefined;
       if (box) moved[s.id] = { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) };
     }
     if (Object.keys(moved).length) pinTo(withPins(moved));
+    else if (selection.some((s) => locked.has(s.id))) notify('Locked: unlock it first (⇧⌘L)');
+  };
+
+  /** Aligns or distributes the selected shapes (locked ones stay put and others line up with them), as one undo step. */
+  const arrangeSelection = (op: ArrangeOp) => {
+    if (!current) return;
+    const shift = result?.placed?.shift ?? { x: 0, y: 0 };
+    const boxes = selection.flatMap((s) => {
+      const b = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : undefined;
+      return b ? [[s.id, { ...b, x: b.x + shift.x, y: b.y + shift.y }] as [string, typeof b]] : [];
+    });
+    const need = op.startsWith('distribute') ? 3 : 2;
+    if (boxes.length < need) return notify(`Select ${need} or more shapes first`, { tone: 'error' });
+    const moved = Object.fromEntries(Object.entries(arrange(boxes, op)).filter(([id]) => !locked.has(id)));
+    if (!Object.keys(moved).length) return;
+    // The ones already in line are pinned too: unpinned, the layout would push them out of the others' way.
+    const stay = Object.fromEntries(boxes.filter(([id]) => !moved[id] && !vpins?.nodes?.[id]).map(([id, b]) => [id, { x: Math.round(b.x), y: Math.round(b.y) }]));
+    pinTo(withPins({ ...stay, ...moved }));
+  };
+
+  /** Locks the selected nodes and groups where they are (pinning them), or unlocks them when all are locked. */
+  const toggleLock = () => {
+    const shift = result?.placed?.shift ?? { x: 0, y: 0 };
+    const items = selection.filter((s) => s.kind !== 'edge' && (s.kind === 'node' ? result?.placed?.nodes.has(s.id) : result?.placed?.groups.has(s.id)));
+    if (!items.length || !current) return;
+    const unlock = items.every((s) => locked.has(s.id));
+    const at = (s: Selection) => {
+      const b = (s.kind === 'node' ? result?.placed?.nodes : result?.placed?.groups)!.get(s.id)!;
+      return { x: Math.round(b.x + shift.x), y: Math.round(b.y + shift.y) };
+    };
+    const pinned = (s: Selection) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id]);
+    const next = unlock ? withPins({}) : withPins(
+      Object.fromEntries(items.filter((s) => s.kind === 'node' && !pinned(s)).map((s) => [s.id, at(s)])),
+      Object.fromEntries(items.filter((s) => s.kind === 'group' && !pinned(s)).map((s) => [s.id, at(s)])),
+    );
+    const ids = new Set(items.map((s) => s.id));
+    const list = unlock ? [...locked].filter((id) => !ids.has(id)) : [...new Set([...locked, ...ids])];
+    const out: LayoutSidecar = { ...(next ?? { version: 1 }), locked: list };
+    if (!list.length) delete out.locked;
+    pinTo(out.nodes || out.groups || out.edges ? out : null);
+    notify(unlock ? `Unlocked ${count(items.length, 'element')}` : `Locked ${count(items.length, 'element')}: it stays where it is`);
+  };
+
+  /** ⌥ arrows: the selection moves to the nearest element in that direction. */
+  const focusToward = (dir: Direction) => {
+    const pl = result?.placed;
+    if (!pl) return;
+    const from = selected && (selected.kind === 'node' ? pl.nodes.get(selected.id) : selected.kind === 'group' ? pl.groups.get(selected.id) : undefined);
+    if (!from) return void cycle(1);
+    const all: [string, typeof from][] = [...pl.nodes].filter(([id]) => id !== selected!.id);
+    const id = nearestToward(from, all, dir);
+    if (id) select({ kind: 'node', id });
   };
 
   /** Tab order: elements, then groups, then lines. */
@@ -774,6 +845,10 @@ export function App() {
     else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
     else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
     else if (e.key === 'Escape') setSelection([]);
+    else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
+    else if (craftKey(e) === 'lock') toggleLock();
+    else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
+    else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
     else if (e.key === 'ArrowLeft') nudge(-step, 0);
     else if (e.key === 'ArrowRight') nudge(step, 0);
     else if (e.key === 'ArrowUp') nudge(0, -step);
@@ -833,6 +908,15 @@ export function App() {
     const n = result?.graph?.nodes.find((x) => x.id === id);
     return n ? label(n) : id;
   };
+  /** The focused element as a screen reader says it: name, kind, and whether it is pinned or locked. */
+  const describe = (s: Selection) => {
+    const g = result?.graph;
+    const e = s.kind === 'edge' ? g?.edges.find((x) => x.id === s.id) : undefined;
+    const name = s.kind === 'node' ? nodeName(s.id) : s.kind === 'group' ? (g?.groups.find((x) => x.id === s.id)?.label ?? s.id) : e ? `Line from ${nodeName(e.from.node)} to ${nodeName(e.to.node)}${e.label ? `, ${e.label}` : ''}` : s.id;
+    const kind = s.kind === 'edge' ? '' : `, ${kindLabel(pathOf(s)) || s.kind}`;
+    const state = locked.has(s.id) ? ', locked' : (s.kind === 'node' ? vpins?.nodes?.[s.id] : s.kind === 'group' ? vpins?.groups?.[s.id] : bent.has(s.id)) ? (s.kind === 'edge' ? ', bent by hand' : ', pinned') : '';
+    return `${name}${kind}${state}`;
+  };
 
   // ------------------------------------------------------------ commands
 
@@ -857,6 +941,13 @@ export function App() {
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
     ...(vpins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => pinTo(null) }] : []),
+    ...arrangeCommands(arrangeSelection),
+    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
+    ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
+    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
+    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
+    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
+    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
@@ -1178,6 +1269,19 @@ export function App() {
             }}
             onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
             onKeyDown={onCanvasKey}
+            locked={locked}
+            bent={bent}
+            grid={craft.grid}
+            minimap={craft.minimap}
+            onToggle={craft.toggle}
+            control={previewControl}
+            describe={describe}
+            onBend={(id, via, done) => {
+              const e = result?.graph?.edges.find((x) => x.id === id);
+              if (!done) return setDraft({ edges: { [id]: { via, from: e?.from.node, to: e?.to.node } } });
+              setDraft(undefined);
+              pinTo(withEdge(id, via));
+            }}
             onFollow={(s) => {
               const g = drawn?.graph;
               const links = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.links : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.links : undefined;
@@ -1258,6 +1362,9 @@ export function App() {
             fields={fields}
             renamable={isEntry}
             pinned={selected.kind === 'node' ? !!vpins?.nodes?.[selected.id] : selected.kind === 'group' && !!vpins?.groups?.[selected.id]}
+            locked={selected.kind === 'edge' ? undefined : locked.has(selected.id)}
+            onLock={toggleLock}
+            onResetLine={selected.kind === 'edge' && bent.has(selected.id) ? () => pinTo(withEdge(selected.id, undefined)) : undefined}
             links={(selNode ?? selGroup)?.links}
             onFollowLink={follow}
             onField={(key, value) =>
@@ -1280,7 +1387,11 @@ export function App() {
             }
             onSelectEdge={(id) => select({ kind: 'edge', id })}
             onDeleteEdge={(id) => remove({ kind: 'edge', id })}
-            onUnpin={() => editor.current?.pin(withViewPins(pins, drawn?.view, withPin(selected.id, undefined, selected.kind === 'group')))}
+            onUnpin={() => {
+              // Unpinning lets go of the lock too: there is no place left to hold it at.
+              const next = withPin(selected.id, undefined, selected.kind === 'group');
+              editor.current?.pin(withViewPins(pins, drawn?.view, next && { ...next, locked: next.locked?.filter((id) => id !== selected.id) }));
+            }}
             onClose={() => setInspector(false)}
           />
         )}
@@ -1303,6 +1414,7 @@ export function App() {
               </button>
             </header>
             <div className="inspector-body">
+              <ArrangeBar shapes={selection.filter((s) => s.kind === 'node').length} onArrange={arrangeSelection} />
               <p className="fine">
                 Drag one to move them all, arrows nudge them, <kbd>⌘C</kbd> <kbd>⌘V</kbd> copies and pastes. Shift-click adds or removes one.
               </p>
@@ -1310,6 +1422,9 @@ export function App() {
             <footer>
               <button className="button ghost" onClick={duplicate} title="Duplicate (⌘D)">
                 <Icon name="copy" /> Duplicate
+              </button>
+              <button className="button ghost" onClick={toggleLock} title="Lock or unlock (⇧⌘L)">
+                <Icon name={selection.every((s) => locked.has(s.id)) ? 'lock-open' : 'lock'} /> {selection.every((s) => locked.has(s.id)) ? 'Unlock' : 'Lock'}
               </button>
               <button className="button ghost danger" onClick={removeAll} title="Delete (⌫)">
                 <Icon name="trash" /> Delete

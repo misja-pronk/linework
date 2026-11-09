@@ -241,12 +241,28 @@ export interface NodeSize {
   rowY?: Record<string, number>;
 }
 
-/** Manual tweaks stored next to the diagram as <name>.layout.json. */
-export interface LayoutSidecar {
-  version: 1;
+/** A line drawn by hand: the router runs it through these bend points (pin space), kept orthogonal. */
+export interface EdgeOverride {
+  via: Point[];
+  /** The nodes it joined when bent: line ids are positions in a list, so a bend whose ends no longer match is ignored. */
+  from?: string;
+  to?: string;
+}
+
+/** The tweaks of one view: what the sidecar holds at its top level and per named view. */
+export interface ViewPins {
   nodes?: Record<string, Point>;
   /** Groups moved as a whole: their top-left; what is inside moves along unless pinned itself. */
   groups?: Record<string, Point>;
+  /** Lines with bends set by hand, by edge id. */
+  edges?: Record<string, EdgeOverride>;
+  /** Pinned nodes and groups that cannot be dragged by accident (the editor's concern; the layout ignores it). */
+  locked?: string[];
+}
+
+/** Manual tweaks stored next to the diagram as <name>.layout.json. */
+export interface LayoutSidecar extends ViewPins {
+  version: 1;
   /** Pins per named view; the top level holds the pins of the diagram without a view. */
-  views?: Record<string, { nodes?: Record<string, Point>; groups?: Record<string, Point> }>;
+  views?: Record<string, ViewPins>;
 }

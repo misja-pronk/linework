@@ -1,5 +1,5 @@
 // Layout: dot places nodes and groups, pins from the sidecar move nodes, our router draws the lines.
-import type { Box, Endpoint, LayoutSidecar, Marker, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
+import type { Box, EdgeOverride, Endpoint, LayoutSidecar, Marker, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
@@ -37,7 +37,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   // or a page. When the source did not choose a direction, top-down is tried too and kept when it
   // scores better. Not with pins: they were placed on the drawing as it was.
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
-  if (!tuning.autoDirection || tuning.direction || pinned || sized.graph.direction !== 'right' || first.placed.width < WIDE * first.placed.height) return first.placed;
+  if (!tuning.autoDirection || tuning.direction || pinned || sized.graph.direction !== 'right' || (first.bare ?? first.placed).width < WIDE * (first.bare ?? first.placed).height) return first.placed;
   const down = await layoutOnce({ ...sized, graph: { ...sized.graph, direction: 'down' } }, spacing, sidecar, tuning);
   return down.score < first.score - 1e-9 ? { ...down.placed, direction: 'down' } : first.placed;
 }
@@ -45,7 +45,14 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
 
-async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning): Promise<{ placed: Placed; score: number }> {
+/** A drawing and its score; `bare` is the same drawing before lines bent by hand, which never steer the choices. */
+interface Drawn {
+  placed: Placed;
+  score: number;
+  bare?: Placed;
+}
+
+async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning): Promise<Drawn> {
   const { graph } = sized;
   // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
   if (!graph.nodes.length && !graph.groups.length) return { placed: { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } }, score: 0 };
@@ -63,7 +70,7 @@ async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar
 }
 
 /** The best drawing from one dot placement: compacted or not, straightened or not. */
-async function candidates(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning, variant: DotVariant): Promise<{ placed: Placed; score: number }> {
+async function candidates(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning, variant: DotVariant): Promise<Drawn> {
   // Top-down, lines come into a group's first row from above, and its header title sits right where
   // the leftmost of them would come in. A slightly taller header leaves a lane under the title: such
   // a line comes down beside the title, runs under it and drops into its node.
@@ -88,30 +95,34 @@ async function candidates(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar
       p = openSpace(p, cut);
       edges = route(sized, p);
     }
-    return normalise({ ...p, edges });
+    return { placed: normalise({ ...p, edges }), p };
   };
   // Each helps some diagrams and hurts others, so all are drawn and the best-scoring one is kept.
   const packed = () => compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap);
   const bases = tuning.compact === false ? [placed] : tuning.compact ? [packed()] : [placed, packed()];
   const aligns = tuning.align === false ? [false] : tuning.align ? [true] : [false, true];
-  let best: Placed | undefined;
+  let best: { placed: Placed; p: Placement } | undefined;
   let bestScore = Infinity;
   for (const base of bases)
     for (const a of aligns) {
       const c = finish(base, a);
-      const sc = score(measure(graph, c, sized.groupHeader));
+      const sc = score(measure(graph, c.placed, sized.groupHeader));
       if (!best || sc < bestScore - 1e-9) {
         best = c;
         bestScore = sc;
       }
     }
-  return { placed: best!, score: bestScore };
+  // Lines bent by hand are drawn last, on the placement chosen without them: a bend never changes where boxes go.
+  const joins = (id: string, o: EdgeOverride) => graph.edges.some((e) => e.id === id && (o.from == null || e.from.node === o.from) && (o.to == null || e.to.node === o.to));
+  const via = new Map(Object.entries(sidecar?.edges ?? {}).filter(([id, o]) => o.via?.length && joins(id, o)).map(([id, o]) => [id, o.via]));
+  if (via.size) return { placed: normalise({ ...best!.p, edges: route(sized, best!.p, via) }), score: bestScore, bare: best!.placed };
+  return { placed: best!.placed, score: bestScore };
 }
 
 /** Above this many nodes dot is asked once: the other variants would cost more time than they win. */
 const VARIANT_LIMIT = 60;
 
-function route(sized: Sized, p: Placement): Map<string, PlacedEdge> {
+function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<string, PlacedEdge> {
   const { graph } = sized;
   const end = (ep: Endpoint, marker: Marker): RouteEnd | undefined => {
     const box = p.nodes.get(ep.node) ?? p.groups.get(ep.node);
@@ -124,7 +135,7 @@ function route(sized: Sized, p: Placement): Map<string, PlacedEdge> {
     const from = end(e.from, e.start);
     const to = end(e.to, e.end);
     // Dotted lines (lookups, management) route last, so the main flow gets the best paths.
-    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}` });
+    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id) });
   }
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);

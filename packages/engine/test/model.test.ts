@@ -227,6 +227,14 @@ describe('pins per view', () => {
     expect(withViewPins(s, undefined, null)).toEqual({ version: 1, views: { v: { nodes: { b: { x: 2, y: 2 } } } } });
     expect(withViewPins(withViewPins(s, undefined, null), 'v', null)).toBeUndefined();
   });
+
+  it('carry bent lines and locks per view too', () => {
+    const edges = { e0: { via: [{ x: 1, y: 2 }] } };
+    const s = withViewPins({ version: 1, locked: ['a'] }, 'v', { version: 1, edges, locked: ['b'] });
+    expect(s).toEqual({ version: 1, locked: ['a'], views: { v: { edges, locked: ['b'] } } });
+    expect(viewPins(s, 'v')).toEqual({ version: 1, edges, locked: ['b'] });
+    expect(withViewPins(s, 'v', { version: 1, locked: [] })).toEqual({ version: 1, locked: ['a'] });
+  });
 });
 
 describe('examples/model', () => {
