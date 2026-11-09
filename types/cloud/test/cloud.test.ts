@@ -115,6 +115,36 @@ edges:
     expect(config.nodeKinds['storage']).toBeUndefined();
   });
 
+  it('draws each shape with its own vendor\'s icon', async () => {
+    const packs: Record<string, { name: string; root: string; icons: Record<string, string> }> = {
+      aws: { name: 'aws', root: '/aws', icons: { vpc: 'vpc.svg', eks: 'eks.svg', users: 'users.svg' } },
+      gcp: { name: 'gcp', root: '/gcp', icons: { vpc: 'network.svg', bigquery: 'bigquery.svg' } },
+      azure: { name: 'azure', root: '/azure', icons: { storage: 'storage.svg', 'entra-id': 'entra.svg' } },
+    };
+    const read: string[] = [];
+    const r = await render(
+      `type: cloud
+icons: [aws, gcp, azure]
+groups:
+  a: aws
+  net-a: { kind: vpc, in: a }
+  g: gcp
+  net-g: { kind: vpc, in: g }
+  t: tenant
+nodes:
+  people: users
+  shop: { kind: eks, in: net-a }
+  warehouse: { kind: bigquery, in: net-g }
+  files: { kind: azure-storage, in: t }
+  sign-in: { kind: entra-id, in: t }
+  queue: { kind: sqs, in: a }
+`,
+      { fonts: 'none', load: (f) => (read.push(f), '<svg viewBox="0 0 1 1"/>'), pack: (n) => packs[n] },
+    );
+    expect(r.diagnostics).toEqual([]);
+    expect(read.sort()).toEqual(['/aws/eks.svg', '/aws/users.svg', '/aws/vpc.svg', '/azure/entra.svg', '/azure/storage.svg', '/gcp/bigquery.svg', '/gcp/network.svg']);
+  });
+
   it('maps the words of a model to the provider', () => {
     expect(configFor('aws').kindAliases).toMatchObject({ database: 'rds', queue: 'sqs', storage: 's3', function: 'lambda' });
     expect(configFor('gcp').kindAliases).toMatchObject({ database: 'cloud-sql', queue: 'pubsub', storage: 'gcs', warehouse: 'bigquery' });
