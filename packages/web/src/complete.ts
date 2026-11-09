@@ -2,7 +2,7 @@
 // and ids already in the document where a value refers to something.
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { parse } from 'yaml';
-import { findType, types } from '@cartography/engine';
+import { findType, schemaOf, types } from '@cartography/engine';
 import { cursorContext } from './yaml-path.ts';
 
 type Schema = Record<string, any>;
@@ -69,7 +69,7 @@ export function schemaCompletion(ctx: CompletionContext): CompletionResult | nul
   const data = lastGood(text);
   const options: Completion[] = [];
   if (c.key) {
-    const here = schemasAt(type.schema, c.path);
+    const here = schemasAt(schemaOf(type), c.path);
     const existing = new Set(Object.keys(pick(data, c.path) ?? {}));
     const seen = new Set<string>();
     for (const s of here)
@@ -82,7 +82,7 @@ export function schemaCompletion(ctx: CompletionContext): CompletionResult | nul
     if (c.path.at(-1) === '-') options.push(...ids(data, ID_COLLECTIONS));
   } else {
     const path = c.valueKey ? [...c.path, c.valueKey] : c.path;
-    for (const s of schemasAt(type.schema, path)) {
+    for (const s of schemasAt(schemaOf(type), path)) {
       for (const e of s.enum ?? []) options.push({ label: String(e), type: 'enum' });
       if (s.const != null) options.push({ label: String(s.const), type: 'enum' });
       if (s.type === 'boolean') options.push({ label: 'true', type: 'keyword' }, { label: 'false', type: 'keyword' });

@@ -1,0 +1,12 @@
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+vitepress/.vitepress/cache/
+vitepress/.vitepress/dist/
+vitepress/public/carto/
+docusaurus/.docusaurus/
+docusaurus/build/
+docusaurus/static/carto/
+mkdocs/site/
+mkdocs/docs/img/
+mkdocs/docs/carto/

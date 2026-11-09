@@ -2462,3 +2462,283 @@ button.type-pill:hover {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ------------------------------------------------------------- steps */
+
+/* The steps of the drawing, docked under the canvas. */
+.canvas-pane.with-steps .preview {
+  bottom: 46px;
+}
+.steps-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.steps-title {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.steps-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.step-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.step-chip b {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+.step-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.step-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 550;
+}
+.step-chip.active b {
+  color: var(--accent);
+}
+.step-chip.editing {
+  border-color: var(--accent);
+  cursor: text;
+}
+.step-chip input {
+  width: 180px;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+}
+.step-chip.add {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+.step-chip.add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.step-chip kbd {
+  background: none;
+}
+.steps-keys {
+  flex: none;
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+@media (max-width: 1280px) {
+  .steps-keys {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------- presenting */
+
+/* Full screen on the drawing's own canvas, so slide and drawing are one surface. */
+.present {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--present-canvas, var(--canvas));
+  color: var(--present-text, var(--text));
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.present.idle,
+.present.idle * {
+  cursor: none;
+}
+.present-stage {
+  position: absolute;
+  inset: 5vh 5vw 19vh;
+}
+.present-frame {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* One cell as big as the stage, so a tall drawing is fitted to its height and not only to its width. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  animation: present-in 260ms ease both;
+}
+.present-frame.leaving {
+  animation: present-out 260ms ease 160ms both;
+}
+.present-frame > div {
+  width: 100%;
+  height: 100%;
+}
+.present-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@keyframes present-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes present-out {
+  to {
+    opacity: 0;
+  }
+}
+.present-caption {
+  position: absolute;
+  left: 8vw;
+  right: 8vw;
+  bottom: 3.5vh;
+  height: 13vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.present-words {
+  max-width: 62em;
+  font-size: clamp(15px, 2.1vh, 26px);
+  line-height: 1.4;
+  animation: present-in 260ms ease both;
+}
+.present-words strong {
+  display: block;
+  font-size: 1.3em;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.present-words p {
+  margin: 0.25em 0 0;
+  color: var(--present-muted, var(--text-muted));
+}
+.present-count {
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--present-faint, var(--text-faint));
+}
+.present-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+}
+.present-progress i {
+  display: block;
+  height: 100%;
+  background: var(--present-accent, var(--accent));
+  opacity: 0.7;
+  transition: width 260ms ease;
+}
+.present-ring {
+  position: absolute;
+  border: 3px solid var(--present-accent, var(--accent));
+  border-radius: 12px;
+  pointer-events: none;
+}
+.present-tools,
+.present-help {
+  position: absolute;
+  transition: opacity 300ms ease;
+}
+.present.idle .present-tools,
+.present.idle .present-help {
+  opacity: 0;
+}
+.present-tools {
+  right: 16px;
+  top: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--present-line, var(--border));
+  border-radius: var(--radius);
+  background: var(--present-canvas, var(--surface));
+}
+.present-tools button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--present-muted, var(--text-muted));
+  cursor: pointer;
+}
+.present-tools button:hover {
+  color: var(--present-text, var(--text));
+  background: color-mix(in srgb, var(--present-text, var(--text)) 8%, transparent);
+}
+.present-tools button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.present-help {
+  left: 22px;
+  bottom: 14px;
+  font-size: 12px;
+  color: var(--present-faint, var(--text-faint));
+}
+.present kbd {
+  color: inherit;
+  background: none;
+  border-color: var(--present-line, var(--border));
+}
+.present-note {
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: var(--present-text, var(--text));
+  color: var(--present-canvas, var(--bg));
+  font-size: 14px;
+}
+.present-blank {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  cursor: none;
+}

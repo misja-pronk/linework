@@ -15,10 +15,11 @@ export interface Rendered {
 }
 
 /**
- * `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle.
- * `fresh` counts the times the layout was reset: a new number draws the view from scratch.
+ * `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle;
+ * `step` draws one of its steps. `fresh` counts the times the layout was reset: a new number draws
+ * the view from scratch.
  */
-export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, fresh = 0) {
+export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, step?: number, fresh = 0) {
   const [out, setOut] = useState<Rendered>();
   const seq = useRef(0);
   const doc = useRef(docKey);
@@ -40,7 +41,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
       m.views.set(view ?? '', null);
     }
     // Nothing remembered yet (a file just opened): the note in its sidecar says where things were.
-    render(text, { theme, themeOverride, icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live', previous: m.views.get(view ?? '') })
+    render(text, { theme, themeOverride, icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous: m.views.get(view ?? '') })
       .then((result) => {
         if (n !== seq.current) return;
         if (result.placed?.memory && m.doc === docKey) for (const key of new Set([view ?? '', result.view ?? ''])) m.views.set(key, result.placed.memory);
@@ -60,6 +61,6 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             docKey,
           }));
       });
-  }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, fresh]);
+  }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, step, fresh]);
   return out;
 }

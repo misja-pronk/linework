@@ -47,6 +47,9 @@ export interface GraphGroup {
   /** Where it points to: a URL, another diagram, a view. Drawn as a link icon; real links in exports. */
   links?: Link[];
   description?: string;
+  /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
+  kind?: string;
+  tags?: string[];
   path: Path;
 }
 
@@ -57,6 +60,9 @@ export interface GraphNode {
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
+  /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
+  kind?: string;
+  tags?: string[];
   path: Path;
   /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
   folded?: boolean;
