@@ -18,3 +18,4 @@ export function icon(name: string): string | undefined {
 export function iconNames(): string[] {
   return [...new Set(packs.flatMap((p) => Object.keys(p)))].sort();
 }
+export * from './match.ts';

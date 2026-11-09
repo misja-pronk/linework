@@ -1,0 +1,43 @@
+type: systems
+title: Order platform, target state
+subtitle: Containerised services on a managed Kubernetes cluster
+direction: down
+
+# The brand comes from the theme file; this diagram only adds its own version and date.
+theme:
+  extends: ./acme.theme.yaml
+  titleBlock: { version: v1.3, date: 2026-11-09 }
+
+groups:
+  edge: { kind: zone, label: Public edge }
+  k8s: { kind: cluster, label: Kubernetes cluster }
+  core: { kind: team, label: Ordering, in: k8s }
+  ops: { kind: team, label: Fulfilment, in: k8s }
+  data: { kind: zone, label: Data tier }
+
+nodes:
+  shoppers: { kind: users, label: Shoppers }
+  web: { kind: client, label: Web shop }
+  gateway: { kind: api, label: API gateway, in: edge }
+  orders: { kind: service, label: Orders, in: core }
+  pricing: { kind: service, label: Pricing, in: core }
+  stock: { kind: service, label: Stock, in: ops }
+  shipping: { kind: worker, label: Shipping, in: ops }
+  db: { kind: database, label: Orders DB, caption: PostgreSQL, in: data }
+  events: { kind: topic, label: order-events, caption: Kafka, in: data }
+  cache: { kind: cache, label: Price cache, caption: Redis, in: data }
+  idp: { kind: identity, label: Identity provider }
+  carrier: { kind: external, label: Carrier API }
+
+edges:
+  - shoppers -> web
+  - web -> gateway: { label: HTTPS, style: sync }
+  - gateway -> orders: { style: sync }
+  - gateway -> pricing: { style: sync }
+  - orders -> db: { style: data }
+  - pricing -> cache: { style: data }
+  - orders -> events: { label: OrderPlaced, style: async }
+  - events -> stock: { style: async }
+  - events -> shipping: { style: async }
+  - shipping -> carrier: { label: book, style: sync }
+  - web -> idp: { label: OIDC, style: dotted }

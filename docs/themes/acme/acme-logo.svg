@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 136 32" width="136" height="32">
+  <!-- Acme Corporation: a fictional brand for the theme example. Geometric, no real company's mark. -->
+  <rect width="32" height="32" rx="8" fill="#E4572E"/>
+  <path d="M6.5 24 13 11.5l4.6 7.4 3-4.4L25.5 24Z" fill="#FFFFFF"/>
+  <circle cx="22.5" cy="9" r="2.6" fill="#FFD3C2"/>
+  <g fill="none" stroke="#1E2B3C" stroke-width="4" stroke-linejoin="miter" stroke-linecap="butt">
+    <path d="M44 28 52 4.5 60 28M46.8 19.5h10.4"/>
+    <path d="M84 9.2A11 11 0 1 0 84 22.8"/>
+    <path d="M92 28V4.5l9 13 9-13V28"/>
+    <path d="M132 6.5h-12v19h12M120 16h10"/>
+  </g>
+</svg>

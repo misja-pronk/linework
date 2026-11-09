@@ -8,6 +8,7 @@
     "carto": "tsx packages/cli/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
     "gallery": "tsx packages/cli/src/gallery.ts",
+    "themes": "tsx packages/cli/src/theme-gallery.ts",
     "compare": "tsx packages/cli/src/compare.ts",
     "fonts": "node scripts/fonts.mjs",
     "test": "vitest run",

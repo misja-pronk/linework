@@ -12,8 +12,36 @@ export interface ToneColors {
   line: string;
 }
 
+/** A font file carried by the theme, embedded in SVG as @font-face (base64). */
+export interface FontFace {
+  family: string;
+  weight: number;
+  style: 'normal' | 'italic';
+  format: 'woff2' | 'woff' | 'truetype' | 'opentype';
+  data: string;
+  /** Where it came from, for renderers that read files (resvg); absent in the browser. */
+  file?: string;
+}
+
+/** The deliverable frame around a diagram: logo, client, version, footer (brand themes). */
+export interface TitleBlock {
+  /** An image as a data URI, drawn as-is in the header. */
+  logo?: { href: string; width: number; height: number };
+  client?: string;
+  project?: string;
+  version?: string;
+  date?: string;
+  classification?: string;
+  footer?: string;
+}
+
+export type LegendPosition = 'bottom' | 'top' | 'right' | 'none';
+
 export interface Theme {
-  name: 'light' | 'dark';
+  /** light, dark, a built-in brand theme or the name in a theme file. */
+  name: string;
+  /** Whether the theme is light or dark: the editor chrome follows it. */
+  mode: 'light' | 'dark';
   canvas: string;
   surface: string;
   border: string;
@@ -23,7 +51,13 @@ export interface Theme {
   edge: string;
   shadow: { color: string; opacity: number };
   tones: Record<Tone, ToneColors>;
-  font: { family: string; mono: string };
+  font: {
+    family: string;
+    mono: string;
+    faces?: FontFace[];
+    /** Width of the font against Inter's metrics, so text measured with Inter fits a wider or narrower face. */
+    scale?: number;
+  };
   size: {
     title: number;
     subtitle: number;
@@ -43,6 +77,14 @@ export interface Theme {
     layerGap: number;
   };
   stroke: { card: number; group: number; edge: number; icon: number };
+  /** Brand colour for the title rule and other details; absent in the plain themes. */
+  accent?: string;
+  titleBlock?: TitleBlock;
+  legend?: LegendPosition;
+  /** Icon tiles: soft tint (default), solid tone with a light icon, or an outline for print. */
+  tile?: 'soft' | 'solid' | 'outline';
+  /** A tone bar along the left edge of cards. */
+  cardBar?: boolean;
 }
 
 const shared = {
@@ -66,6 +108,7 @@ const shared = {
 export const light: Theme = {
   ...shared,
   name: 'light',
+  mode: 'light',
   canvas: '#FFFFFF',
   surface: '#FFFFFF',
   border: '#DDE2E8',
@@ -91,6 +134,7 @@ export const light: Theme = {
 export const dark: Theme = {
   ...shared,
   name: 'dark',
+  mode: 'dark',
   canvas: '#0D1117',
   surface: '#161B23',
   border: '#2A313C',
@@ -113,4 +157,3 @@ export const dark: Theme = {
   },
 };
 
-export const themes = { light, dark };

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { render, type RenderResult } from '@cartography/engine';
 import type { LayoutSidecar } from '@cartography/core';
+import { useBrand } from './brand.ts';
 
 export interface Rendered {
   result: RenderResult;
@@ -18,10 +19,12 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   const [out, setOut] = useState<Rendered>();
   const seq = useRef(0);
   const doc = useRef(docKey);
+  // The editor's theme picker and icon folder (brand.ts) apply to the live drawing too.
+  const { theme: themeOverride, icons } = useBrand();
   useEffect(() => {
     const n = ++seq.current;
     const t = performance.now();
-    render(text, { theme, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' })
+    render(text, { theme, themeOverride, icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' })
       .then((result) => {
         if (n !== seq.current) return;
         // Another document starts without the old drawing behind it.
@@ -40,6 +43,6 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             docKey,
           }));
       });
-  }, [text, theme, sidecar, load, docKey, view, file]);
+  }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file]);
   return out;
 }

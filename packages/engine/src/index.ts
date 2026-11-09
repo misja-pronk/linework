@@ -17,10 +17,12 @@ import {
   type ModelContext,
   type Path,
   type Placed,
+  type Source,
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
-import { themes, type Theme } from '@cartography/theme';
+import { resolveTheme, themes, withTextScale, type FontFace, type Theme } from '@cartography/theme';
+import { resolveIcons, type IconPackFile } from './icons.ts';
 import { systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { kubernetes } from '@cartography/kubernetes';
@@ -37,7 +39,20 @@ export function findType(id: unknown): DiagramType | undefined {
 }
 
 export interface RenderOptions extends SvgOptions {
-  theme?: 'light' | 'dark' | Theme;
+  /** Used when the diagram names no `theme:` of its own: light, dark, a built-in brand theme, or a Theme. */
+  theme?: string | Theme;
+  /** Wins over the diagram's `theme:` (a --theme flag, the editor's theme picker). */
+  themeOverride?: string | Theme;
+  /** Bytes of a file next to the diagram (brand fonts, PNG logos). Without it fonts are not embedded. */
+  assets?: (file: string) => Uint8Array | undefined;
+  /** Width of a brand font against Inter (see SCALE_SAMPLE), when the theme does not say. */
+  fontScale?: (faces: FontFace[]) => number | undefined;
+  /** BYO icons already read, kind → SVG markup (the editor's icon folder). */
+  icons?: Record<string, string>;
+  /** Icon packs to use besides the diagram's `icons:` (--pack). */
+  packs?: string[];
+  /** Finds a named pack (the CLI looks in the user's config dir). */
+  pack?: (name: string) => IconPackFile | undefined;
   sidecar?: LayoutSidecar;
   /** Layout overrides, for experiments. */
   tuning?: Tuning;
@@ -64,6 +79,8 @@ export interface RenderResult {
   onlyViews?: boolean;
   /** Files read through `include:`, relative to the diagram. */
   includes?: string[];
+  /** The theme it was drawn with (PNG export needs its font files). */
+  theme?: Theme;
 }
 
 /** Keys that are not something drawn, to tell a diagram that only has views. */
@@ -89,22 +106,25 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
 
   // Types that do not list the model keys are checked without them, and the keys on their own. A key
   // such a type defines itself (an ERD's relations) stays the type's.
+  // Theme and icons are about the look, shared by every type: they never reach the type's schema.
+  const { theme: themeRef, icons: iconsRef, ...rest } = data;
+  const own: Source = { ...source, data: rest };
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
   const listed = 'views' in props;
   const keys = modelKeys.filter((k) => listed || !(k in props));
   const isModelKey = (k: string) => (keys as string[]).includes(k);
-  const plain = Object.fromEntries(Object.entries(data).filter(([k]) => !isModelKey(k)));
-  const invalid = isModel ? validate(source, modelSchema) : listed ? validate(source, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(source, modelOnly(keys))];
+  const plain = Object.fromEntries(Object.entries(rest).filter(([k]) => !isModelKey(k)));
+  const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelOnly(keys))];
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
   let model: ModelContext | undefined;
-  let built: Record<string, unknown> = data;
+  let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
   let includes: string[] | undefined;
   let onlyViews = false;
-  if (Object.keys(data).some(isModelKey)) {
-    const composed = compose(data, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : type.schema), report, self: opts.file, text });
+  if (Object.keys(rest).some(isModelKey)) {
+    const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : type.schema), report, self: opts.file, text });
     built = isModel ? { ...composed.data, type: 'systems' } : composed.data;
     origin = composed.origin;
     includes = composed.files;
@@ -143,9 +163,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph.edges.forEach(fix);
   }
 
-  const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
+  const theme = pickTheme(opts, themeRef, source, diagnostics);
+  const scale = theme.font.scale ?? (theme.font.faces?.length ? opts.fontScale?.(theme.font.faces) : undefined);
   // Cards are sized with their badge chips; layout and routing never see the badged edges.
-  const measured = size(graph, theme);
+  const measured = withTextScale(scale, () => size(graph, theme));
   const sized = { ...measured, graph: withoutBadges(graph) };
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
@@ -154,7 +175,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
-  const out = drawSvg(graph, placed, theme, opts);
+  const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
+  const out = withTextScale(scale, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images }));
   const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : undefined;
   return {
     svg: out.svg,
@@ -165,6 +187,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     type,
     graph,
     placed,
+    theme,
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : {}),
     ...(onlyViews ? { onlyViews } : {}),
@@ -172,4 +195,20 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   };
 }
 
+function named(t: string | Theme | undefined): Theme | undefined {
+  return typeof t === 'object' ? t : t ? themes[t] : undefined;
+}
+
+/** Override, then the diagram's own `theme:`, then the caller's default. */
+function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostics: Diagnostic[]): Theme {
+  const fallback = named(opts.theme) ?? themes.light;
+  const forced = named(opts.themeOverride);
+  if (forced) return forced;
+  if (ref == null) return fallback;
+  const r = resolveTheme(ref, { load: opts.load, assets: opts.assets }, fallback);
+  for (const w of r.warnings) diagnostics.push(source.at(['theme', ...(typeof ref === 'object' ? w.path : [])], w.message, 'warning'));
+  return r.theme;
+}
+
 export { themes };
+export type { IconPackFile };
