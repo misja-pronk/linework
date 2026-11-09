@@ -117,6 +117,9 @@ importers:
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../render
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme

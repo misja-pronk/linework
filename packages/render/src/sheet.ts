@@ -30,7 +30,13 @@ export function dotGrid(width: number, height: number, theme: Theme, id: string)
   };
 }
 
+/** The sheet marks as one group (`data-sheet`), so a picture built around a drawing can lift them out and draw its own. */
 export function drawSheet(width: number, height: number, theme: Theme): string {
+  const marks = sheetMarks(width, height, theme);
+  return marks && `<g data-sheet="">${marks}</g>`;
+}
+
+function sheetMarks(width: number, height: number, theme: Theme): string {
   const s = look(theme).sheet;
   if (s.marks === 'none') return '';
   const m = s.inset;
