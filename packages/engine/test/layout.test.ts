@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { measure, routeEdges, throughVia } from '@cartography/layout';
 import { render } from '../src/index.ts';
-import { big } from './perf.ts';
+import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
@@ -79,6 +79,21 @@ describe('layout quality', () => {
     const r = await render(big(10, 20), { fonts: 'none' });
     expect(r.graph!.nodes).toHaveLength(200);
     expect(performance.now() - t).toBeLessThan(1000);
+  });
+
+  it('and as fast one line later, knowing the drawing before', async () => {
+    const text = big(10, 20);
+    const before = await render(text, { fonts: 'none' });
+    // A line right across the drawing: the longest route there can be. Best of two, so a busy machine does not fail it.
+    const { ms, result } = await timed(text + '  - n0_1 -> n9_19\n', { previous: before.placed!.memory }, 2);
+    expect(result.graph!.edges).toHaveLength(before.graph!.edges.length + 1);
+    expect(ms).toBeLessThan(1000);
+    // Drawn the way the drawing before was, and nothing that was there moved.
+    expect(result.placed!.memory!.variant).toBe(before.placed!.memory!.variant);
+    const was = before.placed!.memory!.nodes!;
+    const now = result.placed!.memory!.nodes!;
+    const far = [...was].filter(([id, p]) => Math.hypot(now.get(id)!.x - p.x, now.get(id)!.y - p.y) > 16);
+    expect(far.length / was.size).toBeLessThan(0.1);
   });
 });
 

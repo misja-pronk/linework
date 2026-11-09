@@ -15,6 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "icons": "node scripts/icons.mjs",
     "lab": "tsx packages/cli/src/lab.ts",
+    "snapshot": "tsx packages/cli/src/snapshot.ts",
+    "stability": "tsx packages/engine/test/stability.ts",
     "web": "pnpm --filter @cartography/web dev",
     "web:build": "pnpm --filter @cartography/web build"
   },

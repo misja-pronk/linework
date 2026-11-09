@@ -142,7 +142,13 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   const { graph } = sized;
   // dot ranks and orders differently when asked differently, and no one way suits every diagram.
   // Small diagrams try a few ways, each drawn in full, and the best one is kept. Big diagrams ask once.
-  const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : graph.nodes.length > VARIANT_LIMIT ? VARIANTS.slice(0, 1) : VARIANTS;
+  const big = graph.nodes.length > VARIANT_LIMIT;
+  const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : big ? VARIANTS.slice(0, 1) : VARIANTS;
+  // A big diagram with a drawing before it is drawn the way that one was (packed or not, straightened
+  // or not) and no other: every candidate is routed in full, which is most of the time a layout takes,
+  // and next to the previous drawing kept as it was the other three rarely win.
+  const was = big ? parseKey(prev?.variant) : undefined;
+  if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align };
   let best: Choice | undefined;
   for (const [name, variant] of ways) {
     const c = await candidates(sized, spacing, tuning, name, variant, prev);
