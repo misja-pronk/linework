@@ -242,6 +242,7 @@ describe('what a change touches', () => {
     const none = await plan(q.root, q.base);
     expect(none.targets).toEqual([]);
     expect(none.untouched).toEqual([]);
+    expect(none.checked).toBe(6);
     expect(commentBody(none)).toBeUndefined();
   }, 60_000);
 
@@ -376,6 +377,19 @@ describe('the comment', () => {
     await upsertComment(api, 7, 'c');
     expect(comments.map((c) => c.body)).toEqual([`${MARKER}\nc`]);
   });
+
+  it('keeps text from a diagram as text', async () => {
+    const hostile = 'Pay <img src=x onerror=alert(1)> | [free money](https://evil.example) `x`';
+    const r = repository('hostile', (write) => write('docs/shop.yaml', shop.replace('  kv: key-vault\n', `  kv: { kind: key-vault, label: ${JSON.stringify(hostile)} }\n`)));
+    const body = commentBody(await plan(r.root, r.base, { views: false }))!;
+    expect(body).toContain('~ changed | node | `kv` |');
+    expect(body).not.toMatch(/(?<!\\)<img/);
+    expect(body).not.toMatch(/(?<!\\)\[free money/);
+    expect(body).toContain('\\<img src=x onerror=alert(1)\\> \\| \\[free money\\](https://evil.example)');
+    // One row stays one row.
+    const row = body.split('\n').find((l) => l.includes('`kv`'))!;
+    expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(6);
+  }, 60_000);
 
   it('talks to GitHub the documented way', async () => {
     const seen: { url: string; method: string; headers: Record<string, string>; body?: string }[] = [];

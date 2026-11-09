@@ -16,7 +16,9 @@ export interface CommentOptions {
   limit?: number;
 }
 
-const code = (s: string) => '`' + s.replace(/`/g, '') + '`';
+const code = (s: string) => '`' + s.replace(/[`\n]/g, '') + '`';
+/** Text from a diagram in a pull request is not ours: it must not become markup in the comment. */
+const plain = (s: string) => s.replace(/\s+/g, ' ').replace(/([\\`*_<>|[\]])/g, '\\$1');
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 export const titleOf = (t: Target) => (t.view ? `${t.file} · view ${t.view}` : t.file);
 
@@ -41,10 +43,10 @@ function section(t: Target, image: string | undefined, table: boolean): string {
   const out = [`#### ${code(t.file)}${t.view ? ` · view ${code(t.view)}` : ''}: ${headline(t)}`, ''];
   if (t.because.length) out.push(`Through ${t.because.map(code).join(', ')}.`, '');
   const errors = c.diagnostics.filter((d) => d.severity === 'error');
-  for (const d of errors.slice(0, 5)) out.push(`- **Error**${d.line ? ` on line ${d.line}` : ''}: ${d.message.replace(/\s+/g, ' ')}`);
+  for (const d of errors.slice(0, 5)) out.push(`- **Error**${d.line ? ` on line ${d.line}` : ''}: ${plain(d.message)}`);
   if (errors.length > 5) out.push(`- …and ${errors.length - 5} more errors`);
   if (errors.length) out.push('');
-  if (image) out.push(`![${titleOf(t)}: ${headline(t)}](${image})`, '');
+  if (image) out.push(`![${titleOf(t).replace(/[[\]\n]/g, '')}: ${headline(t)}](${image})`, '');
   if (table && t.state === 'changed') out.push('<details><summary>What changed</summary>', '', markdownDiff(c.diff), '', '</details>', '');
   return out.join('\n');
 }
@@ -59,7 +61,7 @@ export function commentBody(plan: Plan, opts: CommentOptions = {}): string | und
   head.push(`${plural(files.size, 'diagram')} changed${against}${plan.targets.length > files.size ? `, in ${plural(plan.targets.length, 'drawing')}` : ''}.`, '');
 
   const tail: string[] = [];
-  for (const p of plan.problems) tail.push(`- ${code(p.file)} could not be compared: ${p.message.replace(/\s+/g, ' ')}`);
+  for (const p of plan.problems) tail.push(`- ${code(p.file)} could not be compared: ${plain(p.message)}`);
   if (plan.problems.length) tail.push('');
   if (plan.untouched.length) tail.push(`${plural(plan.untouched.length, 'other diagram')} ${plan.untouched.length === 1 ? 'reads' : 'read'} a changed file and ${plan.untouched.length === 1 ? 'draws' : 'draw'} the same: ${plan.untouched.map(code).join(', ')}.`, '');
   const notes: string[] = [];

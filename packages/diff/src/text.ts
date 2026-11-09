@@ -35,7 +35,8 @@ export function formatDiff(d: GraphDiff): string {
   return out.join('\n');
 }
 
-const md = (s: string) => s.replace(/([|\\`*_<>])/g, '\\$1').replace(/\n/g, ' ');
+// Labels come from the diagram, which in a pull request is somebody else's text: no markup, no links.
+const md = (s: string) => s.replace(/([|\\`*_<>[\]])/g, '\\$1').replace(/\n/g, ' ');
 
 /** The same as a Markdown table, for a pull request comment; at most `limit` rows, the rest counted. */
 export function markdownDiff(d: GraphDiff, limit = 40): string {
@@ -44,7 +45,7 @@ export function markdownDiff(d: GraphDiff, limit = 40): string {
   for (const c of d.diagram) rows.push(`| ~ changed | diagram | | ${md(describeChange(c))} |`);
   for (const i of items(d)) {
     const what = i.status === 'changed' ? i.changes!.map(describeChange).join('; ') : (i.label ?? '');
-    rows.push(`| ${SIGN[i.status] === '-' ? '−' : SIGN[i.status]} ${i.status} | ${NAME[i.kind]} | \`${i.id.replace(/`/g, '')}\` | ${md(what)} |`);
+    rows.push(`| ${SIGN[i.status] === '-' ? '−' : SIGN[i.status]} ${i.status} | ${NAME[i.kind]} | \`${i.id.replace(/`/g, '').replace(/\|/g, '\\|').replace(/\n/g, ' ')}\` | ${md(what)} |`);
   }
   const shown = rows.slice(0, limit);
   const more = rows.length - shown.length;

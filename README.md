@@ -30,6 +30,8 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.
 
+**In CI and pull requests**: `carto validate` checks diagrams (`--drift` finds saved positions for things that are gone), `carto diff` shows what changed between two versions as a list and as a marked-up picture, and a GitHub Action puts that picture in one comment on the pull request. An edit keeps the rest of the drawing where it was (`carto render --stable`). See [docs/ci.md](docs/ci.md).
+
 AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude Code, Claude Desktop and other MCP clients write diagrams that are checked against the schema and scored for layout quality before you see them. See [docs/mcp.md](docs/mcp.md).
 
 ## Try it

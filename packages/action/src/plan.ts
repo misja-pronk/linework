@@ -73,6 +73,9 @@ export async function plan(root: string, base: string, opts: PlanOptions = {}): 
   if (!changed.length) return out;
 
   const now = diagrams(root, opts.files);
+  // What a diagram can read besides itself: other YAML (include, theme), layout notes and pictures.
+  // A change with none of those (code only) cannot reach a diagram that did not change itself.
+  const readable = changed.some((c) => /\.(ya?ml|json|svg|png|jpe?g|gif|webp)$/i.test(c.path));
   // Diagrams that are gone: among the removed files of the same globs.
   const gone = changedFiles(root, base, 'HEAD', pathspecs(opts.files))
     .filter((c: ChangedFile) => c.status === 'removed' && isYaml(c.path) && isDiagram(versionAt(root, base, c.path).text))
@@ -85,6 +88,7 @@ export async function plan(root: string, base: string, opts: PlanOptions = {}): 
       const before = versionAt(root, base, file);
       const own = status.has(file) || status.has(sidecarOf(file));
       if (!own) {
+        if (!readable) continue;
         // Not changed itself: draw it once to learn what it reads.
         await render(after.text!, { ...after.options, fonts: 'none' });
         if (![...after.read].some((p) => status.has(p))) continue;
