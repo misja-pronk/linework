@@ -53,4 +53,5 @@ export function exampleLoader(starterId: string): ((file: string) => string) | u
 /** A clean start of a type, to build from the palette. */
 export const blankText = (type: string) => `type: ${type}\ntitle: Untitled\n`;
 
-export const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? id;
+// A shared model (type: model) is drawn as architecture but named for what it is.
+export const typeName = (id: string) => (id === 'model' ? 'Model' : (types.find((t) => t.id === id)?.name ?? id));

@@ -64,6 +64,30 @@ export const config: GraphTypeConfig = {
     identity: { label: 'Identity', line: 'dotted', tone: 'amber' },
     management: { label: 'Management', line: 'dotted', tone: 'slate' },
   },
+  // Shared-model kinds (the architecture type's words) as the Azure resource that usually hosts them.
+  kindAliases: {
+    person: 'user',
+    client: 'static-web-app',
+    api: 'app-service',
+    worker: 'container-app',
+    container: 'container-app',
+    function: 'function-app',
+    job: 'function-app',
+    server: 'vm',
+    database: 'sql-database',
+    cache: 'redis',
+    storage: 'storage',
+    queue: 'service-bus',
+    topic: 'event-hub',
+    secrets: 'key-vault',
+    identity: 'entra-id',
+    monitoring: 'app-insights',
+    gateway: 'api-management',
+    cdn: 'front-door',
+    search: 'ai-search',
+    ai: 'openai',
+    system: 'boundary',
+  },
 };
 
 const palette: PaletteItem[] = [

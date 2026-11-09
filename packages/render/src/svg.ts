@@ -1,9 +1,9 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
+import { chips, linkHref, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, markWidth, rowMarks, tableHeader } from './size.ts';
+import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LINK_ROOM, markWidth, rowMarks, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 
 export interface SvgOptions {
@@ -13,6 +13,8 @@ export interface SvgOptions {
   idPrefix?: string;
   /** Add data-* attributes that the editor uses to find elements. */
   interactive?: boolean;
+  /** The diagram's own file name, so a "#view" link can point at that view's SVG. */
+  file?: string;
 }
 
 export interface SvgResult {
@@ -60,7 +62,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     if (!box) continue;
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
-    out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme)}${hint}</g>`);
+    const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
+    out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${drawGroup(g, box, theme, !!mark)}${hint}${mark}</g>`, opts));
   }
   const badges = chips(graph);
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
@@ -73,11 +76,13 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const box = placed.nodes.get(n.id);
     if (!box) continue;
     const shape = n.shape;
+    const link = !!n.links?.length;
     const body =
-      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge))
+      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge), link)
       : shape.kind === 'table' ? drawTable(shape, box, theme, id)
       : drawMatrix(shape, box, theme, `${id}-shadow`);
-    out.push(`<g${data('node', n.id)}>${body}</g>`);
+    const mark = link && shape.kind !== 'matrix' ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
+    out.push(linked(n.links, `<g${data('node', n.id)}>${tip(n.description)}${body}${mark}</g>`, opts));
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
@@ -90,6 +95,20 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   if (legend) out.push(drawLegend(graph, theme, pad, height - pad - 14));
   out.push('</svg>');
   return { svg: out.join(''), width, height, origin };
+}
+
+/** A subtle link icon: this element leads somewhere (a URL, its detailed diagram). */
+function linkMark(x: number, y: number, theme: Theme): string {
+  return drawIcon('link', x, y, 12, theme.textFaint, 1.6);
+}
+
+const tip = (description?: string) => (description ? `<title>${esc(description)}</title>` : '');
+
+/** Exports carry real links (diagrams point at the SVG next to them); in the editor a click selects. */
+function linked(links: Link[] | undefined, body: string, opts: SvgOptions): string {
+  const first = links?.[0];
+  const href = first && !opts.interactive ? linkHref(first, opts.file) : undefined;
+  return href ? `<a href="${esc(href)}"${first!.kind === 'url' ? ' target="_blank"' : ''}>${body}</a>` : body;
 }
 
 function fontFaces(): string {
@@ -122,28 +141,28 @@ function byDepth(groups: GraphGroup[]): GraphGroup[] {
   return [...groups].sort((a, b) => depth(a) - depth(b));
 }
 
-function drawGroup(g: GraphGroup, b: Box, theme: Theme): string {
+function drawGroup(g: GraphGroup, b: Box, theme: Theme, link = false): string {
   const tone = theme.tones[g.tone];
   const dash = g.border === 'dashed' ? ' stroke-dasharray="5 4"' : '';
   const cy = b.y + 22;
   const x = b.x + 16;
   const labelW = measureText(g.label, theme.size.group, 600);
-  const maxLabel = b.width - 56;
+  const maxLabel = b.width - 56 - (link ? LINK_ROOM : 0);
   const label = fitText(g.label, theme.size.group, 600, maxLabel);
   let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.group}" fill="${tone.wash}" stroke="${tone.line}" stroke-width="${theme.stroke.group}"${dash}/>`;
   s += drawIcon(g.icon, x, cy - 8, 16, tone.fg, 1.75);
   s += textMid(x + 24, cy, label, theme.size.group, 600, theme.text);
-  if (g.caption && groupLabelWidth(g.label, g.caption, theme) + 32 <= b.width)
+  if (g.caption && groupLabelWidth(g.label, g.caption, theme) + 32 + (link ? LINK_ROOM + 12 : 0) <= b.width)
     s += textMid(x + 24 + labelW + 8, cy, g.caption, theme.size.caption, 400, theme.textFaint);
   return s;
 }
 
-function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => ''): string {
+function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => '', link = false): string {
   const c = theme.space.card;
   const tone = theme.tones[shape.tone];
   // With badges the tile and text keep the top of the card and the chips fill the rest.
   const top = badges.length ? c.height : b.height;
-  const inset = cardInsets(shape, theme);
+  const inset = cardInsets(shape, theme, link);
   const centred = inset.centred && !badges.length;
   const tx = b.x + inset.left;
   const room = b.width - inset.left - inset.right;

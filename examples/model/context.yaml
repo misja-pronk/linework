@@ -1,0 +1,12 @@
+# System context: every node is a model element (`id:` alone takes it as it is), and the model's
+# relations are drawn between them, lifted to what is shown: customer → shop.web becomes customer → shop.
+type: systems
+title: Web shop
+subtitle: System context
+include: [model.yaml]
+
+nodes:
+  customer:
+  shop: { ref: shop, links: ['containers.yaml#containers'] }
+  stripe:
+  mail:

@@ -20,8 +20,8 @@ interface Props {
   stale?: boolean;
   /** Everything selected; one element for a plain selection. */
   selection: Selection[];
-  /** Changes when another document is shown: the view fits again. */
-  docKey: number;
+  /** Changes when another document (or another of its views) is shown: the view fits again. */
+  docKey: number | string;
   /** `toggle`: shift-click adds or removes it instead of replacing the selection. */
   onSelect(s: Selection | undefined, toggle?: boolean): void;
   /** A marquee dragged over empty canvas: what is wholly inside it (`add`: shift held). */
@@ -46,6 +46,8 @@ interface Props {
   canConnect(id: string): boolean;
   /** Whether a group can take a dragged node or a palette item. */
   canDrop(group: string, what: { node?: string; palette?: number }): boolean;
+  /** ⌘-click (Ctrl elsewhere): follow the element's link instead of selecting it; true when it had one. */
+  onFollow?(s: Selection): boolean;
   children?: React.ReactNode;
 }
 
@@ -113,8 +115,8 @@ export function Preview(p: Props) {
   const [link, setLink] = useState<{ x: number; y: number; target?: string }>();
   const [dropTarget, setDropTarget] = useState<string | null>();
   const drag = useRef<Drag>(null);
-  const fitted = useRef<number>(-1);
-  const anchor = useRef<{ doc: number; x: number; y: number }>(null);
+  const fitted = useRef<number | string>(-1);
+  const anchor = useRef<{ doc: number | string; x: number; y: number }>(null);
   const frameReq = useRef(0);
   /** The palette item being dragged in (dataTransfer cannot be read during dragover). */
   const paletteDrag = useRef<number>(undefined);
@@ -424,7 +426,9 @@ export function Preview(p: Props) {
       p.onSelect({ kind: 'group', id: d.group! });
       return;
     }
+    const follow = (s: Selection) => (navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey) && !!p.onFollow?.(s);
     if (d.mode === 'group') {
+      if (follow({ kind: 'group', id: d.group! })) return;
       // A click on a header selects the group.
       p.onSelect({ kind: 'group', id: d.group! }, e.shiftKey);
       return;
@@ -446,6 +450,7 @@ export function Preview(p: Props) {
     lastClick.current = null;
     if (!hit) return e.shiftKey ? undefined : p.onSelect(undefined);
     const kind = hit.dataset.node != null ? 'node' : hit.dataset.edge != null ? 'edge' : 'group';
+    if (follow({ kind, id: hit.dataset[kind]! })) return;
     lastClick.current = { s: { kind, id: hit.dataset[kind]! }, at: Date.now() };
     p.onSelect({ kind, id: hit.dataset[kind]! }, e.shiftKey);
   };

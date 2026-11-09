@@ -72,6 +72,8 @@ export const config: GraphTypeConfig = {
     dotted: { label: 'Supporting', line: 'dotted', tone: 'slate' },
   },
   plainEdge: 'Connection',
+  // Shared-model (C4) words for what this type already draws.
+  kindAliases: { person: 'user', actor: 'user', 'software-system': 'system', component: 'service', web: 'client', spa: 'client', db: 'database', bus: 'topic', 'event-stream': 'topic' },
 };
 
 const palette: PaletteItem[] = [

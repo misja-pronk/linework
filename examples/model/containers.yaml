@@ -1,0 +1,14 @@
+# Containers: the views open the shop into a boundary with its parts. Pick one with
+# `carto render containers.yaml --view ordering` or the view menu in the editor.
+type: systems
+include: [model.yaml]
+
+views:
+  containers:
+    title: Web shop — containers
+    expand: [shop]
+  ordering:
+    title: Placing an order
+    subtitle: What a checkout touches
+    expand: [shop]
+    exclude: [shop.bus, shop.worker, mail]

@@ -7,19 +7,22 @@ export interface ExportInput {
   theme: 'light' | 'dark';
   sidecar?: LayoutSidecar;
   load?: (f: string) => string;
+  /** The view on screen, and the file name (for "#view" links in the SVG). */
+  view?: string;
+  file?: string;
 }
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
 
 export async function exportSvg(input: ExportInput): Promise<string> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'embed' });
   if (!r.svg) throw new Error('Nothing to export: fix the problems first');
   return r.svg;
 }
 
 export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'embed' });
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
@@ -39,7 +42,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
 
 /** A 1920×1080 slide: the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'embed' });
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const W = 1920;
   const H = 1080;
