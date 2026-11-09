@@ -10,7 +10,8 @@
     "fonts": "node scripts/fonts.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "icons": "node scripts/icons.mjs"
+    "icons": "node scripts/icons.mjs",
+    "lab": "tsx packages/cli/src/lab.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

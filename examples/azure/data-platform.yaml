@@ -1,0 +1,35 @@
+type: azure
+title: Data platform
+subtitle: From sources to reports
+
+groups:
+  sources: { kind: boundary, label: Sources }
+  sub: { kind: subscription, label: Data }
+  ingest: { kind: resource-group, label: rg-ingest, in: sub }
+  lake: { kind: resource-group, label: rg-lake, in: sub }
+  serve: { kind: resource-group, label: rg-serve, in: sub }
+
+nodes:
+  erp: { kind: external, label: ERP, in: sources }
+  crm: { kind: external, label: CRM, in: sources }
+  web: { kind: app-service, label: Web shop events, in: sources }
+  adf: { kind: data-factory, label: Pipelines, in: ingest }
+  hub: { kind: event-hub, label: Clickstream, in: ingest }
+  raw: { kind: storage, label: Raw zone, in: lake }
+  curated: { kind: storage, label: Curated zone, in: lake }
+  spark: { kind: service, label: Spark jobs, caption: Transform, in: lake }
+  dw: { kind: sql-database, label: Warehouse, in: serve }
+  search: { kind: ai-search, label: Product search, in: serve }
+  bi: { kind: users, label: Analysts }
+
+edges:
+  - erp -> adf: { label: nightly }
+  - crm -> adf: { label: hourly }
+  - web -> hub: { label: events, style: data }
+  - adf -> raw: { style: data }
+  - hub -> raw: { style: data }
+  - raw -> spark: { style: data }
+  - spark -> curated: { style: data }
+  - curated -> dw: { style: data }
+  - curated -> search: { style: data }
+  - dw -> bi: { label: reports }

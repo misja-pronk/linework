@@ -10,7 +10,8 @@
     "@cartography/engine": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",
-    "@cartography/core": "workspace:*"
+    "@cartography/core": "workspace:*",
+    "@cartography/layout": "workspace:*"
   },
   "bin": {
     "carto": "./src/main.ts"

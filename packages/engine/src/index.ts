@@ -1,7 +1,7 @@
 // The whole pipeline in one call, shared by the CLI and the web app:
 // YAML → validate → type.build → measure → layout → pins → SVG.
 import { parseSource, validate, type Diagnostic, type DiagramType, type Graph, type LayoutSidecar, type Placed } from '@cartography/core';
-import { applyPins, layoutElk } from '@cartography/layout';
+import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
 import { azure } from '@cartography/azure';
@@ -16,6 +16,8 @@ export function findType(id: unknown): DiagramType | undefined {
 export interface RenderOptions extends SvgOptions {
   theme?: 'light' | 'dark' | Theme;
   sidecar?: LayoutSidecar;
+  /** Layout overrides, for experiments. */
+  tuning?: Tuning;
 }
 
 export interface RenderResult {
@@ -25,7 +27,7 @@ export interface RenderResult {
   diagnostics: Diagnostic[];
   type?: DiagramType;
   graph?: Graph;
-  /** Layout before pins, in layout coordinates; the editor uses it to drag from. */
+  /** Positions in layout coordinates (after pins); the editor drags from these. */
   placed?: Placed;
   origin?: { x: number; y: number };
 }
@@ -54,12 +56,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
 
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
   const sized = size(graph, theme);
-  const placed = type.layout
-    ? await type.layout(sized, opts.sidecar)
-    : await layoutElk(sized, { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad });
-  const pinned = applyPins(placed, sized, opts.sidecar, theme.space.group.pad);
-  const out = drawSvg(graph, pinned, theme, opts);
-  return { svg: out.svg, width: out.width, height: out.height, origin: out.origin, diagnostics, type, graph, placed: pinned };
+  const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
+  const placed = type.layout ? await type.layout(sized, opts.sidecar) : await layout(sized, spacing, opts.sidecar, opts.tuning);
+  const out = drawSvg(graph, placed, theme, opts);
+  return { svg: out.svg, width: out.width, height: out.height, origin: out.origin, diagnostics, type, graph, placed };
 }
 
 export { themes };

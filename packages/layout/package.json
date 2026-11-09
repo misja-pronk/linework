@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "elkjs": "^0.12.1",
-    "@cartography/core": "workspace:*"
+    "@cartography/core": "workspace:*",
+    "@hpcc-js/wasm-graphviz": "1.30.0"
   }
 }

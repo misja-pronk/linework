@@ -16,6 +16,7 @@ pnpm carto new azure my-infra.yaml                # start from a template
 pnpm carto render my-infra.yaml -f png -t dark    # → my-infra.png
 pnpm gallery                                      # render all examples → gallery/out/index.html
 pnpm test
+pnpm lab                                          # layout quality per example, variants side by side
 ```
 
-Fonts: Inter (SIL OFL 1.1). Icons: Lucide (ISC). Layout: Eclipse ELK via elkjs (EPL-2.0).
+Fonts: Inter (SIL OFL 1.1). Icons: Lucide (ISC). Node placement: Graphviz dot (EPL) via @hpcc-js/wasm-graphviz (Apache-2.0); lines are drawn by our own router.

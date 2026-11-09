@@ -13,7 +13,7 @@ export interface DiagramType<Source = any> {
   /** Shapes the builder offers, in palette order. */
   palette: PaletteItem[];
   build(source: Source, ctx: BuildContext): Graph;
-  /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to ELK. */
+  /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
 }
 

@@ -3,3 +3,4 @@ dist/
 .DS_Store
 *.tsbuildinfo
 gallery/out/
+gallery/lab/

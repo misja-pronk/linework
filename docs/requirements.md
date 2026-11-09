@@ -127,8 +127,9 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 
 ## 11. Quality, tech and open source
 - Q1 (M) TypeScript, pnpm monorepo; packages `core`, `layout`, `render`, `theme`, `icons`, `cli`, `web`, and one package per type.
-- Q2 (M) Only permissive licences: ELK.js (EPL-2.0) for layered layout, React, Vite, CodeMirror 6, fontkit, resvg-js (PNG without a browser), Lucide. Licence check in CI.
-- Q3 (M) Tests: schema/parse unit tests, SVG snapshot tests per gallery example, builder round-trip tests (UI action → YAML → same drawing).
+- Q2 (M) Only permissive licences: Graphviz dot via @hpcc-js/wasm-graphviz (Apache-2.0 wrapper, Graphviz EPL) for node placement, our own orthogonal line router, React, Vite, CodeMirror 6, resvg-js (PNG without a browser), Lucide, Inter. Licence check in CI.
+  - Decided 2026-11-09 after measuring (`pnpm lab`): ELK lays out each group as one block, so lines that go into a group, out and back in were reversed or detoured around the drawing. dot layers the whole graph at once and keeps clusters together; our router then avoids boxes and group headers, spreads lines into lanes and places labels. Result on the examples: no backward lines, no lines through boxes, about 35% shorter lines.
+- Q3 (M) Tests: schema/parse unit tests, SVG snapshot tests per gallery example, layout quality guard per example (no lines through boxes, no overlapping labels, no backward lines, crossing budget), builder round-trip tests (UI action → YAML → same drawing).
 - Q4 (M) Performance: diagram of 200 elements renders under 1 s; editing feels instant (<100 ms update).
 - Q5 (M) Privacy: everything local, no telemetry, no network calls.
 - Q6 (M) MIT licence, README with gallery, docs, CONTRIBUTING, GitHub Actions CI. I'll make the repo public and publish to npm only after you OK it.

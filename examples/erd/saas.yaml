@@ -1,0 +1,50 @@
+type: erd
+title: Multi-tenant SaaS
+subtitle: Every row belongs to a tenant
+
+tables:
+  tenants:
+    columns:
+      id: uuid pk
+      name: text
+      plan: text
+  users:
+    columns:
+      id: uuid pk
+      email: text unique pii
+      name: text pii
+  memberships:
+    columns:
+      tenant_id: uuid pk fk tenants
+      user_id: uuid pk fk users
+      role_id: uuid fk roles
+  roles:
+    columns:
+      id: uuid pk
+      tenant_id: uuid fk tenants
+      name: text
+  projects:
+    columns:
+      id: uuid pk
+      tenant_id: uuid fk tenants
+      owner_id: uuid fk users
+      name: text
+  tasks:
+    columns:
+      id: uuid pk
+      project_id: uuid fk projects
+      assignee_id: uuid fk users null
+      title: text
+      done: boolean
+  comments:
+    columns:
+      id: uuid pk
+      task_id: uuid fk tasks
+      author_id: uuid fk users
+      body: text
+  invoices:
+    columns:
+      id: uuid pk
+      tenant_id: uuid fk tenants
+      amount: numeric(10,2)
+      paid_at: timestamptz null

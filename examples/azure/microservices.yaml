@@ -1,0 +1,38 @@
+type: azure
+title: Order platform
+subtitle: Event-driven microservices on Container Apps
+
+groups:
+  sub: { kind: subscription, label: Production }
+  rg: { kind: resource-group, label: rg-orders, in: sub }
+  env: { kind: boundary, label: Container Apps environment, in: rg }
+  shared: { kind: resource-group, label: rg-shared, in: sub }
+
+nodes:
+  client: { kind: users, label: Customers }
+  apim: { kind: api-management, label: Public API, in: rg }
+  orders: { kind: container-app, label: Orders, in: env }
+  payments: { kind: container-app, label: Payments, in: env }
+  stock: { kind: container-app, label: Inventory, in: env }
+  mail: { kind: function-app, label: Notifications, in: env }
+  bus: { kind: service-bus, label: order-events, in: rg }
+  ordersdb: { kind: cosmos-db, label: Orders store, in: rg }
+  stockdb: { kind: sql-database, label: Inventory DB, in: rg }
+  psp: { kind: external, label: Payment provider }
+  kv: { kind: key-vault, label: Secrets, in: shared }
+  logs: { kind: app-insights, label: Telemetry, in: shared }
+
+edges:
+  - client -> apim: { label: HTTPS, style: public }
+  - apim -> orders: { style: private }
+  - apim -> stock: { style: private }
+  - orders -> bus: { label: OrderPlaced, style: data }
+  - bus -> payments: { style: data }
+  - bus -> stock: { style: data }
+  - bus -> mail: { style: data }
+  - payments -> psp: { label: REST, style: public }
+  - orders -> ordersdb: { style: private }
+  - stock -> stockdb: { style: private }
+  - orders -> kv: { style: identity }
+  - payments -> kv: { style: identity }
+  - orders -> logs: { style: management }
