@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Diagnostic, GraphNode, LayoutSidecar, PaletteItem, Path, Point } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
-import { Preview, type Selection } from './preview.tsx';
+import { Preview, type LabelTarget, type Selection } from './preview.tsx';
 import { Palette, type Command } from './palette.tsx';
 import { Start, type Opened, type View } from './start.tsx';
 import { Inspector } from './inspector.tsx';
@@ -16,7 +16,7 @@ import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
-import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -43,6 +43,8 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 const mod = (e: { metaKey: boolean; ctrlKey: boolean }) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
 const NONE: Diagnostic[] = [];
 const NUDGE = 8;
+/** Copied entries, kept in memory: the page's own clipboard (the system one stays free for text). */
+let clipboard: Clip | undefined;
 
 function useSystemDark() {
   const q = useMemo(() => window.matchMedia('(prefers-color-scheme: dark)'), []);
@@ -69,6 +71,7 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
+const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
 const label = (n: GraphNode) => (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' ? n.shape.icon : 'table');
 
@@ -78,12 +81,23 @@ export function App() {
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
   const [pins, setPins] = useState<LayoutSidecar | undefined>(saved?.pins);
   /** A node being dragged: its pin before it is committed to the history. */
-  const [draft, setDraft] = useState<{ id: string; at: Point; group?: boolean }>();
+  const [draft, setDraft] = useState<{ nodes?: Record<string, Point>; groups?: Record<string, Point> }>();
   const [docKey, setDocKey] = useState(0);
   const [pref, setPref] = useState<ThemePref>(store.get('theme') ?? 'system');
   const systemDark = useSystemDark();
   const theme: 'light' | 'dark' = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
-  const [selected, setSelected] = useState<Selection>();
+  /** Everything selected. One element is "the" selection (inspector, Tab, connect); more is a group action. */
+  const [selection, setSelection] = useState<Selection[]>([]);
+  const selected = selection.length === 1 ? selection[0] : undefined;
+  const setSelected = useCallback(
+    (s: Selection | undefined | ((s: Selection | undefined) => Selection | undefined)) =>
+      setSelection((prev) => {
+        const one = prev.length === 1 ? prev[0] : undefined;
+        const next = typeof s === 'function' ? s(one) : s;
+        return next === one && prev.length <= 1 ? prev : next ? [next] : [];
+      }),
+    [],
+  );
   // A first visit starts with choosing what to make and how.
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
   /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
@@ -102,6 +116,8 @@ export function App() {
     setHint(false);
     store.set('hinted', true);
   };
+  /** The hint has done its job once something is built. */
+  const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
@@ -128,11 +144,7 @@ export function App() {
   );
   const sidecar = useMemo<LayoutSidecar | undefined>(
     () =>
-      !draft
-        ? pins
-        : draft.group
-          ? { version: 1, nodes: pins?.nodes, groups: { ...(pins?.groups ?? {}), [draft.id]: draft.at } }
-          : { version: 1, nodes: { ...(pins?.nodes ?? {}), [draft.id]: draft.at }, groups: pins?.groups },
+      !draft ? pins : { version: 1, nodes: { ...(pins?.nodes ?? {}), ...draft.nodes }, groups: { ...(pins?.groups ?? {}), ...draft.groups } },
     [pins, draft],
   );
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
@@ -407,8 +419,19 @@ export function App() {
     const e = s && current && entries.find((x) => x.kind === s.kind && x.id === s.id);
     if (e && reveal) editor.current?.reveal(e.from, e.to);
   };
+  /** Shift-click: in or out of the selection. */
+  const toggle = (s: Selection) => {
+    setInspector(true);
+    setSelection((prev) => (prev.some((x) => x.kind === s.kind && x.id === s.id) ? prev.filter((x) => x.kind !== s.kind || x.id !== s.id) : [...prev, s]));
+  };
+  const selectMany = (list: Selection[], add: boolean) => {
+    setInspector(true);
+    setSelection((prev) => (add ? [...prev, ...list.filter((s) => !prev.some((x) => x.kind === s.kind && x.id === s.id))] : list));
+  };
   const onCursor = (pos: number) => {
     if (!current) return;
+    // A selection made in the drawing stays when a builder edit moves the cursor; typing takes over.
+    if (selection.length > 1 && !document.activeElement?.closest('.cm-editor')) return;
     const e = entryAt(entries, pos);
     setSelected((s) => (e ? (s?.kind === e.kind && s.id === e.id ? s : { kind: e.kind, id: e.id }) : undefined));
   };
@@ -419,19 +442,32 @@ export function App() {
   const apply = (next: string | undefined, nextPins?: LayoutSidecar | null) => {
     if (next == null) return notify('That change did not work on this YAML: fix the problems in the editor, or make it there', { tone: 'error' });
     editor.current?.replace(next, { pins: nextPins });
+    acted();
   };
-  /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
-  const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => {
+  /** Changes only pins, as one undo step. */
+  const pinTo = (next: LayoutSidecar | null | undefined) => {
+    editor.current?.pin(next ?? undefined);
+    acted();
+  };
+  /** Pins with nodes (and groups) moved, or unpinned with undefined; null when nothing is pinned any more. */
+  const withPins = (movedNodes: Record<string, Point | undefined>, movedGroups: Record<string, Point | undefined> = {}): LayoutSidecar | null => {
     const nodes = { ...(pins?.nodes ?? {}) };
     const groups = { ...(pins?.groups ?? {}) };
-    const target = group ? groups : nodes;
-    if (at) target[id] = at;
-    else delete target[id];
+    const set = (target: Record<string, Point>, moved: Record<string, Point | undefined>) => {
+      for (const [id, at] of Object.entries(moved)) {
+        if (at) target[id] = at;
+        else delete target[id];
+      }
+    };
+    set(nodes, movedNodes);
+    set(groups, movedGroups);
     const out: LayoutSidecar = { version: 1 };
     if (Object.keys(nodes).length) out.nodes = nodes;
     if (Object.keys(groups).length) out.groups = groups;
     return out.nodes || out.groups ? out : null;
   };
+  /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
+  const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => (group ? withPins({}, { [id]: at }) : withPins({ [id]: at }));
  /** A moved group carries everything inside, including elements and groups that have their own pins. */
   const moveGroupPins = (id: string, at: Point): LayoutSidecar | null => {
     const graph = result?.graph;
@@ -483,6 +519,17 @@ export function App() {
     }
     setPendingPath(undefined);
   }, [pendingPath, result, current]);
+  /** After a paste or a duplicate of several: select the copies once they are drawn. */
+  const [pendingPaths, setPendingPaths] = useState<string[]>();
+  useEffect(() => {
+    if (!pendingPaths || !result?.graph || !current) return;
+    const want = new Set(pendingPaths);
+    setSelection([
+      ...result.graph.nodes.filter((x) => want.has(JSON.stringify(x.path))).map((x) => ({ kind: 'node' as const, id: x.id })),
+      ...result.graph.groups.filter((x) => want.has(JSON.stringify(x.path))).map((x) => ({ kind: 'group' as const, id: x.id })),
+    ]);
+    setPendingPaths(undefined);
+  }, [pendingPaths, result, current]);
 
   const add = (item: PaletteItem, parentGroup?: string | null, at?: Point) => {
     setAdding(false);
@@ -516,6 +563,7 @@ export function App() {
   };
 
   const duplicate = () => {
+    if (selection.length > 1) return paste(copy(false));
     const path = pathOf(selected);
     if (!path || !selected || path.length !== 2 || !ready()) return;
     const r = duplicateEntry(textNow(), path);
@@ -524,6 +572,79 @@ export function App() {
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
     apply(r.text, box ? withPin(r.id, { x: Math.round(box.x + shift.x + 24), y: Math.round(box.y + shift.y + 24) }) : undefined);
     setSelected({ kind: selected.kind, id: r.id });
+  };
+
+  /** Deletes everything selected as one step; parts of larger entries stay (they are changed in the YAML). */
+  const removeAll = () => {
+    if (!type || !ready()) return;
+    const t = textNow();
+    const paths = selection.map(pathOf).filter((p): p is Path => !!p && ((p.length === 2 && typeof p[1] === 'string') || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
+    if (!paths.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
+    const next = deleteEntries(t, type, paths);
+    const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
+    const unpinned = pins && selection.some((s) => (s.kind === 'node' ? pins.nodes?.[s.id] : s.kind === 'group' ? pins.groups?.[s.id] : undefined));
+    const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
+    apply(next, nextPins);
+    if (next != null) {
+      setSelection([]);
+      if (paths.length < selection.length) notify(`Deleted ${paths.length}; ${selection.length - paths.length} that are part of larger entries stayed`);
+    }
+  };
+
+  /** Copies the selected entries (with the lines between them) to the app's clipboard. */
+  const copy = (announce = true): Clip | undefined => {
+    if (!type || !ready()) return undefined;
+    const clip = copyEntries(textNow(), type, selection.map(pathOf).filter((p): p is Path => !!p));
+    if (!clip) {
+      if (announce) notify('Nothing to copy: select shapes or groups', { tone: 'error' });
+      return undefined;
+    }
+    clipboard = clip;
+    if (announce) notify(`Copied ${clip.entries.length} ${clip.entries.length === 1 ? 'element' : 'elements'}`);
+    return clip;
+  };
+  /** Pastes under new ids, selected afterwards, as one undo step. The copies are not pinned: the layout gives
+   * them a free spot, where a fixed offset would put them over the originals or inside a group they are not in. */
+  const paste = (clip: Clip | undefined = clipboard) => {
+    if (!clip || !type || !ready()) return;
+    if (clip.type !== type.id) return notify(`That was copied from another kind of diagram (${typeName(clip.type)})`, { tone: 'error' });
+    const r = pasteEntries(textNow(), type, clip);
+    if (!r) return apply(undefined);
+    apply(r.text);
+    setPendingPaths(r.paths.map((p) => JSON.stringify(p)));
+  };
+
+  // ------------------------------------------------------------ labels in place
+
+  /** The label field of an entry: what the drawing shows as its name. */
+  const labelField = (path: Path) => {
+    const f = type && fieldsFor(textNow(), type, path).find((x) => x.kind === 'text' && ['label', 'title', 'name'].includes(x.key));
+    return f && f.kind === 'text' ? f : undefined;
+  };
+  const labelOf = (t: LabelTarget): string | undefined => {
+    if (!type || !current) return undefined;
+    if (t.kind === 'title' || t.kind === 'subtitle') return String((result?.graph as { title?: string; subtitle?: string } | undefined)?.[t.kind] ?? '');
+    const path = pathOf(t as Selection);
+    if (!path) return undefined;
+    if (t.kind === 'edge') {
+      const f = path[0] === 'edges' && typeof path[1] === 'number' ? edgeFields(textNow(), type, path).find((x) => x.key === 'label') : undefined;
+      return f?.kind === 'text' ? f.value : undefined;
+    }
+    if (path.length !== 2 || typeof path[1] !== 'string') return undefined;
+    const f = labelField(path);
+    if (!f) return undefined;
+    const n = t.kind === 'node' ? result?.graph?.nodes.find((x) => x.id === t.id) : undefined;
+    const g = t.kind === 'group' ? result?.graph?.groups.find((x) => x.id === t.id) : undefined;
+    return f.value || (n ? label(n) : g?.label) || '';
+  };
+  const onLabel = (t: LabelTarget, value: string) => {
+    if (!type || !ready()) return;
+    if (t.kind === 'title' || t.kind === 'subtitle') return apply(setField(textNow(), type, [], t.kind, value));
+    const path = pathOf(t as Selection);
+    if (!path) return;
+    if (t.kind === 'edge') return apply(setEdgeField(textNow(), path, 'label', value));
+    const f = labelField(path);
+    if (f) apply(setField(textNow(), type, path, f.key, value));
   };
 
   const rename = (to: string): boolean => {
@@ -542,16 +663,34 @@ export function App() {
     return true;
   };
 
+  /** Where the selected nodes go when `id` moves to `at`: all by the same distance. */
+  const movedWith = (id: string, at: Point): Record<string, Point> => {
+    const many = selection.length > 1 && selection.some((s) => s.kind === 'node' && s.id === id);
+    const box = result?.placed?.nodes.get(id);
+    const shift = result?.placed?.shift ?? { x: 0, y: 0 };
+    if (!many || !box) return { [id]: at };
+    const dx = at.x - (box.x + shift.x);
+    const dy = at.y - (box.y + shift.y);
+    const out: Record<string, Point> = {};
+    for (const s of selection) {
+      const b = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : undefined;
+      if (b) out[s.id] = { x: Math.round(b.x + shift.x + dx), y: Math.round(b.y + shift.y + dy) };
+    }
+    out[id] = at;
+    return out;
+  };
+
   const move = (id: string, at: Point, done: boolean, group?: string | null) => {
-    if (!done) return setDraft({ id, at });
+    const moved = movedWith(id, at);
+    if (!done) return setDraft({ nodes: moved });
     setDraft(undefined);
-    const nextPins = withPin(id, at);
+    const nextPins = withPins(moved);
     // Moving and changing group are one step: one undo puts both back.
     const reparented = group !== undefined ? reparent(id, group) : undefined;
     if (reparented) {
       apply(reparented.text, nextPins);
       notify(reparented.message);
-    } else editor.current?.pin(nextPins ?? undefined);
+    } else pinTo(nextPins);
   };
 
   /** The text with a node moved into a group (or out of all), if its type can say so. */
@@ -579,10 +718,14 @@ export function App() {
   };
 
   const nudge = (dx: number, dy: number) => {
-    if (selected?.kind !== 'node' || !current) return;
-    const box = result?.placed?.nodes.get(selected.id);
+    if (!current) return;
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
-    if (box) editor.current?.pin(withPin(selected.id, { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) }) ?? undefined);
+    const moved: Record<string, Point> = {};
+    for (const s of selection) {
+      const box = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : undefined;
+      if (box) moved[s.id] = { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) };
+    }
+    if (Object.keys(moved).length) pinTo(withPins(moved));
   };
 
   /** Tab order: elements, then groups, then lines. */
@@ -607,8 +750,11 @@ export function App() {
     if (mod(e) && e.key.toLowerCase() === 'z') e.shiftKey ? editor.current?.redo() : editor.current?.undo();
     else if (mod(e) && e.key.toLowerCase() === 'y') editor.current?.redo();
     else if (mod(e) && e.key.toLowerCase() === 'd') duplicate();
-    else if (e.key === 'Delete' || e.key === 'Backspace') remove();
-    else if (e.key === 'Escape') setSelected(undefined);
+    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'c') copy();
+    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'v') paste();
+    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
+    else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
+    else if (e.key === 'Escape') setSelection([]);
     else if (e.key === 'ArrowLeft') nudge(-step, 0);
     else if (e.key === 'ArrowRight') nudge(step, 0);
     else if (e.key === 'ArrowUp') nudge(0, -step);
@@ -635,7 +781,14 @@ export function App() {
     () => (type && selectedPath ? (isEntry ? fieldsFor(text, type, selectedPath) : isEdgeItem ? edgeFields(text, type, selectedPath) : []) : []),
     [type, isEntry, isEdgeItem, selectedPath, text],
   );
-  const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge));
+  const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector);
+  /** A diagram with nothing in it yet: the canvas says how to start. */
+  const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
+  const quick = useMemo(() => {
+    const items = type?.palette ?? [];
+    // Shapes first (not containers), then whatever there is.
+    return [...items.filter((i) => i.collection !== 'groups'), ...items.filter((i) => i.collection === 'groups')].slice(0, 4);
+  }, [type]);
   const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/s$/, '').replace(/-/g, ' ') : '');
   const nodeName = (id: string) => {
     const n = result?.graph?.nodes.find((x) => x.id === id);
@@ -906,15 +1059,18 @@ export function App() {
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
-            selected={selected}
+            selection={selection}
             docKey={rendered?.docKey ?? -1}
-            onSelect={select}
+            onSelect={(s, add) => (add && s ? toggle(s) : select(s))}
+            onSelectMany={selectMany}
+            labelOf={labelOf}
+            onLabel={onLabel}
             onMove={move}
             onConnect={connect}
             onMoveGroup={(id, at, done) => {
-              if (!done) return setDraft({ id, at, group: true });
+              if (!done) return setDraft({ groups: { [id]: at } });
               setDraft(undefined);
-              editor.current?.pin(moveGroupPins(id, at) ?? undefined);
+              pinTo(moveGroupPins(id, at));
             }}
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
@@ -951,17 +1107,32 @@ export function App() {
                 <span>
                   {view === 'visual' ? (
                     <>
-                      Drag shapes from the left onto the drawing or into a group, drag the dot on a shape to connect it, and edit in the panel on the right. <kbd>?</kbd> shows all keys.
+                      Drag shapes onto the drawing or into a group, drag the dot on a shape to connect it, double-click to rename. <kbd>?</kbd> shows all keys.
                     </>
                   ) : (
                     <>
-                      Edit the YAML on the left, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                      Edit the YAML, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
                     </>
                   )}
                 </span>
                 <button className="icon-button small" onClick={dismissHint} aria-label="Dismiss hint">
                   <Icon name="x" size={14} />
                 </button>
+              </div>
+            )}
+            {empty && type && !adding && (
+              <div className="canvas-empty">
+                <p>
+                  <strong>Drag a shape here</strong> or press <kbd>A</kbd>
+                </p>
+                <div className="chips inline">
+                  {quick.map((item) => (
+                    <button key={item.collection + item.kind} className="chip" onClick={() => add(item)}>
+                      <Icon name={item.icon} size={14} /> {item.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="fine">Double-click the title to name the diagram.</p>
               </div>
             )}
             {adding && type && (
@@ -1010,7 +1181,39 @@ export function App() {
             onClose={() => setInspector(false)}
           />
         )}
-
+        {selection.length > 1 && inspector && (
+          <aside className="inspector" aria-label="Selection">
+            <header>
+              <span className="inspector-icon">
+                <Icon name="mouse-pointer-2" />
+              </span>
+              <div className="inspector-title">
+                <strong>{selection.length} selected</strong>
+                <span>{(['node', 'group', 'edge'] as const)
+                    .map((k) => [selection.filter((s) => s.kind === k).length, { node: 'shape', group: 'group', edge: 'line' }[k]] as const)
+                    .filter(([n]) => n)
+                    .map(([n, what]) => count(n, what))
+                    .join(', ')}</span>
+              </div>
+              <button className="icon-button" onClick={() => setSelection([])} aria-label="Clear the selection" title="Clear (Esc)">
+                <Icon name="x" />
+              </button>
+            </header>
+            <div className="inspector-body">
+              <p className="fine">
+                Drag one to move them all, arrows nudge them, <kbd>⌘C</kbd> <kbd>⌘V</kbd> copies and pastes. Shift-click adds or removes one.
+              </p>
+            </div>
+            <footer>
+              <button className="button ghost" onClick={duplicate} title="Duplicate (⌘D)">
+                <Icon name="copy" /> Duplicate
+              </button>
+              <button className="button ghost danger" onClick={removeAll} title="Delete (⌫)">
+                <Icon name="trash" /> Delete
+              </button>
+            </footer>
+          </aside>
+        )}
       </main>
 
       <footer className="statusbar">
@@ -1020,7 +1223,7 @@ export function App() {
         </button>
         {result?.graph && (
           <span>
-            {result.graph.nodes.length} elements · {result.graph.edges.length} connections
+            {count(result.graph.nodes.length, 'element')} · {count(result.graph.edges.length, 'connection')}
           </span>
         )}
         {pinCount > 0 && (
@@ -1028,9 +1231,9 @@ export function App() {
             <Icon name="pin" size={13} /> {pinCount} pinned
           </span>
         )}
-        {selected && (
+        {selection.length > 0 && (
           <span className="status-selected">
-            <Icon name="mouse-pointer-2" size={13} /> {selected.id}
+            <Icon name="mouse-pointer-2" size={13} /> {selected ? selected.id : `${selection.length} selected`}
           </span>
         )}
         <span className="spacer" />

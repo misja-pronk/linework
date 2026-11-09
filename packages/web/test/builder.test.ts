@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findType, render } from '@cartography/engine';
-import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from '../src/builder.ts';
+import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from '../src/builder.ts';
 
 const azure = findType('azure')!;
 const dp = findType('data-products')!;
@@ -208,5 +208,31 @@ packages:
     const t = 'type: erd\ntables:\n  employees:\n    columns:\n      id: int pk\n';
     expect(connectEntries(t, erd, 'employees', 'employees')).toMatchObject({ text: expect.stringContaining('employee_id: int fk employees') });
     expect(connectEntries('type: access\nprincipals:\n  a: user\nresources:\n  rg: resource-group\n', access, 'a', 'rg')).toEqual({ error: 'Add a role first: a person or group gets a role on a resource' });
+  });
+});
+
+describe('copy, paste and delete several', () => {
+  it('pastes under new ids with references inside the copied set remapped, and lines between them', async () => {
+    const clip = copyEntries(shop, azure, [['groups', 'rg'], ['nodes', 'web'], ['nodes', 'db']])!;
+    expect(clip.items.length).toBe(2);
+    const r = pasteEntries(shop, azure, clip)!;
+    expect(r.text).toContain('rg-2: { kind: resource-group, label: Production }');
+    expect(r.text).toContain('web-2: { kind: app-service, in: rg-2 }');
+    expect(r.text).toContain('- web-2 -> db-2: SQL');
+    expect(r.text).toContain('- db-2 -> web-2');
+    expect(r.text).toContain('# keep this comment');
+    expect((await render(r.text, { fonts: 'none' })).diagnostics).toEqual([]);
+  });
+
+  it('keeps references to what was not copied', () => {
+    const r = pasteEntries(shop, azure, copyEntries(shop, azure, [['nodes', 'web']])!)!;
+    expect(r.text).toContain('web-2: { kind: app-service, in: rg }');
+    expect(r.text).not.toContain('web-2 ->');
+  });
+
+  it('deletes several entries and lines in one edit', () => {
+    const t = deleteEntries(shop, azure, [['edges', 0], ['nodes', 'db']])!;
+    expect(t).not.toContain('db');
+    expect(t).toContain('web:');
   });
 });

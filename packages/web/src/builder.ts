@@ -200,6 +200,92 @@ function duplicateEntryUnsafe(text: string, path: Path): Added | undefined {
   return { text: str(doc), id, path: [...path.slice(0, -1), id] };
 }
 
+// ---------------------------------------------------------------- copy and paste
+
+/** Copied entries, plus the list items (lines) that only connect copied entries. Plain values, no ids reserved. */
+export interface Clip {
+  type: string;
+  entries: { collection: string; id: string; value: unknown; flow?: boolean }[];
+  items: { collection: string; value: unknown }[];
+}
+
+const plainAt = (doc: Document, path: Path) => {
+  const n = doc.getIn(path, true) as Node | undefined;
+  return n && typeof (n as { toJSON?: unknown }).toJSON === 'function' ? (n as { toJSON(): unknown }).toJSON() : n;
+};
+
+/** Copies entries ([collection, id] paths) with the lines between them. */
+function copyEntriesUnsafe(text: string, type: DiagramType, paths: Path[]): Clip | undefined {
+  const doc = parse(text);
+  if (!doc) return undefined;
+  const entries = paths
+    .filter((p) => p.length === 2 && typeof p[1] === 'string' && doc.hasIn(p))
+    .map((p) => {
+      const node = doc.getIn(p, true);
+      return { collection: String(p[0]), id: String(p[1]), value: plainAt(doc, p) ?? null, flow: isMap(node) ? node.flow : undefined };
+    });
+  if (!entries.length) return undefined;
+  const copied = new Set(entries.map((e) => `${e.collection}\0${e.id}`));
+  // List items (edges and the like) whose every reference names a copied entry come along.
+  const byItem = new Map<string, { path: Path; all: boolean }>();
+  for (const r of type.references?.(doc.toJS() as never) ?? []) {
+    if (typeof r.path[1] !== 'number') continue;
+    const key = JSON.stringify(r.path.slice(0, 2));
+    const was = byItem.get(key) ?? { path: r.path.slice(0, 2), all: true };
+    byItem.set(key, { path: was.path, all: was.all && copied.has(`${r.collection}\0${r.id}`) });
+  }
+  const items = [...byItem.values()].filter((x) => x.all).map((x) => ({ collection: String(x.path[0]), value: plainAt(doc, x.path) }));
+  return { type: type.id, entries, items };
+}
+
+export interface Pasted {
+  text: string;
+  /** Old id → new id, per collection ("nodes\0web" → "web-2"). */
+  ids: Map<string, string>;
+  paths: Path[];
+}
+
+/** Pastes a clip under new, unique ids; references inside the pasted set point at the copies. */
+function pasteEntriesUnsafe(text: string, type: DiagramType, clip: Clip): Pasted | undefined {
+  const doc = parse(text);
+  if (!doc || clip.type !== type.id) return undefined;
+  const ids = new Map<string, string>();
+  const fresh = new Set<string>();
+  const paths: Path[] = [];
+  for (const e of clip.entries) {
+    if (!doc.has(e.collection) || doc.get(e.collection) == null) doc.set(e.collection, doc.createNode({}));
+    const collection = doc.get(e.collection);
+    if (!isMap(collection)) return undefined;
+    if (collection.flow) collection.flow = false;
+    const id = uniqueId(doc, e.id);
+    collection.set(id, doc.createNode(e.value, { flow: e.flow ?? true }));
+    ids.set(`${e.collection}\0${e.id}`, id);
+    fresh.add(JSON.stringify([e.collection, id]));
+    paths.push([e.collection, id]);
+  }
+  for (const item of clip.items) {
+    if (!doc.has(item.collection) || doc.get(item.collection) == null) doc.set(item.collection, doc.createNode([]));
+    const list = doc.get(item.collection);
+    if (!isSeq(list)) continue;
+    // Written like the others: "- a -> b: SQL", with any nested properties inline.
+    const node = doc.createNode(item.value, { flow: true });
+    if (isMap(node)) node.flow = false;
+    list.add(node);
+    fresh.add(JSON.stringify([item.collection, list.items.length - 1]));
+  }
+  // References written inside what was pasted, to entries that were pasted too, follow the copies.
+  const refs = (type.references?.(doc.toJS() as never) ?? []).filter((r) => fresh.has(JSON.stringify(r.path.slice(0, 2))) && ids.has(`${r.collection}\0${r.id}`));
+  for (const r of refs.sort((a, b) => b.start - a.start)) {
+    const to = ids.get(`${r.collection}\0${r.id}`)!;
+    const node = doc.getIn(r.path, true);
+    if (r.key && isMap(node) && node.items.length === 1 && isScalar(node.items[0]!.key)) {
+      const k = node.items[0]!.key;
+      k.value = splice(String(k.value), r.start, r.id.length, to);
+    } else if (isScalar(node) && typeof node.value === 'string') node.value = splice(node.value, r.start, r.id.length, to);
+  }
+  return { text: str(doc), ids, paths };
+}
+
 // ---------------------------------------------------------------- inspector fields
 
 export type Field =
@@ -412,6 +498,15 @@ export const setField = safe(setFieldUnsafe);
 export const renameEntry = safe(renameEntryUnsafe);
 export const deleteEntry = safe(deleteEntryUnsafe);
 export const duplicateEntry = safe(duplicateEntryUnsafe);
+export const copyEntries = safe(copyEntriesUnsafe);
+export const pasteEntries = safe(pasteEntriesUnsafe);
+/** Deletes several entries and list items as one edit: list items first, last index first, so indexes stay right. */
+export const deleteEntries = safe((text: string, type: DiagramType, paths: Path[]): string | undefined => {
+  const items = paths.filter((p) => typeof p.at(-1) === 'number').sort((a, b) => (b.at(-1) as number) - (a.at(-1) as number));
+  let out: string | undefined = text;
+  for (const p of [...items, ...paths.filter((p) => typeof p.at(-1) !== 'number')]) out = out == null ? undefined : deleteEntryUnsafe(out, type, p);
+  return out;
+});
 export const setEdgeField = safe(setEdgeFieldUnsafe);
 export function connectEntries(...args: Parameters<typeof connectEntriesUnsafe>): ReturnType<typeof connectEntriesUnsafe> {
   try {

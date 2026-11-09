@@ -12,6 +12,11 @@ await page.evaluate(() => {
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');
+// The detailed customer example: many connections for the inspector.
+await page.keyboard.press('Meta+k');
+await page.keyboard.type('customer data products in detail');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(600);
 await page.locator('.preview').focus();
 await page.keyboard.press('?');
 await page.waitForTimeout(200);
