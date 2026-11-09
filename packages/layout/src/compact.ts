@@ -29,7 +29,7 @@ const horizontal: Axis = {
   along: (b) => [b.y, b.y + b.height],
 };
 
-export function compact(p: Placement, graph: Graph, header: number, pad: number, gap: number): Placement {
+export function compact(p: Placement, graph: Graph, header: number, pad: number, gap: number, minWidth?: Map<string, number>): Placement {
   const ax = graph.direction === 'down' ? horizontal : vertical;
   // Down-flowing diagrams have the group header on top, which is along the flow there.
   const lead = graph.direction === 'down' ? pad : header;
@@ -68,7 +68,9 @@ export function compact(p: Placement, graph: Graph, header: number, pad: number,
     }
     if (outer) {
       const end = Math.max(...items.map((c) => ax.get(box(c)) + ax.size(box(c))));
-      groups.set(parent!, ax.setSize(outer, end + pad - ax.get(outer)));
+      // Top-down the packed side is the width, and a group is never narrower than its title.
+      const least = ax === horizontal ? (minWidth?.get(parent!) ?? 0) : 0;
+      groups.set(parent!, ax.setSize(outer, Math.max(end + pad - ax.get(outer), least)));
     }
   };
   pack(undefined);

@@ -147,6 +147,7 @@ Rules, in `include:` and `exclude:`:
 - Without a view a diagram draws what it says. A diagram that only has views (like `containers.yaml`) draws its first.
 - Diagrams of other types (ERD, access, GitHub, data products) take views too, by id, `id.*` and relation rules.
 - Views of an included model stay the model's: `carto render model.yaml --view landscape` draws them.
+- A view can be told in parts: `steps:` inside the view, see [steps.md](steps.md). When presenting, the views come in the order written.
 
 CLI:
 

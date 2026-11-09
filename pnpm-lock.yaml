@@ -30,11 +30,32 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
 
+  packages/action:
+    dependencies:
+      '@cartography/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   packages/cli:
     dependencies:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@cartography/docs-plugins':
         specifier: workspace:*
         version: link:../docs-plugins
@@ -84,6 +105,18 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  packages/diff:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
 
   packages/docs-plugins:
     dependencies:
@@ -179,6 +212,9 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
+      '@cartography/journey':
+        specifier: workspace:*
+        version: link:../../types/journey
       '@cartography/kubernetes':
         specifier: workspace:*
         version: link:../../types/kubernetes
@@ -472,6 +508,28 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+
+  types/journey:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   types/kubernetes:
     dependencies:

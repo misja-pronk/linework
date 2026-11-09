@@ -45,6 +45,20 @@ consumers:
   campaigns: { kind: application, label: Campaign tool, uses: [churn] }
   bi: { kind: dashboard, label: Sales dashboard, uses: [orders, customer-360] }
 
+# Told in steps, for presenting: where a churn score comes from.
+steps:
+  - Four data products between two operational systems and the people who use the data.
+  - title: Published at the source
+    caption: Orders and customers come from the teams that run the systems, each under a contract.
+    path: [shop -> orders, crm -> customers]
+  - title: One customer, one profile
+    caption: Customer 360 joins both. Nobody downstream reads the operational systems again.
+    path: [orders -> customer-360, customers -> customer-360]
+  - title: Where a churn score comes from
+    caption: Marketing builds on the profile and serves scores to the campaign tool.
+    path: customer-360 -> churn -> campaigns
+    note: { churn: Owned by Marketing }
+
 contracts:
   orders:
     label: orders

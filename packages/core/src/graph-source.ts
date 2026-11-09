@@ -188,6 +188,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       border: kind?.border ?? 'solid',
       ...(links ? { links } : {}),
       ...(e.description ? { description: e.description } : {}),
+      ...(e.kind ? { kind: e.kind } : {}),
+      ...(e.tags?.length ? { tags: e.tags } : {}),
       path: at('groups', id),
     };
   });
@@ -213,6 +215,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       },
       ...(links ? { links } : {}),
       ...(e.description ? { description: e.description } : {}),
+      ...(e.kind ? { kind: e.kind } : {}),
+      ...(e.tags?.length ? { tags: e.tags } : {}),
       path: at('nodes', id),
     };
   });

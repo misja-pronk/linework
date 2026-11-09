@@ -3,6 +3,7 @@
 import type { SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
+import type { JourneyPartShape, JourneyShape } from './journey.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -49,16 +50,22 @@ export interface GraphGroup {
   description?: string;
   /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
   pack?: string;
+  /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
+  kind?: string;
+  tags?: string[];
   path: Path;
 }
 
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
+  /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
+  kind?: string;
+  tags?: string[];
   path: Path;
   /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
   folded?: boolean;
@@ -222,6 +229,8 @@ export interface Placed {
   shift?: Point;
   /** The direction drawn, when layout chose one other than the graph's (the source left it open). */
   direction?: Direction;
+  /** What to remember of this drawing so the next one stays close to it: how it was made and where things are, before pins. */
+  memory?: LayoutMemory;
 }
 
 export interface PlacedEdge {
@@ -245,6 +254,8 @@ export interface NodeSize {
   height: number;
   /** Vertical centre of each table row, relative to the node's top. */
   rowY?: Record<string, number>;
+  /** Boxes of the parts a shape draws itself and that are nodes of their own (a journey's steps), relative to its top-left. */
+  parts?: Record<string, Box>;
 }
 
 /** A line drawn by hand: the router runs it through these bend points (pin space), kept orthogonal. */
@@ -264,6 +275,30 @@ export interface ViewPins {
   edges?: Record<string, EdgeOverride>;
   /** Pinned nodes and groups that cannot be dragged by accident (the editor's concern; the layout ignores it). */
   locked?: string[];
+  /** What the drawing looked like when this was written, so the next drawing stays close to it. */
+  layout?: LayoutNote;
+}
+
+/** The previous drawing of a view, as kept in the sidecar. */
+export interface LayoutNote {
+  /** How the placement was made: direction / way of asking dot / compact and align, e.g. "down/out/ca". */
+  variant?: string;
+  /**
+   * Where nodes and groups were, in one line so a change is one line in a diff:
+   * "id@x,y;…;#group@x,y,w,h" (centres of nodes, boxes of groups, pin space). Only written when asked for.
+   */
+  at?: string;
+}
+
+/** The previous drawing of a view, as the layout uses it. */
+export interface LayoutMemory {
+  variant?: string;
+  /** Boxes were kept where the drawing before had them, so the variant alone does not give this placement back. */
+  held?: boolean;
+  /** Node centres in pin space. */
+  nodes?: Map<string, Point>;
+  /** Group boxes in pin space. */
+  groups?: Map<string, Box>;
 }
 
 /** Manual tweaks stored next to the diagram as <name>.layout.json. */

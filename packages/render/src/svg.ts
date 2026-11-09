@@ -8,6 +8,8 @@ import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
+import { drawJourney } from './journey.ts';
+import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 
 export interface SvgOptions {
   /** Embed the Inter font (latin subset) so the SVG looks the same everywhere. */
@@ -18,10 +20,14 @@ export interface SvgOptions {
   interactive?: boolean;
   /** With `interactive`: the editor's "Drop shapes here" in empty groups. Off for a drawing that is only looked at. */
   hints?: boolean;
+  /** Only the data-* attributes, without the editor's hints and with real links: the presenter finds linked elements by them. */
+  marks?: boolean;
   /** The diagram's own file name, so a "#view" link can point at that view's SVG. */
   file?: string;
   /** Official icons (BYO packs) as data URIs, by node and group id: drawn as-is instead of the line icon. */
   images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
+  /** Draw one step of the diagram's steps: hidden things leave their space empty, the rest stands back behind what is in focus. */
+  stepView?: StepView;
 }
 
 export interface SvgResult {
@@ -45,11 +51,18 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   const legend = where === 'bottom' || where === 'top' ? 40 : 0;
   const side = where === 'right' ? 40 + legendColumnWidth(graph, theme) : 0;
   const footer = block?.footer || block?.classification ? 44 : 0;
-  const list = stepList(graph, theme);
-  const width = Math.ceil(Math.max(placed.width + side, brand ? brand.width : titleWidth(graph, theme), legend ? legendWidth(graph, theme) : 0, list.width) + 2 * pad);
-  const height = Math.ceil(Math.max(placed.height + list.height, side ? legendColumnHeight(graph) : 0) + header + legend + footer + 2 * pad);
-  const origin = { x: pad, y: pad + header + (where === 'top' ? legend : 0) };
-  const data = (kind: string, key: string) => (opts.interactive ? ` data-${kind}="${esc(key)}"` : '');
+  // One step of a presentation: its caption says what the numbered list would, and callouts get room that is the same at every step.
+  const view = opts.stepView?.states[opts.stepView.index] ? opts.stepView : undefined;
+  const state = view?.states[view.index];
+  const quiet = state ? quietTheme(theme) : theme;
+  const themeOf = (e: string | undefined) => (e === 'dim' ? quiet : theme);
+  const room = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
+  const list = view ? { width: 0, height: 0, draw: () => '' } : stepList(graph, theme);
+  const width = Math.ceil(Math.max(placed.width + room.left + room.right + side, brand ? brand.width : titleWidth(graph, theme), legend ? legendWidth(graph, theme) : 0, list.width) + 2 * pad);
+  const caption = view && view.caption !== false ? captionBlock(view, theme, width - 2 * pad) : undefined;
+  const height = Math.ceil(Math.max(placed.height + room.top + room.bottom + list.height + (caption?.height ?? 0), side ? legendColumnHeight(graph) : 0) + header + legend + footer + 2 * pad);
+  const origin = { x: pad + room.left, y: pad + header + (where === 'top' ? legend : 0) + room.top };
+  const data = (kind: string, key: string) => (opts.interactive || opts.marks ? ` data-${kind}="${esc(key)}"` : '');
   const nodeImages = opts.images?.nodes;
   const groupImages = opts.images?.groups;
 
@@ -76,7 +89,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   const filled = new Set([...graph.nodes.map((n) => n.parent), ...graph.groups.map((g) => g.parent)].filter(Boolean));
   for (const g of byDepth(graph.groups)) {
     const box = placed.groups.get(g.id);
-    if (!box) continue;
+    if (!box || state?.groups[g.id] === 'hidden') continue;
+    const theme = themeOf(state?.groups[g.id]);
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
@@ -84,37 +98,59 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   }
   const badges = chips(graph);
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
-  for (const e of graph.edges) {
+  // In a step, quiet lines go under the others and the route in focus on top, heavier and with a soft halo.
+  const weight = (e: GraphEdge) => (state?.edges[e.id] === 'dim' ? 0 : state?.edges[e.id] === 'focus' ? 2 : 1);
+  for (const e of state ? [...graph.edges].sort((a, b) => weight(a) - weight(b)) : graph.edges) {
     const pe = placed.edges.get(e.id);
-    if (pe && pe.points.length > 1 && !badged.has(e.id)) out.push(`<g${data('edge', e.id)}>${drawEdge(e, toOutline(pe.points, graph, placed, e.from.node, e.to.node), theme)}</g>`);
+    const em = state?.edges[e.id];
+    if (!pe || pe.points.length < 2 || badged.has(e.id) || em === 'hidden') continue;
+    const pts = toOutline(pe.points, graph, placed, e.from.node, e.to.node);
+    const halo = em === 'focus' ? `<path d="${roundedPath(pts, theme.radius.corner)}" fill="none" stroke="${e.tone ? theme.tones[e.tone].fg : (theme.accent ?? theme.tones.blue.fg)}" stroke-opacity="0.22" stroke-width="${r1(theme.stroke.edge * 1.8 + 8)}" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    out.push(`<g${data('edge', e.id)}>${halo}${drawEdge(e, pts, em === 'focus' ? strongTheme(theme) : themeOf(em))}</g>`);
   }
-  out.push(junctions(graph, placed, theme));
+  if (state) {
+    out.push(junctions({ ...graph, edges: graph.edges.filter((e) => state.edges[e.id] === 'dim') }, placed, quiet));
+    out.push(junctions({ ...graph, edges: graph.edges.filter((e) => !state.edges[e.id] || state.edges[e.id] === 'focus') }, placed, theme));
+  } else out.push(junctions(graph, placed, theme));
   for (const n of graph.nodes) {
     const box = placed.nodes.get(n.id);
-    if (!box) continue;
+    if (!box || state?.nodes[n.id] === 'hidden') continue;
+    const dim = state?.nodes[n.id] === 'dim';
+    const theme = themeOf(state?.nodes[n.id]);
     const shape = n.shape;
     const link = !!n.links?.length;
-    const body =
-      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge), link, nodeImages?.get(n.id))
+    const cardChips = state ? badges.get(n.id)?.filter((c) => state.edges[c.edge] !== 'hidden') : badges.get(n.id);
+    const drawn =
+      shape.kind === 'card' ? drawCard(shape, box, theme, id, cardChips, (edge) => data('edge', edge), link, nodeImages?.get(n.id))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id, nodeImages?.get(n.id))
-      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`)
+      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined)
       : shape.kind === 'gitflow' ? drawGitflow(shape, box, theme, `${id}-shadow`)
       : shape.kind === 'roadmap' ? drawRoadmap(shape, box, theme)
+      : shape.kind === 'journey' ? drawJourney(shape, box, theme, `${id}-shadow`, state?.journey)
+      // Drawn by the journey itself: this is where a click on a step lands.
+      : shape.kind === 'journey-part' ? `<rect x="${r1(box.x)}" y="${r1(box.y)}" width="${r1(box.width)}" height="${r1(box.height)}" rx="10" fill="transparent"/>`
       : drawMatrix(shape, box, theme, `${id}-shadow`);
+    // What stands back lies flat: no shadow, and an official icon fades with it.
+    const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
     const mark = link && shape.kind !== 'matrix' ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
     out.push(linked(n.links, `<g${data('node', n.id)}>${tip(n.description)}${body}${mark}</g>`, opts));
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
-    if (badged.has(e.id)) continue;
+    const em = state?.edges[e.id];
+    if (badged.has(e.id) || em === 'hidden') continue;
     const pe = placed.edges.get(e.id);
-    if ((e.label || e.step) && pe?.label) out.push(drawEdgeLabel(e.label ?? '', besideShortLine(pe.points, pe.label, placed), theme, e.step, e.icon, e.tone));
+    if ((e.label || e.step) && pe?.label) out.push(drawEdgeLabel(e.label ?? '', besideShortLine(pe.points, pe.label, placed), em === 'focus' ? strongTheme(theme) : themeOf(em), e.step, e.icon, e.tone));
   }
+  if (state) for (const n of placeNotes(state, placed)) out.push(drawNote(n, theme));
   out.push('</g>');
   if (list.height) out.push(list.draw(origin.x, origin.y + placed.height));
+  // The caption closes the drawing: under the legend, above the footer.
+  const said = caption?.height ?? 0;
+  if (caption) out.push(caption.draw(pad, height - pad - footer - said));
 
-  if (where === 'bottom') out.push(drawLegend(graph, theme, pad, height - pad - footer - 14));
-  if (where === 'right') out.push(drawLegendColumn(graph, theme, pad + placed.width + 40, origin.y));
+  if (where === 'bottom') out.push(drawLegend(graph, theme, pad, height - pad - footer - said - 14));
+  if (where === 'right') out.push(drawLegendColumn(graph, theme, origin.x + placed.width + room.right + 40, origin.y));
   if (footer) out.push(drawFooter(block!, theme, pad, width, height - pad));
   out.push('</svg>');
   return { svg: out.join(''), width, height, origin };

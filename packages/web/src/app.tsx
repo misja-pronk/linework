@@ -2,7 +2,7 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
+import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
@@ -16,11 +16,14 @@ import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { ViewPicker } from './view-picker.tsx';
+import { Present, type PresentDoc } from './present.tsx';
+import { StepsStrip } from './steps-strip.tsx';
+import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-edit.ts';
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
-import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -77,8 +80,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' ? n.shape.icon : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -157,6 +160,12 @@ export function App() {
   const docId = doc.path ?? doc.starter ?? doc.name;
   const [picked, setPicked] = useState<{ doc: string; name?: string }>();
   const viewName = picked?.doc === docId ? picked.name : undefined;
+  // Steps: the one looked at while editing (per document and view), and presenting full screen.
+  const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
+  const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
+  const [presenting, setPresenting] = useState(false);
+  /** A step just made from the selection: the strip asks for its name. */
+  const [naming, setNaming] = useState<number>();
   const drawnView = useRef<string>(undefined);
   const sidecar = useMemo<LayoutSidecar | undefined>(() => {
     if (!draft) return pins;
@@ -166,7 +175,9 @@ export function App() {
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
   const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile);
+  /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
+  const [fresh, setFresh] = useState(0);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -174,6 +185,22 @@ export function App() {
   const drawn = rendered?.drawn;
   drawnView.current = drawn?.view;
   const vpins = viewPins(pins, drawn?.view);
+  /** How the drawing on screen was made and where things are before pins (stay.ts in the layout package). */
+  const drawnLayout = drawn?.placed?.memory;
+  // Positions go into the sidecar once asked for (carto render --stable wrote them), and when the
+  // drawing was kept from an earlier one: the variant alone would not draw it again.
+  const tracked = vpins?.layout?.at !== undefined;
+  const layoutNote = () => (drawnLayout ? packLayout(drawnLayout, tracked || !!drawnLayout.held) : vpins?.layout);
+  /**
+   * Pins with the note of the drawing they were set on, so the same placement is drawn under them
+   * next time: without it the first pin could redraw everything else. Null when nothing is left to keep.
+   */
+  const noted = (out: LayoutSidecar): LayoutSidecar | null => {
+    const note = layoutNote();
+    const { layout: _, ...rest } = out;
+    if (rest.nodes || rest.groups || rest.edges) return note ? { ...rest, layout: note } : rest;
+    return tracked && note ? { version: 1, layout: note } : null;
+  };
   const locked = useMemo(() => new Set(vpins?.locked ?? []), [vpins?.locked]);
   const bent = useMemo(() => new Set(Object.keys(vpins?.edges ?? {})), [vpins?.edges]);
   const craft = useCraftPrefs();
@@ -311,7 +338,8 @@ export function App() {
   const save = async (): Promise<boolean> => {
     const now = textNow();
     // All pins are kept: other views of the same file (access matrices, data-products overview) draw other things.
-    const pinsToSave = pins;
+    // The view on screen gets the note of the drawing as it is now, when it has a sidecar entry anyway.
+    const pinsToSave = vpins && drawnLayout ? withViewPins(pins, drawn?.view, noted(vpins) ?? undefined) : pins;
     try {
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
@@ -406,7 +434,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -492,7 +520,14 @@ export function App() {
     if (Object.keys(groups).length) out.groups = groups;
     const keep = (vpins?.locked ?? []).filter((id) => nodes[id] || groups[id]);
     if (keep.length) out.locked = keep;
-    return out.nodes || out.groups || out.edges ? out : null;
+    return noted(out);
+  };
+  /** Unpins everything and draws the view from scratch: the automatic layout for the diagram as it is now. */
+  const resetLayout = () => {
+    setFresh((n) => n + 1);
+    // Positions that were asked for stay asked for: the note is filled in again with the next save.
+    if (vpins) pinTo(tracked ? { version: 1, layout: { at: '' } } : null);
+    else acted();
   };
   /** Pins with one line's bends set (or reset with undefined). */
   const withEdge = (id: string, via: Point[] | undefined): LayoutSidecar | null => {
@@ -502,7 +537,7 @@ export function App() {
     else delete edges[id];
     const out: LayoutSidecar = { ...(vpins ?? {}), version: 1, edges };
     if (!Object.keys(edges).length) delete out.edges;
-    return out.nodes || out.groups || out.edges ? out : null;
+    return noted(out);
   };
   /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
   const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => (group ? withPins({}, { [id]: at }) : withPins({ [id]: at }));
@@ -803,7 +838,7 @@ export function App() {
     const list = unlock ? [...locked].filter((id) => !ids.has(id)) : [...new Set([...locked, ...ids])];
     const out: LayoutSidecar = { ...(next ?? { version: 1 }), locked: list };
     if (!list.length) delete out.locked;
-    pinTo(out.nodes || out.groups || out.edges ? out : null);
+    pinTo(noted(out));
     notify(unlock ? `Unlocked ${count(items.length, 'element')}` : `Locked ${count(items.length, 'element')}: it stays where it is`);
   };
 
@@ -849,6 +884,8 @@ export function App() {
     else if (craftKey(e) === 'lock') toggleLock();
     else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
     else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
+    else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
+    else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
     else if (e.key === 'ArrowLeft') nudge(-step, 0);
     else if (e.key === 'ArrowRight') nudge(step, 0);
     else if (e.key === 'ArrowUp') nudge(0, -step);
@@ -865,9 +902,11 @@ export function App() {
 
   // ------------------------------------------------------------ links and views
 
+  /** This diagram's path in its folder (or under examples/): links to other diagrams are relative to it. */
+  const here = ws && doc.path ? doc.path : doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined;
+
   /** Follows a link: a URL in a new tab, another view here, or another diagram (and view) next to this one. */
   const follow = (link: Link) => {
-    const here = ws && doc.path ? doc.path : doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined;
     const t = linkTarget(link, here);
     if (t.kind === 'url') return void window.open(t.url, '_blank', 'noopener');
     if (t.kind === 'none') return notify(t.why, { tone: 'error' });
@@ -881,6 +920,52 @@ export function App() {
     if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
     setPicked({ doc: s.id, name: t.view });
     pick(s);
+  };
+
+  // ------------------------------------------------------------ steps and presenting
+
+  const stepList = drawn?.steps ?? [];
+  /** Steps somebody wrote: PowerPoint and PDF get a slide or page for each. */
+  const written = stepList.length > 0 && !drawn?.stepsImplied;
+  const pickStep = (n: number | undefined) => setStepAt(n ? { doc: docId, view: viewName, n } : undefined);
+  /** [ and ]: through the steps, and past the last one back to the whole drawing. */
+  const stepBy = (dir: 1 | -1) => {
+    if (!stepList.length) return notify('No steps yet: select what a step is about and press S');
+    pickStep(((drawn?.step ?? 0) + dir + stepList.length + 1) % (stepList.length + 1) || undefined);
+  };
+  /** A step edit as one undo step; without text the YAML could not take it. */
+  const editSteps = (next: string | undefined, show?: number) => {
+    if (next == null) return notify(drawn?.view ? `The steps of ${drawn.view} are not written in this file, or its YAML has problems: change them there` : 'That change did not work on these steps: make it in the YAML', { tone: 'error' });
+    apply(next);
+    if (show) pickStep(show);
+  };
+  /** S: a new step after the one shown, with the selection as its focus. */
+  const addStepFromSelection = () => {
+    const g = drawn?.graph;
+    if (!ready() || !g) return;
+    if (drawn?.stepsImplied) return notify(g.steps?.length ? 'This view is told by its numbered lines already' : 'A sequence diagram is told message by message already');
+    const edgeOf = (id: string) => g.edges.find((e) => e.id === id);
+    const focus = selection.flatMap((x) => (x.kind !== 'edge' ? [x.id] : edgeOf(x.id) ? [`${edgeOf(x.id)!.from.node} -> ${edgeOf(x.id)!.to.node}`] : []));
+    const names = selection.map((x) => (x.kind === 'node' ? nodeName(x.id) : x.kind === 'group' ? (g.groups.find((y) => y.id === x.id)?.label ?? x.id) : edgeOf(x.id) ? `${nodeName(edgeOf(x.id)!.from.node)} to ${nodeName(edgeOf(x.id)!.to.node)}` : x.id));
+    const n = (drawn?.step ?? stepList.length) + 1;
+    const next = addStep(textNow(), stepsPath(drawn?.view), { title: names.length === 1 ? names[0]! : names.length === 2 ? names.join(' and ') : `Step ${n}`, focus }, drawn?.step);
+    editSteps(next, n);
+    if (next) setNaming(n);
+  };
+  const present = () => {
+    if (!drawn?.svg) return notify('Nothing to present yet: fix the problems in the YAML first', { tone: 'error' });
+    setModal(undefined);
+    setPresenting(true);
+  };
+  /** Another diagram for a link followed while presenting: from the open folder, or the bundled examples. */
+  const presentOther = (path: string): PresentDoc | undefined => {
+    const file = path.split('/').pop();
+    if (ws && doc.path) {
+      const hit = ws.files.get(path);
+      return hit && { text: hit.text, path, file, sidecar: readSidecar(ws, path), load: folderLoader(ws, path) };
+    }
+    const s = starters.find((x) => x.id === `example:${path}`);
+    return s && { text: s.text, path, file, load: exampleLoader(s.id) };
   };
 
   // ------------------------------------------------------------ inspector
@@ -934,13 +1019,25 @@ export function App() {
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
     { id: 'slide', group: 'Export', label: 'PNG for slides (16:9)', icon: 'monitor', run: saveSlide },
-    { id: 'pptx', group: 'Export', label: 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
-    { id: 'pdf', group: 'Export', label: 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
+    { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
+    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
+    ...(type && !drawn?.stepsImplied
+      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
+      : []),
+    ...(stepList.length
+      ? [
+          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: ']', run: () => stepBy(1) },
+          { id: 'step-previous', group: 'Present', label: 'Previous step', icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
+          ...(drawn?.step ? [{ id: 'step-none', group: 'Present', label: 'Show the whole drawing', hint: 'no step', icon: 'layers', run: () => pickStep(undefined) }] : []),
+          ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
+        ]
+      : []),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    ...(vpins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => pinTo(null) }] : []),
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: resetLayout }] : []),
     ...arrangeCommands(arrangeSelection),
     { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
@@ -997,6 +1094,11 @@ export function App() {
         setModal('shortcuts');
         return e.preventDefault();
       }
+      // "P" presents, from anywhere but a text field.
+      if (e.key.toLowerCase() === 'p' && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        present();
+        return e.preventDefault();
+      }
       if (e.defaultPrevented || e.altKey || !mod(e)) return;
       const k = e.key.toLowerCase();
       if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
@@ -1007,8 +1109,19 @@ export function App() {
       else return;
       e.preventDefault();
     };
+    // ⌘↩ presents too, also while typing YAML: caught before the editor takes it for a new line.
+    const onPresentKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !mod(e) || e.shiftKey || e.altKey || modal || presenting) return;
+      e.preventDefault();
+      e.stopPropagation();
+      present();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onPresentKey, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onPresentKey, true);
+    };
   });
 
   // Splitter between editor and drawing, by pointer or arrow keys.
@@ -1145,10 +1258,10 @@ export function App() {
                   <Icon name="monitor" /> PNG for slides (16:9)
                 </button>
                 <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> PowerPoint slide (.pptx)
+                  <Icon name="layout-template" /> {written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)'}
                 </button>
                 <button role="menuitem" onClick={savePdf}>
-                  <Icon name="file-text" /> PDF
+                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
                 </button>
                 <hr />
                 <button role="menuitem" onClick={copyPng}>
@@ -1239,7 +1352,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className="pane canvas-pane" aria-label="Drawing">
+        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}`} aria-label="Drawing">
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -1259,7 +1372,7 @@ export function App() {
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
               const path = pathOf({ kind: 'node', id });
-              return !!type && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+              return !!type && !type.unconnected && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
             }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
@@ -1300,12 +1413,20 @@ export function App() {
               <button className="tool" onClick={() => editor.current?.redo()} title="Redo (⇧⌘Z)" aria-label="Redo">
                 <Icon name="redo-2" />
               </button>
-              {vpins && (
-                <button className="tool" onClick={() => pinTo(null)} title="Unpin everything: back to the automatic layout" aria-label="Reset layout">
+              {(vpins || drawnLayout?.held) && (
+                <button className="tool" onClick={resetLayout} title="Unpin everything and draw again from scratch: back to the automatic layout" aria-label="Reset layout">
                   <Icon name="pin-off" />
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
+              {!stepList.length && (
+                <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
+                  <Icon name="layers" /> Step <kbd>S</kbd>
+                </button>
+              )}
+              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
+                <Icon name="play" /> Present <kbd>P</kbd>
+              </button>
             </div>
             {hint && !adding && !modal && (
               <div className="hint" role="note">
@@ -1351,6 +1472,21 @@ export function App() {
               />
             )}
           </Preview>
+          {stepList.length > 0 && (
+            <StepsStrip
+              steps={stepList}
+              implied={drawn?.stepsImplied}
+              value={drawn?.step}
+              selected={selection.length}
+              naming={current ? naming : undefined}
+              onNamed={() => setNaming(undefined)}
+              onPick={pickStep}
+              onAdd={addStepFromSelection}
+              onRename={(n, title) => editSteps(renameStep(textNow(), stepsPath(drawn?.view), n, title))}
+              onMove={(n, to) => editSteps(moveStep(textNow(), stepsPath(drawn?.view), n, to), drawn?.step === n ? to : drawn?.step === to ? n : undefined)}
+              onDelete={(n) => editSteps(deleteStep(textNow(), stepsPath(drawn?.view), n))}
+            />
+          )}
         </section>
             {selected && inspector && type && (selNode || selGroup || selEdge) && (
           <Inspector
@@ -1377,6 +1513,14 @@ export function App() {
               editor.current?.focus();
             }}
             onDuplicate={isEntry ? duplicate : undefined}
+            onMove={
+              isEntry && type?.ordered?.[String(selectedPath![0])]
+                ? {
+                    earlier: canMove(text, type, selectedPath!, -1) ? () => apply(moveEntry(textNow(), type, selectedPath!, -1)) : undefined,
+                    later: canMove(text, type, selectedPath!, 1) ? () => apply(moveEntry(textNow(), type, selectedPath!, 1)) : undefined,
+                  }
+                : undefined
+            }
             onDelete={() => remove()}
             connections={
               selNode
@@ -1462,6 +1606,7 @@ export function App() {
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
+      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view} step={drawn?.step} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette

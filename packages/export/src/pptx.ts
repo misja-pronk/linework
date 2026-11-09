@@ -2,12 +2,14 @@
 // the space under the slide title, speaker notes from the title and subtitle. Written as plain
 // OOXML zipped with fflate, so it runs the same in Node and the browser.
 import { zipSync, strToU8 } from 'fflate';
-import type { Graph, Placed } from '@cartography/core';
+import type { Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
+import { wrap } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { shape, type Run } from './shapes.ts';
 import { contentSize, drawDiagram, PX, type IconRef } from './slide.ts';
+import { pages } from './steps.ts';
 
 /** What render() returns, or anything else carrying a built graph and its layout. */
 export interface Drawing {
@@ -15,6 +17,12 @@ export interface Drawing {
   placed?: Placed;
   /** File name, mentioned in the speaker notes. */
   name?: string;
+  /** The diagram's steps, as render() returns them: a slide or page each. */
+  steps?: StepState[];
+  /** Only this step (from 1). */
+  step?: number;
+  /** Steps nobody wrote (a dynamic view's numbered lines, a sequence's messages): one slide unless asked. */
+  stepsImplied?: boolean;
 }
 
 /** SVG to PNG bytes at the given pixel size; icons get a PNG for apps that cannot show SVG. */
@@ -30,6 +38,8 @@ export interface PptxOptions {
   subtitle?: string;
   /** Without it icons are SVG only: PowerPoint 365 and LibreOffice show them, older apps may not. */
   rasterize?: Rasterize;
+  /** A slide per step is the default for written steps. True: also for steps nobody wrote; false: one slide per drawing. */
+  steps?: boolean;
   date?: Date;
 }
 
@@ -37,6 +47,8 @@ const INCH = 914400;
 const MARGIN = Math.round(0.45 * INCH);
 /** Largest scale for small drawings: a 13.5 px label becomes ~16 pt and no bigger. */
 const MAX_K = 1.6 * PX;
+/** A step's caption on a slide: sizes in points, the row in inches, `px` the caption size for wrapping. */
+const CAPTION = { title: 15, text: 14, row: 0.3, px: (14 * 12700) / PX };
 
 export function iconSvg(name: string, color: string, size: number, stroke: number): string | undefined {
   const markup = icon(name);
@@ -67,9 +79,10 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     slides.push({ xml: ox.slideXml(tree), rels: [{ id: 'rId1', type: ox.relType.layout, target: '../slideLayouts/slideLayout2.xml' }], notes: [opts.title, opts.subtitle ?? ''] });
   }
 
-  for (const d of drawings) {
+  for (const { drawing: d, view } of pages(drawings, opts.steps)) {
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');
     const { graph, placed } = d;
+    const state = view?.states[view.index];
     const rels: ox.Rel[] = [{ id: 'rId1', type: ox.relType.layout, target: '../slideLayouts/slideLayout1.xml' }];
     const refs = new Map<string, IconRef>();
     const icons = (name: string, color: string, size: number, stroke: number): IconRef | undefined => {
@@ -103,16 +116,28 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       }
       top += 0.18 * INCH;
     }
+    // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
+    const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, (W - 2 * MARGIN) / PX - 80).map((text) => ({ text, title: false })) : [])];
+    const below = view ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
-    const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top };
-    const c = contentSize(graph, placed, theme);
+    const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top - below };
+    const c = contentSize(graph, placed, theme, view);
     const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
-    const at = { k, x: area.x + (area.w - c.width * k) / 2, y: area.y + (area.h - c.height * k) / 2 };
-    tree += drawDiagram(graph, placed, theme, at, font, icons, next);
+    const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k };
+    tree += drawDiagram(graph, placed, theme, at, font, icons, next, view);
+    if (view && state) {
+      const y = H - MARGIN - below + 0.18 * INCH;
+      tree += shape({ id: next(), name: 'Step rule', frame: { x: MARGIN, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
+      const paras = said(state).map((l) => ({ runs: [{ text: l.text, size: l.title ? CAPTION.title : CAPTION.text, bold: l.title, color: l.title || !state.title ? theme.text : theme.textMuted }] }));
+      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: MARGIN, y, w: W - 2 * MARGIN - INCH, h: below - 0.18 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
+      tree += shape({ id: next(), name: 'Step number', textBox: true, frame: { x: W - MARGIN - INCH, y, w: INCH, h: CAPTION.row * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ align: 'r', runs: [{ text: `${view.index + 1} / ${view.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
+    }
 
     const nodes = graph.nodes.filter((n) => !n.folded).length;
-    const notes = [graph.title ?? d.name ?? 'Diagram', graph.subtitle ?? '', '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
-    slides.push({ xml: ox.slideXml(tree), rels, notes });
+    const about = [graph.title ?? d.name ?? 'Diagram', graph.subtitle ?? ''];
+    // What the presenter says at this step leads the speaker notes.
+    const notes = view && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
+    slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes });
   }
 
   // Rasterise after drawing, once per icon, in parallel where the rasteriser is async.

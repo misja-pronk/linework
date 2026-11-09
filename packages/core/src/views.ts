@@ -487,7 +487,7 @@ export function filterGraph(graph: Graph, view: ViewSpec, warn: (path: Path, mes
 
 // ---------------------------------------------------------------- pins per view
 
-const KEYS = ['nodes', 'groups', 'edges', 'locked'] as const;
+const KEYS = ['nodes', 'groups', 'edges', 'locked', 'layout'] as const;
 const filled = (r?: object) => !!r && Object.keys(r).length > 0;
 /** Only the parts of a view's tweaks that hold something. */
 const own = (v: ViewPins | undefined): ViewPins => Object.fromEntries(KEYS.filter((k) => filled(v?.[k])).map((k) => [k, v![k]]));

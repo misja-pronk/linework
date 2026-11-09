@@ -21,6 +21,9 @@ export const refKeys: Record<string, string[]> = {
   contract: ['contracts'],
 };
 
+/** The collections a field can name in this type: its own where it says so, the usual ones otherwise. */
+const refsOf = (type: DiagramType, key: string): string[] | undefined => type.refKeys?.[key] ?? refKeys[key];
+
 const sources = new WeakMap<Document, string>();
 
 function parse(text: string): Document | undefined {
@@ -70,7 +73,7 @@ function kindKey(type: DiagramType, collection: string, kind: string): string | 
 /** The key that puts an entry of `collection` inside an entry of `parentCollection` (in, domain, schema…). */
 export function parentKey(type: DiagramType, collection: string, parentCollection: string): string | undefined {
   const props = new Set(entrySchemas(type, collection).flatMap((s) => Object.keys(s.properties ?? {})));
-  return Object.entries(refKeys).find(([k, cols]) => props.has(k) && cols.includes(parentCollection))?.[0];
+  return Object.entries({ ...refKeys, ...type.refKeys }).find(([k, cols]) => props.has(k) && cols.includes(parentCollection))?.[0];
 }
 
 export interface Added {
@@ -107,8 +110,10 @@ function entryMap(doc: Document, type: DiagramType, path: Path): YAMLMap | undef
   if (node != null && !isScalar(node)) return undefined;
   const scalar = isScalar(node) ? node.value : null;
   const collection = String(path[0]);
-  const long: Record<string, unknown> = {};
-  if (scalar != null && scalar !== '') {
+  let long: Record<string, unknown> = {};
+  const own = type.shorthand?.(collection, scalar);
+  if (own) long = own;
+  else if (scalar != null && scalar !== '') {
     const kk = kindKey(type, collection, String(scalar));
     long[kk ?? 'label'] = scalar;
   }
@@ -200,6 +205,60 @@ function duplicateEntryUnsafe(text: string, path: Path): Added | undefined {
   return { text: str(doc), id, path: [...path.slice(0, -1), id] };
 }
 
+/** Whether an entry of an ordered collection can move earlier (-1) or later (1). */
+export function canMove(text: string, type: DiagramType, path: Path, delta: -1 | 1): boolean {
+  if (path.length !== 2 || !type.ordered?.[String(path[0])]) return false;
+  const ids = idsIn(text, String(path[0]));
+  const i = ids.indexOf(String(path[1]));
+  return i >= 0 && i + delta >= 0 && i + delta < ids.length;
+}
+
+/**
+ * Moves an entry one place earlier or later in a collection drawn in the order written. Where entries
+ * take a field from the entry above (a journey step its phase), every entry keeps the value it had;
+ * a step at the edge of its phase crosses into the neighbour's phase instead of trading places.
+ */
+function moveEntryUnsafe(text: string, type: DiagramType, path: Path, delta: -1 | 1): string | undefined {
+  const doc = parse(text);
+  const collection = String(path[0]);
+  const carry = type.ordered?.[collection];
+  if (!doc || !carry || path.length !== 2) return undefined;
+  const map = doc.get(collection, true);
+  if (!isMap(map)) return undefined;
+  const keyOf = (p: Pair) => String((p.key as { value?: unknown }).value);
+  const i = map.items.findIndex((p) => keyOf(p) === String(path[1]));
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= map.items.length) return undefined;
+  if (typeof carry !== 'string') {
+    [map.items[i], map.items[j]] = [map.items[j]!, map.items[i]!];
+    return str(doc);
+  }
+  // What each entry has now: its own value, or the one carried from above.
+  const effective = () => {
+    const out = new Map<string, unknown>();
+    let last: unknown;
+    for (const p of map.items) {
+      const own = isMap(p.value) ? p.value.get(carry) : undefined;
+      last = own ?? last;
+      out.set(keyOf(p), last);
+    }
+    return out;
+  };
+  const before = effective();
+  const [me, other] = [keyOf(map.items[i]!), keyOf(map.items[j]!)];
+  if (before.get(me) !== before.get(other) && before.get(other) != null) before.set(me, before.get(other));
+  else [map.items[i], map.items[j]] = [map.items[j]!, map.items[i]!];
+  // Write the field where the carried value would now be another one.
+  let last: unknown;
+  for (const p of map.items as Pair[]) {
+    const want = before.get(keyOf(p));
+    const own = isMap(p.value) ? p.value.get(carry) : undefined;
+    if (want != null && (own ?? last) !== want) entryMap(doc, type, [collection, keyOf(p)])?.set(carry, want);
+    last = want ?? last;
+  }
+  return str(doc);
+}
+
 // ---------------------------------------------------------------- copy and paste
 
 /** Copied entries, plus the list items (lines) that only connect copied entries. Plain values, no ids reserved. */
@@ -289,7 +348,7 @@ function pasteEntriesUnsafe(text: string, type: DiagramType, clip: Clip): Pasted
 // ---------------------------------------------------------------- inspector fields
 
 export type Field =
-  | { key: string; kind: 'text'; label: string; value: string; hint?: string }
+  | { key: string; kind: 'text'; label: string; value: string; hint?: string; /** A number typed here is written as a number. */ numeric?: boolean }
   | { key: string; kind: 'number'; label: string; value: string; hint?: string }
   | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean; labels?: Record<string, string> }
   | { key: string; kind: 'toggle'; label: string; value: boolean; hint?: string }
@@ -310,7 +369,7 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
   // Shorthand values read as their long form.
   let values: Record<string, unknown> = {};
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) values = raw as Record<string, unknown>;
-  else if (raw != null && raw !== '') values = { [kindKey(type, collection, String(raw)) ?? 'label']: raw };
+  else values = type.shorthand?.(collection, raw) ?? (raw != null && raw !== '' ? { [kindKey(type, collection, String(raw)) ?? 'label']: raw } : {});
 
   const props = new Map<string, Schema>();
   for (const s of schemas) for (const [k, v] of Object.entries((s.properties ?? {}) as Record<string, Schema>)) if (!props.has(k)) props.set(k, v);
@@ -324,7 +383,7 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
     const hint = s.description ?? alts.find((a) => a.description)?.description;
     const label = titleCase(key);
     const enumAlt = alts.find((a) => Array.isArray(a.enum));
-    const refs = refKeys[key];
+    const refs = refsOf(type, key);
     if (enumAlt && !alts.some((a) => a.type === 'object')) {
       // Kinds read as their names ("Key Vault"), from the palette of this collection.
       const names = Object.fromEntries(type.palette.filter((p) => p.collection === collection).map((p) => [p.kind, p.label]));
@@ -337,7 +396,11 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
       const data = (doc.toJS() ?? {}) as Record<string, Record<string, unknown>>;
       const labels: Record<string, string> = {};
       for (const c of refs)
-        for (const [id, e] of Object.entries(data[c] ?? {})) if (e && typeof e === 'object' && typeof (e as { label?: unknown }).label === 'string') labels[id] = (e as { label: string }).label;
+        for (const [id, e] of Object.entries(data[c] ?? {})) {
+          if (e && typeof e === 'object' && typeof (e as { label?: unknown }).label === 'string') labels[id] = (e as { label: string }).label;
+          // An entry written short as its label ("start: First day").
+          else if (typeof e === 'string' && e && !kindKey(type, c, e)) labels[id] = e;
+        }
       fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true, labels });
     } else if (alts.some((a) => a.type === 'boolean')) fields.push({ key, kind: 'toggle', label, value: v === true, hint });
     else if (alts.some((a) => a.type === 'array') && (v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
@@ -346,7 +409,7 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
       fields.push({ key, kind: 'yaml', label, summary: summary(v), hint });
     else if (alts.some((a) => a.type === 'integer' || a.type === 'number') && !alts.some((a) => a.type === 'string' || (Array.isArray(a.type) && a.type.includes('string'))))
       fields.push({ key, kind: 'number', label, value: v == null ? '' : String(v), hint });
-    else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint });
+    else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint, ...(alts.some((a) => Array.isArray(a.type) && a.type.includes('number')) ? { numeric: true } : {}) });
   }
   return fields;
 }
@@ -498,6 +561,7 @@ export const setField = safe(setFieldUnsafe);
 export const renameEntry = safe(renameEntryUnsafe);
 export const deleteEntry = safe(deleteEntryUnsafe);
 export const duplicateEntry = safe(duplicateEntryUnsafe);
+export const moveEntry = safe(moveEntryUnsafe);
 export const copyEntries = safe(copyEntriesUnsafe);
 export const pasteEntries = safe(pasteEntriesUnsafe);
 /** Deletes several entries and list items as one edit: list items first, last index first, so indexes stay right. */

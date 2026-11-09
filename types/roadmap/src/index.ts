@@ -333,6 +333,7 @@ export const roadmap: DiagramType<RoadmapSource> = {
   notFor: [
     { text: 'The order of messages in one flow', use: 'sequence' },
     { text: 'How branches merge and release', use: 'gitflow' },
+    { text: 'The steps one person takes, and how they feel', use: 'journey' },
   ],
   keywords: ['roadmap', 'timeline', 'gantt', 'plan', 'planning', 'schedule', 'milestone', 'migration waves', 'waves', 'phases', 'quarter', 'delivery plan', 'workstream', 'now next later', 'deadline', 'project plan'],
   schema,

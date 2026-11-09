@@ -10,6 +10,8 @@ carto types who has access     # the types that match your words, best first
 carto new erd orders.yaml      # start from a type's template
 ```
 
+Whatever the type, a drawing can be told in parts for an audience: `steps:` says what is shown and what stands out at each step, for the presenter in the editor and for one slide per step in PowerPoint. See [steps.md](steps.md).
+
 ## Decision table
 
 | You want to show… | Type | `type:` |
@@ -26,6 +28,7 @@ carto new erd orders.yaml      # start from a type's template
 | Who calls whom, in what order: a login flow, an API integration, event choreography | [Sequence](#sequence) | `sequence` |
 | A branching strategy: branches, merges, tags, releases; or how branches reach production | [Git branching](#git-branching) | `gitflow` |
 | What happens when: workstreams, milestones, migration waves, a delivery plan | [Roadmap & timeline](#roadmap--timeline) | `roadmap` |
+| What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
 
 Look-alikes that trip people up:
 
@@ -39,6 +42,8 @@ Look-alikes that trip people up:
 - **Which services talk to each other** is Architecture; **the order they talk in, step by step** is Sequence.
 - **Repositories and teams in a GitHub org** are GitHub design; **how branches in one repo merge and release** is Git branching.
 - **The steps of one flow** are Sequence; **work spread over weeks and months** is Roadmap.
+- **Messages between systems** are Sequence; **what a person does, thinks and feels along the way** is a Journey map.
+- **A plan with dates** is Roadmap; **an experience in phases, without dates** is a Journey map.
 
 ## Architecture
 
@@ -307,6 +312,8 @@ Activations follow the calls: a call opens one on the receiver and its reply clo
 
 Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which also carries git branching and roadmaps.
 
+Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`). See [steps.md](steps.md).
+
 Examples: [examples/sequence](../examples/sequence)
 
 ## Git branching
@@ -396,6 +403,83 @@ items:
 Import: Mermaid `gantt` (sections become lanes; `done`, `active`, `crit` become statuses; `after` stays a dependency; milestones stay milestones) and `timeline` (periods become the axis, sections phases).
 
 Examples: [examples/roadmap](../examples/roadmap)
+
+## Journey map
+
+`type: journey` · what one person goes through, step by step, and how it feels.
+
+Use it for a developer's first week from laptop to first deploy, asking for access today next to the self-service way, a service blueprint with frontstage, backstage and support, or a storyboard that tells a slide deck step by step.
+
+Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`systems`).
+
+The short form is one line per step, the key being what they do and the number how it feels:
+
+```yaml
+type: journey
+title: A developer's first week
+persona: Dana, new backend developer
+phases:
+  day1: Day one
+  commit: First commit
+steps:
+  Collect laptop: 4                 # a score, 1..5 unless scale: says otherwise
+  Request access: { in: day1, feel: 2 frustrated, with: Service desk }
+  Wait for access: 1                # no in: the phase of the step above
+  Clone the repository: { in: commit, feel: 3 }
+  Open a pull request: 5 proud      # a score and the feeling in a word
+```
+
+Everything a step can carry:
+
+```yaml
+persona:
+  name: Dana
+  role: New backend developer
+  avatar: bob                       # short | long | bun | curly | bob | beard | headscarf | cap | glasses; else initials
+  goal: Ship a first change in week one
+  quote: I just want to know where to start.
+scale: 1..5                         # worst..best, also -2..2 or 0..10; default: what the scores fit in
+steps:
+  deploy:
+    label: First deploy
+    in: commit
+    feel: 2 anxious
+    thought: Did I just break production?    # a thought bubble; says: a speech bubble
+    touchpoint:                              # what they use; link: opens that diagram, ref: an element of the model
+      - Developer portal
+      - { label: Delivery pipeline, link: ../gitflow/trunk-delivery.yaml }
+    with: [Platform team, Buddy]             # who else is involved
+    pains: No preview environment            # one or a list
+    gains: The pipeline is fast
+    ideas: Preview environment per pull request
+    metrics: { Lead time: 3 days }
+    frontstage: Portal shows the rollout     # the rows of a service blueprint
+    backstage: Pipeline deploys to test
+    support: Platform team on call
+metrics: { Time to first deploy: 9 days }    # the numbers of the whole journey, beside the persona
+rows: [steps, feeling, thoughts, { ideas: Next steps }]   # order and names; default: all rows that have something
+hide: [metrics]
+view: map                                    # map | storyboard | blueprint | compare
+future:                                      # a second journey through the same phases
+  label: With self-service
+  steps: { Request access: { in: day1, feel: 4 } }
+  metrics: { Time to first deploy: 2 days }
+```
+
+Four views of the same steps, picked with `view:`, `--view` or the view menu:
+
+- `map`: phases as columns, a row each for what they do, touchpoints, the feeling curve, thoughts, pains, gains, opportunities and metrics. Rows nothing fills are left out.
+- `storyboard`: one card per step with its thought, feeling and notes, in reading order; the one to present from.
+- `blueprint`: the journey over the lines of interaction and visibility, with frontstage, backstage and support rows (offered when steps have them).
+- `compare`: today and `future:` above each other with both curves in one chart and the numbers side by side (the default when there is a `future:`).
+
+The feeling curve is not colour-only: every point is a face, the lowest and highest are called out, and a dashed line marks neutral. A score outside the scale is drawn at the edge, with a warning. The drawing picks its column width (or cards per row) to come close to 16:9, so it fills a slide.
+
+Presenting tells the journey one step at a time: the step in focus is outlined, the rest is quiet and the curve is drawn up to that point; the caption is the step's thought. A comparison is told phase by phase. `carto render --all-steps` gives the same as slides or pages. In PowerPoint the journey is native shapes and text boxes (the curve an editable freeform), not a picture.
+
+Import: Mermaid `journey` (sections become phases, tasks steps with their score; the actor in most tasks becomes the persona, the others go to `with:`).
+
+Examples: [examples/journey](../examples/journey)
 
 ## Adding a type
 

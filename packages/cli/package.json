@@ -5,7 +5,8 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./png": "./src/png.ts"
+    "./png": "./src/png.ts",
+    "./fonts": "./src/fonts.ts"
   },
   "dependencies": {
     "@cartography/core": "workspace:*",
@@ -19,7 +20,8 @@
     "@cartography/icons": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",
     "fontkit": "^2.0.4",
-    "wawoff2": "^2.0.1"
+    "wawoff2": "^2.0.1",
+    "@cartography/diff": "workspace:*"
   },
   "bin": {
     "carto": "./src/main.ts"
