@@ -43,7 +43,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   for (const base of bases)
     for (const a of aligns) {
       const c = finish(base, a);
-      const sc = score(measure(graph, c));
+      const sc = score(measure(graph, c, sized.groupHeader));
       if (!best || sc < bestScore - 1e-9) {
         best = c;
         bestScore = sc;

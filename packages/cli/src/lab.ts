@@ -49,18 +49,39 @@ for (const file of files) {
     const png = `${path.basename(file, '.yaml')}--${name}.png`;
     fs.writeFileSync(path.join(outDir, png), toPng(r.svg, 1));
     cells.push(
-      `<td><b>${name}</b> ${sc.toFixed(0)}<br><small>cross ${m.crossings} · through ${m.edgeThroughNode} · labels ${m.labelOverlaps} · back ${m.backward} · bends ${m.bends} · len ${m.edgeLength} · ${m.width}×${m.height}</small><br><img src="${png}"></td>`,
+      `<td><b>${name}</b> ${sc.toFixed(0)}<br><small>cross ${m.crossings} · through ${m.edgeThroughNode} · labels ${m.labelOverlaps} · back ${m.backward} · bends ${m.bends} · len ${m.edgeLength} · detour ${m.detour} · empty ${m.groupEmpty} · aligned ${m.aligned} · tight ${m.tightPairs} · gap ${m.minGap} · uneven ${m.uneven} · borders ${m.borderHits} · ports ${m.portCrowding} · ${m.width}×${m.height}</small><br><img src="${png}"></td>`,
     );
   }
   rows.push(`<tr><th>${file}</th>${cells.join('')}</tr>`);
 }
 
 const sum = (list: LayoutMetrics[], k: keyof LayoutMetrics) => list.reduce((s, m) => s + (m[k] as number), 0);
-console.log('variant      score  cross  through labels back  bends  length');
+const mean = (list: LayoutMetrics[], k: keyof LayoutMetrics) => sum(list, k) / Math.max(1, list.length);
+const cols: [string, (m: LayoutMetrics[]) => string][] = [
+  ['cross', (l) => String(sum(l, 'crossings'))],
+  ['through', (l) => String(sum(l, 'edgeThroughNode'))],
+  ['labels', (l) => String(sum(l, 'labelOverlaps'))],
+  ['back', (l) => String(sum(l, 'backward'))],
+  ['bends', (l) => String(sum(l, 'bends'))],
+  ['length', (l) => sum(l, 'edgeLength').toFixed(0)],
+  ['detour', (l) => mean(l, 'detour').toFixed(2)],
+  ['empty', (l) => mean(l, 'groupEmpty').toFixed(2)],
+  ['aligned', (l) => mean(l, 'aligned').toFixed(2)],
+  ['tight', (l) => String(sum(l, 'tightPairs'))],
+  ['mingap', (l) => mean(l, 'minGap').toFixed(1)],
+  ['uneven', (l) => sum(l, 'uneven').toFixed(1)],
+  ['borders', (l) => String(sum(l, 'borderHits'))],
+  ['ports', (l) => String(sum(l, 'portCrowding'))],
+];
+console.log(['variant     ', 'score', ...cols.map(([c]) => c)].map((c) => c.padStart(7)).join(' '));
 for (const [name, t] of Object.entries(totals).sort((a, b) => a[1].score - b[1].score))
-  console.log(
-    `${name.padEnd(12)} ${t.score.toFixed(0).padStart(5)}  ${String(sum(t.m, 'crossings')).padStart(5)}  ${String(sum(t.m, 'edgeThroughNode')).padStart(7)} ${String(sum(t.m, 'labelOverlaps')).padStart(6)} ${String(sum(t.m, 'backward')).padStart(4)}  ${String(sum(t.m, 'bends')).padStart(5)}  ${sum(t.m, 'edgeLength').toFixed(0).padStart(6)}`,
-  );
+  console.log([name.padEnd(12), t.score.toFixed(0), ...cols.map(([, f]) => f(t.m))].map((c) => c.padStart(7)).join(' '));
+// Per example, for the first variant: where the score comes from.
+if (process.env.LAB_DETAIL)
+  for (const [i, file] of files.entries()) {
+    const m = totals[names[0]!]?.m[i];
+    if (m) console.log(file.padEnd(44), score(m).toFixed(0).padStart(5), cols.map(([c, f]) => `${c} ${f([m])}`).join(' '));
+  }
 fs.writeFileSync(
   path.join(outDir, 'index.html'),
   `<!doctype html><meta charset="utf-8"><style>body{font:12px system-ui}td{vertical-align:top;padding:8px}img{max-width:700px;border:1px solid #ddd}</style><table>${rows.join('')}</table>`,
