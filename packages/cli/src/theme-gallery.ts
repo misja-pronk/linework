@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { render, type RenderOptions } from '@cartography/engine';
-import { builtinSpecs } from '@cartography/theme';
+import { themeCatalog } from '@cartography/theme';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { toPng } from './png.ts';
 
@@ -17,7 +17,7 @@ const io = (file: string): RenderOptions => ({
 });
 
 const jobs: { name: string; file: string; theme?: string }[] = [
-  ...['light', 'dark', ...Object.keys(builtinSpecs)].map((theme) => ({ name: theme, file: 'examples/systems/saas-platform.yaml', theme })),
+  ...themeCatalog.map(({ name }) => ({ name, file: 'examples/systems/saas-platform.yaml', theme: name })),
   { name: 'slate-azure', file: 'examples/azure/web-shop.yaml', theme: 'slate' },
   { name: 'acme', file: 'docs/themes/acme/platform.yaml' },
 ];

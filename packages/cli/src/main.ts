@@ -8,7 +8,7 @@ import { toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
+import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, isKubernetes, isNetworkInventory } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
@@ -354,9 +354,9 @@ async function main(): Promise<number> {
       typeGuide(files.join(' '));
       return 0;
     case 'themes':
-      console.log(`${'light'.padEnd(10)} ${dim('— the default')}\n${'dark'.padEnd(10)} ${dim('— the default, dark')}`);
-      for (const [k, s] of Object.entries(builtinSpecs)) console.log(`${k.padEnd(10)} ${dim('— ' + s.description)}`);
-      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md)'));
+      for (const t of themeCatalog) console.log(`${t.name.padEnd(14)} ${dim('— ' + t.description)}`);
+      console.log(`${'light, dark'.padEnd(14)} ${dim('— other names for survey and survey-dark')}`);
+      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md and docs/style.md)'));
       return 0;
     case 'icons': {
       const [sub, src] = files;

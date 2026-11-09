@@ -267,6 +267,12 @@ kbd {
 .menu kbd {
   margin-left: auto;
 }
+.menu .menu-note {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
 .menu hr {
   border: none;
   border-top: 1px solid var(--border);

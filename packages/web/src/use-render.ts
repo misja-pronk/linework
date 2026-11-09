@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { render, type RenderResult } from '@cartography/engine';
 import type { LayoutSidecar } from '@cartography/core';
 import { useBrand } from './brand.ts';
+import { registerThemeFonts } from './fonts.ts';
 
 export interface Rendered {
   result: RenderResult;
@@ -25,7 +26,9 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
     const n = ++seq.current;
     const t = performance.now();
     render(text, { theme, themeOverride, icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' })
-      .then((result) => {
+      .then(async (result) => {
+        // The page needs the theme's faces before the drawing shows (Transit and Drafting bring their own).
+        await registerThemeFonts(result.theme);
         if (n !== seq.current) return;
         // Another document starts without the old drawing behind it.
         const same = doc.current === docKey;

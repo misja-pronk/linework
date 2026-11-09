@@ -120,7 +120,7 @@ describe('pptx', () => {
   });
 
   it('one slide per diagram, a title slide on request, notes, 4:3', async () => {
-    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map(draw));
+    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map((f) => draw(f)));
     const { files, text } = parts(await toPptx(list, { title: 'Architecture', subtitle: 'Q4', aspect: '4:3' }));
     const slides = Object.keys(files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p));
     expect(slides).toHaveLength(4);
