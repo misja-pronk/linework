@@ -105,6 +105,34 @@ export function describe(graph: Graph): Description {
       for (const i of s.items) for (const a of i.after) relations.push({ from: a, to: i.id, label: 'then' });
       continue;
     }
+    if (s.kind === 'journey') {
+      // Steps are the elements, in their phase; each leads to the next.
+      const phases = new Map(s.phases.map((p) => [p.id, p.label]));
+      const linksOf = new Map(graph.nodes.map((x) => [x.id, x.links ?? []]));
+      const tell = (steps: typeof s.steps, track?: string) => {
+        for (const [i, st] of steps.entries()) {
+          const detail = [
+            st.score != null ? `feeling ${st.score} on ${s.scale.min} to ${s.scale.max}${st.feeling ? ` (${st.feeling})` : ''}` : st.feeling,
+            st.touchpoints.length ? `uses ${st.touchpoints.map((t) => t.label).join(', ')}` : '',
+            st.actors.length ? `with ${st.actors.join(', ')}` : '',
+            st.pains.length ? `pains: ${st.pains.join('; ')}` : '',
+            st.gains.length ? `gains: ${st.gains.join('; ')}` : '',
+            st.ideas.length ? `opportunities: ${st.ideas.join('; ')}` : '',
+          ]
+            .filter(Boolean)
+            .join(', ');
+          const phase = phases.get(st.phase);
+          names.set(st.id, st.label);
+          elements.push({ id: st.id, label: track ? `${track}: ${st.label}` : st.label, detail, ...(phase ? { in: phase } : {}), description: st.thought ?? st.says, links: linksOf.get(st.id) ?? [] });
+          if (i) relations.push({ from: steps[i - 1]!.id, to: st.id, label: 'then' });
+        }
+      };
+      tell(s.steps);
+      if (s.view === 'compare' && s.future) tell(s.future.steps, s.future.label);
+      continue;
+    }
+    // Drawn and told by the journey it is part of.
+    if (s.kind === 'journey-part') continue;
     const label = s.kind === 'card' ? s.label : s.kind === 'table' ? s.title : (s.corner ?? n.id);
     const detail =
       s.kind === 'card'

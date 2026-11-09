@@ -1,0 +1,18 @@
+type: journey
+title: A developer's first week
+persona: Dana
+
+phases:
+  day-one: Day one
+  first-commit: First commit
+  first-deploy: First deploy
+
+steps:
+  Collect laptop: { in: day-one, feel: 4 }
+  Request access: { feel: 2, with: Service desk }
+  Wait for access: 1
+  Clone the repository: { in: first-commit, feel: 3 }
+  Run it locally: { feel: 2, with: Buddy }
+  Open a pull request: { feel: 4, with: Reviewer }
+  Merge and watch the pipeline: { in: first-deploy, feel: 3 }
+  See it live in test: { feel: 5, with: Buddy }

@@ -1,8 +1,8 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import { besideShortLine, byDepth, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, strongTheme, tableHeader, toOutline, type PlacedNote, type StepView } from '@cartography/render';
+import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
+import { besideShortLine, byDepth, journeyScene, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, strongTheme, tableHeader, toOutline, type PlacedNote, type StepView } from '@cartography/render';
 import { fitText, measureText, type Theme, type Weight } from '@cartography/theme';
 import { connector, group, picture, shape, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -157,7 +157,13 @@ class SlideDrawing {
       if (!box || state?.nodes[n.id] === 'hidden') continue;
       const s = n.shape;
       // Sequence, git flow and roadmap diagrams have no native slide drawing yet.
-      if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap') continue;
+      if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap' || s.kind === 'journey-part') continue;
+      if (s.kind === 'journey') {
+        // The journey resolves its own colours per step, from the full theme.
+        this.theme = full;
+        out.push(this.drawJourney(s, box));
+        continue;
+      }
       as(state?.nodes[n.id]);
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : this.drawMatrix(n, s, box)).xml);
     }
@@ -515,6 +521,56 @@ class SlideDrawing {
     const out = [this.freeform('End', segs.flatMap(([a, b]) => [{ op: 'm', pts: [a] }, { op: 'l', pts: [b] }] as PxCmd[]), line)];
     for (const c of circles) out.push(this.sp({ name: 'End', frame: this.frame(c.x - 4, c.y - 4, 8, 8), geom: { prst: 'ellipse' }, fill: { color: this.theme.surface }, line }));
     return out;
+  }
+
+  /** A journey as flat native shapes: the marks render/journey.ts lays out, one shape, text box or picture each. */
+  private drawJourney(s: JourneyShape, b: Box): string {
+    const scene = journeyScene(s, this.theme, this.state?.journey);
+    const out: string[] = [];
+    const paint = (m: { fill?: string; stroke?: string; sw?: number; dash?: boolean }) => ({
+      fill: m.fill && m.fill !== 'none' ? { color: m.fill } : null,
+      line: m.stroke ? ({ color: m.stroke, width: this.L(m.sw ?? 1), dash: m.dash ? 'dashed' : 'solid' } as Line) : null,
+    });
+    for (const m of scene.marks) {
+      if (m.t === 'rect') {
+        const box = { x: b.x + m.x, y: b.y + m.y, width: m.w, height: m.h };
+        out.push(this.sp({ name: m.name ?? 'Box', frame: this.frame(box.x, box.y, m.w, m.h), geom: m.r ? this.roundRect(box, Math.min(m.r, m.w / 2, m.h / 2)) : { prst: 'rect' }, ...paint(m), shadow: m.shadow ? this.shadow() : undefined }).xml);
+      } else if (m.t === 'circle') {
+        out.push(this.sp({ name: 'Dot', frame: this.frame(b.x + m.cx - m.r, b.y + m.cy - m.r, 2 * m.r, 2 * m.r), geom: { prst: 'ellipse' }, ...paint(m) }).xml);
+      } else if (m.t === 'icon') {
+        const item = this.icon(m.name, b.x + m.x, b.y + m.y, m.size, m.color, m.sw);
+        if (item) out.push(item.xml);
+      } else if (m.t === 'text') {
+        const gap = Math.max(0, this.pt(m.lh - 1.21 * m.size));
+        const paras: Para[] = m.lines.map((l, i) => ({ align: m.align === 'c' ? 'ctr' : m.align, before: i ? gap : 0, runs: [this.run(l, m.size, m.weight, m.fill)] }));
+        out.push(this.sp({ name: m.lines.join(' ').slice(0, 60), frame: this.frame(b.x + m.x, b.y + m.y, m.w, m.lines.length * m.lh), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras, anchor: 'ctr' } }).xml);
+      } else {
+        const pts = m.d.flatMap((c) => (c[0] === 'Z' ? [] : c[0] === 'C' ? [[c[1], c[2]], [c[3], c[4]], [c[5], c[6]]] : [[c[1], c[2]]])) as [number, number][];
+        if (!pts.length) continue;
+        const x0 = Math.min(...pts.map((p) => p[0]));
+        const y0 = Math.min(...pts.map((p) => p[1]));
+        const x1 = Math.max(...pts.map((p) => p[0]));
+        const y1 = Math.max(...pts.map((p) => p[1]));
+        const frame = this.frame(b.x + x0, b.y + y0, x1 - x0, y1 - y0);
+        const closed = m.d.some((c) => c[0] === 'Z') || !!m.fill;
+        if (m.d.length === 2 && m.d[1]![0] === 'L' && !m.fill) {
+          // A straight stroke is a line shape, which every app draws and lets you drag by its ends.
+          const [a, z] = pts as [[number, number], [number, number]];
+          out.push(this.sp({ name: m.name ?? 'Line', frame: { ...frame, flipV: (z[0] - a[0]) * (z[1] - a[1]) < 0 }, geom: { prst: 'line' }, ...paint(m), fill: null }).xml);
+          continue;
+        }
+        const path: PathCmd[] = [];
+        const X = (x: number) => this.L(x - x0);
+        const Y = (y: number) => this.L(y - y0);
+        for (const c of m.d) {
+          if (c[0] === 'M') path.push({ m: [X(c[1]), Y(c[2])] });
+          else if (c[0] === 'L') path.push({ l: [X(c[1]), Y(c[2])] });
+          else if (c[0] === 'C') path.push({ c: [X(c[1]), Y(c[2]), X(c[3]), Y(c[4]), X(c[5]), Y(c[6])] });
+        }
+        out.push(this.sp({ name: m.name ?? (closed ? 'Shape' : 'Curve'), frame, geom: { path, closed }, ...paint(m) }).xml);
+      }
+    }
+    return out.join('');
   }
 
   private junctions(edges: GraphEdge[]): Item[] {

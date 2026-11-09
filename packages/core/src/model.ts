@@ -3,6 +3,7 @@
 import type { SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
+import type { JourneyPartShape, JourneyShape } from './journey.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -56,7 +57,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
@@ -249,6 +250,8 @@ export interface NodeSize {
   height: number;
   /** Vertical centre of each table row, relative to the node's top. */
   rowY?: Record<string, number>;
+  /** Boxes of the parts a shape draws itself and that are nodes of their own (a journey's steps), relative to its top-left. */
+  parts?: Record<string, Box>;
 }
 
 /** A line drawn by hand: the router runs it through these bend points (pin space), kept orthogonal. */

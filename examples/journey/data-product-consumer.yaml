@@ -1,0 +1,115 @@
+type: journey
+title: Finding and using a data product
+subtitle: An analyst answers a churn question with the Customer 360 data product
+
+persona:
+  name: Mei Tanaka
+  role: Marketing analyst, consumer of data products
+  avatar: long
+  tone: violet
+  goal: Answer the churn question before the quarterly review
+  quote: I do not need all the data. I need data I can trust by Thursday.
+
+phases:
+  find: Find
+  understand: Understand
+  access: Get access
+  use: Use
+  feedback: Give feedback
+
+metrics:
+  Question to first query: 6 days
+  Of which waiting: 4 days
+  Products looked at: 5
+
+steps:
+  search:
+    label: Searches the catalogue for customer data
+    in: find
+    feel: 3 hopeful
+    touchpoint: Data catalogue
+    thought: Five results called customer. Which one is the real one?
+    pains: Duplicates and old tables in the results
+    ideas: Mark certified products in search
+
+  shortlist:
+    label: Asks a colleague which product to use
+    in: find
+    feel: 2 unsure
+    touchpoint: [Teams chat]
+    with: Senior analyst
+    says: Use Customer 360, the others are leftovers.
+    pains: The right product is tribal knowledge
+    metrics: Half a day
+
+  contract:
+    label: Reads the product page and the data contract
+    in: understand
+    feel: 4 reassured
+    touchpoint:
+      - { label: Customer 360 product page, link: ../data-products/customer.yaml }
+      - Data contract
+    says: Owner, refresh time and quality checks, all on one page.
+    gains:
+      - Clear owner and service levels
+      - Sample data without a request
+
+  quality:
+    label: Checks freshness and quality scores
+    in: understand
+    feel: 4 confident
+    touchpoint: Quality dashboard
+    thought: Refreshed at six this morning. Good enough.
+    gains: Quality is measured, not promised
+    metrics: 99.2% complete
+
+  request:
+    label: Requests access to the output port
+    in: access
+    feel: 2 impatient
+    touchpoint: [Access portal, Email]
+    with: Data product owner
+    thought: Why do I have to explain the purpose three times?
+    pains:
+      - Purpose is asked in three forms
+      - No status after submitting
+    ideas: One request with the purpose attached to the contract
+    metrics: 4 days waiting
+
+  approved:
+    label: Gets approval and a connection string
+    in: access
+    feel: 3 relieved
+    touchpoint: Email
+    with: Data product owner
+    says: Finally. Now where do I paste this?
+    pains: Connection details arrive by email
+
+  query:
+    label: Queries the product from a notebook
+    in: use
+    feel: 5 productive
+    touchpoint: [Notebook, SQL endpoint]
+    says: The join keys just work.
+    gains:
+      - Stable schema with clear keys
+      - Examples in the product page
+    metrics: First query in 20 min
+
+  combine:
+    label: Combines it with campaign data
+    in: use
+    feel: 3 puzzled
+    touchpoint: [Notebook, Campaign product]
+    thought: Customer id here, account id there.
+    pains: Identifiers differ across domains
+    ideas: Shared customer key in every contract
+
+  share:
+    label: Shares the result and rates the product
+    in: feedback
+    feel: 4 heard
+    touchpoint: [Dashboard, Data catalogue]
+    with: Marketing lead
+    says: I left a note about the missing key. The owner replied the same day.
+    gains: Feedback reaches the owning team

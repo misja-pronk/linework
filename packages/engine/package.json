@@ -23,7 +23,8 @@
     "@cartography/data-products": "workspace:*",
     "@cartography/sequence": "workspace:*",
     "@cartography/gitflow": "workspace:*",
-    "@cartography/roadmap": "workspace:*"
+    "@cartography/roadmap": "workspace:*",
+    "@cartography/journey": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

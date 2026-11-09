@@ -52,7 +52,7 @@ export type Geometry =
   /** A custom path in the frame's own EMU space. */
   | { path: PathCmd[]; closed?: boolean; sites?: boolean };
 
-export type PathCmd = { m: [number, number] } | { l: [number, number] } | { q: [number, number, number, number] };
+export type PathCmd = { m: [number, number] } | { l: [number, number] } | { q: [number, number, number, number] } | { c: [number, number, number, number, number, number] };
 
 const hex = (c: string) => c.replace('#', '').toUpperCase().slice(0, 6);
 const i = Math.round;
@@ -89,7 +89,11 @@ function geometry(g: Geometry, f: Frame): string {
   for (const c of g.path) {
     if ('m' in c) paths.push(`<a:moveTo>${P(...c.m)}</a:moveTo>`), (cur = c.m);
     else if ('l' in c) (paths[paths.length - 1] += `<a:lnTo>${P(...c.l)}</a:lnTo>`), (cur = c.l);
-    else {
+    else if ('c' in c) {
+      const [x1, y1, x2, y2, x, y] = c.c;
+      paths[paths.length - 1] += `<a:cubicBezTo>${P(x1, y1)}${P(x2, y2)}${P(x, y)}</a:cubicBezTo>`;
+      cur = [x, y];
+    } else {
       const [qx, qy, x, y] = c.q;
       const c1 = P(cur[0] + ((qx - cur[0]) * 2) / 3, cur[1] + ((qy - cur[1]) * 2) / 3);
       const c2 = P(x + ((qx - x) * 2) / 3, y + ((qy - y) * 2) / 3);

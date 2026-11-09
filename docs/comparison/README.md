@@ -1,6 +1,6 @@
 # Cartography next to Mermaid and D2
 
-Eight everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
+Nine everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
 The Cartography column is **not hand-tuned**: it is the Mermaid source run through `carto import`
 and rendered as is. The imported YAML is in [`cartography/`](cartography/).
 
@@ -112,3 +112,18 @@ centred and fits more on a line (one row per task, no tracks to share), and its 
 critical tasks is louder than our amber "at risk". A bar too short for its label puts the label beside
 it, which the arrow then has to leave from below; Mermaid keeps such labels inside and lets them
 overflow.
+
+## A developer's first week (journey)
+
+| Mermaid | Cartography |
+| --- | --- |
+| ![Mermaid](png/onboarding-journey-mermaid.png) | ![Cartography](png/onboarding-journey-cartography.png) |
+
+D2 has no journey. Imported as a `journey`: sections became phases, tasks numbered steps with their
+score, and the actor in every task (Dana) became the persona, so only the others are named on the
+cards where Mermaid needs a legend of coloured dots. The scores are joined into one curve around a
+neutral line, with the low and the high point called out; Mermaid hangs a face per task from a
+dashed line. This is the import as is, so it only has what Mermaid can say: thoughts, touchpoints,
+pains, gains and opportunities are rows the YAML adds (see [examples/journey](../../examples/journey)),
+as are the storyboard, blueprint and today-next-to-future views. Mermaid's picture is more compact,
+and its coloured dots show at a glance who is in which task.

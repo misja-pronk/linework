@@ -240,3 +240,47 @@ describe('steps', () => {
     expect(pdfText(one).join('')).not.toContain(`1 / ${steps}`);
   });
 });
+
+describe('journey', () => {
+  const slideCount = (zip: Uint8Array) => Object.keys(parts(zip).files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length;
+
+  it('pptx: native shapes and text you can edit, the feeling curve a real curve', async () => {
+    for (const view of ['map', 'storyboard', 'blueprint']) {
+      const r = await render(example('journey/first-deploy.yaml'), { fonts: 'none', view });
+      const zip = await toPptx(r, { rasterize: () => PNG });
+      expect(slideCount(zip), view).toBe(1);
+      const slide = parts(zip).text('ppt/slides/slide1.xml');
+      expect(wellFormed(slide), view).toBe(true);
+      const texts = [...slide.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1]!).join(' ');
+      const shape = r.graph!.nodes[0]!.shape as { steps: { label: string }[]; phases: { label: string }[] };
+      for (const p of shape.phases) expect(texts, view).toContain(p.label.split(' ')[0]);
+      for (const s of shape.steps) expect(texts, `${view}: ${s.label}`).toContain(s.label.split(' ')[0]);
+      // The curve is a custom shape with bezier segments, not a picture.
+      if (view === 'map') {
+        expect(slide).toContain('<a:cubicBezTo>');
+        expect(slide).toMatch(/<p:cNvPr id="\d+" name="Feeling/);
+      }
+      expect(slide, view).toContain('prst="ellipse"');
+      expect(slide, view).not.toContain('NaN');
+    }
+  });
+
+  it('pptx and pdf: a slide per step when asked for, the step in focus outlined', async () => {
+    const r = await draw('journey/developer-onboarding.yaml');
+    expect(r.stepsImplied).toBe(true);
+    const n = r.steps!.length;
+    expect(slideCount(await toPptx(r, { rasterize: () => PNG }))).toBe(1);
+    const zip = await toPptx(r, { steps: true, rasterize: () => PNG });
+    expect(slideCount(zip)).toBe(n);
+    const { text } = parts(zip);
+    for (let i = 1; i <= n; i++) {
+      const slide = text(`ppt/slides/slide${i}.xml`);
+      expect(wellFormed(slide), `slide ${i}`).toBe(true);
+      expect(slide.match(/name="In focus"/g), `slide ${i}`).toHaveLength(1);
+      expect(slide).toContain(`<a:t>${i} / ${n}</a:t>`);
+    }
+    const pdf = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false, steps: true })).toString('latin1');
+    expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(n);
+    expect(new Set(pdf.match(/\/MediaBox \[[^\]]*\]/g)).size).toBe(1);
+  });
+});
