@@ -6,8 +6,10 @@ import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
 import { azure } from '@cartography/azure';
 import { erd } from '@cartography/erd';
+import { access } from '@cartography/access';
+import { github } from '@cartography/github';
 
-export const types: DiagramType[] = [azure, erd];
+export const types: DiagramType[] = [azure, erd, access, github];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

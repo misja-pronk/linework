@@ -1,0 +1,46 @@
+type: access
+title: Engineering access — access
+subtitle: Entra ID access packages and Azure roles
+view: access
+
+principals:
+  engineers: { kind: dynamic-group, label: Engineering, caption: department = Engineering }
+  partner: { kind: connected-org, label: Contoso partners }
+  sg-dev: { kind: group, label: sg-developers }
+  sg-ops: { kind: role-assignable-group, label: sg-platform-admins }
+  alice: { kind: user, label: Alice }
+  bob: { kind: guest, label: Bob (Contoso) }
+  deploy: { kind: service-principal, label: GitHub deploy }
+
+catalogs:
+  eng: Engineering
+
+packages:
+  dev:
+    catalog: eng
+    label: Developer access
+    grants: [sg-dev, github: User]
+    policy: { requestors: [engineers, partner], approval: [manager], duration: 180 days, review: quarterly }
+    holders: [alice, bob]
+  ops:
+    catalog: eng
+    label: Platform admin
+    grants: [sg-ops]
+    policy: { requestors: [sg-dev], approval: [manager, sg-ops], duration: 30 days }
+
+resources:
+  prod: { kind: subscription, label: Production }
+  rg-shop: { kind: resource-group, label: rg-shop, in: prod }
+  test: { kind: subscription, label: Test }
+  github: { kind: app, label: GitHub Enterprise }
+
+roles:
+  reader: { label: Reader, permissions: [read] }
+  contributor: { label: Contributor, inherits: reader, permissions: [write, deploy] }
+  owner: { label: Owner, inherits: contributor, permissions: [manage access] }
+
+assignments:
+  - sg-dev is contributor on test
+  - sg-dev is reader on prod
+  - sg-ops is owner on prod
+  - deploy is contributor on rg-shop

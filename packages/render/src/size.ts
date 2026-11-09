@@ -1,13 +1,22 @@
 // Measures every shape before layout, so layout can reserve exactly the space render will draw.
 import type { CardShape, Graph, NodeSize, Sized, TableShape } from '@cartography/core';
 import { measureText, type Theme } from '@cartography/theme';
+import { matrixGeometry } from './matrix.ts';
 
 export const MARK_WIDTH = 18;
 const CELL_GAP = 24;
 
 export function size(graph: Graph, theme: Theme): Sized {
   const nodes = new Map<string, NodeSize>();
-  for (const n of graph.nodes) nodes.set(n.id, n.shape.kind === 'card' ? cardSize(n.shape, theme) : tableSize(n.shape, theme));
+  for (const n of graph.nodes) {
+    const shape = n.shape;
+    if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme));
+    else if (shape.kind === 'table') nodes.set(n.id, tableSize(shape, theme));
+    else {
+      const m = matrixGeometry(shape, theme);
+      nodes.set(n.id, { width: Math.round(m.width), height: Math.round(m.height) });
+    }
+  }
 
   const edgeLabels = new Map<string, { width: number; height: number }>();
   for (const e of graph.edges)

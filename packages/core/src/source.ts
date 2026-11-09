@@ -77,7 +77,7 @@ function rangeOf(node: unknown): [number, number] | undefined {
   return r ? [r[0], r[1]] : undefined;
 }
 
-const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
+const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true, verbose: true });
 const compiled = new WeakMap<object, ReturnType<typeof ajv.compile>>();
 
 /** Validate source data against a JSON Schema and turn the errors into readable diagnostics. */
@@ -100,7 +100,10 @@ function simplify(errors: ErrorObject[]): ErrorObject[] {
     const deeper = errors.some((e) => e.instancePath.startsWith(path + '/'));
     const concrete = list.filter((e) => !['anyOf', 'oneOf', 'if'].includes(e.keyword));
     if (deeper && concrete.every((e) => e.keyword === 'type' || e.keyword === 'pattern')) continue;
-    const chosen = concrete.length ? concrete : list;
+    // A value that has the right type for one branch but fails it there: the other branches'
+    // "must be object" errors are noise.
+    const specific = concrete.filter((e) => e.keyword !== 'type');
+    const chosen = specific.length ? specific : concrete.length ? concrete : list;
     out.push(...dedupe(chosen));
   }
   return out;
@@ -127,8 +130,12 @@ function describe(e: ErrorObject, path: Path): string {
       return `${where} must be one of: ${(e.params.allowedValues as unknown[]).join(', ')}`;
     case 'type':
       return `${where} must be ${Array.isArray(e.params.type) ? e.params.type.join(' or ') : e.params.type}`;
-    case 'pattern':
-      return `${where} has an invalid format`;
+    case 'pattern': {
+      // Schemas describe their formats; quote the value and say what it should look like.
+      const hint = (e.parentSchema as { description?: string } | undefined)?.description;
+      const value = typeof e.data === 'string' ? `"${e.data}"` : where;
+      return hint ? `${value} should look like ${hint}` : `${value} has an invalid format`;
+    }
     case 'propertyNames':
       return `Invalid name "${e.params.propertyName}": use letters, digits, - and _`;
     default:

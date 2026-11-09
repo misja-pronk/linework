@@ -34,7 +34,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape;
+  shape: CardShape | TableShape | MatrixShape;
   path: Path;
 }
 
@@ -56,6 +56,35 @@ export interface TableShape {
   icon?: string;
   tone: Tone;
   rows: TableRow[];
+}
+
+/** A grid with row and column headers: access matrices, role × permission tables. */
+export interface MatrixShape {
+  kind: 'matrix';
+  /** Text above the row headers, e.g. "Who \\ where". */
+  corner?: string;
+  columns: MatrixHeader[];
+  rows: MatrixHeader[];
+  /** cells[row][column]; undefined is an empty cell. */
+  cells: (MatrixCell | undefined)[][];
+}
+
+export interface MatrixHeader {
+  label: string;
+  caption?: string;
+  icon?: string;
+  tone?: Tone;
+}
+
+export interface MatrixCell {
+  /** A pill with text (a role name), or a check mark when `check` is set. */
+  text?: string;
+  check?: boolean;
+  /** Comes from elsewhere (group, parent scope, parent role): drawn outlined. */
+  inherited?: boolean;
+  /** Small text under the pill, e.g. "via Developers". */
+  note?: string;
+  tone?: Tone;
 }
 
 export type TableRow =
@@ -93,7 +122,9 @@ export interface GraphEdge {
 
 export interface LegendItem {
   label: string;
-  line: GraphEdge['line'];
+  /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
+  line?: GraphEdge['line'];
+  swatch?: 'fill' | 'outline';
   tone?: Tone;
 }
 

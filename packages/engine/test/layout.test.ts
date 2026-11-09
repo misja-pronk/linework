@@ -9,6 +9,10 @@ import { big } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
+  'access/engineering.yaml': 4,
+  'access/engineering-access.yaml': 0,
+  'access/engineering-packages.yaml': 0,
+  'access/engineering-roles.yaml': 0,
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 1,
   'azure/microservices.yaml': 9,
@@ -16,6 +20,7 @@ const crossingBudget: Record<string, number> = {
   'erd/orders.yaml': 0,
   'erd/saas.yaml': 8,
   'erd/shop-schemas.yaml': 0,
+  'github/setup.yaml': 0,
 };
 
 describe('layout quality', () => {

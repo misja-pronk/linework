@@ -1,0 +1,28 @@
+type: github
+title: GitHub setup
+subtitle: Teams, repositories and deployments
+
+groups:
+  org: { kind: org, label: acme }
+  shop: { kind: repo, label: acme/shop, in: org }
+  azure: { kind: cloud, label: Azure }
+
+nodes:
+  devs: { kind: team, label: Developers, in: org }
+  platform: { kind: team, label: Platform, in: org }
+  rules: { kind: ruleset, label: main protected, caption: 1 review · status checks, in: shop }
+  ci: { kind: workflow, label: ci.yml, caption: on pull request, in: shop }
+  cd: { kind: workflow, label: deploy.yml, caption: on push to main, in: shop }
+  staging: { kind: environment, label: staging, in: shop }
+  production: { kind: environment, label: production, caption: required reviewers, in: shop }
+  runner: { kind: hosted-runner, label: ubuntu-latest }
+  app: { kind: cloud-target, label: Container Apps, in: azure }
+
+edges:
+  - devs -> shop: { label: write, style: access }
+  - platform -> shop: { label: admin, style: access }
+  - rules -> ci: { label: required check, style: protects }
+  - ci -> runner: { label: runs on, style: uses }
+  - cd -> staging: { style: deploy }
+  - cd -> production: { style: deploy }
+  - production -> app: { label: OIDC, style: oidc }

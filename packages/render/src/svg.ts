@@ -4,6 +4,7 @@ import type { Box, CardShape, Graph, GraphEdge, GraphGroup, Marker, Placed, Poin
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { cardCaption, groupLabelWidth, MARK_WIDTH, tableHeader } from './size.ts';
+import { drawMatrix } from './matrix.ts';
 
 export interface SvgOptions {
   /** Embed the Inter font (latin subset) so the SVG looks the same everywhere. */
@@ -64,7 +65,11 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   for (const n of graph.nodes) {
     const box = placed.nodes.get(n.id);
     if (!box) continue;
-    const body = n.shape.kind === 'card' ? drawCard(n.shape, box, theme, id) : drawTable(n.shape, box, theme, id);
+    const shape = n.shape;
+    const body =
+      shape.kind === 'card' ? drawCard(shape, box, theme, id)
+      : shape.kind === 'table' ? drawTable(shape, box, theme, id)
+      : drawMatrix(shape, box, theme, `${id}-shadow`);
     out.push(`<g${data('node', n.id)}>${body}</g>`);
   }
   // Labels last, so lines never cross them.
@@ -299,11 +304,13 @@ function drawLegend(g: Graph, theme: Theme, x0: number, cy: number): string {
   return legendItems(g, theme)
     .map(({ item, x }) => {
       const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
+      const label = textMid(x0 + x + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
+      if (item.swatch === 'fill')
+        return `<rect x="${x0 + x}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
+      if (item.swatch === 'outline')
+        return `<rect x="${x0 + x + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="6.5" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
       const dash = item.line === 'dashed' ? ' stroke-dasharray="6 4"' : item.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';
-      return (
-        `<path d="M${x0 + x} ${cy}H${x0 + x + 20}" stroke="${color}" stroke-width="${theme.stroke.edge + 0.4}" stroke-linecap="round"${dash}/>` +
-        textMid(x0 + x + 28, cy, item.label, theme.size.caption, 500, theme.textMuted)
-      );
+      return `<path d="M${x0 + x} ${cy}H${x0 + x + 20}" stroke="${color}" stroke-width="${theme.stroke.edge + 0.4}" stroke-linecap="round"${dash}/>` + label;
     })
     .join('');
 }

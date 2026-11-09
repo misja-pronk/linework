@@ -59,6 +59,9 @@ importers:
 
   packages/engine:
     dependencies:
+      '@cartography/access':
+        specifier: workspace:*
+        version: link:../../types/access
       '@cartography/azure':
         specifier: workspace:*
         version: link:../../types/azure
@@ -68,6 +71,9 @@ importers:
       '@cartography/erd':
         specifier: workspace:*
         version: link:../../types/erd
+      '@cartography/github':
+        specifier: workspace:*
+        version: link:../../types/github
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
@@ -115,6 +121,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  types/access:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+
   types/azure:
     dependencies:
       '@cartography/core':
@@ -122,6 +134,12 @@ importers:
         version: link:../../packages/core
 
   types/erd:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+
+  types/github:
     dependencies:
       '@cartography/core':
         specifier: workspace:*

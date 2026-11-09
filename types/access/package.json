@@ -1,0 +1,8 @@
+{
+  "name": "@cartography/access",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@cartography/core": "workspace:*" }
+}

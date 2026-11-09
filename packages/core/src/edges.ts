@@ -91,7 +91,7 @@ export function edgeItemSchema(extra: Record<string, object> = {}): object {
   };
   return {
     anyOf: [
-      { type: 'string', pattern: edgePattern },
+      { type: 'string', pattern: edgePattern, description: '"a -> b" (also -->, ..>, <->, --)' },
       {
         type: 'object',
         minProperties: 1,

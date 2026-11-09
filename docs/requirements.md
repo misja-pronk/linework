@@ -42,11 +42,13 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 - Schemas as groups; views and enums (S).
 - Import from SQL DDL (S) and from Postgres/SQL Server catalogue (C); export DDL (C).
 
-### 3.5 Roles & permissions (M)
-- Principals: users, groups, service principals/managed identities.
-- Roles with inheritance, resources/scopes, assignments (role × principal × scope).
-- Two views from one source: **matrix** (role × resource, cells show permissions) and **graph/tree** (who gets what through which path).
-- Azure RBAC / Entra and GitHub permission presets (S).
+### 3.5 Roles, groups & access packages (M) — type `access`
+- Principals: users, guests, security / dynamic / role-assignable / Microsoft 365 groups, service principals, managed identities, connected organisations; group membership (nested).
+- Entra ID governance: catalogs with access packages; per package what it grants (group membership, app and site roles), its policies (who may request, approvers in order, duration, access review, automatic assignment) and who holds it now.
+- Resources and scopes as a tree (tenant → management group → subscription → resource group → resource), plus apps and sites.
+- Roles with inheritance and permissions; role assignments written as `sg-dev is contributor on rg-dev`.
+- Four views from one file (`view:`): **graph** (requestors → policy → package → group / app role → role on scope), **access** (who × where with the effective role and where it comes from: via group, via package, from parent scope), **packages** (packages × what they grant), **roles** (roles × permissions, inherited ones marked).
+- Presets for built-in Azure RBAC, Entra and GitHub roles (S).
 
 ### 3.6 GitHub design (M)
 - Organisation → teams (nested) → repositories → environments.
