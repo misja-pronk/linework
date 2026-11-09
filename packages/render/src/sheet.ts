@@ -67,10 +67,12 @@ export function drawSheet(width: number, height: number, theme: Theme): string {
     }
   }
   if (s.ticks) {
-    // Centring ticks: short strokes across the frame at the middle of each side.
+    // Centring ticks: short strokes across the frame at the middle of each side; with a zone band
+    // they stop at the frame, so they never run through a zone's letter or number.
     const t = 7;
+    const inner = s.zones ? 0 : t;
     for (const [x, y, dx, dy] of [[width / 2, m, 0, 1], [width / 2, height - m, 0, -1], [m, height / 2, 1, 0], [width - m, height / 2, -1, 0]] as const)
-      out += `<path d="M${r1(x - dx * t)} ${r1(y - dy * t)}L${r1(x + dx * t)} ${r1(y + dy * t)}" stroke="${line}" stroke-width="1"/>`;
+      out += `<path d="M${r1(x - dx * t)} ${r1(y - dy * t)}L${r1(x + dx * inner)} ${r1(y + dy * inner)}" stroke="${line}" stroke-width="1"/>`;
   }
   return out;
 }

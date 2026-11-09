@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -580,7 +580,7 @@ function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, line
   const room = step ? STEP_ROOM : 0;
   // An icon (a tunnel's lock) leads the text, in the line's colour; the text stays centred in what is left.
   const ix = iconName && icon(iconName) ? LABEL_ICON : 0;
-  const glyph = ix ? drawIcon(iconName, b.x + room + 8, y + h / 2 - 5.5, 11, tone ? theme.tones[tone].fg : theme.textMuted, 1.8) : '';
+  const glyph = ix ? drawIcon(iconName, b.x + room + labelPad(theme) / 2, y + h / 2 - 5.5, 11, tone ? theme.tones[tone].fg : theme.textMuted, 1.8) : '';
   // A [technology] is quieter than what the line does.
   const shown = esc(labelString(theme, label));
   const body = /^\[[^\]]*\]$/.test(label) ? shown : shown.replace(/\[[^\]]*\]/g, (t) => `<tspan fill="${theme.textFaint}" font-weight="400">${t}</tspan>`);

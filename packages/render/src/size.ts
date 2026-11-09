@@ -42,13 +42,16 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const edgeLabels = new Map<string, { width: number; height: number }>();
   for (const e of graph.edges)
-    if (e.label || e.step) edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + 16 + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0), height: 20 });
+    if (e.label || e.step) edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0), height: 20 });
 
   const groupMinWidth = new Map<string, number>();
   for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
 
   return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth };
 }
+
+/** Room around the words of a label on a line: a pill or plate needs its padding, bare words on a halo only a gap in the line. */
+export const labelPad = (theme: Theme): number => (look(theme).edgeLabel.style === 'halo' ? 10 : 16);
 
 /** Width of the words of a label on a line, as drawn: in capitals, the monospace face or with tracking where the theme asks. */
 export function edgeLabelWidth(label: string, theme: Theme): number {
