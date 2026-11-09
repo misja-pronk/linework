@@ -33,7 +33,7 @@ const help = `carto — architecture diagrams that look good
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
-                                                erDiagram, sequenceDiagram, gitGraph, gantt, timeline) to YAML;
+                                                erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
                                                 .md: every mermaid block; Kubernetes manifests: all files in one diagram;
                                                 .csv inventory or NetBox JSON: a network diagram
   carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
