@@ -17,6 +17,7 @@ carto new erd orders.yaml      # start from a type's template
 | Services, apps, queues and databases and how they talk; anything when unsure | [Architecture](#architecture) | `systems` |
 | C4: system context, containers, components, dynamic and deployment views of one model | [C4 model](#c4-model) | `c4` |
 | What runs where in Azure: subscriptions, resource groups, VNets, subnets | [Azure infrastructure](#azure-infrastructure) | `azure` |
+| What runs where in AWS or Google Cloud: accounts, VPCs, zones, subnets; multi-cloud and hybrid | [AWS and Google Cloud](#aws-and-google-cloud) | `cloud` |
 | Network topology: zones, VLANs, firewalls, switches and links; an IP plan | [Network](#network) | `network` |
 | Tables, columns, keys and how tables relate | [Database design](#database-design) | `erd` |
 | Who gets access to what, through which group, package or role | [Roles, groups and access packages](#roles-groups-and-access-packages) | `access` |
@@ -31,6 +32,7 @@ Look-alikes that trip people up:
 - **A service that uses a database** is Architecture; **the tables inside it** are Database design.
 - **A quick boxes-and-arrows sketch** is Architecture; **a context diagram that drills down into containers and components** is the C4 model.
 - **Azure resources and networks** are Azure infrastructure; **who may touch them** is Access.
+- **An estate that is only Azure** is Azure infrastructure; **AWS, Google Cloud or several clouds in one picture** is AWS and Google Cloud.
 - **Firewalls, switches, VLANs and circuits** are Network; **the Azure resources behind them** are Azure infrastructure.
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
 - **ETL jobs as boxes and arrows** are Architecture; **products with ports and contracts** are Data products.
@@ -108,6 +110,46 @@ edges:
 ```
 
 Examples: [examples/azure](../examples/azure)
+
+## AWS and Google Cloud
+
+`type: cloud` · what runs where in AWS or Google Cloud: accounts, VPCs, subnets, zones.
+
+Use it for a VPC across availability zones with its subnet tiers, a data platform (S3, Glue and Redshift, or BigQuery), a landing zone (organization, accounts or projects, networks), or a multi-cloud or hybrid picture. `provider: aws | gcp` at the top says whose words the file speaks by default; it reads top-down with `direction: down`.
+
+- **Containers** nest the way the clouds do: `organization`, `region`, `vpc`, `zone`, `subnet`, `on-premises` and `boundary` for both; `aws`, `ou`, `account`, `security-group`, `auto-scaling-group`, `ecs-cluster`, `eks-cluster` for AWS; `gcp`, `folder`, `project`, `instance-group`, `gke-cluster`, `service-perimeter` for Google Cloud. `cidr`, `account`, `project`, `region` and `zone` go in the caption.
+- **Services** are named the way you say them: `ec2`, `ecs`, `eks`, `lambda`, `s3`, `rds`, `aurora`, `dynamodb`, `redshift`, `glue`, `kinesis`, `sqs`, `sns`, `eventbridge`, `api-gateway`, `cloudfront`, `route53`, `alb`, `nat-gateway`, `transit-gateway`, `iam-role`, `kms`, `cloudwatch`, `bedrock`, … (59 for AWS) and `compute-engine`, `gke`, `cloud-run`, `cloud-functions`, `gcs`, `cloud-sql`, `spanner`, `bigquery`, `dataflow`, `pubsub`, `cloud-load-balancing`, `cloud-nat`, `service-account`, `cloud-kms`, `vertex-ai`, … (51 for Google Cloud), plus `internet`, `users`, `client`, `server`, `external` and the like. The palette in the editor lists them all by category. `size`, `zone` and `exposure: public | internal` go in the caption.
+- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. A node outside the subnets joins a row with `tier:` as well.
+- **Mixing providers**: one file may hold AWS, Google Cloud and Azure. A service's provider follows from its kind; a container's from its kind, `provider:` or what it sits in. Every Azure kind works here too; the four that are also general words are `azure-storage`, `azure-load-balancer`, `azure-dns` and `azure-firewall`.
+- **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
+- **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.
+- **Model kinds** (`database`, `queue`, `api`, …) become the service that usually hosts them: RDS, SQS and ECS for `provider: aws`; Cloud SQL, Pub/Sub and Cloud Run for `gcp`. `of:` places a model's containers on the infrastructure, per environment; see [model.md](model.md#deployments-of-what-a-resource-runs).
+- **Official icons** are bring-your-own, as for Azure: `carto icons import <download> --pack aws` (or `gcp`), then `--pack aws` or `icons: { pack: [aws, gcp] }`. In a mixed diagram each shape takes its icon from its own provider's pack. See [themes.md](themes.md#icon-packs-bring-your-own).
+
+Not for: an estate that is only Azure (use `azure`), a cloud-neutral overview (use `systems`), pods and services inside a cluster (use `kubernetes`), devices, cabling and an IP plan (use `network`).
+
+```yaml
+type: cloud
+provider: aws
+title: Web shop
+direction: down
+groups:
+  vpc: { kind: vpc, cidr: 10.0.0.0/16 }
+  az-a: { kind: zone, zone: eu-west-1a, in: vpc }
+  public-a: { kind: subnet, tier: public, cidr: 10.0.0.0/24, in: az-a }
+  app-a: { kind: subnet, tier: private, cidr: 10.0.10.0/24, in: az-a }
+nodes:
+  users: users
+  alb: { kind: alb, in: public-a, exposure: public }
+  web: { kind: ecs, label: Web shop, in: app-a, size: 2 vCPU }
+edges:
+  - users -> alb: { label: HTTPS, style: public }
+  - alb -> web: { style: private }
+```
+
+Import what Terraform knows with `terraform show -json > state.json` (or `terraform show -json plan.out`) and `carto import state.json`: VPCs, zones and subnets become containers (public, private or isolated by their route out), about a hundred AWS and Google resource types become services in the right one, and lines follow references, event sources, listeners and security group rules. Ids come from the resource addresses, so pins survive a re-import. It reads the file only; nothing calls a cloud API.
+
+Examples: [examples/cloud](../examples/cloud) · deployments of a model: [examples/deployment](../examples/deployment)
 
 ## Network
 
