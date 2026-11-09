@@ -56,6 +56,7 @@ export function AddMenu({ items, onAdd, onClose }: { items: PaletteItem[]; onAdd
               aria-selected={n === index}
               className="add-item"
               draggable
+              data-palette={i}
               onDragStart={(e) => {
                 e.dataTransfer.setData(PALETTE_MIME, String(i));
                 e.dataTransfer.effectAllowed = 'copy';

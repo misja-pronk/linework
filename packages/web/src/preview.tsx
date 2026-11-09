@@ -27,6 +27,10 @@ interface Props {
   onKeyDown(e: React.KeyboardEvent): void;
   /** Dragged from one element's handle onto another. */
   onConnect(from: string, to: string): void;
+  /** A drag that ends without a change (Escape, pointer lost). */
+  onDragCancel(): void;
+  /** Whether a group can take a dragged node or a palette item. */
+  canDrop(group: string, what: { node?: string; palette?: number }): boolean;
   children?: React.ReactNode;
 }
 
@@ -47,7 +51,8 @@ interface Drag {
   node?: string;
   box?: Box;
   shift?: Point;
-  /** Group outlines when the drag started: the node's own group grows while it moves. */
+  /** Group outlines when the drag started, in pin space: the node's own group grows while it moves,
+   * and the layout's origin can shift. */
   groups?: Map<string, Box>;
   parent?: string;
 }
@@ -56,6 +61,9 @@ const MIN = 0.1;
 const MAX = 4;
 const clamp = (v: number) => Math.min(MAX, Math.max(MIN, v));
 const BAR = 64;
+
+const toPinSpace = (groups: Map<string, Box>, s: Point = { x: 0, y: 0 }) =>
+  new Map([...groups].map(([id, b]) => [id, { ...b, x: b.x + s.x, y: b.y + s.y }]));
 
 /** Smallest group box that holds a point. */
 function groupAt(groups: Map<string, Box>, p: Point): string | null {
@@ -79,6 +87,16 @@ export function Preview(p: Props) {
   const fitted = useRef<number>(-1);
   const anchor = useRef<{ doc: number; x: number; y: number }>(null);
   const frameReq = useRef(0);
+  /** The palette item being dragged in (dataTransfer cannot be read during dragover). */
+  const paletteDrag = useRef<number>(undefined);
+  useEffect(() => {
+    const start = (e: DragEvent) => {
+      const el = (e.target as Element | null)?.closest?.('[data-palette]') as HTMLElement | null;
+      paletteDrag.current = el ? Number(el.dataset.palette) : undefined;
+    };
+    window.addEventListener('dragstart', start);
+    return () => window.removeEventListener('dragstart', start);
+  }, []);
   const hovered = useRef(false);
 
   const fit = useCallback(() => {
@@ -197,7 +215,7 @@ export function Preview(p: Props) {
       node: id,
       box,
       shift: result?.placed?.shift ?? { x: 0, y: 0 },
-      groups: result?.placed ? new Map(result.placed.groups) : undefined,
+      groups: result?.placed ? toPinSpace(result.placed.groups, result.placed.shift) : undefined,
       parent: id ? result?.graph?.nodes.find((n) => n.id === id)?.parent : undefined,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -231,8 +249,28 @@ export function Preview(p: Props) {
     const pin = { x: Math.round(d.box!.x + d.shift!.x + dx / view.scale), y: Math.round(d.box!.y + d.shift!.y + dy / view.scale) };
     cancelAnimationFrame(frameReq.current);
     frameReq.current = requestAnimationFrame(() => p.onMove(d.node!, pin, false));
-    const target = groupAt(d.groups!, toLayout(e.clientX, e.clientY));
+    const target = dropGroup(d, e.clientX, e.clientY);
     setDropTarget(target !== (d.parent ?? null) ? target : undefined);
+  };
+
+  /** The group under the pointer that can take the dragged node (pin space, so shifts do not matter). */
+  const dropGroup = (d: Drag, cx: number, cy: number): string | null => {
+    const s = result?.placed?.shift ?? { x: 0, y: 0 };
+    const at = toLayout(cx, cy);
+    const g = groupAt(d.groups!, { x: at.x + s.x, y: at.y + s.y });
+    if (g && g !== d.parent && !p.canDrop(g, { node: d.node })) return d.parent ?? null;
+    return g;
+  };
+
+  const cancel = () => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    cancelAnimationFrame(frameReq.current);
+    setDragging(undefined);
+    setDropTarget(undefined);
+    setLink(undefined);
+    if (d.mode === 'node' && d.moved) p.onDragCancel();
   };
 
   const end = (e: React.PointerEvent, cancelled: boolean) => {
@@ -242,6 +280,10 @@ export function Preview(p: Props) {
     setDragging(undefined);
     setDropTarget(undefined);
     cancelAnimationFrame(frameReq.current);
+    if (cancelled) {
+      drag.current = d;
+      return cancel();
+    }
     if (d.mode === 'connect') {
       const target = link?.target;
       setLink(undefined);
@@ -252,7 +294,7 @@ export function Preview(p: Props) {
     if (d.moved) {
       if (d.mode === 'node') {
         const pin = { x: Math.round(d.box!.x + d.shift!.x + (e.clientX - d.x) / view.scale), y: Math.round(d.box!.y + d.shift!.y + (e.clientY - d.y) / view.scale) };
-        const target = groupAt(d.groups!, toLayout(e.clientX, e.clientY));
+        const target = dropGroup(d, e.clientX, e.clientY);
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
       }
       return;
@@ -269,7 +311,8 @@ export function Preview(p: Props) {
     if (!e.dataTransfer.types.includes(PALETTE_MIME) || !result?.placed) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    setDropTarget(groupAt(result.placed.groups, toLayout(e.clientX, e.clientY)));
+    const g = groupAt(result.placed.groups, toLayout(e.clientX, e.clientY));
+    setDropTarget(g && p.canDrop(g, { palette: paletteDrag.current }) ? g : undefined);
   };
   const onDrop = (e: React.DragEvent) => {
     const raw = e.dataTransfer.getData(PALETTE_MIME);
@@ -278,7 +321,8 @@ export function Preview(p: Props) {
     e.preventDefault();
     const at = toLayout(e.clientX, e.clientY);
     // Centre a card on the drop point; its exact size is known only after the next render.
-    p.onPaletteDrop(Number(raw), toPin({ x: at.x - 90, y: at.y - 29 }), groupAt(result.placed.groups, at));
+    const g = groupAt(result.placed.groups, at);
+    p.onPaletteDrop(Number(raw), toPin({ x: at.x - 90, y: at.y - 29 }), g && p.canDrop(g, { palette: Number(raw) }) ? g : null);
   };
 
   const box = selectedBox(result, selected);
@@ -304,7 +348,13 @@ export function Preview(p: Props) {
       onDragOver={onDragOver}
       onDragLeave={() => setDropTarget(undefined)}
       onDrop={onDrop}
-      onKeyDown={p.onKeyDown}
+      onKeyDown={(e) => {
+        if (drag.current && e.key === 'Escape') {
+          e.preventDefault();
+          return cancel();
+        }
+        p.onKeyDown(e);
+      }}
     >
       {empty ? (
         <div className="preview-empty">

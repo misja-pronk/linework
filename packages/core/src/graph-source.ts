@@ -7,8 +7,8 @@
 //     web: { kind: app-service, in: rg-app, label: Web shop }
 //   edges:
 //     - web -> db: { label: SQL, style: private }
-import { edgeItemSchema, parseEdge } from './edges.ts';
-import { idPattern, type BuildContext, type KindTable } from './diagram-type.ts';
+import { edgeItemSchema, edgeReferences, parseEdge } from './edges.ts';
+import { idPattern, type BuildContext, type KindTable, type Reference } from './diagram-type.ts';
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, Tone } from './model.ts';
 import { tones } from './model.ts';
 
@@ -36,6 +36,17 @@ export interface GraphSource {
   groups?: Record<string, string | Entry>;
   nodes?: Record<string, string | Entry>;
   edges?: unknown[];
+}
+
+/** References in node-and-edge YAML: `in:` and edge ends. */
+export function graphReferences(src: GraphSource): Reference[] {
+  const out: Reference[] = [];
+  const has = (c: 'groups' | 'nodes', id: string) => !!src[c] && Object.hasOwn(src[c]!, id);
+  for (const c of ['groups', 'nodes'] as const)
+    for (const [id, e] of Object.entries(src[c] ?? {}))
+      if (e && typeof e === 'object' && typeof e.in === 'string') out.push({ path: [c, id, 'in'], id: e.in, start: 0, collection: 'groups' });
+  out.push(...edgeReferences(src.edges, ['edges'], (id) => (has('nodes', id) ? 'nodes' : has('groups', id) ? 'groups' : undefined)));
+  return out;
 }
 
 export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string): object {

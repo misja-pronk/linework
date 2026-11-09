@@ -15,7 +15,7 @@ import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSvg, yamlName } from './export.ts';
-import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { canSaveFiles, canUseFolders, diagrams, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -202,8 +202,12 @@ export function App() {
   /** Saves where the document lives: its folder, its file, or a new file. Returns false when cancelled. */
   const save = async (): Promise<boolean> => {
     const now = textNow();
+    // Pins of elements that are no longer drawn are left out of the saved layout.
+    const drawnIds = new Set(result?.graph?.nodes.map((n) => n.id) ?? []);
+    const kept = pins?.nodes && result?.graph ? Object.fromEntries(Object.entries(pins.nodes).filter(([k]) => drawnIds.has(k))) : pins?.nodes;
+    const pinsToSave: LayoutSidecar | undefined = kept && Object.keys(kept).length ? { version: 1, nodes: kept } : undefined;
     try {
-      if (ws && doc.path) await saveInFolder(ws, doc.path, now, pins);
+      if (ws && doc.path) await saveInFolder(ws, doc.path, now, pinsToSave);
       else if (fileHandle.current) await saveFile(fileHandle.current, now);
       else if (canSaveFiles) {
         const r = await saveAs(yamlName(doc.name), now, ws?.dir);
@@ -212,7 +216,7 @@ export function App() {
         const inside = ws ? await ws.dir.resolve(r.handle) : null;
         if (ws && inside) {
           const path = inside.join('/');
-          await saveInFolder(ws, path, now, pins);
+          await saveInFolder(ws, path, now, pinsToSave);
           fileHandle.current = undefined;
           setDoc({ name: r.name, path });
           setWs(await scan(ws.dir));
@@ -327,7 +331,7 @@ export function App() {
 
   /** Applies a text edit (and optionally new pins) as one undo step. */
   const apply = (next: string | undefined, nextPins?: LayoutSidecar | null) => {
-    if (next == null) return notify('That change needs valid YAML first: fix the problems in the editor', { tone: 'error' });
+    if (next == null) return notify('That change did not work on this YAML: fix the problems in the editor, or make it there', { tone: 'error' });
     editor.current?.replace(next, { pins: nextPins });
   };
   const withPin = (id: string, at: Point | undefined): LayoutSidecar | null => {
@@ -337,6 +341,25 @@ export function App() {
     return Object.keys(nodes).length ? { version: 1, nodes } : null;
   };
   const textNow = () => editor.current?.text() ?? text;
+  /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
+  const ready = () => {
+    if (result?.graph && current) return true;
+    notify(result?.graph ? 'One moment: the drawing is catching up with the text' : 'Fix the problems in the YAML first', { tone: 'error' });
+    return false;
+  };
+  /** After an add, select the new element once it is drawn (node or group, whatever its type makes it). */
+  const [pendingPath, setPendingPath] = useState<string>();
+  useEffect(() => {
+    if (!pendingPath || !result?.graph || !current) return;
+    const n = result.graph.nodes.find((x) => JSON.stringify(x.path) === pendingPath);
+    const g = result.graph.groups.find((x) => JSON.stringify(x.path) === pendingPath);
+    if (n || g) {
+      setSelected(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id });
+      setInspector(true);
+      requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select());
+    }
+    setPendingPath(undefined);
+  }, [pendingPath, result, current]);
 
   const add = (item: PaletteItem, parentGroup?: string | null, at?: Point) => {
     setAdding(false);
@@ -347,23 +370,29 @@ export function App() {
     const r = addEntry(textNow(), type, item, parent);
     if (!r) return apply(undefined);
     apply(r.text, at ? withPin(r.id, at) : undefined);
-    setSelected({ kind: 'node', id: r.id });
-    setInspector(true);
-    // The label is what people change first.
-    requestAnimationFrame(() => (document.querySelector('.inspector input:not(.mono)') as HTMLInputElement | null)?.select());
+    // The label is what people change first: selected and focused once it is drawn.
+    setPendingPath(JSON.stringify(r.path));
   };
 
   const remove = () => {
     const path = pathOf(selected);
-    if (!path || !selected) return;
-    const next = deleteEntry(textNow(), path);
+    if (!path || !selected || !type || !ready()) return;
+    // A line that stands for part of something bigger (a policy, a list) is changed in the YAML.
+    const deletable = (path.length === 2 && typeof path[1] === 'string') || typeof path.at(-1) === 'number' || (selected.kind === 'edge' && isScalarAt(textNow(), path));
+    if (!deletable) {
+      notify('This one is part of a larger entry: change it in the YAML', { tone: 'error' });
+      const e = entries.find((x) => x.kind === selected.kind && x.id === selected.id);
+      if (e) editor.current?.reveal(e.from, e.to);
+      return;
+    }
+    const next = deleteEntry(textNow(), type, path);
     apply(next, selected.kind === 'node' && pins?.nodes?.[selected.id] ? withPin(selected.id, undefined) : undefined);
     if (next != null) setSelected(undefined);
   };
 
   const duplicate = () => {
     const path = pathOf(selected);
-    if (!path || !selected || path.length !== 2) return;
+    if (!path || !selected || path.length !== 2 || !ready()) return;
     const r = duplicateEntry(textNow(), path);
     if (!r) return apply(undefined);
     const box = result?.placed?.nodes.get(selected.id);
@@ -375,12 +404,15 @@ export function App() {
   const rename = (to: string): boolean => {
     const path = pathOf(selected);
     if (!path || !selected) return false;
-    const next = renameEntry(textNow(), path, to);
+    if (!type) return false;
+    const next = renameEntry(textNow(), type, path, to);
     if (next == null) return false;
     const old = String(path.at(-1));
     const nodeId = selected.id.endsWith(old) ? selected.id.slice(0, -old.length) + to : selected.id;
-    const pin = pins?.nodes?.[selected.id];
-    apply(next, pin ? { version: 1, nodes: { ...Object.fromEntries(Object.entries(pins!.nodes!).filter(([k]) => k !== selected.id)), [nodeId]: pin } } : undefined);
+    // Pins of the element and of what is drawn for it ("dev:policy:0") move to the new id.
+    const rekey = (k: string) => (k === selected.id ? nodeId : k.startsWith(`${selected.id}:`) ? nodeId + k.slice(selected.id.length) : k);
+    const moved = pins?.nodes && Object.keys(pins.nodes).some((k) => rekey(k) !== k);
+    apply(next, moved ? { version: 1, nodes: Object.fromEntries(Object.entries(pins!.nodes!).map(([k, v]) => [rekey(k), v])) } : undefined);
     setSelected({ kind: selected.kind, id: nodeId });
     return true;
   };
@@ -412,7 +444,7 @@ export function App() {
   };
 
   const connect = (from: string, to: string) => {
-    if (!type) return;
+    if (!type || !ready()) return;
     const r = connectEntries(textNow(), type, from, to);
     if ('error' in r) return notify(r.error, { tone: 'error' });
     apply(r.text);
@@ -420,7 +452,7 @@ export function App() {
   };
 
   const nudge = (dx: number, dy: number) => {
-    if (selected?.kind !== 'node') return;
+    if (selected?.kind !== 'node' || !current) return;
     const box = result?.placed?.nodes.get(selected.id);
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
     if (box) editor.current?.pin(withPin(selected.id, { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) }) ?? undefined);
@@ -645,7 +677,14 @@ export function App() {
             mark={mark}
             onChange={onChange}
             onCursor={onCursor}
-            onPins={setPins}
+            onPins={(p) => {
+              setPins(p);
+              // A move also ends the "undo open" offer: undoing the open would lose it.
+              if (openedText.current != null) {
+                openedText.current = null;
+                setToast((t) => (t?.action?.label === 'Undo' ? undefined : t));
+              }
+            }}
           />
         </section>
         <div
@@ -672,6 +711,13 @@ export function App() {
             onSelect={select}
             onMove={move}
             onConnect={connect}
+            onDragCancel={() => setDraft(undefined)}
+            canDrop={(group, what) => {
+              const g = result?.graph?.groups.find((x) => x.id === group);
+              if (!type || !g || g.path.length !== 2) return false;
+              const collection = what.palette != null ? type.palette[what.palette]?.collection : String(pathOf({ kind: 'node', id: what.node! })?.[0] ?? '');
+              return !!collection && !!parentKey(type, collection, String(g.path[0]));
+            }}
             onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
             onKeyDown={onCanvasKey}
           >

@@ -291,6 +291,8 @@ kbd {
 .preview {
   position: absolute;
   inset: 0;
+  user-select: none;
+  -webkit-user-select: none;
   overflow: hidden;
   background-color: var(--canvas);
   background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);

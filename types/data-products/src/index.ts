@@ -24,6 +24,7 @@ import {
   type KindTable,
   type LegendItem,
   type PaletteItem,
+  type Reference,
   type RowMark,
   type TableRow,
   type Tone,
@@ -517,6 +518,30 @@ export const dataProducts: DiagramType<DataProductSource> = {
   schema,
   palette,
   build,
+  references(src) {
+    const out: Reference[] = [];
+    const products = src.products ?? {};
+    const of = (id: string) => (Object.hasOwn(products, id) ? 'products' : src.sources && Object.hasOwn(src.sources, id) ? 'sources' : undefined);
+    // "orders" or "orders.port": the product part is the reference.
+    const refs = (list: Ref[] | undefined, path: (string | number)[]) =>
+      (list ?? []).forEach((r, i) => {
+        const at = typeof r === 'string' ? [...path, i] : [...path, i, 'from'];
+        const id = (typeof r === 'string' ? r : r.from).split('.')[0]!;
+        const collection = of(id);
+        if (collection) out.push({ path: at, id, start: 0, collection, onDelete: 'item' });
+      });
+    for (const c of ['sources', 'products', 'consumers'] as const)
+      for (const [id, e] of Object.entries(src[c] ?? {}))
+        if (e && typeof e === 'object' && typeof e.domain === 'string') out.push({ path: [c, id, 'domain'], id: e.domain, start: 0, collection: 'domains' });
+    for (const [id, p] of Object.entries(products)) {
+      refs(p?.inputs, ['products', id, 'inputs']);
+      for (const [port, o] of Object.entries(p?.outputs ?? {}))
+        if (o && typeof o === 'object' && typeof o.contract === 'string') out.push({ path: ['products', id, 'outputs', port, 'contract'], id: o.contract, start: 0, collection: 'contracts' });
+    }
+    for (const [id, c] of Object.entries(src.consumers ?? {})) if (c && typeof c === 'object') refs(c.uses, ['consumers', id, 'uses']);
+    (src.detail ?? []).forEach((id, i) => out.push({ path: ['detail', i], id, start: 0, collection: 'products' }));
+    return out;
+  },
   connect(src, from, to) {
     const product = src.products?.[from];
     // From a product with several output ports, take the first: the port is easy to change in the YAML.

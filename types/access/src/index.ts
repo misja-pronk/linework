@@ -17,6 +17,7 @@ import {
   type MatrixCell,
   type MatrixHeader,
   type PaletteItem,
+  type Reference,
   type Tone,
 } from '@cartography/core';
 
@@ -263,7 +264,9 @@ function graphView(m: Model): Graph {
     });
 
   for (const [id, p] of m.principals)
-    for (const g of list(p['member-of'])) if (m.principal(g)) edge(id, g, 'member', undefined, ['principals', id, 'member-of']);
+    // Each line points at its own list item, so deleting one line removes only that one.
+    for (const [i, g] of list(p['member-of']).entries())
+      if (m.principal(g)) edge(id, g, 'member', undefined, ['principals', id, 'member-of', ...(Array.isArray(p['member-of']) ? [i] : [])]);
   for (const [id, p] of m.packages) {
     // Each policy is its own card between requestors and package: who approves, for how long.
     for (const [i, pol] of m.policies(p).entries()) {
@@ -278,10 +281,11 @@ function graphView(m: Model): Graph {
         shape: { kind: 'card', label: label.charAt(0).toUpperCase() + label.slice(1), caption, icon: 'list-checks', tone: 'slate' },
         path,
       });
-      for (const r of list(pol.requestors)) if (m.principal(r)) edge(r, policyId, 'request', undefined, path);
+      for (const [j, r] of list(pol.requestors).entries())
+        if (m.principal(r)) edge(r, policyId, 'request', undefined, [...path, 'requestors', ...(Array.isArray(pol.requestors) ? [j] : [])]);
       edge(policyId, id, 'request', undefined, path);
     }
-    for (const h of p.holders ?? []) if (m.principal(h)) edge(h, id, 'holds', undefined, ['packages', id, 'holders']);
+    for (const [i, h] of (p.holders ?? []).entries()) if (m.principal(h)) edge(h, id, 'holds', undefined, ['packages', id, 'holders', i]);
     for (const [i, g] of m.grants(p).entries())
       if (m.principal(g.target) || m.resource(g.target)) edge(id, g.target, 'grant', m.principal(g.target) ? undefined : g.role, ['packages', id, 'grants', i]);
   }
@@ -531,6 +535,45 @@ export const access: DiagramType<AccessSource> = {
   },
   palette,
   build,
+  references(src) {
+    const out: Reference[] = [];
+    const has = (c: 'principals' | 'resources' | 'roles' | 'catalogs' | 'packages', id: string) => !!src[c] && Object.hasOwn(src[c]!, id);
+    // A value that is one id or a list of ids.
+    const ids = (v: unknown, path: (string | number)[], collection: 'principals' | 'resources' | 'roles') => {
+      if (typeof v === 'string') {
+        if (has(collection, v)) out.push({ path, id: v, start: 0, collection });
+      } else if (Array.isArray(v)) v.forEach((x, i) => typeof x === 'string' && has(collection, x) && out.push({ path: [...path, i], id: x, start: 0, collection }));
+    };
+    for (const [id, p] of Object.entries(src.principals ?? {})) if (p && typeof p === 'object') ids(p['member-of'], ['principals', id, 'member-of'], 'principals');
+    for (const [id, r] of Object.entries(src.resources ?? {})) if (r && typeof r === 'object') ids(r.in, ['resources', id, 'in'], 'resources');
+    for (const [id, r] of Object.entries(src.roles ?? {})) if (r) ids(r.inherits, ['roles', id, 'inherits'], 'roles');
+    for (const [id, p] of Object.entries(src.packages ?? {})) {
+      const base = ['packages', id];
+      if (typeof p.catalog === 'string') out.push({ path: [...base, 'catalog'], id: p.catalog, start: 0, collection: 'catalogs' });
+      ids(p.holders, [...base, 'holders'], 'principals');
+      for (const [i, g] of (p.grants ?? []).entries()) {
+        if (typeof g === 'string') ids(g, [...base, 'grants', i], 'principals');
+        else if (g && typeof g === 'object') for (const k of Object.keys(g)) if (has('resources', k)) out.push({ path: [...base, 'grants', i], key: true, id: k, start: 0, collection: 'resources' });
+      }
+      const policies = Array.isArray(p.policy) ? p.policy.map((x, i) => [x, [...base, 'policy', i]] as const) : p.policy ? [[p.policy, [...base, 'policy']] as const] : [];
+      for (const [pol, path] of policies) {
+        ids(pol.requestors, [...path, 'requestors'], 'principals');
+        ids(pol.approval, [...path, 'approval'], 'principals');
+      }
+    }
+    for (const [i, a] of (src.assignments ?? []).entries()) {
+      if (typeof a === 'string') {
+        const m = new RegExp(ASSIGNMENT.source, 'd').exec(a);
+        if (!m?.indices) continue;
+        (['principals', 'roles', 'resources'] as const).forEach((c, g) => out.push({ path: ['assignments', i], id: m[g + 1]!, start: m.indices![g + 1]![0], collection: c, onDelete: 'item' }));
+      } else if (a) {
+        out.push({ path: ['assignments', i, 'principal'], id: a.principal, start: 0, collection: 'principals', onDelete: 'item' });
+        out.push({ path: ['assignments', i, 'role'], id: a.role, start: 0, collection: 'roles', onDelete: 'item' });
+        out.push({ path: ['assignments', i, 'scope'], id: a.scope, start: 0, collection: 'resources', onDelete: 'item' });
+      }
+    }
+    return out;
+  },
   connect(src, from, to) {
     const is = (collection: 'principals' | 'packages' | 'resources', id: string) => !!src[collection] && id in src[collection]!;
     if (is('principals', from) && is('principals', to)) return { path: ['principals', from, 'member-of'], value: to };

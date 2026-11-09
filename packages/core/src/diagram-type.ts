@@ -18,6 +18,8 @@ export interface DiagramType<Source = any> {
    * saying why these two cannot be connected. Without it, connections go to `edges` as "a -> b".
    */
   connect?(source: Source, from: string, to: string): Connection | string;
+  /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
+  references?(source: Source): Reference[];
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
 }
@@ -28,6 +30,25 @@ export interface Connection {
   /** Set this key in the map at `path` instead of appending to a list, e.g. a foreign-key column. */
   key?: string;
   value: unknown;
+}
+
+/** One id written somewhere in the YAML. */
+export interface Reference {
+  /** The scalar that holds the id, or the map whose single key holds it when `key` is set ("a -> b": …). */
+  path: Path;
+  key?: boolean;
+  id: string;
+  /** Where the id starts inside that string ("a -> b" holds two). */
+  start: number;
+  /** The collection of the entry it names, e.g. 'groups'. */
+  collection: string;
+  /**
+   * What deleting the named entry does here: drop the list item it sits in (default when the path
+   * holds a list index), drop the map key (default otherwise), or cut `cut` out of the string.
+   */
+  onDelete?: 'item' | 'key' | 'cut';
+  /** Characters to cut on delete, e.g. "fk orders.id" out of a column spec. */
+  cut?: [number, number];
 }
 
 export interface BuildContext {

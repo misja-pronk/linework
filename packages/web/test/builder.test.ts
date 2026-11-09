@@ -46,19 +46,19 @@ describe('builder edits', () => {
   });
 
   it('renames an entry and every reference', () => {
-    const t = renameEntry(shop, ['nodes', 'db'], 'orders-db')!;
+    const t = renameEntry(shop, azure, ['nodes', 'db'], 'orders-db')!;
     expect(t).toContain('orders-db: { kind: sql-database, in: rg }');
     expect(t).toContain('- web -> orders-db: SQL');
     expect(t).toContain('- orders-db -> web');
-    expect(renameEntry(t, ['groups', 'rg'], 'prod')).toContain('web: { kind: app-service, in: prod }');
-    expect(renameEntry(shop, ['nodes', 'db'], 'web')).toBeUndefined();
+    expect(renameEntry(t, azure, ['groups', 'rg'], 'prod')).toContain('web: { kind: app-service, in: prod }');
+    expect(renameEntry(shop, azure, ['nodes', 'db'], 'web')).toBeUndefined();
   });
 
   it('deletes an entry with the edges and parent keys that name it', () => {
-    const t = deleteEntry(shop, ['nodes', 'db'])!;
+    const t = deleteEntry(shop, azure, ['nodes', 'db'])!;
     expect(t).not.toContain('db');
     expect(t).toContain('edges: []');
-    expect(deleteEntry(shop, ['groups', 'rg'])).toContain('web: { kind: app-service }');
+    expect(deleteEntry(shop, azure, ['groups', 'rg'])).toContain('web: { kind: app-service }');
   });
 
   it('duplicates next to the original', () => {
@@ -85,10 +85,10 @@ describe('connections', () => {
   });
   it('follows the type: inputs, member-of, foreign keys', () => {
     const dpText = 'type: data-products\nsources:\n  db: database\nproducts:\n  orders:\n    inputs: [db]\n  revenue: {}\n';
-    expect(connectEntries(dpText, dp, 'orders', 'revenue')).toMatchObject({ text: expect.stringContaining('revenue: { inputs: [ orders ] }') });
+    expect(connectEntries(dpText, dp, 'orders', 'revenue')).toMatchObject({ text: expect.stringContaining('revenue: { inputs: [orders] }') });
     expect(connectEntries(dpText, dp, 'db', 'orders')).toEqual({ error: 'They are already connected' });
     const acc = 'type: access\nprincipals:\n  alice: user\n  devs: group\n';
-    expect(connectEntries(acc, access, 'alice', 'devs')).toMatchObject({ text: expect.stringContaining('alice: { kind: user, member-of: [ devs ] }') });
+    expect(connectEntries(acc, access, 'alice', 'devs')).toMatchObject({ text: expect.stringContaining('alice: { kind: user, member-of: [devs] }') });
     const db = 'type: erd\ntables:\n  orders:\n    columns:\n      id: uuid pk\n  customers:\n    columns:\n      id: bigint pk\n';
     expect(connectEntries(db, erd, 'orders', 'customers')).toMatchObject({ text: expect.stringContaining('customer_id: bigint fk customers') });
   });
@@ -99,5 +99,88 @@ describe('connections', () => {
     expect(styled).toContain('- db -> web: { label: reads, style: private }');
     expect(setEdgeField(setEdgeField(styled, ['edges', 1], 'style', undefined)!, ['edges', 1], 'label', '')).toContain('- db -> web\n');
     expect(edgeFields(styled, azure, ['edges', 1]).find((f) => f.key === 'style')).toMatchObject({ kind: 'select', value: 'private' });
+  });
+});
+
+describe('references, not text matches', () => {
+  const access = findType('access')!;
+  const erd = findType('erd')!;
+  it('leaves labels, kinds and other collections alone on rename', () => {
+    const t = `type: azure
+nodes:
+  web: { kind: app-service, label: web traffic, caption: db.example.com }
+  key-vault: { kind: key-vault }
+  db: { kind: sql-database }
+edges:
+  - web -> db: reads db
+`;
+    const r = renameEntry(t, azure, ['nodes', 'db'], 'orders')!;
+    expect(r).toContain('caption: db.example.com');
+    expect(r).toContain('- web -> orders: reads db');
+    expect(renameEntry(t, azure, ['nodes', 'key-vault'], 'vault')).toContain('vault: { kind: key-vault }');
+    expect(renameEntry(t, azure, ['nodes', 'web'], 'site')).toContain('label: web traffic');
+  });
+
+  it('keeps product references when a contract with the same name changes', () => {
+    const t = `type: data-products
+products:
+  orders:
+    outputs:
+      orders: { kind: table, contract: orders }
+  revenue:
+    inputs: [orders.orders]
+contracts:
+  orders: { version: 1 }
+`;
+    const r = renameEntry(t, dp, ['contracts', 'orders'], 'orders-v1')!;
+    expect(r).toContain('contract: orders-v1');
+    expect(r).toContain('inputs: [orders.orders]');
+    const d = deleteEntry(t, dp, ['contracts', 'orders'])!;
+    expect(d).toContain('inputs: [orders.orders]');
+    expect(d).toContain('orders: { kind: table }');
+    expect(renameEntry(t, dp, ['products', 'orders'], 'sales')).toContain('inputs: [sales.orders]');
+  });
+
+  it('follows foreign keys and assignments', () => {
+    const db = `type: erd
+tables:
+  customers:
+    columns:
+      id: uuid pk
+  orders:
+    columns:
+      customer_id: uuid fk customers.id null
+`;
+    expect(renameEntry(db, erd, ['tables', 'customers'], 'clients')).toContain('customer_id: uuid fk clients.id null');
+    expect(deleteEntry(db, erd, ['tables', 'customers'])).toContain('customer_id: uuid null');
+    const acc = `type: access
+principals:
+  alice: user
+  devs: { kind: group }
+resources:
+  rg: resource-group
+roles:
+  reader: {}
+assignments:
+  - devs is reader on rg
+  - alice is reader on rg
+`;
+    const r = renameEntry(acc, access, ['principals', 'devs'], 'developers')!;
+    expect(r).toContain('- developers is reader on rg');
+    const d = deleteEntry(acc, access, ['principals', 'devs'])!;
+    expect(d).not.toContain('devs is reader');
+    expect(d).toContain('- alice is reader on rg');
+  });
+
+  it('touches only the changed lines of a hand-formatted file', () => {
+    const t = `type: azure
+nodes:
+    web:   { kind: app-service }    # front
+
+
+    db:
+        kind: sql-database
+`;
+    expect(setField(t, azure, ['nodes', 'db'], 'label', 'Orders')).toBe(t.replace('        kind: sql-database\n', '        kind: sql-database\n        label: Orders\n'));
   });
 });

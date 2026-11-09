@@ -1,6 +1,6 @@
 // GitHub design: enterprise → organisations → teams and repositories, with environments,
 // workflows, secrets, rulesets, runners and apps, and who has which access.
-import { buildGraph, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
 
 // Generic line icons; GitHub's logo and Octicons are not used (trademark).
 export const config: GraphTypeConfig = {
@@ -59,6 +59,7 @@ export const github: DiagramType<GraphSource> = {
   schema: graphSchema('github', config, 'Cartography GitHub diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
+  references: graphReferences,
   template: `type: github
 title: GitHub setup
 subtitle: Teams, repositories and deployments

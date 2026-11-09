@@ -1,4 +1,4 @@
-import { buildGraph, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
 
 // Generic line icons in one style; no Microsoft icons, their terms forbid redistributing them.
 export const config: GraphTypeConfig = {
@@ -78,6 +78,7 @@ export const azure: DiagramType<GraphSource> = {
   schema: graphSchema('azure', config, 'Cartography Azure diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
+  references: graphReferences,
   template: `type: azure
 title: Web shop
 subtitle: Production

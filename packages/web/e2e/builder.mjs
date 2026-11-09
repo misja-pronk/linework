@@ -94,8 +94,11 @@ await wait(500);
 if (!/function-app: \{ kind: function-app, label: Function App, in: /.test(await yaml())) fail('palette drop did not nest: ' + (await yaml()).split('\n').filter((l) => l.includes('function-app')).join(' | '));
 await page.screenshot({ path: `${out}/5-dropped.png` });
 
-// 9. Connect by dragging the handle from one node to another.
+// 9. Connect by dragging the handle from one node to another (nothing selected, all in view).
+await page.locator('.preview').focus();
 await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
 const a = await page.locator('.drawing [data-node="users"]').boundingBox();
 await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
 await wait(100);
@@ -107,7 +110,7 @@ for (let i = 1; i <= 8; i++) await page.mouse.move(h.x + ((b.x + b.width / 2 - h
 await page.screenshot({ path: `${out}/6-connecting.png` });
 await page.mouse.up();
 await wait(400);
-if (!(await yaml()).includes('- users -> vault')) fail('connect did not add an edge');
+if (!(await yaml()).includes('- users -> vault')) fail('connect did not add an edge: ' + ((await page.locator('.toast').allInnerTexts()).join() || 'no message') + '\n' + (await yaml()).split('edges:')[1]);
 
 // 10. Select the new line and give it a label in the inspector.
 const edges = page.locator('.drawing [data-edge]');

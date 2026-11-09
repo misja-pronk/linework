@@ -6,6 +6,7 @@
 //   - { from: web, to: db, label: SQL }
 // An endpoint may name a row: orders.customer_id
 import type { Endpoint, GraphEdge, Path } from './model.ts';
+import type { Reference } from './diagram-type.ts';
 
 export interface EdgeSpec {
   from: Endpoint;
@@ -30,6 +31,39 @@ const OPERATORS: Record<string, Pick<EdgeSpec, 'line' | 'start' | 'end'>> = {
 };
 
 export const edgePattern = ARROW.source;
+
+/** The ids in an edge list, whatever form each edge takes. `collectionOf` says what an id names. */
+export function edgeReferences(items: unknown, base: Path, collectionOf: (id: string) => string | undefined): Reference[] {
+  if (!Array.isArray(items)) return [];
+  const out: Reference[] = [];
+  const ends = (s: string, path: Path, key: boolean) => {
+    const m = new RegExp(ARROW.source, 'd').exec(s);
+    if (!m?.indices) return;
+    for (const g of [1, 3]) {
+      const id = m[g]!.split('.')[0]!;
+      const collection = collectionOf(id);
+      if (collection) out.push({ path, key, id, start: m.indices[g]![0], collection });
+    }
+  };
+  for (const [i, item] of items.entries()) {
+    const path = [...base, i];
+    if (typeof item === 'string') ends(item, path, false);
+    else if (item && typeof item === 'object') {
+      const o = item as Record<string, unknown>;
+      if (typeof o.from === 'string' || typeof o.to === 'string') {
+        for (const k of ['from', 'to'] as const) {
+          const id = typeof o[k] === 'string' ? (o[k] as string).split('.')[0]! : undefined;
+          const collection = id ? collectionOf(id) : undefined;
+          if (id && collection) out.push({ path: [...path, k], id, start: 0, collection });
+        }
+      } else {
+        const keys = Object.keys(o);
+        if (keys.length === 1) ends(keys[0]!, path, true);
+      }
+    }
+  }
+  return out;
+}
 
 export function endpoint(ref: string): Endpoint {
   const dot = ref.indexOf('.');

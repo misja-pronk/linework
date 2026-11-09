@@ -157,7 +157,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
       const pins = opts.pins === undefined ? undefined : [setPins.of({ before, after: opts.pins ?? undefined })];
       const select = opts.select;
       if (old === text) {
-        if (pins) v.dispatch({ effects: pins });
+        if (pins) v.dispatch({ effects: pins, annotations: Transaction.userEvent.of('builder.pin') });
         return;
       }
       // Replace only the changed middle, so marks, folds and the cursor elsewhere stay put.
@@ -170,11 +170,13 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
         selection: select ? { anchor: select.from, head: select.to ?? select.from } : undefined,
         scrollIntoView: !!select,
         effects: pins,
+        // Not "input.type": the history never merges a builder edit with typing or another edit.
+        annotations: Transaction.userEvent.of('builder'),
       });
     },
     pin(pins) {
       const v = view.current!;
-      v.dispatch({ effects: setPins.of({ before: v.state.field(pinsField), after: pins }) });
+      v.dispatch({ effects: setPins.of({ before: v.state.field(pinsField), after: pins }), annotations: Transaction.userEvent.of('builder.pin') });
     },
     load(text, pins) {
       const v = view.current!;

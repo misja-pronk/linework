@@ -2,7 +2,8 @@
 // and every change is an ordinary edit in the editor (one undo history, two-way sync for free).
 // Everything is driven by the type's JSON Schema and palette: a new type gets a builder without UI code.
 import { isMap, isScalar, isSeq, parseDocument, YAMLMap, type Document, type Node, type Pair } from 'yaml';
-import type { DiagramType, PaletteItem } from '@cartography/core';
+import type { DiagramType, PaletteItem, Reference } from '@cartography/core';
+import { printPreserving } from './yaml-print.ts';
 import { iconNames } from '@cartography/icons';
 import { schemasAt } from './complete.ts';
 
@@ -20,12 +21,20 @@ export const refKeys: Record<string, string[]> = {
   contract: ['contracts'],
 };
 
+const sources = new WeakMap<Document, string>();
+
 function parse(text: string): Document | undefined {
-  const doc = parseDocument(text, { keepSourceTokens: false });
-  return doc.errors.length ? undefined : doc;
+  const doc = parseDocument(text);
+  if (doc.errors.length) return undefined;
+  sources.set(doc, text);
+  return doc;
 }
 
-const str = (doc: Document) => doc.toString(FORMAT);
+/** The edited document as text: only what changed is rewritten, the rest keeps its exact bytes. */
+const str = (doc: Document) => {
+  const src = sources.get(doc);
+  return src == null ? doc.toString(FORMAT) : printPreserving(src, doc);
+};
 
 /** Ids in a collection, e.g. ids(text, 'nodes'). */
 export function idsIn(text: string, collection: string): string[] {
@@ -71,7 +80,7 @@ export interface Added {
 }
 
 /** Adds a palette item as a new entry, optionally inside a parent entry. */
-export function addEntry(text: string, type: DiagramType, item: PaletteItem, parent?: { collection: string; id: string }): Added | undefined {
+function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, parent?: { collection: string; id: string }): Added | undefined {
   const doc = parse(text);
   if (!doc) return undefined;
   const id = uniqueId(doc, item.kind);
@@ -83,7 +92,7 @@ export function addEntry(text: string, type: DiagramType, item: PaletteItem, par
     const pk = parentKey(type, item.collection, parent.collection);
     if (pk) value[pk] = parent.id;
   }
-  if (!doc.has(item.collection)) doc.set(item.collection, doc.createNode({}));
+  if (!doc.has(item.collection) || doc.get(item.collection) == null) doc.set(item.collection, doc.createNode({}));
   const collection = doc.get(item.collection);
   if (!isMap(collection)) return undefined;
   if (collection.flow) collection.flow = false;
@@ -109,7 +118,7 @@ function entryMap(doc: Document, type: DiagramType, path: Path): YAMLMap | undef
 }
 
 /** Sets (or with undefined/empty, removes) one field of an entry. */
-export function setField(text: string, type: DiagramType, path: Path, key: string, value: unknown): string | undefined {
+function setFieldUnsafe(text: string, type: DiagramType, path: Path, key: string, value: unknown): string | undefined {
   const doc = parse(text);
   if (!doc) return undefined;
   const map = entryMap(doc, type, path);
@@ -120,85 +129,65 @@ export function setField(text: string, type: DiagramType, path: Path, key: strin
   return str(doc);
 }
 
-/** Renames an entry and every reference to it: parent keys, edge ends, lists of ids. */
-export function renameEntry(text: string, path: Path, to: string): string | undefined {
+/** The references to one entry, as the type declares them. */
+function referencesTo(doc: Document, type: DiagramType, collection: string, id: string): Reference[] {
+  if (!type.references) return [];
+  return type.references(doc.toJS() as never).filter((r) => r.collection === collection && r.id === id);
+}
+
+/** Renames an entry and every reference to it, and nothing else (labels and other collections stay). */
+function renameEntryUnsafe(text: string, type: DiagramType, path: Path, to: string): string | undefined {
   const doc = parse(text);
   const from = String(path.at(-1));
-  if (!doc || !/^[A-Za-z0-9_-]+$/.test(to) || from === to) return undefined;
+  if (!doc || !/^[A-Za-z0-9_-]+$/.test(to) || from === to || path.length !== 2) return undefined;
   const parentNode = doc.getIn(path.slice(0, -1));
   if (!isMap(parentNode) || parentNode.has(to)) return undefined;
   const pair = parentNode.items.find((p) => String((p.key as { value?: unknown }).value) === from);
   if (!pair) return undefined;
+  const refs = referencesTo(doc, type, String(path[0]), from);
   (pair.key as { value: unknown }).value = to;
-  replaceRefs(doc.contents as Node, from, to, pair);
+  // Later ids in the same string first, so earlier offsets stay right.
+  for (const r of [...refs].sort((a, b) => b.start - a.start)) {
+    const node = doc.getIn(r.path, true);
+    if (r.key && isMap(node) && node.items.length === 1 && isScalar(node.items[0]!.key)) {
+      const k = node.items[0]!.key;
+      k.value = splice(String(k.value), r.start, from.length, to);
+    } else if (isScalar(node) && typeof node.value === 'string') node.value = splice(node.value, r.start, from.length, to);
+  }
   return str(doc);
 }
 
-const ARROW = /^(\s*)([A-Za-z0-9_.-]+)(\s*(?:<->|-->|\.\.>|->|--)\s*)([A-Za-z0-9_.-]+)(\s*)$/;
+const splice = (s: string, at: number, len: number, insert: string) => s.slice(0, at) + insert + s.slice(at + len);
 
-function swapRef(s: string, from: string, to: string): string {
-  if (s === from) return to;
-  if (s.startsWith(`${from}.`)) return to + s.slice(from.length);
-  const m = ARROW.exec(s);
-  if (m) return m[1] + swapRef(m[2]!, from, to) + m[3] + swapRef(m[4]!, from, to) + m[5];
-  // "who is role on scope" assignments.
-  return s.replace(new RegExp(`(^|\\s)${from.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')}(?=\\s|$)`, 'g'), `$1${to}`);
-}
-
-function replaceRefs(node: unknown, from: string, to: string, skip: Pair) {
-  if (isMap(node)) {
-    for (const p of node.items) {
-      if (p === skip) continue;
-      // Edge keys like "web -> db: label" carry ids in the key.
-      if (isScalar(p.key) && typeof p.key.value === 'string' && ARROW.test(p.key.value)) p.key.value = swapRef(p.key.value, from, to);
-      if (isScalar(p.value) && typeof p.value.value === 'string') p.value.value = swapRef(p.value.value, from, to);
-      else replaceRefs(p.value, from, to, skip);
-    }
-  } else if (isSeq(node)) {
-    for (const item of node.items) {
-      if (isScalar(item) && typeof item.value === 'string') item.value = swapRef(item.value, from, to);
-      else replaceRefs(item, from, to, skip);
-    }
-  }
-}
-
-const mentions = (s: string, id: string) => s === id || s.startsWith(`${id}.`) || (ARROW.test(s) && swapRef(s, id, '\u0000') !== s);
-
-/** Deletes an entry, and the edges and list items that name it (they would only be errors). */
-export function deleteEntry(text: string, path: Path): string | undefined {
+/** Deletes an entry and what only made sense with it: edges to it, list items naming it, `in:` keys. */
+function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string | undefined {
   const doc = parse(text);
   if (!doc) return undefined;
-  const id = String(path.at(-1));
   const isListItem = typeof path.at(-1) === 'number';
-  doc.deleteIn(path);
-  if (!isListItem) pruneRefs(doc.contents, id);
-  return str(doc);
-}
-
-function pruneRefs(node: unknown, id: string) {
-  if (isSeq(node)) {
-    node.items = node.items.filter((item) => {
-      if (isScalar(item) && typeof item.value === 'string') return !mentions(item.value, id);
-      if (isMap(item) && item.items.length === 1 && isScalar(item.items[0]!.key)) return !mentions(String(item.items[0]!.key.value), id);
-      if (isMap(item)) {
-        const from = item.get('from');
-        const to = item.get('to');
-        if (from === id || to === id || (typeof from === 'string' && from.startsWith(`${id}.`))) return false;
-      }
-      pruneRefs(item, id);
-      return true;
-    });
-  } else if (isMap(node)) {
-    for (const p of [...node.items]) {
-      // A parent key that names the deleted entry goes too: the child moves to the top level.
-      if (isScalar(p.value) && p.value.value === id && isScalar(p.key) && String(p.key.value) in refKeys) node.delete(p.key);
-      else pruneRefs(p.value, id);
-    }
+  const refs = isListItem || path.length !== 2 ? [] : referencesTo(doc, type, String(path[0]), String(path[1]));
+  const items = new Map<string, Path>();
+  const keys: Path[] = [];
+  const cuts: Reference[] = [];
+  for (const r of refs) {
+    const last = r.path.reduce<number>((at, seg, i) => (typeof seg === 'number' ? i : at), -1);
+    const mode = r.onDelete ?? (last >= 0 ? 'item' : 'key');
+    if (mode === 'item' && last >= 0) items.set(JSON.stringify(r.path.slice(0, last + 1)), r.path.slice(0, last + 1));
+    else if (mode === 'cut') cuts.push(r);
+    else keys.push(r.path);
   }
+  for (const r of cuts) {
+    const node = doc.getIn(r.path, true);
+    if (isScalar(node) && typeof node.value === 'string' && r.cut) node.value = (node.value.slice(0, r.cut[0]) + node.value.slice(r.cut[1])).trim();
+  }
+  for (const k of keys) doc.deleteIn(k);
+  // List items last, highest index first, so earlier indexes stay valid.
+  for (const p of [...items.values()].sort((a, b) => (b.at(-1) as number) - (a.at(-1) as number))) doc.deleteIn(p);
+  doc.deleteIn(path);
+  return str(doc);
 }
 
 /** Copies an entry under a new id next to it. */
-export function duplicateEntry(text: string, path: Path): Added | undefined {
+function duplicateEntryUnsafe(text: string, path: Path): Added | undefined {
   const doc = parse(text);
   if (!doc || typeof path.at(-1) === 'number') return undefined;
   const parentNode = doc.getIn(path.slice(0, -1));
@@ -282,7 +271,7 @@ function summary(v: unknown): string {
 // ---------------------------------------------------------------- connections
 
 /** Connects two drawn elements the way their type says, or explains why not. */
-export function connectEntries(text: string, type: DiagramType, from: string, to: string): { text: string } | { error: string } {
+function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to: string): { text: string } | { error: string } {
   const doc = parse(text);
   if (!doc) return { error: 'Fix the problems in the YAML first' };
   if (from === to) return { error: 'Pick another element to connect to' };
@@ -356,7 +345,7 @@ function edgeValues(item: unknown): Record<string, unknown> {
 }
 
 /** Sets one property of an edge, rewriting shorthand into "a -> b: { … }" only when needed. */
-export function setEdgeField(text: string, path: Path, key: string, value: unknown): string | undefined {
+function setEdgeFieldUnsafe(text: string, path: Path, key: string, value: unknown): string | undefined {
   const doc = parse(text);
   if (!doc) return undefined;
   const item = doc.getIn(path, true);
@@ -386,4 +375,36 @@ export function setEdgeField(text: string, path: Path, key: string, value: unkno
   if (isMap(node)) node.flow = false;
   doc.setIn(path, node);
   return str(doc);
+}
+
+export const addEntry = safe(addEntryUnsafe);
+export const setField = safe(setFieldUnsafe);
+export const renameEntry = safe(renameEntryUnsafe);
+export const deleteEntry = safe(deleteEntryUnsafe);
+export const duplicateEntry = safe(duplicateEntryUnsafe);
+export const setEdgeField = safe(setEdgeFieldUnsafe);
+export function connectEntries(...args: Parameters<typeof connectEntriesUnsafe>): ReturnType<typeof connectEntriesUnsafe> {
+  try {
+    return connectEntriesUnsafe(...args);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** A builder edit that fails (aliases, odd YAML) gives no text instead of an exception in a click handler. */
+function safe<A extends unknown[], R>(f: (...a: A) => R): (...a: A) => R | undefined {
+  return (...a) => {
+    try {
+      return f(...a);
+    } catch (e) {
+      console.warn('builder edit failed', e);
+      return undefined;
+    }
+  };
+}
+
+/** Whether the value at a path is a single scalar (a one-item reference like "member-of: devs"). */
+export function isScalarAt(text: string, path: Path): boolean {
+  const doc = parse(text);
+  return !!doc && isScalar(doc.getIn(path, true));
 }

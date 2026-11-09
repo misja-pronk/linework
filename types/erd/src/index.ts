@@ -11,6 +11,7 @@
 //     - order_lines.product_id -> products.id: { cardinality: many-to-one, label: sells }
 import {
   edgeItemSchema,
+  edgeReferences,
   idPattern,
   parseEdge,
   tones,
@@ -21,6 +22,7 @@ import {
   type GraphGroup,
   type GraphNode,
   type Marker,
+  type Reference,
   type RowMark,
   type Tone,
 } from '@cartography/core';
@@ -289,6 +291,23 @@ export const erd: DiagramType<ErdSource> = {
       relations: { type: 'array', items: edgeItemSchema({ cardinality: { enum: cardinalities } }) },
     },
     additionalProperties: false,
+  },
+  references(src) {
+    const out: Reference[] = [];
+    const tables = src.tables ?? {};
+    for (const [id, t] of Object.entries(tables)) {
+      if (typeof t?.schema === 'string') out.push({ path: ['tables', id, 'schema'], id: t.schema, start: 0, collection: 'schemas' });
+      for (const [col, spec] of Object.entries(t?.columns ?? {})) {
+        const path = ['tables', id, 'columns', col];
+        if (typeof spec === 'string') {
+          // "uuid fk customers.id": deleting customers cuts the "fk customers.id" part, the column stays.
+          const m = /(^|\s)((?:fk|ref|->)\s+)([A-Za-z0-9_-]+)(\.[A-Za-z0-9_-]+)?/d.exec(spec);
+          if (m?.indices) out.push({ path, id: m[3]!, start: m.indices[3]![0], collection: 'tables', onDelete: 'cut', cut: [m.indices[2]![0] - m[1]!.length, m.indices[4]?.[1] ?? m.indices[3]![1]] });
+        } else if (spec && typeof spec.fk === 'string') out.push({ path: [...path, 'fk'], id: spec.fk.split('.')[0]!, start: 0, collection: 'tables' });
+      }
+    }
+    out.push(...edgeReferences(src.relations, ['relations'], (id) => (Object.hasOwn(tables, id) ? 'tables' : undefined)));
+    return out;
   },
   connect(src, from, to) {
     const target = src.tables?.[to];
