@@ -83,6 +83,14 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'network', label: 'Networking', kind: 'choice', options: ['Public endpoints', 'Private endpoints in a VNet', 'Mixed'], initial: 'Mixed' },
     { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
   ],
+  cloud: (t) => [
+    { ...about, placeholder: 'E.g. a web shop on AWS: a load balancer, containers on ECS and Aurora, across three availability zones.' },
+    { id: 'provider', label: 'Which cloud?', kind: 'choice', options: ['AWS', 'Google Cloud', 'Several clouds or hybrid'], initial: 'AWS' },
+    parts(t, 'Which services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),
+    { id: 'layout', label: 'How is it organised?', kind: 'choice', options: ['One account or project', 'Landing zone (organization, several accounts or projects)', 'Per environment (dev / test / prod)', 'Not sure'], initial: 'One account or project' },
+    { id: 'network', label: 'Networking', kind: 'choice', options: ['Leave the network out', 'One VPC with public and private subnets', 'Subnet tiers across availability zones', 'Hub network with VPN or interconnect'], initial: 'One VPC with public and private subnets' },
+    { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
+  ],
   network: (t) => [
     { ...about, label: 'Which network?', placeholder: 'E.g. our office: a firewall pair, a core switch, four VLANs and Wi-Fi; a VPN to Azure.' },
     parts(t, 'What should appear?', 'Zones and devices; Claude adds what is clearly missing.'),

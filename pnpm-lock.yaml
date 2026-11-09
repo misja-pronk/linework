@@ -158,6 +158,9 @@ importers:
       '@cartography/azure':
         specifier: workspace:*
         version: link:../../types/azure
+      '@cartography/cloud':
+        specifier: workspace:*
+        version: link:../../types/cloud
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
@@ -413,6 +416,22 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+
+  types/cloud:
+    dependencies:
+      '@cartography/azure':
+        specifier: workspace:*
+        version: link:../azure
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
 
   types/data-products:
     dependencies:

@@ -1,0 +1,49 @@
+type: cloud
+provider: aws
+title: Data lake on AWS
+subtitle: From sources to dashboards, lakehouse on S3
+
+groups:
+  sources: { kind: boundary, label: Sources }
+  account: { kind: account, label: data-prod, account: "210987654321", region: eu-west-1 }
+  ingest: { kind: boundary, label: Ingest, in: account }
+  lake: { kind: boundary, label: Lake, in: account }
+  serve: { kind: boundary, label: Serve, in: account }
+
+nodes:
+  erp: { kind: external, label: ERP, caption: SAP, in: sources }
+  orders: { kind: rds, label: Orders database, in: sources }
+  clicks: { kind: client, label: Web and app events, in: sources }
+
+  dms: { kind: dms, label: Change data capture, in: ingest }
+  stream: { kind: kinesis, label: Clickstream, in: ingest }
+  firehose: { kind: firehose, label: Delivery, in: ingest }
+
+  raw: { kind: s3, label: Raw zone, in: lake }
+  glue: { kind: glue, label: ETL jobs, in: lake }
+  curated: { kind: s3, label: Curated zone, caption: S3 · Iceberg tables, in: lake }
+  governance: { kind: lake-formation, label: Catalog and grants, in: lake }
+
+  athena: { kind: athena, label: Ad-hoc SQL, in: serve }
+  warehouse: { kind: redshift, label: Warehouse, in: serve }
+  features: { kind: sagemaker, label: Churn model, in: serve }
+  dashboards: { kind: quicksight, label: Dashboards, in: serve }
+
+  analysts: { kind: users, label: Analysts }
+
+edges:
+  - erp -> dms: { label: nightly, style: data }
+  - orders -> dms: { label: CDC, style: data }
+  - clicks -> stream: { label: events, style: data }
+  - stream -> firehose: { style: data }
+  - dms -> raw: { style: data }
+  - firehose -> raw: { style: data }
+  - raw -> glue: { style: data }
+  - glue -> curated: { style: data }
+  - glue -- governance: { label: catalog }
+  - curated -> athena: { style: data }
+  - curated -> warehouse: { label: Spectrum, style: data }
+  - curated -> features: { style: data }
+  - athena -> dashboards: { style: data }
+  - warehouse -> dashboards: { style: data }
+  - dashboards -> analysts

@@ -197,7 +197,8 @@ export const guidance = {
     'Manifests or helm/kustomize output, via carto import',
   ],
   notFor: [
-    { text: 'Cloud resources around the cluster (VNets, managed DBs)', use: 'azure' },
+    { text: 'Azure resources around the cluster (VNets, managed DBs)', use: 'azure' },
+    { text: 'AWS or Google Cloud around the cluster (VPCs, managed DBs)', use: 'cloud' },
     { text: 'Services and data flow regardless of where they run', use: 'systems' },
     { text: 'RBAC roles and who may do what', use: 'access' },
   ],

@@ -1,0 +1,53 @@
+type: cloud
+provider: aws
+title: AWS landing zone
+subtitle: Organization, accounts and the shared network
+direction: down
+
+groups:
+  org: { kind: organization, label: Acme }
+  security: { kind: ou, label: Security, in: org }
+  infra: { kind: ou, label: Infrastructure, in: org }
+  workloads: { kind: ou, label: Workloads, in: org }
+
+  management: { kind: account, label: Management, account: "111111111111", in: org }
+  log-archive: { kind: account, label: Log archive, account: "222222222222", in: security }
+  audit: { kind: account, label: Audit, account: "333333333333", in: security }
+  network: { kind: account, label: Network, account: "444444444444", in: infra }
+  shop-prod: { kind: account, label: shop-prod, account: "555555555555", in: workloads }
+  shop-dev: { kind: account, label: shop-dev, account: "666666666666", in: workloads }
+
+  egress: { kind: vpc, label: Egress, cidr: 10.0.0.0/22, in: network }
+  prod-vpc: { kind: vpc, label: vpc-prod, cidr: 10.10.0.0/16, in: shop-prod }
+  dev-vpc: { kind: vpc, label: vpc-dev, cidr: 10.20.0.0/16, in: shop-dev }
+  dc: { kind: on-premises, label: Data centre, cidr: 172.16.0.0/16 }
+
+nodes:
+  tower: { kind: control-tower, label: Guardrails, in: management }
+  sso: { kind: identity-center, label: Single sign-on, in: management }
+
+  trail: { kind: cloudtrail, label: Organization trail, in: log-archive }
+  logs: { kind: s3, label: Log bucket, in: log-archive }
+  findings: { kind: security-hub, label: Findings, in: audit }
+  threats: { kind: guardduty, label: Threat detection, in: audit }
+
+  tgw: { kind: transit-gateway, label: Transit gateway, in: network }
+  dx: { kind: direct-connect, label: Direct Connect, caption: 1 Gbps, in: network }
+  inspect: { kind: network-firewall, label: Inspection, in: egress }
+  nat: { kind: nat-gateway, label: Central egress, in: egress }
+  internet: internet
+
+  prod-app: { kind: eks, label: Web shop, in: prod-vpc }
+  dev-app: { kind: eks, label: Web shop (dev), in: dev-vpc }
+  core: { kind: router, label: Core router, in: dc }
+
+edges:
+  - trail -> logs: { style: data }
+  - threats -> findings: { style: data }
+  - dev-vpc -> tgw: { style: private }
+  - prod-vpc -> tgw: { label: attachment, style: private }
+  - tgw -> inspect: { label: 0.0.0.0/0, style: private }
+  - inspect -> nat: { style: private }
+  - nat -> internet: { style: public }
+  - tgw -> dx: { style: vpn }
+  - dx -> core: { label: BGP, style: vpn }

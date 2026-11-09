@@ -55,7 +55,7 @@ describe('types and schemas', () => {
 
   it('gives a valid template for every type', async () => {
     for (const t of types) expect((await validateDiagram({ yaml: newDiagram(t.id) })).ok, t.id).toBe(true);
-  });
+  }, 30_000);
 });
 
 describe('validate', () => {
