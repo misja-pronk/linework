@@ -1,0 +1,30 @@
+---
+title: Release with a hotfix
+---
+gitGraph
+  commit id: "Initial" tag: "v1.0.0"
+  branch develop
+  checkout develop
+  commit id: "Set up CI"
+  branch feature/login
+  checkout feature/login
+  commit id: "Login form"
+  commit id: "Validation"
+  checkout develop
+  merge feature/login
+  branch release/1.1
+  checkout release/1.1
+  commit id: "Bump 1.1.0"
+  checkout main
+  merge release/1.1 tag: "v1.1.0"
+  checkout develop
+  merge release/1.1
+  checkout main
+  branch hotfix/1.1.1
+  checkout hotfix/1.1.1
+  commit id: "Fix crash"
+  checkout main
+  merge hotfix/1.1.1 tag: "v1.1.1"
+  checkout develop
+  merge hotfix/1.1.1
+  commit id: "Next sprint"

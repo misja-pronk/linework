@@ -1,0 +1,37 @@
+type: roadmap
+title: Azure migration 2026
+subtitle: Three waves from the data centre to the landing zone; the data centre closes in December
+from: 2026-01
+to: 2026-12
+unit: month
+today: 2026-05-12
+
+lanes:
+  platform: { label: Platform, caption: Landing zone and AKS }
+  network: { label: Network, caption: "Hub, VPN, DNS" }
+  apps: { label: Applications, caption: 42 apps in 3 waves }
+  data: { label: Data, caption: SQL and file shares }
+  ops: { label: Operations }
+
+phases:
+  Wave 1 · pilots: { from: 2026-03, to: 2026-05, tone: sky }
+  Wave 2 · customer apps: { from: 2026-06, to: 2026-08, tone: violet }
+  Wave 3 · back office: { from: 2026-09, to: 2026-11, tone: teal }
+
+items:
+  landing-zone: { lane: platform, label: Landing zone, from: 2026-01, to: 2026-02, status: done }
+  aks: { lane: platform, label: AKS baseline, after: landing-zone, duration: 8w, status: done }
+  policies: { lane: platform, label: Policy as code, from: 2026-04, to: 2026-06, status: active, progress: 60% }
+  hub: { lane: network, label: Hub and firewall, from: 2026-01-15, duration: 6w, status: done }
+  expressroute: { lane: network, label: ExpressRoute, after: hub, duration: 3m, status: at-risk }
+  dns: { lane: network, label: Private DNS, from: 2026-05, to: 2026-06, status: active }
+  wave-1: { lane: apps, label: 6 pilot apps, from: 2026-03, to: 2026-05, status: active, progress: 70% }
+  wave-2: { lane: apps, label: 18 customer apps, after: [wave-1, expressroute], duration: 3m, status: planned }
+  wave-3: { lane: apps, label: 18 back-office apps, from: 2026-09, to: 2026-11, status: planned }
+  sql: { lane: data, label: SQL to Managed Instance, from: 2026-04, to: 2026-08, status: late }
+  files: { lane: data, label: File shares, from: 2026-08, to: 2026-10, status: planned }
+  runbooks: { lane: ops, label: Runbooks and on-call, from: 2026-05, to: 2026-07, status: planned }
+  finops: { lane: ops, label: FinOps reviews, from: 2026-07, to: 2026-12, status: planned }
+  cab: { lane: ops, label: CAB sign-off, at: 2026-06-01 }
+  go-live: { label: Customer apps live, at: 2026-09-01 }
+  exit: { label: Data centre exit, at: 2026-12-15 }

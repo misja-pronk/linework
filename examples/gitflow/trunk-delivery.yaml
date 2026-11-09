@@ -1,0 +1,21 @@
+type: gitflow
+title: Trunk-based delivery
+subtitle: How a change on main reaches production
+preset: trunk-based
+view: delivery
+
+stages:
+  build: Build
+  test: Test
+  staging: Staging
+  canary: { label: Canary, icon: gauge, tone: violet }
+  production: Production
+
+pipelines:
+  feature: [build, { stage: test, label: Pre-merge checks }]
+  main:
+    - build
+    - { stage: test, label: Contract tests }
+    - { stage: staging, label: Auto deploy }
+    - { stage: canary, label: 5% of traffic, gate: Smoke tests }
+    - { stage: production, label: Full rollout, gate: SLOs green }

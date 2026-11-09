@@ -1,0 +1,14 @@
+gantt
+  title Azure migration, first half
+  dateFormat YYYY-MM-DD
+  section Platform
+  Landing zone        :done, lz, 2026-01-05, 2026-02-13
+  AKS baseline        :done, aks, after lz, 6w
+  Policy as code      :active, pol, 2026-04-01, 2026-06-15
+  section Network
+  Hub and firewall    :done, hub, 2026-01-12, 5w
+  ExpressRoute        :crit, er, after hub, 10w
+  section Applications
+  Wave 1 pilots       :active, w1, 2026-03-02, 2026-05-29
+  Wave 2 customer apps:w2, after w1 er, 12w
+  Customer apps live  :milestone, live, 2026-08-31, 0d

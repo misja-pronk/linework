@@ -23,6 +23,8 @@ carto new erd orders.yaml      # start from a type's template
 | How a GitHub organisation is set up: teams, repos, workflows, environments | [GitHub design](#github-design) | `github` |
 | Data products, their ports, contracts and consumers (data mesh) | [Data products](#data-products) | `data-products` |
 | Who calls whom, in what order: a login flow, an API integration, event choreography | [Sequence](#sequence) | `sequence` |
+| A branching strategy: branches, merges, tags, releases; or how branches reach production | [Git branching](#git-branching) | `gitflow` |
+| What happens when: workstreams, milestones, migration waves, a delivery plan | [Roadmap & timeline](#roadmap--timeline) | `roadmap` |
 
 Look-alikes that trip people up:
 
@@ -33,6 +35,8 @@ Look-alikes that trip people up:
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
 - **ETL jobs as boxes and arrows** are Architecture; **products with ports and contracts** are Data products.
 - **Which services talk to each other** is Architecture; **the order they talk in, step by step** is Sequence.
+- **Repositories and teams in a GitHub org** are GitHub design; **how branches in one repo merge and release** is Git branching.
+- **The steps of one flow** are Sequence; **work spread over weeks and months** is Roadmap.
 
 ## Architecture
 
@@ -259,9 +263,97 @@ steps:
 
 Activations follow the calls: a call opens one on the receiver and its reply closes it; one that is never answered ends where its lifeline last takes part. `activations: explicit` draws only the ones you ask for (`a -> +b`, `b --> -a`, `activate: b`, `deactivate: b`), which is what a Mermaid import with `activate` or `+`/`-` gives. `footers: true` repeats the participants under the lifelines.
 
-Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which will also carry git flow, roadmaps and journeys.
+Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which also carries git branching and roadmaps.
 
 Examples: [examples/sequence](../examples/sequence)
+
+## Git branching
+
+`type: gitflow` · branches, merges and releases: a branching strategy at a glance.
+
+Use it to explain Git Flow, GitHub Flow or trunk-based development to a team, to show how releases and hotfixes reach main, which branch deploys where, or to draw a real repository's history.
+
+Not for: the order services call each other (`sequence`), or which repositories and teams an organisation has (`github`).
+
+A preset alone draws a whole strategy; your own steps continue its history:
+
+```yaml
+type: gitflow
+preset: gitflow                   # gitflow | github-flow | trunk-based | release-branches
+```
+
+```yaml
+type: gitflow
+title: Our flow
+branches:
+  main: { tone: indigo }          # optional: tone, family, from, keep (long-lived), label
+environments: [test, production]  # optional: a track under the branches
+steps:
+  - commit: main
+    label: Initial release
+    tag: v1.0.0                   # tags (pills above the dot), notes ("PR review"), deploy: <env>
+  - commit: feature/login         # a branch is created on first use, from develop (or main)
+    label: Login form
+  - commit: feature/login
+    note: PR review
+  - merge: feature/login -> main
+    deploy: production
+  - branch: release/1.1           # fork now, from: develop by default
+  - commit: main
+    count: 12                     # a collapsed run: "12 commits"
+  - cherry-pick: fix-1            # a commit id, copied into: a branch (dashed curve)
+    into: release/1.1
+  - tag: v1.1.1                   # tag, note or deploy the newest commit on on:
+    on: release/1.1
+```
+
+Branch names say what they are: `main`/`master`/`trunk`, `develop`, `release/*`, `hotfix/*`, `feature/*` (also `feat/`, `fix/`, `bugfix/`) each get their own colour and lane, top to bottom: main, hotfixes, releases, develop, features. Short-lived branches with the same prefix share a lane when they do not overlap in time. Every commit owns a column of one time axis; the lanes engine spreads the columns so labels never touch, and keeps every fork, merge and deploy line clear of the text it passes. Forks leave their commit vertically and merges arrive vertically (with an arrowhead), so a commit's label always has a free side; a second line from the same commit splits off the line a little later instead of sharing a stretch.
+
+`view: delivery` draws the same branches through a CI/CD pipeline: stages as columns (Build, Test, Staging, Production by default; your own with `stages:`), one row per branch kind, gates such as an approval as pills on the arrow before a stage. Each preset brings its own pipelines; override them with `pipelines:` (keys: `feature`, `develop`, `release`, `hotfix`, `main`, or a branch name):
+
+```yaml
+view: delivery
+pipelines:
+  main: [build, test, { stage: production, label: Deploy, gate: Approval }]
+```
+
+Import: `carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200]` reads `git log` and recovers branches (each head claims its first-parent history; merged and deleted branches are named from their merge message), forks, merges and tags, and collapses runs of plain commits into "n commits". Mermaid `gitGraph` imports with `carto import`.
+
+Examples: [examples/gitflow](../examples/gitflow)
+
+## Roadmap & timeline
+
+`type: roadmap` · what happens when: workstreams, milestones and waves on a time axis.
+
+Use it for a 12-month migration in waves, a delivery plan per team with milestones, a now / next / later slide for a steering group, or a project timeline from a Mermaid gantt.
+
+Not for: the order of messages in one flow (`sequence`), or how branches merge and release (`gitflow`).
+
+```yaml
+type: roadmap
+title: Azure migration 2026
+from: 2026-01                     # dates: 2026, 2026-03, 2026-Q2, 2026-W14, 2026-03-15
+to: 2026-12                       # inclusive; both default to the items' range
+unit: month                       # week | month | quarter (default: picked from the range)
+today: 2026-05-12                 # or true for the real date
+lanes:
+  platform: { label: Platform, caption: Landing zone and AKS }
+  apps: Applications
+phases:                           # bands behind the lanes: waves, phases, transition states
+  Wave 1: { from: 2026-03, to: 2026-05, tone: sky }
+items:
+  landing-zone: { lane: platform, label: Landing zone, from: 2026-01, to: 2026-02, status: done }
+  aks: { lane: platform, after: landing-zone, duration: 8w, status: active, progress: 60% }
+  pilots: { lane: apps, in: 2026-Q2, status: at-risk }   # in: one month, quarter or week
+  cab: { lane: apps, at: 2026-06-01, label: CAB sign-off } # a milestone
+  go-live: { at: 2026-09-01, label: Go-live }             # no lane: on the axis, a line through all lanes
+```
+
+`after:` both schedules (an item without `from:` starts when what it waits for ends) and draws the dependency as an arrow. Statuses `planned` (outline), `active` (solid), `done` (check), `at-risk` and `late` colour the bars and get a legend; without a status a bar takes its lane's colour. Overlapping items, and labels too long for their bar (drawn beside it), take their own track in the lane, so nothing overlaps. `periods: [Now, Next, Later]` gives an axis of named periods instead of dates (`in: Next`, `duration: 2` periods).
+
+Import: Mermaid `gantt` (sections become lanes; `done`, `active`, `crit` become statuses; `after` stays a dependency; milestones stay milestones) and `timeline` (periods become the axis, sections phases).
+
+Examples: [examples/roadmap](../examples/roadmap)
 
 ## Adding a type
 

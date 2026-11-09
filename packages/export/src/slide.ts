@@ -129,8 +129,8 @@ class SlideDrawing {
       const box = placed.nodes.get(n.id);
       if (!box) continue;
       const s = n.shape;
-      // Sequence diagrams have no native slide drawing yet.
-      if (s.kind === 'sequence') continue;
+      // Sequence, git flow and roadmap diagrams have no native slide drawing yet.
+      if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap') continue;
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : this.drawMatrix(n, s, box)).xml);
     }
     for (const e of edges) {

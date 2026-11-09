@@ -6,6 +6,8 @@ import { icon } from '@cartography/icons';
 import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LABEL_ICON, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
+import { drawGitflow } from './gitflow.ts';
+import { drawRoadmap } from './roadmap.ts';
 
 export interface SvgOptions {
   /** Embed the Inter font (latin subset) so the SVG looks the same everywhere. */
@@ -94,6 +96,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
       shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge), link, nodeImages?.get(n.id))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id, nodeImages?.get(n.id))
       : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`)
+      : shape.kind === 'gitflow' ? drawGitflow(shape, box, theme, `${id}-shadow`)
+      : shape.kind === 'roadmap' ? drawRoadmap(shape, box, theme)
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     const mark = link && shape.kind !== 'matrix' ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
     out.push(linked(n.links, `<g${data('node', n.id)}>${tip(n.description)}${body}${mark}</g>`, opts));

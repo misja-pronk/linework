@@ -96,6 +96,9 @@ importers:
       '@cartography/erd':
         specifier: workspace:*
         version: link:../../types/erd
+      '@cartography/gitflow':
+        specifier: workspace:*
+        version: link:../../types/gitflow
       '@cartography/github':
         specifier: workspace:*
         version: link:../../types/github
@@ -114,6 +117,9 @@ importers:
       '@cartography/render':
         specifier: workspace:*
         version: link:../render
+      '@cartography/roadmap':
+        specifier: workspace:*
+        version: link:../../types/roadmap
       '@cartography/sequence':
         specifier: workspace:*
         version: link:../../types/sequence
@@ -173,6 +179,9 @@ importers:
 
   packages/import:
     dependencies:
+      '@cartography/roadmap':
+        specifier: workspace:*
+        version: link:../../types/roadmap
       '@cartography/systems':
         specifier: workspace:*
         version: link:../../types/systems
@@ -346,6 +355,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
 
+  types/gitflow:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
   types/github:
     dependencies:
       '@cartography/core':
@@ -377,6 +408,28 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../../packages/icons
+
+  types/roadmap:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   types/sequence:
     dependencies:

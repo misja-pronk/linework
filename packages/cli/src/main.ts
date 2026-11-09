@@ -9,7 +9,8 @@ import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
-import { importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, isKubernetes, isNetworkInventory } from '@cartography/import';
+import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, isKubernetes, isNetworkInventory } from '@cartography/import';
+import { execFileSync } from 'node:child_process';
 import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -26,9 +27,11 @@ const help = `carto — architecture diagrams that look good
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
-                                                erDiagram, sequenceDiagram) to YAML; .md: every mermaid block;
-                                                Kubernetes manifests: all files in one diagram;
+                                                erDiagram, sequenceDiagram, gitGraph, gantt, timeline) to YAML;
+                                                .md: every mermaid block; Kubernetes manifests: all files in one diagram;
                                                 .csv inventory or NetBox JSON: a network diagram
+  carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
+                                                a repository's history as a git branching diagram
   carto icons import <folder|file.zip> --pack azure
                                                 index an official icon download (Azure, AWS,
                                                 GCP) into a pack in ${configDir()}
@@ -55,6 +58,10 @@ const { positionals, values } = parseArgs({
     aspect: { type: 'string', default: '16:9' },
     font: { type: 'string' },
     page: { type: 'string', default: 'fit' },
+    git: { type: 'string' },
+    since: { type: 'string' },
+    branches: { type: 'string' },
+    max: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -265,6 +272,37 @@ async function importInventory(file: string): Promise<boolean> {
   return !check.diagnostics.some((d) => d.severity === 'error');
 }
 
+/** A repository's history: `git log` in a child process, read into a gitflow diagram. */
+async function importGit(repo: string): Promise<boolean> {
+  const branches = values.branches?.split(',').map((b) => b.trim()).filter(Boolean);
+  const args = ['-C', repo, 'log', '--topo-order', '--reverse', `--format=${GIT_LOG_FORMAT}`, `--max-count=${Number(values.max) || 200}`];
+  if (values.since) args.push(`--since=${values.since}`);
+  args.push(...(branches?.length ? branches : ['--branches', '--tags']), '--');
+  let text: string;
+  try {
+    text = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    console.error(`git log failed in ${repo}: ${String((e as { stderr?: string }).stderr ?? e).trim()}`);
+    return false;
+  }
+  const name = path.basename(path.resolve(repo));
+  const r = importGitLog(text, { title: `${name} history`, ...(branches?.length ? { branches } : {}) });
+  for (const w of r.warnings) console.error(`${repo}  ${yellow('warning')}  ${w}`);
+  if (!r.yaml) return false;
+  const check = await render(r.yaml, { fonts: 'none' });
+  report(`${repo} (imported)`, check.diagnostics);
+  if (!values.out || values.out === '-') return (process.stdout.write(r.yaml), true);
+  const out = path.extname(values.out) ? values.out : path.join(values.out, `${name}-history.yaml`);
+  if (fs.existsSync(out) && !values.force) {
+    console.error(`${out} already exists, use --force to overwrite`);
+    return false;
+  }
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, r.yaml);
+  console.log(`${repo} → ${out}`);
+  return !check.diagnostics.some((d) => d.severity === 'error');
+}
+
 /** Kubernetes manifests, all files merged into one diagram grouped by namespace. */
 async function importManifests(list: string[]): Promise<boolean> {
   const base = list.length === 1 ? path.basename(list[0]!).replace(/\.(ya?ml|json)$/i, '') : 'kubernetes';
@@ -374,6 +412,7 @@ async function main(): Promise<number> {
       return ok ? 0 : 1;
     }
     case 'import': {
+      if (values.git) return (await importGit(values.git)) ? 0 : 1;
       if (!files.length) return (console.error(help), 1);
       // Manifests are read together: a platform is spread over many files, but it is one drawing.
       const manifests = files.filter((f) => /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));

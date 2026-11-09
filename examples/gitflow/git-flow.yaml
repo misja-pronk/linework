@@ -1,0 +1,20 @@
+type: gitflow
+title: Git Flow at Acme Payments
+subtitle: The canonical flow, plus this sprint's work on top
+preset: gitflow
+
+# The preset draws the strategy; these steps continue it.
+steps:
+  - commit: feature/refunds
+    label: Refund API
+  - commit: feature/refunds
+    label: Partial refunds
+    note: PR review
+  - merge: feature/refunds -> develop
+    note: Deploy to test
+  - branch: release/1.2
+  - commit: release/1.2
+    label: Bump to 1.2.0
+  - merge: release/1.2 -> main
+    tag: v1.2.0
+  - merge: release/1.2 -> develop

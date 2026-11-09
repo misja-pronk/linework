@@ -1,6 +1,6 @@
 # Cartography next to Mermaid and D2
 
-Six everyday diagrams, written once in Mermaid (and by hand in D2), each drawn by its own tool.
+Eight everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
 The Cartography column is **not hand-tuned**: it is the Mermaid source run through `carto import`
 and rendered as is. The imported YAML is in [`cartography/`](cartography/).
 
@@ -82,3 +82,33 @@ the lifelines they cross ("Check stock and prices", "Create payment intent") and
 wraps into the frame; D2 keeps labels clear by cutting the line around them, but has no participant
 boxes or numbering and comes out almost twice as tall. Mermaid still has the stick-figure actor that
 people recognise at once, and repeats the headers at the bottom by default (`footers: true` here).
+
+## Release with a hotfix (gitGraph)
+
+| Mermaid | Cartography |
+| --- | --- |
+| ![Mermaid](png/release-gitgraph-mermaid.png) | ![Cartography](png/release-gitgraph-cartography.png) |
+
+D2 has no git graph, so this one is Mermaid only. Imported as a `gitflow` diagram: each branch got
+the colour of its kind (main blue, develop violet, release amber, hotfix red, feature teal) and the
+lane order of the classic Git Flow picture, hotfix and release between main and develop, where
+Mermaid stacks lanes in the order they were created and the hotfix ends up at the bottom, its lines
+crossing every other lane. Mermaid's commit labels are rotated 45° and its release line runs through
+the hotfix's corner; ours sit level under the dots, and merges arrive with an arrowhead. Mermaid's
+own ids (`Initial`, `Set up CI`) are what it shows, so they became labels. What Mermaid does that we
+do not: `order:` on branches (our lane order follows the branch kind), and highlighted commits.
+
+## Migration plan (gantt)
+
+| Mermaid | Cartography |
+| --- | --- |
+| ![Mermaid](png/migration-gantt-mermaid.png) | ![Cartography](png/migration-gantt-cartography.png) |
+
+Imported as a `roadmap`: sections became lanes, `done`/`active`/`crit` became statuses with a legend,
+`after` stayed a dependency and is drawn as an arrow (Mermaid only uses it to schedule), the milestone
+kept its diamond. Ours reads like a steering-deck slide: month and quarter ticks instead of ISO dates
+every month, lane names with a colour bar, overlapping items in tracks. Mermaid labels every bar
+centred and fits more on a line (one row per task, no tracks to share), and its bright red for
+critical tasks is louder than our amber "at risk". A bar too short for its label puts the label beside
+it, which the arrow then has to leave from below; Mermaid keeps such labels inside and lets them
+overflow.

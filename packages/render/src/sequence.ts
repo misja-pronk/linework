@@ -70,7 +70,7 @@ export interface SequenceGeometry {
 }
 
 /** Words into lines of at most `max` wide; a word longer than that is cut with an ellipsis. */
-function wrapLines(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
+export function wrapLines(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
   const lines: string[] = [];
   let line = '';
   for (const word of text.split(/\s+/).filter(Boolean)) {
