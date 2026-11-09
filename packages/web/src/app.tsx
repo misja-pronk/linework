@@ -15,8 +15,9 @@ import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSvg, yamlName } from './export.ts';
-import { addEntry, deleteEntry, duplicateEntry, fieldsFor, parentKey, renameEntry, setField } from './builder.ts';
+import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
+import { canSaveFiles, canUseFolders, diagrams, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -24,12 +25,16 @@ interface Doc {
   name: string;
   /** Where it came from, so bundled examples can read their contract files. */
   starter?: string;
+  /** Path inside the open folder. */
+  path?: string;
 }
 
 interface Saved {
   text: string;
   doc: Doc;
   pins?: LayoutSidecar;
+  /** What was last saved or opened, for the unsaved-changes dot after a reload. */
+  savedText?: string | null;
 }
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -77,7 +82,7 @@ export function App() {
   const systemDark = useSystemDark();
   const theme: 'light' | 'dark' = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
   const [selected, setSelected] = useState<Selection>();
-  const [modal, setModal] = useState<'palette' | 'templates' | 'problems'>();
+  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect'>();
   const [adding, setAdding] = useState(false);
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
@@ -85,8 +90,31 @@ export function App() {
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
   const editor = useRef<EditorHandle>(null);
   const openedText = useRef<string | null>(null);
+  const [ws, setWs] = useState<Workspace>();
+  const [remembered, setRemembered] = useState<FileSystemDirectoryHandle>();
+  /** A single file opened or saved outside a folder. */
+  const fileHandle = useRef<FileSystemFileHandle>(undefined);
+  /** What is on disk (or what was opened), for the unsaved-changes dot. */
+  const [savedText, setSavedText] = useState<string | null>(saved ? (saved.savedText ?? null) : firstStarter.text);
+  /** Pins as saved, compared as JSON: a move is an unsaved change too. */
+  const [savedPins, setSavedPins] = useState<string>(() => JSON.stringify(saved?.pins ?? null));
+  const dirty = savedText !== text || savedPins !== JSON.stringify(pins ?? null);
 
-  const load = useMemo(() => (doc.starter ? exampleLoader(doc.starter) : undefined), [doc.starter]);
+  useEffect(() => {
+    if (canUseFolders) void lastFolder().then(setRemembered);
+  }, []);
+  // Back in the window: read the folder again, so contract files edited elsewhere show up.
+  useEffect(() => {
+    if (!ws) return;
+    const onFocus = () => void scan(ws.dir).then(setWs).catch(() => undefined);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [ws]);
+
+  const load = useMemo(
+    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
+    [ws, doc.path, doc.starter],
+  );
   const sidecar = useMemo<LayoutSidecar | undefined>(
     () => (draft ? { version: 1, nodes: { ...(pins?.nodes ?? {}), [draft.id]: draft.at } } : pins),
     [pins, draft],
@@ -109,12 +137,12 @@ export function App() {
   useEffect(() => store.set('split', split), [split]);
 
   // Keep the last document; also right away when the tab goes away.
-  const latest = useRef<Saved>({ text, doc, pins });
-  latest.current = { text, doc, pins };
+  const latest = useRef<Saved>({ text, doc, pins, savedText });
+  latest.current = { text, doc, pins, savedText };
   useEffect(() => {
     const t = setTimeout(() => store.set('doc', latest.current), 300);
     return () => clearTimeout(t);
-  }, [text, doc, pins]);
+  }, [text, doc, pins, savedText]);
   useEffect(() => {
     const flush = () => store.set('doc', latest.current);
     window.addEventListener('pagehide', flush);
@@ -144,13 +172,18 @@ export function App() {
       setDoc(nextDoc);
       setSelected(undefined);
       setDocKey((k) => k + 1);
+      setSavedText(next);
+      setSavedPins(JSON.stringify(nextPins ?? null));
       openedText.current = next;
+      // Within a folder, files are saved before switching: nothing to undo.
+      if (nextDoc.path) return;
       notify(`Opened ${nextDoc.name}`, {
         action: {
           label: 'Undo',
           run: () => {
             editor.current?.load(before.text, before.pins);
             setDoc(before.doc);
+            setSavedText(null);
             setSelected(undefined);
             setDocKey((k) => k + 1);
           },
@@ -162,10 +195,81 @@ export function App() {
 
   const pick = (s: Starter) => {
     setModal(undefined);
+    fileHandle.current = undefined;
     open(s.text, { name: s.file, starter: s.id });
   };
 
+  /** Saves where the document lives: its folder, its file, or a new file. Returns false when cancelled. */
+  const save = async (): Promise<boolean> => {
+    const now = textNow();
+    try {
+      if (ws && doc.path) await saveInFolder(ws, doc.path, now, pins);
+      else if (fileHandle.current) await saveFile(fileHandle.current, now);
+      else if (canSaveFiles) {
+        const r = await saveAs(yamlName(doc.name), now, ws?.dir);
+        if (!r) return false;
+        // Saved inside the open folder: it becomes one of its files, with its pins next to it.
+        const inside = ws ? await ws.dir.resolve(r.handle) : null;
+        if (ws && inside) {
+          const path = inside.join('/');
+          await saveInFolder(ws, path, now, pins);
+          fileHandle.current = undefined;
+          setDoc({ name: r.name, path });
+          setWs(await scan(ws.dir));
+        } else {
+          fileHandle.current = r.handle;
+          setDoc({ name: r.name });
+        }
+      } else download(yamlName(doc.name), now, 'text/yaml');
+      setSavedText(now);
+      setSavedPins(JSON.stringify(pins ?? null));
+      notify(`Saved ${doc.path ?? doc.name}`);
+      return true;
+    } catch (e) {
+      notify(`Saving failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+      return false;
+    }
+  };
+
+  const openFolder = async (dir?: FileSystemDirectoryHandle) => {
+    try {
+      const next = dir ? await reopen(dir) : await pickFolder();
+      if (!next) return;
+      setWs(next);
+      setRemembered(next.dir);
+      const first = diagrams(next)[0];
+      if (first) openInFolder(next, first);
+      else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
+    } catch (e) {
+      notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+    }
+  };
+
+  const openInFolder = async (w: Workspace, path: string) => {
+    // Switching files keeps work: the current one is saved first when it lives in the folder.
+    if (dirty && ws && doc.path && doc.path !== path && !(await save())) return;
+    const f = w.files.get(path);
+    if (!f) return;
+    fileHandle.current = undefined;
+    open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
+  };
+
   const openFile = () => {
+    if ('showOpenFilePicker' in window) {
+      void (async () => {
+        try {
+          const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
+            types: [{ description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+          });
+          const f = await h!.getFile();
+          fileHandle.current = h;
+          open(await f.text(), { name: f.name });
+        } catch (e) {
+          if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
+        }
+      })();
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.yaml,.yml,text/yaml';
@@ -181,7 +285,8 @@ export function App() {
   const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
-  const saveYaml = () => download(yamlName(doc.name), editor.current?.text() ?? text, 'text/yaml');
+  const saveYaml = () => void save();
+  const downloadYaml = () => download(yamlName(doc.name), editor.current?.text() ?? text, 'text/yaml');
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
   const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await exportSvg(exportInput()), 'image/svg+xml'));
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
@@ -306,6 +411,14 @@ export function App() {
     return text == null ? undefined : { text, message: g ? `Moved into ${g.label}` : 'Moved out of its group' };
   };
 
+  const connect = (from: string, to: string) => {
+    if (!type) return;
+    const r = connectEntries(textNow(), type, from, to);
+    if ('error' in r) return notify(r.error, { tone: 'error' });
+    apply(r.text);
+    notify(`Connected ${nodeName(from)} to ${nodeName(to)}`);
+  };
+
   const nudge = (dx: number, dy: number) => {
     if (selected?.kind !== 'node') return;
     const box = result?.placed?.nodes.get(selected.id);
@@ -338,6 +451,7 @@ export function App() {
     else if (e.key === 'Tab' && !mod(e)) {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) setAdding(true);
+    else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
     e.preventDefault();
@@ -350,7 +464,11 @@ export function App() {
   const selGroup = selected?.kind === 'group' ? (result ?? drawn)?.graph?.groups.find((g) => g.id === selected.id) : undefined;
   const selEdge = selected?.kind === 'edge' ? (result ?? drawn)?.graph?.edges.find((e) => e.id === selected.id) : undefined;
   const isEntry = !!selectedPath && selectedPath.length === 2 && typeof selectedPath[1] === 'string';
-  const fields = useMemo(() => (type && isEntry && selectedPath ? fieldsFor(text, type, selectedPath) : []), [type, isEntry, selectedPath, text]);
+  const isEdgeItem = !!selectedPath && selectedPath[0] === 'edges' && typeof selectedPath[1] === 'number';
+  const fields = useMemo(
+    () => (type && selectedPath ? (isEntry ? fieldsFor(text, type, selectedPath) : isEdgeItem ? edgeFields(text, type, selectedPath) : []) : []),
+    [type, isEntry, isEdgeItem, selectedPath, text],
+  );
   const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge));
   const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/s$/, '').replace(/-/g, ' ') : '');
   const nodeName = (id: string) => {
@@ -363,7 +481,10 @@ export function App() {
   const buildCommands = (): Command[] => [
     { id: 'new', group: 'File', label: 'New from template…', icon: 'layout-template', run: () => setModal('templates') },
     { id: 'open', group: 'File', label: 'Open YAML file…', icon: 'folder-open', shortcut: '⌘O', run: openFile },
-    { id: 'save', group: 'File', label: 'Save YAML', icon: 'save', shortcut: '⌘S', run: saveYaml },
+    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
+    { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
+    ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
+    ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
@@ -377,6 +498,9 @@ export function App() {
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
     { id: 'problems', group: 'View', label: 'Show problems', icon: 'circle-exclamation-point', run: () => setModal('problems') },
     ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
+    ...(selected?.kind === 'node'
+      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: 'C', run: () => setTimeout(() => setModal('connect')) }]
+      : []),
     ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => select({ kind: 'node', id: n.id }) })),
     ...starters.map((s) => ({
       id: `starter:${s.id}`,
@@ -429,10 +553,21 @@ export function App() {
         </div>
         <div className="doc-name">
           <Icon name="file-code" />
-          <span>{doc.name}</span>
+          <span>{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
+          {dirty && <span className="dirty" title="Unsaved changes (⌘S saves)" aria-label="Unsaved changes" />}
           {typeId && <span className="type-pill">{typeName(typeId)}</span>}
         </div>
         <div className="actions">
+          {canUseFolders && !ws && remembered && (
+            <button className="button ghost" onClick={() => void openFolder(remembered)} title="Open the last folder again">
+              <Icon name="folder-open" /> {remembered.name}
+            </button>
+          )}
+          {canUseFolders && (
+            <button className="button ghost" onClick={() => void openFolder()} title="Open a folder with diagrams">
+              <Icon name="folder-open" /> {ws ? 'Folder' : 'Open folder'}
+            </button>
+          )}
           <button className="button ghost" onClick={() => setModal('templates')}>
             <Icon name="layout-template" /> Templates
           </button>
@@ -468,7 +603,10 @@ export function App() {
                 </button>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
-                  <Icon name="save" /> Save YAML <kbd>⌘S</kbd>
+                  <Icon name="save" /> Save <kbd>⌘S</kbd>
+                </button>
+                <button role="menuitem" onClick={downloadYaml}>
+                  <Icon name="download" /> Download YAML
                 </button>
                 {pins && (
                   <button role="menuitem" onClick={saveLayout}>
@@ -481,7 +619,22 @@ export function App() {
         </div>
       </header>
 
-      <main className={showInspector ? 'workspace with-inspector' : 'workspace'}>
+      <main className={`workspace${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''}`}>
+        {ws && (
+          <nav className="files" aria-label={`Diagrams in ${ws.name}`}>
+            <header>
+              <Icon name="folder-open" size={14} /> {ws.name}
+            </header>
+            {diagrams(ws).map((p) => (
+              <button key={p} className={doc.path === p ? 'file active' : 'file'} onClick={() => void openInFolder(ws, p)} title={p} aria-current={doc.path === p}>
+                <Icon name="file-code" size={14} />
+                <span>{p}</span>
+                {doc.path === p && dirty && <span className="dirty" />}
+              </button>
+            ))}
+            {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
+          </nav>
+        )}
         <section className="pane editor-pane" aria-label="YAML">
           <Editor
             ref={editor}
@@ -518,6 +671,7 @@ export function App() {
             docKey={rendered?.docKey ?? -1}
             onSelect={select}
             onMove={move}
+            onConnect={connect}
             onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
             onKeyDown={onCanvasKey}
           >
@@ -559,7 +713,9 @@ export function App() {
             fields={fields}
             renamable={isEntry}
             pinned={selected.kind === 'node' && !!pins?.nodes?.[selected.id]}
-            onField={(key, value) => type && selectedPath && apply(setField(textNow(), type, selectedPath, key, value))}
+            onField={(key, value) =>
+              type && selectedPath && apply(isEdgeItem ? setEdgeField(textNow(), selectedPath, key, value) : setField(textNow(), type, selectedPath, key, value))
+            }
             onRename={rename}
             onReveal={() => {
               const e = entries.find((x) => x.kind === selected.kind && x.id === selected.id);
@@ -601,6 +757,15 @@ export function App() {
       </footer>
 
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
+      {modal === 'connect' && selected?.kind === 'node' && (
+        <Palette
+          placeholder={`Connect ${nodeName(selected.id)} to…`}
+          onClose={closeModal}
+          commands={(result?.graph?.nodes ?? [])
+            .filter((n) => n.id !== selected.id)
+            .map((n) => ({ id: `to:${n.id}`, group: `Connect ${nodeName(selected.id)} to`, label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => connect(selected.id, n.id) }))}
+        />
+      )}
       {modal === 'templates' && <Templates theme={theme} onPick={pick} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette

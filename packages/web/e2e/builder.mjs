@@ -94,5 +94,33 @@ await wait(500);
 if (!/function-app: \{ kind: function-app, label: Function App, in: /.test(await yaml())) fail('palette drop did not nest: ' + (await yaml()).split('\n').filter((l) => l.includes('function-app')).join(' | '));
 await page.screenshot({ path: `${out}/5-dropped.png` });
 
+// 9. Connect by dragging the handle from one node to another.
+await page.keyboard.press('Escape');
+const a = await page.locator('.drawing [data-node="users"]').boundingBox();
+await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+await wait(100);
+const h = await page.locator('.connect-handle').boundingBox();
+const b = await page.locator('.drawing [data-node="vault"]').boundingBox();
+await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+await page.mouse.down();
+for (let i = 1; i <= 8; i++) await page.mouse.move(h.x + ((b.x + b.width / 2 - h.x) * i) / 8, h.y + ((b.y + b.height / 2 - h.y) * i) / 8);
+await page.screenshot({ path: `${out}/6-connecting.png` });
+await page.mouse.up();
+await wait(400);
+if (!(await yaml()).includes('- users -> vault')) fail('connect did not add an edge');
+
+// 10. Select the new line and give it a label in the inspector.
+const edges = page.locator('.drawing [data-edge]');
+await edges.last().click({ force: true });
+await wait();
+const lbl = page.locator('.inspector .field:has(> span:text-is("Label")) input');
+if (await lbl.count()) {
+  await lbl.fill('reads');
+  await lbl.press('Enter');
+  await wait(400);
+  if (!/label: reads|-> \w+: reads/.test(await yaml())) fail('edge label not written');
+} else fail('edge inspector has no label field');
+await page.screenshot({ path: `${out}/7-edge.png` });
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all builder steps ok');
 await browser.close();

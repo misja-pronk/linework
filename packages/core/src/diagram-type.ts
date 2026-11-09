@@ -13,8 +13,21 @@ export interface DiagramType<Source = any> {
   /** Shapes the builder offers, in palette order. */
   palette: PaletteItem[];
   build(source: Source, ctx: BuildContext): Graph;
+  /**
+   * How the builder connects two drawn elements: append `value` to the list at `path`, or a message
+   * saying why these two cannot be connected. Without it, connections go to `edges` as "a -> b".
+   */
+  connect?(source: Source, from: string, to: string): Connection | string;
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
+}
+
+export interface Connection {
+  /** A list in the YAML (created when missing), e.g. ['products', 'revenue', 'inputs']; or a map when `key` is set. */
+  path: Path;
+  /** Set this key in the map at `path` instead of appending to a list, e.g. a foreign-key column. */
+  key?: string;
+  value: unknown;
 }
 
 export interface BuildContext {

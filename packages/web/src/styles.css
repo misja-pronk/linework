@@ -958,3 +958,108 @@ kbd {
   background: var(--danger);
   color: #fff;
 }
+
+.connect-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+  cursor: crosshair;
+  transform-origin: center;
+}
+.connect-handle::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+.link-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.link-line line {
+  stroke: var(--accent);
+  stroke-dasharray: 6 4;
+}
+.preview.dragging-connect,
+.preview.dragging-connect * {
+  cursor: crosshair !important;
+}
+
+/* ------------------------------------------------------------- files */
+
+.workspace.with-files {
+  grid-template-columns: 220px var(--split) 1px 1fr;
+}
+.workspace.with-files.with-inspector {
+  grid-template-columns: 220px var(--split) 1px 1fr 300px;
+}
+.files {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 8px 6px;
+}
+.files header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.file span:not(.dirty) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.file:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.file.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 550;
+}
+.files-empty {
+  padding: 8px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+.dirty {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  margin-left: auto;
+}
+.doc-name .dirty {
+  margin-left: 0;
+}

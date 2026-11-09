@@ -278,3 +278,112 @@ function summary(v: unknown): string {
   }
   return String(v);
 }
+
+// ---------------------------------------------------------------- connections
+
+/** Connects two drawn elements the way their type says, or explains why not. */
+export function connectEntries(text: string, type: DiagramType, from: string, to: string): { text: string } | { error: string } {
+  const doc = parse(text);
+  if (!doc) return { error: 'Fix the problems in the YAML first' };
+  if (from === to) return { error: 'Pick another element to connect to' };
+  const data = doc.toJS() as Record<string, unknown>;
+  const plan = type.connect ? type.connect(data, from, to) : hasEdges(type) ? { path: ['edges'], value: `${from} -> ${to}` } : 'This diagram type has no connections';
+  if (typeof plan === 'string') return { error: plan };
+
+  // The entry that holds the list may still be shorthand ("alice: user").
+  if (plan.path.length > 2) entryMap(doc, type, plan.path.slice(0, 2));
+  const at = doc.getIn(plan.path, true);
+  if (plan.key != null) {
+    if (at == null) doc.setIn(plan.path, doc.createNode({}));
+    const map = doc.getIn(plan.path, true);
+    if (!isMap(map)) return { error: 'Cannot add it there: that part of the YAML is not a map' };
+    if (map.has(plan.key)) return { error: `"${plan.key}" is already there` };
+    map.set(plan.key, plan.value);
+    return { text: str(doc) };
+  }
+  if (at == null) {
+    doc.setIn(plan.path, doc.createNode([plan.value], { flow: plan.path.length > 1 }));
+    return { text: str(doc) };
+  }
+  if (isScalar(at)) {
+    // "member-of: sg-dev" becomes a list.
+    if (at.value === plan.value) return { error: 'They are already connected' };
+    doc.setIn(plan.path, doc.createNode([at.value, plan.value], { flow: true }));
+    return { text: str(doc) };
+  }
+  if (!isSeq(at)) return { error: 'Cannot add it there: that part of the YAML is not a list' };
+  const json = JSON.stringify(plan.value);
+  if (at.items.some((i) => JSON.stringify((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === json)) return { error: 'They are already connected' };
+  at.add(doc.createNode(plan.value, { flow: true }));
+  return { text: str(doc) };
+}
+
+const hasEdges = (type: DiagramType) => !!(type.schema as Schema).properties?.edges;
+
+// ---------------------------------------------------------------- edges
+
+/** Long-form properties an edge in `edges:` can have (label, style, line, …). */
+export function edgeFields(text: string, type: DiagramType, path: Path): Field[] {
+  const doc = parse(text);
+  if (!doc || path[0] !== 'edges' || typeof path[1] !== 'number') return [];
+  const long = schemasAt(type.schema as Schema, ['edges', '-']).find((s) => s.properties?.from)?.properties as Record<string, Schema> | undefined;
+  if (!long) return [];
+  const values = edgeValues(doc.getIn(path));
+  const fields: Field[] = [];
+  for (const [key, s] of Object.entries(long)) {
+    if (key === 'from' || key === 'to') continue;
+    const v = values[key];
+    const label = titleCase(key);
+    if (Array.isArray(s.enum)) fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options: s.enum.map(String), hint: s.description, allowEmpty: true });
+    else if (s.type === 'boolean') fields.push({ key, kind: 'toggle', label, value: v === true, hint: s.description });
+    else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint: s.description });
+  }
+  return fields;
+}
+
+/** Any edge form ("a -> b", "a -> b: x", { "a -> b": {…} }, { from, to }) as its properties. */
+function edgeValues(item: unknown): Record<string, unknown> {
+  const plain = item && typeof (item as { toJSON?: unknown }).toJSON === 'function' ? (item as { toJSON(): unknown }).toJSON() : item;
+  if (typeof plain === 'string') return {};
+  if (plain && typeof plain === 'object') {
+    const o = plain as Record<string, unknown>;
+    if ('from' in o) return o;
+    const [, v] = Object.entries(o)[0] ?? [];
+    if (v && typeof v === 'object') return v as Record<string, unknown>;
+    if (v != null) return { label: v };
+  }
+  return {};
+}
+
+/** Sets one property of an edge, rewriting shorthand into "a -> b: { … }" only when needed. */
+export function setEdgeField(text: string, path: Path, key: string, value: unknown): string | undefined {
+  const doc = parse(text);
+  if (!doc) return undefined;
+  const item = doc.getIn(path, true);
+  const plain = item && typeof (item as { toJSON?: unknown }).toJSON === 'function' ? (item as { toJSON(): unknown }).toJSON() : item;
+  const empty = value === undefined || value === '' || value === false;
+  let arrow: string | undefined;
+  let props: Record<string, unknown>;
+  if (typeof plain === 'string') {
+    arrow = plain;
+    props = {};
+  } else if (plain && typeof plain === 'object' && 'from' in (plain as object)) {
+    const map = item as YAMLMap;
+    if (empty) map.delete(key);
+    else map.set(key, value);
+    return str(doc);
+  } else if (plain && typeof plain === 'object') {
+    arrow = Object.keys(plain as object)[0];
+    props = edgeValues(plain);
+  } else return undefined;
+  if (empty) delete props[key];
+  else props[key] = value;
+  const keys = Object.keys(props);
+  // Back to the shortest form that says the same thing.
+  const next = !keys.length ? arrow : keys.length === 1 && keys[0] === 'label' ? { [arrow!]: props.label } : { [arrow!]: props };
+  const node = doc.createNode(next, { flow: true });
+  if (isMap(node)) for (const p of node.items) if (isMap(p.value)) p.value.flow = true;
+  if (isMap(node)) node.flow = false;
+  doc.setIn(path, node);
+  return str(doc);
+}

@@ -531,6 +531,18 @@ export const access: DiagramType<AccessSource> = {
   },
   palette,
   build,
+  connect(src, from, to) {
+    const is = (collection: 'principals' | 'packages' | 'resources', id: string) => !!src[collection] && id in src[collection]!;
+    if (is('principals', from) && is('principals', to)) return { path: ['principals', from, 'member-of'], value: to };
+    if (is('principals', from) && is('packages', to)) return { path: ['packages', to, 'holders'], value: from };
+    if (is('packages', from) && is('principals', to)) return { path: ['packages', from, 'grants'], value: to };
+    if (is('packages', from) && is('resources', to)) return { path: ['packages', from, 'grants'], value: { [to]: 'User' } };
+    if (is('principals', from) && is('resources', to)) {
+      const role = Object.keys(src.roles ?? {})[0] ?? 'reader';
+      return { path: ['assignments'], value: `${from} is ${role} on ${to}` };
+    }
+    return 'Connect a person or group to a group, package or resource, or a package to what it grants';
+  },
   template: `type: access
 title: Engineering access
 subtitle: Entra ID access packages and Azure roles

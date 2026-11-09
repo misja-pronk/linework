@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findType, render } from '@cartography/engine';
-import { addEntry, deleteEntry, duplicateEntry, fieldsFor, parentKey, renameEntry, setField } from '../src/builder.ts';
+import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from '../src/builder.ts';
 
 const azure = findType('azure')!;
 const dp = findType('data-products')!;
@@ -72,5 +72,32 @@ describe('builder edits', () => {
     expect(f[0]).toMatchObject({ key: 'label', kind: 'text' });
     expect(f.find((x) => x.key === 'kind')).toMatchObject({ kind: 'select', value: 'app-service' });
     expect(f.find((x) => x.key === 'in')).toMatchObject({ kind: 'select', value: 'rg', options: ['rg'] });
+  });
+});
+
+describe('connections', () => {
+  const access = findType('access')!;
+  const erd = findType('erd')!;
+  it('adds an edge for graph types', () => {
+    const r = connectEntries(shop, azure, 'web', 'rg');
+    expect(r).toMatchObject({ text: expect.stringContaining('- web -> rg') });
+    expect(connectEntries(shop, azure, 'web', 'db')).toMatchObject({ text: expect.stringContaining('- web -> db\n') });
+  });
+  it('follows the type: inputs, member-of, foreign keys', () => {
+    const dpText = 'type: data-products\nsources:\n  db: database\nproducts:\n  orders:\n    inputs: [db]\n  revenue: {}\n';
+    expect(connectEntries(dpText, dp, 'orders', 'revenue')).toMatchObject({ text: expect.stringContaining('revenue: { inputs: [ orders ] }') });
+    expect(connectEntries(dpText, dp, 'db', 'orders')).toEqual({ error: 'They are already connected' });
+    const acc = 'type: access\nprincipals:\n  alice: user\n  devs: group\n';
+    expect(connectEntries(acc, access, 'alice', 'devs')).toMatchObject({ text: expect.stringContaining('alice: { kind: user, member-of: [ devs ] }') });
+    const db = 'type: erd\ntables:\n  orders:\n    columns:\n      id: uuid pk\n  customers:\n    columns:\n      id: bigint pk\n';
+    expect(connectEntries(db, erd, 'orders', 'customers')).toMatchObject({ text: expect.stringContaining('customer_id: bigint fk customers') });
+  });
+  it('edits a line, keeping the shortest form', () => {
+    const labelled = setEdgeField(shop, ['edges', 1], 'label', 'reads')!;
+    expect(labelled).toContain('- db -> web: reads');
+    const styled = setEdgeField(labelled, ['edges', 1], 'style', 'private')!;
+    expect(styled).toContain('- db -> web: { label: reads, style: private }');
+    expect(setEdgeField(setEdgeField(styled, ['edges', 1], 'style', undefined)!, ['edges', 1], 'label', '')).toContain('- db -> web\n');
+    expect(edgeFields(styled, azure, ['edges', 1]).find((f) => f.key === 'style')).toMatchObject({ kind: 'select', value: 'private' });
   });
 });

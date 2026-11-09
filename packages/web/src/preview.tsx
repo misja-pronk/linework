@@ -25,6 +25,8 @@ interface Props {
   /** A palette item dropped at a point (pin coordinates), inside a group or not. */
   onPaletteDrop(index: number, at: Point, group: string | null): void;
   onKeyDown(e: React.KeyboardEvent): void;
+  /** Dragged from one element's handle onto another. */
+  onConnect(from: string, to: string): void;
   children?: React.ReactNode;
 }
 
@@ -38,7 +40,7 @@ interface Drag {
   pointer: number;
   x: number;
   y: number;
-  mode: 'pan' | 'node';
+  mode: 'pan' | 'node' | 'connect';
   moved: boolean;
   vx: number;
   vy: number;
@@ -67,7 +69,11 @@ export function Preview(p: Props) {
   const { result, stale, selected, docKey } = p;
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
-  const [dragging, setDragging] = useState<'pan' | 'node'>();
+  const [dragging, setDragging] = useState<'pan' | 'node' | 'connect'>();
+  /** The node under the pointer, for its connect handle. */
+  const [hover, setHover] = useState<string>();
+  /** While connecting: where the pointer is (SVG coordinates) and the node it is over. */
+  const [link, setLink] = useState<{ x: number; y: number; target?: string }>();
   const [dropTarget, setDropTarget] = useState<string | null>();
   const drag = useRef<Drag>(null);
   const fitted = useRef<number>(-1);
@@ -170,6 +176,13 @@ export function Preview(p: Props) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     frame.current?.focus({ preventScroll: true });
+    const handle = (e.target as Element).closest('[data-handle]') as HTMLElement | null;
+    if (handle && !stale) {
+      drag.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY, mode: 'connect', moved: true, vx: view.x, vy: view.y, node: handle.dataset.handle };
+      setDragging('connect');
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      return;
+    }
     const hit = e.button === 0 ? ((e.target as Element).closest('[data-node]') as HTMLElement | null) : null;
     const id = hit?.dataset.node;
     const box = id ? result?.placed?.nodes.get(id) : undefined;
@@ -192,7 +205,20 @@ export function Preview(p: Props) {
 
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
-    if (!d || d.pointer !== e.pointerId) return;
+    if (!d) {
+      const over = ((e.target as Element).closest('[data-node],[data-handle]') as HTMLElement | null);
+      const id = over?.dataset.node ?? over?.dataset.handle;
+      if (id !== hover) setHover(id);
+      return;
+    }
+    if (d.pointer !== e.pointerId) return;
+    if (d.mode === 'connect') {
+      const at = toLayout(e.clientX, e.clientY);
+      const o = result?.origin ?? { x: 0, y: 0 };
+      const under = (document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-node]') as HTMLElement | null)?.dataset.node;
+      setLink({ x: at.x + o.x, y: at.y + o.y, target: under !== d.node ? under : undefined });
+      return;
+    }
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
@@ -216,6 +242,12 @@ export function Preview(p: Props) {
     setDragging(undefined);
     setDropTarget(undefined);
     cancelAnimationFrame(frameReq.current);
+    if (d.mode === 'connect') {
+      const target = link?.target;
+      setLink(undefined);
+      if (!cancelled && target) p.onConnect(d.node!, target);
+      return;
+    }
     if (cancelled) return;
     if (d.moved) {
       if (d.mode === 'node') {
@@ -250,6 +282,9 @@ export function Preview(p: Props) {
   };
 
   const box = selectedBox(result, selected);
+  const hoverBox = !dragging && hover && !stale ? result?.placed?.nodes.get(hover) : undefined;
+  const from = dragging === 'connect' && drag.current?.node ? result?.placed?.nodes.get(drag.current.node) : undefined;
+  const linkTarget = link?.target ? result?.placed?.nodes.get(link.target) : undefined;
   const target = dropTarget && result?.placed?.groups.get(dropTarget);
   const o = result?.origin ?? { x: 0, y: 0 };
   const empty = !result?.svg;
@@ -281,6 +316,24 @@ export function Preview(p: Props) {
           <div className="drawing" dangerouslySetInnerHTML={{ __html: result!.svg! }} />
           {target && (
             <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }} />
+          )}
+          {from && link && (
+            <svg className="link-line" width={result!.width} height={result!.height}>
+              <line x1={from.x + from.width + o.x} y1={from.y + from.height / 2 + o.y} x2={link.x} y2={link.y} strokeWidth={2 / view.scale} />
+            </svg>
+          )}
+          {linkTarget && (
+            <div className="drop-ring" style={{ left: linkTarget.x + o.x - 5, top: linkTarget.y + o.y - 5, width: linkTarget.width + 10, height: linkTarget.height + 10, borderWidth: 2 / view.scale }} />
+          )}
+          {hoverBox && (
+            <button
+              className="connect-handle"
+              data-handle={hover}
+              title="Drag to another element to connect"
+              aria-label={`Connect ${hover}`}
+              tabIndex={-1}
+              style={{ left: hoverBox.x + hoverBox.width + o.x, top: hoverBox.y + hoverBox.height / 2 + o.y, transform: `translate(-50%, -50%) scale(${1 / view.scale})` }}
+            />
           )}
           {box && (
             <div

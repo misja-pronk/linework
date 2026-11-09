@@ -290,6 +290,14 @@ export const erd: DiagramType<ErdSource> = {
     },
     additionalProperties: false,
   },
+  connect(src, from, to) {
+    const target = src.tables?.[to];
+    if (!src.tables?.[from] || !target) return 'Connect one table to another';
+    const pk = Object.entries(target.columns ?? {}).find(([, c]) => parseColumn(c).pk);
+    const key = `${to.replace(/s$/, '')}_${pk?.[0] ?? 'id'}`;
+    const type = pk ? parseColumn(pk[1]).type : undefined;
+    return { path: ['tables', from, 'columns'], key, value: `${type ? `${type} ` : ''}fk ${to}` };
+  },
   palette: [
     { collection: 'schemas', kind: 'schema', label: 'Schema', icon: 'layout-grid', tone: 'slate' },
     { collection: 'tables', kind: 'table', label: 'Table', icon: 'table-2', tone: 'blue', keywords: ['entity'] },
