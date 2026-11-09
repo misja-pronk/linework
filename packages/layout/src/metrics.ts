@@ -26,6 +26,8 @@ export interface LayoutMetrics {
   detourExcess: number;
   /** Mean share of each group's inside that is far from anything it holds (0 is a snug group). */
   groupEmpty: number;
+  /** Share of the whole drawing far from every node and group: holes and empty corners. */
+  voids: number;
   /** Share of nodes whose centre lines up across the flow (same row in a left-to-right diagram) with another node. */
   aligned: number;
   /** Parallel stretches of unrelated lines closer than MIN_GAP (or on top of each other). */
@@ -42,6 +44,8 @@ export interface LayoutMetrics {
 
 /** Lines closer than this read as one smudge. */
 const MIN_GAP = 8;
+/** Farther than this from every box is a hole in the drawing (more than a wide gap between layers). */
+const VOID = 96;
 /** Parallel lines within this distance count as one bundle. */
 const BUNDLE = 40;
 
@@ -122,6 +126,7 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     (1 - m.density) * 20 +
     m.detourExcess * 15 +
     m.groupEmpty * 40 +
+    m.voids * 80 +
     (1 - m.aligned) * 12 +
     m.tightPairs * 6 +
     m.uneven * 4 +
@@ -178,6 +183,23 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
       emptySum += empty / total;
       groupsCounted++;
     }
+  }
+
+  // Voids: points of the drawing far from every box. Lines through a hole do not fill it.
+  const boxes = [...placed.nodes.values(), ...placed.groups.values()];
+  let samples = 0;
+  let holes = 0;
+  if (boxes.length) {
+    const x0 = Math.min(...boxes.map((b) => b.x));
+    const y0 = Math.min(...boxes.map((b) => b.y));
+    const x1 = Math.max(...boxes.map((b) => b.x + b.width));
+    const y1 = Math.max(...boxes.map((b) => b.y + b.height));
+    const step = Math.max(24, Math.sqrt(((x1 - x0) * (y1 - y0)) / 2500));
+    for (let y = y0 + step / 2; y < y1; y += step)
+      for (let x = x0 + step / 2; x < x1; x += step) {
+        samples++;
+        if (!boxes.some((b) => boxDistance(b, x, y) < VOID)) holes++;
+      }
   }
 
   // Alignment across the flow: centres sharing a row (left-to-right) or column (top-down).
@@ -238,8 +260,10 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     for (const s of all) {
       const along = s.h ? [b.y, b.y + b.height].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.x + b.width) - Math.max(s.lo, b.x) > 12
         : [b.x, b.x + b.width].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.y + b.height) - Math.max(s.lo, b.y) > 12;
-      // Through the header text: a vertical line crossing the header's left part (where the title is).
-      const through = !s.h && s.at > b.x + 4 && s.at < b.x + Math.min(b.width, 240) && s.lo < b.y + header - 8 && s.hi > b.y + 8;
+      // Through the header text: the title is drawn 13 to 31px below the top, from 12px in, and is
+      // rarely wider than 200px (a line passing under it, in a top-down header's lane, is fine).
+      const [t0, t1, a0, a1] = s.h ? [b.x + 12, b.x + Math.min(b.width - 12, 212), b.y + 13, b.y + 31] : [b.y + 13, b.y + 31, b.x + 12, b.x + Math.min(b.width - 12, 212)];
+      const through = s.at > a0 && s.at < a1 && s.lo < t1 && s.hi > t0;
       if (along || through) borderHits++;
     }
   }
@@ -268,6 +292,7 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     detour: counted ? r2(ratioSum / counted) : 1,
     detourExcess: r2(detourExcess),
     groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,
+    voids: samples ? r2(holes / samples) : 0,
     aligned: centres.length ? r2(aligned / centres.length) : 1,
     tightPairs,
     minGap: minGap === Infinity ? 0 : r2(minGap),
