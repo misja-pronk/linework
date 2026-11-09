@@ -15,10 +15,12 @@ export interface KindInfo {
   kind: string;
   label?: string;
   keywords?: string[];
+  /** What the vendor's own files call it ("simple storage service" for s3): counts as much as the kind's own name. */
+  names?: string[];
 }
 
 // Vendor words that every file name carries and that say nothing about the service.
-const NOISE = new Set(['icon', 'icons', 'arch', 'res', 'amazon', 'aws', 'azure', 'microsoft', 'ms', 'google', 'gcp', 'svg', 'the', 'and', 'for', 'of', 'light', 'dark', 'bg']);
+const NOISE = new Set(['icon', 'icons', 'arch', 'res', 'amazon', 'aws', 'azure', 'microsoft', 'ms', 'google', 'gcp', 'svg', 'the', 'and', 'for', 'of', 'light', 'dark', 'bg', 'color', 'rgb']);
 
 /** Words of a file or kind name: "10245-icon-service-Key-Vaults.svg" → ["key", "vault"]. */
 export function nameTokens(name: string): string[] {
@@ -143,7 +145,7 @@ export function matchIcons(files: string[], kinds: KindInfo[], pack?: string, th
   const out: Record<string, string> = {};
   const extra = pack ? aliases[pack] ?? {} : Object.assign({}, ...Object.values(aliases));
   for (const k of kinds) {
-    const phrases = [k.kind.replace(/-/g, ' '), k.label ?? '', ...(extra[k.kind] ?? [])].filter(Boolean).map(nameTokens);
+    const phrases = [k.kind.replace(/-/g, ' '), k.label ?? '', ...(k.names ?? []), ...(extra[k.kind] ?? [])].filter(Boolean).map(nameTokens);
     const loose = (k.keywords ?? []).map(nameTokens);
     let best: { file: string; s: number; p: number } | undefined;
     for (const { file, t } of tokens) {

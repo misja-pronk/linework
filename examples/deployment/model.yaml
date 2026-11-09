@@ -1,0 +1,36 @@
+# One model of the web shop, deployed twice. azure.yaml and aws.yaml include this file and place the
+# same five containers on their own infrastructure with `of:`; their views draw one environment each:
+#   carto render examples/deployment/aws.yaml --all-views
+type: model
+title: Web shop
+
+elements:
+  customer: { kind: person, label: Customer, description: Buys things in the web shop }
+  shop:
+    kind: software-system
+    label: Web shop
+    description: Sells products online and handles orders
+    links:
+      - { to: 'azure.yaml#prod', label: Production on Azure }
+      - { to: 'aws.yaml#prod', label: Production on AWS }
+    elements:
+      web: { kind: web-app, label: Storefront, technology: React, description: Shows the catalogue and takes orders }
+      api: { kind: container, label: Orders API, technology: .NET 9, description: Places orders and charges cards }
+      worker: { kind: container, label: Mailer, technology: .NET 9, description: Sends receipts for placed orders }
+      db: { kind: database, label: Orders DB, technology: PostgreSQL 16, description: Orders and customers }
+      bus: { kind: queue, label: order-events, description: One message for every placed order }
+  stripe: { kind: software-system, label: Stripe, external: true, description: Charges cards }
+  mail: { kind: software-system, label: SendGrid, external: true, description: Delivers email }
+
+relations:
+  - customer -> shop.web: { label: Browses and orders, technology: HTTPS }
+  - shop.web -> shop.api: { label: Calls, technology: REST }
+  - shop.api -> shop.db: { label: Reads and writes, technology: SQL }
+  - shop.api -> shop.bus: { label: OrderPlaced, style: async }
+  - shop.bus -> shop.worker: { label: OrderPlaced, style: async }
+  - shop.api -> stripe: Charges cards
+  - shop.worker -> mail: Sends receipts
+
+views:
+  context: { kind: context, of: shop }
+  containers: { kind: container, of: shop }

@@ -48,6 +48,8 @@ export interface GraphGroup {
   /** Where it points to: a URL, another diagram, a view. Drawn as a link icon; real links in exports. */
   links?: Link[];
   description?: string;
+  /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
+  pack?: string;
   /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
   kind?: string;
   tags?: string[];
@@ -69,6 +71,8 @@ export interface GraphNode {
   folded?: boolean;
   /** Layer hint: nodes with the same rank line up across groups (network tiers: edge, core, access). */
   rank?: number;
+  /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
+  pack?: string;
 }
 
 /** A link on an element: a URL, a diagram file (relative to this one), or a view of one ("containers.yaml#containers", "#context"). */

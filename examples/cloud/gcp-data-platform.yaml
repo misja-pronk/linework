@@ -1,0 +1,49 @@
+type: cloud
+provider: gcp
+title: Data platform on Google Cloud
+subtitle: BigQuery at the centre, one project per stage
+
+groups:
+  sources: { kind: boundary, label: Sources }
+  folder: { kind: folder, label: data }
+  ingest: { kind: project, label: Ingest, project: acme-data-ingest, in: folder }
+  warehouse: { kind: project, label: Warehouse, project: acme-data-warehouse, in: folder }
+  serve: { kind: project, label: Serve, project: acme-data-serve, in: folder }
+
+nodes:
+  saas: { kind: external, label: SaaS apps, caption: CRM and billing, in: sources }
+  orders: { kind: cloud-sql, label: Orders database, in: sources }
+  clicks: { kind: client, label: Web and app events, in: sources }
+
+  landing: { kind: gcs, label: Landing bucket, in: ingest }
+  cdc: { kind: datastream, label: Change data capture, in: ingest }
+  events: { kind: pubsub, label: Events, in: ingest }
+  streaming: { kind: dataflow, label: Streaming pipeline, in: ingest }
+  schedule: { kind: composer, label: Load and orchestrate, in: ingest }
+
+  raw: { kind: bigquery, label: Raw datasets, in: warehouse }
+  transform: { kind: dataform, label: Transformations, in: warehouse }
+  marts: { kind: bigquery, label: Data marts, in: warehouse }
+  governance: { kind: dataplex, label: Catalog and quality, in: warehouse }
+
+  looker: { kind: looker, label: Dashboards, in: serve }
+  models: { kind: vertex-ai, label: Forecast models, in: serve }
+
+  analysts: { kind: users, label: Analysts }
+
+edges:
+  - saas -> landing: { label: daily files, style: data }
+  - orders -> cdc: { label: CDC, style: data }
+  - clicks -> events: { label: events, style: data }
+  - events -> streaming: { style: data }
+  - landing -> schedule: { style: data }
+  - schedule -> raw: { label: load, style: data }
+  - cdc -> raw: { style: data }
+  - streaming -> raw: { style: data }
+  - raw -> transform: { style: data }
+  - transform -> marts: { style: data }
+  - schedule -> transform: { label: runs, style: management }
+  - transform -- governance: { label: lineage }
+  - marts -> looker: { style: data }
+  - marts -> models: { style: data }
+  - looker -> analysts
