@@ -1,5 +1,5 @@
 // Layout quality, measured. Used to compare layout strategies and to guard against regressions.
-import type { Box, Graph, Placed, Point } from '@cartography/core';
+import type { Box, Graph, GraphEdge, Placed, Point } from '@cartography/core';
 
 export interface LayoutMetrics {
   /** Pairs of edge segments that cross. */
@@ -20,11 +20,34 @@ export interface LayoutMetrics {
   /** Width and height of the drawing. */
   width: number;
   height: number;
+  /** Mean of route length / manhattan distance between the ends; 1 is a perfectly direct drawing. */
+  detour: number;
+  /** Sum over edges of the length beyond direct, in median node widths (each capped at 3). */
+  detourExcess: number;
+  /** Mean share of each group's inside that is far from anything it holds (0 is a snug group). */
+  groupEmpty: number;
+  /** Share of nodes whose centre lines up across the flow (same row in a left-to-right diagram) with another node. */
+  aligned: number;
+  /** Parallel stretches of unrelated lines closer than MIN_GAP (or on top of each other). */
+  tightPairs: number;
+  /** Smallest gap between parallel lines that run side by side (0 when none do). */
+  minGap: number;
+  /** How unevenly bundled lines are spaced: per line between two neighbours, |left - right| / max. */
+  uneven: number;
+  /** Labels on a group border or header, and lines running along a border or through a header. */
+  borderHits: number;
+  /** Line ends on one node side closer together than MIN_GAP (shared trunk ends excepted). */
+  portCrowding: number;
 }
+
+/** Lines closer than this read as one smudge. */
+const MIN_GAP = 8;
+/** Parallel lines within this distance count as one bundle. */
+const BUNDLE = 40;
 
 type Seg = [Point, Point];
 
-export function measure(graph: Graph, placed: Placed): LayoutMetrics {
+export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetrics {
   const segs = new Map<string, Seg[]>();
   for (const e of graph.edges) {
     const pts = placed.edges.get(e.id)?.points ?? [];
@@ -66,7 +89,9 @@ export function measure(graph: Graph, placed: Placed): LayoutMetrics {
   const widths = [...placed.nodes.values()].map((b) => b.width).sort((a, b) => a - b);
   const unit = widths[Math.floor(widths.length / 2)] ?? 1;
   const nodeArea = [...placed.nodes.values()].reduce((s, b) => s + b.width * b.height, 0);
+  const beauty = beautyMetrics(graph, placed, segs, header, unit);
   return {
+    ...beauty,
     crossings,
     edgeThroughNode,
     labelOverlaps,
@@ -87,15 +112,175 @@ export function measure(graph: Graph, placed: Placed): LayoutMetrics {
 export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
   const aspectPenalty = Math.abs(Math.log(m.aspect / targetAspect));
   return (
-    m.edgeThroughNode * 40 +
-    m.labelOverlaps * 30 +
+    m.edgeThroughNode * 200 +
+    m.labelOverlaps * 200 +
     m.crossings * 12 +
     m.backward * 8 +
-    m.bends * 1.5 +
+    m.bends * 2.5 +
     m.edgeLength * 0.6 +
     aspectPenalty * 25 +
-    (1 - m.density) * 20
+    (1 - m.density) * 20 +
+    m.detourExcess * 15 +
+    m.groupEmpty * 40 +
+    (1 - m.aligned) * 12 +
+    m.tightPairs * 6 +
+    m.uneven * 4 +
+    m.borderHits * 25 +
+    m.portCrowding * 8
   );
+}
+
+/** Lines that may share ink: same start or same end, drawn alike (a trunk that branches). */
+function siblings(a: GraphEdge, b: GraphEdge): boolean {
+  return (a.from.node === b.from.node || a.to.node === b.to.node) && a.line === b.line && a.tone === b.tone;
+}
+
+function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, header: number, unit: number) {
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const byId = new Map(graph.edges.map((e) => [e.id, e]));
+
+  // Detour: route length against the manhattan distance between its two ends.
+  let ratioSum = 0;
+  let detourExcess = 0;
+  let counted = 0;
+  for (const e of graph.edges) {
+    const pts = placed.edges.get(e.id)?.points ?? [];
+    if (pts.length < 2 || e.from.node === e.to.node) continue;
+    const a = pts[0]!;
+    const b = pts[pts.length - 1]!;
+    const len = segs.get(e.id)!.reduce((s, [p, q]) => s + Math.abs(q.x - p.x) + Math.abs(q.y - p.y), 0);
+    const direct = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    ratioSum += len / Math.max(24, direct);
+    detourExcess += Math.min(3, Math.max(0, len - direct) / unit);
+    counted++;
+  }
+
+  // Empty room in groups: sample the inside (below the header) and count points far from any child.
+  const kidsOf = (g: string) => [
+    ...graph.nodes.filter((n) => n.parent === g).map((n) => placed.nodes.get(n.id)),
+    ...graph.groups.filter((c) => c.parent === g).map((c) => placed.groups.get(c.id)),
+  ].filter((b): b is Box => !!b);
+  let emptySum = 0;
+  let groupsCounted = 0;
+  for (const g of graph.groups) {
+    const box = placed.groups.get(g.id);
+    const kids = kidsOf(g.id);
+    if (!box || !kids.length) continue;
+    const step = 24;
+    let total = 0;
+    let empty = 0;
+    for (let y = box.y + header + step / 2; y < box.y + box.height; y += step)
+      for (let x = box.x + step / 2; x < box.x + box.width; x += step) {
+        total++;
+        if (!kids.some((k) => boxDistance(k, x, y) < 64)) empty++;
+      }
+    if (total) {
+      emptySum += empty / total;
+      groupsCounted++;
+    }
+  }
+
+  // Alignment across the flow: centres sharing a row (left-to-right) or column (top-down).
+  const centres = [...placed.nodes.values()].map((b) => (graph.direction === 'down' ? b.x + b.width / 2 : b.y + b.height / 2));
+  const aligned = centres.filter((c, i) => centres.some((d, j) => j !== i && Math.abs(c - d) < 1)).length;
+
+  // Parallel segments: tight pairs, smallest gap, uneven bundles.
+  type S = { edge: string; h: boolean; at: number; lo: number; hi: number };
+  const all: S[] = [];
+  for (const [id, list] of segs)
+    for (const [a, b] of list) {
+      const h = a.y === b.y;
+      if (!h && a.x !== b.x) continue;
+      all.push(h ? { edge: id, h, at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x) } : { edge: id, h, at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y) });
+    }
+  let tightPairs = 0;
+  let minGap = Infinity;
+  const near = all.map(() => [] as number[]);
+  for (let i = 0; i < all.length; i++)
+    for (let j = i + 1; j < all.length; j++) {
+      const a = all[i]!;
+      const b = all[j]!;
+      if (a.h !== b.h || a.edge === b.edge) continue;
+      if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) < 8) continue;
+      const d = Math.abs(a.at - b.at);
+      if (d >= BUNDLE) continue;
+      const sib = siblings(byId.get(a.edge)!, byId.get(b.edge)!);
+      if (d < 0.5 && sib) continue; // a shared trunk: one line on purpose
+      if (d < MIN_GAP) tightPairs++;
+      if (d >= 0.5) {
+        minGap = Math.min(minGap, d);
+        near[i]!.push(b.at - a.at);
+        near[j]!.push(a.at - b.at);
+      }
+    }
+  let uneven = 0;
+  for (const list of near) {
+    const left = Math.max(-Infinity, ...list.filter((d) => d < 0));
+    const right = Math.min(Infinity, ...list.filter((d) => d > 0));
+    if (left > -Infinity && right < Infinity) uneven += Math.abs(-left - right) / Math.max(-left, right);
+  }
+
+  // Group borders and headers: no label on them, no line running along a border or through a header.
+  let borderHits = 0;
+  const labels = [...placed.edges.values()].map((e) => e.label).filter((l): l is Box => !!l);
+  for (const g of graph.groups) {
+    const b = placed.groups.get(g.id);
+    if (!b) continue;
+    const head = { x: b.x, y: b.y, width: b.width, height: Math.min(header, b.height) };
+    const t = 3;
+    const bands = [
+      { x: b.x - t, y: b.y - t, width: b.width + 2 * t, height: 2 * t },
+      { x: b.x - t, y: b.y + b.height - t, width: b.width + 2 * t, height: 2 * t },
+      { x: b.x - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
+      { x: b.x + b.width - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
+    ];
+    for (const l of labels) if (overlaps(l, head) || bands.some((r) => overlaps(l, r))) borderHits++;
+    for (const s of all) {
+      const along = s.h ? [b.y, b.y + b.height].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.x + b.width) - Math.max(s.lo, b.x) > 12
+        : [b.x, b.x + b.width].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.y + b.height) - Math.max(s.lo, b.y) > 12;
+      // Through the header text: a vertical line crossing the header's left part (where the title is).
+      const through = !s.h && s.at > b.x + 4 && s.at < b.x + Math.min(b.width, 240) && s.lo < b.y + header - 8 && s.hi > b.y + 8;
+      if (along || through) borderHits++;
+    }
+  }
+
+  // Port crowding: ends on one node side closer than MIN_GAP, unless they are one shared end.
+  let portCrowding = 0;
+  const ends: { node: string; side: string; at: number; edge: GraphEdge }[] = [];
+  for (const e of graph.edges) {
+    const pts = placed.edges.get(e.id)?.points ?? [];
+    if (pts.length < 2) continue;
+    for (const [node, p, q] of [[e.from.node, pts[0]!, pts[1]!], [e.to.node, pts[pts.length - 1]!, pts[pts.length - 2]!]] as const) {
+      const side = p.y === q.y ? (q.x > p.x ? 'E' : 'W') : q.y > p.y ? 'S' : 'N';
+      ends.push({ node, side, at: p.y === q.y ? p.y : p.x, edge: e });
+    }
+  }
+  for (let i = 0; i < ends.length; i++)
+    for (let j = i + 1; j < ends.length; j++) {
+      const a = ends[i]!;
+      const b = ends[j]!;
+      if (a.node !== b.node || a.side !== b.side || a.edge === b.edge) continue;
+      const d = Math.abs(a.at - b.at);
+      if (d < MIN_GAP && !(d < 0.5 && siblings(a.edge, b.edge))) portCrowding++;
+    }
+
+  return {
+    detour: counted ? r2(ratioSum / counted) : 1,
+    detourExcess: r2(detourExcess),
+    groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,
+    aligned: centres.length ? r2(aligned / centres.length) : 1,
+    tightPairs,
+    minGap: minGap === Infinity ? 0 : r2(minGap),
+    uneven: r2(uneven),
+    borderHits,
+    portCrowding,
+  };
+}
+
+function boxDistance(b: Box, x: number, y: number): number {
+  const dx = Math.max(b.x - x, 0, x - b.x - b.width);
+  const dy = Math.max(b.y - y, 0, y - b.y - b.height);
+  return Math.hypot(dx, dy);
 }
 
 function inset(b: Box, d: number): Box {

@@ -9,20 +9,20 @@ import { big } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
-  'access/engineering.yaml': 4,
+  'access/engineering.yaml': 1,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 1,
-  'azure/microservices.yaml': 8,
+  'azure/microservices.yaml': 7,
   'azure/web-shop.yaml': 0,
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 0,
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 1,
   'erd/orders.yaml': 0,
-  'erd/saas.yaml': 8,
+  'erd/saas.yaml': 6,
   'erd/shop-schemas.yaml': 0,
   'github/setup.yaml': 0,
   'systems/data-pipeline.yaml': 0,
@@ -81,5 +81,22 @@ describe('moved groups', () => {
     const g1 = moved.placed!.groups.get('rg')!;
     // Same offset inside the group as before.
     expect(a1.y - g1.y).toBeCloseTo(a0.y - g.y, 0);
+  });
+});
+
+describe('tidy lines', () => {
+  const text = 'type: azure\nnodes:\n  bus: service-bus\n  a: app-service\n  b: function-app\n  c: app-service\nedges:\n  - bus -> a\n  - bus -> b\n  - bus -> c\n';
+  it('fans out from one shared port as a trunk', async () => {
+    const r = await render(text, { fonts: 'none' });
+    const starts = [...r.placed!.edges.values()].map((e) => e.points[0]!);
+    expect(new Set(starts.map((p) => `${p.x},${p.y}`)).size).toBe(1);
+    expect(r.svg).toContain('<circle');
+  });
+  it('puts node centres on the 8px grid where there is room', async () => {
+    const r = await render('type: azure\nnodes:\n  a: app-service\n  b: sql-database\n  c: key-vault\nedges:\n  - a -> b\n  - b -> c\n', { fonts: 'none' });
+    for (const b of r.placed!.nodes.values()) {
+      expect((b.x + b.width / 2) % 8).toBe(0);
+      expect((b.y + b.height / 2) % 8).toBe(0);
+    }
   });
 });
