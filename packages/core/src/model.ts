@@ -45,6 +45,8 @@ export interface GraphNode {
   path: Path;
   /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
   folded?: boolean;
+  /** Layer hint: nodes with the same rank line up across groups (network tiers: edge, core, access). */
+  rank?: number;
 }
 
 /** A link on an element: a URL, a diagram file (relative to this one), or a view of one ("containers.yaml#containers", "#context"). */
@@ -68,6 +70,8 @@ export interface CardShape {
   badges?: string[];
   /** Flow-chart outlines: a decision (pointed ends), a terminal (pill) or a plain step (no icon tile). */
   form?: CardForm;
+  /** Two cards stacked: a redundant pair (HA firewalls, a switch stack). */
+  stack?: boolean;
 }
 
 export type CardForm = 'decision' | 'terminal' | 'plain';
@@ -91,6 +95,8 @@ export interface MatrixShape {
   rows: MatrixHeader[];
   /** cells[row][column]; undefined is an empty cell. */
   cells: (MatrixCell | undefined)[][];
+  /** A plain table: cells are left-aligned text, no pills (an IP plan). A row with an empty label continues the one above. */
+  plain?: boolean;
 }
 
 export interface MatrixHeader {
@@ -109,6 +115,8 @@ export interface MatrixCell {
   /** Small text under the pill, e.g. "via Developers". */
   note?: string;
   tone?: Tone;
+  /** Bold text, in a plain table. */
+  strong?: boolean;
 }
 
 export type TableRow =
@@ -145,6 +153,10 @@ export interface GraphEdge {
   badge?: boolean;
   /** What the line means, e.g. "Identity": names the link in a badge's tooltip. */
   kind?: string;
+  /** Line weight relative to a normal line: trunks and aggregated links draw thicker. */
+  width?: number;
+  /** Icon in the label pill, e.g. a lock on a VPN tunnel. */
+  icon?: string;
   path: Path;
 }
 
@@ -155,6 +167,8 @@ export interface LegendItem {
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
   swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge';
   tone?: Tone;
+  /** Weight of the line sample, as GraphEdge.width. */
+  width?: number;
 }
 
 // Geometry, filled in by layout.

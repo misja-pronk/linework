@@ -20,6 +20,7 @@ const names = `
   arrow-left clipboard-paste circle-stop panel-left-close
   square circle-play circle-question-mark
   ship-wheel route calendar-clock file-sliders file-key scaling
+  brick-wall brick-wall-fire brick-wall-shield radar lock-keyhole arrow-down-up signpost wifi printer cctv warehouse
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

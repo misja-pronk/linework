@@ -16,6 +16,7 @@ carto new erd orders.yaml      # start from a type's template
 | --- | --- | --- |
 | Services, apps, queues and databases and how they talk; anything when unsure | [Architecture](#architecture) | `systems` |
 | What runs where in Azure: subscriptions, resource groups, VNets, subnets | [Azure infrastructure](#azure-infrastructure) | `azure` |
+| Network topology: zones, VLANs, firewalls, switches and links; an IP plan | [Network](#network) | `network` |
 | Tables, columns, keys and how tables relate | [Database design](#database-design) | `erd` |
 | Who gets access to what, through which group, package or role | [Roles, groups and access packages](#roles-groups-and-access-packages) | `access` |
 | How a GitHub organisation is set up: teams, repos, workflows, environments | [GitHub design](#github-design) | `github` |
@@ -26,6 +27,7 @@ Look-alikes that trip people up:
 
 - **A service that uses a database** is Architecture; **the tables inside it** are Database design.
 - **Azure resources and networks** are Azure infrastructure; **who may touch them** is Access.
+- **Firewalls, switches, VLANs and circuits** are Network; **the Azure resources behind them** are Azure infrastructure.
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
 - **ETL jobs as boxes and arrows** are Architecture; **products with ports and contracts** are Data products.
 - **Which services talk to each other** is Architecture; **the order they talk in, step by step** is Sequence.
@@ -73,6 +75,42 @@ edges:
 ```
 
 Examples: [examples/azure](../examples/azure)
+
+## Network
+
+`type: network` · zones, VLANs, devices and links, from the internet down.
+
+Use it for an office or campus (firewall, switches, access points, VLANs), a data centre, or hybrid connectivity: VPN and ExpressRoute or Direct Connect into a hub and spokes. It reads top-down by default, internet first.
+
+- **Zones** are groups with their address range and VLAN in the caption: `internet`, `wan`, `dmz`, `lan`, `vlan`, `zone`, `site`, `branch`, `datacenter`, `region`, `vpc`, `vnet`, `subnet`. Overlapping ranges, a subnet outside its parent and a device IP outside its zone are warned about.
+- **Devices**: `router`, `firewall`, `waf`, `ids`, `vpn-gateway`, `cloud-gateway` (ExpressRoute, Direct Connect), `nat`, `load-balancer`, `proxy`, `dns`, `l3-switch`, `switch`, `access-point`, `server`, `nas`, `storage`, `client`, `clients`, `phone`, `printer`, `camera`, plus `internet`, `isp`, `cloud`, `users`. The id is the hostname; `model`, `ip`, `cidr`, `vlan` and `ports` go in the caption.
+- **HA pairs**: `ha: true` (or a word, `ha: vPC`) draws the card as a stacked pair.
+- **Tiers**: `tier: internet | edge | core | distribution | access | endpoint` puts devices of one tier on one row across zones. Without tiers, links still run from the internet side down, by kind.
+- **Links** are plain lines, `a -- b` or `a -> b`; `flow: true` adds an arrowhead. Styles: `ethernet` (default), `fiber`, `trunk` (thick), `wan`, `circuit` (ExpressRoute, MPLS), `vpn` (dashed, with a lock), `peering`, `wireless` (dotted), `ha`, `mgmt`. `speed`, `count` (an aggregated link: one thick line, "2×10G"), `vlans` and `ports` make the label.
+- **IP plan**: `view: table` draws the same file as a table of device, interface, IP, VLAN and zone, from `ip` or `interfaces: { eth0: 10.0.0.1/24, mgmt: { ip: …, vlan: 1, zone: mgmt } }`.
+
+Not for: which Azure resources run where (use `azure`), how services call each other (use `systems`), pods and services in a cluster (use `kubernetes`).
+
+```yaml
+type: network
+title: Office
+groups:
+  office: { kind: site, label: Utrecht, cidr: 10.20.0.0/16 }
+  staff: { kind: vlan, label: Staff, in: office, vlan: 10, cidr: 10.20.10.0/24 }
+nodes:
+  isp: { kind: isp, label: Fibre ISP }
+  fw: { kind: firewall, in: office, model: FortiGate 60F, ha: true, ip: 10.20.1.1 }
+  core: { kind: switch, in: office, model: USW Pro 24 }
+  ap: { kind: access-point, in: staff }
+edges:
+  - isp -- fw: { style: wan, speed: 1G }
+  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20] }
+  - core -- ap
+```
+
+Import an inventory with `carto import inventory.csv` (columns `name,type,ip,zone,uplink`, optionally `model`, `vlan`, `cidr`, `tier`, `speed`; `uplink` may name a port as `core01:Gi1/0/1`) or a NetBox export (`{ devices, cables, ip_addresses }`, each as JSON from the API).
+
+Examples: [examples/network](../examples/network)
 
 ## Database design
 

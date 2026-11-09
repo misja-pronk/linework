@@ -26,6 +26,7 @@ import { resolveIcons, type IconPackFile } from './icons.ts';
 import { systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { kubernetes } from '@cartography/kubernetes';
+import { network } from '@cartography/network';
 import { erd } from '@cartography/erd';
 import { access } from '@cartography/access';
 import { github } from '@cartography/github';
@@ -33,7 +34,7 @@ import { dataProducts } from '@cartography/data-products';
 import { sequence } from '@cartography/sequence';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, azure, kubernetes, erd, access, github, dataProducts, sequence];
+export const types: DiagramType[] = [systems, network, azure, kubernetes, erd, access, github, dataProducts, sequence];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

@@ -40,7 +40,7 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const edgeLabels = new Map<string, { width: number; height: number }>();
   for (const e of graph.edges)
-    if (e.label) edgeLabels.set(e.id, { width: measureText(e.label, theme.size.edgeLabel, 500) + 16, height: 20 });
+    if (e.label) edgeLabels.set(e.id, { width: measureText(e.label, theme.size.edgeLabel, 500) + 16 + (e.icon ? LABEL_ICON : 0), height: 20 });
 
   const groupMinWidth = new Map<string, number>();
   for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
@@ -65,8 +65,15 @@ function cardSize(shape: CardShape, theme: Theme, list: Chip[] = [], linked = fa
   // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
   const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
   const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, inset.left + row + inset.right)));
-  return { width, height: list.length ? cardHeight(chipRows(list, width - inset.left - inset.right, theme).rows, theme) : c.height };
+  const height = list.length ? cardHeight(chipRows(list, width - inset.left - inset.right, theme).rows, theme) : c.height;
+  // A stacked pair keeps the card as it is and adds the edge of the one behind it.
+  return shape.stack ? { width: width + STACK, height: height + STACK } : { width, height };
 }
+
+/** How far the second card of a stacked pair shows below and to the right of the first. */
+export const STACK = 6;
+/** Room for an icon in an edge label pill (a lock on a tunnel). */
+export const LABEL_ICON = 15;
 
 /** How deep a decision's pointed ends reach in from its box. */
 export const DECISION_TIP = 14;

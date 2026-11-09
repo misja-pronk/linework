@@ -1,0 +1,39 @@
+type: network
+title: Hybrid cloud
+subtitle: Data centre to an Azure hub and spokes over ExpressRoute, with a VPN as backup
+
+groups:
+  dc: { kind: datacenter, label: Amsterdam DC, cidr: 10.0.0.0/16 }
+  servers: { kind: vlan, label: Servers, in: dc, vlan: 100, cidr: 10.0.100.0/24 }
+  azure: { kind: region, label: Azure West Europe }
+  hub: { kind: vnet, label: vnet-hub, in: azure, cidr: 10.100.0.0/22 }
+  gw: { kind: subnet, label: GatewaySubnet, in: hub, cidr: 10.100.0.0/27 }
+  afw: { kind: subnet, label: AzureFirewallSubnet, in: hub, cidr: 10.100.1.0/26 }
+  prod: { kind: vnet, label: vnet-prod, in: azure, cidr: 10.101.0.0/16 }
+  dev: { kind: vnet, label: vnet-dev, in: azure, cidr: 10.102.0.0/16 }
+
+nodes:
+  edge: { kind: router, label: rtr-ams, in: dc, model: Cisco ASR 1001-X, ha: true, tier: edge }
+  fw: { kind: firewall, label: fw-ams, in: dc, model: Palo Alto PA-3420, ha: true, tier: core }
+  core: { kind: l3-switch, label: core-ams, in: dc, model: Nexus 93180, ha: vPC }
+  esx: { kind: server, label: esx-cluster, in: servers, model: 6 hosts }
+  ad: { kind: dns, label: dc-01, in: servers, ip: 10.0.100.10 }
+  ergw: { kind: cloud-gateway, label: ergw-hub, in: gw, model: ExpressRoute ErGw2AZ, tier: core }
+  vpngw: { kind: vpn-gateway, label: vpngw-hub, in: gw, model: VpnGw2AZ, tier: core }
+  azfw: { kind: firewall, label: afw-hub, in: afw, model: Azure Firewall Premium, ip: 10.100.1.4 }
+  app: { kind: load-balancer, label: agw-prod, in: prod, model: Application Gateway }
+  vms: { kind: server, label: vmss-api, in: prod, ip: 10.101.1.0/24 }
+  devvms: { kind: server, label: vm-dev, in: dev, ip: 10.102.1.0/24 }
+
+edges:
+  - edge -- ergw: { style: circuit, speed: 1G, label: ExpressRoute }
+  - edge -- vpngw: { style: vpn, label: IPsec backup }
+  - edge -- fw: { style: trunk, speed: 10G, count: 2 }
+  - fw -- core: { style: trunk, speed: 25G, count: 2 }
+  - core -- esx: { speed: 25G, count: 4 }
+  - core -- ad
+  - ergw -- azfw
+  - vpngw -- azfw
+  - azfw -- app: { style: peering }
+  - azfw -- devvms: { style: peering }
+  - app -- vms

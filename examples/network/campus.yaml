@@ -1,0 +1,36 @@
+type: network
+title: Campus network
+subtitle: Collapsed core, two buildings, distribution and access layers
+
+groups:
+  wan: { kind: wan, label: Internet and WAN }
+  campus: { kind: site, label: Head office campus, cidr: 10.30.0.0/16 }
+  north: { kind: zone, label: Building North, in: campus }
+  south: { kind: zone, label: Building South, in: campus }
+
+nodes:
+  isp: { kind: isp, label: Dual ISP, in: wan, tier: internet }
+  fw: { kind: firewall, label: fw-campus, in: campus, model: FortiGate 400F, ha: true, tier: edge }
+  core: { kind: l3-switch, label: core-01/02, in: campus, model: Catalyst 9500, ha: SVL, tier: core, ip: 10.30.0.1 }
+  dist-n: { kind: l3-switch, label: dist-north, in: north, model: Catalyst 9300, ha: stack, tier: distribution, ip: 10.30.1.1 }
+  dist-s: { kind: l3-switch, label: dist-south, in: south, model: Catalyst 9300, ha: stack, tier: distribution, ip: 10.30.2.1 }
+  acc-n1: { kind: switch, label: acc-n1, in: north, model: Catalyst 9200, ports: 48, tier: access }
+  acc-n2: { kind: switch, label: acc-n2, in: north, model: Catalyst 9200, ports: 48, tier: access }
+  acc-s1: { kind: switch, label: acc-s1, in: south, model: Catalyst 9200, ports: 48, tier: access }
+  ap-n: { kind: access-point, label: APs north, in: north, model: 12× CW9166, tier: endpoint }
+  desks-n: { kind: clients, label: Desks north, in: north, tier: endpoint }
+  ap-s: { kind: access-point, label: APs south, in: south, model: 8× CW9166, tier: endpoint }
+  lab: { kind: server, label: Lab racks, in: south, tier: endpoint }
+
+edges:
+  - isp -- fw: { style: wan, speed: 10G, count: 2 }
+  - fw -- core: { style: trunk, speed: 40G, count: 2 }
+  - core -- dist-n: { style: fiber, speed: 40G, count: 2 }
+  - core -- dist-s: { style: fiber, speed: 40G, count: 2 }
+  - dist-n -- acc-n1: { style: fiber, speed: 10G, count: 2 }
+  - dist-n -- acc-n2: { style: fiber, speed: 10G, count: 2 }
+  - dist-s -- acc-s1: { style: fiber, speed: 10G, count: 2 }
+  - acc-n1 -- ap-n: { label: mGig PoE }
+  - acc-n2 -- desks-n: { speed: 1G }
+  - acc-s1 -- ap-s: { label: mGig PoE }
+  - acc-s1 -- lab: { speed: 10G }

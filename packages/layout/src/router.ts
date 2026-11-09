@@ -104,7 +104,8 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
     const list = input.edges.filter((e) => out.has(e.id));
     const moved = nudge({
       obstacles: [...input.obstacles.values()],
-      zones: input.soft,
+      // Header titles too: spreading must not push a line onto a group's name.
+      zones: [...input.soft, ...(input.texts ?? [])],
       edges: list.map((e) => ({
         id: e.id,
         points: out.get(e.id)!.points,
