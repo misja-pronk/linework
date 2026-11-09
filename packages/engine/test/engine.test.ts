@@ -1,0 +1,88 @@
+import { describe, expect, it } from 'vitest';
+import { parseEdge } from '@cartography/core';
+import { parseColumn } from '@cartography/erd';
+import { render, types } from '../src/index.ts';
+
+describe('edges', () => {
+  it('reads the shorthand forms', () => {
+    expect(parseEdge('a -> b', [])).toMatchObject({ from: { node: 'a' }, to: { node: 'b' }, line: 'solid', end: 'arrow' });
+    expect(parseEdge({ 'a --> b': 'SQL' }, [])).toMatchObject({ label: 'SQL', line: 'dashed' });
+    expect(parseEdge({ 'a <-> b': { label: 'sync', style: 'private' } }, [])).toMatchObject({ start: 'arrow', props: { style: 'private' } });
+    expect(parseEdge({ from: 'orders.customer_id', to: 'customers' }, [])).toMatchObject({ from: { node: 'orders', row: 'customer_id' } });
+    expect(parseEdge('a => b', [])).toBeTypeOf('string');
+  });
+});
+
+describe('erd columns', () => {
+  it('reads type and flags', () => {
+    expect(parseColumn('uuid pk fk orders')).toEqual({ type: 'uuid', pk: true, fk: 'orders' });
+    expect(parseColumn('numeric(10,2) null')).toEqual({ type: 'numeric(10,2)', nullable: true });
+    expect(parseColumn('timestamptz default now()')).toEqual({ type: 'timestamptz', default: 'now()' });
+    expect(parseColumn('character varying unique')).toEqual({ type: 'character varying', unique: true });
+  });
+
+  it('derives cardinality from keys', async () => {
+    const r = await render(`type: erd
+tables:
+  a: { columns: { id: int pk } }
+  b: { columns: { id: int pk, a_id: int fk a null } }
+  c: { columns: { a_id: int pk fk a, b_id: int pk fk b } }
+  d: { columns: { a_id: int pk fk a } }
+`);
+    const ends = Object.fromEntries(r.graph!.edges.map((e) => [e.id, [e.start, e.end]]));
+    expect(ends['fk-b-a_id']).toEqual(['zeroOrMany', 'zeroOrOne']);
+    expect(ends['fk-c-a_id']).toEqual(['zeroOrMany', 'one']); // part of a composite key
+    expect(ends['fk-d-a_id']).toEqual(['zeroOrOne', 'one']); // the whole key: one-to-one
+  });
+});
+
+describe('diagnostics', () => {
+  it('points at the line of the problem', async () => {
+    const r = await render(`type: azure
+nodes:
+  web: app-service
+  db: { kind: sql-databse }
+edges:
+  - web -> nope
+`);
+    expect(r.svg).toBeUndefined();
+    expect(r.diagnostics[0]).toMatchObject({ line: 4, message: expect.stringContaining('must be one of') });
+  });
+
+  it('reports unknown references but still draws', async () => {
+    const r = await render(`type: azure
+nodes:
+  web: { kind: app-service, in: missing }
+edges:
+  - web -> nope
+`);
+    expect(r.svg).toBeDefined();
+    expect(r.diagnostics.map((d) => [d.line, d.message])).toEqual([
+      [3, 'There is no group "missing"'],
+      [5, 'There is no node or group "nope"'],
+    ]);
+  });
+
+  it('asks for a type', async () => {
+    expect((await render('title: x')).diagnostics[0]!.message).toMatch(/Add "type:"/);
+    expect((await render('type: nope')).diagnostics[0]).toMatchObject({ line: 1, message: expect.stringMatching(/Unknown type/) });
+  });
+});
+
+describe('templates', () => {
+  for (const t of types)
+    it(`${t.id} renders without problems`, async () => {
+      const r = await render(t.template, { fonts: 'none' });
+      expect(r.diagnostics).toEqual([]);
+      expect(r.svg).toMatchSnapshot();
+    });
+
+  it('keeps pinned nodes where they were put', async () => {
+    const t = types.find((x) => x.id === 'azure')!;
+    const r = await render(t.template, { fonts: 'none', sidecar: { version: 1, nodes: { vault: { x: 2000, y: 900 } } } });
+    const vault = r.placed!.nodes.get('vault')!;
+    const rg = r.placed!.groups.get('rg')!;
+    expect(rg.x + rg.width).toBeGreaterThanOrEqual(vault.x + vault.width);
+    expect(rg.y + rg.height).toBeGreaterThanOrEqual(vault.y + vault.height);
+  });
+});

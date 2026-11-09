@@ -1,0 +1,20 @@
+{
+  "name": "@cartography/engine",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "@cartography/layout": "workspace:*",
+    "@cartography/render": "workspace:*",
+    "@cartography/azure": "workspace:*",
+    "@cartography/erd": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.0"
+  }
+}

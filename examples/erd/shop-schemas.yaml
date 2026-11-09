@@ -1,0 +1,47 @@
+type: erd
+title: Shop database
+subtitle: Two schemas, explicit relation labels
+
+schemas:
+  sales: { label: sales, tone: blue }
+  catalog: { label: catalog, tone: teal }
+
+tables:
+  customers:
+    schema: sales
+    caption: People who buy
+    columns:
+      id: uuid pk
+      email: text unique pii
+      name: text pii
+      created_at: timestamptz default now()
+  orders:
+    schema: sales
+    columns:
+      id: uuid pk
+      customer_id: uuid fk customers
+      status: order_status
+      placed_at: timestamptz
+  order_lines:
+    schema: sales
+    columns:
+      order_id: uuid pk fk orders
+      product_id: uuid pk fk products
+      quantity: int
+      price: numeric(10,2)
+  products:
+    schema: catalog
+    columns:
+      id: uuid pk
+      category_id: uuid fk categories null
+      name: text
+      price: numeric(10,2)
+  categories:
+    schema: catalog
+    columns:
+      id: uuid pk
+      parent_id: uuid fk categories null
+      name: text
+
+relations:
+  - order_lines.product_id -> products.id: { label: sells }

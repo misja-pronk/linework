@@ -1,0 +1,37 @@
+type: azure
+title: Hub and spoke
+subtitle: Landing zone with shared connectivity
+
+groups:
+  conn: { kind: subscription, label: Connectivity }
+  hub: { kind: vnet, label: vnet-hub · 10.0.0.0/16, in: conn }
+  app: { kind: subscription, label: Online shop }
+  spoke: { kind: vnet, label: vnet-shop · 10.1.0.0/16, in: app }
+  web: { kind: subnet, label: snet-web, in: spoke }
+  data: { kind: subnet, label: snet-data, in: spoke }
+  onprem: { kind: on-premises, label: Head office }
+
+nodes:
+  office: { kind: users, label: Employees, in: onprem }
+  router: { kind: vpn-gateway, label: Office router, in: onprem }
+  internet: internet
+  vpn: { kind: vpn-gateway, label: vgw-hub, in: hub }
+  fw: { kind: firewall, label: afw-hub, in: hub }
+  dns: { kind: dns, label: privatelink zones, in: hub }
+  agw: { kind: app-gateway, label: agw-shop, in: web }
+  apps: { kind: app-service, label: Shop, in: web }
+  sql: { kind: sql-database, label: Shop DB, in: data }
+  pe: { kind: private-endpoint, label: pe-sql, in: data }
+  logs: { kind: log-analytics, label: Central logs, in: conn }
+
+edges:
+  - office -> router
+  - router -> vpn: { label: IPsec, style: private }
+  - internet -> agw: { label: HTTPS, style: public }
+  - vpn -> fw: { style: private }
+  - fw -> apps: { label: peering, style: private }
+  - agw -> apps: { style: public }
+  - apps -> pe: { label: SQL, style: private }
+  - pe -> sql: { style: private }
+  - apps ..> dns: { label: resolve }
+  - fw -> logs: { label: diagnostics, style: management }

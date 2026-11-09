@@ -1,0 +1,25 @@
+type: erd
+title: Orders
+
+tables:
+  customers:
+    columns:
+      id: uuid pk
+      email: text unique
+      name: text
+  orders:
+    columns:
+      id: uuid pk
+      customer_id: uuid fk customers
+      placed_at: timestamptz default now()
+      total: numeric(10,2)
+  order_lines:
+    columns:
+      order_id: uuid pk fk orders
+      product_id: uuid pk fk products
+      quantity: int
+  products:
+    columns:
+      id: uuid pk
+      name: text
+      price: numeric(10,2)

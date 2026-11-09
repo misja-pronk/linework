@@ -5,3 +5,17 @@ Architecture diagrams that look good: write a short YAML file or build the diagr
 Diagram types: Azure, Kubernetes, networking, database (ERD), roles & permissions, GitHub, git flow, developer journey and data products.
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
+
+## Try it
+
+```sh
+mise install            # Node 24 + pnpm (or bring your own)
+pnpm install
+pnpm carto types                                  # list diagram types
+pnpm carto new azure my-infra.yaml                # start from a template
+pnpm carto render my-infra.yaml -f png -t dark    # → my-infra.png
+pnpm gallery                                      # render all examples → gallery/out/index.html
+pnpm test
+```
+
+Fonts: Inter (SIL OFL 1.1). Icons: Lucide (ISC). Layout: Eclipse ELK via elkjs (EPL-2.0).
