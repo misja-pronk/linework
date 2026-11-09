@@ -8,6 +8,7 @@ import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
+import { drawJourney } from './journey.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 
 export interface SvgOptions {
@@ -125,6 +126,9 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
       : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined)
       : shape.kind === 'gitflow' ? drawGitflow(shape, box, theme, `${id}-shadow`)
       : shape.kind === 'roadmap' ? drawRoadmap(shape, box, theme)
+      : shape.kind === 'journey' ? drawJourney(shape, box, theme, `${id}-shadow`, state?.journey)
+      // Drawn by the journey itself: this is where a click on a step lands.
+      : shape.kind === 'journey-part' ? `<rect x="${r1(box.x)}" y="${r1(box.y)}" width="${r1(box.width)}" height="${r1(box.height)}" rx="10" fill="transparent"/>`
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     // What stands back lies flat: no shadow, and an official icon fades with it.
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;

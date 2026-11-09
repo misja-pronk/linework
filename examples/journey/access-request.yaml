@@ -1,0 +1,134 @@
+type: journey
+title: Requesting access to a production system
+subtitle: Today's ticket route next to the self-service route with access packages
+
+persona:
+  name: Sam de Vries
+  role: Engineer who needs production access for an on-call shift
+  avatar: glasses
+  tone: blue
+  goal: Be able to act when the pager goes off tonight
+  quote: I do not mind rules. I mind not knowing where my request is.
+
+phases:
+  need: Need
+  request: Request
+  approve: Approve
+  use: Use
+  review: Review
+
+current: Today
+metrics:
+  Lead time: 5 days
+  Hand-offs: 4
+  Standing access: Yes
+
+steps:
+  discover:
+    label: Finds out which access is needed
+    in: need
+    feel: 2 guessing
+    touchpoint: [Wiki, Slack]
+    with: Colleague
+    thought: Which of these forty groups do I need?
+    pains: Group names say nothing about what they allow
+
+  ticket:
+    label: Files a ticket with a free-text reason
+    in: request
+    feel: 2 resigned
+    touchpoint: Service desk portal
+    thought: I hope I picked the right category.
+    pains:
+      - Free-text form, often sent back
+      - No overview of what is already requested
+
+  manager:
+    label: Waits for the manager to approve
+    in: approve
+    feel: 1 blocked
+    touchpoint: Email
+    with: Manager
+    thought: The shift starts tonight and nobody has answered.
+    pains:
+      - Approver is on leave, no delegate
+      - No status anywhere
+    metrics: 3 days
+
+  owner:
+    label: Chases the system owner for a second approval
+    in: approve
+    feel: 1 frustrated
+    touchpoint: [Email, Slack]
+    with: System owner
+    says: Can you please look at ticket 48213?
+    pains: Two approvals in sequence, by hand
+    metrics: 2 days
+
+  granted:
+    label: Gets permanent access from the service desk
+    in: use
+    feel: 3 relieved
+    touchpoint: Azure portal
+    with: Service desk
+    says: It works. I will keep this forever, just in case.
+    pains: Standing access that nobody takes away
+
+  audit:
+    label: Is asked a year later why the access exists
+    in: review
+    feel: 2 puzzled
+    touchpoint: Email
+    with: Auditor
+    thought: I do not remember. Probably that one shift.
+    pains: Reviews are yearly spreadsheets
+
+future:
+  label: With access packages
+  metrics:
+    Lead time: 15 minutes
+    Hand-offs: 1
+    Standing access: No
+  steps:
+    discover:
+      label: Picks the on-call package from the catalogue
+      in: need
+      feel: 4 clear
+      touchpoint: Access catalogue
+      says: On-call for Payments. That is the one.
+      gains: Packages are named after the job to do
+
+    ticket:
+      label: Requests it with one click and a reason
+      in: request
+      feel: 4 quick
+      touchpoint: My Access
+      gains: Status is visible at every moment
+
+    manager:
+      label: Is approved by the on-call lead from the phone
+      in: approve
+      feel: 5 fast
+      touchpoint: Teams approval
+      with: On-call lead
+      says: Approved before I finished my coffee.
+      gains:
+        - One approver, with a delegate
+        - Policy checks run automatically
+      metrics: 15 min
+
+    granted:
+      label: Activates the role for the shift only
+      in: use
+      feel: 5 in control
+      touchpoint: Privileged access
+      says: Eight hours, logged, and gone afterwards.
+      gains: Access ends by itself
+
+    audit:
+      label: Sees the access expire and confirms the review
+      in: review
+      feel: 4 calm
+      touchpoint: Access review
+      with: On-call lead
+      gains: Reviews are short and continuous

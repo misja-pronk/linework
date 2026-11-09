@@ -5,6 +5,7 @@ import { matrixGeometry } from './matrix.ts';
 import { sequenceGeometry } from './sequence.ts';
 import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
+import { journeyScene } from './journey.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -34,6 +35,12 @@ export function size(graph: Graph, theme: Theme): Sized {
       const s = shape.kind === 'sequence' ? sequenceGeometry(shape, theme) : shape.kind === 'gitflow' ? gitflowGeometry(shape, theme) : roadmapGeometry(shape, theme);
       nodes.set(n.id, { width: s.width, height: s.height });
     }
+    else if (shape.kind === 'journey') {
+      const s = journeyScene(shape, theme);
+      nodes.set(n.id, { width: s.width, height: s.height, parts: s.parts });
+    }
+    // Parts of a journey are placed by the journey's own layout.
+    else if (shape.kind === 'journey-part') nodes.set(n.id, { width: 0, height: 0 });
     else {
       const m = matrixGeometry(shape, theme);
       nodes.set(n.id, { width: Math.round(m.width), height: Math.round(m.height) });

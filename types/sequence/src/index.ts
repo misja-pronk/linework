@@ -360,6 +360,7 @@ export const sequence: DiagramType<SequenceSource> = {
   notFor: [
     { text: 'Which services exist and how they connect', use: 'systems' },
     { text: 'A process flow with decisions', use: 'systems' },
+    { text: 'What a person goes through and how it feels', use: 'journey' },
   ],
   keywords: ['sequence', 'sequence diagram', 'interaction', 'message', 'call', 'reply', 'request response', 'oauth', 'handshake', 'flow over time', 'lifeline', 'choreography', 'uml'],
   schema,
