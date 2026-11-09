@@ -63,7 +63,7 @@ function descendantGroups(graph: Graph, id: string): string[] {
   return [...kids, ...kids.flatMap((k) => descendantGroups(graph, k))];
 }
 
-function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, header: number, pad: number) {
+export function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, header: number, pad: number) {
   const byId = new Map(graph.groups.map((g) => [g.id, g]));
   const depth = (id: string): number => {
     const parent = byId.get(id)?.parent;

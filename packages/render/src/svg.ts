@@ -309,6 +309,17 @@ function drawLegend(g: Graph, theme: Theme, x0: number, cy: number): string {
       const label = textMid(x0 + x + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
       if (item.swatch === 'fill')
         return `<rect x="${x0 + x}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
+      if (item.swatch === 'check' || item.swatch === 'check-outline') {
+        // The same filled or dashed check circle as the matrix cells.
+        const t = theme.tones[item.tone ?? 'blue'];
+        const cx = x0 + x + 10;
+        const circle =
+          item.swatch === 'check'
+            ? `<circle cx="${cx}" cy="${cy}" r="8" fill="${t.fg}"/>`
+            : `<circle cx="${cx}" cy="${cy}" r="7.5" fill="none" stroke="${t.fg}" stroke-width="1.2" stroke-dasharray="2.5 2"/>`;
+        const tick = `<path d="M${cx - 3.5} ${cy}l2.4 2.4 4.6-4.8" fill="none" stroke="${item.swatch === 'check' ? theme.surface : t.fg}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+        return circle + tick + label;
+      }
       if (item.swatch === 'outline')
         return `<rect x="${x0 + x + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="6.5" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
       const dash = item.line === 'dashed' ? ' stroke-dasharray="6 4"' : item.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';

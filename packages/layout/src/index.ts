@@ -3,6 +3,7 @@ import type { Endpoint, LayoutSidecar, Marker, Placed, PlacedEdge, Point, Sized 
 import { placeWithDot, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
+import { alignPorts } from './align.ts';
 import { measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 
@@ -16,6 +17,8 @@ export interface Tuning {
   direction?: 'right' | 'down';
   /** Move things across the flow where there is room (see compact.ts). */
   compact?: boolean;
+  /** Straighten almost-straight lines (see align.ts): forced on or off; tried both ways when unset. */
+  align?: boolean;
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
@@ -24,17 +27,27 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? 24 : 0) + (rows ? 48 : 0));
-  const finish = (q: Placement) => {
-    const p = applyPins(q, graph, sidecar, sized.groupHeader, spacing.groupPad);
+  const finish = (q: Placement, straighten: boolean) => {
+    const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
+    const p = applyPins(straightened, graph, sidecar, sized.groupHeader, spacing.groupPad);
     return normalise({ ...p, edges: route(sized, p) });
   };
-  if (tuning.compact === false) return finish(placed);
-  const packed = compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap);
-  if (tuning.compact) return finish(packed);
-  // Both, and keep whichever measures better: compaction helps nested groups and hurts long chains.
-  const a = finish(placed);
-  const b = finish(packed);
-  return score(measure(graph, b)) < score(measure(graph, a)) ? b : a;
+  // Candidates: dot's placement, compacted or not, straightened or not. Each helps some diagrams and
+  // hurts others, so all are drawn and the best-scoring one is kept.
+  const bases = tuning.compact === false ? [placed] : tuning.compact ? [compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap)] : [placed, compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap)];
+  const aligns = tuning.align === false ? [false] : tuning.align ? [true] : [false, true];
+  let best: Placed | undefined;
+  let bestScore = Infinity;
+  for (const base of bases)
+    for (const a of aligns) {
+      const c = finish(base, a);
+      const sc = score(measure(graph, c));
+      if (sc < bestScore - 1e-9) {
+        best = c;
+        bestScore = sc;
+      }
+    }
+  return best!;
 }
 
 function route(sized: Sized, p: Placement): Map<string, PlacedEdge> {
@@ -55,10 +68,22 @@ function route(sized: Sized, p: Placement): Map<string, PlacedEdge> {
   // Only the header text is kept clear, so lines may still pass along the rest of a group's top.
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);
-    return b ? [{ x: b.x, y: b.y, width: Math.min(b.width, sized.groupMinWidth.get(g.id) ?? b.width), height: sized.groupHeader }] : [];
+    if (!b) return [];
+    // Thin bands along each border: crossing one is cheap, running along it (or a label on it) is not.
+    const t = BORDER_BAND;
+    const bands = [
+      { x: b.x - t, y: b.y - t, width: b.width + 2 * t, height: 2 * t },
+      { x: b.x - t, y: b.y + b.height - t, width: b.width + 2 * t, height: 2 * t },
+      { x: b.x - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
+      { x: b.x + b.width - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
+    ].map((r) => ({ ...r, weight: 0.5 }));
+    return [{ x: b.x, y: b.y, width: Math.min(b.width, sized.groupMinWidth.get(g.id) ?? b.width), height: sized.groupHeader }, ...bands];
   });
   return routeEdges({ obstacles: p.nodes, soft, direction: graph.direction, edges });
 }
+
+/** Half the width of the band along group borders that lines and labels keep out of. */
+const BORDER_BAND = 7;
 
 /** Straight end long enough for the marker drawn there. */
 function stubFor(m: Marker): number {

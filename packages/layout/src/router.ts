@@ -32,7 +32,8 @@ export interface RouterInput {
   /** Boxes lines must not cross (nodes). */
   obstacles: Map<string, Box>;
   /** Areas lines should not run through (group headers). */
-  soft: Box[];
+  /** Areas lines may cross but should not run in: group headers, group borders. `weight` scales the cost. */
+  soft: (Box & { weight?: number })[];
   direction: 'right' | 'down';
   edges: RouteRequest[];
 }
@@ -214,7 +215,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>): Map<s
     list.sort((p, q) => angle(p.other) - angle(q.other));
     const length = along ? box.height : box.width;
     const room = length - 24;
-    const step = Math.min(18, room / Math.max(1, list.length));
+    const step = Math.min(28, room / Math.max(1, list.length));
     const first = (length - step * (list.length - 1)) / 2;
     list.forEach((s, i) => {
       const t = first + i * step;
@@ -372,12 +373,13 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
   for (const r of input.soft) {
     const rx1 = r.x + r.width;
     const ry1 = r.y + r.height;
+    const cost = SOFT * (r.weight ?? 1);
     for (let y = lowerBound(ys, r.y); y < H && ys[y]! <= ry1; y++)
       for (let x = Math.max(0, lowerBound(xs, r.x) - 1); x < W - 1 && xs[x]! < rx1; x++)
-        g.hSoft[y * W + x] = g.hSoft[y * W + x]! + SOFT * Math.max(0, Math.min(xs[x + 1]!, rx1) - Math.max(xs[x]!, r.x));
+        g.hSoft[y * W + x] = g.hSoft[y * W + x]! + cost * Math.max(0, Math.min(xs[x + 1]!, rx1) - Math.max(xs[x]!, r.x));
     for (let x = lowerBound(xs, r.x); x < W && xs[x]! <= rx1; x++)
       for (let y = Math.max(0, lowerBound(ys, r.y) - 1); y < H - 1 && ys[y]! < ry1; y++)
-        g.vSoft[y * W + x] = g.vSoft[y * W + x]! + SOFT * Math.max(0, Math.min(ys[y + 1]!, ry1) - Math.max(ys[y]!, r.y));
+        g.vSoft[y * W + x] = g.vSoft[y * W + x]! + cost * Math.max(0, Math.min(ys[y + 1]!, ry1) - Math.max(ys[y]!, r.y));
   }
   return g;
 }

@@ -311,9 +311,9 @@ function matrixGraph(m: Model, shape: GraphNode['shape'], legend: LegendItem[]):
   };
 }
 
-const pillLegend = (direct: string, inherited: string): LegendItem[] => [
-  { label: direct, swatch: 'fill', tone: 'indigo' },
-  { label: inherited, swatch: 'outline', tone: 'indigo' },
+const pillLegend = (direct: string, inherited: string, checks = false): LegendItem[] => [
+  { label: direct, swatch: checks ? 'check' : 'fill', tone: 'indigo' },
+  { label: inherited, swatch: checks ? 'check-outline' : 'outline', tone: 'indigo' },
 ];
 
 /** Who × where: the strongest effective role per cell, and where it comes from. */
@@ -401,7 +401,7 @@ function rolesView(m: Model): Graph {
   return matrixGraph(
     m,
     { kind: 'matrix', corner: 'Role \\ permission', rows, columns: perms.map((p) => ({ label: p })), cells },
-    pillLegend('Granted by the role', 'Included from another role'),
+    pillLegend('Granted by the role', 'Included from another role', true),
   );
 }
 

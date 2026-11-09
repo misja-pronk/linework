@@ -124,7 +124,8 @@ export interface LegendItem {
   label: string;
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
-  swatch?: 'fill' | 'outline';
+  /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined. */
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline';
   tone?: Tone;
 }
 

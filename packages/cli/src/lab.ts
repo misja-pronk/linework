@@ -12,6 +12,7 @@ const [outDir = path.join(root, 'gallery/lab'), ...only] = process.argv.slice(2)
 
 export const variants: Record<string, Tuning> = {
   best: {},
+  'no-align': { align: false },
   plain: { compact: false },
   compact: { compact: true },
   down: { direction: 'down' },
