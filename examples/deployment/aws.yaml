@@ -1,0 +1,51 @@
+# The same web shop (model.yaml) on AWS. Production runs in two zones, so the Orders API is there
+# twice: two nodes `of:` the same container. Zone b is `env: prod`, and with it everything inside;
+# test and dev are one zone, dev without the CDN in front.
+#   carto render examples/deployment/aws.yaml --view prod
+type: cloud
+provider: aws
+title: Web shop on AWS
+subtitle: Every environment at once
+direction: down
+include: [model.yaml]
+
+groups:
+  account: { kind: account, label: shop }
+  region: { kind: region, region: eu-west-1, in: account }
+  vpc: { kind: vpc, label: vpc-shop, cidr: 10.20.0.0/16, in: region }
+  az-a: { kind: zone, zone: eu-west-1a, in: vpc }
+  az-b: { kind: zone, zone: eu-west-1b, in: vpc, env: prod }
+  public-a: { kind: subnet, tier: public, in: az-a }
+  public-b: { kind: subnet, tier: public, in: az-b }
+  app-a: { kind: subnet, tier: private, in: az-a }
+  app-b: { kind: subnet, tier: private, in: az-b }
+  data-a: { kind: subnet, tier: isolated, in: az-a }
+  data-b: { kind: subnet, tier: isolated, in: az-b }
+
+nodes:
+  users: users
+  cdn: { of: shop.web, kind: cloudfront, env: [test, prod] }
+  site: { kind: s3, label: Site files, in: region, env: [test, prod] }
+  alb-a: { kind: alb, label: Load balancer, in: public-a, exposure: public }
+  alb-b: { kind: alb, label: Load balancer, in: public-b, exposure: public }
+  api-a: { of: shop.api, kind: ecs, in: app-a }
+  api-b: { of: shop.api, kind: ecs, in: app-b }
+  db: { of: shop.db, kind: rds, in: data-a }
+  standby: { kind: rds, label: Standby, in: data-b }
+  queue: { of: shop.bus, kind: sqs, in: region, tier: private }
+  worker: { of: shop.worker, kind: lambda, in: region, tier: isolated }
+
+edges:
+  - users -> cdn: { label: HTTPS, style: public }
+  - cdn -> site: { style: private }
+  - cdn -> alb-a: { label: /api, style: public }
+  - cdn -> alb-b: { style: public }
+  - users -> alb-a: { label: HTTPS, style: public, env: dev }
+  - alb-a -> api-a: { style: private }
+  - alb-b -> api-b: { style: private }
+  - db -> standby: { label: replication, style: data }
+
+views:
+  prod: { environment: prod, complete: true, subtitle: 'Production, two availability zones' }
+  test: { environment: test, complete: true, subtitle: Test }
+  dev: { environment: dev, complete: [shop.api, shop.worker, shop.db, shop.bus], subtitle: 'Development, without the storefront' }

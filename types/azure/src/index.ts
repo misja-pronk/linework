@@ -107,6 +107,7 @@ export const azure: DiagramType<GraphSource> = {
     'Hub and spoke, private endpoints, Front Door, firewalls',
   ],
   notFor: [
+    { text: 'AWS, Google Cloud or several clouds in one picture', use: 'cloud' },
     { text: 'A cloud-neutral system overview', use: 'systems' },
     { text: 'Entra groups, roles and access packages', use: 'access' },
   ],

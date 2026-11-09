@@ -1372,7 +1372,7 @@ export function App() {
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
               const path = pathOf({ kind: 'node', id });
-              return !!type && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+              return !!type && !type.unconnected && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
             }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);

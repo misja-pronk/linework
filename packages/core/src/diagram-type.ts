@@ -31,6 +31,8 @@ export interface DiagramType<Source = any> {
    * saying why these two cannot be connected. Without it, connections go to `edges` as "a -> b".
    */
   connect?(source: Source, from: string, to: string): Connection | string;
+  /** No lines between entries at all (a journey): the builder offers no connect handle. */
+  unconnected?: true;
   /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
   references?(source: Source): Reference[];
   /** Layout hints for the shared graph layout, e.g. room for long labels. */
@@ -102,6 +104,10 @@ export interface PaletteItem {
   tone: Tone;
   /** Short words for palette search. */
   keywords?: string[];
+  /** The vendor a kind belongs to (aws, gcp, azure): which icon pack draws it. */
+  provider?: string;
+  /** What the vendor's own icon files call it, e.g. "simple storage service" for s3: matched when icons are imported. */
+  names?: string[];
 }
 
 export const idPattern = '^[A-Za-z0-9_-]+$';

@@ -1,0 +1,50 @@
+type: cloud
+provider: aws
+title: Multi-cloud and hybrid
+subtitle: Shop on AWS, analytics on Google Cloud, identity in Azure, ERP on-premises
+
+groups:
+  dc: { kind: on-premises, label: Data centre, cidr: 172.16.0.0/16 }
+
+  aws: { kind: aws }
+  aws-vpc: { kind: vpc, label: vpc-shop, region: eu-west-1, cidr: 10.10.0.0/16, in: aws }
+
+  gcp: { kind: gcp }
+  gcp-project: { kind: project, label: Analytics, project: acme-analytics, in: gcp }
+  gcp-vpc: { kind: vpc, label: analytics-net, cidr: 10.30.0.0/16, in: gcp-project }
+
+  azure: { kind: tenant, label: acme.example }
+
+nodes:
+  customers: { kind: users, label: Customers }
+  staff: { kind: users, label: Staff }
+
+  erp: { kind: server, label: ERP, caption: SAP, in: dc }
+  edge: { kind: router, label: Edge router, in: dc }
+
+  cdn: { kind: cloudfront, label: Web shop CDN, in: aws }
+  shop: { kind: eks, label: Web shop, in: aws-vpc }
+  orders: { kind: aurora, label: Orders, in: aws-vpc }
+  dx: { kind: direct-connect, label: Direct Connect, in: aws }
+
+  interconnect: { kind: interconnect, label: Partner Interconnect, in: gcp-project }
+  cdc: { kind: datastream, label: Change data capture, in: gcp-vpc }
+  warehouse: { kind: bigquery, label: Warehouse, in: gcp-project }
+  dashboards: { kind: looker, label: Dashboards, in: gcp-project }
+
+  entra: { kind: entra-id, label: Sign-in, in: azure }
+
+edges:
+  - customers -> cdn: { label: HTTPS, style: public }
+  - cdn -> shop: { style: public }
+  - shop -> orders: { label: SQL, style: private }
+  - shop -> dx: { label: orders, style: private }
+  - dx -> edge: { label: 1 Gbps, style: vpn }
+  - edge -> erp: { style: private }
+  - edge -> interconnect: { style: vpn }
+  - interconnect -> cdc: { style: private }
+  - orders -> cdc: { label: CDC, style: data }
+  - cdc -> warehouse: { style: data }
+  - warehouse -> dashboards: { style: data }
+  - dashboards -> entra: { label: SSO, style: identity }
+  - staff -> dashboards

@@ -1,0 +1,17 @@
+{
+  "name": "@cartography/cloud",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cartography/azure": "workspace:*",
+    "@cartography/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@cartography/engine": "workspace:*",
+    "@cartography/icons": "workspace:*"
+  }
+}

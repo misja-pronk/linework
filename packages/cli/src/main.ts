@@ -9,7 +9,7 @@ import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
-import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, isKubernetes, isNetworkInventory } from '@cartography/import';
+import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
@@ -33,7 +33,7 @@ const help = `carto — architecture diagrams that look good
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
-  carto validate <file.yaml…>                   check files, print problems
+  carto validate <file.yaml…>                   check files and each of their views, print problems
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
@@ -52,6 +52,7 @@ const help = `carto — architecture diagrams that look good
                                                 erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
                                                 .md: every mermaid block; Kubernetes manifests: all files in one diagram;
                                                 .csv inventory or NetBox JSON: a network diagram
+                                                terraform show -json (state or plan, AWS and Google Cloud): a cloud diagram
   carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
                                                 a repository's history as a git branching diagram
   carto icons import <folder|file.zip> --pack azure
@@ -421,10 +422,10 @@ async function importFile(file: string): Promise<boolean> {
   return ok;
 }
 
-/** A network inventory (CSV name,type,ip,zone,uplink or NetBox JSON) → <name>.yaml next to it. */
-async function importInventory(file: string): Promise<boolean> {
+/** A network inventory (CSV name,type,ip,zone,uplink or NetBox JSON) or Terraform's JSON → <name>.yaml next to it. */
+async function importInventory(file: string, read = importNetwork): Promise<boolean> {
   const base = path.basename(file).replace(/\.(csv|json)$/i, '');
-  const r = importNetwork(fs.readFileSync(file, 'utf8'), base);
+  const r = read(fs.readFileSync(file, 'utf8'), base);
   for (const w of r.warnings) console.error(`${file}  ${yellow('warning')}  ${w}`);
   if (!r.yaml) return false;
   const check = await render(r.yaml, { fonts: 'none' });
@@ -588,10 +589,17 @@ async function main(): Promise<number> {
     case 'validate': {
       let ok = true;
       for (const f of files) {
-        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
-        report(f, r.diagnostics);
+        const text = fs.readFileSync(f, 'utf8');
+        const opts = { fonts: 'none' as const, load: loaderFor(f), file: path.basename(f) };
+        const r = await render(text, { ...opts, view: values.view });
+        // Without --view every view is checked too: what a view says about itself (complete: true for
+        // an environment) is only known when that view is drawn. The same problem is printed once.
+        const rest = values.view ? [] : await Promise.all((r.views ?? []).map((v) => render(text, { ...opts, view: v.name })));
+        const seen = new Set<string>();
+        const diagnostics = [r, ...rest].flatMap((x) => x.diagnostics).filter((d) => !seen.has(`${d.line}:${d.column}:${d.message}`) && !!seen.add(`${d.line}:${d.column}:${d.message}`));
+        report(f, diagnostics);
         const drifted = values.drift && !(await checkDrift(f));
-        if (r.diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
+        if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
       return ok ? 0 : 1;
@@ -603,11 +611,14 @@ async function main(): Promise<number> {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
       if (!files.length) return (console.error(help), 1);
       // Manifests are read together: a platform is spread over many files, but it is one drawing.
-      const manifests = files.filter((f) => /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
-      const inventories = files.filter((f) => /\.csv$/i.test(f) || (/\.json$/i.test(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8'))));
+      // terraform show -json, of a state or a saved plan: read from the file, never from the cloud.
+      const plans = files.filter((f) => /\.json$/i.test(f) && isTerraform(fs.readFileSync(f, 'utf8')));
+      const manifests = files.filter((f) => !plans.includes(f) && /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
+      const inventories = files.filter((f) => /\.csv$/i.test(f) || (/\.json$/i.test(f) && !plans.includes(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8'))));
       let ok = manifests.length ? await importManifests(manifests) : true;
+      for (const f of plans) ok = (await importInventory(f, importTerraform)) && ok;
       for (const f of inventories) ok = (await importInventory(f)) && ok;
-      for (const f of files) if (!manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
+      for (const f of files) if (!plans.includes(f) && !manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'render': {

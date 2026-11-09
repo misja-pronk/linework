@@ -94,6 +94,7 @@ export const systems: DiagramType<GraphSource> = {
   ],
   notFor: [
     { text: 'What runs where in Azure', use: 'azure' },
+    { text: 'What runs where in AWS or Google Cloud', use: 'cloud' },
     { text: 'Tables and their columns', use: 'erd' },
     { text: 'Who may access what', use: 'access' },
     { text: 'C4 context, container and component views', use: 'c4' },

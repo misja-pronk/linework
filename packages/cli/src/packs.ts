@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { iconIndex, matchIcons, type IconPackFile, type KindInfo } from '@cartography/icons';
+import type { PaletteItem } from '@cartography/core';
 import { types } from '@cartography/engine';
 import { readZip } from './zip.ts';
 
@@ -30,11 +31,18 @@ export function listPacks(): IconPackFile[] {
   return fs.readdirSync(dir).flatMap((n) => readPack(n) ?? []);
 }
 
-/** Kinds to match: the type of the same name (azure, kubernetes), or every type's for a vendor pack (aws, gcp). */
+/**
+ * Kinds to match: the type of the same name (azure, kubernetes), or for a vendor pack (aws, gcp) the
+ * kinds that say they are that vendor's (the cloud type, with the names the vendor's files go by)
+ * and then every type's general kinds. Kinds of another vendor are left out: BigQuery has no AWS icon.
+ */
 export function kindsFor(pack: string): KindInfo[] {
   const own = types.find((t) => t.id === pack);
   const seen = new Map<string, KindInfo>();
-  for (const t of own ? [own] : types) for (const p of t.palette) if (!seen.has(p.kind)) seen.set(p.kind, { kind: p.kind, label: p.label, keywords: p.keywords });
+  // With official names at hand the search words (category, vendor) would only add false matches.
+  const add = (p: PaletteItem) => void (seen.has(p.kind) || seen.set(p.kind, { kind: p.kind, label: p.label, keywords: p.names ? undefined : p.keywords, names: p.names }));
+  for (const t of types) for (const p of t.palette) if (p.provider === pack) add(p);
+  for (const t of own ? [own] : types) for (const p of t.palette) if (!p.provider || p.provider === pack) add(p);
   return [...seen.values()];
 }
 
