@@ -54,7 +54,7 @@ await page.route('https://api.anthropic.com/**', async (route) => {
   await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream', 'access-control-allow-origin': '*' }, body: sse(answer) });
 });
 
-await page.goto('http://localhost:5178/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 // 1. A first visit opens the start dialog.
@@ -137,6 +137,33 @@ await page.screenshot({ path: `${out}/9-import.png` });
 await page.getByRole('button', { name: /Open in builder/ }).click();
 await wait(800);
 if (!(await yaml()).includes('type: systems')) fail('import not opened');
+
+// 6. Start blank: an empty diagram of the chosen type in the builder, with a start on the canvas.
+await page.emulateMedia({ colorScheme: 'light' });
+await page.getByRole('button', { name: 'New' }).click();
+if (await page.locator('.template-card', { hasText: /^Empty/ }).count()) fail('the picker still shows Empty cards');
+await page.locator('.chip', { hasText: 'Architecture' }).first().click();
+await page.locator('.template-card', { hasText: 'Template' }).first().click();
+await page.getByRole('button', { name: /start blank/ }).click();
+await wait(800);
+if (!(await yaml()).trim().startsWith('type: systems')) fail('blank start did not open an empty systems diagram');
+if (await page.locator('.toast', { hasText: 'Opened' }).count()) fail('a blank start offered an undo toast');
+if (!(await page.locator('.canvas-empty').isVisible())) fail('no empty state on a blank canvas');
+await page.screenshot({ path: `${out}/10-blank.png` });
+await page.locator('.canvas-empty .chip').first().click();
+await wait(700);
+if ((await page.locator('.drawing [data-node]').count()) !== 1) fail('quick-add chip did not add a shape');
+if (await page.locator('.canvas-empty').count()) fail('empty state still shown after adding a shape');
+// The title is renamed in place.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+const title = await page.locator('.drawing svg > text').first().boundingBox();
+await page.mouse.dblclick(title.x + 10, title.y + title.height / 2);
+await wait(300);
+await page.keyboard.type('Payments');
+await page.keyboard.press('Enter');
+await wait(500);
+if (!(await yaml()).includes('title: Payments')) fail('title not renamed in place');
 
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'start flow OK');
 await browser.close();

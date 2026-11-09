@@ -7,7 +7,7 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
 const wait = (ms = 300) => page.waitForTimeout(ms);
-await page.goto('http://localhost:5178/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
@@ -15,7 +15,7 @@ await page.evaluate(() => {
 await page.reload();
 await page.waitForSelector('.drawing svg');
 await page.keyboard.press('Meta+k');
-await page.keyboard.type('empty azure');
+await page.keyboard.type('blank azure');
 await page.keyboard.press('Enter');
 await wait(500);
 for (const [what, name] of [['app service', 'Shop'], ['sql database', 'Orders DB']]) {

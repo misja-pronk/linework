@@ -197,6 +197,25 @@ kbd {
 .button kbd {
   background: none;
 }
+/* On the accent, a faint kbd would vanish. */
+.button.primary kbd {
+  color: inherit;
+  border-color: rgb(255 255 255 / 0.45);
+  background: rgb(255 255 255 / 0.14);
+}
+.button:disabled,
+.button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.45;
+  background: none;
+  color: var(--text-muted);
+}
+.button.primary:disabled,
+.button.primary:disabled:hover {
+  background: var(--border-strong);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
 .icon-button {
   display: inline-grid;
   place-items: center;
@@ -664,6 +683,15 @@ kbd {
   gap: 3px;
   padding: 11px 14px 13px;
 }
+.template-meta {
+  min-width: 0;
+}
+.template-title,
+.template-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .template-title {
   font-weight: 600;
 }
@@ -720,6 +748,73 @@ kbd {
 }
 .preview.dragging-pan {
   cursor: grabbing;
+}
+.preview.space-pan,
+.preview.space-pan * {
+  cursor: grab !important;
+}
+.preview.space-pan.dragging-pan,
+.preview.space-pan.dragging-pan * {
+  cursor: grabbing !important;
+}
+.marquee {
+  position: absolute;
+  z-index: 3;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+/* A label typed in place, over the shape it names. */
+.label-editor {
+  position: absolute;
+  z-index: 6;
+  padding: 0 10px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow);
+  outline: none;
+}
+.canvas-empty {
+  position: absolute;
+  left: 50%;
+  /* Under the (small, centred) empty sheet with its title. */
+  top: calc(50% + 72px);
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 20px 24px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--text-muted);
+  text-align: center;
+  pointer-events: none;
+}
+.canvas-empty p {
+  margin: 0;
+}
+.canvas-empty strong {
+  color: var(--text);
+}
+.canvas-empty .chips {
+  justify-content: center;
+  pointer-events: auto;
+}
+.canvas-empty .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  background: var(--surface);
 }
 .preview.dragging-node,
 .preview.dragging-node *,
@@ -892,6 +987,7 @@ kbd {
 .field select {
   height: 32px;
   width: 100%;
+  min-width: 0;
   padding: 0 9px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -994,6 +1090,9 @@ kbd {
 .link-line line {
   stroke: var(--accent);
   stroke-dasharray: 6 4;
+}
+.link-line marker path {
+  fill: var(--accent);
 }
 .preview.dragging-connect,
 .preview.dragging-connect * {
@@ -1279,15 +1378,16 @@ kbd {
   }
 }
 
+/* Docked bottom-left, away from the drawing's middle and the zoom controls. */
 .hint {
   position: absolute;
-  right: 16px;
-  top: 16px;
+  left: 16px;
+  bottom: 16px;
   z-index: 4;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: min(420px, calc(100% - 320px));
+  max-width: min(400px, calc(100% - 260px));
   padding: 9px 8px 9px 16px;
   border-radius: 12px;
   background: var(--surface);
@@ -1434,15 +1534,42 @@ kbd {
   display: grid;
   place-items: center;
 }
+/* Fit inside the box, never larger than drawn: a single shape must not be blown up. */
 .mode-preview svg {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
 }
 .modes {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  justify-content: center;
+  justify-content: flex-start;
+}
+.blank-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 10px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: none;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+.blank-start:hover,
+.blank-start:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.blank-start strong {
+  color: var(--text);
+}
+.blank-start kbd {
+  margin-left: auto;
 }
 .modes-intro {
   margin: 0 0 4px;
@@ -1597,13 +1724,6 @@ kbd {
   line-height: 1.45;
   color: var(--text-faint);
 }
-.ask-error {
-  margin: 0;
-  display: flex;
-  gap: 6px;
-  color: var(--danger);
-  font-size: 13px;
-}
 .or {
   display: flex;
   align-items: center;
@@ -1686,7 +1806,17 @@ kbd {
   .ask,
   .ask.result {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
     overflow-y: auto;
+  }
+  /* Stacked: the form, then the run panel below it, one scroll for both. */
+  .ask-form,
+  .ask-run {
+    overflow: visible;
+  }
+  .ask-run {
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
   .mode-preview {
     min-height: 200px;
@@ -1706,21 +1836,153 @@ kbd {
     display: block;
   }
 }
-.chips .spacer {
+.chips:not(.inline) {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+/* Type chips scroll sideways when they do not fit; the import stays put on the right. */
+.chip-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
   flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chip-row .chip {
+  flex: none;
 }
 .import-chip {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font: inherit;
+  white-space: nowrap;
+}
+.chip-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chip-group-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.chip.more {
+  border-style: dashed;
+}
+.callout {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.callout > .icon {
+  margin-top: 2px;
+}
+.callout.error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.callout.warn {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+.callout.warn > .icon {
+  color: var(--warning);
+}
+.callout strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.callout.error strong {
+  color: inherit;
 }
 .warnings {
-  margin: 0;
+  margin: 4px 0 0;
   padding-left: 18px;
+}
+.ask-run a {
+  color: var(--accent);
+  font-weight: 550;
 }
 .ask-stream pre,
 .ask-stream .paste {
   font-family: var(--mono);
   font-variant-ligatures: none;
+}
+
+/* ------------------------------------------------------------- phones */
+
+.narrow-only {
+  display: none;
+}
+.more-dots {
+  font-size: 18px;
+  line-height: 1;
+}
+@media (max-width: 900px) {
+  /* The YAML / Drawing tabs are the one switcher here; the shapes panel does not fit anyway. */
+  .view-switch {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .wide-only {
+    display: none;
+  }
+  .narrow-only {
+    display: block;
+  }
+  .topbar {
+    gap: 6px;
+  }
+  .actions {
+    gap: 2px;
+    flex: none;
+  }
+  .doc-name {
+    flex: 1;
+  }
+  .hint {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-width: none;
+    border-radius: 14px;
+    z-index: 7;
+  }
+  .templates {
+    width: calc(100vw - 16px);
+  }
+  .overlay {
+    padding-top: 4vh;
+  }
+  .start {
+    height: 92vh;
+  }
+  .steps {
+    display: none;
+  }
+  .templates header {
+    padding: 12px 12px 6px 16px;
+  }
+  .chips:not(.inline) {
+    padding: 8px 16px 12px;
+  }
+  .template-grid {
+    padding: 14px 16px 16px;
+  }
 }

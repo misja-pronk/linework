@@ -27,6 +27,10 @@ export interface InspectorProps {
   onDeleteEdge?(id: string): void;
 }
 
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** "Service", not "Service (service)": the id is shown only when the name does not already say it. */
+const optionText = (id: string, name?: string) => (!name || name === id ? id : squash(name).includes(squash(id)) ? name : `${name} (${id})`);
+
 /** Back to the drawing, so the next drawing shortcut (A, C, Tab…) works right away. */
 const toDrawing = () => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
 
@@ -112,7 +116,7 @@ export function Inspector(p: InspectorProps) {
                 {f.value && !f.options.includes(f.value) && <option value={f.value}>{f.value}</option>}
                 {f.options.map((o) => (
                   <option key={o} value={o}>
-                    {f.labels?.[o] && f.labels[o] !== o ? `${f.labels[o]} (${o})` : o}
+                    {optionText(o, f.labels?.[o])}
                   </option>
                 ))}
               </select>

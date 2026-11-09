@@ -11,6 +11,8 @@ export interface Question {
   kind: 'text' | 'long' | 'chips' | 'choice';
   placeholder?: string;
   options?: string[];
+  /** Chips in named groups (the palette's collections), so a long list stays scannable. */
+  groups?: { label: string; options: string[] }[];
   /** Pre-filled, so a first try works without typing much. */
   initial?: string | string[];
 }
@@ -26,6 +28,10 @@ const parts = (type: DiagramType, label: string, help?: string): Question => ({
   help,
   kind: 'chips',
   options: [...new Set(type.palette.map((p) => p.label))],
+  groups: [...new Set(type.palette.map((p) => p.collection))].map((c) => ({
+    label: c.charAt(0).toUpperCase() + c.slice(1).replace(/-/g, ' '),
+    options: [...new Set(type.palette.filter((p) => p.collection === c).map((p) => p.label))],
+  })),
 });
 
 const specific: Record<string, (type: DiagramType) => Question[]> = {
