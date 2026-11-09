@@ -15,10 +15,10 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 1,
-  'azure/microservices.yaml': 9,
+  'azure/microservices.yaml': 8,
   'azure/web-shop.yaml': 0,
   'data-products/customer.yaml': 0,
-  'data-products/customer-detailed.yaml': 1,
+  'data-products/customer-detailed.yaml': 0,
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 1,
   'erd/orders.yaml': 0,
@@ -46,5 +46,21 @@ describe('layout quality', () => {
     const r = await render(big(10, 20), { fonts: 'none' });
     expect(r.graph!.nodes).toHaveLength(200);
     expect(performance.now() - t).toBeLessThan(1000);
+  });
+});
+
+describe('pins', () => {
+  it('moves what is in the way of a pinned node, never the pinned node', async () => {
+    const text = 'type: azure\nnodes:\n  a: app-service\n  b: sql-database\n  c: key-vault\nedges:\n  - a -> b\n  - a -> c\n';
+    const free = await render(text, { fonts: 'none' });
+    const shift = free.placed!.shift!;
+    const b = free.placed!.nodes.get('b')!;
+    // Pin c right on top of b.
+    const pinned = await render(text, { fonts: 'none', sidecar: { version: 1, nodes: { c: { x: b.x + shift.x, y: b.y + shift.y } } } });
+    const nb = pinned.placed!.nodes.get('b')!;
+    const nc = pinned.placed!.nodes.get('c')!;
+    const overlap = nb.x < nc.x + nc.width && nc.x < nb.x + nb.width && nb.y < nc.y + nc.height && nc.y < nb.y + nb.height;
+    expect(overlap).toBe(false);
+    expect({ x: nc.x + pinned.placed!.shift!.x, y: nc.y + pinned.placed!.shift!.y }).toEqual({ x: b.x + shift.x, y: b.y + shift.y });
   });
 });

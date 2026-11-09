@@ -11,7 +11,9 @@ const root = path.resolve(import.meta.dirname, '../../..');
 const [outDir = path.join(root, 'gallery/lab'), ...only] = process.argv.slice(2);
 
 export const variants: Record<string, Tuning> = {
-  right: {},
+  best: {},
+  plain: { compact: false },
+  compact: { compact: true },
   down: { direction: 'down' },
 };
 

@@ -2,6 +2,8 @@
 import type { Endpoint, LayoutSidecar, Marker, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
 import { placeWithDot, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
+import { compact } from './compact.ts';
+import { measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 
 export * from './dot.ts';
@@ -12,6 +14,8 @@ export * from './metrics.ts';
 export interface Tuning {
   /** Override the diagram's direction. */
   direction?: 'right' | 'down';
+  /** Move things across the flow where there is room (see compact.ts). */
+  compact?: boolean;
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
@@ -20,8 +24,17 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? 24 : 0) + (rows ? 48 : 0));
-  const p = applyPins(placed, graph, sidecar, sized.groupHeader, spacing.groupPad);
-  return normalise({ ...p, edges: route(sized, p) });
+  const finish = (q: Placement) => {
+    const p = applyPins(q, graph, sidecar, sized.groupHeader, spacing.groupPad);
+    return normalise({ ...p, edges: route(sized, p) });
+  };
+  if (tuning.compact === false) return finish(placed);
+  const packed = compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap);
+  if (tuning.compact) return finish(packed);
+  // Both, and keep whichever measures better: compaction helps nested groups and hurts long chains.
+  const a = finish(placed);
+  const b = finish(packed);
+  return score(measure(graph, b)) < score(measure(graph, a)) ? b : a;
 }
 
 function route(sized: Sized, p: Placement): Map<string, PlacedEdge> {
