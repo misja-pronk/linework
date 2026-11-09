@@ -1,5 +1,5 @@
 // Measures every shape before layout, so layout can reserve exactly the space render will draw.
-import type { CardShape, Graph, NodeSize, Sized, TableShape } from '@cartography/core';
+import { chips, type CardShape, type Chip, type Graph, type NodeSize, type Sized, type TableShape } from '@cartography/core';
 import { measureText, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
 
@@ -8,9 +8,10 @@ const CELL_GAP = 24;
 
 export function size(graph: Graph, theme: Theme): Sized {
   const nodes = new Map<string, NodeSize>();
+  const badges = chips(graph);
   for (const n of graph.nodes) {
     const shape = n.shape;
-    if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme));
+    if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme, badges.get(n.id)));
     else if (shape.kind === 'table') nodes.set(n.id, tableSize(shape, theme));
     else {
       const m = matrixGeometry(shape, theme);
@@ -38,10 +39,47 @@ export function cardCaption(shape: CardShape): string | undefined {
   return parts.length ? parts.join(' · ') : undefined;
 }
 
-function cardSize(shape: CardShape, theme: Theme): NodeSize {
+function cardSize(shape: CardShape, theme: Theme, list: Chip[] = []): NodeSize {
   const c = theme.space.card;
-  const width = 2 * c.padX + c.tile + c.gap + cardTextWidth(shape, theme) + 4;
-  return { width: Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, width))), height: c.height };
+  const text = 2 * c.padX + c.tile + c.gap + cardTextWidth(shape, theme) + 4;
+  // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
+  const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
+  const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, chipLeft(theme) + row + c.padX)));
+  return { width, height: list.length ? cardHeight(chipRows(list, width - chipLeft(theme) - c.padX, theme).rows, theme) : c.height };
+}
+
+// Badge chips sit in rows under the label, aligned with it, so the card reads top to bottom:
+// what it is, then what it uses. One quiet size for all, a step below the caption.
+export const CHIP = { height: 20, gap: 5, padX: 7, icon: 12, iconGap: 4, top: 52, bottom: 11 } as const;
+
+export function chipLeft(theme: Theme): number {
+  const c = theme.space.card;
+  return c.padX + c.tile + c.gap;
+}
+
+export function cardHeight(rows: number, theme: Theme): number {
+  return rows ? CHIP.top + rows * CHIP.height + (rows - 1) * CHIP.gap + CHIP.bottom : theme.space.card.height;
+}
+
+export function chipWidth(chip: Chip, theme: Theme): number {
+  return Math.ceil(2 * CHIP.padX + (chip.icon ? CHIP.icon + CHIP.iconGap : 0) + measureText(chip.label, theme.size.edgeLabel, 500));
+}
+
+/** Chips wrapped into rows of at most `room` wide; x and y relative to the chip area, widths cut to fit. */
+export function chipRows(list: Chip[], room: number, theme: Theme) {
+  const placed: { chip: Chip; x: number; y: number; width: number }[] = [];
+  let x = 0;
+  let row = 0;
+  for (const chip of list) {
+    const width = Math.min(room, chipWidth(chip, theme));
+    if (x > 0 && x + width > room) {
+      x = 0;
+      row++;
+    }
+    placed.push({ chip, x, y: row * (CHIP.height + CHIP.gap), width });
+    x += width + CHIP.gap;
+  }
+  return { placed, rows: list.length ? row + 1 : 0 };
 }
 
 export function tableHeader(shape: TableShape, theme: Theme): number {

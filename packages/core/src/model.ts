@@ -117,6 +117,10 @@ export interface GraphEdge {
   tone?: Tone;
   start: Marker;
   end: Marker;
+  /** Drawn as a chip on the source card instead of a line: for cross-cutting links (secrets, telemetry) that would cross the whole drawing. */
+  badge?: boolean;
+  /** What the line means, e.g. "Identity": names the link in a badge's tooltip. */
+  kind?: string;
   path: Path;
 }
 
@@ -124,8 +128,8 @@ export interface LegendItem {
   label: string;
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
-  /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline';
+  /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge';
   tone?: Tone;
 }
 

@@ -22,6 +22,9 @@ nodes:
   kv: { kind: key-vault, label: Secrets, in: shared }
   logs: { kind: app-insights, label: Telemetry, in: shared }
 
+# Shared services every app uses: shown as badges on the app instead of lines across the drawing.
+badges: [identity, management]
+
 edges:
   - client -> apim: { label: HTTPS, style: public }
   - apim -> orders: { style: private }
@@ -36,3 +39,5 @@ edges:
   - orders -> kv: { style: identity }
   - payments -> kv: { style: identity }
   - orders -> logs: { style: management }
+  - payments -> logs: { style: management }
+  - stock -> logs: { style: management }

@@ -1,6 +1,6 @@
 // The whole pipeline in one call, shared by the CLI and the web app:
 // YAML → validate → type.build → measure → layout → pins → SVG.
-import { parseSource, validate, type Diagnostic, type DiagramType, type Graph, type LayoutSidecar, type Placed } from '@cartography/core';
+import { parseSource, validate, withoutBadges, type Diagnostic, type DiagramType, type Graph, type LayoutSidecar, type Placed } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
@@ -61,7 +61,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   });
 
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
-  const sized = size(graph, theme);
+  // Cards are sized with their badge chips; layout and routing never see the badged edges.
+  const measured = size(graph, theme);
+  const sized = { ...measured, graph: withoutBadges(graph) };
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   const placed = type.layout ? await type.layout(sized, opts.sidecar) : await layout(sized, spacing, opts.sidecar, opts.tuning);
   const out = drawSvg(graph, placed, theme, opts);
