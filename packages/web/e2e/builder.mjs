@@ -172,5 +172,80 @@ if ((await page.locator('.status-problems').innerText()) !== 'No problems') {
 }
 await page.screenshot({ path: `${out}/8-group.png` });
 
+// 12. Double-click a node: its label is edited in place; typed keys never reach the canvas shortcuts.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+const nodeCount = await page.locator('.drawing [data-node]').count();
+const vb = await page.locator('.drawing [data-node="vault"]').boundingBox();
+await page.mouse.dblclick(vb.x + vb.width / 2, vb.y + vb.height / 2);
+await wait(300);
+if (!(await page.locator('.label-editor').isVisible())) fail('double-click did not open the label editor');
+// "a" would add a shape and "c" connect: typed here they are just letters.
+await page.keyboard.type('Vault a c');
+await page.keyboard.press('Enter');
+await wait(500);
+if (!(await yaml()).includes('label: Vault a c')) fail('inline rename not written: ' + (await yaml()).split('\n').filter((l) => l.includes('vault:')).join());
+if ((await page.locator('.drawing [data-node]').count()) !== nodeCount || (await page.locator('.add-menu:not(.inline)').count())) fail('typing in the label editor triggered canvas shortcuts');
+const vb2 = await page.locator('.drawing [data-node="vault"]').boundingBox();
+await page.mouse.dblclick(vb2.x + vb2.width / 2, vb2.y + vb2.height / 2);
+await wait(300);
+await page.keyboard.type('Nope');
+await page.keyboard.press('Escape');
+await wait(400);
+if ((await yaml()).includes('Nope')) fail('Esc did not cancel the inline rename');
+await page.screenshot({ path: `${out}/9-renamed.png` });
+
+// 13. Shift-click two nodes, then a marquee around everything: both select several.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+await page.locator('.drawing [data-node="users"]').click();
+await page.locator('.drawing [data-node="vault"]').click({ modifiers: ['Shift'] });
+await wait(300);
+if (!(await page.locator('.inspector', { hasText: '2 selected' }).count())) fail('shift-click did not select two');
+if ((await page.locator('.selection-ring').count()) !== 2) fail('expected two selection rings');
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+const all = await page.locator('.drawing').boundingBox();
+await page.mouse.move(all.x - 20, all.y - 20);
+await page.mouse.down();
+for (let i = 1; i <= 8; i++) await page.mouse.move(all.x - 20 + ((all.width + 40) * i) / 8, all.y - 20 + ((all.height + 40) * i) / 8);
+if (!(await page.locator('.marquee').count())) fail('no marquee while dragging on empty canvas');
+await page.mouse.up();
+await wait(300);
+const selectedText = await page.locator('.inspector header').innerText().catch(() => '');
+if (Number(/(\d+) selected/.exec(selectedText)?.[1] ?? 0) < 5) fail('marquee selected too little: ' + selectedText);
+await page.screenshot({ path: `${out}/10-marquee.png` });
+
+// 14. Copy and paste a selection: new unique ids, the line between them comes along, one undo step.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+await page.locator('.drawing [data-node="users"]').click();
+await page.locator('.drawing [data-node="vault"]').click({ modifiers: ['Shift'] });
+const before14 = await yaml();
+await page.keyboard.press('Meta+c');
+await page.keyboard.press('Meta+v');
+await wait(600);
+const y14 = await yaml();
+if (!/users-2:/.test(y14) || !/vault-2:/.test(y14)) fail('paste did not add copies with new ids');
+if (!y14.includes('users-2 -> vault-2')) fail('paste did not copy the line between the copies: ' + y14.split('edges:')[1]);
+if (!(await page.locator('.inspector', { hasText: '2 selected' }).count())) fail('the pasted copies are not selected');
+await page.screenshot({ path: `${out}/11-pasted.png` });
+await page.keyboard.press('Meta+z');
+await wait(400);
+if ((await yaml()) !== before14) fail('one undo did not take the whole paste back');
+// Delete several at once.
+await page.keyboard.press('Meta+v');
+await wait(600);
+await page.keyboard.press('Delete');
+await wait(500);
+if ((await yaml()).includes('users-2') || (await yaml()).includes('vault-2')) fail('deleting the selection left copies');
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all builder steps ok');
 await browser.close();
