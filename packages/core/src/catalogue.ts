@@ -18,6 +18,7 @@
 //     containers: { expand: [shop] }
 import { edgeItemSchema, parseEdge } from './edges.ts';
 import { idPattern } from './diagram-type.ts';
+import { stepItemSchemas } from './steps.ts';
 import { tones, type Direction, type Link, type Path, type Tone } from './model.ts';
 
 export interface ModelElement {
@@ -74,6 +75,8 @@ export interface ViewSpec {
   /** A landscape or context view draws the elements that are not external inside a boundary with this name. */
   enterprise?: string;
   steps?: StepSpec[];
+  /** Steps for presenting the view, as written (see steps.ts). */
+  present?: unknown[];
   /** Deployment nodes of a deployment view, as written (nested `nodes:`, `instances:` of model elements). */
   nodes?: Record<string, unknown>;
   /** Extra lines of a deployment view, between deployment nodes or instances. */
@@ -170,7 +173,8 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
       const list = (k: string) => (Array.isArray(o[k]) ? (o[k] as unknown[]).map(String) : typeof o[k] === 'string' ? [o[k] as string] : undefined);
       const steps: StepSpec[] = [];
-      if (Array.isArray(o.steps))
+      // A dynamic view's steps are its numbered relations; any other view's steps are for presenting.
+      if (Array.isArray(o.steps) && o.kind === 'dynamic')
         for (const [j, item] of o.steps.entries()) {
           const vp = at(['views', name, 'steps', j]);
           const spec = parseEdge(item, vp);
@@ -184,6 +188,7 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         ...(typeof o.of === 'string' ? { of: o.of } : {}),
         ...(typeof o.enterprise === 'string' ? { enterprise: o.enterprise } : {}),
         ...(steps.length ? { steps } : {}),
+        ...(Array.isArray(o.steps) && o.kind !== 'dynamic' ? { present: o.steps } : {}),
         ...(o.nodes && typeof o.nodes === 'object' && !Array.isArray(o.nodes) ? { nodes: o.nodes as Record<string, unknown> } : {}),
         ...(Array.isArray(o.edges) ? { edges: o.edges } : {}),
         title: typeof o.title === 'string' ? o.title : undefined,
@@ -290,7 +295,11 @@ const viewSchema = {
     kind: { enum: viewKinds, description: 'A C4 view that picks its elements itself: landscape, context/container/component of an element, dynamic (steps) or deployment (nodes)' },
     of: { type: 'string', description: 'The element the view is about, e.g. shop or shop.api' },
     enterprise: { type: 'string', description: 'Draw what is not external inside an enterprise boundary with this name' },
-    steps: { type: 'array', items: edgeItemSchema({ technology: relationProps.technology }), description: 'Dynamic view: numbered interactions, e.g. "customer -> shop.web: Browses"' },
+    steps: {
+      type: 'array',
+      items: { anyOf: [edgeItemSchema({ technology: relationProps.technology }), ...stepItemSchemas] },
+      description: 'Steps for presenting this view ({ caption, show, focus, path, hide, note }); in a dynamic view its numbered interactions, e.g. "customer -> shop.web: Browses"',
+    },
     nodes: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(4), description: 'Deployment view: deployment nodes, nested, with instances of model elements' },
     edges: { type: 'array', items: edgeItemSchema(relationProps), description: 'Deployment view: lines between deployment nodes or instances' },
   },

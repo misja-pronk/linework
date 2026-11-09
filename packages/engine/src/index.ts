@@ -3,10 +3,13 @@
 import {
   compose,
   filterGraph,
+  impliedSteps,
   modelKeys,
   modelProperties,
   modelSchema,
   parseSource,
+  resolveSteps,
+  stepsSchema,
   validate,
   viewPins,
   withoutBadges,
@@ -18,6 +21,7 @@ import {
   type Path,
   type Placed,
   type Source,
+  type StepState,
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
@@ -38,6 +42,12 @@ export const types: DiagramType[] = [systems, c4, network, azure, kubernetes, er
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
+}
+
+/** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting. Editors complete from this. */
+export function schemaOf(type: DiagramType): Record<string, unknown> {
+  const schema = type.schema as { properties?: Record<string, unknown> };
+  return 'steps' in (schema.properties ?? {}) ? schema : { ...schema, properties: { ...schema.properties, steps: stepsSchema } };
 }
 
 export interface RenderOptions extends SvgOptions {
@@ -62,6 +72,10 @@ export interface RenderOptions extends SvgOptions {
   load?: (file: string) => string;
   /** One of the diagram's `views:`; without it the diagram as written (or its first view when it only has views). */
   view?: string;
+  /** Draw the diagram at this step (1-based) of its `steps:`; without it, the whole diagram at full strength. */
+  step?: number;
+  /** Leave the step's title, caption and "3 / 7" out of the drawing (a presenter shows them itself). */
+  stepCaption?: boolean;
 }
 
 export interface RenderResult {
@@ -81,6 +95,11 @@ export interface RenderResult {
   onlyViews?: boolean;
   /** Files read through `include:`, relative to the diagram. */
   includes?: string[];
+  /** The steps the drawing can be told in (written, or the numbered lines of a dynamic view, or a sequence's messages), and the one drawn. */
+  steps?: StepState[];
+  step?: number;
+  /** Nobody wrote these steps: export keeps such a drawing on one slide unless asked. */
+  stepsImplied?: boolean;
   /** The theme it was drawn with (PNG export needs its font files). */
   theme?: Theme;
 }
@@ -88,6 +107,7 @@ export interface RenderResult {
 /** Keys that are not something drawn, to tell a diagram that only has views. */
 const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges']);
 /** Model keys checked for types whose schema does not list them (ERD, access, …). */
+const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
@@ -111,13 +131,17 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // such a type defines itself (an ERD's relations) stays the type's.
   // Theme and icons are about the look, shared by every type: they never reach the type's schema.
   const { theme: themeRef, icons: iconsRef, ...rest } = data;
-  const own: Source = { ...source, data: rest };
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
+  // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
+  const stepsRef = 'steps' in props ? undefined : rest.steps;
+  if (!('steps' in props)) delete rest.steps;
+  const own: Source = { ...source, data: rest };
   const listed = 'views' in props;
   const keys = modelKeys.filter((k) => listed || !(k in props));
   const isModelKey = (k: string) => (keys as string[]).includes(k);
   const plain = Object.fromEntries(Object.entries(rest).filter(([k]) => !isModelKey(k)));
   const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelOnly(keys))];
+  if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
@@ -178,8 +202,14 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
+  // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
+  const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
+  if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
+  // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
+  const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
+  const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
-  const out = withTextScale(scale, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images }));
+  const out = withTextScale(scale, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
   const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : undefined;
   return {
     svg: out.svg,
@@ -195,6 +225,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(model?.view ? { view: model.view.name } : {}),
     ...(onlyViews ? { onlyViews } : {}),
     ...(includes?.length ? { includes } : {}),
+    ...(steps.length ? { steps } : {}),
+    ...(steps.length && !told ? { stepsImplied: true } : {}),
+    ...(step ? { step } : {}),
   };
 }
 

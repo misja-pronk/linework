@@ -10,6 +10,8 @@ carto types who has access     # the types that match your words, best first
 carto new erd orders.yaml      # start from a type's template
 ```
 
+Whatever the type, a drawing can be told in parts for an audience: `steps:` says what is shown and what stands out at each step, for the presenter in the editor and for one slide per step in PowerPoint. See [steps.md](steps.md).
+
 ## Decision table
 
 | You want to show… | Type | `type:` |
@@ -260,6 +262,8 @@ steps:
 Activations follow the calls: a call opens one on the receiver and its reply closes it; one that is never answered ends where its lifeline last takes part. `activations: explicit` draws only the ones you ask for (`a -> +b`, `b --> -a`, `activate: b`, `deactivate: b`), which is what a Mermaid import with `activate` or `+`/`-` gives. `footers: true` repeats the participants under the lifelines.
 
 Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which will also carry git flow, roadmaps and journeys.
+
+Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`). See [steps.md](steps.md).
 
 Examples: [examples/sequence](../examples/sequence)
 

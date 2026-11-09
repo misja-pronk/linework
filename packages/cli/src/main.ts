@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { iconPng, interTtf, toPng } from './png.ts';
-import { toPdf, toPptx, type Drawing } from '@cartography/export';
+import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
@@ -17,7 +17,10 @@ const help = `carto — architecture diagrams that look good
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
                [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
-  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each
+               [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
+                                                pptx and pdf get a slide (page) per step by themselves
+  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
+               [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--page fit|a4|a3]                   page size (pdf, default fit)
@@ -50,6 +53,9 @@ const { positionals, values } = parseArgs({
     force: { type: 'boolean' },
     view: { type: 'string' },
     'all-views': { type: 'boolean' },
+    step: { type: 'string' },
+    'all-steps': { type: 'boolean' },
+    'no-steps': { type: 'boolean' },
     title: { type: 'string' },
     subtitle: { type: 'string' },
     aspect: { type: 'string', default: '16:9' },
@@ -77,10 +83,12 @@ function sidecarFor(file: string): LayoutSidecar | undefined {
   return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar) : undefined;
 }
 
-function outputPath(file: string, format: string, view?: string): string {
-  const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + '.' + format;
+function outputPath(file: string, format: string, view?: string, step?: number): string {
+  // Steps are numbered with two digits so the files sort in the order they are told.
+  const nn = step ? `-step-${String(step).padStart(2, '0')}` : '';
+  const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + nn + '.' + format;
   if (!values.out) return path.join(path.dirname(file), base);
-  if (files.length === 1 && !values['all-views'] && path.extname(values.out)) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), values.out);
+  if (files.length === 1 && !values['all-views'] && path.extname(values.out)) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), nn ? values.out.replace(/(\.\w+)$/, `${nn}$1`) : values.out);
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
 }
@@ -138,8 +146,12 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     fonts,
     file: path.basename(file),
     view: values.view,
+    step: values.step ? Number(values.step) || 1 : undefined,
   };
 }
+
+/** --all-steps: also steps nobody wrote; --no-steps: one slide per drawing; else a slide per written step. */
+const stepsFlag = () => (values['no-steps'] ? false : values['all-steps'] ? true : undefined);
 
 async function draw(file: string, fonts: RenderOptions['fonts']) {
   const result = await render(fs.readFileSync(file, 'utf8'), optionsFor(file, fonts));
@@ -151,9 +163,9 @@ async function draw(file: string, fonts: RenderOptions['fonts']) {
 function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme']): Promise<Uint8Array> {
   const t = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
   if (format === 'pptx')
-    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, rasterize: (svg, w) => iconPng(svg, w) });
+    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w) });
   const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
-  return toPdf(drawings, { theme: t, page, fonts: interTtf(), title: values.title });
+  return toPdf(drawings, { theme: t, page, fonts: interTtf(), title: values.title, steps: stepsFlag() });
 }
 
 async function renderFile(file: string): Promise<boolean> {
@@ -172,14 +184,21 @@ async function renderFile(file: string): Promise<boolean> {
       ok = false;
       continue;
     }
-    const out = outputPath(file, format, view);
+    if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${file}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
+    // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
+    const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
+    const shots = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
     const faces = result.theme?.font.faces ?? [];
-    const data =
-      format === 'png' ? toPng(result.svg, Number(values.scale) || 2, await ttfFiles(faces))
-      : format === 'svg' ? result.svg
-      : await document(format, [{ ...result, name: path.basename(file) }], result.theme);
-    fs.writeFileSync(out, data);
-    console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${result.width}×${result.height}`)}`);
+    for (const shot of shots) {
+      if (!shot.svg) continue;
+      const out = outputPath(file, format, view, each || values.step ? shot.step : undefined);
+      const data =
+        format === 'png' ? toPng(shot.svg, Number(values.scale) || 2, await ttfFiles(faces))
+        : format === 'svg' ? shot.svg
+        : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
+      fs.writeFileSync(out, data);
+      console.log(`${file}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${out} ${dim(`${shot.width}×${shot.height}`)}`);
+    }
     if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
   }
   return ok;
@@ -196,7 +215,8 @@ async function deck(): Promise<boolean> {
   let theme: RenderResult['theme'];
   let ok = true;
   for (const f of files) {
-    const r = await draw(f, 'none');
+    // A deck tells every step; --step is for one drawing.
+    const r = { ...(await draw(f, 'none')), step: undefined };
     theme ??= r.theme;
     if (!r.graph || r.diagnostics.some((d) => d.severity === 'error')) ok = false;
     if (r.graph) drawings.push({ ...r, name: path.basename(f) });
@@ -204,7 +224,8 @@ async function deck(): Promise<boolean> {
   if (!drawings.length) return false;
   fs.mkdirSync(path.dirname(values.out), { recursive: true });
   fs.writeFileSync(values.out, await document(format, drawings, theme));
-  console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''} → ${values.out}`);
+  const count = pages(drawings, stepsFlag()).length;
+  console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''}${count > drawings.length ? `, ${count} ${format === 'pdf' ? 'pages' : 'slides'}` : ''} → ${values.out}`);
   return ok;
 }
 

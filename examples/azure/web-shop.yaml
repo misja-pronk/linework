@@ -25,3 +25,16 @@ edges:
   - web -> api: { label: REST, style: private }
   - api -> db: { label: SQL, style: private }
   - api -> vault: { label: secrets, style: identity }
+
+# Told in steps: Present in the editor, or carto render web-shop.yaml --all-steps
+steps:
+  - The web shop in production. One subscription, and nothing is public except the front door.
+  - users -> edge -> web: A customer opens the shop. Front Door terminates TLS and forwards to the web app.
+  - web -> api: Placing an order is a private REST call inside the virtual network.
+  - title: Orders are stored
+    caption: The Orders API writes to SQL over the data subnet.
+    path: api -> db
+    note: { db: No public endpoint }
+  - title: No secrets in code
+    caption: The API reads its connection string from Key Vault with its managed identity.
+    path: api -> vault

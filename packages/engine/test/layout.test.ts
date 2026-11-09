@@ -47,6 +47,7 @@ const crossingBudget: Record<string, number> = {
   'sequence/oauth-login.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
   'systems/data-pipeline.yaml': 0,
+  'systems/invoice-walkthrough.yaml': 1,
   'systems/saas-platform.yaml': 2,
   'systems/web-shop.yaml': 0,
 };

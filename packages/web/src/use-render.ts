@@ -14,8 +14,8 @@ export interface Rendered {
   docKey: number;
 }
 
-/** `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle. */
-export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string) {
+/** `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle; `step` draws one of its steps. */
+export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, step?: number) {
   const [out, setOut] = useState<Rendered>();
   const seq = useRef(0);
   const doc = useRef(docKey);
@@ -24,7 +24,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   useEffect(() => {
     const n = ++seq.current;
     const t = performance.now();
-    render(text, { theme, themeOverride, icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' })
+    render(text, { theme, themeOverride, icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live' })
       .then((result) => {
         if (n !== seq.current) return;
         // Another document starts without the old drawing behind it.
@@ -43,6 +43,6 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             docKey,
           }));
       });
-  }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file]);
+  }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, step]);
   return out;
 }

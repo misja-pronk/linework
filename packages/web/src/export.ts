@@ -12,13 +12,15 @@ export interface ExportInput {
   /** The view on screen, and the file name (for "#view" links in the SVG). */
   view?: string;
   file?: string;
+  /** The step on screen: SVG and PNG show it; PowerPoint and PDF get every step, one per slide or page. */
+  step?: number;
 }
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'embed' as const });
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, step: input.step, fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, options(input));
@@ -70,18 +72,18 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
 }
 
-/** A slide with native, editable shapes; icon PNG fallbacks drawn by the browser's canvas. */
+/** A slide with native, editable shapes (one per step when the drawing has steps); icon PNG fallbacks drawn by the browser's canvas. */
 export async function exportPptx(input: ExportInput, name?: string): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'none' });
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
   const { toPptx } = await import('@cartography/export');
   const data = await toPptx({ ...r, name }, { theme: input.theme, rasterize });
   return new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
 
-/** Vector PDF, one page fitted to the drawing, with Inter embedded. */
+/** Vector PDF, one page fitted to the drawing (one per step when it has steps), with Inter embedded. */
 export async function exportPdf(input: ExportInput, name?: string): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'none' });
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
   const [{ toPdf }, { fontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
