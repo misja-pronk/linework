@@ -21,6 +21,10 @@ export interface InspectorProps {
   onDelete(): void;
   onUnpin(): void;
   onClose(): void;
+  /** Lines to and from a node, to select or remove one without hunting for it in the drawing. */
+  connections?: { id: string; out: boolean; other: string; label?: string }[];
+  onSelectEdge?(id: string): void;
+  onDeleteEdge?(id: string): void;
 }
 
 function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: string): void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'>) {
@@ -119,6 +123,25 @@ export function Inspector(p: InspectorProps) {
             )}
           </label>
         ))}
+        {p.connections && p.connections.length > 0 && (
+          <div className="field">
+            <span>Connections</span>
+            <ul className="connections">
+              {p.connections.map((c) => (
+                <li key={c.id}>
+                  <button type="button" className="connection" onClick={() => p.onSelectEdge?.(c.id)} title="Select this line">
+                    <Icon name={c.out ? 'arrow-right-from-line' : 'arrow-right-to-line'} size={14} />
+                    <span>{c.other}</span>
+                    {c.label && <em>{c.label}</em>}
+                  </button>
+                  <button type="button" className="icon-button small" onClick={() => p.onDeleteEdge?.(c.id)} aria-label={`Remove line to ${c.other}`} title="Remove this line">
+                    <Icon name="x" size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <footer>

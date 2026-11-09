@@ -10,11 +10,12 @@ import { Templates } from './templates.tsx';
 import { Inspector } from './inspector.tsx';
 import { AddMenu } from './add-menu.tsx';
 import { Menu } from './menu.tsx';
+import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { exampleLoader, starters, typeName, type Starter } from './library.ts';
-import { baseName, download, exportPng, exportSvg, yamlName } from './export.ts';
+import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
 import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -82,8 +83,10 @@ export function App() {
   const systemDark = useSystemDark();
   const theme: 'light' | 'dark' = pref === 'system' ? (systemDark ? 'dark' : 'light') : pref;
   const [selected, setSelected] = useState<Selection>();
-  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect'>();
+  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts'>();
   const [adding, setAdding] = useState(false);
+  /** On narrow screens one pane shows at a time. */
+  const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
@@ -117,7 +120,12 @@ export function App() {
           : { version: 1, nodes: { ...(pins?.nodes ?? {}), [draft.id]: draft.at }, groups: pins?.groups },
     [pins, draft],
   );
-  const rendered = useRender(useDebounced(text, 40, docKey), theme, sidecar, load, docKey);
+  // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
+  const [renderMs, setRenderMs] = useState(0);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey);
+  useEffect(() => {
+    if (rendered) setRenderMs(rendered.ms);
+  }, [rendered]);
   const result = rendered?.result;
   const drawn = rendered?.drawn;
   const type = result?.type ?? drawn?.type;
@@ -343,6 +351,7 @@ export function App() {
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
   const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await exportSvg(exportInput()), 'image/svg+xml'));
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
+  const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await exportSvg(exportInput()));
     notify('SVG copied');
@@ -430,21 +439,22 @@ export function App() {
     setPendingPath(JSON.stringify(r.path));
   };
 
-  const remove = () => {
-    const path = pathOf(selected);
-    if (!path || !selected || !type || !ready()) return;
+  /** Deletes the selection (or another element, e.g. a line from the inspector's connection list). */
+  const remove = (sel: Selection | undefined = selected) => {
+    const path = pathOf(sel);
+    if (!path || !sel || !type || !ready()) return;
     // A line that stands for part of something bigger (a policy, a list) is changed in the YAML.
-    const deletable = (path.length === 2 && typeof path[1] === 'string') || typeof path.at(-1) === 'number' || (selected.kind === 'edge' && isScalarAt(textNow(), path));
+    const deletable = (path.length === 2 && typeof path[1] === 'string') || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
     if (!deletable) {
       notify('This one is part of a larger entry: change it in the YAML', { tone: 'error' });
-      const e = entries.find((x) => x.kind === selected.kind && x.id === selected.id);
+      const e = entries.find((x) => x.kind === sel.kind && x.id === sel.id);
       if (e) editor.current?.reveal(e.from, e.to);
       return;
     }
     const next = deleteEntry(textNow(), type, path);
-    const pinned = selected.kind === 'node' ? pins?.nodes?.[selected.id] : selected.kind === 'group' ? pins?.groups?.[selected.id] : undefined;
-    apply(next, pinned ? withPin(selected.id, undefined, selected.kind === 'group') : undefined);
-    if (next != null) setSelected(undefined);
+    const pinned = sel.kind === 'node' ? pins?.nodes?.[sel.id] : sel.kind === 'group' ? pins?.groups?.[sel.id] : undefined;
+    apply(next, pinned ? withPin(sel.id, undefined, sel.kind === 'group') : undefined);
+    if (next != null && sel === selected) setSelected(undefined);
   };
 
   const duplicate = () => {
@@ -577,6 +587,7 @@ export function App() {
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
+    { id: 'slide', group: 'Export', label: 'PNG for slides (16:9)', icon: 'monitor', run: saveSlide },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
@@ -585,6 +596,7 @@ export function App() {
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
+    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: '?', run: () => setTimeout(() => setModal('shortcuts')) },
     { id: 'problems', group: 'View', label: 'Show problems', icon: 'circle-exclamation-point', run: () => setModal('problems') },
     ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
     ...(selected?.kind === 'node'
@@ -603,6 +615,12 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // "?" opens the shortcuts, unless someone is typing.
+      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
+      if (e.key === '?' && !typing && !modal) {
+        setModal('shortcuts');
+        return e.preventDefault();
+      }
       if (e.defaultPrevented || e.altKey || !mod(e)) return;
       const k = e.key.toLowerCase();
       if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
@@ -683,6 +701,9 @@ export function App() {
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
                 </button>
+                <button role="menuitem" onClick={saveSlide}>
+                  <Icon name="monitor" /> PNG for slides (16:9)
+                </button>
                 <hr />
                 <button role="menuitem" onClick={copyPng}>
                   <Icon name="copy" /> Copy as PNG
@@ -708,7 +729,15 @@ export function App() {
         </div>
       </header>
 
-      <main className={`workspace${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''}`}>
+      <nav className="pane-tabs" role="tablist" aria-label="Show">
+        <button role="tab" aria-selected={pane === 'yaml'} onClick={() => setPane('yaml')}>
+          <Icon name="file-code" /> YAML
+        </button>
+        <button role="tab" aria-selected={pane === 'drawing'} onClick={() => setPane('drawing')}>
+          <Icon name="image" /> Drawing
+        </button>
+      </nav>
+      <main className={`workspace${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''} show-${pane}`}>
         {ws && (
           <nav className="files" aria-label={`Diagrams in ${ws.name}`}>
             <header>
@@ -835,7 +864,16 @@ export function App() {
               editor.current?.focus();
             }}
             onDuplicate={isEntry ? duplicate : undefined}
-            onDelete={remove}
+            onDelete={() => remove()}
+            connections={
+              selNode
+                ? (result?.graph?.edges ?? [])
+                    .filter((e) => e.from.node === selNode.id || e.to.node === selNode.id)
+                    .map((e) => ({ id: e.id, out: e.from.node === selNode.id, other: nodeName(e.from.node === selNode.id ? e.to.node : e.from.node), label: e.label }))
+                : undefined
+            }
+            onSelectEdge={(id) => select({ kind: 'edge', id })}
+            onDeleteEdge={(id) => remove({ kind: 'edge', id })}
             onUnpin={() => editor.current?.pin(withPin(selected.id, undefined, selected.kind === 'group') ?? undefined)}
             onClose={() => setInspector(false)}
           />
@@ -864,6 +902,9 @@ export function App() {
           </span>
         )}
         <span className="spacer" />
+        <button className="status-link" onClick={() => setModal('shortcuts')} title="Keyboard shortcuts">
+          <Icon name="keyboard" size={13} /> ?
+        </button>
         {rendered && <span>{rendered.ms} ms</span>}
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
@@ -878,6 +919,7 @@ export function App() {
             .map((n) => ({ id: `to:${n.id}`, group: `Connect ${nodeName(selected.id)} to`, label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => connect(selected.id, n.id) }))}
         />
       )}
+      {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {modal === 'templates' && <Templates theme={theme} onPick={pick} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette

@@ -6,6 +6,23 @@ Diagram types: Azure, database (ERD), roles / groups / access packages, GitHub, 
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
+## The editor
+
+```sh
+pnpm install
+pnpm web          # → http://localhost:5178
+pnpm web:build    # static app in packages/web/dist, runs from any folder, offline
+```
+
+YAML on the left, the drawing on the right; both stay in sync and select the same element.
+
+- **Start** from a template or example (live thumbnails), or open a folder of diagrams (Chrome/Edge: files are edited in place, data contracts are read next to them).
+- **Write** with autocomplete from each type's schema; problems show on the right line, and the last good drawing stays while you type.
+- **Build** without YAML: add shapes from the palette (`A`, or drag them onto the drawing and into a group), edit them in the inspector, drag from the dot on an element to connect it, rename with every reference following.
+- **Arrange**: drag elements or whole groups; positions are saved next to the diagram as `<name>.layout.json`, lines follow, nothing lands on top of something else.
+- **Undo** everything with `⌘Z`: typing, builder edits and moves share one history.
+- **Export** SVG, PNG, a 16:9 slide, or copy as PNG for slides and docs. `?` shows every shortcut.
+
 ## Try it
 
 ```sh
