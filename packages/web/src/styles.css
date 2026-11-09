@@ -1806,7 +1806,17 @@ kbd {
   .ask,
   .ask.result {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
     overflow-y: auto;
+  }
+  /* Stacked: the form, then the run panel below it, one scroll for both. */
+  .ask-form,
+  .ask-run {
+    overflow: visible;
+  }
+  .ask-run {
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
   .mode-preview {
     min-height: 200px;
@@ -1912,4 +1922,67 @@ kbd {
 .ask-stream .paste {
   font-family: var(--mono);
   font-variant-ligatures: none;
+}
+
+/* ------------------------------------------------------------- phones */
+
+.narrow-only {
+  display: none;
+}
+.more-dots {
+  font-size: 18px;
+  line-height: 1;
+}
+@media (max-width: 900px) {
+  /* The YAML / Drawing tabs are the one switcher here; the shapes panel does not fit anyway. */
+  .view-switch {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .wide-only {
+    display: none;
+  }
+  .narrow-only {
+    display: block;
+  }
+  .topbar {
+    gap: 6px;
+  }
+  .actions {
+    gap: 2px;
+    flex: none;
+  }
+  .doc-name {
+    flex: 1;
+  }
+  .hint {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-width: none;
+    border-radius: 14px;
+    z-index: 7;
+  }
+  .templates {
+    width: calc(100vw - 16px);
+  }
+  .overlay {
+    padding-top: 4vh;
+  }
+  .start {
+    height: 92vh;
+  }
+  .steps {
+    display: none;
+  }
+  .templates header {
+    padding: 12px 12px 6px 16px;
+  }
+  .chips:not(.inline) {
+    padding: 8px 16px 12px;
+  }
+  .template-grid {
+    padding: 14px 16px 16px;
+  }
 }

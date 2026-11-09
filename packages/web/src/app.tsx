@@ -120,6 +120,7 @@ export function App() {
   const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
+  const [more, setMore] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
   const editor = useRef<EditorHandle>(null);
@@ -920,12 +921,12 @@ export function App() {
         </div>
         <div className="actions">
           {canUseFolders && !ws && remembered && (
-            <button className="button ghost" onClick={() => void openFolder(remembered)} title="Open the last folder again">
+            <button className="button ghost wide-only" onClick={() => void openFolder(remembered)} title="Open the last folder again">
               <Icon name="folder-open" /> {remembered.name}
             </button>
           )}
           {canUseFolders && (
-            <button className="button ghost" onClick={() => void openFolder()} title="Open a folder with diagrams">
+            <button className="button ghost wide-only" onClick={() => void openFolder()} title="Open a folder with diagrams">
               <Icon name="folder-open" /> {ws ? 'Folder' : 'Open folder'}
             </button>
           )}
@@ -937,14 +938,38 @@ export function App() {
               <Icon name="code" /> YAML
             </button>
           </div>
-          <button className="button ghost" onClick={() => setModal('templates')}>
+          <button className="button ghost wide-only" onClick={() => setModal('templates')}>
             <Icon name="file-plus" /> New
           </button>
-          <button className="button ghost" onClick={() => setModal('palette')} title="Command palette">
+          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Command palette">
             <Icon name="search" /> Commands <kbd>⌘K</kbd>
           </button>
+          {/* On a phone the actions above fold into one menu. */}
+          <div className="menu-anchor narrow-only">
+            <button className="icon-button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="menu" aria-label="More actions">
+              <span className="more-dots" aria-hidden="true">⋯</span>
+            </button>
+            {more && (
+              <Menu onClose={() => setMore(false)}>
+                <button role="menuitem" onClick={() => (setMore(false), setModal('templates'))}>
+                  <Icon name="file-plus" /> New diagram
+                </button>
+                <button role="menuitem" onClick={() => (setMore(false), setModal('palette'))}>
+                  <Icon name="search" /> Commands
+                </button>
+                {canUseFolders && (
+                  <button role="menuitem" onClick={() => (setMore(false), void openFolder())}>
+                    <Icon name="folder-open" /> Open folder
+                  </button>
+                )}
+                <button role="menuitem" onClick={() => (setMore(false), setPref(theme === 'dark' ? 'light' : 'dark'))}>
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} /> {theme === 'dark' ? 'Light' : 'Dark'} theme
+                </button>
+              </Menu>
+            )}
+          </div>
           <button
-            className="icon-button"
+            className="icon-button wide-only"
             onClick={() => setPref(theme === 'dark' ? 'light' : 'dark')}
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
             aria-label="Toggle theme"
