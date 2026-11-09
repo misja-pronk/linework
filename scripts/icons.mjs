@@ -14,6 +14,7 @@ const names = `
   scroll-text search send server server-cog shield shield-check shield-user shopping-cart smartphone face-slightly-smiling face-grinning face-angry sparkles
   split square-dashed square-function square-stack star store table table-2 tag target terminal timer triangle-exclamation-point
   user user-cog user-round users variable waypoints webhook wifi workflow x zap
+  arrow-right-to-line arrow-right-from-line file-check radio chart-column-big
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

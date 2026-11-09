@@ -67,10 +67,12 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 - Characters/avatars from an open-source set; speech bubbles.
 - Step-through presentation mode (S).
 
-### 3.9 Data products (M)
-- Domains as groups; data products with owner, description, input ports (sources), output ports (interfaces: table, API, stream, file), consumers.
-- **Two detail levels from one source:** `overview` (products as boxes plus lineage between them) and `detailed` (ports, schema/fields, SLA, freshness, quality checks, classification/PII, version, contract).
-- Toggle detail per diagram and per product (e.g. one product detailed, the rest overview).
+### 3.9 Data products (M), type `data-products`
+- Domains as groups; source systems; data products with owner, version, input ports (from a source, a product or `product.port`) and output ports (table, view, files, API, stream, topic, SQL, model); consumers (dashboard, report, ML model, application, team, analyst, partner).
+- Product classes **source-aligned**, **aggregate** and **consumer-aligned**, each with its own colour, icon and caption, plus a legend.
+- **Data contracts** on output ports: version, classification, schema fields (pk, PII, nullable), guarantees (freshness, availability, …) and quality checks.
+- **Two detail levels from one source:** `view: overview` (products as cards plus lineage between them, one line per product pair) and `view: detailed` (products as tables with their ports, lines attached to the exact port, contracts beside the port they govern).
+- Detail per product too: `detail: [id]` or `detail: true` shows one product in detail and the rest as overview; `show-contracts: false` hides contracts.
 - Read Open Data Contract Standard / data contract YAML (S).
 
 ## 4. Text format

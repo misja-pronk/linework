@@ -1,0 +1,68 @@
+type: data-products
+title: Customer data products in detail
+subtitle: From operational systems to fit-for-purpose products
+view: detailed
+# detail: [customer-360]   # only these products in detail
+
+domains:
+  sales: { label: Sales, owner: Sales engineering }
+  customer: { label: Customer, owner: CRM team }
+  marketing: { label: Marketing }
+
+sources:
+  shop: { kind: application, label: Webshop, domain: sales }
+  crm: { kind: saas, label: Salesforce, domain: customer }
+
+products:
+  orders:
+    class: source-aligned
+    domain: sales
+    inputs: [{ from: shop, label: CDC }]
+    outputs:
+      orders: { kind: table, contract: orders }
+  customers:
+    class: source-aligned
+    domain: customer
+    inputs: [{ from: crm, label: daily }]
+    outputs:
+      customers: { kind: table, contract: customers }
+  customer-360:
+    label: Customer 360
+    class: aggregate
+    domain: customer
+    inputs: [orders.orders, customers.customers]
+    outputs:
+      profile: { kind: table, label: profiles }
+  churn:
+    label: Churn risk
+    class: consumer-aligned
+    domain: marketing
+    inputs: [customer-360]
+    outputs:
+      scores: { kind: api, label: churn scores }
+
+consumers:
+  campaigns: { kind: application, label: Campaign tool, uses: [churn] }
+  bi: { kind: dashboard, label: Sales dashboard, uses: [orders, customer-360] }
+
+contracts:
+  orders:
+    label: orders
+    version: 2.1.0
+    classification: internal
+    fields:
+      order_id: uuid pk
+      customer_id: uuid
+      total: decimal(10,2)
+      ordered_at: timestamp
+    sla: { freshness: 15 min, availability: 99.9% }
+    quality: [order_id is unique, total >= 0]
+  customers:
+    label: customers
+    version: 1.4.0
+    classification: confidential
+    fields:
+      customer_id: uuid pk
+      email: string pii
+      country: string null
+    sla: { freshness: 24 hours }

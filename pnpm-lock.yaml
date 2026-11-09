@@ -68,6 +68,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/data-products':
+        specifier: workspace:*
+        version: link:../../types/data-products
       '@cartography/erd':
         specifier: workspace:*
         version: link:../../types/erd
@@ -128,6 +131,12 @@ importers:
         version: link:../../packages/core
 
   types/azure:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+
+  types/data-products:
     dependencies:
       '@cartography/core':
         specifier: workspace:*

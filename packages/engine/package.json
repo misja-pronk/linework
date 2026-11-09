@@ -14,7 +14,8 @@
     "@cartography/azure": "workspace:*",
     "@cartography/erd": "workspace:*",
     "@cartography/access": "workspace:*",
-    "@cartography/github": "workspace:*"
+    "@cartography/github": "workspace:*",
+    "@cartography/data-products": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

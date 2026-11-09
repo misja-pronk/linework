@@ -2,7 +2,7 @@
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
-Diagram types: Azure, database (ERD), roles / groups / access packages, GitHub — and coming: Kubernetes, networking, git flow, developer journey and data products.
+Diagram types: Azure, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts) — and coming: Kubernetes, networking, git flow and developer journey.
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 

@@ -79,7 +79,7 @@ async function main(): Promise<number> {
   }
   switch (command) {
     case 'types':
-      for (const t of types) console.log(`${t.id.padEnd(12)} ${t.name} ${dim('— ' + t.description)}`);
+      for (const t of types) console.log(`${t.id.padEnd(14)} ${t.name} ${dim('— ' + t.description)}`);
       return 0;
     case 'new': {
       const [id, target] = files;

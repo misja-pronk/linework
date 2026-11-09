@@ -180,8 +180,10 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string 
     if (i > 0 && shape.rows[i - 1]?.kind === 'row')
       s += `<line x1="${r1(b.x + t.padX)}" y1="${r1(y)}" x2="${r1(b.x + b.width - t.padX)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
     const marks = row.marks ?? [];
-    const markIcon = marks.includes('pk') ? 'key-round' : marks.includes('fk') ? 'link' : marks.includes('pii') ? 'eye' : undefined;
-    const markTone = marks.includes('pk') ? theme.tones.amber.fg : marks.includes('fk') ? theme.tones.blue.fg : theme.tones.rose.fg;
+    // A row's own icon (port kind, check) wins; otherwise the strongest mark shows.
+    const markIcon = row.icon ?? (marks.includes('pk') ? 'key-round' : marks.includes('fk') ? 'link' : marks.includes('pii') ? 'eye' : undefined);
+    const markTone = row.icon ? theme.tones[row.tone ?? 'slate'].fg
+      : marks.includes('pk') ? theme.tones.amber.fg : marks.includes('fk') ? theme.tones.blue.fg : theme.tones.rose.fg;
     s += drawIcon(markIcon, b.x + t.padX, cy - 6.5, 13, markTone, 1.75);
     const [name, type] = row.cells;
     if (name) s += textMid(b.x + t.padX + MARK_WIDTH, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text);

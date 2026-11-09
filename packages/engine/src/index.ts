@@ -8,8 +8,9 @@ import { azure } from '@cartography/azure';
 import { erd } from '@cartography/erd';
 import { access } from '@cartography/access';
 import { github } from '@cartography/github';
+import { dataProducts } from '@cartography/data-products';
 
-export const types: DiagramType[] = [azure, erd, access, github];
+export const types: DiagramType[] = [azure, erd, access, github, dataProducts];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

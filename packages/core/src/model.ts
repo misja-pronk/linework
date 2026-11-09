@@ -89,7 +89,7 @@ export interface MatrixCell {
 
 export type TableRow =
   | { kind: 'section'; label: string }
-  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[] };
+  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[]; icon?: string; tone?: Tone };
 
 export type RowMark = 'pk' | 'fk' | 'unique' | 'null' | 'pii';
 
