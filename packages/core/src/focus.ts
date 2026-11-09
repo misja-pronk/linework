@@ -1,0 +1,144 @@
+// Focus: one element and what lies within a few lines of it, for any diagram of elements and lines.
+// The file keeps the whole landscape; a focus draws a neighbourhood of it, which is how a data mesh
+// or a network answers "what feeds this?" and "what breaks when this changes?" without a second file.
+//
+//   focus: orders                                          # orders and what is one line away
+//   focus: { on: orders, hops: 2, direction: upstream }    # what feeds it, two lines back
+//   focus: { on: [orders, tag:pii], hops: all }            # everything connected
+//
+// `on` takes the selectors steps take (steps.ts): an id, a group (everything inside), id.*, tag:x,
+// kind:x or a route "a -> b". Upstream and downstream follow the arrows; a line without an arrow
+// (a network link, a contract, an ERD relation) counts both ways.
+import type { Graph, GraphEdge } from './model.ts';
+import { selectorsOf } from './steps.ts';
+
+export type FocusDirection = 'both' | 'upstream' | 'downstream';
+
+export interface FocusSpec {
+  on: string[];
+  /** How many lines away from what it is about; Infinity for everything connected. */
+  hops: number;
+  direction: FocusDirection;
+}
+
+export interface Focused {
+  graph: Graph;
+  /** What the focus is about, as drawn: labels of the marked elements and groups. */
+  names: string[];
+  /** Elements drawn, of how many in the whole diagram. */
+  kept: number;
+  total: number;
+}
+
+const DIRECTIONS: FocusDirection[] = ['both', 'upstream', 'downstream'];
+
+/** A focus as written (a selector, a list of them, or { on, hops, direction }); undefined when it is none of these. */
+export function readFocus(raw: unknown): FocusSpec | undefined {
+  const list = (v: unknown) => (typeof v === 'string' ? [v] : Array.isArray(v) ? v.map(String) : []).map((s) => s.trim()).filter(Boolean);
+  if (typeof raw === 'string' || Array.isArray(raw)) return list(raw).length ? { on: list(raw), hops: 1, direction: 'both' } : undefined;
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  const on = list(o.on);
+  if (!on.length) return undefined;
+  const hops = o.hops === 'all' ? Infinity : typeof o.hops === 'number' && o.hops >= 0 ? Math.floor(o.hops) : 1;
+  return { on, hops, direction: DIRECTIONS.find((d) => d === o.direction) ?? 'both' };
+}
+
+/** "2 hops upstream", as a subtitle or a chip says it. */
+export function focusReach(spec: Pick<FocusSpec, 'hops' | 'direction'>): string {
+  const far = spec.hops === Infinity ? 'everything connected' : `${spec.hops} ${spec.hops === 1 ? 'hop' : 'hops'}`;
+  return spec.direction === 'both' ? far : `${far} ${spec.direction}`;
+}
+
+/** Drawings that are one shape: there is nothing in them to walk from. */
+const WHOLE: Record<string, string> = { sequence: 'a sequence diagram', gitflow: 'a git graph', roadmap: 'a roadmap', matrix: 'a matrix' };
+
+/**
+ * The graph cut down to what the focus is about and its neighbourhood. Groups around what stays are
+ * kept, what it is about is marked. Undefined (with a report) when there is nothing to focus on.
+ */
+export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: string, severity?: 'error' | 'warning') => void): Focused | undefined {
+  const only = graph.nodes.length === 1 && !graph.groups.length ? WHOLE[graph.nodes[0]!.shape.kind] : undefined;
+  if (only) return report(`Focus works on diagrams of elements and lines; ${only} is one drawing, so it is shown whole`, 'warning'), undefined;
+
+  const s = selectorsOf(graph);
+  const parentOf = (id: string) => s.nodes.get(id)?.parent ?? s.groups.get(id)?.parent;
+  const seeds = new Set<string>();
+  const marked = new Set<string>();
+  for (const sel of spec.on) {
+    const p = s.pick(sel, true, report);
+    const picked = new Set([...p.nodes, ...p.groups]);
+    for (const id of picked) {
+      seeds.add(id);
+      // A group stands for what is inside it: the ring goes around the group, not around each part.
+      if (!picked.has(parentOf(id) ?? '')) marked.add(id);
+    }
+  }
+  if (!seeds.size) return undefined;
+
+  // A line on a group speaks for everything in it: it is a line of each part, and reaching the group reaches them all.
+  const from = new Map<string, GraphEdge[]>();
+  const to = new Map<string, GraphEdge[]>();
+  for (const e of graph.edges) {
+    from.set(e.from.node, [...(from.get(e.from.node) ?? []), e]);
+    to.set(e.to.node, [...(to.get(e.to.node) ?? []), e]);
+  }
+  // 1: an arrow from → to, -1: the other way, 0: no direction (or both).
+  const way = (e: GraphEdge) => (e.end === 'arrow' && e.start !== 'arrow' ? 1 : e.start === 'arrow' && e.end !== 'arrow' ? -1 : 0);
+  const along = (e: GraphEdge, forward: boolean) => spec.direction === 'both' || way(e) === 0 || (way(e) === 1) === (forward === (spec.direction === 'downstream'));
+
+  const dist = new Map<string, number>();
+  let frontier: string[] = [];
+  const visit = (id: string, d: number) => {
+    if (dist.has(id)) return;
+    dist.set(id, d);
+    frontier.push(id);
+    if (s.groups.has(id)) for (const inner of [...s.inside(id).groups, ...s.inside(id).nodes]) visit(inner, d);
+  };
+  for (const id of seeds) visit(id, 0);
+  for (let d = 0; d < spec.hops && frontier.length; d++) {
+    const now = frontier;
+    frontier = [];
+    for (const id of now)
+      for (const end of [id, ...s.up(parentOf(id))]) {
+        for (const e of from.get(end) ?? []) if (along(e, true)) visit(e.to.node, d + 1);
+        for (const e of to.get(end) ?? []) if (along(e, false)) visit(e.from.node, d + 1);
+      }
+  }
+
+  const keep = new Set(dist.keys());
+  for (const id of [...keep]) for (const g of s.up(parentOf(id))) keep.add(g);
+  const mark = <T extends { id: string }>(x: T): T => (marked.has(x.id) ? { ...x, focused: true } : x);
+  const edges = graph.edges.filter((e) => keep.has(e.from.node) && keep.has(e.to.node));
+  const steps = graph.steps?.filter((x) => edges.some((e) => e.id === x.edge));
+  const name = (id: string) => {
+    const n = s.nodes.get(id);
+    return n ? (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (s.groups.get(id)?.label ?? id);
+  };
+  return {
+    graph: { ...graph, groups: graph.groups.filter((g) => keep.has(g.id)).map(mark), nodes: graph.nodes.filter((n) => keep.has(n.id)).map(mark), edges, ...(steps ? { steps } : {}) },
+    names: [...marked].map(name),
+    kept: graph.nodes.filter((n) => keep.has(n.id)).length,
+    total: graph.nodes.length,
+  };
+}
+
+const on = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }], description: 'What it is about: an id, a group, tag:x, kind:x, or a list of these' };
+/** `focus:` of a diagram or a view. */
+export const focusSchema = {
+  anyOf: [
+    { type: 'string', description: 'An element or group: it and what is one line away' },
+    { type: 'array', items: { type: 'string' }, minItems: 1 },
+    {
+      type: 'object',
+      required: ['on'],
+      properties: {
+        on,
+        hops: { anyOf: [{ type: 'integer', minimum: 0 }, { const: 'all' }], description: 'How many lines away to show (default 1); all for everything connected' },
+        direction: { enum: DIRECTIONS, description: 'both (default), upstream (what feeds it) or downstream (what it feeds), following the arrows' },
+      },
+      additionalProperties: false,
+    },
+  ],
+  description: 'Draw only this element and what lies within a few lines of it: orders, or { on: orders, hops: 2, direction: upstream }',
+};

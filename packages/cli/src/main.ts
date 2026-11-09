@@ -24,6 +24,8 @@ const help = `carto — architecture diagrams that look good
                                                 next render after an edit keeps them there
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
+               [--focus orders] [--hops 2]      only that element (an id, a group, tag:x, kind:x) and what is within
+               [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
@@ -90,6 +92,10 @@ const { positionals, values } = parseArgs({
     step: { type: 'string' },
     'all-steps': { type: 'boolean' },
     'no-steps': { type: 'boolean' },
+    focus: { type: 'string', multiple: true },
+    hops: { type: 'string' },
+    upstream: { type: 'boolean' },
+    downstream: { type: 'boolean' },
     title: { type: 'string' },
     subtitle: { type: 'string' },
     aspect: { type: 'string', default: '16:9' },
@@ -214,6 +220,13 @@ function themeFlag(): boolean {
   return true;
 }
 
+/** --focus orders --hops 2 --upstream, as the focus: of a diagram would say it; undefined without --focus. */
+function focusFlag(): RenderOptions['focus'] {
+  if (!values.focus?.length) return undefined;
+  const hops = values.hops === 'all' ? 'all' : values.hops != null && Number(values.hops) >= 0 ? Math.floor(Number(values.hops)) : 1;
+  return { on: values.focus, hops, direction: values.upstream && !values.downstream ? 'upstream' : values.downstream && !values.upstream ? 'downstream' : 'both' };
+}
+
 type Format = 'svg' | 'png' | 'pptx' | 'pdf';
 const formats: Format[] = ['svg', 'png', 'pptx', 'pdf'];
 
@@ -236,6 +249,7 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     file: path.basename(file),
     view: values.view,
     step: values.step ? Number(values.step) || 1 : undefined,
+    focus: focusFlag(),
   };
 }
 

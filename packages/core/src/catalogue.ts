@@ -19,6 +19,7 @@
 import { edgeItemSchema, parseEdge } from './edges.ts';
 import { idPattern } from './diagram-type.ts';
 import { stepItemSchemas } from './steps.ts';
+import { focusSchema } from './focus.ts';
 import { tones, type Direction, type Link, type Path, type Tone } from './model.ts';
 
 export interface ModelElement {
@@ -89,6 +90,8 @@ export interface ViewSpec {
   exclude?: string[];
   /** Elements drawn as a boundary with their children inside, instead of one card. */
   expand?: string[];
+  /** Only an element and its neighbourhood, as written (see focus.ts). */
+  focus?: unknown;
   at: Path;
 }
 
@@ -197,6 +200,7 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         include: list('include'),
         exclude: list('exclude'),
         expand: list('expand'),
+        ...(o.focus != null ? { focus: o.focus } : {}),
         at: at(['views', name]),
       });
     }
@@ -304,6 +308,7 @@ const viewSchema = {
     include: { ...selectors, description: 'What the view shows (default: everything at the top)' },
     exclude: { ...selectors, description: 'Left out of what include picked' },
     expand: { type: 'array', items: { type: 'string' }, description: 'Elements drawn as a boundary with their parts inside' },
+    focus: focusSchema,
     kind: { enum: viewKinds, description: 'A C4 view that picks its elements itself: landscape, context/container/component of an element, dynamic (steps) or deployment (nodes)' },
     of: { type: 'string', description: 'The element the view is about, e.g. shop or shop.api' },
     enterprise: { type: 'string', description: 'Draw what is not external inside an enterprise boundary with this name' },
