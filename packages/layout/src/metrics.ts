@@ -40,6 +40,8 @@ export interface LayoutMetrics {
   borderHits: number;
   /** Line ends on one node side closer together than MIN_GAP (shared trunk ends excepted). */
   portCrowding: number;
+  /** Groups lying over each other (neither inside the other), and nodes lying in a group they are not in. */
+  overlaps: number;
 }
 
 /** Lines closer than this read as one smudge. */
@@ -99,6 +101,7 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
     crossings,
     edgeThroughNode,
     labelOverlaps,
+    overlaps: boxOverlaps(graph, placed).length,
     bends,
     edgeLength: Math.round((length / unit) * 10) / 10,
     backward,
@@ -119,6 +122,7 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
   return (
     m.edgeThroughNode * 200 +
     m.labelOverlaps * 200 +
+    m.overlaps * 200 +
     m.crossings * 12 +
     m.backward * 8 +
     m.bends * 2.5 +
@@ -134,6 +138,29 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     m.borderHits * 25 +
     m.portCrowding * 8
   );
+}
+
+/**
+ * Boxes that lie over each other and should not: two groups of which neither holds the other, and a
+ * node in a group it does not belong to. Each as "a×b", for messages and tests.
+ */
+export function boxOverlaps(graph: Graph, placed: Pick<Placed, 'nodes' | 'groups'>): string[] {
+  const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const within = (id: string | undefined, group: string) => {
+    for (let g = id; g; g = parent.get(g)) if (g === group) return true;
+    return false;
+  };
+  // Borders may touch (a shared edge is drawn once); a pixel of rounding is not an overlap.
+  const hit = (a: Box, b: Box) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
+  const out: string[] = [];
+  const groups = graph.groups.filter((g) => placed.groups.has(g.id));
+  for (const [i, a] of groups.entries())
+    for (const b of groups.slice(i + 1)) if (!within(a.id, b.id) && !within(b.id, a.id) && hit(placed.groups.get(a.id)!, placed.groups.get(b.id)!)) out.push(`${a.id}×${b.id}`);
+  for (const n of graph.nodes) {
+    const box = placed.nodes.get(n.id);
+    if (box) for (const g of groups) if (!within(n.parent, g.id) && hit(box, placed.groups.get(g.id)!)) out.push(`${n.id}×${g.id}`);
+  }
+  return out;
 }
 
 /** Lines that may share ink: same start or same end, drawn alike (a trunk that branches). */

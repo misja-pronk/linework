@@ -90,10 +90,19 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
         groups.set(g.id, old ?? { ...f, x: f.x + whole.x, y: f.y + whole.y });
         continue;
       }
-      const x0 = Math.min(...kids.map((k) => k.x)) - pad;
+      let x0 = Math.min(...kids.map((k) => k.x)) - pad;
       const y0 = Math.min(...kids.map((k) => k.y)) - header;
-      const x1 = Math.max(...kids.map((k) => k.x + k.width), x0 + (minWidth.get(g.id) ?? 0) - pad) + pad;
+      let x1 = Math.max(...kids.map((k) => k.x + k.width)) + pad;
       const y1 = Math.max(...kids.map((k) => k.y + k.height)) + pad;
+      // A title wider than what the group holds: the extra width goes where the box had it (as in
+      // tidy.ts), to the right first, then to the left.
+      const extra = (minWidth.get(g.id) ?? 0) - (x1 - x0);
+      if (extra > 0) {
+        const right = old ? Math.max(0, Math.min(extra, old.x + old.width - x1)) : extra;
+        const left = old ? Math.max(0, Math.min(extra - right, x0 - old.x)) : 0;
+        x0 -= left;
+        x1 += extra - left;
+      }
       const fit = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
       const same =
         !!old &&

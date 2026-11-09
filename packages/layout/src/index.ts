@@ -5,6 +5,7 @@ import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { tidy } from './tidy.ts';
+import { squeeze } from './squeeze.ts';
 import { measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
@@ -30,6 +31,8 @@ export interface Tuning {
   autoDirection?: boolean;
   /** 'fit': columns of a left-to-right drawing open up for their longest label (C4's long relationship labels). */
   labelRoom?: 'fit';
+  /** With labelRoom 'fit': close each gap between columns to what its own labels need (see squeeze.ts); on unless false. */
+  squeeze?: boolean;
   /**
    * The drawing before this one (see stay.ts): what was there keeps its place unless another
    * placement is clearly better. Without it the sidecar's note is used; null forgets that too.
@@ -109,7 +112,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // is better. It is also tried when the previous drawing was top-down, so it can stay that way.
     if (open && graph.direction === 'right' && (best.placed.width >= WIDE * best.placed.height || stayIn === 'down')) {
       const down = await choose(turned('down'), spacing, tuning, prev, stayIn === 'down');
-      if (down.cost < best.cost - 1e-9) best = down;
+      // Its width is why top-down is tried at all: on a near tie the wide drawing loses, unless the
+      // previous drawing was that one.
+      if (down.cost < best.cost + (was?.direction === 'right' ? 0 : TIE) - 1e-9) best = down;
     }
   }
 
@@ -132,6 +137,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
 
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
+/** How much better (in score) the wide drawing must be to be kept over the top-down one. */
+const TIE = 1;
 
 /** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was. */
 async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean): Promise<Choice> {
@@ -179,7 +186,11 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const widest = Math.max(0, ...[...sized.edgeLabels.values()].map((l) => l.width));
   const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
-  const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  const fit = tuning.labelRoom === 'fit' && graph.direction === 'right' && sized.edgeLabels.size > 0;
+  const asked = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  // dot's gap is one size for all layers, the widest label's: each gap is closed to what its own lines need.
+  const squeezed = fit && tuning.squeeze !== false;
+  const placed = squeezed ? squeeze(asked, sized, spacing) : asked;
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
     let p = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
@@ -189,21 +200,29 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
     for (let i = 0; i < 4; i++) {
       const cut = labelOnBorder(p, edges, sized.groupHeader);
       if (!cut) break;
-      p = openSpace(p, cut);
+      p = openSpace(p, cut, graph);
       edges = route(sized, p);
     }
     return { placed: normalise({ ...p, edges }), p };
   };
   // Each helps some diagrams and hurts others, so all are drawn and the best one is kept.
-  const packed = () => compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap);
+  const packed = (q = placed) => compact(q, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
   const bases: [boolean, Placement][] = tuning.compact === false ? [[false, placed]] : tuning.compact ? [[true, packed()]] : [[false, placed], [true, packed()]];
   const aligns = tuning.align === false ? [false] : tuning.align ? [true] : [false, true];
   let best: Choice | undefined;
   for (const [c, base] of bases)
     for (const a of aligns) {
-      const drawn = finish(base, a);
+      let drawn = finish(base, a);
       const key = `${graph.direction}/${name}/${c ? 'c' : ''}${a ? 'a' : ''}${c || a ? '' : '-'}`;
-      const sc = score(measure(graph, drawn.placed, sized.groupHeader));
+      let m = measure(graph, drawn.placed, sized.groupHeader);
+      // Closing the gaps can leave two labels of one fan without room beside each other: then the
+      // same drawing with dot's own gaps is the better one.
+      if (squeezed && m.labelOverlaps > 0) {
+        const wide = finish(c ? packed(asked) : asked, a);
+        const wm = measure(graph, wide.placed, sized.groupHeader);
+        if (score(wm) < score(m)) [drawn, m] = [wide, wm];
+      }
+      const sc = score(m);
       // Close to the previous drawing counts; with only its variant known, being that variant does.
       const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && prev.variant !== key ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
@@ -269,6 +288,8 @@ interface Cut {
   axis: 'x' | 'y';
   at: number;
   by: number;
+  /** The group whose border the label lay on. */
+  group: string;
 }
 
 /** The first label lying on a group's border or header, as the space to open before that border. */
@@ -277,7 +298,7 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
   for (const e of edges.values()) {
     const l = e.label;
     if (!l) continue;
-    for (const b of p.groups.values())
+    for (const [group, b] of p.groups)
       for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
         const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
         // Within the border's extent, and touching its line.
@@ -285,19 +306,39 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
         const [l0, l1] = axis === 'x' ? [l.y, l.y + l.height] : [l.x, l.x + l.width];
         // The top border is as thick as the header: a label may not sit in it either.
         const after = axis === 'y' && at === b.y ? header : t;
-        if (lo < at + after && hi > at - t && l0 < o1 && l1 > o0) return { axis, at: Math.min(lo, at) - 2 * t, by: Math.ceil((size + 4 * t) / 8) * 8 };
+        if (!(lo < at + after && hi > at - t && l0 < o1 && l1 > o0)) continue;
+        const by = Math.ceil((size + 4 * t) / 8) * 8;
+        // On a group's far border with something beyond it: the room opens outside the group, which
+        // stays snug around what it holds. Otherwise before the border (the group moves on, or grows).
+        const far = at !== b[axis];
+        const beyond = far && [...p.nodes.values(), ...p.groups.values()].some((q) => q[axis] > at);
+        return { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
       }
   }
   return undefined;
 }
 
-/** Push everything that starts at or past the cut further along; boxes the cut runs through grow. */
-function openSpace(p: Placement, c: Cut): Placement {
+/**
+ * Push everything that starts at or past the cut further along. Of the groups the cut runs through,
+ * those grow that hold something pushed, and the one whose border the label lay on (with the groups
+ * around it): a group that merely reaches past the cut, with nothing in it moved, stays as it was
+ * instead of gaining an empty side.
+ */
+function openSpace(p: Placement, c: Cut, graph: Sized['graph']): Placement {
   const size = c.axis === 'x' ? 'width' : 'height';
-  const move = (b: Box) => (b[c.axis] >= c.at ? { ...b, [c.axis]: b[c.axis] + c.by } : b);
-  const grow = (b: Box) => (b[c.axis] >= c.at ? move(b) : b[c.axis] + b[size] > c.at ? { ...b, [size]: b[size] + c.by } : b);
+  const pushed = (b: Box | undefined) => !!b && b[c.axis] >= c.at;
+  const move = (b: Box) => (pushed(b) ? { ...b, [c.axis]: b[c.axis] + c.by } : b);
+  const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const grows = new Set<string>();
+  const mark = (id: string | undefined) => {
+    for (let g = id; g && !grows.has(g); g = parent.get(g)) grows.add(g);
+  };
+  mark(c.group);
+  for (const n of graph.nodes) if (pushed(p.nodes.get(n.id))) mark(n.parent);
+  for (const g of graph.groups) if (pushed(p.groups.get(g.id))) mark(g.parent);
+  const grow = (id: string, b: Box) => (pushed(b) ? move(b) : b[c.axis] + b[size] > c.at && grows.has(id) ? { ...b, [size]: b[size] + c.by } : b);
   const nodes = new Map([...p.nodes].map(([k, b]) => [k, move(b)]));
-  const groups = new Map([...p.groups].map(([k, b]) => [k, grow(b)]));
+  const groups = new Map([...p.groups].map(([k, b]) => [k, grow(k, b)]));
   return { nodes, groups, width: p.width + (c.axis === 'x' ? c.by : 0), height: p.height + (c.axis === 'y' ? c.by : 0) };
 }
 
