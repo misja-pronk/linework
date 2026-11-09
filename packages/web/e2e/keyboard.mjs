@@ -7,6 +7,20 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
 const wait = (ms = 300) => page.waitForTimeout(ms);
+// Wait for what the next key needs, not for a fixed time: a field in focus, or the YAML having caught up.
+const state = () => page.evaluate(() => `focus on ${document.activeElement?.outerHTML.slice(0, 120)}\n${document.querySelector('.cm-content').innerText}`);
+const until = async (what, fn, arg) => {
+  try {
+    await page.waitForFunction(fn, arg, { timeout: 8000 });
+  } catch {
+    console.log(`PROBLEMS:\nno ${what}; ${await state()}`);
+    await page.screenshot({ path: `${out}/k-stuck.png` });
+    await browser.close();
+    process.exit(1);
+  }
+};
+const field = (not) => until('field to type in', (not) => document.activeElement?.tagName === 'INPUT' && !document.activeElement.closest(not), not);
+const written = (text) => until(`"${text}" in the YAML`, (text) => document.querySelector('.cm-content').innerText.includes(text), text);
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
@@ -20,13 +34,14 @@ await page.keyboard.press('Enter');
 await wait(500);
 for (const [what, name] of [['app service', 'Shop'], ['sql database', 'Orders DB']]) {
   await page.keyboard.press('a');
-  await wait(150);
+  await page.waitForSelector('.add-menu input:focus');
   await page.keyboard.type(what);
   await page.keyboard.press('Enter');
-  await wait(500);
+  await field('.add-menu');
   await page.keyboard.type(name);
   await page.keyboard.press('Enter');
-  await wait(400);
+  await written(`label: ${name}`);
+  await wait(200);
 }
 const y1 = await yaml();
 if (!y1.includes('label: Shop') || !y1.includes('label: Orders DB')) problems.push('adding by keyboard failed:\n' + y1);
@@ -38,10 +53,11 @@ await page.keyboard.press('c');
 await wait(200);
 await page.keyboard.type('orders');
 await page.keyboard.press('Enter');
-await wait(600);
+await written('app-service -> sql-database');
+await field('.palette, .add-menu');
 await page.keyboard.type('SQL');
 await page.keyboard.press('Enter');
-await wait(500);
+await written('app-service -> sql-database: SQL');
 const y2 = await yaml();
 if (!/app-service -> sql-database: SQL/.test(y2)) problems.push('connect + label by keyboard failed:\n' + y2);
 await page.screenshot({ path: `${out}/k-done.png` });

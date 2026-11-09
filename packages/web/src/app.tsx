@@ -566,6 +566,12 @@ export function App() {
     notify(result?.graph ? 'One moment: the drawing is catching up with the text' : 'Fix the problems in the YAML first', { tone: 'error' });
     return false;
   };
+  /** Put the cursor in a field of the inspector once it shows this selection: on a busy machine that is more than one frame away. */
+  const toInspector = (sel: Selection, field: string, select = false, tries = 60) => {
+    const el = document.querySelector(`.inspector[data-selection="${CSS.escape(`${sel.kind}:${sel.id}`)}"] ${field}`) as HTMLInputElement | null;
+    if (el) return select ? el.select() : el.focus();
+    if (tries > 0) requestAnimationFrame(() => toInspector(sel, field, select, tries - 1));
+  };
   const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; count: number }>();
   useEffect(() => {
     if (!pendingEdge || !result?.graph || !current) return;
@@ -576,7 +582,7 @@ export function App() {
     if (!e) return;
     setSelected({ kind: 'edge', id: e.id });
     setInspector(true);
-    requestAnimationFrame(() => (document.querySelector('.inspector .field input:not([type="checkbox"])') as HTMLInputElement | null)?.focus());
+    toInspector({ kind: 'edge', id: e.id }, '.field input:not([type="checkbox"])');
   }, [pendingEdge, result, current]);
 
   /** After an add, select the new element once it is drawn (node or group, whatever its type makes it). */
@@ -588,7 +594,7 @@ export function App() {
     if (n || g) {
       setSelected(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id });
       setInspector(true);
-      requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select());
+      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.field:nth-child(2) input', true);
     }
     setPendingPath(undefined);
   }, [pendingPath, result, current]);
@@ -1491,6 +1497,7 @@ export function App() {
             {selected && inspector && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
+            selection={`${selected.kind}:${selected.id}`}
             id={isEntry ? String(selectedPath![1]) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
