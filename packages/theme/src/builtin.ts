@@ -51,7 +51,8 @@ const surveyInks: Pairs = {
   amber: ['#806514', '#F5EEDD'],
   orange: ['#B5491B', '#F8E9E1'],
   rose: ['#9B2834', '#F8E7EA'],
-  slate: ['#4E5A65', '#ECEEF0'],
+  // A warm grey: muted cards and neutral chips belong to the paper, not to a cooler sheet laid over it.
+  slate: ['#4E5A65', '#EDEBE6'],
 };
 
 /** Survey: white page, paper-tinted terrain that deepens as groups nest, hairline contours, bare icons in map inks. */
@@ -77,7 +78,7 @@ export const surveyCool: Theme = {
   ...survey,
   name: 'survey-cool',
   border: '#C6CCD3',
-  tones: tones(surveyInks, '#F5F7F9', '#CDD4DB'),
+  tones: tones({ ...surveyInks, slate: ['#4E5A65', '#ECEEF0'] }, '#F5F7F9', '#CDD4DB'),
   group: { ...surveyGroup, tints: ['#F5F7F9', '#ECEFF3', '#E2E7EC'], line: '#CDD4DB' },
 };
 

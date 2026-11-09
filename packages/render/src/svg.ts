@@ -565,10 +565,24 @@ export function besideShortLine(points: Point[], b: Box, placed?: Placed): Box {
   const level = Math.abs(p.y - q.y) < 0.5;
   const hidden = Math.min(level ? Math.abs(q.x - p.x) : Math.abs(q.y - p.y), level ? b.width : 20);
   if (total - hidden >= 40) return b;
-  const moved = level ? { ...b, y: p.y - b.height / 2 - 14 } : { ...b, x: p.x + 5 };
+  // The other side when the first lies on another line: a label without a pill would break that line.
+  const sides = level ? [{ ...b, y: p.y - b.height / 2 - 14 }, { ...b, y: p.y - b.height / 2 + 14 }] : [{ ...b, x: p.x + 5 }, { ...b, x: p.x - 5 - b.width }];
+  if (!placed) return sides[0]!;
+  const hit = (m: Box, n: Box) => m.x < n.x + n.width && n.x < m.x + m.width && m.y < n.y + n.height && n.y < m.y + m.height;
+  const onCard = (m: Box) => [...placed.nodes.values()].some((n) => hit(m, n));
+  const others: Box[] = [];
+  for (const e of placed.edges.values()) {
+    if (e.points === points) continue;
+    for (let i = 1; i < e.points.length; i++) {
+      const u = e.points[i - 1]!;
+      const v = e.points[i]!;
+      others.push({ x: Math.min(u.x, v.x) - 1, y: Math.min(u.y, v.y) - 1, width: Math.abs(v.x - u.x) + 2, height: Math.abs(v.y - u.y) + 2 });
+    }
+    if (e.label) others.push(e.label);
+  }
+  const free = sides.filter((m) => !onCard(m));
   // Never onto a card: covering a short line is the lesser evil.
-  const hit = (n: Box) => moved.x < n.x + n.width && n.x < moved.x + moved.width && moved.y < n.y + n.height && n.y < moved.y + moved.height;
-  return placed && [...placed.nodes.values()].some(hit) ? b : moved;
+  return free.find((m) => !others.some((o) => hit(m, o))) ?? free[0] ?? b;
 }
 
 function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, lineColor: string, step?: number, iconName?: string, tone?: GraphEdge['tone']): string {

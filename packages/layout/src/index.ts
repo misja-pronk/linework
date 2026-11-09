@@ -185,6 +185,8 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
   for (const e of edges.values()) {
     const l = e.label;
     if (!l) continue;
+    // A label at a group's corner touches two borders at once: the cheaper cut clears it.
+    let cut: Cut | undefined;
     for (const b of p.groups.values())
       for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
         const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
@@ -193,8 +195,12 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
         const [l0, l1] = axis === 'x' ? [l.y, l.y + l.height] : [l.x, l.x + l.width];
         // The top border is as thick as the header: a label may not sit in it either.
         const after = axis === 'y' && at === b.y ? header : t;
-        if (lo < at + after && hi > at - t && l0 < o1 && l1 > o0) return { axis, at: Math.min(lo, at) - 2 * t, by: Math.ceil((size + 4 * t) / 8) * 8 };
+        if (lo < at + after && hi > at - t && l0 < o1 && l1 > o0) {
+          const c: Cut = { axis, at: Math.min(lo, at) - 2 * t, by: Math.ceil((size + 4 * t) / 8) * 8 };
+          if (!cut || c.by < cut.by) cut = c;
+        }
       }
+    if (cut) return cut;
   }
   return undefined;
 }
