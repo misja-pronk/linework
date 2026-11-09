@@ -9,6 +9,8 @@ export interface Rendered {
   drawn?: RenderResult;
   ms: number;
   text: string;
+  /** The document this render belongs to. */
+  docKey: number;
 }
 
 export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number) {
@@ -24,7 +26,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
         // Another document starts without the old drawing behind it.
         const same = doc.current === docKey;
         doc.current = docKey;
-        setOut((prev) => ({ result, drawn: result.svg ? result : same ? prev?.drawn : undefined, ms: Math.round(performance.now() - t), text }));
+        setOut((prev) => ({ result, drawn: result.svg ? result : same ? prev?.drawn : undefined, ms: Math.round(performance.now() - t), text, docKey }));
       })
       .catch((e: unknown) => {
         if (n === seq.current)
@@ -33,6 +35,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             drawn: prev?.drawn,
             ms: 0,
             text,
+            docKey,
           }));
       });
   }, [text, theme, sidecar, load, docKey]);

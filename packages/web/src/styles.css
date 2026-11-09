@@ -13,7 +13,7 @@
   --border-strong: #cfd5dd;
   --text: #0f172a;
   --text-muted: #475569;
-  --text-faint: #8a94a6;
+  --text-faint: #667085;
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-soft: #ecebfd;
@@ -31,8 +31,8 @@
   --syn-key: #4338ca;
   --syn-string: #0f766e;
   --syn-atom: #b45309;
-  --syn-comment: #94a3b8;
-  --syn-punct: #94a3b8;
+  --syn-comment: #6b7689;
+  --syn-punct: #8a94a6;
   --syn-meta: #be185d;
 }
 
@@ -46,7 +46,7 @@
   --border-strong: #323b48;
   --text: #e8ebf0;
   --text-muted: #a3adbb;
-  --text-faint: #6b7686;
+  --text-faint: #8691a3;
   --accent: #8b85ff;
   --accent-hover: #a29dff;
   --accent-soft: #25244d;
@@ -64,8 +64,8 @@
   --syn-key: #a5a1ff;
   --syn-string: #5eead4;
   --syn-atom: #fbbf24;
-  --syn-comment: #5b6575;
-  --syn-punct: #5b6575;
+  --syn-comment: #8691a3;
+  --syn-punct: #6b7686;
   --syn-meta: #f472b6;
 }
 
@@ -259,6 +259,9 @@ kbd {
   grid-template-columns: var(--split) 1px 1fr;
   min-height: 0;
 }
+.workspace.with-inspector {
+  grid-template-columns: var(--split) 1px 1fr 300px;
+}
 .pane {
   min-width: 0;
   min-height: 0;
@@ -319,8 +322,8 @@ kbd {
   stroke: var(--accent);
 }
 .stage.stale {
-  opacity: 0.45;
-  filter: grayscale(0.6);
+  opacity: 0.6;
+  filter: grayscale(0.5);
   transition: opacity 200ms;
 }
 .stale-note {
@@ -334,7 +337,7 @@ kbd {
   padding: 7px 12px;
   border-radius: 99px;
   font-size: 12px;
-  color: var(--danger);
+  color: var(--warning);
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -701,4 +704,257 @@ kbd {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ------------------------------------------------------------- builder */
+
+.preview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.preview.dragging-pan {
+  cursor: grabbing;
+}
+.preview.dragging-node,
+.preview.dragging-node * {
+  cursor: grabbing !important;
+}
+.drawing [data-node] {
+  cursor: grab;
+}
+.drop-ring {
+  position: absolute;
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  pointer-events: none;
+}
+
+.canvas-tools {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  min-width: 30px;
+  justify-content: center;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 520;
+}
+.tool:hover,
+.tool.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tool kbd {
+  background: none;
+}
+
+.add-menu {
+  position: absolute;
+  left: 16px;
+  top: 60px;
+  width: 280px;
+  max-height: calc(100% - 140px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  z-index: 6;
+  animation: rise 120ms ease-out;
+}
+.add-menu .palette-input input {
+  height: 42px;
+  font-size: 13px;
+}
+.add-list {
+  overflow-y: auto;
+  padding: 4px 6px 8px;
+}
+.add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: grab;
+}
+.add-item > .icon:last-child {
+  margin-left: auto;
+  color: var(--text-faint);
+  opacity: 0;
+}
+.add-item[aria-selected='true'] {
+  background: var(--accent-soft);
+}
+.add-item[aria-selected='true'] > .icon:last-child {
+  opacity: 1;
+}
+.tile {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--tone-fg);
+  background: var(--tone-bg);
+  flex: none;
+}
+
+.inspector {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.inspector header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.inspector-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+.inspector-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.inspector-title strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inspector-title span {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-transform: capitalize;
+}
+.inspector-body {
+  overflow-y: auto;
+  padding: 10px 14px 6px;
+  display: grid;
+  gap: 10px;
+}
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field > span {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-muted);
+}
+.field input:not([type='checkbox']),
+.field select {
+  height: 32px;
+  width: 100%;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--editor-bg);
+  color: var(--text);
+  font: inherit;
+}
+.field input.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.field.invalid input {
+  border-color: var(--danger);
+}
+.field-error {
+  color: var(--danger);
+  font-size: 11.5px;
+}
+.field input[type='checkbox'] {
+  justify-self: start;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.field-yaml {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.field-yaml span {
+  flex: 1;
+  text-align: left;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.field-yaml:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.inspector footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.inspector footer .button {
+  height: 30px;
+  padding: 0 9px;
+}
+.button.danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.toast.error {
+  background: var(--danger);
+  color: #fff;
 }

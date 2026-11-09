@@ -65,5 +65,5 @@ function normalise(p: Placed): Placed {
   const right = (b: { x: number; width?: number }) => b.x + (b.width ?? 0);
   const bottom = (b: { y: number; height?: number }) => b.y + (b.height ?? 0);
   const all = [...nodes.values(), ...groups.values(), ...[...edges.values()].flatMap((e) => [...e.points, ...(e.label ? [e.label] : [])])];
-  return { nodes, groups, edges, width: Math.max(0, ...all.map(right)), height: Math.max(0, ...all.map(bottom)) };
+  return { nodes, groups, edges, width: Math.max(0, ...all.map(right)), height: Math.max(0, ...all.map(bottom)), shift: { x: minX, y: minY } };
 }

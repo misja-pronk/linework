@@ -1,6 +1,7 @@
 // ⌘K: every action and every element of the diagram, found by typing a few letters.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.tsx';
+import { useRestoreFocus } from './menu.tsx';
 
 export interface Command {
   id: string;
@@ -34,6 +35,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLDivElement>(null);
+  useRestoreFocus();
   const shown = useMemo(() => {
     const scored = commands.map((c) => ({ c, s: score(query, `${c.group} ${c.label} ${c.hint ?? ''}`) })).filter((x) => x.s > 0);
     if (query) scored.sort((a, b) => b.s - a.s);
@@ -72,6 +74,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
             role="combobox"
             aria-expanded="true"
             aria-controls="palette-list"
+            aria-activedescendant={shown[index] ? `cmd-${index}` : undefined}
           />
           <kbd>esc</kbd>
         </div>
@@ -81,6 +84,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
             <div key={c.id}>
               {(i === 0 || shown[i - 1]!.group !== c.group) && !query && <div className="palette-group">{c.group}</div>}
               <div
+                id={`cmd-${i}`}
                 className="palette-item"
                 role="option"
                 aria-selected={i === index}

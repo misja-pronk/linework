@@ -146,6 +146,8 @@ export interface Placed {
   edges: Map<string, PlacedEdge>;
   width: number;
   height: number;
+  /** What was subtracted to move the drawing to 0,0. Pins live in the unshifted space: pin = box + shift. */
+  shift?: Point;
 }
 
 export interface PlacedEdge {

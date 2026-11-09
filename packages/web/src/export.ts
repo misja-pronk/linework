@@ -9,17 +9,24 @@ export interface ExportInput {
   load?: (f: string) => string;
 }
 
-export async function exportSvg(input: ExportInput): Promise<string | undefined> {
+/** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
+const MAX_PIXELS = 16_000_000;
+
+export async function exportSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
+  if (!r.svg) throw new Error('Nothing to export: fix the problems first');
   return r.svg;
 }
 
-export async function exportPng(input: ExportInput, scale = 2): Promise<Blob | undefined> {
+export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
   const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'embed' });
-  if (!r.svg || !r.width || !r.height) return undefined;
+  if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
+  const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([r.svg], { type: 'image/svg+xml' }));
   await img.decode();
+  // Safari can report the image ready before its embedded fonts are; give it a frame.
+  await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(r.width * scale);
   canvas.height = Math.round(r.height * scale);
@@ -27,7 +34,7 @@ export async function exportPng(input: ExportInput, scale = 2): Promise<Blob | u
   g.scale(scale, scale);
   g.drawImage(img, 0, 0, r.width, r.height);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve) => canvas.toBlob((b) => resolve(b ?? undefined), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
 }
 
 export function download(name: string, data: Blob | string, type = 'text/plain') {
@@ -40,3 +47,4 @@ export function download(name: string, data: Blob | string, type = 'text/plain')
 }
 
 export const baseName = (file: string) => file.replace(/\.ya?ml$/, '');
+export const yamlName = (file: string) => (/\.ya?ml$/.test(file) ? file : `${file}.yaml`);

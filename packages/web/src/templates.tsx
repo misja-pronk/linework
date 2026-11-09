@@ -3,13 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { render } from '@cartography/engine';
 import { exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
+import { useRestoreFocus } from './menu.tsx';
 
 const thumbs = new Map<string, string>();
+let thumbIds = 0;
 
 export function Templates({ theme, onPick, onClose }: { theme: 'light' | 'dark'; onPick(s: Starter): void; onClose(): void }) {
   const typeIds = useMemo(() => [...new Set(starters.map((s) => s.type))], []);
   const [filter, setFilter] = useState<string>('all');
   const [, redraw] = useState(0);
+  useRestoreFocus();
   const shown = starters.filter((s) => filter === 'all' || s.type === filter);
 
   // Thumbnails one by one, so the dialog opens at once and fills in.
@@ -20,7 +23,7 @@ export function Templates({ theme, onPick, onClose }: { theme: 'light' | 'dark';
         const key = `${theme}:${s.id}`;
         if (stop) return;
         if (thumbs.has(key)) continue;
-        const r = await render(s.text, { theme, fonts: 'none', idPrefix: `t${thumbs.size}`, load: exampleLoader(s.id) });
+        const r = await render(s.text, { theme, fonts: 'none', idPrefix: `t${thumbIds++}`, load: exampleLoader(s.id) });
         thumbs.set(key, r.svg ?? '');
         if (!stop) redraw((n) => n + 1);
       }
@@ -56,7 +59,7 @@ export function Templates({ theme, onPick, onClose }: { theme: 'light' | 'dark';
           {shown.map((s) => {
             const svg = thumbs.get(`${theme}:${s.id}`);
             return (
-              <button key={s.id} className="template-card" onClick={() => onPick(s)}>
+              <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={s === shown[0]}>
                 <div className="thumb">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
                 <div className="template-meta">
                   <span className="template-title">{s.title}</span>

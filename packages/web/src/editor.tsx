@@ -2,36 +2,59 @@
 // highlight on the entry of whatever is selected in the drawing. Builder edits go through
 // transactions here too, so one undo history covers typing and drawing.
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { EditorState, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, Transaction, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab, invertedEffects, redo, undo } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { lintGutter, setDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { yaml } from '@codemirror/lang-yaml';
 import { tags as t } from '@lezer/highlight';
-import type { Diagnostic } from '@cartography/core';
+import type { Diagnostic, LayoutSidecar } from '@cartography/core';
 import { schemaCompletion } from './complete.ts';
 
 export interface EditorHandle {
-  /** Replace the document as an undoable edit (builder changes). */
-  replace(text: string, select?: { from: number; to?: number }): void;
+  /** Replace the document as an undoable edit (builder changes), optionally with new pins in the same step. */
+  replace(text: string, opts?: { select?: { from: number; to?: number }; pins?: LayoutSidecar | null }): void;
+  /** Change only the pins, as one undoable step. */
+  pin(pins: LayoutSidecar | undefined): void;
   /** Load a new document with a fresh history. */
-  load(text: string): void;
+  load(text: string, pins?: LayoutSidecar): void;
   reveal(from: number, to: number): void;
   focus(): void;
   text(): string;
+  undo(): boolean;
+  redo(): boolean;
 }
 
 interface Props {
   initial: string;
+  initialPins?: LayoutSidecar;
   diagnostics: Diagnostic[];
+  /** The text the diagnostics and mark were computed for. When the document has moved on, the old
+   * ones stay and CodeMirror maps them through the edits, instead of landing on the wrong characters. */
+  source?: string;
   /** Range of the selected element's entry, shown as a soft band. */
   mark?: { from: number; to: number };
   onChange(text: string): void;
   onCursor(pos: number): void;
+  onPins(pins: LayoutSidecar | undefined): void;
 }
+
+// Pins (dragged positions) live in the editor state with an inverse, so the one undo history
+// covers typing, builder edits and moves, in the order they happened.
+const setPins = StateEffect.define<{ before: LayoutSidecar | undefined; after: LayoutSidecar | undefined }>();
+const pinsField = StateField.define<LayoutSidecar | undefined>({
+  create: () => undefined,
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setPins)) value = e.value.after;
+    return value;
+  },
+});
+const pinsHistory = invertedEffects.of((tr) =>
+  tr.effects.filter((e) => e.is(setPins)).map((e) => setPins.of({ before: e.value.after, after: e.value.before })),
+);
 
 const setMark = StateEffect.define<{ from: number; to: number } | undefined>();
 const markField = StateField.define<DecorationSet>({
@@ -82,11 +105,11 @@ const theme = EditorView.theme({
   '.cm-panels': { backgroundColor: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' },
 });
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial, diagnostics, mark, onChange, onCursor }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial, initialPins, diagnostics, source, mark, onChange, onCursor, onPins }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
-  const callbacks = useRef({ onChange, onCursor });
-  callbacks.current = { onChange, onCursor };
+  const callbacks = useRef({ onChange, onCursor, onPins });
+  callbacks.current = { onChange, onCursor, onPins };
 
   const extensions = (): Extension[] => [
     lineNumbers(),
@@ -104,12 +127,15 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
     syntaxHighlighting(highlight),
     yaml(),
     markField,
+    pinsField,
+    pinsHistory,
     theme,
     EditorView.lineWrapping,
     EditorState.tabSize.of(2),
     keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, indentWithTab]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) callbacks.current.onChange(u.state.doc.toString());
+      if (u.startState.field(pinsField) !== u.state.field(pinsField)) callbacks.current.onPins(u.state.field(pinsField));
       if (u.selectionSet && u.view.hasFocus) callbacks.current.onCursor(u.state.selection.main.head);
     }),
   ];
@@ -117,16 +143,23 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
   useEffect(() => {
     const v = new EditorView({ parent: host.current!, state: EditorState.create({ doc: initial, extensions: extensions() }) });
     view.current = v;
+    if (initialPins) v.dispatch({ effects: setPins.of({ before: undefined, after: initialPins }), annotations: Transaction.addToHistory.of(false) });
     return () => v.destroy();
     // The editor is created once; documents are swapped through the handle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useImperativeHandle(ref, () => ({
-    replace(text, select) {
+    replace(text, opts = {}) {
       const v = view.current!;
       const old = v.state.doc.toString();
-      if (old === text) return;
+      const before = v.state.field(pinsField);
+      const pins = opts.pins === undefined ? undefined : [setPins.of({ before, after: opts.pins ?? undefined })];
+      const select = opts.select;
+      if (old === text) {
+        if (pins) v.dispatch({ effects: pins });
+        return;
+      }
       // Replace only the changed middle, so marks, folds and the cursor elsewhere stay put.
       let a = 0;
       while (a < old.length && a < text.length && old[a] === text[a]) a++;
@@ -136,25 +169,36 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
         changes: { from: a, to: old.length - b, insert: text.slice(a, text.length - b) },
         selection: select ? { anchor: select.from, head: select.to ?? select.from } : undefined,
         scrollIntoView: !!select,
+        effects: pins,
       });
     },
-    load(text) {
-      view.current!.setState(EditorState.create({ doc: text, extensions: extensions() }));
-      callbacks.current.onChange(text);
-    },
-    reveal(from, to) {
+    pin(pins) {
       const v = view.current!;
-      const len = v.state.doc.length;
-      v.dispatch({ selection: { anchor: Math.min(from, len) }, effects: EditorView.scrollIntoView(Math.min(from, len), { y: 'center' }) });
-      void to;
+      v.dispatch({ effects: setPins.of({ before: v.state.field(pinsField), after: pins }) });
+    },
+    load(text, pins) {
+      const v = view.current!;
+      v.setState(EditorState.create({ doc: text, extensions: extensions() }));
+      v.dispatch({ effects: setPins.of({ before: undefined, after: pins }), annotations: Transaction.addToHistory.of(false) });
+      callbacks.current.onChange(text);
+      callbacks.current.onPins(pins);
+    },
+    reveal(from) {
+      const v = view.current!;
+      const at = Math.min(from, v.state.doc.length);
+      v.dispatch({ selection: { anchor: at }, effects: EditorView.scrollIntoView(at, { y: 'center' }) });
     },
     focus: () => view.current!.focus(),
     text: () => view.current!.state.doc.toString(),
+    undo: () => undo(view.current!),
+    redo: () => redo(view.current!),
   }));
+
+  const current = () => view.current?.state.doc.toString();
 
   useEffect(() => {
     const v = view.current;
-    if (!v) return;
+    if (!v || (source != null && source !== current())) return;
     const len = v.state.doc.length;
     const list: CmDiagnostic[] = diagnostics.map((d) => {
       const from = Math.min(d.from ?? (d.line ? v.state.doc.line(Math.min(d.line, v.state.doc.lines)).from : 0), len);
@@ -164,8 +208,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
   }, [diagnostics]);
 
   useEffect(() => {
+    if (mark && source != null && source !== current()) return;
     view.current?.dispatch({ effects: setMark.of(mark) });
-  }, [mark?.from, mark?.to]);
+  }, [mark?.from, mark?.to, source]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div className="editor" ref={host} />;
 });
