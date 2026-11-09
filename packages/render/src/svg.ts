@@ -66,6 +66,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const pe = placed.edges.get(e.id);
     if (pe && pe.points.length > 1) out.push(`<g${data('edge', e.id)}>${drawEdge(e, pe.points, theme)}</g>`);
   }
+  out.push(junctions(graph, placed, theme));
   for (const n of graph.nodes) {
     const box = placed.nodes.get(n.id);
     if (!box) continue;
@@ -213,6 +214,46 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   s += marker(e.end, points[points.length - 1]!, points[points.length - 2]!, color, theme);
   s += marker(e.start, points[0]!, points[1]!, color, theme);
   return s;
+}
+
+/**
+ * A dot where a shared trunk splits: lines drawn alike that start (or end) at the same point and
+ * run on top of each other, then part. Without it a branch looks like a line that just bends.
+ */
+function junctions(graph: Graph, placed: Placed, theme: Theme): string {
+  const dots = new Map<string, string>();
+  const edges = graph.edges.filter((e) => (placed.edges.get(e.id)?.points.length ?? 0) > 1);
+  for (const [i, a] of edges.entries())
+    for (const b of edges.slice(i + 1)) {
+      if (a.line !== b.line || a.tone !== b.tone) continue;
+      const pa = placed.edges.get(a.id)!.points;
+      const pb = placed.edges.get(b.id)!.points;
+      const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;
+      if (at) dots.set(`${r1(at.x)},${r1(at.y)}`, `<circle cx="${r1(at.x)}" cy="${r1(at.y)}" r="3" fill="${edgeColor(a, theme)}"/>`);
+    }
+  return [...dots.values()].join('');
+}
+
+/** Where two lines from the same start stop running on top of each other (undefined if they never shared). */
+function split(a: Point[], b: Point[]): Point | undefined {
+  const same = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
+  if (!same(a[0]!, b[0]!)) return undefined;
+  let at = a[0]!;
+  let i = 1;
+  let j = 1;
+  while (i < a.length && j < b.length) {
+    const da = [Math.sign(a[i]!.x - at.x), Math.sign(a[i]!.y - at.y)];
+    const db = [Math.sign(b[j]!.x - at.x), Math.sign(b[j]!.y - at.y)];
+    if (da[0] !== db[0] || da[1] !== db[1]) break;
+    const la = Math.abs(a[i]!.x - at.x) + Math.abs(a[i]!.y - at.y);
+    const lb = Math.abs(b[j]!.x - at.x) + Math.abs(b[j]!.y - at.y);
+    if (Math.abs(la - lb) < 0.5) (at = a[i]!), i++, j++;
+    else if (la < lb) (at = a[i]!), i++;
+    else (at = b[j]!), j++;
+  }
+  // One line ends on the other (no split), or they part right at the start.
+  if (i >= a.length || j >= b.length) return undefined;
+  return Math.abs(at.x - a[0]!.x) + Math.abs(at.y - a[0]!.y) >= 8 ? at : undefined;
 }
 
 function shorten(pts: Point[], end: number, prev: number, by: number) {

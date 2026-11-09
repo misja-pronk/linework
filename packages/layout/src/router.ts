@@ -27,6 +27,8 @@ export interface RouteRequest {
   label?: { width: number; height: number };
   /** Lower routes first and gets the best paths. */
   order?: number;
+  /** How the line is drawn (pattern, colour, markers). Lines drawn alike may share a trunk. */
+  style?: string;
 }
 
 export interface RouterInput {
@@ -39,6 +41,8 @@ export interface RouterInput {
   edges: RouteRequest[];
   /** Spread lines sharing a corridor after routing (see nudge.ts); on unless false. */
   nudge?: boolean;
+  /** Let lines drawn alike that leave (or reach) the same node side share one trunk; on unless false. */
+  trunks?: boolean;
 }
 
 const MARGIN = 14;
@@ -48,14 +52,18 @@ const CROSS = 70;
 const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
+const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
 export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   const sides = chooseSides(input);
-  const ports = placePorts(input, sides);
+  const trunk = input.trunks === false ? new Map<string, string>() : trunkGroups(input, sides);
+  const ports = placePorts(input, sides, trunk);
   const grid = buildGrid(input, [...ports.values()].flatMap((p) => [p.start, p.goal]));
+  const members = new Map<string, string[]>();
+  for (const [id, t] of trunk) members.set(t, [...(members.get(t) ?? []), id]);
   const used = new Map<string, number[]>();
   const out = new Map<string, PlacedEdge>();
   const loose = new Set<string>();
@@ -72,7 +80,11 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
       loose.delete(e.id);
       if (e.from.node === e.to.node) points = selfLoop(p);
       else {
+        // Siblings' lines are cheap to run on, so the lines merge into one trunk.
+        const friends = (members.get(trunk.get(e.id) ?? '') ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c);
+        for (const c of friends) mark(grid, c, 1, true);
         const found = search(grid, p);
+        for (const c of friends) mark(grid, c, -1, true);
         if (found) {
           mark(grid, found.cells, 1);
           used.set(e.id, found.cells);
@@ -97,6 +109,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
         fromFixed: e.from.rowY != null,
         toFixed: e.to.rowY != null,
         fixed: !loose.has(e.id),
+        trunk: trunk.get(e.id),
       })),
     });
     const nudged = new Map(out);
@@ -107,6 +120,24 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
     if (after <= before) return nudged;
   }
   placeLabels(input, out);
+  return out;
+}
+
+/**
+ * Trunk groups: lines drawn alike leaving one node side (fan-out) share a port and run as one line
+ * until they branch; so do solid lines arriving at one side (fan-in; dashes would not line up there).
+ * Returns edge id → group key, only for groups of two or more.
+ */
+function trunkGroups(input: RouterInput, sides: Map<string, [Side, Side]>): Map<string, string> {
+  const groups = new Map<string, string[]>();
+  const add = (key: string, id: string) => groups.set(key, [...(groups.get(key) ?? []), id]);
+  const usable = input.edges.filter((e) => e.style && e.from.node !== e.to.node);
+  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}`, e.id);
+  const out = new Map<string, string>();
+  for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
+  groups.clear();
+  for (const e of usable) if (!out.has(e.id) && e.style!.startsWith('solid')) add(`in|${e.to.node}|${e.to.rowY ?? ''}|${sides.get(e.id)![1]}|${e.style}`, e.id);
+  for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
   return out;
 }
 
@@ -217,10 +248,14 @@ interface Ports {
   goal: Point;
 }
 
-function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>): Map<string, Ports> {
-  // Collect, per node side, the edges that attach there and where their other end is.
+function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: Map<string, string>): Map<string, Ports> {
+  // Collect, per node side, the edges that attach there and where their other end is. Siblings
+  // sharing a trunk take one slot together, aimed at the middle of their other ends.
   type Slot = { edge: RouteRequest; end: 'from' | 'to'; other: Point };
   const slots = new Map<string, Slot[]>();
+  const shared = new Map<string, string>();
+  const firstOf = new Map<string, Slot>();
+  const spread = new Map<Slot, Point[]>();
   for (const e of input.edges) {
     const [sf, st] = sides.get(e.id)!;
     for (const [end, side, other] of [
@@ -228,10 +263,21 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>): Map<s
       ['to', st, centre(e.from.box)],
     ] as const) {
       if (e[end].rowY != null) continue;
+      const t = trunk.get(e.id);
+      const sharedEnd = t && t.startsWith(end === 'from' ? 'out|' : 'in|');
+      const first = sharedEnd ? firstOf.get(t) : undefined;
+      if (first) {
+        shared.set(`${e.id}:${end}`, `${first.edge.id}:${end}`);
+        spread.get(first)!.push(other);
+        continue;
+      }
       const key = `${e[end].node}:${side}`;
-      slots.set(key, [...(slots.get(key) ?? []), { edge: e, end, other }]);
+      const slot = { edge: e, end, other };
+      if (sharedEnd) firstOf.set(t, slot), spread.set(slot, [other]);
+      slots.set(key, [...(slots.get(key) ?? []), slot]);
     }
   }
+  for (const [slot, list] of spread) slot.other = { x: list.reduce((s, p) => s + p.x, 0) / list.length, y: list.reduce((s, p) => s + p.y, 0) / list.length };
   const pos = new Map<string, Point>();
   for (const [key, list] of slots) {
     const side = key.slice(key.lastIndexOf(':') + 1) as Side;
@@ -257,6 +303,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>): Map<s
       pos.set(`${s.edge.id}:${s.end}`, p);
     });
   }
+  for (const [member, first] of shared) pos.set(member, pos.get(first)!);
 
   // Straighten: a port that is alone on its side moves in line with the other end, when that
   // still lands on its side, so the line needs no jog.
@@ -265,14 +312,15 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>): Map<s
     const [sf, st] = sides.get(e.id)!;
     if (sf !== opposite[st] || e.from.node === e.to.node) continue;
     const along = sf === 'E' || sf === 'W' ? 'y' : 'x';
+    const isShared = (end: 'from' | 'to') => shared.has(`${e.id}:${end}`) || [...shared.values()].includes(`${e.id}:${end}`);
     const fixed = (end: 'from' | 'to', side: Side) =>
-      e[end].rowY != null ? e[end].box.y + e[end].rowY! : count(e[end].node, side) > 1 ? pos.get(`${e.id}:${end}`)![along] : undefined;
+      e[end].rowY != null ? e[end].box.y + e[end].rowY! : count(e[end].node, side) > 1 || isShared(end) ? pos.get(`${e.id}:${end}`)![along] : undefined;
     const range = (r: RouteEnd) => (along === 'y' ? [r.box.y + 12, r.box.y + r.box.height - 12] : [r.box.x + 12, r.box.x + r.box.width - 12]) as [number, number];
     const ff = fixed('from', sf);
     const tf = fixed('to', st);
     const set = (end: 'from' | 'to', v: number) => {
       const [lo, hi] = range(e[end]);
-      if (v >= lo && v <= hi) pos.get(`${e.id}:${end}`)![along] = v;
+      if (v >= lo && v <= hi) pos.set(`${e.id}:${end}`, { ...pos.get(`${e.id}:${end}`)!, [along]: v });
     };
     if (ff == null && tf != null) set('from', tf);
     else if (tf == null && ff != null) set('to', ff);
@@ -328,6 +376,9 @@ interface Grid {
   vSoft: Float32Array;
   hUsed: Uint16Array;
   vUsed: Uint16Array;
+  /** Usage by siblings of the line being routed (a subset of hUsed/vUsed). */
+  hFriend: Uint16Array;
+  vFriend: Uint16Array;
   // Search buffers, reused: an entry is valid only when its stamp equals the current search.
   cost: Float64Array;
   prev: Int32Array;
@@ -382,6 +433,8 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
     vSoft: new Float32Array(n),
     hUsed: new Uint16Array(n),
     vUsed: new Uint16Array(n),
+    hFriend: new Uint16Array(n),
+    vFriend: new Uint16Array(n),
     cost: new Float64Array(n * 4),
     prev: new Int32Array(n * 4),
     stamp: new Uint32Array(n * 4),
@@ -427,14 +480,16 @@ function lowerBound(a: number[], v: number): number {
 }
 
 /** Add (+1) or remove (-1) a routed line's grid path from the usage counts. */
-function mark(g: Grid, cells: number[], delta: 1 | -1) {
+function mark(g: Grid, cells: number[], delta: 1 | -1, friend = false) {
+  const h = friend ? g.hFriend : g.hUsed;
+  const v = friend ? g.vFriend : g.vUsed;
   for (let i = 2; i < cells.length; i += 2) {
     const ax = cells[i - 2]!;
     const ay = cells[i - 1]!;
     const bx = cells[i]!;
     const by = cells[i + 1]!;
-    if (ay === by) for (let x = Math.min(ax, bx); x < Math.max(ax, bx); x++) g.hUsed[ay * g.W + x] = g.hUsed[ay * g.W + x]! + delta;
-    else for (let y = Math.min(ay, by); y < Math.max(ay, by); y++) g.vUsed[y * g.W + ax] = g.vUsed[y * g.W + ax]! + delta;
+    if (ay === by) for (let x = Math.min(ax, bx); x < Math.max(ax, bx); x++) h[ay * g.W + x] = h[ay * g.W + x]! + delta;
+    else for (let y = Math.min(ay, by); y < Math.max(ay, by); y++) v[y * g.W + ax] = v[y * g.W + ax]! + delta;
   }
 }
 
@@ -492,14 +547,16 @@ function search(g: Grid, p: Ports): Found | undefined {
         const e = y * W + Math.min(x, nx);
         if (g.hBlocked[e]) continue;
         const len = Math.abs(xs[nx]! - xs[x]!);
-        c += len + g.hSoft[e]! + OVERLAP * len * g.hUsed[e]!;
+        const f = g.hFriend[e]!;
+        c += (f ? len * SHARE : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f);
         // Crossing a vertical line that runs straight through the point we step onto.
         if (ny > 0 && ny < H - 1 && g.vUsed[(ny - 1) * W + nx]! && g.vUsed[ny * W + nx]!) c += CROSS;
       } else {
         const e = Math.min(y, ny) * W + x;
         if (g.vBlocked[e]) continue;
         const len = Math.abs(ys[ny]! - ys[y]!);
-        c += len + g.vSoft[e]! + OVERLAP * len * g.vUsed[e]!;
+        const f = g.vFriend[e]!;
+        c += (f ? len * SHARE : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f);
         if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! && g.hUsed[ny * W + nx]!) c += CROSS;
       }
       // Arriving at the goal in the wrong heading costs a bend.
