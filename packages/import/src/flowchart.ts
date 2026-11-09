@@ -1,0 +1,269 @@
+// Mermaid flowchart / graph → systems. Nodes with shapes, subgraphs as nested groups, edges with
+// labels: -.-> becomes async, ==> becomes sync (the main path), --> stays a plain arrow.
+import { guessGroupKind, guessKind, systemsYaml, type SysDiagram, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
+import { cleanLabel, faIcon, Ids, slug, type Warnings } from './text.ts';
+
+type Shape = 'rect' | 'round' | 'stadium' | 'subroutine' | 'cylinder' | 'circle' | 'asymmetric' | 'rhombus' | 'hexagon' | 'parallelogram' | 'trapezoid';
+
+// Longest openers first, so "((" is not read as "(".
+const SHAPES: [string, string[], Shape][] = [
+  ['(((', [')))'], 'circle'],
+  ['((', ['))'], 'circle'],
+  ['([', ['])'], 'stadium'],
+  ['[(', [')]'], 'cylinder'],
+  ['[[', [']]'], 'subroutine'],
+  ['[/', ['/]', '\\]'], 'parallelogram'],
+  ['[\\', ['\\]', '/]'], 'parallelogram'],
+  ['{{', ['}}'], 'hexagon'],
+  ['[', [']'], 'rect'],
+  ['(', [')'], 'round'],
+  ['{', ['}'], 'rhombus'],
+  ['>', [']'], 'asymmetric'],
+];
+
+// Shape names of the newer `id@{ shape: … }` syntax.
+const NAMED: Record<string, Shape> = {
+  cyl: 'cylinder', cylinder: 'cylinder', db: 'cylinder', database: 'cylinder', das: 'cylinder', 'h-cyl': 'cylinder', 'lin-cyl': 'cylinder', disk: 'cylinder',
+  circle: 'circle', circ: 'circle', 'dbl-circ': 'circle', diamond: 'rhombus', decision: 'rhombus', diam: 'rhombus', hex: 'hexagon', hexagon: 'hexagon',
+  stadium: 'stadium', pill: 'stadium', rounded: 'round', event: 'round', subproc: 'subroutine', subroutine: 'subroutine',
+};
+
+interface Node {
+  source: string;
+  label?: string;
+  shape?: Shape;
+  hint?: string;
+  parent?: string;
+}
+
+interface Link {
+  start: boolean;
+  end: boolean;
+  line: 'solid' | 'dotted' | 'thick' | 'invisible';
+  label?: string;
+}
+
+const ID = /[\p{L}\p{N}_]+(?:[-.](?![-.=>])[\p{L}\p{N}_]+)*/uy;
+const TEXT_LINK = /([<ox]?)(--|-\.|==)(?![-.=>])\s*(.+?)\s*(-{2,}>|-{3,}|\.-+>|\.-+(?=\s)|={2,}>|={3,}|-{2,}[ox](?=\s)|={2,}[ox](?=\s))/y;
+const LINK = /([<ox]?)(-{2,}>|-\.+->|={2,}>|-{2,}[ox](?=\s)|={2,}[ox](?=\s)|-\.+-[ox](?=\s)|-{3,}|-\.+-|={3,}|~{3,})/y;
+
+export function importFlowchart(body: string[], header: string, title: string | undefined, warn: Warnings): string {
+  const dir = /^(?:flowchart|graph)\s+(\w+)/i.exec(header)?.[1]?.toUpperCase() ?? 'TD';
+  if (dir === 'RL' || dir === 'BT') warn.onceFor('dir', `Direction ${dir} is drawn as ${dir === 'RL' ? 'LR' : 'TD'}: Cartography reads left to right or top to bottom`);
+
+  const nodes = new Map<string, Node>();
+  const groups = new Map<string, { source: string; label: string; parent?: string }>();
+  const links: { from: string[]; to: string[]; link: Link }[] = [];
+  const stack: string[] = [];
+
+  const node = (source: string, label?: string, shape?: Shape, hint?: string) => {
+    let n = nodes.get(source);
+    if (!n) nodes.set(source, (n = { source }));
+    if (label !== undefined && n.label === undefined) {
+      n.label = label;
+      n.shape = shape;
+      n.hint = hint;
+    }
+    if (!n.parent && stack.length && !groups.has(source)) n.parent = stack[stack.length - 1];
+  };
+
+  for (const raw of body) {
+    for (const stmt of splitStatements(raw)) {
+      const s = stmt.trim();
+      if (!s) continue;
+      const sub = /^subgraph\b\s*(.*)$/.exec(s);
+      if (sub) {
+        const g = subgraphHeader(sub[1]!);
+        groups.set(g.source, { ...g, parent: stack[stack.length - 1] });
+        stack.push(g.source);
+        continue;
+      }
+      if (s === 'end') {
+        if (!stack.pop()) warn.add('An "end" without a subgraph was skipped');
+        continue;
+      }
+      if (/^direction\s+\w+$/.test(s)) {
+        if (stack.length) warn.onceFor('subdir', 'Subgraph directions are not imported: the whole diagram uses one direction');
+        continue;
+      }
+      const kw = /^(classDef|class|style|linkStyle|click|accTitle|accDescr)\b/.exec(s)?.[1];
+      if (kw) {
+        if (!kw.startsWith('acc')) warn.onceFor('style', `Styling (${kw}) is not imported: Cartography colours by kind`);
+        continue;
+      }
+      if (!parseChain(s, node, links, warn)) warn.add(`Could not read "${s}"`);
+    }
+  }
+  if (stack.length) warn.add(`Subgraph "${stack[stack.length - 1]}" has no "end"`);
+
+  // Edges to a subgraph id point at the group; a node with the same id as a group is that group.
+  for (const id of groups.keys()) nodes.delete(id);
+
+  const ids = new Ids();
+  const groupList: SysGroup[] = [];
+  const depth = (id: string | undefined): number => (id ? 1 + depth(groups.get(id)?.parent) : 0);
+  for (const g of groups.values())
+    groupList.push({ id: ids.get(g.source), label: g.label, kind: guessGroupKind(g.label, depth(g.parent) > 0), parent: g.parent && ids.get(g.parent) });
+
+  const nodeList: SysNode[] = [];
+  for (const n of nodes.values()) {
+    const label = n.label ?? n.source;
+    if (n.shape === 'rhombus') warn.onceFor('rhombus', 'Decision shapes ({…}) become ordinary cards: Cartography draws systems, not flow logic');
+    nodeList.push({ id: ids.get(n.source), label, kind: kindFor(label, n.source, n.shape, n.hint), parent: n.parent && ids.get(n.parent) });
+  }
+
+  const edges: SysEdge[] = [];
+  for (const { from, to, link } of links) {
+    if (link.line === 'invisible') {
+      warn.onceFor('invisible', 'Invisible links (~~~) are left out');
+      continue;
+    }
+    for (const a of from)
+      for (const b of to) {
+        const style = link.line === 'thick' ? 'sync' : link.line === 'dotted' ? (/\b(logs?|metrics|traces?|monitor|auth|token|config|reads? config)\b/i.test(link.label ?? '') ? 'dotted' : 'async') : undefined;
+        // "a <-- b" has only a start arrow: turn it round so it points the way it is drawn.
+        const [x, y] = link.start && !link.end ? [b, a] : [a, b];
+        edges.push({ from: ids.get(x), to: ids.get(y), op: link.start && link.end ? '<->' : link.end || link.start ? '->' : '--', label: link.label, style });
+      }
+  }
+
+  const d: SysDiagram = { title, direction: dir === 'LR' || dir === 'RL' ? 'right' : 'down', groups: groupList, nodes: nodeList, edges };
+  return systemsYaml(d);
+}
+
+function kindFor(label: string, source: string, shape: Shape | undefined, hint: string | undefined): string {
+  const byWords = guessKind(label) ?? (hint && guessKind(hint)) ?? guessKind(source.replace(/([a-z])([A-Z])/g, '$1 $2'));
+  if (shape === 'cylinder') return byWords && ['cache', 'queue', 'topic', 'storage', 'warehouse', 'search', 'database'].includes(byWords) ? byWords : 'database';
+  return byWords ?? 'service';
+}
+
+/** `id[Title]`, `id ["Title"]`, `"Title"` or `Some title`. */
+function subgraphHeader(rest: string): { source: string; label: string } {
+  const r = rest.trim();
+  const m = /^([^\s[]+)\s*\[(.*)\]$/.exec(r);
+  if (m) return { source: m[1]!, label: cleanLabel(m[2]!) };
+  const label = cleanLabel(r);
+  return { source: /^[\w-]+$/.test(r) ? r : slug(label), label };
+}
+
+/** Split on ";" outside quotes and brackets. */
+function splitStatements(line: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let quote = false;
+  let cur = '';
+  for (const ch of line) {
+    if (ch === '"') quote = !quote;
+    else if (!quote && '[({'.includes(ch)) depth++;
+    else if (!quote && '])}'.includes(ch)) depth = Math.max(0, depth - 1);
+    if (ch === ';' && !quote && depth === 0) {
+      out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+type NodeFn = (source: string, label?: string, shape?: Shape, hint?: string) => void;
+
+/** `A[x] & B --> |label| C --- D`: node groups joined by links. False when it is not that. */
+function parseChain(s: string, node: NodeFn, links: { from: string[]; to: string[]; link: Link }[], warn: Warnings): boolean {
+  let pos = 0;
+  const ws = () => {
+    while (pos < s.length && /\s/.test(s[pos]!)) pos++;
+  };
+  const nodeRef = (): string | undefined => {
+    ws();
+    ID.lastIndex = pos;
+    const m = ID.exec(s);
+    if (!m) return undefined;
+    const id = m[0];
+    pos = ID.lastIndex;
+    if (s.startsWith(':::', pos)) pos = skip(/:::[\w-]+/y);
+    if (s.startsWith('@{', pos)) {
+      const close = s.indexOf('}', pos);
+      const spec = s.slice(pos + 2, close < 0 ? s.length : close);
+      pos = close < 0 ? s.length : close + 1;
+      const shape = /\bshape\s*:\s*([\w-]+)/.exec(spec)?.[1];
+      const label = /\blabel\s*:\s*("([^"]*)"|[^,]+)/.exec(spec);
+      const icon = /\bicon\s*:\s*"?([\w:-]+)/.exec(spec)?.[1];
+      node(id, label ? cleanLabel(label[2] ?? label[1]!) : id, shape ? NAMED[shape] : undefined, icon?.replace(/^\w+:/, '').replace(/-/g, ' '));
+      return id;
+    }
+    for (const [open, closers, shape] of SHAPES) {
+      if (!s.startsWith(open, pos)) continue;
+      const start = pos + open.length;
+      // A quoted label may hold the closer itself: ["a [b]"].
+      const after = s[start] === '"' ? s.indexOf('"', start + 1) + 1 : start;
+      if (after === 0) return undefined;
+      const hit = closers.map((c) => [c, s.indexOf(c, after)] as const).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1])[0];
+      if (!hit) return undefined;
+      const [closer, end] = hit;
+      const raw = s.slice(start, end);
+      pos = end + closer.length;
+      if (s.startsWith(':::', pos)) pos = skip(/:::[\w-]+/y);
+      node(id, cleanLabel(raw) || id, shape, faIcon(raw));
+      return id;
+    }
+    node(id);
+    return id;
+  };
+  const skip = (re: RegExp) => {
+    re.lastIndex = pos;
+    return re.exec(s) ? re.lastIndex : pos;
+  };
+  const group = (): string[] | undefined => {
+    const first = nodeRef();
+    if (!first) return undefined;
+    const out = [first];
+    for (;;) {
+      ws();
+      if (s[pos] !== '&') return out;
+      pos++;
+      const next = nodeRef();
+      if (!next) return undefined;
+      out.push(next);
+    }
+  };
+  const link = (): Link | undefined => {
+    ws();
+    for (const re of [TEXT_LINK, LINK]) {
+      re.lastIndex = pos;
+      const m = re.exec(s);
+      if (!m) continue;
+      const token = re === TEXT_LINK ? m[2]! + m[4]! : m[2]!;
+      pos = re.lastIndex;
+      let label = re === TEXT_LINK ? cleanLabel(m[3]!) : undefined;
+      ws();
+      if (s[pos] === '|') {
+        const close = s.indexOf('|', pos + 1);
+        if (close > 0) {
+          label = cleanLabel(s.slice(pos + 1, close));
+          pos = close + 1;
+        }
+      }
+      if (/[ox]$/.test(token) || /^[ox]$/.test(m[1]!)) warn.onceFor('ends', 'Circle and cross arrow ends (--o, --x) are drawn as arrows');
+      return {
+        start: m[1] !== '',
+        end: /[>ox]$/.test(token),
+        line: token.includes('~') ? 'invisible' : token.includes('.') ? 'dotted' : token.includes('=') ? 'thick' : 'solid',
+        label: label || undefined,
+      };
+    }
+    return undefined;
+  };
+
+  let from = group();
+  if (!from) return false;
+  for (;;) {
+    ws();
+    if (pos >= s.length) return true;
+    const l = link();
+    if (!l) return false;
+    const to = group();
+    if (!to) return false;
+    links.push({ from, to, link: l });
+    from = to;
+  }
+}

@@ -1,0 +1,26 @@
+---
+title: Photo uploads
+---
+architecture-beta
+    group aws(cloud)[AWS]
+    group api(server)[API tier] in aws
+    group storage(disk)[Storage tier] in aws
+
+    service users(internet)[Users]
+    service cdn(internet)[CloudFront CDN] in aws
+    service gateway(server)[API Gateway] in api
+    service upload(server)[Upload function] in api
+    service resize(server)[Resize function] in api
+    service bucket(disk)[S3 photos bucket] in storage
+    service meta(database)[DynamoDB metadata] in storage
+    service queue(server)[SQS resize queue] in api
+
+    users:R --> L:cdn
+    cdn:R --> L:gateway
+    gateway:R --> L:upload
+    upload:B --> T:bucket
+    upload:R --> L:queue
+    queue:R --> L:resize
+    resize:B --> T:meta
+    resize:L --> R:bucket
+    cdn:B --> T:bucket

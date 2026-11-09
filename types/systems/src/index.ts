@@ -1,0 +1,115 @@
+// Software architecture in generic terms: people, clients, services, data stores and the systems
+// around them, in nestable groups. The type to reach for first, and the target of imports.
+//
+//   groups:
+//     shop: system
+//     backend: { kind: zone, label: Private network, in: shop }
+//   nodes:
+//     web: { kind: client, label: Web shop, in: shop }
+//     db: { kind: database, label: Orders, in: backend }
+//   edges:
+//     - web -> db: SQL
+//     - api -> bus: { label: OrderPlaced, style: async }
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+
+export const config: GraphTypeConfig = {
+  groupKinds: {
+    system: { label: 'System', icon: 'boxes', tone: 'blue' },
+    boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
+    zone: { label: 'Zone', icon: 'shield', tone: 'teal', border: 'dashed', keywords: ['network', 'dmz', 'vpc', 'subnet'] },
+    team: { label: 'Team', icon: 'users', tone: 'violet', border: 'dashed', keywords: ['owner'] },
+    domain: { label: 'Domain', icon: 'layers', tone: 'indigo', border: 'dashed', keywords: ['bounded context', 'layer'] },
+    cluster: { label: 'Cluster', icon: 'boxes', tone: 'sky', keywords: ['kubernetes', 'k8s'] },
+    cloud: { label: 'Cloud', icon: 'cloud', tone: 'sky', keywords: ['aws', 'gcp', 'azure'] },
+    region: { label: 'Region', icon: 'earth', tone: 'slate', border: 'dashed' },
+    'on-premises': { label: 'On-premises', icon: 'building', tone: 'slate', keywords: ['datacenter'] },
+  },
+  nodeKinds: {
+    user: { label: 'User', icon: 'user', tone: 'slate', keywords: ['person', 'actor'] },
+    users: { label: 'Users', icon: 'users', tone: 'slate', keywords: ['people', 'customers'] },
+    client: { label: 'Web app', icon: 'app-window', tone: 'sky', keywords: ['browser', 'frontend', 'spa'] },
+    mobile: { label: 'Mobile app', icon: 'smartphone', tone: 'sky', keywords: ['ios', 'android'] },
+    desktop: { label: 'Desktop app', icon: 'monitor', tone: 'sky' },
+    device: { label: 'Device', icon: 'cpu', tone: 'sky', keywords: ['iot', 'sensor'] },
+    service: { label: 'Service', icon: 'box', tone: 'blue', keywords: ['microservice', 'backend', 'app'] },
+    api: { label: 'API', icon: 'webhook', tone: 'blue', keywords: ['rest', 'graphql', 'grpc'] },
+    function: { label: 'Function', icon: 'square-function', tone: 'amber', keywords: ['lambda', 'serverless'] },
+    worker: { label: 'Worker', icon: 'cog', tone: 'blue', keywords: ['consumer', 'background'] },
+    job: { label: 'Scheduled job', icon: 'clock', tone: 'amber', keywords: ['cron', 'batch'] },
+    container: { label: 'Container', icon: 'container', tone: 'blue', keywords: ['docker', 'pod'] },
+    server: { label: 'Server', icon: 'server', tone: 'blue', keywords: ['vm', 'host'] },
+    queue: { label: 'Queue', icon: 'send', tone: 'violet', keywords: ['sqs', 'rabbitmq', 'message'] },
+    topic: { label: 'Event stream', icon: 'radio-tower', tone: 'violet', keywords: ['kafka', 'pubsub', 'event bus', 'topic'] },
+    database: { label: 'Database', icon: 'database', tone: 'indigo', keywords: ['sql', 'postgres', 'mysql', 'db'] },
+    cache: { label: 'Cache', icon: 'database-zap', tone: 'rose', keywords: ['redis', 'memcached'] },
+    storage: { label: 'Object storage', icon: 'archive', tone: 'teal', keywords: ['bucket', 's3', 'blob', 'files'] },
+    warehouse: { label: 'Data warehouse', icon: 'chart-bar', tone: 'indigo', keywords: ['analytics', 'lake', 'bigquery'] },
+    search: { label: 'Search', icon: 'search', tone: 'violet', keywords: ['elasticsearch', 'index'] },
+    gateway: { label: 'API gateway', icon: 'split', tone: 'sky', keywords: ['proxy', 'ingress'] },
+    'load-balancer': { label: 'Load balancer', icon: 'scale', tone: 'sky', keywords: ['lb'] },
+    cdn: { label: 'CDN', icon: 'globe', tone: 'sky', keywords: ['edge'] },
+    dns: { label: 'DNS', icon: 'hash', tone: 'sky' },
+    firewall: { label: 'Firewall', icon: 'shield', tone: 'rose', keywords: ['waf'] },
+    identity: { label: 'Identity provider', icon: 'fingerprint-pattern', tone: 'amber', keywords: ['auth', 'sso', 'oauth', 'login'] },
+    secrets: { label: 'Secrets', icon: 'key-round', tone: 'amber', keywords: ['vault', 'kms'] },
+    monitoring: { label: 'Monitoring', icon: 'activity', tone: 'green', keywords: ['logs', 'metrics', 'observability'] },
+    email: { label: 'Email', icon: 'mail', tone: 'slate', keywords: ['smtp', 'notification'] },
+    ai: { label: 'AI model', icon: 'sparkles', tone: 'violet', keywords: ['llm', 'ml'] },
+    payments: { label: 'Payments', icon: 'credit-card', tone: 'green', keywords: ['stripe', 'psp'] },
+    external: { label: 'External system', icon: 'earth', tone: 'slate', keywords: ['third party', 'saas'] },
+  },
+  edgeStyles: {
+    sync: { label: 'Request', line: 'solid', tone: 'blue' },
+    async: { label: 'Async message', line: 'dashed', tone: 'violet' },
+    data: { label: 'Data flow', line: 'solid', tone: 'teal' },
+    dotted: { label: 'Supporting', line: 'dotted', tone: 'slate' },
+  },
+};
+
+const palette: PaletteItem[] = [
+  ...Object.entries(config.groupKinds).map(([kind, k]) => ({ collection: 'groups', kind, ...k })),
+  ...Object.entries(config.nodeKinds).map(([kind, k]) => ({ collection: 'nodes', kind, ...k })),
+];
+
+export const systems: DiagramType<GraphSource> = {
+  id: 'systems',
+  name: 'Architecture',
+  description: 'Services, clients, data stores and external systems in nestable groups',
+  schema: graphSchema('systems', config, 'Cartography architecture diagram'),
+  palette,
+  build: (src, ctx) => buildGraph(src, config, ctx),
+  references: graphReferences,
+  connect(src, from, to) {
+    if (from === to) return 'Pick another element to connect to';
+    const known = (id: string) => (!!src.nodes && Object.hasOwn(src.nodes, id)) || (!!src.groups && Object.hasOwn(src.groups, id));
+    if (!known(from) || !known(to)) return 'Connect one node or group to another';
+    return { path: ['edges'], value: `${from} -> ${to}` };
+  },
+  template: `type: systems
+title: Web shop
+subtitle: How an order flows through the system
+
+groups:
+  shop: { kind: system, label: Web shop }
+  backend: { kind: zone, label: Private network, in: shop }
+
+nodes:
+  customers: users
+  web: { kind: client, label: Storefront, in: shop }
+  gateway: { kind: gateway, label: API gateway, in: shop }
+  orders: { kind: service, label: Orders, in: backend }
+  db: { kind: database, label: Orders DB, in: backend }
+  bus: { kind: queue, label: order-events, in: backend }
+  mailer: { kind: worker, label: Mailer, in: backend }
+  stripe: { kind: payments, label: Stripe }
+
+edges:
+  - customers -> web: HTTPS
+  - web -> gateway: { label: REST, style: sync }
+  - gateway -> orders: { style: sync }
+  - orders -> db: { label: SQL, style: data }
+  - orders -> bus: { label: OrderPlaced, style: async }
+  - bus -> mailer: { style: async }
+  - orders -> stripe: { label: charge, style: sync }
+`,
+};

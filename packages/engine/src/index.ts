@@ -4,13 +4,15 @@ import { parseSource, validate, withoutBadges, type Diagnostic, type DiagramType
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { themes, type Theme } from '@cartography/theme';
+import { systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { erd } from '@cartography/erd';
 import { access } from '@cartography/access';
 import { github } from '@cartography/github';
 import { dataProducts } from '@cartography/data-products';
 
-export const types: DiagramType[] = [azure, erd, access, github, dataProducts];
+// Systems first: the generic type people reach for, and what imports produce.
+export const types: DiagramType[] = [systems, azure, erd, access, github, dataProducts];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

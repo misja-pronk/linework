@@ -1,0 +1,34 @@
+type: systems
+title: Telemetry pipeline
+subtitle: From connected devices to dashboards and models
+direction: right
+
+groups:
+  ingest: { kind: domain, label: Ingestion }
+  platform: { kind: system, label: Analytics platform }
+  lake: { kind: zone, label: Lakehouse, in: platform }
+
+nodes:
+  meters: { kind: device, label: Smart meters }
+  partners: { kind: external, label: Grid operators }
+  collector: { kind: api, label: Collector API, in: ingest }
+  stream: { kind: topic, label: readings, caption: Kafka, in: ingest }
+  enrich: { kind: worker, label: Stream enrichment, in: platform }
+  raw: { kind: storage, label: Raw zone, caption: S3, in: lake }
+  curated: { kind: warehouse, label: Curated tables, caption: Iceberg, in: lake }
+  nightly: { kind: job, label: Nightly compaction, in: platform }
+  forecast: { kind: ai, label: Load forecast, in: platform }
+  bi: { kind: client, label: Dashboards }
+  ops: { kind: monitoring, label: Grafana }
+
+edges:
+  - meters -> collector: { label: MQTT, style: sync }
+  - partners -> collector: { label: SFTP, style: data }
+  - collector -> stream: { style: async }
+  - stream -> enrich: { style: async }
+  - enrich -> raw: { style: data }
+  - raw -> nightly: { style: data }
+  - nightly -> curated: { style: data }
+  - curated -> bi: { label: SQL, style: sync }
+  - curated -> forecast: { style: data }
+  - enrich -> ops: { label: metrics, style: dotted }

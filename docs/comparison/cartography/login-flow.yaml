@@ -1,0 +1,27 @@
+type: systems
+title: Sign-in flow
+direction: down
+
+nodes:
+  start: { kind: service, label: User opens app }
+  session: { kind: service, label: "Valid session?" }
+  home: { kind: service, label: Show home screen }
+  login: { kind: identity, label: Login page }
+  idp: { kind: identity, label: Redirect to identity provider }
+  mfa: { kind: service, label: "MFA required?" }
+  otp: { kind: service, label: Ask one-time code }
+  token: { kind: service, label: Issue tokens }
+  check: { kind: service, label: "Code correct?" }
+
+edges:
+  - start -> session
+  - session -> home: "yes"
+  - session -> login: "no"
+  - login -> idp
+  - idp -> mfa
+  - mfa -> otp: "yes"
+  - mfa -> token: "no"
+  - otp -> check
+  - check -> token: "yes"
+  - check -> otp: "no, retry"
+  - token -> home

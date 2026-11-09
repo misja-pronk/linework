@@ -25,6 +25,9 @@ const crossingBudget: Record<string, number> = {
   'erd/saas.yaml': 8,
   'erd/shop-schemas.yaml': 0,
   'github/setup.yaml': 0,
+  'systems/data-pipeline.yaml': 0,
+  'systems/saas-platform.yaml': 2,
+  'systems/web-shop.yaml': 0,
 };
 
 describe('layout quality', () => {

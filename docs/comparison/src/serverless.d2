@@ -1,0 +1,28 @@
+title: Photo uploads {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+users: Users {shape: person}
+
+aws: AWS {
+  cdn: CloudFront CDN
+  api: API tier {
+    gateway: API Gateway
+    upload: Upload function
+    queue: SQS resize queue {shape: queue}
+    resize: Resize function
+  }
+  storage: Storage tier {
+    bucket: S3 photos bucket {shape: stored_data}
+    meta: DynamoDB metadata {shape: cylinder}
+  }
+}
+
+users -> aws.cdn
+aws.cdn -> aws.api.gateway
+aws.api.gateway -> aws.api.upload
+aws.api.upload -> aws.storage.bucket
+aws.api.upload -> aws.api.queue
+aws.api.queue -> aws.api.resize
+aws.api.resize -> aws.storage.meta
+aws.api.resize -> aws.storage.bucket
+aws.cdn -> aws.storage.bucket

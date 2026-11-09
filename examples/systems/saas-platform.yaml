@@ -1,0 +1,45 @@
+type: systems
+title: Booking platform
+subtitle: Multi-tenant SaaS on Kubernetes
+direction: down
+
+groups:
+  cloud: { kind: cloud, label: AWS eu-west-1 }
+  edge: { kind: zone, label: Public edge, in: cloud }
+  k8s: { kind: cluster, label: EKS cluster, in: cloud }
+  core: { kind: team, label: Core team, in: k8s }
+  growth: { kind: team, label: Growth team, in: k8s }
+  data: { kind: zone, label: Data tier, in: cloud }
+
+nodes:
+  guests: { kind: users, label: Guests }
+  app: { kind: mobile, label: Guest app }
+  admin: { kind: client, label: Host dashboard }
+  cdn: { kind: cdn, label: CloudFront, in: edge }
+  lb: { kind: load-balancer, label: ALB, in: edge }
+  bookings: { kind: service, label: Bookings, in: core }
+  search: { kind: search, label: Availability search, in: core }
+  billing: { kind: service, label: Billing, in: growth }
+  notify: { kind: worker, label: Notifier, in: growth }
+  pg: { kind: database, label: Postgres, caption: RDS, in: data }
+  redis: { kind: cache, label: Sessions, caption: ElastiCache, in: data }
+  events: { kind: topic, label: booking-events, caption: Kafka, in: data }
+  auth: { kind: identity, label: Auth0 }
+  stripe: { kind: payments, label: Stripe }
+  mail: { kind: email, label: SendGrid }
+
+edges:
+  - guests -> app
+  - app -> cdn: { label: HTTPS, style: sync }
+  - admin -> cdn: { label: HTTPS, style: sync }
+  - cdn -> lb: { style: sync }
+  - lb -> bookings: { style: sync }
+  - lb -> search: { style: sync }
+  - bookings -> pg: { style: data }
+  - bookings -> redis: { style: data }
+  - bookings -> events: { label: BookingConfirmed, style: async }
+  - events -> billing: { style: async }
+  - events -> notify: { style: async }
+  - billing -> stripe: { label: charge, style: sync }
+  - notify -> mail: { style: sync }
+  - app -> auth: { label: OIDC, style: dotted }

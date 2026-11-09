@@ -1,0 +1,15 @@
+---
+title: Sign-in flow
+---
+flowchart TD
+    start([User opens app]) --> session{Valid session?}
+    session -->|yes| home[Show home screen]
+    session -->|no| login[Login page]
+    login --> idp[Redirect to identity provider]
+    idp --> mfa{MFA required?}
+    mfa -->|yes| otp[Ask one-time code]
+    mfa -->|no| token[Issue tokens]
+    otp --> check{Code correct?}
+    check -->|yes| token
+    check -->|no, retry| otp
+    token --> home

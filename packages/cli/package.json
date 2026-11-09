@@ -7,13 +7,18 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/theme": "workspace:*",
-    "@resvg/resvg-js": "^2.6.2",
     "@cartography/core": "workspace:*",
-    "@cartography/layout": "workspace:*"
+    "@cartography/engine": "workspace:*",
+    "@cartography/import": "workspace:*",
+    "@cartography/layout": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "@resvg/resvg-js": "^2.6.2"
   },
   "bin": {
     "carto": "./src/main.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "mermaid": "^12.3.0"
   }
 }
