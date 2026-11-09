@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@cartography/core": "workspace:*",
+    "@cartography/docs-plugins": "workspace:*",
+    "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/import": "workspace:*",

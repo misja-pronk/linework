@@ -2,7 +2,7 @@
 // tinted bands with a small tab. Text is measured first, then the lanes engine spaces the lifelines
 // (each gap as wide as its widest label) and stacks the rows, so labels never collide: every message
 // owns its row, and a row is as tall as its wrapped label.
-import type { Box, SequenceEvent, SequenceParticipant, SequenceShape, Tone } from '@cartography/core';
+import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
@@ -579,7 +579,9 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
     const x = cx - (lw + 22) / 2;
     s += text(x, cy, r.label, theme.size.label, 600, theme.tones.blue.fg);
     s += glyph('link', x + lw + 8, cy - 7, 14, theme.tones.blue.fg);
-    return `<a href="${esc(r.link)}">${s}</a>`;
+    // Only links a page can safely carry (http, https, mailto, relative): the text stays, the link goes.
+    const href = safeHref(r.link);
+    return href ? `<a href="${esc(href)}">${s}</a>` : s;
   }
   return s + text(cx, cy, r.label, theme.size.label, 600, theme.text, 'middle');
 }

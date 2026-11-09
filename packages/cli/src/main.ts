@@ -22,6 +22,9 @@ const help = `carto — architecture diagrams that look good
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--page fit|a4|a3]                   page size (pdf, default fit)
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
+  carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
+               [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
+               [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
@@ -49,6 +52,9 @@ const { positionals, values } = parseArgs({
     'no-fonts': { type: 'boolean' },
     force: { type: 'boolean' },
     view: { type: 'string' },
+    fragment: { type: 'boolean' },
+    static: { type: 'boolean' },
+    css: { type: 'boolean' },
     'all-views': { type: 'boolean' },
     title: { type: 'string' },
     subtitle: { type: 'string' },
@@ -362,6 +368,21 @@ async function main(): Promise<number> {
       fs.writeFileSync(target, type.template);
       console.log(`Created ${target}`);
       return 0;
+    }
+    case 'embed': {
+      const { embed, embedCss } = await import('./embed.ts');
+      if (values.css) return (process.stdout.write(embedCss()), 0);
+      const [f] = files;
+      if (!f) return (console.error(help), 1);
+      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static });
+      report(f === '-' ? 'stdin' : f, r.problems);
+      // A fragment, or a page made from standard input, goes to standard output unless -o says where.
+      // With errors a fragment is still written: it is the message a reader of the page should see.
+      const out = values.out ?? (values.fragment || f === '-' ? undefined : f.replace(/\.ya?ml$/i, '') + '.html');
+      if (!out) process.stdout.write(r.html);
+      else if (r.ok || values.fragment) fs.writeFileSync(out, r.html);
+      if (out && r.ok) console.error(`${f} → ${out}`);
+      return r.ok ? 0 : 1;
     }
     case 'validate': {
       let ok = true;

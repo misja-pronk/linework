@@ -1,0 +1,5 @@
+type: systems
+nodes:
+  web: { kind: client, label: Website }
+edges:
+  - web -> nowhere: Calls

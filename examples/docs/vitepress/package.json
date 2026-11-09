@@ -1,0 +1,13 @@
+{
+  "name": "cartography-vitepress-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node copy-embed.mjs && vitepress dev",
+    "build": "node copy-embed.mjs && vitepress build",
+    "preview": "vitepress preview --port 5196"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

@@ -14,6 +14,8 @@ export interface SvgOptions {
   idPrefix?: string;
   /** Add data-* attributes that the editor uses to find elements. */
   interactive?: boolean;
+  /** With `interactive`: the editor's "Drop shapes here" in empty groups. Off for a drawing that is only looked at. */
+  hints?: boolean;
   /** The diagram's own file name, so a "#view" link can point at that view's SVG. */
   file?: string;
   /** Official icons (BYO packs) as data URIs, by node and group id: drawn as-is instead of the line icon. */
@@ -74,7 +76,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const box = placed.groups.get(g.id);
     if (!box) continue;
     // In the editor an empty group says what it is for; exports stay clean.
-    const hint = opts.interactive && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
+    const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
     out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${drawGroup(g, box, theme, !!mark, groupImages?.get(g.id))}${hint}${mark}</g>`, opts));
   }
