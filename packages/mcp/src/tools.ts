@@ -11,16 +11,14 @@ import { toPng } from '@cartography/cli/png';
 
 const examplesDir = new URL('../../../examples/', import.meta.url);
 
-/** Optional fields a type may carry for choosing between types. */
-type Described = DiagramType & { tagline?: string; useWhen?: string };
-
 export function listTypes() {
-  return types.map((t: Described) => ({
+  return types.map((t) => ({
     id: t.id,
     name: t.name,
     description: t.description,
     ...(t.tagline ? { tagline: t.tagline } : {}),
     ...(t.useWhen ? { useWhen: t.useWhen } : {}),
+    ...(t.notFor ? { notFor: t.notFor } : {}),
   }));
 }
 

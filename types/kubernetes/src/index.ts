@@ -189,14 +189,14 @@ const palette: PaletteItem[] = [
 
 /** Copy for the optional guidance fields on DiagramType, wired in by the coordinator. */
 export const guidance = {
-  tagline: 'Workloads, services and ingress in clusters and namespaces, without the icon soup',
+  tagline: 'Workloads, services and ingress per namespace, without the icon soup',
   useWhen: [
-    'Showing how traffic reaches workloads: ingress or gateway, service, deployment, database',
-    'Explaining a namespace or a whole platform (ingress-nginx, cert-manager, observability) at a glance',
-    'Turning manifests, helm template or kustomize build output into a readable picture with carto import',
+    'How traffic reaches workloads: ingress → service → deployment',
+    'A namespace or whole platform (ingress, certs, observability)',
+    'Manifests or helm/kustomize output, via carto import',
   ],
   notFor: [
-    { text: 'Cloud resources around the cluster: subscriptions, VNets, managed databases', use: 'azure' },
+    { text: 'Cloud resources around the cluster (VNets, managed DBs)', use: 'azure' },
     { text: 'Services and data flow regardless of where they run', use: 'systems' },
     { text: 'RBAC roles and who may do what', use: 'access' },
   ],
@@ -207,6 +207,8 @@ export const kubernetes: DiagramType<GraphSource> = {
   id: 'kubernetes',
   name: 'Kubernetes',
   description: 'Clusters, namespaces and the workloads, services and ingress in them',
+  icon: 'ship-wheel',
+  ...guidance,
   schema: schema(),
   palette,
   build: buildKubernetes,

@@ -56,6 +56,21 @@ export const github: DiagramType<GraphSource> = {
   id: 'github',
   name: 'GitHub design',
   description: 'Organisations, teams, repositories, environments, workflows and access',
+  icon: 'folder-git-2',
+  tagline: 'How a GitHub organisation is set up: teams, repos, workflows',
+  useWhen: [
+    'Plan teams and who may write to which repository',
+    'Show workflows, environments and where they deploy',
+    'Document rulesets, secrets, runners and apps',
+  ],
+  notFor: [
+    { text: 'Entra or cloud role assignments', use: 'access' },
+    { text: 'The services the code becomes', use: 'systems' },
+  ],
+  keywords: [
+    'github', 'repository', 'repo', 'team', 'organisation', 'organization', 'workflow', 'actions', 'environment', 'ci', 'cd', 'pipeline',
+    'codeowners', 'ruleset', 'branch protection', 'runner', 'secret', 'oidc',
+  ],
   schema: graphSchema('github', config, 'Cartography GitHub diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),

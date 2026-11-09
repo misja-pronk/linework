@@ -75,6 +75,21 @@ export const azure: DiagramType<GraphSource> = {
   id: 'azure',
   name: 'Azure infrastructure',
   description: 'Subscriptions, resource groups, networks and the resources in them',
+  icon: 'cloud',
+  tagline: 'What runs where in Azure: subscriptions, resource groups, networks',
+  useWhen: [
+    'Map the resources in an Azure subscription',
+    'Show which VNet or subnet each service sits in',
+    'Hub and spoke, private endpoints, Front Door, firewalls',
+  ],
+  notFor: [
+    { text: 'A cloud-neutral system overview', use: 'systems' },
+    { text: 'Entra groups, roles and access packages', use: 'access' },
+  ],
+  keywords: [
+    'azure', 'subscription', 'resource group', 'vnet', 'subnet', 'private endpoint', 'hub spoke', 'landing zone', 'app service', 'key vault',
+    'front door', 'aks', 'cloud', 'infrastructure', 'network', 'firewall', 'deployment', 'iac', 'bicep', 'terraform',
+  ],
   schema: graphSchema('azure', config, 'Cartography Azure diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),

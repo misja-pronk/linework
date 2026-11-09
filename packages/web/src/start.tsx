@@ -1,9 +1,9 @@
-// Starting a diagram in three steps: pick a template, pick how to work (describe it to AI, build it
-// visually, or write YAML), and for AI answer a few questions. The answers become a prompt that
+// Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
+// (describe it to AI, build it visually, or write YAML), and for AI answer a few questions. The answers become a prompt that
 // Claude runs here with your own key, or that you copy into any chat and paste the answer back.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
-import type { DiagramType } from '@cartography/core';
+import { matchTypes, type DiagramType } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
@@ -78,13 +78,22 @@ const MODES = [
   },
 ] as const;
 
-export function Start({ theme, initial, onOpen, onClose }: { theme: 'light' | 'dark'; initial?: Starter; onOpen(o: Opened): void; onClose(): void }) {
+type Step = 'type' | 'pick' | 'mode' | 'ask' | 'import';
+const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type', import: 'type' };
+
+/**
+ * `current` is the type of the open diagram: marked on its card, so the dialog doubles as the guide
+ * the editor's type pill points to.
+ */
+export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'light' | 'dark'; initial?: Starter; current?: string; onOpen(o: Opened): void; onClose(): void }) {
   const [starter, setStarter] = useState<Starter | undefined>(initial);
-  const [step, setStep] = useState<'pick' | 'mode' | 'ask' | 'import'>(initial ? 'mode' : 'pick');
+  /** The chosen type, or 'all' to browse every template. */
+  const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
+  const [step, setStep] = useState<Step>(initial ? 'mode' : 'type');
   useRestoreFocus();
 
   // Esc goes one step back, then closes.
-  const back = () => (step === 'ask' ? setStep('mode') : step === 'mode' || step === 'import' ? setStep('pick') : onClose());
+  const back = () => (PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
   const backRef = useRef(back);
   backRef.current = back;
   useEffect(() => {
@@ -114,18 +123,28 @@ export function Start({ theme, initial, onOpen, onClose }: { theme: 'light' | 'd
     <div className="overlay" onMouseDown={onClose}>
       <div className={`templates start step-${step}`} role="dialog" aria-label="Start a diagram" onMouseDown={(e) => e.stopPropagation()}>
         <header>
-          {step !== 'pick' && (
+          {step !== 'type' && (
             <button className="icon-button" onClick={back} aria-label="Back" title="Back (Esc)">
               <Icon name="arrow-left" />
             </button>
           )}
           <h2>
-            {step === 'pick' ? 'Start a diagram' : step === 'import' ? 'Import from Mermaid' : step === 'mode' ? `${starter!.title}` : `Describe it · ${typeName(starter!.type)}`}
+            {step === 'type'
+              ? 'What do you want to draw?'
+              : step === 'pick'
+                ? typeId === 'all'
+                  ? 'All templates and examples'
+                  : `${typeName(typeId)}: pick a start`
+                : step === 'import'
+                  ? 'Import from Mermaid'
+                  : step === 'mode'
+                    ? `${starter!.title}`
+                    : `Describe it · ${typeName(starter!.type)}`}
           </h2>
           {step !== 'import' && (
             <ol className="steps" aria-label="Steps">
-              {['Template', 'How', ...(step === 'ask' ? ['Describe'] : [])].map((s, i) => (
-                <li key={s} aria-current={i === ['pick', 'mode', 'ask'].indexOf(step)}>
+              {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : [])].map((s, i) => (
+                <li key={s} aria-current={i === ['type', 'pick', 'mode', 'ask'].indexOf(step)}>
                   {s}
                 </li>
               ))}
@@ -135,14 +154,27 @@ export function Start({ theme, initial, onOpen, onClose }: { theme: 'light' | 'd
             <Icon name="x" />
           </button>
         </header>
+        {step === 'type' && (
+          <Types
+            theme={theme}
+            current={current}
+            last={typeId}
+            onChoose={(t) => {
+              setTypeId(t);
+              setStep('pick');
+            }}
+            onImport={() => setStep('import')}
+          />
+        )}
         {step === 'pick' && (
           <Pick
             theme={theme}
+            typeId={typeId}
+            onType={setTypeId}
             onPick={(s) => {
               setStarter(s);
               setStep('mode');
             }}
-            onImport={() => setStep('import')}
           />
         )}
         {step === 'import' && <Import theme={theme} onOpen={onOpen} />}
@@ -160,43 +192,18 @@ export function Start({ theme, initial, onOpen, onClose }: { theme: 'light' | 'd
   );
 }
 
-function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: Starter): void; onImport(): void }) {
-  const typeIds = useMemo(() => [...new Set(starters.map((s) => s.type))], []);
-  const [filter, setFilter] = useState<string>('all');
+/** Drawings of starters, one by one, so the dialog opens at once and fills in. */
+function useThumbs(list: Starter[], theme: 'light' | 'dark') {
   const [, redraw] = useState(0);
-  const shown = starters.filter((s) => filter === 'all' || s.type === filter);
-  /** Roving focus: one card is in the Tab order, arrows move between them. */
-  const [active, setActive] = useState(0);
-  const grid = useRef<HTMLDivElement>(null);
-  useEffect(() => setActive(0), [filter]);
-  const onGridKey = (e: React.KeyboardEvent) => {
-    const cards = [...(grid.current?.querySelectorAll<HTMLElement>('.template-card') ?? [])];
-    const i = cards.indexOf(document.activeElement as HTMLElement);
-    if (i < 0) return;
-    // Columns from the layout: cards on the first row share its top.
-    const cols = Math.max(1, cards.filter((c) => c.offsetTop === cards[0]!.offsetTop).length);
-    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols, Home: -i, End: cards.length - 1 - i }[e.key];
-    if (step == null) return;
-    e.preventDefault();
-    const next = Math.min(cards.length - 1, Math.max(0, i + step));
-    setActive(next);
-    cards[next]!.focus();
-  };
-
-  // Thumbnails one by one, so the dialog opens at once and fills in.
+  const ids = list.map((s) => s.id).join('|');
   useEffect(() => {
     let stop = false;
     (async () => {
-      for (const s of shown) {
+      for (const s of list) {
         const key = `${theme}:${s.id}`;
         if (stop) return;
         if (thumbs.has(key)) continue;
-        const r = await render(s.text, {
-          theme,
-          fonts: 'none',
-          idPrefix: `t${thumbIds++}`,
-          load: exampleLoader(s.id),
-        });
+        const r = await render(s.text, { theme, fonts: 'none', idPrefix: `t${thumbIds++}`, load: exampleLoader(s.id) });
         thumbs.set(key, r.svg ?? '');
         if (!stop) redraw((n) => n + 1);
       }
@@ -204,25 +211,240 @@ function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: 
     return () => {
       stop = true;
     };
-  }, [filter, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ids, theme]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (s: Starter) => thumbs.get(`${theme}:${s.id}`);
+}
+
+/** Arrow keys through a grid of cards; columns from the layout (cards on the first row share its top). Returns the new index. */
+function moveInGrid(e: React.KeyboardEvent, cards: HTMLElement[]): number | undefined {
+  const i = cards.indexOf(document.activeElement as HTMLElement);
+  if (i < 0) return;
+  const top = (c: HTMLElement) => Math.round(c.getBoundingClientRect().top);
+  const cols = Math.max(1, cards.filter((c) => top(c) === top(cards[0]!)).length);
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols, Home: -i, End: cards.length - 1 - i }[e.key];
+  if (step == null) return;
+  e.preventDefault();
+  const next = Math.min(cards.length - 1, Math.max(0, i + step));
+  cards[next]!.focus();
+  return next;
+}
+
+const typeCount = (id: string) => starters.filter((s) => s.type === id).length;
+/** "Not for" pointers to types that exist; a pointer to a type not (yet) registered stays plain text. */
+const pointsTo = (use?: string) => (use && types.some((t) => t.id === use) ? use : undefined);
+const typeTemplates = types.map((t) => starters.find((s) => s.id === `template:${t.id}`)).filter((s): s is Starter => !!s);
+
+/** Step one: what do you want to draw? A card per type says what it is for and what it is not for. */
+function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 'dark'; current?: string; last: string; onChoose(id: string): void; onImport(): void }) {
+  const [query, setQuery] = useState('');
+  const ranked = useMemo(() => matchTypes(query, types), [query]);
+  const matched = ranked[0]!.score > 0;
+  const [flash, setFlash] = useState<string>();
+  const grid = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
+  const thumb = useThumbs(typeTemplates, theme);
+  const card = (id: string) => grid.current?.querySelector<HTMLElement>(`[data-type="${id}"]`);
+  // Back from a type's templates lands on that type; a fresh start on the search box.
+  useEffect(() => {
+    const back = last !== 'all' ? card(last)?.querySelector<HTMLElement>('.type-main') : undefined;
+    (back ?? search.current)?.focus();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** "Not for → X": show X and put focus on it, so Enter opens it. */
+  const jump = (id: string) => {
+    const el = card(id);
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    el?.querySelector<HTMLElement>('.type-main')?.focus({ preventScroll: true });
+    setFlash(id);
+    setTimeout(() => setFlash((f) => (f === id ? undefined : f)), 1400);
+  };
+  const mains = () => [...(grid.current?.querySelectorAll<HTMLElement>('.type-main') ?? [])];
+  const onGridKey = (e: React.KeyboardEvent) => {
+    const all = mains();
+    // Up from the first row goes back to the search box.
+    if (e.key === 'ArrowUp' && all.indexOf(document.activeElement as HTMLElement) >= 0) {
+      const top = (c: HTMLElement) => Math.round(c.getBoundingClientRect().top);
+      if (top(document.activeElement as HTMLElement) === top(all[0]!)) return (e.preventDefault(), search.current?.focus());
+    }
+    moveInGrid(e, all);
+  };
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') onChoose(ranked[0]!.type.id);
+    else if (e.key === 'ArrowDown') mains()[0]?.focus();
+    else if (e.key === 'Escape' && query) setQuery('');
+    else return;
+    e.preventDefault();
+  };
 
   return (
     <>
-      <nav className="chips">
-        <div className="chip-row" role="group" aria-label="Diagram type">
-          {['all', ...typeIds].map((t) => (
-            <button key={t} className={filter === t ? 'chip active' : 'chip'} aria-pressed={filter === t} onClick={() => setFilter(t)}>
-              {t === 'all' ? 'All' : typeName(t)}
-            </button>
-          ))}
-        </div>
+      <div className="type-search">
+        <label className="search-field">
+          <Icon name="search" size={15} />
+          <input
+            ref={search}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKey}
+            placeholder="Describe what you want to show"
+            aria-label="Describe what you want to show"
+            spellCheck={false}
+          />
+        </label>
+        <button className="chip import-chip" onClick={() => onChoose('all')} title="Every template and example, of every type">
+          <Icon name="layout-grid" size={13} /> All templates
+        </button>
         <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram and get it back as Cartography">
           <Icon name="clipboard-paste" size={13} /> Import from Mermaid
         </button>
-      </nav>
+      </div>
+      <p className="type-hint" role="status">
+        {!query ? (
+          <>
+            Try “tables and keys” or “who has access”. Not sure? <strong>Architecture</strong> fits most systems.
+          </>
+        ) : matched ? (
+          <>
+            Best match: <strong>{ranked[0]!.type.name}</strong>. <kbd>↵</kbd> opens it.
+          </>
+        ) : (
+          <>No type matches those words. Architecture fits most systems.</>
+        )}
+      </p>
+      <div className="type-grid" ref={grid} onKeyDown={onGridKey}>
+        {ranked.map(({ type: t, score }, i) => {
+          const s = typeTemplates.find((x) => x.type === t.id);
+          const svg = s && thumb(s);
+          const notFor = t.notFor ?? [];
+          const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === t.id && 'flash', t.id === current && 'current'];
+          return (
+            <div key={t.id} className={cls.filter(Boolean).join(' ')} data-type={t.id}>
+              <button className="type-main" onClick={() => onChoose(t.id)}>
+                <span className="type-thumb" aria-hidden="true">
+                  {svg ? <span dangerouslySetInnerHTML={{ __html: svg }} /> : <span className="thumb-wait" />}
+                </span>
+                <span className="type-head">
+                  <span className="type-icon">
+                    <Icon name={t.icon ?? 'layout-template'} size={17} />
+                  </span>
+                  <span className="type-name">{t.name}</span>
+                  {matched && i === 0 ? <span className="type-badge">Best match</span> : t.id === current ? <span className="type-badge quiet">This diagram</span> : null}
+                </span>
+                {t.tagline && <span className="type-tagline">{t.tagline}</span>}
+                {!!t.useWhen?.length && (
+                  <span className="type-use">
+                    <span className="type-label">Use when</span>
+                    {t.useWhen.map((u) => (
+                      <span key={u} className="type-bullet">
+                        {u}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </button>
+              <div className="type-foot">
+                {notFor.length > 0 && (
+                  <div className="type-not">
+                    <span className="type-label">Not for</span>
+                    {notFor.map((n) => {
+                      const use = pointsTo(n.use);
+                      return (
+                        <span key={n.text} className="type-not-item">
+                          {n.text}
+                          {use && (
+                            <button className="link" onClick={() => jump(use)} title={`Show ${typeName(use)}`}>
+                              → {typeName(use)}
+                            </button>
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <span className="type-count">
+                  {typeCount(t.id)} {typeCount(t.id) === 1 ? 'start' : 'starts'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/** The chosen type's guidance again, compact, above its templates; "Not for" switches type in place. */
+function TypeSummary({ type, onType }: { type: DiagramType; onType(id: string): void }) {
+  const notFor = (type.notFor ?? []).filter((n) => pointsTo(n.use));
+  return (
+    <div className="type-summary">
+      <span className="type-icon">
+        <Icon name={type.icon ?? 'layout-template'} size={17} />
+      </span>
+      <div>
+        <p>
+          <strong>{type.name}</strong>
+          {type.tagline && <> · {type.tagline}</>}
+        </p>
+        {!!type.useWhen?.length && (
+          <p className="type-facts">
+            <span className="type-label">Use when</span> {type.useWhen.join(' · ')}
+          </p>
+        )}
+        {notFor.length > 0 && (
+          <p className="type-facts">
+            <span className="type-label">Not for</span>{' '}
+            {notFor.map((n, i) => (
+              <span key={n.text}>
+                {i > 0 && ' · '}
+                {n.text}{' '}
+                <button className="link" onClick={() => onType(n.use!)}>
+                  → {typeName(n.use!)}
+                </button>
+              </span>
+            ))}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Step two: the chosen type's template and examples (or all of them). */
+function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; typeId: string; onType(id: string): void; onPick(s: Starter): void }) {
+  const type = types.find((t) => t.id === typeId);
+  const shown = useMemo(() => starters.filter((s) => typeId === 'all' || s.type === typeId), [typeId]);
+  const thumb = useThumbs(shown, theme);
+  /** Roving focus: one card is in the Tab order, arrows move between them. */
+  const [active, setActive] = useState(0);
+  const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    setActive(0);
+    grid.current?.querySelector<HTMLElement>('.template-card')?.focus();
+  }, [typeId]);
+  const onGridKey = (e: React.KeyboardEvent) => {
+    const next = moveInGrid(e, [...(grid.current?.querySelectorAll<HTMLElement>('.template-card') ?? [])]);
+    if (next != null) setActive(next);
+  };
+
+  return (
+    <>
+      {type ? (
+        <TypeSummary type={type} onType={onType} />
+      ) : (
+        <nav className="chips">
+          <div className="chip-row" role="group" aria-label="Diagram type">
+            {types.map((t) => (
+              <button key={t.id} className="chip" onClick={() => onType(t.id)} title={t.tagline}>
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
       <div className="template-grid" ref={grid} onKeyDown={onGridKey}>
         {shown.map((s, i) => {
-          const svg = thumbs.get(`${theme}:${s.id}`);
+          const svg = thumb(s);
           return (
             <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={i === 0} tabIndex={i === active ? 0 : -1} onFocus={() => setActive(i)}>
               <div className="thumb" aria-hidden="true">
@@ -231,7 +453,8 @@ function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: 
               <div className="template-meta">
                 <span className="template-title">{s.title}</span>
                 <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
-                  {s.kind === 'template' ? 'Template' : 'Example'} · {typeName(s.type)}
+                  {s.kind === 'template' ? 'Template' : 'Example'}
+                  {type ? (s.kind === 'template' ? ': the smallest start' : ` · ${s.file}`) : ` · ${typeName(s.type)}`}
                 </span>
               </div>
             </button>

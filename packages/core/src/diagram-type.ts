@@ -6,6 +6,18 @@ export interface DiagramType<Source = any> {
   id: string;
   name: string;
   description: string;
+  // Guidance for picking a type: the start dialog, `carto types`, the editor's type pill and docs/types.md.
+  // All optional, so a new type works without it; keep every string short.
+  /** Lucide icon for the type card. */
+  icon?: string;
+  /** One line: what you draw with it. */
+  tagline?: string;
+  /** Two to four concrete situations. */
+  useWhen?: string[];
+  /** Look-alike jobs this type is the wrong pick for; `use` is the id of the better type. */
+  notFor?: { text: string; use?: string }[];
+  /** Words people type when they mean this type ("pods", "who has access"); see `matchTypes`. */
+  keywords?: string[];
   /** JSON Schema of the YAML; drives validation, editor autocomplete and the builder. */
   schema: object;
   /** Starter YAML for `carto new` and the builder's template picker. */

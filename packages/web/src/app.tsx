@@ -121,6 +121,10 @@ export function App() {
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
+  /** The type pill's card: what this type is for, and the way to the type guide. */
+  const [typeCard, setTypeCard] = useState(false);
+  /** Opened from the type pill: the dialog marks the open diagram's type. */
+  const [guiding, setGuiding] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
   const editor = useRef<EditorHandle>(null);
@@ -897,6 +901,7 @@ export function App() {
 
   const closeModal = () => {
     setModal(undefined);
+    setGuiding(false);
     store.set('started', true);
   };
   /** A: the popup over the drawing, or in the builder view the shapes panel that is already open. */
@@ -917,7 +922,27 @@ export function App() {
           <Icon name="file-code" />
           <span>{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
           {dirty && <span className="dirty" title="Unsaved changes (⌘S saves)" aria-label="Unsaved changes" />}
-          {typeId && <span className="type-pill">{typeName(typeId)}</span>}
+          {type && (
+            <div className="menu-anchor type-anchor">
+              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={type.tagline} aria-expanded={typeCard} aria-haspopup="menu">
+                {type.name}
+              </button>
+              {typeCard && (
+                <Menu onClose={() => setTypeCard(false)}>
+                  <div className="type-card-pop">
+                    <strong>
+                      <Icon name={type.icon ?? 'layout-template'} size={15} /> {type.name}
+                    </strong>
+                    {type.tagline && <p>{type.tagline}</p>}
+                  </div>
+                  <button role="menuitem" onClick={() => (setTypeCard(false), setGuiding(true), setModal('templates'))}>
+                    <Icon name="circle-question-mark" /> Which type do I need?
+                  </button>
+                  <p className="type-card-fine">Also in docs/types.md and <code>carto types</code></p>
+                </Menu>
+              )}
+            </div>
+          )}
         </div>
         <div className="actions">
           {canUseFolders && !ws && remembered && (
@@ -1283,7 +1308,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
-      {modal === 'templates' && <Start theme={theme} onOpen={start} onClose={closeModal} />}
+      {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
           placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}

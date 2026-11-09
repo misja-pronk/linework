@@ -1,4 +1,4 @@
-// The start flow: template → way of working → (AI) questions → generated diagram. The Claude API is
+// The start flow: type → template → way of working → (AI) questions → generated diagram. The Claude API is
 // mocked with a streamed answer: first with a mistake, so the repair round runs too. node e2e/start.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
@@ -58,10 +58,10 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 // 1. A first visit opens the start dialog.
-await page.waitForSelector('.start .template-card');
+await page.waitForSelector('.start .type-card');
 await wait(1500);
 await page.screenshot({ path: `${out}/1-pick.png` });
-await page.locator('.chip', { hasText: 'Azure infrastructure' }).first().click();
+await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.waitForSelector('.mode-card');
 await wait(800);
@@ -86,7 +86,7 @@ if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show 
 
 // 3. Describe it: questions, generate (mocked), a repair round, open.
 await page.getByRole('button', { name: 'New' }).click();
-await page.locator('.chip', { hasText: 'Azure infrastructure' }).first().click();
+await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.keyboard.press('1');
 await page.waitForSelector('.ask-form');
@@ -110,6 +110,7 @@ await page.screenshot({ path: `${out}/6-opened.png` });
 
 // 4. Copy the prompt instead, paste an answer.
 await page.getByRole('button', { name: 'New' }).click();
+await page.locator('.type-main').first().click();
 await page.locator('.template-card').first().click();
 await page.keyboard.press('1');
 await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -142,7 +143,7 @@ if (!(await yaml()).includes('type: systems')) fail('import not opened');
 await page.emulateMedia({ colorScheme: 'light' });
 await page.getByRole('button', { name: 'New' }).click();
 if (await page.locator('.template-card', { hasText: /^Empty/ }).count()) fail('the picker still shows Empty cards');
-await page.locator('.chip', { hasText: 'Architecture' }).first().click();
+await page.locator('.type-main', { hasText: 'Architecture' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.getByRole('button', { name: /start blank/ }).click();
 await wait(800);

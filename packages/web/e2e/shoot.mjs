@@ -18,7 +18,7 @@ for (const scheme of ['light', 'dark']) {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/app-${scheme}.png` });
   if (scheme === 'light') {
-    await page.click('.drawing [data-node="customer-360"]');
+    await page.click('.drawing [data-node="orders"]');
     await page.waitForTimeout(200);
     await page.screenshot({ path: `${out}/select.png` });
     await page.keyboard.press('Meta+k');
@@ -26,14 +26,15 @@ for (const scheme of ['light', 'dark']) {
     await page.waitForTimeout(150);
     await page.screenshot({ path: `${out}/palette.png` });
     await page.keyboard.press('Escape');
-    await page.click('text=Templates');
+    await page.getByRole('button', { name: 'New' }).click();
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `${out}/templates.png` });
     await page.keyboard.press('Escape');
-    // Autocomplete: a new key under a product.
-    await page.click('.cm-line:has-text("crm: {")');
+    // Autocomplete: a new node's kind. The YAML shows next to the drawing first.
+    await page.getByRole('radio', { name: /YAML/ }).click();
+    await page.locator('.cm-line:visible', { hasText: 'stripe: { kind' }).click();
     await page.keyboard.press('End');
-    await page.keyboard.type('\ndb: { kind: ');
+    await page.keyboard.type('\nqueue: { kind: ');
     await page.keyboard.press('Control+Space');
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${out}/complete.png` });

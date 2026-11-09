@@ -2,7 +2,7 @@
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
-Diagram types: Azure, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts) — and coming: Kubernetes, networking, git flow and developer journey.
+Diagram types: architecture, Azure, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts) — and coming: Kubernetes, networking, git flow and developer journey. Not sure which one you need? See [Which diagram type do I need?](docs/types.md)
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
@@ -16,7 +16,7 @@ pnpm web:build    # static app in packages/web/dist, runs from any folder, offli
 
 YAML on the left, the drawing on the right; both stay in sync and select the same element.
 
-- **Start** from a template, then pick how to work: **Describe it** (a few questions become a prompt; Claude drafts the diagram with your own API key, checked by the engine and fixed automatically — or copy the prompt into any chat), **Build visually** (shapes panel, no YAML; `⌘\` switches) or **Write YAML**. Or paste a Mermaid diagram (flowchart, architecture-beta, erDiagram) and get it back as Cartography. Open a folder of diagrams to edit files in place (Chrome/Edge).
+- **Start** by picking what you want to draw: a card per type says what it is for and what it is not for, and a search box ranks the types by your words ("who has access", "tables and keys"). Then a template, then how to work: **Describe it** (a few questions become a prompt; Claude drafts the diagram with your own API key, checked by the engine and fixed automatically — or copy the prompt into any chat), **Build visually** (shapes panel, no YAML; `⌘\` switches) or **Write YAML**. Or paste a Mermaid diagram (flowchart, architecture-beta, erDiagram) and get it back as Cartography. Open a folder of diagrams to edit files in place (Chrome/Edge).
 - **Write** with autocomplete from each type's schema; problems show on the right line, and the last good drawing stays while you type.
 - **Build** without YAML: add shapes from the palette (`A`, or drag them onto the drawing and into a group), edit them in the inspector, drag from the dot on an element to connect it, rename with every reference following.
 - **Select** several with shift-click or a marquee, `⌘C`/`⌘V` copy and paste, double-click to rename in place.
@@ -35,7 +35,7 @@ AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude C
 ```sh
 mise install            # Node 24 + pnpm (or bring your own)
 pnpm install
-pnpm carto types                                  # list diagram types
+pnpm carto types                                  # which type for what (add words to rank them)
 pnpm carto new azure my-infra.yaml                # start from a template
 pnpm carto render my-infra.yaml -f png -t dark    # → my-infra.png
 pnpm gallery                                      # render all examples → gallery/out/index.html
