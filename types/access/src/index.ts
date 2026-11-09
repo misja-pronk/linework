@@ -456,6 +456,21 @@ export const access: DiagramType<AccessSource> = {
   id: 'access',
   name: 'Roles, groups and access packages',
   description: 'Who can get access, through which package or group, with which role on what',
+  icon: 'shield-user',
+  tagline: 'Who gets access to what: groups, access packages and roles',
+  useWhen: [
+    'Which group or access package grants which role',
+    'Answer “who can reach production?” as a matrix',
+    'Review Entra ID governance: catalogs, packages, approvals',
+  ],
+  notFor: [
+    { text: 'Where the resources run', use: 'azure' },
+    { text: 'GitHub teams and repository permissions', use: 'github' },
+  ],
+  keywords: [
+    'access', 'permission', 'role', 'rbac', 'group', 'access package', 'entra', 'identity', 'iam', 'who has access', 'who can', 'privilege',
+    'governance', 'catalog', 'principal', 'security group', 'matrix', 'least privilege', 'audit',
+  ],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'Cartography access diagram',

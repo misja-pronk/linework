@@ -242,6 +242,18 @@ export const erd: DiagramType<ErdSource> = {
   id: 'erd',
   name: 'Database design',
   description: 'Tables, columns and relations with crow’s-foot notation',
+  icon: 'table-2',
+  tagline: 'Tables, columns and keys, with crow’s-foot relations',
+  useWhen: [
+    'Design a database schema before writing migrations',
+    'Explain how tables relate: one-to-many, many-to-many',
+    'Document an existing schema for a review',
+  ],
+  notFor: [
+    { text: 'Which services use the database', use: 'systems' },
+    { text: 'Data products and their contracts', use: 'data-products' },
+  ],
+  keywords: ['database', 'table', 'column', 'schema', 'sql', 'postgres', 'mysql', 'entity', 'relation', 'foreign key', 'primary key', 'erd', 'er diagram', 'data model', 'migration'],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'Cartography database diagram',

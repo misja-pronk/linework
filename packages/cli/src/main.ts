@@ -6,18 +6,18 @@ import { parseArgs } from 'node:util';
 import { toPng } from './png.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
 import { importMarkdown, importMermaid } from '@cartography/import';
-import type { Diagnostic, LayoutSidecar } from '@cartography/core';
+import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png] [--theme light|dark] [--scale 2]
   carto watch  <file.yaml…> [same options]      re-render on every save
   carto validate <file.yaml…>                   check files, print problems
-  carto new <type> [file.yaml]                  start from a template
+  carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
                                                 erDiagram) to YAML; .md: every mermaid block
-  carto types                                   list diagram types
+  carto types [words…]                          which type to pick, best match first
 
 Manual positions are read from <file>.layout.json next to the diagram.`;
 
@@ -124,6 +124,23 @@ async function importFile(file: string): Promise<boolean> {
   return ok;
 }
 
+const bold = (s: string) => (process.stdout.isTTY ? `\x1b[1m${s}\x1b[0m` : s);
+
+/** What each type is for; with words, the best matches first and the rest left out. */
+function typeGuide(query = '') {
+  const ranked = matchTypes(query, types);
+  const shown = query && ranked[0]!.score > 0 ? ranked.filter((r) => r.score > 0) : ranked;
+  if (query && !ranked[0]!.score) console.log(dim(`Nothing matches "${query}"; architecture (systems) is the usual start.\n`));
+  const name = (id: string) => findType(id)?.name ?? id;
+  for (const { type: t } of shown) {
+    console.log(`${bold(t.id.padEnd(14))} ${t.name}${t.tagline ? dim(' — ' + t.tagline) : ''}`);
+    for (const u of t.useWhen ?? []) console.log(`${' '.repeat(15)}+ ${u}`);
+    for (const n of t.notFor ?? []) console.log(dim(`${' '.repeat(15)}- not for: ${n.text}${n.use ? ` → ${n.use} (${name(n.use)})` : ''}`));
+    console.log();
+  }
+  console.log(dim('Start one: carto new <type> [file.yaml]. Guide: docs/types.md'));
+}
+
 async function main(): Promise<number> {
   if (values.help || !command) {
     console.log(help);
@@ -131,10 +148,12 @@ async function main(): Promise<number> {
   }
   switch (command) {
     case 'types':
-      for (const t of types) console.log(`${t.id.padEnd(14)} ${t.name} ${dim('— ' + t.description)}`);
+      typeGuide(files.join(' '));
       return 0;
     case 'new': {
       const [id, target] = files;
+      // Without a type, help picking one instead of an error.
+      if (!id) return (typeGuide(), 0);
       const type = findType(id);
       if (!type) {
         console.error(`Unknown type "${id ?? ''}". Types: ${types.map((t) => t.id).join(', ')}`);

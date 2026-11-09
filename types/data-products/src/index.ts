@@ -515,6 +515,18 @@ export const dataProducts: DiagramType<DataProductSource> = {
   id: 'data-products',
   name: 'Data products',
   description: 'Domains, data products with input and output ports, data contracts and consumers',
+  icon: 'boxes',
+  tagline: 'Data mesh: domains, products, their ports, contracts and consumers',
+  useWhen: [
+    'Which data products feed which, through which ports',
+    'Link data contracts (ODCS) to the ports they describe',
+    'Who consumes a product: reports, models, apps',
+  ],
+  notFor: [
+    { text: 'The tables inside one database', use: 'erd' },
+    { text: 'ETL jobs and services as boxes', use: 'systems' },
+  ],
+  keywords: ['data product', 'data mesh', 'domain', 'contract', 'odcs', 'port', 'lineage', 'consumer', 'dataset', 'dashboard', 'report', 'analytics', 'warehouse', 'lakehouse', 'sla'],
   schema,
   palette,
   build,
