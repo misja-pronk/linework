@@ -121,16 +121,20 @@ function kindCaption(label: string | undefined, kind: string | undefined): strin
 
 export function buildKubernetes(src: GraphSource, ctx: Parameters<DiagramType['build']>[1]) {
   const kinds = new Map<string, string>();
+  const later = new Map<string, string[]>();
   const nodes: Record<string, string | K8sEntry> = {};
   for (const [id, raw] of Object.entries(src.nodes ?? {})) {
     const e: K8sEntry = typeof raw === 'string' ? { kind: raw } : { ...(raw as K8sEntry) };
     kinds.set(id, e.kind ?? '');
-    // Resources have names, and the id is that name: "api", not "Deployment". People and the outside keep the kind.
-    if (e.label === undefined && config.nodeKinds[e.kind ?? ''] && !outside.has(e.kind!)) e.label = id;
+    // Resources have names, and the id is that name: "api", not "Deployment". People and the outside keep the kind,
+    // and what runs a model element (of:) takes that element's name.
+    if (e.label === undefined && e.of == null && config.nodeKinds[e.kind ?? ''] && !outside.has(e.kind!)) e.label = id;
     const more = detailText(e);
     // A LoadBalancer is worth saying instead of "Service"; the rest follows the kind.
     const head = e.serviceType && e.serviceType !== 'ClusterIP' ? undefined : kindCaption(e.label, e.kind);
-    if (e.caption === undefined && more.length) e.caption = [head, ...more].filter(Boolean).join(' · ');
+    // What runs a model element (of:) is captioned by that element; the details follow after the build.
+    if (e.caption === undefined && more.length && e.of != null) later.set(id, more);
+    else if (e.caption === undefined && more.length) e.caption = [head, ...more].filter(Boolean).join(' · ');
     for (const k of Object.keys(details)) delete e[k];
     nodes[id] = e;
   }
@@ -155,6 +159,7 @@ export function buildKubernetes(src: GraphSource, ctx: Parameters<DiagramType['b
 
   const graph = buildGraph({ ...src, nodes, edges, badges: src.badges ?? defaultBadges }, config, ctx);
 
+  for (const n of graph.nodes) if (later.has(n.id) && n.shape.kind === 'card') n.shape.caption = [n.shape.caption, ...later.get(n.id)!].filter(Boolean).join(' · ');
   // A badge belongs on the workload, whichever way the edge was written (hpa -> api, api -> config).
   for (const e of graph.edges) {
     const [a, b] = [kinds.get(e.from.node), kinds.get(e.to.node)];

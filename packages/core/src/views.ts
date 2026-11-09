@@ -5,11 +5,16 @@
 // A view picks elements (ids, `id.*`, `tag:x`, `kind:x`, `*`) and relations (`a -> b`, `* -> shop`);
 // `expand` opens an element into a boundary with its parts. Relations of the model are drawn between
 // whatever is shown: one to a part of a closed element ends on that element (C4's implied relations).
+//
+// Deployments: a node or group with `of: shop.api` runs that element. It is an instance, so several
+// may run the same one; it takes the element's name and technology, links back to the model, and the
+// model's relations are drawn between instances. `env:` on entries and `environment:` on a view give
+// one drawing per environment; `complete:` on a view warns about parts that nothing runs.
 import { parseEdge } from './edges.ts';
 import type { BuildContext, KindTable } from './diagram-type.ts';
 import { withTechnology, type ModelContext, type ModelElement, type ViewSpec } from './catalogue.ts';
 import type { Graph, LayoutSidecar, Path, Point, ViewPins } from './model.ts';
-import type { Entry, GraphSource, GraphTypeConfig } from './graph-source.ts';
+import { kindCaption, type Entry, type GraphSource, type GraphTypeConfig } from './graph-source.ts';
 
 /** Where drawn entries are written, when not at ['nodes', id] / ['edges', i]: model elements, other files. */
 export interface Origins {
@@ -40,13 +45,59 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   const view = m.view;
   const vat = (key: 'include' | 'exclude' | 'expand', j: number): Path => (view && view.at[0] === 'views' ? [...view.at, key, j] : (view?.at ?? []));
 
+  const vkey = (key: 'environment' | 'complete'): Path => (view && view.at[0] === 'views' ? [...view.at, key] : (view?.at ?? []));
+
+  // 0. One environment: what is tagged for another is not in this drawing, and neither is what sits in it.
+  const env = view?.environment;
+  const away = new Set<string>();
+  let tagged = false;
+  if (env) {
+    const all = new Map<string, Entry>();
+    for (const coll of ['groups', 'nodes'] as const) for (const [id, raw] of Object.entries(src[coll] ?? {})) if (raw && typeof raw === 'object') all.set(id, raw);
+    for (const id of all.keys()) {
+      const seen = new Set<string>();
+      for (let cur: string | undefined = id; cur && !seen.has(cur); cur = all.get(cur)?.in) {
+        seen.add(cur);
+        const tags = envsOf(all.get(cur)?.env);
+        if (tags) tagged = true;
+        if (tags && !tags.includes(env)) away.add(id);
+      }
+    }
+  }
+
   // 1. Entries written here, with what their ref says filled in. Same id as an element: the same thing.
   const claimed = new Map<string, string>();
+  /** Element id → the entries that run it (`of:`), and the other way round. */
+  const runs = new Map<string, string[]>();
+  const runner = new Map<string, string>();
+  // Where an instance links back to: the model file, at the view that shows its element when there is one.
+  const back = (el: ModelElement): { to: string; label: string } | undefined => {
+    const file = el.at[0] === 'include' ? el.at.at(-1) : undefined;
+    if (typeof file !== 'string') return undefined;
+    const views = (m.includedViews ?? []).filter((v) => v.file === file);
+    const pick =
+      views.find((v) => !!el.parent && (v.kind === 'container' || v.kind === 'component') && v.of === el.parent) ??
+      views.find((v) => !!el.parent && !v.kind && v.expand?.includes(el.parent)) ??
+      views.find((v) => !!v.kind && v.kind !== 'dynamic' && v.of === el.id);
+    return { to: pick ? `${file}#${pick.name}` : file, label: `${el.label ?? el.name} in the model` };
+  };
   const local = new Map<string, { coll: Coll; entry: Entry; kind?: string; tags: string[] }>();
   for (const coll of ['groups', 'nodes'] as const)
     for (const [id, raw] of Object.entries(src[coll] ?? {})) {
+      if (away.has(id)) continue;
       let e: Entry = raw == null ? { ref: id } : typeof raw === 'string' ? { kind: raw } : { ...raw };
       let kind = e.kind;
+      if (e.of != null) {
+        const el = els.get(e.of);
+        if (e.ref != null) ctx.error([coll, id, 'of'], `"${id}" has ref: (it is the element) and of: (it runs the element): keep one of them`);
+        else if (!el) ctx.error([coll, id, 'of'], els.size ? `There is no element "${e.of}" in the model` : `"${e.of}" needs a model: add include: [model.yaml] or elements:`);
+        else {
+          runs.set(el.id, [...(runs.get(el.id) ?? []), id]);
+          runner.set(id, el.id);
+          e = instanceOf(el, e, coll, cfg, ctx, [coll, id], back(el));
+          kind = e.kind;
+        }
+      }
       if (e.ref != null) {
         const el = els.get(e.ref);
         if (!el)
@@ -70,19 +121,61 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   for (const it of items.values()) if (it.parent) children.set(it.parent, [...(children.get(it.parent) ?? []), it.id]);
   const find = (s: string) => (items.has(s) ? s : els.has(s) ? uid(s) : undefined);
 
-  const relations: { from: string; to: string; local?: number; model?: number }[] = [];
-  const edgeEnds = (src.edges ?? []).map((item) => {
+  /** Lines to or from what is in another environment, or tagged for one themselves. */
+  const dropped = new Set<number>();
+  const relations: { from: string; to: string; local?: number; model?: number; exact?: boolean; of?: { from: string; to: string } }[] = [];
+  const edgeEnds = (src.edges ?? []).map((item, i) => {
     const spec = parseEdge(item, []);
     if (typeof spec === 'string') return undefined;
+    if (env) {
+      const tags = envsOf(spec.props.env);
+      if (tags) tagged = true;
+      if ((tags && !tags.includes(env)) || away.has(spec.from.node) || away.has(spec.to.node)) dropped.add(i);
+    }
     const end = (e: { node: string; row?: string }) => find(e.row ? `${e.node}.${e.row}` : e.node) ?? (items.has(e.node) ? e.node : undefined);
     return { from: end(spec.from), to: end(spec.to) };
   });
-  edgeEnds.forEach((e, i) => e?.from && e.to && relations.push({ from: e.from, to: e.to, local: i }));
+  edgeEnds.forEach((e, i) => e?.from && e.to && !dropped.has(i) && relations.push({ from: e.from, to: e.to, local: i }));
+  // dev may well be what is left without the extras of prod; a filter with nothing to filter on is a mistake.
+  if (env && !tagged) ctx.warn(vkey('environment'), `Nothing here has env:, so environment: ${env} leaves nothing out`);
+
+  // What runs an element: its own instances, or those of what it is part of (a component runs where its container does).
+  const running = (id: string) => {
+    for (let cur: string | undefined = id; cur; cur = els.get(cur)?.parent) if (runs.has(cur)) return { el: cur, ids: runs.get(cur)! };
+    return undefined;
+  };
+  /** The groups around an entry, innermost first. */
+  const around = (id: string) => {
+    const out: string[] = [];
+    for (let p = local.get(id)?.entry.in; p && !out.includes(p); p = local.get(p)?.entry.in) out.push(p);
+    return out;
+  };
+  /** Of several instances the ones closest to `a`: in the same zone, else the same region, …; all when none is closer. */
+  const nearest = (a: string, list: string[]) => {
+    const mine = around(a);
+    const depth = (b: string) => {
+      const theirs = new Set(around(b));
+      const i = mine.findIndex((g) => theirs.has(g));
+      return i < 0 ? Infinity : i;
+    };
+    const best = Math.min(...list.map(depth));
+    return list.filter((b) => depth(b) === best);
+  };
   for (const r of m.relations) {
     const from = find(r.from);
     const to = find(r.to);
     for (const [end, id] of [[from, r.from], [to, r.to]] as const) if (!end) ctx.warn(r.at, `There is no element "${id}" in the model`);
-    if (from && to) relations.push({ from, to, model: r.index });
+    if (!from || !to) continue;
+    const f = running(r.from);
+    const t = running(r.to);
+    if (!f && !t) {
+      relations.push({ from, to, model: r.index });
+      continue;
+    }
+    // Between parts of one deployed element: that stays inside it.
+    if (f && t && f.el === t.el) continue;
+    const exact = (!f || f.el === r.from) && (!t || t.el === r.to);
+    for (const a of f ? f.ids : [from]) for (const b of t ? nearest(a, t.ids) : [to]) relations.push({ from: a, to: b, model: r.index, exact, of: { from, to } });
   }
 
   // 3. What the view shows.
@@ -110,7 +203,8 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     if (sel.startsWith('tag:')) return it.tags.includes(sel.slice(4));
     if (sel.startsWith('kind:')) return it.kind === sel.slice(5);
     if (sel.endsWith('.*')) return !!it.parent && it.parent === find(sel.slice(0, -2));
-    return find(sel) === it.id;
+    // An element's id also picks what runs it.
+    return find(sel) === it.id || (els.has(sel) && runner.get(it.id) === sel);
   };
   const deep = (sel: string, id: string) => sel === '*' || ancestry(id).some((a) => matches(sel, items.get(a)!));
   const relMatch = (sel: string, r: { from: string; to: string }) => {
@@ -122,7 +216,10 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   const hasLocal = local.size > 0;
   if (!view) for (const it of items.values()) if (hasLocal ? !!it.coll : matches('*', it)) show.add(it.id);
   if (view) {
-    for (const [j, sel] of (view.include ?? ['*']).entries()) {
+    // A deployment draws its own infrastructure: the model names what runs on it, it does not add cards.
+    const own = !view.include && hasLocal && (runs.size > 0 || !!env || !!view.complete);
+    if (own) for (const it of items.values()) if (it.coll) show.add(it.id);
+    for (const [j, sel] of (own ? [] : (view.include ?? ['*'])).entries()) {
       let hit = false;
       if (isRelation(sel)) {
         for (const r of relations) if (relMatch(sel, r)) (show.add(shown(r.from)), show.add(shown(r.to)), (hit = true));
@@ -135,7 +232,9 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     }
     for (const sel of view.exclude ?? []) if (!isRelation(sel)) for (const it of items.values()) if (matches(sel, it)) show.delete(it.id);
   }
-  const hidden = (r: { from: string; to: string }) => (view?.exclude ?? []).some((sel) => isRelation(sel) && relMatch(sel, r));
+  // A relation between instances is also hidden by the ids of the elements they run.
+  const hidden = (r: { from: string; to: string; of?: { from: string; to: string } }) =>
+    (view?.exclude ?? []).some((sel) => isRelation(sel) && (relMatch(sel, r) || (!!r.of && relMatch(sel, r.of))));
   // What sits inside a drawn group keeps that group.
   for (const id of [...show]) for (let p = items.get(id)?.parent; p && open(p) && !show.has(p); p = items.get(p)?.parent) show.add(p);
   const asGroup = (id: string) => items.get(id)?.coll === 'groups' || (expanded.has(id) && !items.get(id)?.coll);
@@ -167,6 +266,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   };
   const pairs = new Set<string>();
   for (const [i, item] of (src.edges ?? []).entries()) {
+    if (dropped.has(i)) continue;
     const ends = edgeEnds[i];
     if (ends?.from && ends.to) {
       const r = { from: ends.from, to: ends.to };
@@ -179,6 +279,27 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     } else out.edges!.push(item);
     out.origin.edges.push({ path: ['edges', i], id: `e${i}` });
   }
+  // The lines written here, to follow: what they already carry between two instances (web → load
+  // balancer → api) is not drawn again as the model's relation.
+  const next = new Map<string, string[]>();
+  for (const key of pairs) {
+    const [a, b] = key.split('\0') as [string, string];
+    next.set(a, [...(next.get(a) ?? []), b]);
+  }
+  const carried = (from: string, to: string) => {
+    // A line from a group around it is a line from it, and a line into a group reaches what is in it.
+    const start = ancestry(from);
+    const seen = new Set<string>();
+    const queue = [...start];
+    while (queue.length) {
+      const cur = queue.pop()!;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      if (cur === to) return true;
+      queue.push(...(next.get(cur) ?? []), ...(start.includes(cur) ? [] : (children.get(cur) ?? [])));
+    }
+    return false;
+  };
   const drawn = new Map<string, { labels: string[]; style?: string; at: Path; index: number; exact: boolean }>();
   for (const r of relations) {
     if (r.model == null || hidden(r)) continue;
@@ -186,9 +307,10 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     const from = lift(r.from);
     const to = lift(r.to);
     if (!from || !to || from === to || pairs.has(`${from}\0${to}`)) continue;
+    if (r.of && carried(from, to)) continue;
     const key = `${from}\0${to}`;
     // A relation written between exactly these two says it best; implied ones only fill in when there is none.
-    const exact = from === r.from && to === r.to;
+    const exact = r.exact ?? (from === r.from && to === r.to);
     const old = drawn.get(key);
     const d = old && (old.exact || !exact) ? old : { labels: [], style: rel.style, at: rel.at, index: rel.index, exact };
     if (old?.exact && !exact) continue;
@@ -196,12 +318,26 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     if (label && !d.labels.includes(label)) d.labels.push(label);
     drawn.set(key, d);
   }
+  const edgeIds = new Set<string>();
   for (const [key, d] of drawn) {
     const [from, to] = key.split('\0') as [string, string];
     const style = d.style && cfg.edgeStyles?.[d.style] ? { style: d.style } : {};
     out.edges!.push({ from, to, ...(d.labels.length ? { label: d.labels.join(', ') } : {}), ...style });
-    out.origin.edges.push({ path: d.at, id: `r${d.index}` });
+    // One relation between instances in several places is several lines.
+    let id = `r${d.index}`;
+    for (let n = 2; edgeIds.has(id); n++) id = `r${d.index}-${n}`;
+    edgeIds.add(id);
+    out.origin.edges.push({ path: d.at, id });
   }
+
+  if (view?.complete)
+    checkComplete(
+      view,
+      els,
+      (id) => (runs.get(id) ?? []).some((x) => show.has(x)) || (claimed.has(id) && !!items.get(claimed.get(id)!)?.coll && show.has(claimed.get(id)!)),
+      'add a node with of:',
+      ctx,
+    );
   return out;
 
   // An edge written with an element path ("shop.api") whose element is drawn under a local id.
@@ -233,6 +369,67 @@ export function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: Gra
     ...(el.tags.length || local.tags?.length ? { tags: [...new Set([...(local.tags ?? []), ...el.tags])] } : {}),
     ...((local.technology ?? el.technology) ? { technology: local.technology ?? el.technology } : {}),
   };
+}
+
+const envsOf = (v: unknown): string[] | undefined => (v == null ? undefined : (Array.isArray(v) ? v : [v]).map(String));
+
+/**
+ * An entry that runs a model element (`of:`): infrastructure of its own kind, named after the element.
+ * Under a name of its own (a resource name) the caption says what it runs. The element's links are not
+ * taken over (they tend to point at this very deployment); `back` is the link to the model instead.
+ */
+export function instanceOf(el: ModelElement, local: Entry, coll: Coll, cfg: GraphTypeConfig, ctx: BuildContext, at: Path, back?: { to: string; label: string }): Entry {
+  const kind = local.kind ?? mapKind(el.kind, coll, cfg, (msg) => ctx.warn(at, msg));
+  const name = el.label ?? el.name;
+  const technology = local.technology ?? el.technology;
+  // What it runs on, when the entry says so itself (kind: container-app), then what it is built with.
+  const named = local.kind != null && kind === local.kind ? kindCaption(local.label ?? name, cfg.nodeKinds[kind] ?? cfg.groupKinds[kind]) : undefined;
+  // "PostgreSQL · PostgreSQL 16" says it twice.
+  const on = named && technology?.toLowerCase().includes(named.toLowerCase()) ? undefined : named;
+  const caption = local.caption ?? ([local.label != null && local.label !== name ? name : undefined, on, technology].filter(Boolean).join(' · ') || undefined);
+  const written = Array.isArray(local.links) ? local.links : [];
+  const links = [...written, ...(back && !written.some((l) => l === back.to || (!!l && typeof l === 'object' && (l as { to?: unknown }).to === back.to)) ? [back] : [])];
+  const tags = [...new Set([...(local.tags ?? []), ...el.tags])];
+  return {
+    ...local,
+    ...(kind ? { kind } : local.icon ? {} : { icon: 'box' }),
+    label: local.label ?? name,
+    ...(caption ? { caption } : {}),
+    ...(links.length ? { links } : {}),
+    description: local.description ?? `Runs ${name} (${el.id})${el.description ? `: ${el.description}` : ''}`,
+    ...(tags.length ? { tags } : {}),
+    ...(technology ? { technology } : {}),
+  };
+}
+
+const PEOPLE = new Set(['person', 'user', 'users', 'actor', 'team']);
+
+/**
+ * `complete:` on a deployment view: every part of every system (or of the elements named) should run
+ * somewhere in it. People and what is external are not deployed; a part counts as running when it,
+ * what it is part of, or one of its own parts does.
+ */
+export function checkComplete(view: ViewSpec, els: Map<string, ModelElement>, runs: (id: string) => boolean, hint: string, ctx: BuildContext): void {
+  if (!view.complete) return;
+  const at: Path = view.at[0] === 'views' ? [...view.at, 'complete'] : view.at;
+  const all = [...els.values()];
+  const outside = (e: ModelElement) => e.tags.includes('external') || PEOPLE.has(e.kind ?? '');
+  const parts = (e: ModelElement) => {
+    const kids = all.filter((c) => c.parent === e.id && !outside(c));
+    return kids.length ? kids : [e];
+  };
+  const scope =
+    view.complete === true
+      ? all.filter((e) => !e.parent && !outside(e))
+      : view.complete.flatMap((id) => {
+          const e = els.get(id);
+          if (!e) ctx.warn(at, `There is no element "${id}" in the model`);
+          return e ? [e] : [];
+        });
+  for (const e of scope.flatMap(parts)) {
+    const family = all.filter((x) => x.id === e.id || x.id.startsWith(`${e.id}.`) || e.id.startsWith(`${x.id}.`));
+    if (!family.some((x) => runs(x.id))) ctx.warn(at, `Nothing runs "${e.id}"${e.label ? ` (${e.label})` : ''} in ${view.environment ?? 'this view'}: ${hint} ${e.id}`);
+  }
 }
 
 /** A model kind in this type's terms: its own kind, a group kind on a card (or the other way), an alias, or none. */

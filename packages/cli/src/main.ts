@@ -26,7 +26,7 @@ const help = `carto — architecture diagrams that look good
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
-  carto validate <file.yaml…>                   check files, print problems
+  carto validate <file.yaml…>                   check files and each of their views, print problems
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
@@ -426,9 +426,16 @@ async function main(): Promise<number> {
     case 'validate': {
       let ok = true;
       for (const f of files) {
-        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
-        report(f, r.diagnostics);
-        if (r.diagnostics.some((d) => d.severity === 'error')) ok = false;
+        const text = fs.readFileSync(f, 'utf8');
+        const opts = { fonts: 'none' as const, load: loaderFor(f), file: path.basename(f) };
+        const r = await render(text, { ...opts, view: values.view });
+        // Without --view every view is checked too: what a view says about itself (complete: true for
+        // an environment) is only known when that view is drawn. The same problem is printed once.
+        const rest = values.view ? [] : await Promise.all((r.views ?? []).map((v) => render(text, { ...opts, view: v.name })));
+        const seen = new Set<string>();
+        const diagnostics = [r, ...rest].flatMap((x) => x.diagnostics).filter((d) => !seen.has(`${d.line}:${d.column}:${d.message}`) && !!seen.add(`${d.line}:${d.column}:${d.message}`));
+        report(f, diagnostics);
+        if (diagnostics.some((d) => d.severity === 'error')) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
       return ok ? 0 : 1;

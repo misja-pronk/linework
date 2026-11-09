@@ -27,7 +27,7 @@ export interface GraphTypeConfig {
 }
 
 /** The kind's name as caption, unless the kind is quiet or the label already says it ("Order service"). */
-function kindCaption(label: string | undefined, kind: KindTable[string] | undefined): string | undefined {
+export function kindCaption(label: string | undefined, kind: KindTable[string] | undefined): string | undefined {
   if (!kind || kind.quiet || kind.form) return undefined;
   if (label === undefined) return kind.label;
   const l = label.toLowerCase();
@@ -45,6 +45,10 @@ export interface Entry {
   badges?: string[];
   /** A model element this stands for, e.g. shop.api: its label, kind and links unless set here. */
   ref?: string;
+  /** A model element this runs, e.g. shop.api: an instance of it, named after it and linked back to the model. */
+  of?: string;
+  /** The environments this is part of, e.g. prod or [test, prod]; a view with `environment:` leaves the others out. */
+  env?: string | string[];
   description?: string;
   technology?: string;
   owner?: string;
@@ -79,6 +83,8 @@ export function graphReferences(src: GraphSource): Reference[] {
   return out;
 }
 
+const envSchema = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] };
+
 export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string): object {
   const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
     anyOf: [
@@ -88,7 +94,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       {
         type: 'object',
         // A kind, or a model element that brings one (if/then, so editors still see the properties).
-        if: { not: { required: ['ref'] } },
+        if: { not: { anyOf: [{ required: ['ref'] }, { required: ['of'] }] } },
         then: { required: ['kind'] },
         properties: {
           kind: { enum: kinds },
@@ -99,6 +105,8 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
           tone: { enum: tones },
           ...extra,
           ref: { type: 'string', description: 'A model element this stands for, e.g. shop.api' },
+          of: { type: 'string', description: 'A model element this runs, e.g. shop.api: named after it and linked back to the model' },
+          env: { ...envSchema, description: 'The environments this is part of, e.g. prod or [test, prod]; a view with environment: leaves the others out' },
           ...elementFields,
         },
         additionalProperties: false,
@@ -109,6 +117,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
   const styles: Record<string, object> = {
     ...(styleNames.length ? { style: { enum: styleNames } } : {}),
     badge: { type: 'boolean', description: 'Show as a badge on the source card instead of a line' },
+    env: { ...envSchema, description: 'The environments this line is part of' },
   };
   const badges = styleNames.length
     ? { badges: { type: 'array', items: { enum: styleNames }, description: 'Edge styles shown as badges on the source card instead of lines' } }
@@ -139,7 +148,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
 
 export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildContext): Graph {
   // Refs and views first: what is left is a plain diagram of this type.
-  const refs = (['groups', 'nodes'] as const).some((c) => Object.values(src[c] ?? {}).some((v) => v == null || (typeof v === 'object' && v.ref != null)));
+  const refs = (['groups', 'nodes'] as const).some((c) => Object.values(src[c] ?? {}).some((v) => v == null || (typeof v === 'object' && (v.ref != null || v.of != null))));
   if (ctx.model || refs) {
     const model = ctx.model ?? { ...emptyCatalogue() };
     model.used = true;
