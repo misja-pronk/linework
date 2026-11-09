@@ -24,6 +24,8 @@ nodes:
   pe: { kind: private-endpoint, label: pe-sql, in: data }
   logs: { kind: log-analytics, label: Central logs, in: conn }
 
+badges: [management]
+
 edges:
   - office -> router
   - router -> vpn: { label: IPsec, style: private }
@@ -35,3 +37,5 @@ edges:
   - pe -> sql: { style: private }
   - apps ..> dns: { label: resolve }
   - fw -> logs: { label: diagnostics, style: management }
+  - agw -> logs: { label: diagnostics, style: management }
+  - apps -> logs: { label: diagnostics, style: management }

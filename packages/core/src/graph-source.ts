@@ -36,6 +36,8 @@ export interface GraphSource {
   groups?: Record<string, string | Entry>;
   nodes?: Record<string, string | Entry>;
   edges?: unknown[];
+  /** Edge styles drawn as badges on the source card instead of lines, e.g. [identity, management]. */
+  badges?: string[];
 }
 
 /** References in node-and-edge YAML: `in:` and edge ends. */
@@ -69,7 +71,14 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       },
     ],
   });
-  const styles: Record<string, object> = cfg.edgeStyles ? { style: { enum: Object.keys(cfg.edgeStyles) } } : {};
+  const styleNames = Object.keys(cfg.edgeStyles ?? {});
+  const styles: Record<string, object> = {
+    ...(styleNames.length ? { style: { enum: styleNames } } : {}),
+    badge: { type: 'boolean', description: 'Show as a badge on the source card instead of a line' },
+  };
+  const badges = styleNames.length
+    ? { badges: { type: 'array', items: { enum: styleNames }, description: 'Edge styles shown as badges on the source card instead of lines' } }
+    : {};
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title,
@@ -87,6 +96,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
         additionalProperties: entry(Object.keys(cfg.nodeKinds), { badges: { type: 'array', items: { type: 'string' } } }),
       },
       edges: { type: 'array', items: edgeItemSchema(styles) },
+      ...badges,
     },
     additionalProperties: false,
   };
@@ -145,7 +155,11 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   });
 
   const edges: GraphEdge[] = [];
+  // Styles drawn as lines and as badges, apart: the legend shows a sample of each.
   const usedStyles = new Set<string>();
+  const badgeStyles = new Set<string>();
+  const badgeList = new Set(src.badges ?? []);
+  const nodeIds = new Set(nodeEntries.map(([id]) => id));
   for (const [i, item] of (src.edges ?? []).entries()) {
     const spec = parseEdge(item, ['edges', i]);
     if (typeof spec === 'string') {
@@ -159,8 +173,15 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
         ok = false;
       }
     if (!ok) continue;
-    const style = typeof spec.props.style === 'string' ? cfg.edgeStyles?.[spec.props.style] : undefined;
-    if (style) usedStyles.add(spec.props.style as string);
+    const styleId = typeof spec.props.style === 'string' ? spec.props.style : undefined;
+    const style = styleId ? cfg.edgeStyles?.[styleId] : undefined;
+    // `badge:` on the edge wins over the diagram's `badges:` list; only a node can carry a badge.
+    let badge = typeof spec.props.badge === 'boolean' ? spec.props.badge : !!styleId && badgeList.has(styleId);
+    if (badge && !nodeIds.has(spec.from.node)) {
+      if (spec.props.badge === true) ctx.warn(['edges', i], 'Only a connection from a node can be a badge; drawn as a line');
+      badge = false;
+    }
+    if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
     edges.push({
       id: `e${i}`,
       from: spec.from,
@@ -170,13 +191,16 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       tone: style?.tone,
       start: spec.start,
       end: spec.end,
+      ...(badge ? { badge } : {}),
+      ...(style ? { kind: style.label } : {}),
       path: spec.path,
     });
   }
 
-  const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {})
-    .filter(([k]) => usedStyles.has(k))
-    .map(([, s]) => ({ label: s.label, line: s.line, tone: s.tone }));
+  const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {}).flatMap(([k, s]) => [
+    ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone }] : []),
+    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone }] : []),
+  ]);
 
   return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend };
 }

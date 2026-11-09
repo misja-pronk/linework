@@ -1,9 +1,9 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import type { Box, CardShape, Graph, GraphEdge, GraphGroup, Marker, Placed, Point, TableShape } from '@cartography/core';
-import { baselineOffset, embeddedFonts, fitText, measureText, type Theme } from '@cartography/theme';
+import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
+import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardCaption, groupLabelWidth, MARK_WIDTH, tableHeader } from './size.ts';
+import { cardCaption, CHIP, chipLeft, chipRows, groupLabelWidth, MARK_WIDTH, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 
 export interface SvgOptions {
@@ -62,22 +62,25 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const hint = opts.interactive && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     out.push(`<g${data('group', g.id)}>${drawGroup(g, box, theme)}${hint}</g>`);
   }
+  const badges = chips(graph);
+  const badged = new Set([...badges.values()].flat().map((c) => c.edge));
   for (const e of graph.edges) {
     const pe = placed.edges.get(e.id);
-    if (pe && pe.points.length > 1) out.push(`<g${data('edge', e.id)}>${drawEdge(e, pe.points, theme)}</g>`);
+    if (pe && pe.points.length > 1 && !badged.has(e.id)) out.push(`<g${data('edge', e.id)}>${drawEdge(e, pe.points, theme)}</g>`);
   }
   for (const n of graph.nodes) {
     const box = placed.nodes.get(n.id);
     if (!box) continue;
     const shape = n.shape;
     const body =
-      shape.kind === 'card' ? drawCard(shape, box, theme, id)
+      shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id)
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     out.push(`<g${data('node', n.id)}>${body}</g>`);
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
+    if (badged.has(e.id)) continue;
     const label = placed.edges.get(e.id)?.label;
     if (e.label && label) out.push(drawEdgeLabel(e.label, label, theme));
   }
@@ -134,14 +137,16 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme): string {
   return s;
 }
 
-function drawCard(shape: CardShape, b: Box, theme: Theme, id: string): string {
+function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => ''): string {
   const c = theme.space.card;
   const tone = theme.tones[shape.tone];
-  const tileY = b.y + (b.height - c.tile) / 2;
-  const tx = b.x + c.padX + c.tile + c.gap;
+  // With badges the tile and text keep the top of the card and the chips fill the rest.
+  const top = badges.length ? c.height : b.height;
+  const tileY = b.y + (top - c.tile) / 2;
+  const tx = b.x + chipLeft(theme);
   const room = b.width - (tx - b.x) - c.padX;
   const caption = cardCaption(shape);
-  const cy = b.y + b.height / 2;
+  const cy = b.y + top / 2;
   let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.card}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"/>`;
   s += `<rect x="${r1(b.x + c.padX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${theme.radius.tile}" fill="${tone.bg}"/>`;
   s += drawIcon(shape.icon, b.x + c.padX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, tone.fg, theme.stroke.icon);
@@ -150,7 +155,28 @@ function drawCard(shape: CardShape, b: Box, theme: Theme, id: string): string {
     s += textMid(tx, cy - 8, label, theme.size.label, 600, theme.text);
     s += textMid(tx, cy + 9.5, fitText(caption, theme.size.caption, 400, room), theme.size.caption, 400, theme.textMuted);
   } else s += textMid(tx, cy, label, theme.size.label, 600, theme.text);
+  for (const p of chipRows(badges, room, theme).placed)
+    s += `<g${data(p.chip.edge)}><title>${esc(p.chip.title)}</title>${drawChip(p.chip, tx + p.x, b.y + CHIP.top + p.y, p.width, theme)}</g>`;
   return s;
+}
+
+/** A badge: the target's icon and name on a soft tile in the colour of the edge style. */
+function drawChip(ch: Chip, x: number, y: number, w: number, theme: Theme): string {
+  const t = theme.tones[ch.tone ?? 'slate'];
+  const h = CHIP.height;
+  const ix = ch.icon && icon(ch.icon) ? CHIP.icon + CHIP.iconGap : 0;
+  let s = `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${h}" rx="${theme.radius.chip}" fill="${t.bg}"/>`;
+  if (ix) s += drawIcon(ch.icon, x + CHIP.padX, y + (h - CHIP.icon) / 2, CHIP.icon, t.fg, 1.6);
+  const label = fitText(ch.label, theme.size.edgeLabel, 500, w - 2 * CHIP.padX - ix);
+  return s + textMid(x + CHIP.padX + ix, y + h / 2, label, theme.size.edgeLabel, 500, t.fg);
+}
+
+/** Legend sample of a badge: a small chip with an arrow, in the style's colour. */
+function chipSwatch(x: number, cy: number, tone: ToneColors): string {
+  return (
+    `<rect x="${x}" y="${cy - 7}" width="20" height="14" rx="4" fill="${tone.bg}"/>` +
+    `<path d="M${x + 6} ${cy}h8m-3-3l3 3-3 3" fill="none" stroke="${tone.fg}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`
+  );
 }
 
 function drawTable(shape: TableShape, b: Box, theme: Theme, id: string): string {
@@ -311,6 +337,7 @@ function drawLegend(g: Graph, theme: Theme, x0: number, cy: number): string {
     .map(({ item, x }) => {
       const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
       const label = textMid(x0 + x + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
+      if (item.swatch === 'badge') return chipSwatch(x0 + x, cy, theme.tones[item.tone ?? 'slate']) + label;
       if (item.swatch === 'fill')
         return `<rect x="${x0 + x}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
       if (item.swatch === 'check' || item.swatch === 'check-outline') {

@@ -98,6 +98,9 @@ nodes:
   db: { kind: sql-database, label: Orders, in: data }
   vault: { kind: key-vault, label: Secrets, in: rg }
 
+# Styles shown as a badge on the card instead of a line
+badges: [identity]
+
 edges:
   - users -> edge: { label: HTTPS, style: public }
   - edge -> web: { style: public }

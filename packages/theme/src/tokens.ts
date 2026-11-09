@@ -33,7 +33,7 @@ export interface Theme {
     edgeLabel: number;
     cell: number;
   };
-  radius: { card: number; group: number; tile: number; pill: number; corner: number };
+  radius: { card: number; group: number; tile: number; chip: number; pill: number; corner: number };
   space: {
     pad: number;
     card: { height: number; padX: number; tile: number; gap: number; minWidth: number; maxWidth: number };
@@ -51,7 +51,7 @@ const shared = {
     mono: "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
   },
   size: { title: 20, subtitle: 13, label: 13.5, caption: 11.5, group: 12, edgeLabel: 11, cell: 12 },
-  radius: { card: 12, group: 16, tile: 9, pill: 999, corner: 10 },
+  radius: { card: 12, group: 16, tile: 9, chip: 6, pill: 999, corner: 10 },
   space: {
     pad: 40,
     card: { height: 58, padX: 12, tile: 34, gap: 12, minWidth: 172, maxWidth: 280 },

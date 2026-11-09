@@ -17,6 +17,8 @@ nodes:
   db: { kind: sql-database, label: Orders, in: data }
   vault: { kind: key-vault, label: Secrets, in: rg }
 
+badges: [identity]
+
 edges:
   - users -> edge: { label: HTTPS, style: public }
   - edge -> web: { style: public }
