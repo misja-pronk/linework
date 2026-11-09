@@ -12,7 +12,8 @@ import { idPattern, type BuildContext, type KindTable, type Reference } from './
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
-import { resolveSource, type Origins } from './views.ts';
+import type { Origins } from './views.ts';
+import { viewSource } from './c4-views.ts';
 
 export interface GraphTypeConfig {
   nodeKinds: KindTable;
@@ -49,6 +50,8 @@ export interface Entry {
   owner?: string;
   tags?: string[];
   links?: unknown[];
+  /** How many run (a deployment node): shown as ×3. */
+  count?: number;
 }
 
 export interface GraphSource {
@@ -140,7 +143,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   if (ctx.model || refs) {
     const model = ctx.model ?? { ...emptyCatalogue() };
     model.used = true;
-    src = resolveSource(src, cfg, model, ctx);
+    src = viewSource(src, cfg, model, ctx);
   }
   const origin = src.origin;
   const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
@@ -238,6 +241,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     }
     if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
     else if (!badge && spec.line === 'solid') plainLines = true;
+    const step = typeof spec.props.step === 'number' ? spec.props.step : undefined;
     edges.push({
       id: origin?.edges[i]?.id ?? `e${i}`,
       from: spec.from,
@@ -249,9 +253,15 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       end: spec.end,
       ...(badge ? { badge } : {}),
       ...(style ? { kind: style.label } : {}),
+      ...(step ? { step } : {}),
       path: spec.path,
     });
   }
+  // Numbered lines of a dynamic view, in order: what a step-through walks.
+  const steps = edges
+    .filter((e) => e.step)
+    .sort((a, b) => a.step! - b.step!)
+    .map((e) => ({ n: e.step!, edge: e.id, from: e.from.node, to: e.to.node, ...(e.label ? { label: e.label } : {}), path: e.path }));
 
   const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {}).flatMap(([k, s]) => [
     ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone }] : []),
@@ -260,7 +270,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing.
   if (cfg.plainEdge && plainLines && legend.length) legend.unshift({ label: cfg.plainEdge, line: 'solid' });
 
-  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend };
+  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
 }
 
 function breakCycles(groups: GraphGroup[], ctx: BuildContext) {

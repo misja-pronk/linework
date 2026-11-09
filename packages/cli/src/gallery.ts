@@ -15,15 +15,20 @@ for (const dir of fs.readdirSync(path.join(root, 'examples')).sort()) {
     const name = `${dir}-${file.replace(/\.yaml$/, '')}`;
     const text = fs.readFileSync(path.join(root, 'examples', dir, file), 'utf8');
     const load = (rel: string) => fs.readFileSync(path.resolve(root, 'examples', dir, rel), 'utf8');
-    for (const theme of ['light', 'dark'] as const) {
-      const r = await render(text, { theme, idPrefix: `${name}-${theme}`, load });
-      for (const d of r.diagnostics) console.error(`examples/${dir}/${file}:${d.line ?? 0}  ${d.message}`);
-      if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) failed = true;
-      if (!r.svg) continue;
-      fs.writeFileSync(path.join(out, `${name}-${theme}.svg`), r.svg);
-      fs.writeFileSync(path.join(out, `${name}-${theme}.png`), toPng((await render(text, { theme, fonts: 'none', load })).svg!, 2));
+    // A C4 model is one file with many views: each is drawn, as <name>-<view>.
+    const views = dir === 'c4' ? ((await render(text, { fonts: 'none', load })).views ?? []).map((v) => v.name) : [];
+    for (const view of views.length ? views : [undefined]) {
+      const id = view ? `${name}-${view}` : name;
+      for (const theme of ['light', 'dark'] as const) {
+        const r = await render(text, { theme, idPrefix: `${id}-${theme}`, load, view });
+        for (const d of r.diagnostics) console.error(`examples/${dir}/${file}:${d.line ?? 0}  ${d.message}`);
+        if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) failed = true;
+        if (!r.svg) continue;
+        fs.writeFileSync(path.join(out, `${id}-${theme}.svg`), r.svg);
+        fs.writeFileSync(path.join(out, `${id}-${theme}.png`), toPng((await render(text, { theme, fonts: 'none', load, view })).svg!, 2));
+      }
+      cards.push(`<figure><figcaption>${dir} · ${file}${view ? ` #${view}` : ''}</figcaption><img class="light" src="${id}-light.svg"><img class="dark" src="${id}-dark.svg"></figure>`);
     }
-    cards.push(`<figure><figcaption>${dir} · ${file}</figcaption><img class="light" src="${name}-light.svg"><img class="dark" src="${name}-dark.svg"></figure>`);
     console.log(`examples/${dir}/${file}`);
   }
 }

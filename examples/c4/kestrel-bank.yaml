@@ -1,0 +1,118 @@
+# Kestrel Bank (fictional): online banking described once as a C4 model, drawn as six views.
+# `carto render kestrel-bank.yaml --all-views` writes one SVG per view; the cards link down
+# from the landscape to the context, the containers and the components of the banking API.
+type: c4
+title: Kestrel Online
+
+elements:
+  customer: { kind: person, label: Personal customer, description: Holds current and savings accounts at Kestrel Bank, external: true }
+  advisor: { kind: person, label: Branch advisor, description: Helps customers in the branch and on the phone }
+
+  online:
+    kind: software-system
+    label: Kestrel Online
+    description: Lets customers check balances, move money and manage their cards
+    elements:
+      web: { kind: web-app, label: Web banking, technology: Next.js, description: Serves online banking to the customer's browser }
+      app: { kind: mobile-app, label: Mobile app, technology: Kotlin and Swift, description: 'Balances, transfers and cards on the phone' }
+      api:
+        kind: container
+        label: Banking API
+        technology: Spring Boot
+        description: Signs customers in and serves accounts and payments as JSON
+        elements:
+          signin: { kind: component, label: Sign-in controller, technology: Spring MVC, description: Starts a session once the credentials check out }
+          accounts: { kind: component, label: Accounts controller, technology: Spring MVC, description: 'Lists accounts, balances and recent transactions' }
+          payments: { kind: component, label: Payments controller, technology: Spring MVC, description: Checks and submits transfers }
+          security: { kind: component, label: Session service, technology: Spring Security, description: Verifies passwords and one-time codes }
+          ledger: { kind: component, label: Ledger client, technology: Spring bean, description: Reads and books on the core ledger }
+          events: { kind: component, label: Event publisher, technology: Spring Cloud Stream, description: Announces what happened to an account }
+      db: { kind: database, label: Customer store, technology: PostgreSQL 16, description: 'Logins, devices, preferences and sessions' }
+      bus: { kind: queue, label: Account events, technology: Kafka, description: Payments and sign-ins as they happen }
+      notifier: { kind: container, label: Notifier, technology: Go, description: Turns account events into emails and push messages }
+
+  ledger: { kind: software-system, label: Core ledger, description: Holds every account and books every transaction }
+  desk: { kind: software-system, label: Advisor desk, description: Customer records and cases for branch staff }
+  mail: { kind: software-system, label: Postbird, external: true, description: Sends transactional email }
+  push: { kind: software-system, label: Push gateway, external: true, description: Delivers notifications to iOS and Android }
+
+relations:
+  - customer -> online.web: { label: Banks online, technology: HTTPS }
+  - customer -> online.app: { label: Banks on the phone }
+  - advisor -> desk: { label: Looks up customers }
+  - desk -> ledger: { label: Reads accounts, technology: SOAP }
+  - online.web -> online.api: { label: Calls, technology: JSON/HTTPS }
+  - online.app -> online.api: { label: Calls, technology: JSON/HTTPS }
+  - online.web -> online.api.signin: { label: Signs in, technology: JSON/HTTPS }
+  - online.web -> online.api.accounts: { label: Gets accounts, technology: JSON/HTTPS }
+  - online.app -> online.api.signin: { label: Signs in, technology: JSON/HTTPS }
+  - online.app -> online.api.payments: { label: Submits transfers, technology: JSON/HTTPS }
+  - online.api.signin -> online.api.security: Checks credentials
+  - online.api.security -> online.db: { label: Reads logins, technology: JDBC }
+  - online.api.accounts -> online.api.ledger: Gets balances
+  - online.api.payments -> online.api.ledger: Books transfers
+  - online.api.payments -> online.api.events: Reports payments
+  - online.api.ledger -> ledger: { label: Reads and books, technology: ISO 20022 over MQ }
+  - online.api.events -> online.bus: { label: Publishes, technology: Kafka, style: async }
+  - online.bus -> online.notifier: { label: Delivers, style: async }
+  - online.notifier -> mail: { label: Sends email, technology: SMTP }
+  - online.notifier -> push: { label: Sends pushes, technology: HTTPS }
+
+views:
+  landscape:
+    kind: landscape
+    title: Kestrel Bank — system landscape
+    subtitle: Who uses what, at a glance
+    enterprise: Kestrel Bank
+  context:
+    kind: context
+    of: online
+    title: Kestrel Online — system context
+    subtitle: The people and systems it works with
+  containers:
+    kind: container
+    of: online
+    title: Kestrel Online — containers
+    subtitle: What runs, and how the parts talk
+  components:
+    kind: component
+    of: online.api
+    title: Banking API — components
+    subtitle: Inside the Spring Boot service
+  payment:
+    kind: dynamic
+    title: Making a transfer
+    subtitle: From the app to the ledger and back to the phone
+    steps:
+      - customer -> online.app: Confirms a transfer
+      - online.app -> online.api.payments: { label: Submits it, technology: JSON/HTTPS }
+      - online.api.payments -> online.api.ledger: Books it
+      - online.api.ledger -> ledger: { label: Posts the booking, technology: ISO 20022 }
+      - online.api.payments -> online.api.events: Reports it
+      - online.api.events -> online.bus: { label: Publishes PaymentMade, technology: Kafka }
+      - online.bus -> online.notifier: Delivers the event
+      - online.notifier -> push: { label: Sends a push, technology: HTTPS }
+  production:
+    kind: deployment
+    title: Kestrel Online — production
+    subtitle: Live environment, eu-west-1 and the Amsterdam data centre
+    nodes:
+      phone: { label: Customer's phone, technology: iOS or Android, instances: [online.app] }
+      aws:
+        label: Amazon Web Services
+        technology: eu-west-1
+        nodes:
+          lb: { kind: load-balancer, label: Load balancer, technology: ALB }
+          eks:
+            label: EKS cluster
+            technology: Kubernetes 1.31
+            nodes:
+              web-pods: { label: web, technology: Docker, count: 3, instances: [online.web] }
+              api-pods: { label: banking-api, technology: Docker, count: 4, instances: [online.api] }
+              notifier-pods: { label: notifier, technology: Docker, count: 2, instances: [online.notifier] }
+          rds: { label: Amazon RDS, technology: PostgreSQL 16, instances: [online.db] }
+          msk: { label: Amazon MSK, technology: Kafka 3.7, instances: [online.bus] }
+      dc: { label: Kestrel data centre, technology: z/OS mainframe, instances: [ledger] }
+    edges:
+      - lb -> online.web: { label: Forwards, technology: HTTPS }
+      - lb -> online.api: { label: Forwards, technology: HTTPS }

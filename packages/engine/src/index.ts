@@ -23,7 +23,7 @@ import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { resolveTheme, themes, withTextScale, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconPackFile } from './icons.ts';
-import { systems } from '@cartography/systems';
+import { c4, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { kubernetes } from '@cartography/kubernetes';
 import { erd } from '@cartography/erd';
@@ -32,7 +32,7 @@ import { github } from '@cartography/github';
 import { dataProducts } from '@cartography/data-products';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, azure, kubernetes, erd, access, github, dataProducts];
+export const types: DiagramType[] = [systems, c4, azure, kubernetes, erd, access, github, dataProducts];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -95,9 +95,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
 
   const data = source.data as Record<string, unknown> | null;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return { diagnostics: [...diagnostics, source.at([], 'A diagram starts with "type:"')] };
-  // A model file draws as an architecture diagram of its elements.
+  // A model file draws as an architecture diagram of its elements; in C4 notation when its views are C4 views.
   const isModel = data.type === 'model';
-  const type = isModel ? systems : findType(data.type);
+  const c4Views = isModel && !!data.views && typeof data.views === 'object' && Object.values(data.views).some((v) => !!v && typeof v === 'object' && 'kind' in v);
+  const type = isModel ? (c4Views ? c4 : systems) : findType(data.type);
   if (!type) {
     const known = types.map((t) => t.id).join(', ');
     const message = data.type == null ? `Add "type:" at the top, one of: ${known} (or model)` : `Unknown type "${String(data.type)}", use one of: ${known} (or model)`;
@@ -125,7 +126,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let onlyViews = false;
   if (Object.keys(rest).some(isModelKey)) {
     const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : type.schema), report, self: opts.file, text });
-    built = isModel ? { ...composed.data, type: 'systems' } : composed.data;
+    built = isModel ? { ...composed.data, type: type.id } : composed.data;
     origin = composed.origin;
     includes = composed.files;
     model = { ...composed.catalogue };
@@ -172,7 +173,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
-  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
