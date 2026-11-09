@@ -41,7 +41,7 @@ describe('data products', () => {
     expect(flows.map((e) => [e.from.row, e.to.row])).toEqual([['out:orders', 'in:0'], ['out:events', 'in:1']]);
     const contract = r.graph!.nodes.find((n) => n.id === 'contract:orders')!.shape as TableShape;
     expect(contract.caption).toBe('Data contract · v2');
-    expect(contract.rows.find((x) => x.kind === 'row' && x.id === 'field:email')).toMatchObject({ marks: ['pii'] });
+    expect(contract.rows.find((x) => x.kind === 'row' && x.id === 'field:0:email')).toMatchObject({ marks: ['pii'] });
     expect(r.graph!.edges.some((e) => e.to.node === 'contract:orders' && e.line === 'dashed')).toBe(true);
   });
 

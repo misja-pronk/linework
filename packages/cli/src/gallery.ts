@@ -14,13 +14,14 @@ for (const dir of fs.readdirSync(path.join(root, 'examples')).sort()) {
   for (const file of fs.readdirSync(path.join(root, 'examples', dir)).filter((f) => f.endsWith('.yaml')).sort()) {
     const name = `${dir}-${file.replace(/\.yaml$/, '')}`;
     const text = fs.readFileSync(path.join(root, 'examples', dir, file), 'utf8');
+    const load = (rel: string) => fs.readFileSync(path.resolve(root, 'examples', dir, rel), 'utf8');
     for (const theme of ['light', 'dark'] as const) {
-      const r = await render(text, { theme, idPrefix: `${name}-${theme}` });
+      const r = await render(text, { theme, idPrefix: `${name}-${theme}`, load });
       for (const d of r.diagnostics) console.error(`examples/${dir}/${file}:${d.line ?? 0}  ${d.message}`);
       if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) failed = true;
       if (!r.svg) continue;
       fs.writeFileSync(path.join(out, `${name}-${theme}.svg`), r.svg);
-      fs.writeFileSync(path.join(out, `${name}-${theme}.png`), toPng((await render(text, { theme, fonts: 'none' })).svg!, 2));
+      fs.writeFileSync(path.join(out, `${name}-${theme}.png`), toPng((await render(text, { theme, fonts: 'none', load })).svg!, 2));
     }
     cards.push(`<figure><figcaption>${dir} · ${file}</figcaption><img class="light" src="${name}-light.svg"><img class="dark" src="${name}-dark.svg"></figure>`);
     console.log(`examples/${dir}/${file}`);

@@ -20,6 +20,7 @@ const crossingBudget: Record<string, number> = {
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 1,
   'data-products/customer-focus.yaml': 0,
+  'data-products/finance.yaml': 1,
   'erd/orders.yaml': 0,
   'erd/saas.yaml': 8,
   'erd/shop-schemas.yaml': 0,
@@ -27,12 +28,13 @@ const crossingBudget: Record<string, number> = {
 };
 
 describe('layout quality', () => {
-  const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).map((f) => `${d}/${f}`));
+  const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
   it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).sort()));
 
   for (const file of files)
     it(file, async () => {
-      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+      const load = (rel: string) => fs.readFileSync(path.resolve(examples, path.dirname(file), rel), 'utf8');
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', load });
       const m = measure(r.graph!, r.placed!);
       expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward }).toEqual({ through: 0, labels: 0, backward: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[file]!);

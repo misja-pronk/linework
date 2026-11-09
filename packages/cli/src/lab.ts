@@ -30,7 +30,8 @@ for (const file of files) {
   const cells: string[] = [];
   for (const name of names) {
     const tuning = variants[name]!;
-    const r = await render(text, { fonts: 'none', tuning }).catch(() => undefined);
+    const load = (rel: string) => fs.readFileSync(path.resolve(root, path.dirname(file), rel), 'utf8');
+    const r = await render(text, { fonts: 'none', tuning, load }).catch(() => undefined);
     if (!r) {
       cells.push(`<td><b>${name}</b> crashed</td>`);
       (totals[name] ??= { score: 0, m: [] }).score += 9999;

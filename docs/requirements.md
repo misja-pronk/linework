@@ -73,7 +73,7 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 - **Data contracts** on output ports: version, classification, schema fields (pk, PII, nullable), guarantees (freshness, availability, …) and quality checks.
 - **Two detail levels from one source:** `view: overview` (products as cards plus lineage between them, one line per product pair) and `view: detailed` (products as tables with their ports, lines attached to the exact port, contracts beside the port they govern).
 - Detail per product too: `detail: [id]` or `detail: true` shows one product in detail and the rest as overview; `show-contracts: false` hides contracts.
-- Read Open Data Contract Standard / data contract YAML (S).
+- Contracts can come from an **Open Data Contract Standard** file (`file: contracts/x.odcs.yaml`, v3 and v2): name, version, schema objects and fields (key, PII from tags or classification, optional unless required), SLA properties with units, quality rules and the strictest classification. Keys written in the diagram override the file; `contract-fields: n` caps the fields shown ("+ n more fields"). The CLI resolves files relative to the diagram and `carto watch` follows them.
 
 ## 4. Text format
 - T1 (M) YAML, one diagram per file, with `type:` at the top and a published JSON Schema per type (autocomplete and validation in VS Code and the web editor).

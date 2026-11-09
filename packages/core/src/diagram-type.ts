@@ -20,6 +20,8 @@ export interface DiagramType<Source = any> {
 export interface BuildContext {
   error(path: Path, message: string): void;
   warn(path: Path, message: string): void;
+  /** Reads a file the diagram refers to (relative to the diagram), e.g. a data contract. Throws when it cannot. Absent where there are no files. */
+  load?(file: string): string;
 }
 
 export interface PaletteItem {

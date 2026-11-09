@@ -55,11 +55,24 @@ function outputPath(file: string, format: string): string {
   return path.join(values.out, base);
 }
 
+/** Reads files a diagram refers to, relative to it, and remembers them so watch can follow them. */
+const loaded = new Map<string, Set<string>>();
+function loaderFor(file: string) {
+  const set = loaded.get(file) ?? new Set<string>();
+  loaded.set(file, set);
+  return (rel: string) => {
+    const p = path.resolve(path.dirname(file), rel);
+    set.add(p);
+    return fs.readFileSync(p, 'utf8');
+  };
+}
+
 async function renderFile(file: string): Promise<boolean> {
   const format = values.format === 'png' ? 'png' : 'svg';
   const opts: RenderOptions = {
     theme: values.theme === 'dark' ? 'dark' : 'light',
     sidecar: sidecarFor(file),
+    load: loaderFor(file),
     // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
     fonts: values['no-fonts'] || format === 'png' ? 'none' : 'embed',
   };
@@ -103,7 +116,7 @@ async function main(): Promise<number> {
     case 'validate': {
       let ok = true;
       for (const f of files) {
-        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none' });
+        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f) });
         report(f, r.diagnostics);
         if (r.diagnostics.some((d) => d.severity === 'error')) ok = false;
         else console.log(`${f} ${dim('ok')}`);
@@ -118,12 +131,24 @@ async function main(): Promise<number> {
     }
     case 'watch': {
       for (const f of files) {
-        await renderFile(f);
         let timer: NodeJS.Timeout | undefined;
-        fs.watch(path.dirname(f), (_, name) => {
-          if (!name || !f.endsWith(name.replace(/\.layout\.json$/, path.extname(f)))) return;
+        const followed = new Set<string>();
+        const again = () => {
           clearTimeout(timer);
-          timer = setTimeout(() => void renderFile(f), 80);
+          timer = setTimeout(() => void renderFile(f).then(follow), 80);
+        };
+        // Contract files can be added while watching, so follow whatever the last render read.
+        const follow = () => {
+          for (const p of loaded.get(f) ?? [])
+            if (!followed.has(p) && fs.existsSync(p)) {
+              followed.add(p);
+              fs.watch(p, again);
+            }
+        };
+        await renderFile(f);
+        follow();
+        fs.watch(path.dirname(f), (_, name) => {
+          if (name && f.endsWith(name.replace(/\.layout\.json$/, path.extname(f)))) again();
         });
       }
       console.log(dim('watching… Ctrl+C to stop'));

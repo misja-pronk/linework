@@ -13,6 +13,7 @@
 //         orders: { kind: table, contract: orders-v2 }
 import {
   idPattern,
+  parseSource,
   type BuildContext,
   type DiagramType,
   type Endpoint,
@@ -27,6 +28,9 @@ import {
   type TableRow,
   type Tone,
 } from '@cartography/core';
+import { readOdcs, type ContractModel } from './odcs.ts';
+
+export { readOdcs, type ContractModel } from './odcs.ts';
 
 export const classes: KindTable = {
   'source-aligned': { label: 'Source-aligned', icon: 'package', tone: 'teal', keywords: ['raw', 'operational'] },
@@ -99,6 +103,8 @@ interface Consumer extends Placed {
   uses?: Ref[];
 }
 interface Contract extends Named {
+  /** An Open Data Contract Standard file; the other keys override what it says. */
+  file?: string;
   version?: string | number;
   classification?: string;
   fields?: Record<string, string | null>;
@@ -115,6 +121,8 @@ export interface DataProductSource {
   detail?: string[];
   /** Show contracts next to detailed products (default true). */
   'show-contracts'?: boolean;
+  /** Most fields a contract shows before "+ n more" (default 12, 0 hides fields). */
+  'contract-fields'?: number;
   domains?: Record<string, (Named & { owner?: string }) | string | null>;
   sources?: Record<string, Placed | string | null>;
   products?: Record<string, Product | null>;
@@ -144,6 +152,11 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   const sources = Object.entries(src.sources ?? {}).map(([id, s]) => [id, entry<Placed>(s)] as const);
   const consumers = Object.entries(src.consumers ?? {}).map(([id, c]) => [id, entry<Consumer>(c)] as const);
   const contracts = new Map(Object.entries(src.contracts ?? {}).map(([id, c]) => [id, c ?? {}]));
+  const models = new Map<string, ContractModel>();
+  for (const [id, c] of contracts) {
+    const m = contractModel(c, ['contracts', id], ctx);
+    if (m) models.set(id, m);
+  }
   const domains = new Map(Object.entries(src.domains ?? {}).map(([id, d]) => [id, typeof d === 'string' ? { label: d } : (d ?? {})]));
   const productMap = new Map(products);
   const sourceMap = new Map(sources);
@@ -311,14 +324,15 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       if (!o.contract) continue;
       const path = ['products', id, 'outputs', pid, 'contract'];
       const c = contracts.get(o.contract);
+      const model = models.get(o.contract);
       if (!c) {
         ctx.error(path, `There is no data contract "${o.contract}"`);
         continue;
       }
-      if (!showContracts || !detailed.has(id)) continue;
+      if (!showContracts || !detailed.has(id) || !model) continue;
       if (!shown.has(o.contract)) {
         shown.add(o.contract);
-        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c), path: ['contracts', o.contract] });
+        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12), path: ['contracts', o.contract] });
       }
       edge({ node: id, row: `out:${pid}` }, { node: `contract:${o.contract}` }, 'contract', undefined, path);
     }
@@ -337,21 +351,60 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend };
 }
 
-function contractShape(id: string, c: Contract): GraphNode['shape'] {
-  const rows: TableRow[] = [];
-  const fields = Object.entries(c.fields ?? {});
-  if (fields.length) rows.push({ kind: 'section', label: 'Schema' });
-  for (const [name, spec] of fields) {
-    const f = parseField(spec);
-    rows.push({ kind: 'row', id: `field:${name}`, marks: f.marks, cells: [{ text: name, strong: f.marks.includes('pk') }, { text: f.type, muted: true, mono: true }] });
+/** A contract from its file (if any) with the keys written in the diagram on top. */
+function contractModel(c: Contract, path: (string | number)[], ctx: BuildContext): ContractModel | undefined {
+  let m: ContractModel = { schemas: [], sla: [], quality: [] };
+  if (c.file) {
+    const at = [...path, 'file'];
+    if (!ctx.load) return ctx.error(at, 'Contract files can only be read where the diagram is a file (CLI, or a folder opened in the web app)'), undefined;
+    let text: string;
+    try {
+      text = ctx.load(c.file);
+    } catch {
+      return ctx.error(at, `Cannot read "${c.file}"`), undefined;
+    }
+    const parsed = parseSource(text);
+    const broken = parsed.diagnostics.find((d) => d.severity === 'error');
+    if (broken) return ctx.error(at, `${c.file} line ${broken.line}: ${broken.message}`), undefined;
+    const read = readOdcs(parsed.data);
+    if (typeof read === 'string') return ctx.error(at, `${c.file}: ${read}`), undefined;
+    m = read;
   }
+  const fields = Object.entries(c.fields ?? {});
   const sla = Object.entries(c.sla ?? {});
-  if (sla.length) rows.push({ kind: 'section', label: 'Guarantees' });
-  for (const [k, v] of sla) rows.push({ kind: 'row', id: `sla:${k}`, icon: 'gauge', tone: CONTRACT_TONE, cells: [{ text: k }, { text: String(v), muted: true }] });
-  if (c.quality?.length) rows.push({ kind: 'section', label: 'Quality checks' });
-  for (const [i, q] of (c.quality ?? []).entries()) rows.push({ kind: 'row', id: `quality:${i}`, icon: 'check', tone: 'green', cells: [{ text: q }] });
-  const caption = c.caption ?? ['Data contract', c.version != null && `v${c.version}`, c.classification].filter(Boolean).join(' · ');
-  return { kind: 'table', title: c.label ?? id, caption, icon: 'file-check', tone: CONTRACT_TONE, rows };
+  return {
+    label: c.label ?? m.label,
+    version: c.version != null ? String(c.version) : m.version,
+    classification: c.classification ?? m.classification,
+    schemas: fields.length ? [{ fields: fields.map(([name, spec]) => ({ name, ...parseField(spec) })) }] : m.schemas,
+    sla: sla.length ? sla.map(([k, v]) => [k, String(v)]) : m.sla,
+    quality: c.quality ?? m.quality,
+  };
+}
+
+function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number): GraphNode['shape'] {
+  const rows: TableRow[] = [];
+  let room = maxFields;
+  let hidden = 0;
+  for (const [i, schema] of m.schemas.entries()) {
+    if (!schema.fields.length) continue;
+    // Several schema objects (tables, topics) each get their own section.
+    if (room > 0) rows.push({ kind: 'section', label: m.schemas.length > 1 ? (schema.name ?? 'Schema') : 'Schema' });
+    for (const f of schema.fields) {
+      if (room-- <= 0) {
+        hidden++;
+        continue;
+      }
+      rows.push({ kind: 'row', id: `field:${i}:${f.name}`, marks: f.marks, cells: [{ text: f.name, strong: f.marks.includes('pk') }, { text: f.type, muted: true, mono: true }] });
+    }
+  }
+  if (hidden && maxFields > 0) rows.push({ kind: 'row', id: 'field:more', cells: [{ text: `+ ${hidden} more field${hidden === 1 ? '' : 's'}`, muted: true }] });
+  if (m.sla.length) rows.push({ kind: 'section', label: 'Guarantees' });
+  for (const [k, v] of m.sla) rows.push({ kind: 'row', id: `sla:${k}`, icon: 'gauge', tone: CONTRACT_TONE, cells: [{ text: k }, { text: v, muted: true }] });
+  if (m.quality.length) rows.push({ kind: 'section', label: 'Quality checks' });
+  for (const [i, q] of m.quality.entries()) rows.push({ kind: 'row', id: `quality:${i}`, icon: 'check', tone: 'green', cells: [{ text: q }] });
+  const caption = c.caption ?? ['Data contract', m.version != null && `v${m.version}`, m.classification].filter(Boolean).join(' · ');
+  return { kind: 'table', title: m.label ?? id, caption, icon: 'file-check', tone: CONTRACT_TONE, rows };
 }
 
 // ---------------------------------------------------------------- schema
@@ -394,6 +447,7 @@ const schema = {
     view: { enum: ['overview', 'detailed'], description: 'overview: products as cards; detailed: ports, contracts and fields' },
     detail: { type: 'array', items: { type: 'string' }, description: 'Products shown in detail in the overview' },
     'show-contracts': { type: 'boolean', description: 'Show data contracts next to detailed products (default true)' },
+    'contract-fields': { type: 'integer', minimum: 0, description: 'Most fields a contract shows before "+ n more" (default 12, 0 hides fields)' },
     domains: ids({ anyOf: [{ type: 'string' }, { type: 'null' }, { type: 'object', properties: { ...named, owner: { type: 'string' } }, additionalProperties: false }] }),
     sources: ids(placed(sourceKinds)),
     products: ids({
@@ -433,6 +487,7 @@ const schema = {
           type: 'object',
           properties: {
             ...named,
+            file: { type: 'string', description: 'An Open Data Contract Standard file (v3 or v2), relative to this diagram' },
             version: { type: ['string', 'number'] },
             classification: { type: 'string', description: 'e.g. internal, confidential' },
             fields: { type: 'object', additionalProperties: { type: ['string', 'null'] }, description: 'name: type, with pk, pii, unique, null' },

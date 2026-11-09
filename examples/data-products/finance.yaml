@@ -1,0 +1,35 @@
+type: data-products
+title: Finance data products
+subtitle: The payments contract is read from an Open Data Contract Standard file
+view: detailed
+
+domains:
+  finance: { label: Finance, owner: Finance data team }
+
+sources:
+  psp: { kind: stream, label: Payment provider, caption: settlement events, domain: finance }
+  ledger: { kind: erp, label: General ledger, domain: finance }
+
+products:
+  payments:
+    label: Payments
+    class: source-aligned
+    domain: finance
+    version: 3
+    inputs: [{ from: psp, label: events }]
+    outputs:
+      settlements: { kind: table, contract: settled-payments }
+  revenue:
+    label: Revenue
+    class: consumer-aligned
+    domain: finance
+    inputs: [payments, { from: ledger, label: nightly }]
+    outputs:
+      daily: { kind: view, label: revenue per day }
+
+consumers:
+  cfo: { kind: dashboard, label: CFO dashboard, uses: [revenue] }
+
+contracts:
+  settled-payments:
+    file: contracts/payments.odcs.yaml

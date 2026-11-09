@@ -21,6 +21,8 @@ export interface RenderOptions extends SvgOptions {
   sidecar?: LayoutSidecar;
   /** Layout overrides, for experiments. */
   tuning?: Tuning;
+  /** Reads files the diagram refers to, relative to the diagram (contracts). Leave out where there are no files. */
+  load?: (file: string) => string;
 }
 
 export interface RenderResult {
@@ -55,6 +57,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const graph = type.build(data, {
     error: (path, message) => diagnostics.push(source.at(path, message)),
     warn: (path, message) => diagnostics.push(source.at(path, message, 'warning')),
+    load: opts.load,
   });
 
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
