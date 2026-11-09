@@ -2,6 +2,7 @@
 //
 //   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd
 //   importMarkdown(text)   every ```mermaid block in a Markdown file
+//   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
@@ -14,6 +15,7 @@ export interface Imported {
 }
 
 export { guessKind } from './systems.ts';
+export { importKubernetes, isKubernetes } from './kubernetes.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
   const warn = new Warnings();

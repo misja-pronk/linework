@@ -36,11 +36,13 @@ export function chips(graph: Graph): Map<string, Chip[]> {
   return out;
 }
 
-/** The graph layout should see: without badged edges, so they no longer pull nodes around. */
+/** The graph layout should see: without badged edges, so they no longer pull nodes around, and without folded nodes. */
 export function withoutBadges(graph: Graph): Graph {
   const nodes = byId(graph);
-  const edges = graph.edges.filter((e) => !isChip(e, nodes));
-  return edges.length === graph.edges.length ? graph : { ...graph, edges };
+  const folded = new Set(graph.nodes.filter((n) => n.folded).map((n) => n.id));
+  const edges = graph.edges.filter((e) => !isChip(e, nodes) && !folded.has(e.from.node) && !folded.has(e.to.node));
+  if (edges.length === graph.edges.length && !folded.size) return graph;
+  return { ...graph, edges, ...(folded.size ? { nodes: graph.nodes.filter((n) => !n.folded) } : {}) };
 }
 
 const byId = (graph: Graph) => new Map(graph.nodes.map((n) => [n.id, n]));

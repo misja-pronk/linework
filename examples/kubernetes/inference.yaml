@@ -1,0 +1,44 @@
+type: kubernetes
+title: Model serving
+subtitle: Gateway API in front of GPU and CPU node pools
+
+groups:
+  cluster: { kind: cluster, label: ml-prod }
+  system: { kind: node-pool, label: system pool, in: cluster }
+  gpu: { kind: node-pool, label: gpu pool (L4), in: cluster }
+
+nodes:
+  clients: { kind: users, label: API clients }
+  gw: { kind: gateway, label: public, in: system, host: api.acme.ai }
+  router-svc: { kind: service, label: router, in: system, ports: [8000] }
+  router: { kind: deployment, in: system, replicas: 3, image: acme/router:0.9 }
+  redis: { kind: statefulset, label: rate-limits, in: system, image: redis:7.4 }
+  llm-svc: { kind: service, label: llm, in: gpu, ports: [8080] }
+  llm: { kind: deployment, in: gpu, image: vllm/vllm-openai:v0.6.3 }
+  llm-hpa: { kind: hpa, in: gpu, replicas: 1-8 }
+  embed-svc: { kind: service, label: embed, in: gpu, ports: [8080] }
+  embed: { kind: deployment, in: gpu, replicas: 2, image: acme/embed:1.2 }
+  models: { kind: pvc, label: model-cache, in: gpu, size: 200Gi }
+  hf-token: { kind: secret, in: gpu }
+  gpu-only: { kind: networkpolicy, label: from-router-only, in: gpu }
+  hub: { kind: external, label: Hugging Face }
+
+# Policies too: shown on the workloads they guard.
+badges: [mounts, identity, scales, policy]
+
+edges:
+  - clients -> gw: HTTPS
+  - gw -> router-svc: /v1
+  - router-svc -> router
+  - router -> redis
+  - router -> llm-svc: chat
+  - router -> embed-svc: embeddings
+  - llm-svc -> llm
+  - embed-svc -> embed
+  - llm -> models
+  - llm -> hf-token
+  - embed -> models
+  - llm-hpa -> llm
+  - gpu-only -> llm
+  - gpu-only -> embed
+  - llm -> hub: weights

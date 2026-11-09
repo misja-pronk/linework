@@ -1,0 +1,51 @@
+type: kubernetes
+title: Web shop
+subtitle: One namespace, from ingress to Postgres
+
+groups:
+  prod: { kind: cluster, label: prod-eu-1 }
+  shop: { kind: namespace, in: prod }
+
+nodes:
+  customers: { kind: users, label: Customers }
+  ingress: { kind: ingress, label: shop, in: shop, host: shop.example.com }
+  web-svc: { kind: service, label: web, in: shop, ports: [80] }
+  web: { kind: deployment, in: shop, replicas: 2, image: ghcr.io/acme/web:2.3.0 }
+  api-svc: { kind: service, label: api, in: shop, ports: ["80:8080"] }
+  api: { kind: deployment, in: shop, image: ghcr.io/acme/api:1.4.2, ports: [8080] }
+  api-hpa: { kind: hpa, in: shop, replicas: 3-12 }
+  worker: { kind: deployment, label: order-worker, in: shop, replicas: 2, image: ghcr.io/acme/api:1.4.2 }
+  nightly: { kind: cronjob, label: invoice-run, in: shop, schedule: "0 3 * * *" }
+  postgres-svc: { kind: service, label: postgres, in: shop, ports: [5432] }
+  postgres: { kind: statefulset, in: shop, image: postgres:16.4 }
+  redis: { kind: statefulset, in: shop, image: redis:7.4, ports: [6379] }
+  pg-data: { kind: pvc, label: data, in: shop, size: 50Gi }
+  redis-data: { kind: pvc, label: data, in: shop, size: 5Gi }
+  api-config: { kind: configmap, in: shop }
+  db-credentials: { kind: secret, in: shop }
+  shop-tls: { kind: secret, in: shop }
+  api-sa: { kind: serviceaccount, label: shop-api, in: shop }
+  stripe: { kind: external, label: Stripe }
+
+edges:
+  - customers -> ingress: HTTPS
+  - ingress -> shop-tls
+  - ingress -> web-svc: /
+  - ingress -> api-svc: /api
+  - web-svc -> web
+  - api-svc -> api
+  - api -> postgres-svc: SQL
+  - api -> redis
+  - api -> stripe: payments
+  - api -> api-config
+  - api -> db-credentials
+  - api -> api-sa
+  - api-hpa -> api
+  - worker -> postgres-svc
+  - worker -> db-credentials
+  - nightly -> postgres-svc
+  - nightly -> db-credentials
+  - postgres-svc -> postgres
+  - postgres -> pg-data
+  - postgres -> db-credentials
+  - redis -> redis-data

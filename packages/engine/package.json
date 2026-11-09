@@ -13,6 +13,7 @@
     "@cartography/render": "workspace:*",
     "@cartography/systems": "workspace:*",
     "@cartography/azure": "workspace:*",
+    "@cartography/kubernetes": "workspace:*",
     "@cartography/erd": "workspace:*",
     "@cartography/access": "workspace:*",
     "@cartography/github": "workspace:*",
