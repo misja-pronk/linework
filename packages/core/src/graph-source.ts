@@ -9,8 +9,10 @@
 //     - web -> db: { label: SQL, style: private }
 import { edgeItemSchema, edgeReferences, parseEdge } from './edges.ts';
 import { idPattern, type BuildContext, type KindTable, type Reference } from './diagram-type.ts';
-import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, Tone } from './model.ts';
+import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
+import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
+import { resolveSource, type Origins } from './views.ts';
 
 export interface GraphTypeConfig {
   nodeKinds: KindTable;
@@ -19,6 +21,8 @@ export interface GraphTypeConfig {
   edgeStyles?: Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
   /** Legend name of a solid line without a style, listed when the legend explains other lines too. */
   plainEdge?: string;
+  /** Model kinds this type draws as one of its own, e.g. database → sql-database. Unknown kinds become a plain card. */
+  kindAliases?: Record<string, string>;
 }
 
 /** The kind's name as caption, unless the kind is quiet or the label already says it ("Order service"). */
@@ -30,7 +34,7 @@ function kindCaption(label: string | undefined, kind: KindTable[string] | undefi
   return l === k || l.endsWith(` ${k}`) ? undefined : kind.label;
 }
 
-interface Entry {
+export interface Entry {
   kind?: string;
   label?: string;
   caption?: string;
@@ -38,17 +42,27 @@ interface Entry {
   icon?: string;
   tone?: Tone;
   badges?: string[];
+  /** A model element this stands for, e.g. shop.api: its label, kind and links unless set here. */
+  ref?: string;
+  description?: string;
+  technology?: string;
+  owner?: string;
+  tags?: string[];
+  links?: unknown[];
 }
 
 export interface GraphSource {
   title?: string;
   subtitle?: string;
   direction?: Direction;
-  groups?: Record<string, string | Entry>;
-  nodes?: Record<string, string | Entry>;
+  /** `id:` alone (null) takes the model element with that id. */
+  groups?: Record<string, string | Entry | null>;
+  nodes?: Record<string, string | Entry | null>;
   edges?: unknown[];
   /** Edge styles drawn as badges on the source card instead of lines, e.g. [identity, management]. */
   badges?: string[];
+  /** Set by the model layer: where drawn entries are written when not at their usual place. */
+  origin?: Origins;
 }
 
 /** References in node-and-edge YAML: `in:` and edge ends. */
@@ -66,9 +80,13 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
   const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
     anyOf: [
       { enum: kinds },
+      // `id:` with nothing after it: the model element with that id.
+      { type: 'null' },
       {
         type: 'object',
-        required: ['kind'],
+        // A kind, or a model element that brings one (if/then, so editors still see the properties).
+        if: { not: { required: ['ref'] } },
+        then: { required: ['kind'] },
         properties: {
           kind: { enum: kinds },
           label: { type: 'string' },
@@ -77,6 +95,8 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
           icon: { type: 'string' },
           tone: { enum: tones },
           ...extra,
+          ref: { type: 'string', description: 'A model element this stands for, e.g. shop.api' },
+          ...elementFields,
         },
         additionalProperties: false,
       },
@@ -108,32 +128,44 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       },
       edges: { type: 'array', items: edgeItemSchema(styles) },
       ...badges,
+      ...modelProperties,
     },
     additionalProperties: false,
   };
 }
 
 export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildContext): Graph {
+  // Refs and views first: what is left is a plain diagram of this type.
+  const refs = (['groups', 'nodes'] as const).some((c) => Object.values(src[c] ?? {}).some((v) => v == null || (typeof v === 'object' && v.ref != null)));
+  if (ctx.model || refs) {
+    const model = ctx.model ?? { ...emptyCatalogue() };
+    model.used = true;
+    src = resolveSource(src, cfg, model, ctx);
+  }
+  const origin = src.origin;
+  const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
   const entries = (coll: 'groups' | 'nodes') =>
-    Object.entries(src[coll] ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { kind: v } : v] as [string, Entry]);
+    Object.entries(src[coll] ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { kind: v } : (v ?? {})] as [string, Entry]);
   const groupEntries = entries('groups');
   const nodeEntries = entries('nodes');
   const groupIds = new Set(groupEntries.map(([id]) => id));
   const ids = new Set([...groupIds, ...nodeEntries.map(([id]) => id)]);
 
-  for (const [id] of nodeEntries) if (groupIds.has(id)) ctx.error(['nodes', id], `"${id}" is already a group`);
+  for (const [id] of nodeEntries) if (groupIds.has(id)) ctx.error(at('nodes', id), `"${id}" is already a group`);
 
-  const parentOf = (coll: string, id: string, e: Entry) => {
+  const parentOf = (coll: 'groups' | 'nodes', id: string, e: Entry) => {
     if (e.in == null) return undefined;
     if (!groupIds.has(e.in)) {
-      ctx.error([coll, id, 'in'], `There is no group "${e.in}"`);
+      ctx.error([...at(coll, id), 'in'], `There is no group "${e.in}"`);
       return undefined;
     }
     return e.in;
   };
 
   const groups: GraphGroup[] = groupEntries.map(([id, e]) => {
-    const kind = cfg.groupKinds[e.kind ?? ''];
+    // A model element opened into a boundary may have a card's kind.
+    const kind: GraphTypeConfig['groupKinds'][string] | undefined = cfg.groupKinds[e.kind ?? ''] ?? cfg.nodeKinds[e.kind ?? ''];
+    const links = parseLinks(e.links);
     return {
       id,
       parent: parentOf('groups', id, e),
@@ -142,13 +174,17 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       icon: e.icon ?? kind?.icon,
       tone: e.tone ?? kind?.tone ?? 'slate',
       border: kind?.border ?? 'solid',
-      path: ['groups', id],
+      ...(links ? { links } : {}),
+      ...(e.description ? { description: e.description } : {}),
+      path: at('groups', id),
     };
   });
   breakCycles(groups, ctx);
 
   const nodes: GraphNode[] = nodeEntries.map(([id, e]) => {
-    const kind = cfg.nodeKinds[e.kind ?? ''];
+    // A model element shown closed may have a group's kind (a system as one card).
+    const kind = cfg.nodeKinds[e.kind ?? ''] ?? cfg.groupKinds[e.kind ?? ''];
+    const links = parseLinks(e.links);
     return {
       id,
       parent: parentOf('nodes', id, e),
@@ -163,7 +199,9 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
         badges: e.badges,
         ...(kind?.form ? { form: kind.form } : {}),
       },
-      path: ['nodes', id],
+      ...(links ? { links } : {}),
+      ...(e.description ? { description: e.description } : {}),
+      path: at('nodes', id),
     };
   });
 
@@ -175,15 +213,18 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   const badgeList = new Set(src.badges ?? []);
   const nodeIds = new Set(nodeEntries.map(([id]) => id));
   for (const [i, item] of (src.edges ?? []).entries()) {
-    const spec = parseEdge(item, ['edges', i]);
+    const path = origin?.edges[i]?.path ?? ['edges', i];
+    const spec = parseEdge(item, path);
     if (typeof spec === 'string') {
-      ctx.error(['edges', i], spec);
+      ctx.error(path, spec);
       continue;
     }
+    // Model elements are drawn under their dotted path ("shop.api"): one id, not a row.
+    for (const k of ['from', 'to'] as const) if (spec[k].row && ids.has(`${spec[k].node}.${spec[k].row}`)) spec[k] = { node: `${spec[k].node}.${spec[k].row}` };
     let ok = true;
     for (const end of [spec.from, spec.to])
       if (!ids.has(end.node)) {
-        ctx.error(['edges', i], `There is no node or group "${end.node}"`);
+        ctx.error(path, `There is no node or group "${end.node}"`);
         ok = false;
       }
     if (!ok) continue;
@@ -192,13 +233,13 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     // `badge:` on the edge wins over the diagram's `badges:` list; only a node can carry a badge.
     let badge = typeof spec.props.badge === 'boolean' ? spec.props.badge : !!styleId && badgeList.has(styleId);
     if (badge && !nodeIds.has(spec.from.node)) {
-      if (spec.props.badge === true) ctx.warn(['edges', i], 'Only a connection from a node can be a badge; drawn as a line');
+      if (spec.props.badge === true) ctx.warn(path, 'Only a connection from a node can be a badge; drawn as a line');
       badge = false;
     }
     if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
     else if (!badge && spec.line === 'solid') plainLines = true;
     edges.push({
-      id: `e${i}`,
+      id: origin?.edges[i]?.id ?? `e${i}`,
       from: spec.from,
       to: spec.to,
       label: spec.label,
@@ -228,7 +269,7 @@ function breakCycles(groups: GraphGroup[], ctx: BuildContext) {
     const seen = new Set([g.id]);
     for (let p = g.parent; p; p = byId.get(p)?.parent) {
       if (seen.has(p)) {
-        ctx.error(['groups', g.id, 'in'], `"${g.id}" ends up inside itself`);
+        ctx.error([...g.path, 'in'], `"${g.id}" ends up inside itself`);
         g.parent = undefined;
         break;
       }

@@ -177,7 +177,8 @@ export function buildKubernetes(src: GraphSource, ctx: Parameters<DiagramType['b
 
 function schema(): object {
   const s = graphSchema('kubernetes', config, 'Cartography Kubernetes diagram') as { properties: Record<string, any> };
-  const node = s.properties.nodes.additionalProperties.anyOf[1];
+  // The object form of a node, wherever it sits among the short forms.
+  const node = s.properties.nodes.additionalProperties.anyOf.find((x: { type?: string }) => x.type === 'object');
   node.properties = { ...node.properties, ...details };
   return s;
 }

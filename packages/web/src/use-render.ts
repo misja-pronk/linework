@@ -13,14 +13,15 @@ export interface Rendered {
   docKey: number;
 }
 
-export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number) {
+/** `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle. */
+export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string) {
   const [out, setOut] = useState<Rendered>();
   const seq = useRef(0);
   const doc = useRef(docKey);
   useEffect(() => {
     const n = ++seq.current;
     const t = performance.now();
-    render(text, { theme, sidecar, load, fonts: 'none', interactive: true, idPrefix: 'live' })
+    render(text, { theme, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' })
       .then((result) => {
         if (n !== seq.current) return;
         // Another document starts without the old drawing behind it.
@@ -39,6 +40,6 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             docKey,
           }));
       });
-  }, [text, theme, sidecar, load, docKey]);
+  }, [text, theme, sidecar, load, docKey, view, file]);
   return out;
 }

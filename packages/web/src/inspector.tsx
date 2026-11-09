@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import type { Field } from './builder.ts';
 import { Icon } from './icon.tsx';
+import { LinkList } from './link-list.tsx';
+import type { Link } from '@cartography/core';
 
 export interface InspectorProps {
   id: string;
@@ -25,6 +27,9 @@ export interface InspectorProps {
   connections?: { id: string; out: boolean; other: string; label?: string }[];
   onSelectEdge?(id: string): void;
   onDeleteEdge?(id: string): void;
+  /** Where the element links to (URLs, other diagrams, views), to follow from here. */
+  links?: Link[];
+  onFollowLink?(link: Link): void;
 }
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -143,6 +148,7 @@ export function Inspector(p: InspectorProps) {
             )}
           </label>
         ))}
+        {p.onFollowLink && <LinkList links={p.links} onFollow={p.onFollowLink} />}
         {p.connections && p.connections.length > 0 && (
           <div className="field">
             <span>Connections</span>

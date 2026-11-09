@@ -1,0 +1,26 @@
+# The same elements deployed on Azure: refs bring label, description and links; the kind here is
+# Azure's. Model relations between them are drawn too, unless an edge here says it better.
+type: azure
+title: Web shop
+subtitle: Production deployment
+include: [model.yaml]
+
+groups:
+  prod: { kind: subscription, label: Production }
+  rg: { kind: resource-group, label: rg-shop-prod, in: prod }
+  vnet: { kind: vnet, label: vnet-shop, in: rg }
+  apps: { kind: subnet, label: snet-apps, in: vnet }
+  data: { kind: subnet, label: snet-data, in: vnet }
+
+nodes:
+  web: { ref: shop.web, kind: static-web-app, in: rg }
+  api: { ref: shop.api, kind: container-app, in: apps, links: ['containers.yaml#containers'] }
+  worker: { ref: shop.worker, in: apps }
+  db: { ref: shop.db, kind: postgres, in: data }
+  bus: { ref: shop.bus, in: rg }
+  stripe: { ref: stripe, kind: external }
+  mail: { ref: mail, kind: external }
+
+edges:
+  - web -> api: { label: HTTPS, style: public }
+  - api -> db: { label: SQL, style: private }

@@ -1,0 +1,37 @@
+# The shop, described once. Diagrams include this file and reference elements by id;
+# `carto render model.yaml --all-views` draws the views below straight from it.
+type: model
+title: Web shop model
+
+elements:
+  customer: { kind: person, label: Customer, description: Buys things in the web shop }
+  shop:
+    kind: system
+    label: Web shop
+    description: Sells products online and handles orders
+    owner: team-shop
+    elements:
+      web: { kind: client, label: Storefront, technology: React, tags: [public] }
+      api: { kind: api, label: Orders API, technology: .NET 9, links: [deployment.yaml] }
+      db: { kind: database, label: Orders DB, technology: PostgreSQL, links: ['https://www.postgresql.org/docs/'] }
+      bus: { kind: queue, label: order-events, technology: Service Bus }
+      worker: { kind: worker, label: Mailer, technology: .NET 9 }
+  stripe: { kind: payments, label: Stripe, tags: [external] }
+  mail: { kind: email, label: SendGrid, tags: [external] }
+
+relations:
+  - customer -> shop.web: Browses and orders
+  - shop.web -> shop.api: { label: REST, style: sync }
+  - shop.api -> shop.db: { label: SQL, style: data }
+  - shop.api -> shop.bus: { label: OrderPlaced, style: async }
+  - shop.bus -> shop.worker: { style: async }
+  - shop.worker -> mail: Sends receipts
+  - shop.api -> stripe: { label: Charges cards, style: sync }
+
+views:
+  landscape: { title: Web shop landscape, subtitle: Who uses the shop and what it depends on }
+  data:
+    title: Where order data goes
+    include: ['shop.api -> *', 'shop.bus -> *']
+    expand: [shop]
+    exclude: [shop.web, customer]

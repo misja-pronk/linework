@@ -11,7 +11,8 @@ import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } fro
 const help = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png] [--theme light|dark] [--scale 2]
-  carto watch  <file.yaml…> [same options]      re-render on every save
+               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+  carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.yaml…> [-o out|-] [--force]
@@ -20,7 +21,7 @@ const help = `carto — architecture diagrams that look good
                                                 Kubernetes manifests: all files in one diagram
   carto types [words…]                          which type to pick, best match first
 
-Manual positions are read from <file>.layout.json next to the diagram.`;
+Manual positions are read from <file>.layout.json next to the diagram (per view under "views").`;
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
@@ -31,6 +32,8 @@ const { positionals, values } = parseArgs({
     scale: { type: 'string', default: '2' },
     'no-fonts': { type: 'boolean' },
     force: { type: 'boolean' },
+    view: { type: 'string' },
+    'all-views': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -53,10 +56,10 @@ function sidecarFor(file: string): LayoutSidecar | undefined {
   return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar) : undefined;
 }
 
-function outputPath(file: string, format: string): string {
-  const base = path.basename(file).replace(/\.ya?ml$/, '') + '.' + format;
+function outputPath(file: string, format: string, view?: string): string {
+  const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + '.' + format;
   if (!values.out) return path.join(path.dirname(file), base);
-  if (files.length === 1 && path.extname(values.out)) return values.out;
+  if (files.length === 1 && !values['all-views'] && path.extname(values.out)) return values.out;
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
 }
@@ -75,20 +78,33 @@ function loaderFor(file: string) {
 
 async function renderFile(file: string): Promise<boolean> {
   const format = values.format === 'png' ? 'png' : 'svg';
+  const text = fs.readFileSync(file, 'utf8');
   const opts: RenderOptions = {
     theme: values.theme === 'dark' ? 'dark' : 'light',
     sidecar: sidecarFor(file),
     load: loaderFor(file),
     // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
     fonts: values['no-fonts'] || format === 'png' ? 'none' : 'embed',
+    file: path.basename(file),
+    view: values.view,
   };
-  const result = await render(fs.readFileSync(file, 'utf8'), opts);
-  report(file, result.diagnostics);
-  if (!result.svg) return false;
-  const out = outputPath(file, format);
-  fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2) : result.svg);
-  console.log(`${file} → ${out} ${dim(`${result.width}×${result.height}`)}`);
-  return !result.diagnostics.some((d) => d.severity === 'error');
+  const first = await render(text, opts);
+  // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
+  const runs = values['all-views'] && first.views?.length ? [first, ...(await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))))] : [first];
+  let ok = true;
+  for (const [i, result] of runs.entries()) {
+    const view = i ? result.view : values.view;
+    report(view && i ? `${file}#${view}` : file, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
+    if (!result.svg) {
+      ok = false;
+      continue;
+    }
+    const out = outputPath(file, format, view);
+    fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2) : result.svg);
+    console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${result.width}×${result.height}`)}`);
+    if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
+  }
+  return ok;
 }
 
 /** Mermaid or Markdown → <name>.yaml (or <name>-<n>.yaml per block), checked by rendering it once. */
@@ -199,7 +215,7 @@ async function main(): Promise<number> {
     case 'validate': {
       let ok = true;
       for (const f of files) {
-        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f) });
+        const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
         report(f, r.diagnostics);
         if (r.diagnostics.some((d) => d.severity === 'error')) ok = false;
         else console.log(`${f} ${dim('ok')}`);

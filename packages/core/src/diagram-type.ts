@@ -1,5 +1,6 @@
 // The plugin contract: a diagram type turns its own YAML into the shared Graph.
 import type { CardForm, Graph, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
+import type { ModelContext } from './catalogue.ts';
 
 export interface DiagramType<Source = any> {
   /** The value of `type:` in the YAML. */
@@ -68,6 +69,12 @@ export interface BuildContext {
   warn(path: Path, message: string): void;
   /** Reads a file the diagram refers to (relative to the diagram), e.g. a data contract. Throws when it cannot. Absent where there are no files. */
   load?(file: string): string;
+  /**
+   * The shared model and the view to draw, set when the diagram includes a model, defines elements or
+   * has views. Types built on buildGraph resolve refs and views with it and set `used`; the engine
+   * filters other types' graphs by id afterwards.
+   */
+  model?: ModelContext;
 }
 
 export interface PaletteItem {

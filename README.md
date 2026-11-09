@@ -26,6 +26,8 @@ YAML on the left, the drawing on the right; both stay in sync and select the sam
 
 Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side.
 
+**One model, many diagrams**: describe systems once in a `type: model` file, `include:` it in a context, container or Azure deployment diagram and reference elements by id (`api: { ref: shop.api, kind: container-app }`); `views:` pick what each drawing shows (`expand: [shop]`, `'* -> shop'`, `tag:external`), and `links:` drill down from a box to its detailed diagram, as real links in exported SVG. See [docs/model.md](docs/model.md) and [examples/model](examples/model).
+
 CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.
 
 AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude Code, Claude Desktop and other MCP clients write diagrams that are checked against the schema and scored for layout quality before you see them. See [docs/mcp.md](docs/mcp.md).
@@ -38,6 +40,7 @@ pnpm install
 pnpm carto types                                  # which type for what (add words to rank them)
 pnpm carto new azure my-infra.yaml                # start from a template
 pnpm carto render my-infra.yaml -f png -t dark    # → my-infra.png
+pnpm carto render examples/model/containers.yaml --all-views   # one SVG per view
 pnpm gallery                                      # render all examples → gallery/out/index.html
 pnpm test
 pnpm lab                                          # layout quality per example, variants side by side

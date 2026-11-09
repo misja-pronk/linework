@@ -28,6 +28,9 @@ export interface GraphGroup {
   tone: Tone;
   /** solid: a real boundary (subscription); dashed: a logical one (subnet, schema). */
   border: 'solid' | 'dashed';
+  /** Where it points to: a URL, another diagram, a view. Drawn as a link icon; real links in exports. */
+  links?: Link[];
+  description?: string;
   path: Path;
 }
 
@@ -35,9 +38,23 @@ export interface GraphNode {
   id: string;
   parent?: string;
   shape: CardShape | TableShape | MatrixShape;
+  links?: Link[];
+  /** Longer text, shown as a tooltip and read by screen readers. */
+  description?: string;
   path: Path;
   /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
   folded?: boolean;
+}
+
+/** A link on an element: a URL, a diagram file (relative to this one), or a view of one ("containers.yaml#containers", "#context"). */
+export interface Link {
+  kind: 'url' | 'file' | 'view';
+  /** As written. */
+  target: string;
+  /** For file and view links: the file, '' for this diagram. */
+  file?: string;
+  view?: string;
+  label?: string;
 }
 
 /** Icon tile + label + caption: resources, services, devices, principals. */
@@ -192,4 +209,6 @@ export interface LayoutSidecar {
   nodes?: Record<string, Point>;
   /** Groups moved as a whole: their top-left; what is inside moves along unless pinned itself. */
   groups?: Record<string, Point>;
+  /** Pins per named view; the top level holds the pins of the diagram without a view. */
+  views?: Record<string, { nodes?: Record<string, Point>; groups?: Record<string, Point> }>;
 }

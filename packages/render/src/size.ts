@@ -25,7 +25,7 @@ export function size(graph: Graph, theme: Theme): Sized {
   const badges = chips(graph);
   for (const n of graph.nodes) {
     const shape = n.shape;
-    if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme, badges.get(n.id)));
+    if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme, badges.get(n.id), !!n.links?.length));
     else if (shape.kind === 'table') nodes.set(n.id, tableSize(shape, theme));
     else {
       const m = matrixGeometry(shape, theme);
@@ -38,7 +38,7 @@ export function size(graph: Graph, theme: Theme): Sized {
     if (e.label) edgeLabels.set(e.id, { width: measureText(e.label, theme.size.edgeLabel, 500) + 16, height: 20 });
 
   const groupMinWidth = new Map<string, number>();
-  for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24);
+  for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
 
   return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth };
 }
@@ -53,9 +53,9 @@ export function cardCaption(shape: CardShape): string | undefined {
   return parts.length ? parts.join(' · ') : undefined;
 }
 
-function cardSize(shape: CardShape, theme: Theme, list: Chip[] = []): NodeSize {
+function cardSize(shape: CardShape, theme: Theme, list: Chip[] = [], linked = false): NodeSize {
   const c = theme.space.card;
-  const inset = cardInsets(shape, theme);
+  const inset = cardInsets(shape, theme, linked);
   const text = inset.left + cardTextWidth(shape, theme) + inset.right + 4;
   // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
   const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
@@ -70,13 +70,18 @@ export const DECISION_TIP = 14;
  * Where the text starts and how much room is kept on the right, per card outline: a decision's
  * pointed ends and diamond tile, a pill's round end, a plain step without a tile (text centred).
  */
-export function cardInsets(shape: CardShape, theme: Theme): { left: number; right: number; centred: boolean } {
+export function cardInsets(shape: CardShape, theme: Theme, linked = false): { left: number; right: number; centred: boolean } {
   const c = theme.space.card;
-  if (shape.form === 'decision') return { left: DECISION_TIP + 52, right: DECISION_TIP + 12, centred: false };
-  if (!shape.icon) return { left: 20, right: 20, centred: true };
-  if (shape.form === 'terminal') return { left: chipLeft(theme), right: 24, centred: false };
-  return { left: chipLeft(theme), right: c.padX, centred: false };
+  // A linked card keeps the top-right corner free for its link icon.
+  const link = linked ? LINK_ROOM : 0;
+  if (shape.form === 'decision') return { left: DECISION_TIP + 52, right: DECISION_TIP + 12 + link, centred: false };
+  if (!shape.icon) return { left: 20 + link, right: 20 + link, centred: true };
+  if (shape.form === 'terminal') return { left: chipLeft(theme), right: 24 + link, centred: false };
+  return { left: chipLeft(theme), right: c.padX + link, centred: false };
 }
+
+/** Room for the link icon in a card's or group header's top-right corner. */
+export const LINK_ROOM = 14;
 
 // Badge chips sit in rows under the label, aligned with it, so the card reads top to bottom:
 // what it is, then what it uses. One quiet size for all, a step below the caption.

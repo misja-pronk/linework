@@ -5,3 +5,6 @@ export * from './diagram-type.ts';
 export * from './graph-source.ts';
 export * from './badges.ts';
 export * from './match-types.ts';
+export * from './catalogue.ts';
+export * from './include.ts';
+export * from './views.ts';

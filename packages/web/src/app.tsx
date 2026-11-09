@@ -2,7 +2,7 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Diagnostic, GraphNode, LayoutSidecar, PaletteItem, Path, Point } from '@cartography/core';
+import { viewPins, withViewPins, type Diagnostic, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type Selection } from './preview.tsx';
 import { Palette, type Command } from './palette.tsx';
@@ -13,6 +13,8 @@ import { Menu } from './menu.tsx';
 import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
+import { ViewPicker } from './view-picker.tsx';
+import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
@@ -147,19 +149,28 @@ export function App() {
     () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
     [ws, doc.path, doc.starter],
   );
-  const sidecar = useMemo<LayoutSidecar | undefined>(
-    () =>
-      !draft ? pins : { version: 1, nodes: { ...(pins?.nodes ?? {}), ...draft.nodes }, groups: { ...(pins?.groups ?? {}), ...draft.groups } },
-    [pins, draft],
-  );
+  // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
+  // Pins live per view in the sidecar; everything below works on the drawn view's pins.
+  const docId = doc.path ?? doc.starter ?? doc.name;
+  const [picked, setPicked] = useState<{ doc: string; name?: string }>();
+  const viewName = picked?.doc === docId ? picked.name : undefined;
+  const drawnView = useRef<string>(undefined);
+  const sidecar = useMemo<LayoutSidecar | undefined>(() => {
+    if (!draft) return pins;
+    const v = viewPins(pins, drawnView.current);
+    return withViewPins(pins, drawnView.current, { version: 1, nodes: { ...(v?.nodes ?? {}), ...draft.nodes }, groups: { ...(v?.groups ?? {}), ...draft.groups } });
+  }, [pins, draft]);
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey);
+  const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
   const result = rendered?.result;
   const drawn = rendered?.drawn;
+  drawnView.current = drawn?.view;
+  const vpins = viewPins(pins, drawn?.view);
   const type = result?.type ?? drawn?.type;
   const diagnostics = result?.diagnostics ?? NONE;
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
@@ -388,7 +399,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -446,18 +457,18 @@ export function App() {
   /** Applies a text edit (and optionally new pins) as one undo step. */
   const apply = (next: string | undefined, nextPins?: LayoutSidecar | null) => {
     if (next == null) return notify('That change did not work on this YAML: fix the problems in the editor, or make it there', { tone: 'error' });
-    editor.current?.replace(next, { pins: nextPins });
+    editor.current?.replace(next, { pins: nextPins === undefined ? undefined : (withViewPins(pins, drawn?.view, nextPins) ?? null) });
     acted();
   };
-  /** Changes only pins, as one undo step. */
+  /** Changes only pins (of the view drawn), as one undo step. */
   const pinTo = (next: LayoutSidecar | null | undefined) => {
-    editor.current?.pin(next ?? undefined);
+    editor.current?.pin(withViewPins(pins, drawn?.view, next));
     acted();
   };
   /** Pins with nodes (and groups) moved, or unpinned with undefined; null when nothing is pinned any more. */
   const withPins = (movedNodes: Record<string, Point | undefined>, movedGroups: Record<string, Point | undefined> = {}): LayoutSidecar | null => {
-    const nodes = { ...(pins?.nodes ?? {}) };
-    const groups = { ...(pins?.groups ?? {}) };
+    const nodes = { ...(vpins?.nodes ?? {}) };
+    const groups = { ...(vpins?.groups ?? {}) };
     const set = (target: Record<string, Point>, moved: Record<string, Point | undefined>) => {
       for (const [id, at] of Object.entries(moved)) {
         if (at) target[id] = at;
@@ -490,7 +501,7 @@ export function App() {
     for (const g of inside) if (next.groups?.[g]) next.groups[g] = move(next.groups[g]!);
     return next;
   };
-  const pinCount = Object.keys(pins?.nodes ?? {}).length + Object.keys(pins?.groups ?? {}).length;
+  const pinCount = Object.keys(vpins?.nodes ?? {}).length + Object.keys(vpins?.groups ?? {}).length;
   const textNow = () => editor.current?.text() ?? text;
   /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
   const ready = () => {
@@ -562,7 +573,7 @@ export function App() {
       return;
     }
     const next = deleteEntry(textNow(), type, path);
-    const pinned = sel.kind === 'node' ? pins?.nodes?.[sel.id] : sel.kind === 'group' ? pins?.groups?.[sel.id] : undefined;
+    const pinned = sel.kind === 'node' ? vpins?.nodes?.[sel.id] : sel.kind === 'group' ? vpins?.groups?.[sel.id] : undefined;
     apply(next, pinned ? withPin(sel.id, undefined, sel.kind === 'group') : undefined);
     if (next != null && sel === selected) setSelected(undefined);
   };
@@ -587,7 +598,7 @@ export function App() {
     if (!paths.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
     const next = deleteEntries(t, type, paths);
     const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
-    const unpinned = pins && selection.some((s) => (s.kind === 'node' ? pins.nodes?.[s.id] : s.kind === 'group' ? pins.groups?.[s.id] : undefined));
+    const unpinned = vpins && selection.some((s) => (s.kind === 'node' ? vpins.nodes?.[s.id] : s.kind === 'group' ? vpins.groups?.[s.id] : undefined));
     const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
     apply(next, nextPins);
     if (next != null) {
@@ -662,8 +673,8 @@ export function App() {
     const nodeId = selected.id.endsWith(old) ? selected.id.slice(0, -old.length) + to : selected.id;
     // Pins of the element and of what is drawn for it ("dev:policy:0") move to the new id.
     const rekey = (k: string) => (k === selected.id ? nodeId : k.startsWith(`${selected.id}:`) ? nodeId + k.slice(selected.id.length) : k);
-    const moved = pins?.nodes && Object.keys(pins.nodes).some((k) => rekey(k) !== k);
-    apply(next, moved ? { version: 1, nodes: Object.fromEntries(Object.entries(pins!.nodes!).map(([k, v]) => [rekey(k), v])) } : undefined);
+    const moved = vpins?.nodes && Object.keys(vpins.nodes).some((k) => rekey(k) !== k);
+    apply(next, moved ? { ...vpins, nodes: Object.fromEntries(Object.entries(vpins!.nodes!).map(([k, v]) => [rekey(k), v])) } : undefined);
     setSelected({ kind: selected.kind, id: nodeId });
     return true;
   };
@@ -774,6 +785,26 @@ export function App() {
     e.preventDefault();
   };
 
+  // ------------------------------------------------------------ links and views
+
+  /** Follows a link: a URL in a new tab, another view here, or another diagram (and view) next to this one. */
+  const follow = (link: Link) => {
+    const here = ws && doc.path ? doc.path : doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined;
+    const t = linkTarget(link, here);
+    if (t.kind === 'url') return void window.open(t.url, '_blank', 'noopener');
+    if (t.kind === 'none') return notify(t.why, { tone: 'error' });
+    if (t.kind === 'view') return setPicked({ doc: docId, name: t.view });
+    if (ws && doc.path) {
+      if (!ws.files.has(t.path)) return notify(`There is no ${t.path} in ${ws.name}`, { tone: 'error' });
+      setPicked({ doc: t.path, name: t.view });
+      return void openInFolder(ws, t.path);
+    }
+    const s = starters.find((x) => x.id === `example:${t.path}`);
+    if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
+    setPicked({ doc: s.id, name: t.view });
+    pick(s);
+  };
+
   // ------------------------------------------------------------ inspector
 
   const selectedPath = pathOf(selected);
@@ -820,7 +851,7 @@ export function App() {
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    ...(pins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => editor.current?.pin(undefined) }] : []),
+    ...(vpins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => pinTo(null) }] : []),
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
@@ -1110,7 +1141,7 @@ export function App() {
             result={drawn}
             stale={!!rendered && drawn !== result}
             selection={selection}
-            docKey={rendered?.docKey ?? -1}
+            docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}`}
             onSelect={(s, add) => (add && s ? toggle(s) : select(s))}
             onSelectMany={selectMany}
             labelOf={labelOf}
@@ -1135,6 +1166,13 @@ export function App() {
             }}
             onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
             onKeyDown={onCanvasKey}
+            onFollow={(s) => {
+              const g = drawn?.graph;
+              const links = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.links : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.links : undefined;
+              if (!links?.length) return false;
+              follow(links[0]!);
+              return true;
+            }}
           >
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
               <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
@@ -1146,11 +1184,12 @@ export function App() {
               <button className="tool" onClick={() => editor.current?.redo()} title="Redo (⇧⌘Z)" aria-label="Redo">
                 <Icon name="redo-2" />
               </button>
-              {pins && (
-                <button className="tool" onClick={() => editor.current?.pin(undefined)} title="Unpin everything: back to the automatic layout" aria-label="Reset layout">
+              {vpins && (
+                <button className="tool" onClick={() => pinTo(null)} title="Unpin everything: back to the automatic layout" aria-label="Reset layout">
                   <Icon name="pin-off" />
                 </button>
               )}
+              <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
             </div>
             {hint && !adding && !modal && (
               <div className="hint" role="note">
@@ -1206,7 +1245,9 @@ export function App() {
             kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
-            pinned={selected.kind === 'node' ? !!pins?.nodes?.[selected.id] : selected.kind === 'group' && !!pins?.groups?.[selected.id]}
+            pinned={selected.kind === 'node' ? !!vpins?.nodes?.[selected.id] : selected.kind === 'group' && !!vpins?.groups?.[selected.id]}
+            links={(selNode ?? selGroup)?.links}
+            onFollowLink={follow}
             onField={(key, value) =>
               type && selectedPath && apply(isEdgeItem ? setEdgeField(textNow(), selectedPath, key, value) : setField(textNow(), type, selectedPath, key, value))
             }
@@ -1227,7 +1268,7 @@ export function App() {
             }
             onSelectEdge={(id) => select({ kind: 'edge', id })}
             onDeleteEdge={(id) => remove({ kind: 'edge', id })}
-            onUnpin={() => editor.current?.pin(withPin(selected.id, undefined, selected.kind === 'group') ?? undefined)}
+            onUnpin={() => editor.current?.pin(withViewPins(pins, drawn?.view, withPin(selected.id, undefined, selected.kind === 'group')))}
             onClose={() => setInspector(false)}
           />
         )}
