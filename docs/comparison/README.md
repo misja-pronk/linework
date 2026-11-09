@@ -19,7 +19,9 @@ Regenerate everything with `pnpm compare` (needs `d2` on the PATH for the D2 col
 | ![Mermaid](png/microservices-mermaid.png) | ![D2](png/microservices-d2.png) | ![Cartography](png/microservices-cartography.png) |
 
 Imported as a `systems` diagram: the circle became a user, `[(…)]` databases, "Redis cache" a cache,
-"Kafka: order-events" an event stream, `-.->` async messages and `==>` the main request path.
+"Kafka: order-events" an event stream, `-.->` async messages and `==>` the main request path. Plain
+`-->` lines stay grey and the legend names them ("Connection") next to the coloured ones. Captions only
+appear where they add something: "Order Service" is not captioned "Service" again.
 
 ## Photo uploads — serverless (architecture-beta)
 
@@ -37,6 +39,10 @@ SQS resize queue a queue.
 | --- | --- | --- |
 | ![Mermaid](png/data-platform-mermaid.png) | ![D2](png/data-platform-d2.png) | ![Cartography](png/data-platform-cartography.png) |
 
+Subgraphs whose titles say nothing about what they are (Sources, Ingestion, …) become neutral groups
+without a caption. Boxes no word gives away ("Debezium CDC", "dbt transformations") are plain steps
+instead of guessed services.
+
 ## Shop schema (erDiagram)
 
 | Mermaid | D2 | Cartography |
@@ -44,7 +50,9 @@ SQS resize queue a queue.
 | ![Mermaid](png/shop-schema-mermaid.png) | ![D2](png/shop-schema-d2.png) | ![Cartography](png/shop-schema-cartography.png) |
 
 Imported as an `erd` diagram. `FK` attributes are matched to the related table (`customer_id` → customer),
-so lines attach to the column, with crow's feet from the relationship.
+so lines attach to the column, with crow's feet from the relationship. Mermaid's "one or more" (`|{`)
+keeps its bar (order_line "contains"), `PK, FK` columns show both the key and the link, and `UK` a
+unique mark. Table ids are lowercased (`ORDER` → `order`); the import says so.
 
 ## Sign-in flow (flowchart with decisions)
 
@@ -52,6 +60,9 @@ so lines attach to the column, with crow's feet from the relationship.
 | --- | --- | --- |
 | ![Mermaid](png/login-flow-mermaid.png) | ![D2](png/login-flow-d2.png) | ![Cartography](png/login-flow-cartography.png) |
 
-Cartography draws systems, not flow logic: it has no decision or start/stop shapes, so steps and
-questions all become cards, most of them captioned "Service". For process flows like this one,
-Mermaid and D2 say more.
+Questions, `{…}` and plain `{{…}}` shapes import as decisions (pointed ends, a diamond tile, an amber
+outline), `([…])` and `((…))` at the start or end of the flow as pills, and the other boxes as plain
+steps without an icon or caption. Next to Mermaid this is now a fair match: the same shapes in the
+same order, yes/no labels readable on every branch, and a slightly shorter drawing (decisions do not
+need a diamond's height). Mermaid's diamonds are still the more familiar symbol at first sight, and the
+long "yes" line from the first decision runs the whole height of the drawing in both tools.

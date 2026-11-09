@@ -3,7 +3,7 @@ title: Order platform
 
 groups:
   platform: { kind: cluster, label: Kubernetes cluster }
-  data: { kind: system, label: Data stores }
+  data: { kind: group, label: Data stores }
 
 nodes:
   customer: { kind: user, label: Customer }

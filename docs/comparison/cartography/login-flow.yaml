@@ -3,15 +3,15 @@ title: Sign-in flow
 direction: down
 
 nodes:
-  start: { kind: service, label: User opens app }
-  session: { kind: service, label: "Valid session?" }
-  home: { kind: service, label: Show home screen }
-  login: { kind: identity, label: Login page }
-  idp: { kind: identity, label: Redirect to identity provider }
-  mfa: { kind: service, label: "MFA required?" }
-  otp: { kind: service, label: Ask one-time code }
-  token: { kind: service, label: Issue tokens }
-  check: { kind: service, label: "Code correct?" }
+  start: { kind: start, label: User opens app }
+  session: { kind: decision, label: "Valid session?" }
+  home: { kind: step, label: Show home screen }
+  login: { kind: step, label: Login page }
+  idp: { kind: step, label: Redirect to identity provider }
+  mfa: { kind: decision, label: "MFA required?" }
+  otp: { kind: step, label: Ask one-time code }
+  token: { kind: step, label: Issue tokens }
+  check: { kind: decision, label: "Code correct?" }
 
 edges:
   - start -> session

@@ -40,7 +40,7 @@ tables:
 
 relations:
   - order.customer_id -> customer.id: places
-  - order_line.order_id -> order.id: contains
+  - order_line.order_id -> order.id: { label: contains, cardinality: one-or-many-to-one }
   - order_line.product_id -> product.id: sold as
   - product.category_id -> category.id: groups
   - address.customer_id -> customer.id: ships to
