@@ -1,21 +1,26 @@
 #!/usr/bin/env node
-// carto render | watch | validate | new | import | icons | themes | types
+// carto render | deck | watch | validate | new | import | icons | themes | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { toPng } from './png.ts';
+import { iconPng, interTtf, toPng } from './png.ts';
+import { toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
-import { findType, render, types, type RenderOptions } from '@cartography/engine';
+import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
 import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
 import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
 
-  carto render <file.yaml…> [-o out] [--format svg|png] [--theme name|file.theme.yaml]
-               [--pack azure] [--scale 2]           --theme wins over the diagram's theme:
+  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
+               [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
                [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each
+               [--title "Deck title"] [--subtitle …] title slide in front (pptx)
+               [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
+               [--page fit|a4|a3]                   page size (pdf, default fit)
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
@@ -44,6 +49,11 @@ const { positionals, values } = parseArgs({
     force: { type: 'boolean' },
     view: { type: 'string' },
     'all-views': { type: 'boolean' },
+    title: { type: 'string' },
+    subtitle: { type: 'string' },
+    aspect: { type: 'string', default: '16:9' },
+    font: { type: 'string' },
+    page: { type: 'string', default: 'fit' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -106,10 +116,17 @@ function themeFlag(): boolean {
   return true;
 }
 
-async function renderFile(file: string): Promise<boolean> {
-  const format = values.format === 'png' ? 'png' : 'svg';
-  const text = fs.readFileSync(file, 'utf8');
-  const opts: RenderOptions = {
+type Format = 'svg' | 'png' | 'pptx' | 'pdf';
+const formats: Format[] = ['svg', 'png', 'pptx', 'pdf'];
+
+/** -o deck.pptx says the format as clearly as --format pptx; the extension wins for one file. */
+function formatFor(): Format {
+  const ext = values.out && files.length === 1 ? path.extname(values.out).slice(1).toLowerCase() : '';
+  return formats.find((f) => f === ext) ?? formats.find((f) => f === values.format) ?? 'svg';
+}
+
+function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions {
+  return {
     themeOverride: forced,
     sidecar: sidecarFor(file),
     load: loaderFor(file),
@@ -117,11 +134,32 @@ async function renderFile(file: string): Promise<boolean> {
     fontScale,
     packs: values.pack,
     pack: readPack,
-    // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
-    fonts: values['no-fonts'] || format === 'png' ? 'none' : 'embed',
+    fonts,
     file: path.basename(file),
     view: values.view,
   };
+}
+
+async function draw(file: string, fonts: RenderOptions['fonts']) {
+  const result = await render(fs.readFileSync(file, 'utf8'), optionsFor(file, fonts));
+  report(file, result.diagnostics);
+  return result;
+}
+
+/** Slides and PDF pages, from one or many drawings; a brand theme carries over. */
+function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme']): Promise<Uint8Array> {
+  const t = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
+  if (format === 'pptx')
+    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, rasterize: (svg, w) => iconPng(svg, w) });
+  const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
+  return toPdf(drawings, { theme: t, page, fonts: interTtf(), title: values.title });
+}
+
+async function renderFile(file: string): Promise<boolean> {
+  const format = formatFor();
+  const text = fs.readFileSync(file, 'utf8');
+  // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
+  const opts = optionsFor(file, values['no-fonts'] || format !== 'svg' ? 'none' : 'embed');
   const first = await render(text, opts);
   // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
   const runs = values['all-views'] && first.views?.length ? [first, ...(await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))))] : [first];
@@ -135,10 +173,37 @@ async function renderFile(file: string): Promise<boolean> {
     }
     const out = outputPath(file, format, view);
     const faces = result.theme?.font.faces ?? [];
-    fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2, await ttfFiles(faces)) : result.svg);
+    const data =
+      format === 'png' ? toPng(result.svg, Number(values.scale) || 2, await ttfFiles(faces))
+      : format === 'svg' ? result.svg
+      : await document(format, [{ ...result, name: path.basename(file) }], result.theme);
+    fs.writeFileSync(out, data);
     console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${result.width}×${result.height}`)}`);
     if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
   }
+  return ok;
+}
+
+/** Several diagrams, one file: a slide or page each, in the order given. */
+async function deck(): Promise<boolean> {
+  const format = values.out?.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pptx';
+  if (!values.out || !/\.(pptx|pdf)$/i.test(values.out)) {
+    console.error('carto deck needs -o <file>.pptx or -o <file>.pdf');
+    return false;
+  }
+  const drawings: Drawing[] = [];
+  let theme: RenderResult['theme'];
+  let ok = true;
+  for (const f of files) {
+    const r = await draw(f, 'none');
+    theme ??= r.theme;
+    if (!r.graph || r.diagnostics.some((d) => d.severity === 'error')) ok = false;
+    if (r.graph) drawings.push({ ...r, name: path.basename(f) });
+  }
+  if (!drawings.length) return false;
+  fs.mkdirSync(path.dirname(values.out), { recursive: true });
+  fs.writeFileSync(values.out, await document(format, drawings, theme));
+  console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''} → ${values.out}`);
   return ok;
 }
 
@@ -299,6 +364,9 @@ async function main(): Promise<number> {
       for (const f of files) ok = (await renderFile(f)) && ok;
       return ok ? 0 : 1;
     }
+    case 'deck':
+      if (!files.length) return (console.error(help), 1);
+      return (await deck()) ? 0 : 1;
     case 'watch': {
       if (!themeFlag()) return 1;
       for (const f of files) {

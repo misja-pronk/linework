@@ -4,15 +4,9 @@ import type { Box, MatrixCell, MatrixShape, Tone } from '@cartography/core';
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 
-const PAD = 16;
-const HEAD = 56;
-const PILL_H = 22;
-const PILL_X = 10;
-const NOTE = 10.5;
-const CHECK = 18;
-/** Room an icon takes before a header label: a tile in rows, a bare icon in columns. */
-const ROW_ICON = 30;
-const COL_ICON = 22;
+/** Matrix metrics, shared with the slide export. ROW_ICON/COL_ICON: room an icon takes before a header label (a tile in rows, a bare icon in columns). */
+export const MATRIX = { PAD: 16, HEAD: 56, PILL_H: 22, PILL_X: 10, NOTE: 10.5, CHECK: 18, ROW_ICON: 30, COL_ICON: 22 } as const;
+const { PAD, HEAD, PILL_H, PILL_X, NOTE, CHECK, ROW_ICON, COL_ICON } = MATRIX;
 
 export interface MatrixGeometry {
   rowHeader: number;

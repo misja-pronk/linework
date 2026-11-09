@@ -1,4 +1,5 @@
-// Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, and the YAML itself.
+// Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
+// (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 import { render, themes } from '@cartography/engine';
 import type { LayoutSidecar } from '@cartography/core';
 import { brand } from './brand.ts';
@@ -67,6 +68,39 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
   g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
   URL.revokeObjectURL(img.src);
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+}
+
+/** A slide with native, editable shapes; icon PNG fallbacks drawn by the browser's canvas. */
+export async function exportPptx(input: ExportInput, name?: string): Promise<Blob> {
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'none' });
+  if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
+  const { toPptx } = await import('@cartography/export');
+  const data = await toPptx({ ...r, name }, { theme: input.theme, rasterize });
+  return new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+}
+
+/** Vector PDF, one page fitted to the drawing, with Inter embedded. */
+export async function exportPdf(input: ExportInput, name?: string): Promise<Blob> {
+  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, fonts: 'none' });
+  if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
+  const [{ toPdf }, { fontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
+  // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
+  const [regular, medium, semibold] = await Promise.all(fontFiles.map(async (u) => new Uint8Array(await (await fetch(u)).arrayBuffer())));
+  const data = await toPdf({ ...r, name }, { theme: input.theme, fonts: { 400: regular!, 500: medium!, 600: semibold! } });
+  return new Blob([data as BlobPart], { type: 'application/pdf' });
+}
+
+async function rasterize(svg: string, width: number, height: number): Promise<Uint8Array> {
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+  const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
+  if (!blob) throw new Error('The browser could not draw an icon');
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 export function download(name: string, data: Blob | string, type = 'text/plain') {
