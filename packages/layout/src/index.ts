@@ -49,19 +49,15 @@ async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar
   if (!graph.nodes.length && !graph.groups.length) return { placed: { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } }, score: 0 };
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
   // dot ranks and orders differently when asked differently, and no one way suits every diagram.
-  // Small diagrams also try a few other ways, each drawn once cheaply; the most promising of those
-  // gets the full treatment next to dot's own, and the better of the two is kept. Big diagrams, and
+  // Small diagrams also try a few other ways, each drawn in full, and the best-scoring one is kept. Big diagrams, and
   // pinned ones (whose pins were set on one placement), ask once.
   const others: DotVariant[] = tuning.dot || graph.nodes.length > VARIANT_LIMIT || pinned ? [] : [{ sameRank: true }, { attrs: 'ordering=out' }, { sameRank: true, reverse: true }];
-  const own = await candidates(sized, spacing, sidecar, tuning, tuning.dot ?? {});
-  let pick: { variant: DotVariant; score: number } | undefined;
+  let best = await candidates(sized, spacing, sidecar, tuning, tuning.dot ?? {});
   for (const variant of others) {
-    const sc = (await candidates(sized, spacing, sidecar, { ...tuning, compact: tuning.compact ?? true, align: tuning.align ?? false }, variant)).score;
-    if (!pick || sc < pick.score - 1e-9) pick = { variant, score: sc };
+    const c = await candidates(sized, spacing, sidecar, tuning, variant);
+    if (c.score < best.score - 1e-9) best = c;
   }
-  if (!pick) return own;
-  const other = await candidates(sized, spacing, sidecar, tuning, pick.variant);
-  return other.score < own.score - 1e-9 ? other : own;
+  return best;
 }
 
 /** The best drawing from one dot placement: compacted or not, straightened or not. */

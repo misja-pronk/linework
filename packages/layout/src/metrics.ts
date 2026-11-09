@@ -114,7 +114,8 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
  * covered labels are errors; crossings and detours hurt; shape matters for slides (target 16:9).
  */
 export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
-  const aspectPenalty = Math.abs(Math.log(m.aspect / targetAspect));
+  // Anything from about square to wide reads fine on a page or slide; only extremes cost.
+  const aspectPenalty = Math.max(0, Math.abs(Math.log(m.aspect / targetAspect)) - Math.log(1.8));
   return (
     m.edgeThroughNode * 200 +
     m.labelOverlaps * 200 +
