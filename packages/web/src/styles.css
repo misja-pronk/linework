@@ -1706,3 +1706,21 @@ kbd {
     display: block;
   }
 }
+.chips .spacer {
+  flex: 1;
+}
+.import-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+}
+.warnings {
+  margin: 0;
+  padding-left: 18px;
+}
+.ask-stream pre,
+.ask-stream .paste {
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+}

@@ -14,6 +14,7 @@
     "@cartography/core": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/icons": "workspace:*",
+    "@cartography/import": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",

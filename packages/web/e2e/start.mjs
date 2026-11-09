@@ -127,5 +127,16 @@ await page.getByRole('button', { name: /Open in YAML/ }).click();
 await wait(800);
 await page.screenshot({ path: `${out}/8-dark.png` });
 
+// 5. Import from Mermaid.
+await page.getByRole('button', { name: 'New' }).click();
+await page.getByRole('button', { name: /Import from Mermaid/ }).click();
+await page.getByRole('button', { name: 'Try the example' }).click();
+await wait(900);
+if (!(await page.locator('.ask-preview svg').count())) fail('imported Mermaid not drawn');
+await page.screenshot({ path: `${out}/9-import.png` });
+await page.getByRole('button', { name: /Open in builder/ }).click();
+await wait(800);
+if (!(await yaml()).includes('type: systems')) fail('import not opened');
+
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'start flow OK');
 await browser.close();

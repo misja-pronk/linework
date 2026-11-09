@@ -164,6 +164,9 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
+      '@cartography/import':
+        specifier: workspace:*
+        version: link:../import
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
