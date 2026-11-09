@@ -3,13 +3,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { measure } from '@cartography/layout';
+import { measure, routeEdges } from '@cartography/layout';
 import { render } from '../src/index.ts';
 import { big } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
-  'access/engineering.yaml': 1,
+  'access/engineering.yaml': 0,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
@@ -20,7 +20,7 @@ const crossingBudget: Record<string, number> = {
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 0,
   'data-products/customer-focus.yaml': 0,
-  'data-products/finance.yaml': 1,
+  'data-products/finance.yaml': 0,
   'erd/orders.yaml': 0,
   'erd/saas.yaml': 6,
   'erd/shop-schemas.yaml': 0,
@@ -97,6 +97,32 @@ describe('tidy lines', () => {
     for (const b of r.placed!.nodes.values()) {
       expect((b.x + b.width / 2) % 8).toBe(0);
       expect((b.y + b.height / 2) % 8).toBe(0);
+    }
+  });
+});
+
+describe('group titles', () => {
+  // A node right under a title, fed from straight above: the line may not run through the title.
+  const title = { x: 0, y: 160, width: 172, height: 18 };
+  const end = (node: string, y: number) => ({ node, box: { x: 0, y, width: 172, height: 58 }, stub: 18 });
+  const crosses = (pts: { x: number; y: number }[]) =>
+    pts.slice(1).some((q, i) => {
+      const p = pts[i]!;
+      return Math.min(p.x, q.x) < title.x + title.width && Math.max(p.x, q.x) > title.x && Math.min(p.y, q.y) < title.y + title.height && Math.max(p.y, q.y) > title.y;
+    });
+  it('are never crossed by lines, also when the title covers the whole top of the node', () => {
+    const out = routeEdges({ obstacles: new Map([['a', end('a', 0).box], ['b', end('b', 203).box]]), soft: [], texts: [title], direction: 'down', edges: [{ id: 'e', from: end('a', 0), to: end('b', 203) }] });
+    expect(crosses(out.get('e')!.points)).toBe(false);
+  });
+  it('take the lane under them: a fan-out into the next row comes in from the top', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8'), { fonts: 'none' });
+    for (const id of ['lb', 'events']) {
+      const lines = r.graph!.edges.filter((e) => e.from.node === id);
+      for (const e of lines) {
+        const pts = r.placed!.edges.get(e.id)!.points;
+        const [a, b] = [pts[pts.length - 2]!, pts[pts.length - 1]!];
+        expect(a.x === b.x && a.y < b.y).toBe(true);
+      }
     }
   });
 });
