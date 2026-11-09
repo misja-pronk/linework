@@ -1,0 +1,45 @@
+type: sequence
+title: Nightly export handshake
+subtitle: A partner drops a file; we load it in parallel and confirm or reject the batch
+footers: true
+
+boxes:
+  platform: { label: Data platform, tone: teal }
+
+participants:
+  partner: { kind: external, label: Partner SFTP }
+  ingest: { kind: function, label: Ingest trigger, box: platform }
+  orch: { kind: worker, label: Orchestrator, box: platform }
+  lake: { kind: storage, label: Raw zone, box: platform }
+  wh: { kind: database, label: Warehouse, box: platform }
+
+steps:
+  - partner ->> ingest: orders_2026-11-09.csv + .done marker
+  - ingest -> lake: Copy file and checksum
+  - lake --> ingest: stored
+  - ingest ->> orch: BatchArrived(batch 8812)
+  - activate: orch
+  - orch -> lake: Read manifest
+  - lake --> orch: 3 files, 1.2 GB
+  - par: orders
+    steps:
+      - orch -> wh: COPY orders
+      - wh --> orch: 1,204,331 rows
+    and:
+      order_lines:
+        - orch -> wh: COPY order_lines
+        - wh --> orch: 4,881,020 rows
+  - orch -> wh: Run quality checks
+  - wh --> orch: Results
+  - alt: All checks pass
+    steps:
+      - orch -> wh: Swap staging into production
+      - orch ->> partner: ACK batch 8812
+    else:
+      Row counts differ from the manifest:
+        - orch -> lake: Move batch to quarantine
+        - orch ->> partner: NACK batch 8812, reason
+  - deactivate: orch
+  - ref: Retry and back-off policy
+    over: [partner, orch]
+    link: https://example.com/runbooks/partner-retries

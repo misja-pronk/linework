@@ -2,6 +2,7 @@
 import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@cartography/core';
 import { measureText, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
+import { sequenceGeometry } from './sequence.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -27,6 +28,10 @@ export function size(graph: Graph, theme: Theme): Sized {
     const shape = n.shape;
     if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme, badges.get(n.id)));
     else if (shape.kind === 'table') nodes.set(n.id, tableSize(shape, theme));
+    else if (shape.kind === 'sequence') {
+      const s = sequenceGeometry(shape, theme);
+      nodes.set(n.id, { width: s.width, height: s.height });
+    }
     else {
       const m = matrixGeometry(shape, theme);
       nodes.set(n.id, { width: Math.round(m.width), height: Math.round(m.height) });

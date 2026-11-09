@@ -1,5 +1,6 @@
 // The type-agnostic graph every diagram type builds. Render and layout only know this model,
 // which is what keeps all diagram types looking like one tool.
+import type { SequenceShape } from './sequence.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -34,7 +35,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape;
   path: Path;
   /** Shown only as the badges that name it (a ConfigMap on the workload using it), never as a card of its own. */
   folded?: boolean;

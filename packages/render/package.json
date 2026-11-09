@@ -9,6 +9,7 @@
   "dependencies": {
     "@cartography/core": "workspace:*",
     "@cartography/theme": "workspace:*",
-    "@cartography/icons": "workspace:*"
+    "@cartography/icons": "workspace:*",
+    "@cartography/lanes": "workspace:*"
   }
 }

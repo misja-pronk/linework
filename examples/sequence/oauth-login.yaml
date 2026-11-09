@@ -1,0 +1,42 @@
+type: sequence
+title: Sign in with OAuth 2.0
+subtitle: Authorization code flow with PKCE, and a second factor when the risk check asks for one
+
+participants:
+  user: { kind: person, label: User }
+  app: { kind: client, label: Web app }
+  idp: { kind: identity, label: Entra ID }
+  mfa: { kind: mobile, label: Authenticator }
+  api: { kind: api, label: Orders API }
+
+steps:
+  - user -> app: Sign in
+  - app -> app: Create code verifier and challenge
+  - app -> idp: /authorize (client id, challenge, scopes)
+  - idp --> user: Login page
+  - user -> idp: Name and password
+  - idp -> idp: Risk check
+  - alt: New device or risky sign-in
+    steps:
+      - idp ->> mfa: Push notification
+      - mfa --> user: Approve sign-in?
+      - user -> mfa: Approve with Face ID
+      - mfa ->> idp: Approved
+    else:
+      Known device:
+        - note: No second factor within the policy's sign-in frequency
+          over: idp
+  - idp --> app: Redirect with authorization code
+  - app -> idp: /token (code, verifier)
+  - idp --> app: Access token, ID token, refresh token
+  - note: Tokens stay in memory; the refresh token is rotated on every use
+    right: app
+  - loop: Every API call
+    steps:
+      - app -> api: GET /orders (Bearer token)
+      - api -> api: Validate JWT signature and audience
+      - api --> app: 200 Orders
+  - opt: Access token expired
+    steps:
+      - app -> idp: /token (refresh token)
+      - idp --> app: New access token

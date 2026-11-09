@@ -1,0 +1,32 @@
+title: Card payment {near: top-center; shape: text; style.font-size: 24}
+
+shape: sequence_diagram
+C: Customer {shape: person}
+W: Web shop
+O: Order Service
+DB: Orders DB {shape: cylinder}
+S: Stripe
+Q: order-events queue {shape: queue}
+
+C -> W: Pay for order
+W -> O.call: POST /orders/42/pay
+O.call -> O.call: Check stock and prices
+O.call -> S.pi: Create payment intent
+S.pi -> O.call: client secret {style.stroke-dash: 3}
+O.call -> W: 202 Accepted {style.stroke-dash: 3}
+W."The browser confirms the card with 3-D Secure"
+alt payment succeeded: {
+  S -> O: webhook payment_intent.succeeded
+  O -> DB.u: UPDATE status = paid
+  DB.u -> O: ok {style.stroke-dash: 3}
+  O -> Q: OrderPaid
+}
+else card declined: {
+  S -> O: webhook payment_failed
+  O -> DB: UPDATE status = failed
+}
+loop every 2 s until paid or failed: {
+  W -> O: GET /orders/42
+  O -> W: status {style.stroke-dash: 3}
+}
+W -> C: Order confirmation {style.stroke-dash: 3}

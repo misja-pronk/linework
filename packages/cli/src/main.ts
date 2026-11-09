@@ -16,7 +16,7 @@ const help = `carto — architecture diagrams that look good
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
-                                                erDiagram) to YAML; .md: every mermaid block;
+                                                erDiagram, sequenceDiagram) to YAML; .md: every mermaid block;
                                                 Kubernetes manifests: all files in one diagram
   carto types [words…]                          which type to pick, best match first
 

@@ -1,11 +1,12 @@
 // Imports from other diagram languages. Pure functions (text in, YAML out), shared by the CLI and the web app.
 //
-//   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd
+//   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd, sequenceDiagram → sequence
 //   importMarkdown(text)   every ```mermaid block in a Markdown file
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
+import { importSequence } from './sequence.ts';
 import { Warnings } from './text.ts';
 
 export interface Imported {
@@ -38,7 +39,7 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   if (start < 0) return { yaml: '', warnings: ['The Mermaid text is empty'] };
   const header = lines[start]!.trim();
   const body = lines.slice(start + 1);
-  const t = /^title\s+(.+)$/m.exec(body.join('\n'));
+  const t = /^\s*title\s+(.+)$/m.exec(body.join('\n'));
   if (t) {
     title = t[1]!.trim();
     body.splice(body.findIndex((l) => l.trim().startsWith('title ')), 1);
@@ -50,7 +51,8 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   if (/^(flowchart|graph)$/i.test(kind)) yaml = importFlowchart(body, header, title, warn);
   else if (/^architecture(-beta)?$/.test(kind)) yaml = importArchitecture(body, title, warn);
   else if (kind === 'erDiagram') yaml = importEr(body, title, warn);
-  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta and erDiagram can`);
+  else if (kind === 'sequenceDiagram') yaml = importSequence(body, title, warn);
+  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram and sequenceDiagram can`);
   return { yaml, warnings: warn.list };
 }
 

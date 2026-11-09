@@ -1,0 +1,406 @@
+// Sequence diagrams: participants side by side, messages between them in order, top to bottom.
+//
+//   participants:
+//     shopper: person
+//     api: { kind: service, label: Orders API, box: shop }
+//   steps:
+//     - shopper -> api: Place order        call (opens an activation on api)
+//     - api ->> bus: OrderPlaced           async message
+//     - api --> shopper: 201 Created       reply (closes api's activation)
+//     - alt: Card accepted                 frames: alt/else, opt, loop, par/and, break, critical, group
+//       steps: [...]
+//       else: { Card declined: [...] }
+//     - note: Idempotent                   notes over, left or right of participants
+//       over: api
+//     - divider: Payment
+//
+// Activations follow the calls by default: a call opens one on the callee, its reply closes it.
+// `activations: explicit` draws only the ones asked for (`a -> +b`, `b --> -a`, activate:/deactivate:).
+import {
+  idPattern,
+  type BuildContext,
+  type DiagramType,
+  type FrameKind,
+  type Graph,
+  type KindTable,
+  type PaletteItem,
+  type Path,
+  type Reference,
+  type SequenceArrow,
+  type SequenceEvent,
+  type SequenceParticipant,
+  type Tone,
+  tones,
+} from '@cartography/core';
+
+export const kinds: KindTable = {
+  person: { label: 'Person', icon: 'user', tone: 'slate', quiet: true, keywords: ['actor', 'user', 'customer'] },
+  people: { label: 'People', icon: 'users', tone: 'slate', quiet: true, keywords: ['users', 'team'] },
+  client: { label: 'Web app', icon: 'app-window', tone: 'sky', keywords: ['browser', 'frontend', 'spa'] },
+  mobile: { label: 'Mobile app', icon: 'smartphone', tone: 'sky', keywords: ['ios', 'android'] },
+  service: { label: 'Service', icon: 'box', tone: 'blue', keywords: ['backend', 'microservice'] },
+  api: { label: 'API', icon: 'webhook', tone: 'blue', keywords: ['rest', 'graphql'] },
+  gateway: { label: 'Gateway', icon: 'split', tone: 'sky', keywords: ['proxy', 'ingress'] },
+  function: { label: 'Function', icon: 'square-function', tone: 'amber', keywords: ['lambda', 'serverless'] },
+  worker: { label: 'Worker', icon: 'cog', tone: 'blue', keywords: ['consumer', 'job'] },
+  database: { label: 'Database', icon: 'database', tone: 'indigo', keywords: ['sql', 'db', 'store'] },
+  cache: { label: 'Cache', icon: 'database-zap', tone: 'rose', keywords: ['redis'] },
+  storage: { label: 'Storage', icon: 'archive', tone: 'teal', keywords: ['bucket', 's3', 'blob', 'files'] },
+  queue: { label: 'Queue', icon: 'send', tone: 'violet', keywords: ['sqs', 'rabbitmq', 'message'] },
+  topic: { label: 'Event stream', icon: 'radio-tower', tone: 'violet', keywords: ['kafka', 'event bus', 'pubsub'] },
+  identity: { label: 'Identity provider', icon: 'fingerprint-pattern', tone: 'amber', keywords: ['idp', 'oauth', 'sso', 'auth'] },
+  payments: { label: 'Payments', icon: 'credit-card', tone: 'green', keywords: ['psp', 'stripe'] },
+  system: { label: 'System', icon: 'boxes', tone: 'blue' },
+  external: { label: 'External system', icon: 'earth', tone: 'slate', keywords: ['third party', 'saas', 'partner'] },
+};
+
+export const frames: FrameKind[] = ['alt', 'opt', 'loop', 'par', 'break', 'critical', 'group'];
+
+/** `a -> b`, `a ->> b`, `a --> b` (also -->>), `a -x b`; `+b` opens an activation on b, `-b` closes the sender's. */
+export const MESSAGE = /^\s*([A-Za-z0-9_-]+?)\s*(-->>|->>|-->|->|-x(?=\s))\s*([+-]?)([A-Za-z0-9_-]+)\s*$/;
+const ARROWS: Record<string, SequenceArrow> = { '->': 'sync', '->>': 'async', '-->': 'reply', '-->>': 'reply', '-x': 'lost' };
+
+interface ParticipantEntry {
+  kind?: string;
+  label?: string;
+  caption?: string;
+  icon?: string;
+  tone?: Tone;
+  box?: string;
+}
+
+export interface SequenceSource {
+  type: 'sequence';
+  title?: string;
+  subtitle?: string;
+  autonumber?: boolean;
+  activations?: 'auto' | 'explicit';
+  footers?: boolean;
+  boxes?: Record<string, string | { label?: string; tone?: Tone }>;
+  participants?: Record<string, string | ParticipantEntry | null>;
+  steps?: unknown[];
+}
+
+type Item = Record<string, unknown>;
+
+/** What a step is, by its keys. */
+function stepKind(item: unknown): 'message' | 'note' | 'divider' | 'ref' | 'activate' | 'deactivate' | FrameKind | undefined {
+  if (typeof item === 'string') return MESSAGE.test(item) ? 'message' : undefined;
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
+  const keys = Object.keys(item);
+  for (const k of ['note', 'divider', 'ref', 'activate', 'deactivate', ...frames] as const) if (keys.includes(k)) return k;
+  return keys.length === 1 && MESSAGE.test(keys[0]!) ? 'message' : undefined;
+}
+
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v == null ? [] : [String(v)]);
+
+function participantsOf(src: SequenceSource): SequenceParticipant[] {
+  const out: SequenceParticipant[] = [];
+  for (const [id, raw] of Object.entries(src.participants ?? {})) {
+    const e: ParticipantEntry = typeof raw === 'string' ? { kind: raw } : (raw ?? {});
+    const kind = kinds[e.kind ?? 'service'];
+    const label = e.label ?? (e.kind ? kind?.label : undefined) ?? id;
+    // The kind as caption, unless the label says it already or the kind is plain (a person).
+    const said = !e.kind || !e.label || kind?.quiet || label.toLowerCase().endsWith(kind?.label.toLowerCase() ?? '\0');
+    out.push({ id, label, caption: e.caption ?? (said ? undefined : kind?.label), icon: e.icon ?? kind?.icon, tone: e.tone ?? kind?.tone ?? 'slate', box: e.box, path: ['participants', id] });
+  }
+  // A box holds participants side by side: keep its members together where the first one stands.
+  const order: SequenceParticipant[] = [];
+  for (const p of out) {
+    if (order.includes(p)) continue;
+    order.push(p, ...(p.box ? out.filter((q) => q !== p && q.box === p.box) : []));
+  }
+  return order;
+}
+
+export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
+  const participants = participantsOf(src);
+  const ids = new Set(participants.map((p) => p.id));
+  const boxes = Object.entries(src.boxes ?? {}).map(([id, b]) => {
+    const e = typeof b === 'string' ? { label: b } : (b ?? {});
+    return { id, label: e.label ?? id, tone: e.tone ?? 'slate' };
+  });
+  for (const p of participants)
+    if (p.box && !boxes.some((b) => b.id === p.box)) {
+      ctx.error([...p.path, 'box'], `There is no box "${p.box}"; add it under boxes`);
+      p.box = undefined;
+    }
+  const known = (id: string, path: Path) => {
+    if (ids.has(id)) return true;
+    ctx.error(path, `There is no participant "${id}"; add it under participants`);
+    return false;
+  };
+
+  const auto = src.activations !== 'explicit';
+  const events: SequenceEvent[] = [];
+  const open = new Map<string, number>();
+  const bump = (lane: string, by: number) => open.set(lane, Math.max(0, (open.get(lane) ?? 0) + by));
+  let number = 0;
+
+  const walk = (steps: unknown, base: Path) => {
+    if (!Array.isArray(steps)) return;
+    for (const [i, item] of steps.entries()) {
+      const path = [...base, i];
+      const kind = stepKind(item);
+      const o = (item && typeof item === 'object' ? item : {}) as Item;
+      if (!kind) {
+        ctx.error(path, 'A step is a message ("a -> b: text"), a note, a divider, a ref or a frame (alt, opt, loop, par, …)');
+        continue;
+      }
+      if (kind === 'message') {
+        const key = typeof item === 'string' ? item : Object.keys(o)[0]!;
+        const value = typeof item === 'string' ? undefined : o[key];
+        const [, from, op, sign, to] = MESSAGE.exec(key)!;
+        if (!known(from!, path) || !known(to!, path)) continue;
+        const v = value && typeof value === 'object' && !Array.isArray(value) ? (value as Item) : undefined;
+        const label = v ? (v.label == null ? undefined : String(v.label)) : value == null ? undefined : String(value);
+        const arrow = ARROWS[op!]!;
+        const opens = sign === '+' || (typeof v?.activate === 'boolean' ? v.activate : auto && arrow === 'sync');
+        const closes = sign === '-' || (auto && arrow === 'reply' && (open.get(from!) ?? 0) > 0 && v?.activate !== true);
+        if (opens && from !== to) bump(to!, 1);
+        if (closes) bump(from!, -1);
+        events.push({ kind: 'message', from: from!, to: to!, label, arrow, ...(src.autonumber ? { number: ++number } : {}), ...(opens ? { opens } : {}), ...(closes ? { closes } : {}), path });
+      } else if (kind === 'note') {
+        const side = o.left != null ? 'left' : o.right != null ? 'right' : 'over';
+        const where = list(o[side]);
+        if (!where.length) {
+          ctx.error(path, 'A note needs over:, left: or right: with a participant');
+          continue;
+        }
+        if (!where.every((id) => known(id, [...path, side]))) continue;
+        events.push({ kind: 'note', text: String(o.note ?? ''), over: side === 'over' ? where : where.slice(0, 1), side, path });
+      } else if (kind === 'divider') events.push({ kind: 'divider', label: String(o.divider ?? ''), path });
+      else if (kind === 'ref') {
+        const over = o.over == null ? participants.map((p) => p.id) : list(o.over);
+        if (!over.every((id) => known(id, [...path, 'over']))) continue;
+        events.push({ kind: 'ref', label: String(o.ref ?? ''), over, ...(typeof o.link === 'string' ? { link: o.link } : {}), path });
+      } else if (kind === 'activate' || kind === 'deactivate') {
+        const lane = String(o[kind]);
+        if (!known(lane, [...path, kind])) continue;
+        bump(lane, kind === 'activate' ? 1 : -1);
+        events.push({ kind, lane, path });
+      } else {
+        events.push({ kind: 'frame', frame: kind, ...(o[kind] != null ? { label: String(o[kind]) } : {}), ...(typeof o.tone === 'string' ? { tone: o.tone as Tone } : {}), path });
+        walk(o.steps, [...path, 'steps']);
+        // else: (alt) and and: (par) hold the other branches: a map of label → steps, or one list without a label.
+        for (const k of ['else', 'and'] as const) {
+          const more = o[k];
+          if (Array.isArray(more)) {
+            events.push({ kind: 'branch', path: [...path, k] });
+            walk(more, [...path, k]);
+          } else if (more && typeof more === 'object')
+            for (const [label, steps] of Object.entries(more)) {
+              events.push({ kind: 'branch', label, path: [...path, k, label] });
+              walk(steps, [...path, k, label]);
+            }
+        }
+        events.push({ kind: 'end', path });
+      }
+    }
+  };
+  walk(src.steps, ['steps']);
+
+  return {
+    title: src.title,
+    subtitle: src.subtitle,
+    direction: 'down',
+    groups: [],
+    nodes: [{ id: 'sequence', shape: { kind: 'sequence', participants, boxes, events, ...(src.footers ? { footers: true } : {}) }, path: [] }],
+    edges: [],
+  };
+}
+
+/** Every participant id a step names, so renames and deletes follow them. */
+export function sequenceReferences(src: SequenceSource): Reference[] {
+  const out: Reference[] = [];
+  const ids = new Set(Object.keys(src.participants ?? {}));
+  for (const [id, raw] of Object.entries(src.participants ?? {}))
+    if (raw && typeof raw === 'object' && typeof raw.box === 'string') out.push({ path: ['participants', id, 'box'], id: raw.box, start: 0, collection: 'boxes' });
+  const scalar = (v: unknown, path: Path) => {
+    if (typeof v === 'string' && ids.has(v)) out.push({ path, id: v, start: 0, collection: 'participants', onDelete: 'item' });
+    else if (Array.isArray(v)) for (const [j, x] of v.entries()) if (typeof x === 'string' && ids.has(x)) out.push({ path: [...path, j], id: x, start: 0, collection: 'participants' });
+  };
+  const walk = (steps: unknown, base: Path) => {
+    if (!Array.isArray(steps)) return;
+    for (const [i, item] of steps.entries()) {
+      const path = [...base, i];
+      const kind = stepKind(item);
+      if (kind === 'message') {
+        const key = typeof item === 'string' ? item : Object.keys(item as Item)[0]!;
+        const m = new RegExp(MESSAGE.source, 'd').exec(key);
+        for (const g of [1, 4]) if (m?.indices && ids.has(m[g]!)) out.push({ path, key: typeof item !== 'string', id: m[g]!, start: m.indices[g]![0], collection: 'participants' });
+        continue;
+      }
+      const o = item as Item;
+      if (kind === 'note') for (const k of ['over', 'left', 'right']) scalar(o[k], [...path, k]);
+      else if (kind === 'ref') scalar(o.over, [...path, 'over']);
+      else if (kind === 'activate' || kind === 'deactivate') scalar(o[kind], [...path, kind]);
+      else if (kind && frames.includes(kind as FrameKind)) {
+        walk(o.steps, [...path, 'steps']);
+        for (const k of ['else', 'and'])
+          if (Array.isArray(o[k])) walk(o[k], [...path, k]);
+          else if (o[k] && typeof o[k] === 'object') for (const [label, s] of Object.entries(o[k] as Item)) walk(s, [...path, k, label]);
+      }
+    }
+  };
+  walk(src.steps, ['steps']);
+  return out;
+}
+
+// ---------------------------------------------------------------- schema
+
+const tone = { enum: tones };
+const ids = { anyOf: [{ type: 'string', pattern: idPattern }, { type: 'array', items: { type: 'string', pattern: idPattern }, minItems: 1 }] };
+const messageKey = { pattern: MESSAGE.source, description: '"a -> b" (call), "a ->> b" (async), "a --> b" (reply), "a -x b" (lost)' };
+
+/**
+ * Steps nest inside frames. The top level is written out so the editor can complete it; inside a
+ * frame they refer to one shared definition (inlining every level grows the schema exponentially).
+ */
+function stepsSchema(inner: object): object {
+  const steps = inner;
+  const branches = { anyOf: [steps, { type: 'object', additionalProperties: steps }], description: 'More branches: label → steps, or one list of steps' };
+  const message = {
+    type: 'object',
+    minProperties: 1,
+    maxProperties: 1,
+    propertyNames: messageKey,
+    additionalProperties: {
+      anyOf: [
+        { type: ['string', 'number', 'null'] },
+        { type: 'object', properties: { label: { type: ['string', 'number'] }, activate: { type: 'boolean', description: 'Open an activation on the receiver (calls do by default)' } }, additionalProperties: false },
+      ],
+    },
+  };
+  const frame = (k: FrameKind) => ({
+    type: 'object',
+    required: [k],
+    properties: { [k]: { type: ['string', 'null'], description: 'Condition or label in the tab' }, steps, else: branches, and: branches, tone },
+    additionalProperties: false,
+  });
+  return {
+    type: 'array',
+    items: {
+      anyOf: [
+        { type: 'string', ...messageKey },
+        message,
+        {
+          type: 'object',
+          required: ['note'],
+          properties: { note: { type: ['string', 'number'] }, over: ids, left: { type: 'string', pattern: idPattern }, right: { type: 'string', pattern: idPattern } },
+          additionalProperties: false,
+        },
+        { type: 'object', required: ['divider'], properties: { divider: { type: 'string' } }, additionalProperties: false },
+        { type: 'object', required: ['ref'], properties: { ref: { type: 'string' }, over: ids, link: { type: 'string', description: 'Another diagram or a URL' } }, additionalProperties: false },
+        { type: 'object', required: ['activate'], properties: { activate: { type: 'string', pattern: idPattern } }, additionalProperties: false },
+        { type: 'object', required: ['deactivate'], properties: { deactivate: { type: 'string', pattern: idPattern } }, additionalProperties: false },
+        ...frames.map(frame),
+      ],
+    },
+  };
+}
+
+const schema = {
+  $schema: 'http://json-schema.org/draft-07/schema#',
+  title: 'Cartography sequence diagram',
+  type: 'object',
+  required: ['type'],
+  properties: {
+    type: { const: 'sequence' },
+    title: { type: 'string' },
+    subtitle: { type: 'string' },
+    autonumber: { type: 'boolean', description: 'Number the messages' },
+    activations: { enum: ['auto', 'explicit'], description: 'auto: calls open activations, replies close them; explicit: only +b, -a, activate:' },
+    footers: { type: 'boolean', description: 'Repeat the participants under the lifelines' },
+    boxes: {
+      type: 'object',
+      propertyNames: { pattern: idPattern },
+      additionalProperties: { anyOf: [{ type: 'string' }, { type: 'object', properties: { label: { type: 'string' }, tone }, additionalProperties: false }] },
+    },
+    participants: {
+      type: 'object',
+      propertyNames: { pattern: idPattern },
+      additionalProperties: {
+        anyOf: [
+          { enum: Object.keys(kinds) },
+          { type: 'null' },
+          {
+            type: 'object',
+            properties: {
+              kind: { enum: Object.keys(kinds) },
+              label: { type: 'string' },
+              caption: { type: 'string' },
+              icon: { type: 'string' },
+              tone,
+              box: { type: 'string', pattern: idPattern, description: 'The box it is drawn in' },
+            },
+            additionalProperties: false,
+          },
+        ],
+      },
+    },
+    steps: stepsSchema({ $ref: '#/$defs/steps' }),
+  },
+  additionalProperties: false,
+  $defs: { steps: stepsSchema({ $ref: '#/$defs/steps' }) },
+};
+
+const palette: PaletteItem[] = [
+  ...Object.entries(kinds).map(([kind, k]) => ({ collection: 'participants', kind, label: k.label, icon: k.icon, tone: k.tone, keywords: k.keywords })),
+  { collection: 'boxes', kind: 'box', label: 'Box', icon: 'square-dashed', tone: 'slate', keywords: ['group', 'system'] },
+];
+
+export const sequence: DiagramType<SequenceSource> = {
+  id: 'sequence',
+  name: 'Sequence',
+  description: 'Participants and the messages between them, in order: calls, replies, async events, frames',
+  icon: 'arrow-left-right',
+  tagline: 'Who calls whom, in what order: calls, replies, async events',
+  useWhen: ['A login or OAuth flow, step by step', 'An API integration with a payment provider', 'Event choreography between services', 'A handshake between two systems'],
+  notFor: [
+    { text: 'Which services exist and how they connect', use: 'systems' },
+    { text: 'A process flow with decisions', use: 'systems' },
+  ],
+  keywords: ['sequence', 'sequence diagram', 'interaction', 'message', 'call', 'reply', 'request response', 'oauth', 'handshake', 'flow over time', 'lifeline', 'choreography', 'uml'],
+  schema,
+  palette,
+  template: `type: sequence
+title: Checkout
+autonumber: true
+
+boxes:
+  shop: Web shop
+
+participants:
+  shopper: person
+  web: { kind: client, label: Storefront, box: shop }
+  orders: { kind: service, label: Orders, box: shop }
+  psp: { kind: payments, label: Stripe }
+
+steps:
+  - shopper -> web: Place order
+  - web -> orders: POST /orders
+  - orders -> psp: Create payment
+  - alt: Paid
+    steps:
+      - psp --> orders: succeeded
+      - orders --> web: 201 Created
+    else:
+      Declined:
+        - psp --> orders: card_declined
+        - orders --> web: 402 Payment required
+  - web --> shopper: Confirmation
+`,
+  build: buildSequence,
+  references: sequenceReferences,
+  connect(src, from, to) {
+    const known = (id: string) => !!src.participants && Object.hasOwn(src.participants, id);
+    if (!known(from) || !known(to)) return 'Connect one participant to another';
+    return { path: ['steps'], value: `${from} -> ${to}` };
+  },
+  // One node, drawn whole: no graph layout to run.
+  async layout(sized) {
+    const s = sized.nodes.get('sequence') ?? { width: 0, height: 0 };
+    return { nodes: new Map([['sequence', { x: 0, y: 0, width: s.width, height: s.height }]]), groups: new Map(), edges: new Map(), width: s.width, height: s.height };
+  },
+};

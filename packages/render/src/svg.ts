@@ -5,6 +5,7 @@ import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type T
 import { icon } from '@cartography/icons';
 import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, markWidth, rowMarks, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
+import { drawSequence } from './sequence.ts';
 
 export interface SvgOptions {
   /** Embed the Inter font (latin subset) so the SVG looks the same everywhere. */
@@ -76,6 +77,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const body =
       shape.kind === 'card' ? drawCard(shape, box, theme, id, badges.get(n.id), (edge) => data('edge', edge))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id)
+      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`)
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     out.push(`<g${data('node', n.id)}>${body}</g>`);
   }

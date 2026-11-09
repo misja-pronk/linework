@@ -344,9 +344,9 @@ sequenceDiagram
 `);
     expect(blocks.map((b) => [b.line, parse(b.yaml || '{}').title, b.warnings.length])).toEqual([
       [5, 'Request flow', 0],
-      [18, undefined, 1],
+      [18, 'Calls', 0],
     ]);
-    expect(blocks[1]!.warnings[0]).toContain('"sequenceDiagram" diagrams cannot be imported');
+    expect(parse(blocks[1]!.yaml).type).toBe('sequence');
   });
 
   it('guesses kinds from words without mistaking services for people', () => {

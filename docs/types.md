@@ -20,6 +20,7 @@ carto new erd orders.yaml      # start from a type's template
 | Who gets access to what, through which group, package or role | [Roles, groups and access packages](#roles-groups-and-access-packages) | `access` |
 | How a GitHub organisation is set up: teams, repos, workflows, environments | [GitHub design](#github-design) | `github` |
 | Data products, their ports, contracts and consumers (data mesh) | [Data products](#data-products) | `data-products` |
+| Who calls whom, in what order: a login flow, an API integration, event choreography | [Sequence](#sequence) | `sequence` |
 
 Look-alikes that trip people up:
 
@@ -27,6 +28,7 @@ Look-alikes that trip people up:
 - **Azure resources and networks** are Azure infrastructure; **who may touch them** is Access.
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
 - **ETL jobs as boxes and arrows** are Architecture; **products with ports and contracts** are Data products.
+- **Which services talk to each other** is Architecture; **the order they talk in, step by step** is Sequence.
 
 ## Architecture
 
@@ -151,6 +153,48 @@ products:
 ```
 
 Examples: [examples/data-products](../examples/data-products)
+
+## Sequence
+
+`type: sequence` · who calls whom, in what order: calls, replies, async events.
+
+Use it for a login or OAuth flow step by step, an integration with a payment provider, event choreography between services, or a handshake between two systems.
+
+Not for: which services exist and how they connect, or a process flow with decisions (both `systems`).
+
+```yaml
+type: sequence
+title: Checkout
+autonumber: true                  # number the messages
+boxes:
+  shop: Web shop                  # participants drawn together in one box
+participants:
+  shopper: person                 # person, client, service, api, database, queue, topic, external, …
+  orders: { kind: service, label: Orders, box: shop }
+  psp: { kind: payments, label: Stripe }
+steps:
+  - shopper -> orders: Place order          # call: opens an activation on orders
+  - orders -> orders: Validate cart         # self-call
+  - orders ->> psp: Create payment          # async message
+  - alt: Paid                               # frames: alt/else, opt, loop, par/and, break, critical, group
+    steps:
+      - psp --> orders: succeeded           # reply (dashed), closes the activation
+    else:
+      Declined:
+        - psp -x orders: card_declined      # lost / failed
+  - note: Webhooks are the source of truth  # notes: over (one or more), left or right
+    over: [orders, psp]
+  - divider: Fulfilment
+  - ref: Shipping flow                      # a box pointing at another diagram
+    over: [shopper, orders]
+    link: shipping.yaml
+```
+
+Activations follow the calls: a call opens one on the receiver and its reply closes it; one that is never answered ends where its lifeline last takes part. `activations: explicit` draws only the ones you ask for (`a -> +b`, `b --> -a`, `activate: b`, `deactivate: b`), which is what a Mermaid import with `activate` or `+`/`-` gives. `footers: true` repeats the participants under the lifelines.
+
+Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which will also carry git flow, roadmaps and journeys.
+
+Examples: [examples/sequence](../examples/sequence)
 
 ## Adding a type
 
