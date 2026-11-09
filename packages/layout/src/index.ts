@@ -4,6 +4,7 @@ import { placeWithDot, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
+import { tidy } from './tidy.ts';
 import { measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 
@@ -19,6 +20,8 @@ export interface Tuning {
   compact?: boolean;
   /** Straighten almost-straight lines (see align.ts): forced on or off; tried both ways when unset. */
   align?: boolean;
+  /** Grid, rows and snug groups (see tidy.ts); on unless false. */
+  tidy?: boolean;
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
@@ -31,7 +34,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? 24 : 0) + (rows ? 48 : 0));
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
-    let p = applyPins(straightened, graph, sidecar, sized.groupHeader, spacing.groupPad);
+    const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+    let p = applyPins(tidied, graph, sidecar, sized.groupHeader, spacing.groupPad);
     let edges = route(sized, p);
     // A label that cannot sit clear of a group border gets room: space is opened just before that
     // border and the lines are drawn again. Not with pins, which must stay exactly where they were put.
@@ -156,8 +160,9 @@ function stubFor(m: Marker): number {
 function normalise(p: Placed): Placed {
   const boxes = [...p.nodes.values(), ...p.groups.values()];
   const extras = [...p.edges.values()].flatMap((e) => [...e.points, ...(e.label ? [e.label] : [])]);
-  const minX = Math.min(...boxes.map((b) => b.x), ...extras.map((q) => q.x));
-  const minY = Math.min(...boxes.map((b) => b.y), ...extras.map((q) => q.y));
+  // Shift by whole grid steps, so centres tidied onto the 8px grid stay on it.
+  const minX = Math.floor(Math.min(...boxes.map((b) => b.x), ...extras.map((q) => q.x)) / 8) * 8;
+  const minY = Math.floor(Math.min(...boxes.map((b) => b.y), ...extras.map((q) => q.y)) / 8) * 8;
   const shift = <T extends Point>(q: T): T => ({ ...q, x: q.x - minX, y: q.y - minY });
   const nodes = new Map([...p.nodes].map(([k, b]) => [k, shift(b)]));
   const groups = new Map([...p.groups].map(([k, b]) => [k, shift(b)]));

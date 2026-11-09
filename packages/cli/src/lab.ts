@@ -16,6 +16,7 @@ export const variants: Record<string, Tuning> = {
   plain: { compact: false },
   compact: { compact: true },
   down: { direction: 'down' },
+  untidy: { tidy: false },
 };
 
 const files = fs

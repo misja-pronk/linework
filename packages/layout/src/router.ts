@@ -531,7 +531,10 @@ function search(g: Grid, p: Ports): Found | undefined {
   prev[s] = -1;
   heap.push(s, Math.abs(xs[sx]! - tx) + Math.abs(ys[sy]! - ty));
 
-  while (heap.size) {
+  // A walled-in end (a stub ending in another box's margin) would make the search sweep the whole
+  // grid; well before that it is cheaper to give up and use the fallback.
+  let budget = Math.max(20000, W * H * 2);
+  while (heap.size && budget-- > 0) {
     const k = heap.pop();
     const d = k & 3;
     const cell = k >> 2;
