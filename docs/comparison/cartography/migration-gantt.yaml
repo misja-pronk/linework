@@ -1,0 +1,17 @@
+type: roadmap
+title: "Azure migration, first half"
+
+lanes:
+  Platform: Platform
+  Network: Network
+  Applications: Applications
+
+items:
+  lz: { lane: Platform, label: Landing zone, from: 2026-01-05, to: 2026-02-12, status: done }
+  aks: { lane: Platform, label: AKS baseline, after: lz, duration: 42d, status: done }
+  pol: { lane: Platform, label: Policy as code, from: 2026-04-01, to: 2026-06-14, status: active }
+  hub: { lane: Network, label: Hub and firewall, from: 2026-01-12, duration: 35d, status: done }
+  er: { lane: Network, label: ExpressRoute, after: hub, duration: 70d, status: at-risk }
+  w1: { lane: Applications, label: Wave 1 pilots, from: 2026-03-02, to: 2026-05-28, status: active }
+  w2: { lane: Applications, label: Wave 2 customer apps, after: [w1, er], duration: 84d }
+  live: { lane: Applications, label: Customer apps live, at: 2026-08-31 }

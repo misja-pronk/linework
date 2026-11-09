@@ -1,0 +1,34 @@
+type: gitflow
+title: Release with a hotfix
+
+steps:
+  - commit: main
+    label: Initial
+    tag: v1.0.0
+  - branch: develop
+    from: main
+  - commit: develop
+    label: Set up CI
+  - branch: feature/login
+    from: develop
+  - commit: feature/login
+    label: Login form
+  - commit: feature/login
+    label: Validation
+  - merge: feature/login -> develop
+  - branch: release/1.1
+    from: develop
+  - commit: release/1.1
+    label: Bump 1.1.0
+  - merge: release/1.1 -> main
+    tag: v1.1.0
+  - merge: release/1.1 -> develop
+  - branch: hotfix/1.1.1
+    from: main
+  - commit: hotfix/1.1.1
+    label: Fix crash
+  - merge: hotfix/1.1.1 -> main
+    tag: v1.1.1
+  - merge: hotfix/1.1.1 -> develop
+  - commit: develop
+    label: Next sprint

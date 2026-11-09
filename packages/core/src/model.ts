@@ -1,6 +1,8 @@
 // The type-agnostic graph every diagram type builds. Render and layout only know this model,
 // which is what keeps all diagram types looking like one tool.
 import type { SequenceShape } from './sequence.ts';
+import type { GitflowShape } from './gitflow.ts';
+import type { RoadmapShape } from './roadmap.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -38,7 +40,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;

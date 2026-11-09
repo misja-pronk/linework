@@ -1,0 +1,4 @@
+type: gitflow
+title: GitHub Flow with environments
+subtitle: Every pull request gets a preview; every merge to main ships
+preset: github-flow

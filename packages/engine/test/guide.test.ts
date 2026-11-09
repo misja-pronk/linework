@@ -25,6 +25,8 @@ describe('type guidance', () => {
     expect(best('teams and repositories').type.id).toBe('github');
     expect(best('data mesh contracts').type.id).toBe('data-products');
     expect(best('microservices and queues').type.id).toBe('systems');
+    for (const q of ['branching', 'git flow', 'release and hotfix branches', 'trunk-based']) expect(best(q).type.id, q).toBe('gitflow');
+    for (const q of ['roadmap', 'timeline', 'gantt', 'migration waves']) expect(best(q).type.id, q).toBe('roadmap');
   });
 
   it('keeps the order when nothing matches', () => {

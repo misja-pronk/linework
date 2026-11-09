@@ -1,0 +1,21 @@
+type: roadmap
+title: Developer platform
+subtitle: Now, next, later – no dates, just order and dependencies
+periods: [Now, Next, Later]
+
+lanes:
+  golden: { label: Golden paths, tone: teal }
+  ci: { label: CI/CD, tone: blue }
+  obs: { label: Observability, tone: violet }
+
+items:
+  templates: { lane: golden, label: Service templates, in: Now, status: active }
+  portal: { lane: golden, label: Backstage portal, after: templates, duration: 2 }
+  scorecards: { lane: golden, label: Scorecards, in: Later }
+  runners: { lane: ci, label: Ephemeral runners, in: Now, status: done }
+  oidc: { lane: ci, label: OIDC to the cloud, in: Now, status: active }
+  previews: { lane: ci, label: Preview environments, after: oidc, duration: 1 }
+  canary: { lane: ci, label: Canary releases, after: previews, duration: 1 }
+  otel: { lane: obs, label: OpenTelemetry SDKs, in: Next }
+  slos: { lane: obs, label: SLOs per service, after: otel, duration: 1 }
+  ga: { label: Platform GA, at: Later }

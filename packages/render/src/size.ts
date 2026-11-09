@@ -3,6 +3,8 @@ import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMa
 import { measureText, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
 import { sequenceGeometry } from './sequence.ts';
+import { gitflowGeometry } from './gitflow.ts';
+import { roadmapGeometry } from './roadmap.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -28,8 +30,8 @@ export function size(graph: Graph, theme: Theme): Sized {
     const shape = n.shape;
     if (shape.kind === 'card') nodes.set(n.id, cardSize(shape, theme, badges.get(n.id), !!n.links?.length));
     else if (shape.kind === 'table') nodes.set(n.id, tableSize(shape, theme));
-    else if (shape.kind === 'sequence') {
-      const s = sequenceGeometry(shape, theme);
+    else if (shape.kind === 'sequence' || shape.kind === 'gitflow' || shape.kind === 'roadmap') {
+      const s = shape.kind === 'sequence' ? sequenceGeometry(shape, theme) : shape.kind === 'gitflow' ? gitflowGeometry(shape, theme) : roadmapGeometry(shape, theme);
       nodes.set(n.id, { width: s.width, height: s.height });
     }
     else {
