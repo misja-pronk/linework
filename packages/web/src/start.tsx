@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import type { DiagramType } from '@cartography/core';
-import { exampleLoader, starters, typeName, type Starter } from './library.ts';
+import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
 import { store } from './store.ts';
@@ -21,6 +21,8 @@ export interface Opened {
   /** The template it came from, for files next to bundled examples. */
   starter?: string;
   view: View;
+  /** A new, empty diagram: nothing worth an "undo open". */
+  blank?: boolean;
 }
 
 const thumbs = new Map<string, string>();
@@ -144,7 +146,14 @@ export function Start({ theme, initial, onOpen, onClose }: { theme: 'light' | 'd
           />
         )}
         {step === 'import' && <Import theme={theme} onOpen={onOpen} />}
-        {step === 'mode' && starter && <Mode starter={starter} theme={theme} onChoose={choose} />}
+        {step === 'mode' && starter && (
+          <Mode
+            starter={starter}
+            theme={theme}
+            onChoose={choose}
+            onBlank={() => onOpen({ text: blankText(starter.type), name: `${starter.type}.yaml`, view: 'visual', blank: true })}
+          />
+        )}
         {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} />}
       </div>
     </div>
@@ -156,6 +165,23 @@ function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: 
   const [filter, setFilter] = useState<string>('all');
   const [, redraw] = useState(0);
   const shown = starters.filter((s) => filter === 'all' || s.type === filter);
+  /** Roving focus: one card is in the Tab order, arrows move between them. */
+  const [active, setActive] = useState(0);
+  const grid = useRef<HTMLDivElement>(null);
+  useEffect(() => setActive(0), [filter]);
+  const onGridKey = (e: React.KeyboardEvent) => {
+    const cards = [...(grid.current?.querySelectorAll<HTMLElement>('.template-card') ?? [])];
+    const i = cards.indexOf(document.activeElement as HTMLElement);
+    if (i < 0) return;
+    // Columns from the layout: cards on the first row share its top.
+    const cols = Math.max(1, cards.filter((c) => c.offsetTop === cards[0]!.offsetTop).length);
+    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols, Home: -i, End: cards.length - 1 - i }[e.key];
+    if (step == null) return;
+    e.preventDefault();
+    const next = Math.min(cards.length - 1, Math.max(0, i + step));
+    setActive(next);
+    cards[next]!.focus();
+  };
 
   // Thumbnails one by one, so the dialog opens at once and fills in.
   useEffect(() => {
@@ -183,26 +209,29 @@ function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: 
   return (
     <>
       <nav className="chips">
-        {['all', ...typeIds].map((t) => (
-          <button key={t} className={filter === t ? 'chip active' : 'chip'} onClick={() => setFilter(t)}>
-            {t === 'all' ? 'All' : typeName(t)}
-          </button>
-        ))}
-        <span className="spacer" />
+        <div className="chip-row" role="group" aria-label="Diagram type">
+          {['all', ...typeIds].map((t) => (
+            <button key={t} className={filter === t ? 'chip active' : 'chip'} aria-pressed={filter === t} onClick={() => setFilter(t)}>
+              {t === 'all' ? 'All' : typeName(t)}
+            </button>
+          ))}
+        </div>
         <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram and get it back as Cartography">
           <Icon name="clipboard-paste" size={13} /> Import from Mermaid
         </button>
       </nav>
-      <div className="template-grid">
-        {shown.map((s) => {
+      <div className="template-grid" ref={grid} onKeyDown={onGridKey}>
+        {shown.map((s, i) => {
           const svg = thumbs.get(`${theme}:${s.id}`);
           return (
-            <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={s === shown[0]}>
-              <div className="thumb">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
+            <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={i === 0} tabIndex={i === active ? 0 : -1} onFocus={() => setActive(i)}>
+              <div className="thumb" aria-hidden="true">
+                {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}
+              </div>
               <div className="template-meta">
                 <span className="template-title">{s.title}</span>
-                <span className="template-sub">
-                  {s.kind === 'template' ? 'Template' : s.kind === 'empty' ? 'Empty' : 'Example'} · {typeName(s.type)}
+                <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
+                  {s.kind === 'template' ? 'Template' : 'Example'} · {typeName(s.type)}
                 </span>
               </div>
             </button>
@@ -213,17 +242,19 @@ function Pick({ theme, onPick, onImport }: { theme: 'light' | 'dark'; onPick(s: 
   );
 }
 
-function Mode({ starter, theme, onChoose }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: (typeof MODES)[number]['view']): void }) {
+function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: (typeof MODES)[number]['view']): void; onBlank(): void }) {
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const { svg } = useDrawing(starter.text, theme, load);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
       const m = MODES.find((x) => x.key === e.key);
-      if (m && !(e.target instanceof HTMLInputElement)) onChoose(m.view);
+      if (m) onChoose(m.view);
+      else if (e.key === 'b') onBlank();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onChoose]);
+  }, [onChoose, onBlank]);
   return (
     <div className="mode-step">
       <div className="mode-preview">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
@@ -241,7 +272,37 @@ function Mode({ starter, theme, onChoose }: { starter: Starter; theme: 'light' |
             <kbd>{m.key}</kbd>
           </button>
         ))}
+        <button className="blank-start" onClick={onBlank}>
+          <Icon name="file-plus" size={16} />
+          <span>
+            Or <strong>start blank</strong>: an empty {typeName(starter.type).toLowerCase()} in the builder
+          </span>
+          <kbd>B</kbd>
+        </button>
       </div>
+    </div>
+  );
+}
+
+/** Chips shown per group before "More": enough to scan, not a wall. */
+const FEW = 12;
+
+function ChipGroup({ label, options, on, toggle }: { label: string; options: string[]; on: Set<string>; toggle(o: string): void }) {
+  const [all, setAll] = useState(false);
+  // Picked chips stay visible even when folded away.
+  const shown = all ? options : options.filter((o, i) => i < FEW || on.has(o));
+  return (
+    <div className="chips inline" role="group" aria-label={label}>
+      {shown.map((o) => (
+        <button key={o} type="button" className={on.has(o) ? 'chip active' : 'chip'} aria-pressed={on.has(o)} onClick={() => toggle(o)}>
+          {on.has(o) && <Icon name="check" size={12} />} {o}
+        </button>
+      ))}
+      {options.length > shown.length && (
+        <button type="button" className="chip more" onClick={() => setAll(true)}>
+          {options.length - shown.length} more…
+        </button>
+      )}
     </div>
   );
 }
@@ -249,22 +310,19 @@ function Mode({ starter, theme, onChoose }: { starter: Starter; theme: 'light' |
 function Field({ q, value, onChange }: { q: Question; value: string | string[] | undefined; onChange(v: string | string[]): void }) {
   if (q.kind === 'chips') {
     const on = new Set(Array.isArray(value) ? value : []);
+    const toggle = (o: string) => {
+      const next = new Set(on);
+      if (!next.delete(o)) next.add(o);
+      onChange([...next]);
+    };
+    const groups = q.groups && q.groups.length > 1 ? q.groups : [{ label: q.label, options: q.options! }];
     return (
-      <div className="chips inline" role="group" aria-label={q.label}>
-        {q.options!.map((o) => (
-          <button
-            key={o}
-            type="button"
-            className={on.has(o) ? 'chip active' : 'chip'}
-            aria-pressed={on.has(o)}
-            onClick={() => {
-              const next = new Set(on);
-              if (!next.delete(o)) next.add(o);
-              onChange([...next]);
-            }}
-          >
-            {on.has(o) && <Icon name="check" size={12} />} {o}
-          </button>
+      <div className="chip-groups">
+        {groups.map((g) => (
+          <div key={g.label}>
+            {groups.length > 1 && <span className="chip-group-label">{g.label}</span>}
+            <ChipGroup label={g.label} options={g.options} on={on} toggle={toggle} />
+          </div>
         ))}
       </div>
     );
@@ -306,7 +364,7 @@ function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: Diagram
   useEffect(() => () => abort.current?.abort(), []);
 
   // The template's own YAML shows the model the style; an empty start teaches nothing, so use the type's template.
-  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.kind === 'empty' ? undefined : starter.text), [type, questions, answers, starter]);
+  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text), [type, questions, answers, starter]);
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const shown = phase.at === 'running' ? extractYaml(phase.text) : phase.at === 'done' ? phase.yaml : phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
   const drawing = useDrawing(shown, theme, load);
@@ -356,6 +414,7 @@ function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: Diagram
       view,
     });
   const busy = phase.at === 'running';
+  const hasKey = !!key.trim();
 
   if (phase.at === 'form' || phase.at === 'failed')
     return (
@@ -396,22 +455,32 @@ function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: Diagram
               ))}
             </select>
           </label>
-          <button className="button primary wide" onClick={() => void run()} disabled={!key.trim()}>
+          {!hasKey && (
+            <p className="fine">
+              No key?{' '}
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+                Get a key ↗
+              </a>{' '}
+              or copy the prompt into any chat assistant below.
+            </p>
+          )}
+          <button className={hasKey ? 'button primary wide' : 'button ghost wide'} onClick={() => void run()} disabled={!hasKey} title={hasKey ? undefined : 'Enter an API key first'}>
             <Icon name="sparkles" /> Generate <kbd>⌘↵</kbd>
           </button>
           <p className="fine">Your answers and key go only to api.anthropic.com, and only when you press Generate. Everything else stays in this browser.</p>
           {phase.at === 'failed' && (
-            <p className="ask-error" role="alert">
-              <Icon name="circle-exclamation-point" size={14} /> {phase.message}
+            <p className="callout error" role="alert">
+              <Icon name="circle-exclamation-point" size={14} /> <span>{phase.message}</span>
             </p>
           )}
           <div className="or">
             <span>or use any chat assistant</span>
           </div>
-          <button className="button ghost wide" onClick={() => void copy()}>
+          <button className={hasKey ? 'button ghost wide' : 'button primary wide'} onClick={() => void copy()}>
             <Icon name="copy" /> Copy the prompt
           </button>
-          <KeyHint onRun={() => key.trim() && void run()} />
+          {!hasKey && <p className="fine">Paste it into Claude or another assistant, then paste its answer back here.</p>}
+          <KeyHint onRun={() => (hasKey ? void run() : document.querySelector<HTMLInputElement>('.ask-run input[type=password]')?.focus())} />
         </aside>
       </div>
     );
@@ -511,6 +580,9 @@ const MERMAID_SAMPLE = `flowchart LR
   api -.->|OrderPlaced| bus[[Event bus]]
   bus -.-> mail[Email worker]`;
 
+/** Messages read as sentences: a capital first, a full stop last. */
+const sentence = (s: string) => (s.charAt(0).toUpperCase() + s.slice(1)).replace(/([^.!?…])$/, '$1.');
+
 /** Paste Mermaid (or Markdown with mermaid blocks) and see it as Cartography right away. */
 function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
   const [text, setText] = useState('');
@@ -525,8 +597,7 @@ function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened):
   }, [text]);
   const current = blocks[Math.min(block, blocks.length - 1)];
   const drawing = useDrawing(current?.yaml || undefined, theme);
-  const typeOf = (yaml: string) => /^type:\s*([\w-]+)/m.exec(yaml)?.[1] ?? 'diagram';
-  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: `${typeOf(current.yaml)}.yaml`, view });
+  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: 'imported.yaml', view });
   return (
     <div className="ask result">
       <div className="ask-stream">
@@ -554,16 +625,26 @@ function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened):
           {drawing.svg && current?.yaml ? (
             <div dangerouslySetInnerHTML={{ __html: drawing.svg }} />
           ) : (
-            <p className="fine">{text.trim() ? 'Nothing to draw yet.' : 'The Cartography version appears here as you paste.'}</p>
+            <p className="fine">{text.trim() ? 'Nothing to draw: see the problem below.' : 'The Cartography version appears here as you paste.'}</p>
           )}
         </div>
         {current && current.warnings.length > 0 && (
-          <ul className="warnings fine">
-            {current.warnings.slice(0, 4).map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-            {current.warnings.length > 4 && <li>…and {current.warnings.length - 4} more</li>}
-          </ul>
+          <div className={current.yaml ? 'callout warn' : 'callout error'} role={current.yaml ? 'status' : 'alert'}>
+            <Icon name={current.yaml ? 'triangle-exclamation-point' : 'circle-exclamation-point'} size={14} />
+            <div>
+              <strong>
+                {current.yaml
+                  ? `${current.warnings.length === 1 ? 'One thing was' : `${current.warnings.length} things were`} left out or changed:`
+                  : 'This could not be imported:'}
+              </strong>
+              <ul className="warnings">
+                {current.warnings.slice(0, 4).map((w) => (
+                  <li key={w}>{sentence(w)}</li>
+                ))}
+                {current.warnings.length > 4 && <li>…and {current.warnings.length - 4} more</li>}
+              </ul>
+            </div>
+          </div>
         )}
         <footer>
           <span className="spacer" />

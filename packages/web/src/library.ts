@@ -8,8 +8,7 @@ export interface Starter {
   /** Diagram type id. */
   type: string;
   title: string;
-  /** "Template" or the example's file name. */
-  kind: 'template' | 'example' | 'empty';
+  kind: 'template' | 'example';
   file: string;
   text: string;
 }
@@ -17,12 +16,14 @@ export interface Starter {
 const titleOf = (text: string) => /^title:\s*(.+)$/m.exec(text)?.[1]?.trim();
 const typeOf = (text: string) => /^type:\s*([\w-]+)/m.exec(text)?.[1] ?? '';
 
+const templates = types.map((t): Starter => ({ id: `template:${t.id}`, type: t.id, title: t.name, kind: 'template', file: `${t.id}.yaml`, text: t.template }));
+/** Examples that are their type's template word for word would show the same card twice. */
+const same = new Set(templates.map((t) => t.text.trim()));
+
 export const starters: Starter[] = [
-  ...types.map((t): Starter => ({ id: `template:${t.id}`, type: t.id, title: t.name, kind: 'template', file: `${t.id}.yaml`, text: t.template })),
-  // A clean start per type, to build from the palette.
-  ...types.map((t): Starter => ({ id: `empty:${t.id}`, type: t.id, title: `Empty ${t.name.toLowerCase()}`, kind: 'empty', file: `${t.id}.yaml`, text: `type: ${t.id}\ntitle: Untitled\n` })),
+  ...templates,
   ...Object.entries(raw)
-    .filter(([p]) => !p.includes('/contracts/'))
+    .filter(([p, text]) => !p.includes('/contracts/') && !same.has(text.trim()))
     .map(([p, text]): Starter => {
       const rel = p.replace(/^.*\/examples\//, '');
       return { id: `example:${rel}`, type: typeOf(text), title: titleOf(text) ?? rel, kind: 'example', file: rel.split('/').pop()!, text };
@@ -48,5 +49,8 @@ export function exampleLoader(starterId: string): ((file: string) => string) | u
     return text;
   };
 }
+
+/** A clean start of a type, to build from the palette. */
+export const blankText = (type: string) => `type: ${type}\ntitle: Untitled\n`;
 
 export const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? id;

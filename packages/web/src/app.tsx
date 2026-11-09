@@ -14,7 +14,7 @@ import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
-import { exampleLoader, starters, typeName, type Starter } from './library.ts';
+import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
 import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
@@ -67,7 +67,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
   return state.key === key ? state.value : value;
 }
 
-const firstStarter = starters.find((s) => s.id === 'example:data-products/customer-detailed.yaml') ?? starters[0]!;
+/** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
+const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const label = (n: GraphNode) => (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' ? n.shape.icon : 'table');
 
@@ -86,7 +87,8 @@ export function App() {
   // A first visit starts with choosing what to make and how.
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
   /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
-  const [view, setViewState] = useState<View>(() => store.get<View>('view') ?? 'code');
+  // A first visit shows the builder: the friendliest way in.
+  const [view, setViewState] = useState<View>(() => store.get<View>('view') ?? (store.get('started') ? 'code' : 'visual'));
   const setView = (v: View) => {
     setViewState(v);
     store.set('view', v);
@@ -214,7 +216,7 @@ export function App() {
   };
 
   const open = useCallback(
-    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar) => {
+    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false) => {
       const before = { text: editor.current?.text() ?? text, doc, pins, handle: fileHandle.current, savedText, savedPins };
       editor.current?.load(next, nextPins);
       setDoc(nextDoc);
@@ -223,8 +225,8 @@ export function App() {
       setSavedText(next);
       setSavedPins(JSON.stringify(nextPins ?? null));
       openedText.current = next;
-      // Within a folder, files are saved before switching: nothing to undo.
-      if (nextDoc.path) return;
+      // Within a folder, files are saved before switching: nothing to undo. A blank start says nothing either.
+      if (nextDoc.path || quiet) return;
       notify(`Opened ${nextDoc.name}`, {
         action: {
           label: 'Undo',
@@ -265,7 +267,7 @@ export function App() {
     closeModal();
     fileHandle.current = undefined;
     setView(o.view);
-    open(o.text, { name: o.name, starter: o.starter });
+    open(o.text, { name: o.name, starter: o.starter }, undefined, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -676,9 +678,22 @@ export function App() {
       id: `starter:${s.id}`,
       group: 'Start from',
       label: s.title,
-      hint: `${s.kind === 'template' ? 'Template' : s.kind === 'empty' ? 'Empty' : 'Example'} · ${typeName(s.type)}`,
+      hint: `${s.kind === 'template' ? 'Template' : 'Example'} · ${typeName(s.type)}`,
       icon: 'layout-template',
       run: () => pick(s),
+    })),
+    ...[...new Set(starters.map((s) => s.type))].map((t) => ({
+      id: `blank:${t}`,
+      group: 'Start from',
+      label: `Blank ${typeName(t).toLowerCase()}`,
+      hint: 'empty diagram',
+      icon: 'file-plus',
+      run: () => {
+        setModal(undefined);
+        fileHandle.current = undefined;
+        open(blankText(t), { name: `${t}.yaml` }, undefined, true);
+        focusDrawing();
+      },
     })),
   ];
 
@@ -931,7 +946,7 @@ export function App() {
                 </button>
               )}
             </div>
-            {hint && !adding && (
+            {hint && !adding && !modal && (
               <div className="hint" role="note">
                 <span>
                   {view === 'visual' ? (

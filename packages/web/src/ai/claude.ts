@@ -63,10 +63,10 @@ export async function generate(prompt: Prompt, opts: { apiKey: string; model: Mo
 
 /** A readable message for the ways a call fails. */
 export function failure(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return 'The API key was not accepted. Check it and try again.';
-  if (e instanceof Anthropic.PermissionDeniedError) return 'This API key may not use that model.';
-  if (e instanceof Anthropic.RateLimitError) return 'Too many requests right now. Wait a moment and try again.';
-  if (e instanceof Anthropic.APIConnectionError) return 'Could not reach the Claude API. Check your connection.';
-  if (e instanceof Anthropic.APIError) return `The Claude API returned an error (${e.status ?? 'unknown'}): ${e.message}`;
+  if (e instanceof Anthropic.AuthenticationError) return 'Anthropic did not accept this API key. Check that you pasted all of it (it starts with sk-ant-).';
+  if (e instanceof Anthropic.PermissionDeniedError) return 'This API key may not use that model. Pick the other model, or check the key’s workspace settings.';
+  if (e instanceof Anthropic.RateLimitError) return 'Too many requests for this key right now. Wait a minute and try again.';
+  if (e instanceof Anthropic.APIConnectionError) return 'Could not reach api.anthropic.com. Check your internet connection, or copy the prompt instead.';
+  if (e instanceof Anthropic.APIError) return `Claude could not finish (error ${e.status ?? 'unknown'}). Try again in a moment, or copy the prompt instead. Details: ${e.message}`;
   return e instanceof Error ? e.message : String(e);
 }

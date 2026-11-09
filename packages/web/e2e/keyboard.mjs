@@ -15,7 +15,7 @@ await page.evaluate(() => {
 await page.reload();
 await page.waitForSelector('.drawing svg');
 await page.keyboard.press('Meta+k');
-await page.keyboard.type('empty azure');
+await page.keyboard.type('blank azure');
 await page.keyboard.press('Enter');
 await wait(500);
 for (const [what, name] of [['app service', 'Shop'], ['sql database', 'Orders DB']]) {

@@ -197,6 +197,25 @@ kbd {
 .button kbd {
   background: none;
 }
+/* On the accent, a faint kbd would vanish. */
+.button.primary kbd {
+  color: inherit;
+  border-color: rgb(255 255 255 / 0.45);
+  background: rgb(255 255 255 / 0.14);
+}
+.button:disabled,
+.button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.45;
+  background: none;
+  color: var(--text-muted);
+}
+.button.primary:disabled,
+.button.primary:disabled:hover {
+  background: var(--border-strong);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
 .icon-button {
   display: inline-grid;
   place-items: center;
@@ -663,6 +682,15 @@ kbd {
   flex-direction: column;
   gap: 3px;
   padding: 11px 14px 13px;
+}
+.template-meta {
+  min-width: 0;
+}
+.template-title,
+.template-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .template-title {
   font-weight: 600;
@@ -1434,15 +1462,42 @@ kbd {
   display: grid;
   place-items: center;
 }
+/* Fit inside the box, never larger than drawn: a single shape must not be blown up. */
 .mode-preview svg {
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
 }
 .modes {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  justify-content: center;
+  justify-content: flex-start;
+}
+.blank-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 10px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: none;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+.blank-start:hover,
+.blank-start:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.blank-start strong {
+  color: var(--text);
+}
+.blank-start kbd {
+  margin-left: auto;
 }
 .modes-intro {
   margin: 0 0 4px;
@@ -1597,13 +1652,6 @@ kbd {
   line-height: 1.45;
   color: var(--text-faint);
 }
-.ask-error {
-  margin: 0;
-  display: flex;
-  gap: 6px;
-  color: var(--danger);
-  font-size: 13px;
-}
 .or {
   display: flex;
   align-items: center;
@@ -1706,18 +1754,87 @@ kbd {
     display: block;
   }
 }
-.chips .spacer {
+.chips:not(.inline) {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+/* Type chips scroll sideways when they do not fit; the import stays put on the right. */
+.chip-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
   flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chip-row .chip {
+  flex: none;
 }
 .import-chip {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font: inherit;
+  white-space: nowrap;
+}
+.chip-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chip-group-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+.chip.more {
+  border-style: dashed;
+}
+.callout {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.callout > .icon {
+  margin-top: 2px;
+}
+.callout.error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.callout.warn {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+.callout.warn > .icon {
+  color: var(--warning);
+}
+.callout strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.callout.error strong {
+  color: inherit;
 }
 .warnings {
-  margin: 0;
+  margin: 4px 0 0;
   padding-left: 18px;
+}
+.ask-run a {
+  color: var(--accent);
+  font-weight: 550;
 }
 .ask-stream pre,
 .ask-stream .paste {
