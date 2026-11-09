@@ -771,11 +771,20 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
       const middle = Math.abs(i - 0.5 - total / 2);
       for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
         const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        // On the line: prefer horizontal, long, central segments.
+        // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
+        // some line visible either side, or the line would seem to end in the label.
         if (len >= (horizontal ? width + 16 : height + 16)) {
           const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
-          candidates.push({ box, score: (horizontal ? 0 : 60) + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
+          const covers = horizontal && pts.length === 2 && len < width + 28 ? 100 : 0;
+          candidates.push({ box, score: (horizontal ? 0 : 60) + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
         }
+        // Above or below a horizontal line too short for a pill on it (a short hop between layers).
+        if (horizontal && pts.length === 2 && len >= 24 && len < width + 28 && t === 0.5)
+          for (const side of [-1, 1]) {
+            const y = side < 0 ? c.y - 4 - height : c.y + 4;
+            const box = { x: c.x - width / 2, y, width, height };
+            candidates.push({ box, score: 95 + middle * 10 + (side > 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+          }
         // Beside a vertical line, when it is too short or crowded for a pill on it.
         if (!horizontal && len >= height + 8)
           for (const side of [1, -1]) {
