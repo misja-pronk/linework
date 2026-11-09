@@ -1,0 +1,157 @@
+name: Cartography diagrams
+description: >-
+  Shows what a pull request changes in your architecture diagrams, as a picture and in words,
+  in one comment. On push it can draw every diagram to SVG or PNG. No Docker, no browser.
+author: Cartography
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  mode:
+    description: >-
+      auto: diff on pull requests, render on anything else. diff: compare with `base` and report.
+      render: draw every diagram. setup: only install, and put `carto` on the PATH for later steps.
+    default: auto
+  files:
+    description: >-
+      Which files may be diagrams: git globs, one per line or comma separated, "!" in front to leave
+      some out. Only YAML files with a `type:` Cartography draws are taken. Default: every YAML file.
+    default: ''
+  views:
+    description: Also compare (diff) or draw (render) every view of a diagram.
+    default: 'true'
+  base:
+    description: >-
+      diff: the commit or branch to compare with. Default: where the pull request left its base
+      branch (with fetch-depth 0), else the tip of the base branch.
+    default: ''
+  images:
+    description: >-
+      diff: where the pictures go. branch: pushed to `image-branch` in this repository and shown in
+      the comment (needs contents: write). artifact: kept in the run, the comment has the words and a
+      link. none: no pictures. auto: branch when the token can push (not for forks), else artifact.
+    default: auto
+  image-branch:
+    description: The branch that holds the pictures. It holds one commit, no history.
+    default: cartography-diffs
+  comment:
+    description: 'diff: keep one comment on the pull request up to date (needs pull-requests: write).'
+    default: 'true'
+  side-by-side:
+    description: 'diff: before and after next to each other instead of one marked-up drawing.'
+    default: 'false'
+  max-images:
+    description: 'diff: at most this many pictures in one comment.'
+    default: '12'
+  scale:
+    description: Pixels per unit in PNG files.
+    default: '2'
+  formats:
+    description: 'render: svg, png or both (comma separated).'
+    default: svg
+  output:
+    description: >-
+      render: a folder for the pictures (default: next to each diagram). diff: where this run's
+      pictures, diff.json and comment.md are written (default: a temporary folder).
+    default: ''
+  commit:
+    description: 'render: commit the pictures that changed and push them to the branch (needs contents: write).'
+    default: 'false'
+  commit-message:
+    description: 'render: the message of that commit.'
+    default: 'Render diagrams [skip ci]'
+  upload-artifact:
+    description: >-
+      Upload the output folder as an artifact. auto: when the pictures are not on a branch (diff)
+      or not committed and `output` is set (render).
+    default: auto
+  artifact-name:
+    description: The name of that artifact.
+    default: cartography-diagrams
+  fail-on-error:
+    description: Fail the step when a diagram has errors.
+    default: 'true'
+  token:
+    description: The token used to comment. The job's own token is enough.
+    default: ${{ github.token }}
+  setup-node:
+    description: Install Node 24 with actions/setup-node. Turn off when the runner already has it.
+    default: 'true'
+
+outputs:
+  mode:
+    description: What ran, diff, render or cleanup.
+    value: ${{ steps.run.outputs.mode }}
+  changed:
+    description: 'diff: the number of diagrams the change touches. render: the number of pictures drawn.'
+    value: ${{ steps.run.outputs.changed }}
+  diagrams:
+    description: 'diff: the changed diagrams, a JSON list of paths.'
+    value: ${{ steps.run.outputs.diagrams }}
+  images:
+    description: 'diff: where the pictures went, branch, artifact or none.'
+    value: ${{ steps.run.outputs.images }}
+  output:
+    description: The folder with the files of this run.
+    value: ${{ steps.run.outputs.output }}
+  comment-url:
+    description: 'diff: the address of the comment.'
+    value: ${{ steps.run.outputs.comment-url }}
+  commit:
+    description: 'render: the commit with the new pictures, empty when they were up to date.'
+    value: ${{ steps.run.outputs.commit }}
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.setup-node == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+
+    # The action runs from source: its own packages and what they need, nothing of your project.
+    - name: Install Cartography
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      run: |
+        corepack enable pnpm 2>/dev/null || npm install --global pnpm@10
+        pnpm install --frozen-lockfile --prod --filter "@cartography/action..." --reporter=append-only
+        echo "${{ github.action_path }}/bin" >> "$GITHUB_PATH"
+
+    # Inputs go in as environment variables, never pasted into the script: a branch or file name
+    # in a pull request cannot become a command.
+    - name: Diagrams
+      id: run
+      if: inputs.mode != 'setup'
+      shell: bash
+      env:
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_VIEWS: ${{ inputs.views }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_IMAGES: ${{ inputs.images }}
+        INPUT_IMAGE_BRANCH: ${{ inputs.image-branch }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_SIDE_BY_SIDE: ${{ inputs.side-by-side }}
+        INPUT_MAX_IMAGES: ${{ inputs.max-images }}
+        INPUT_SCALE: ${{ inputs.scale }}
+        INPUT_FORMATS: ${{ inputs.formats }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_COMMIT: ${{ inputs.commit }}
+        INPUT_COMMIT_MESSAGE: ${{ inputs.commit-message }}
+        INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        CARTO_ACTION: ${{ github.action_path }}
+      run: '"$CARTO_ACTION/node_modules/.bin/tsx" "$CARTO_ACTION/src/main.ts"'
+
+    - name: Upload the pictures
+      if: >-
+        always() && inputs.mode != 'setup' && steps.run.outputs.output != '' &&
+        (inputs.upload-artifact == 'true' || (inputs.upload-artifact == 'auto' && steps.run.outputs.upload == 'true'))
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.run.outputs.output }}
+        if-no-files-found: ignore

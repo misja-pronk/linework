@@ -5,7 +5,8 @@
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
-    "./png": "./src/png.ts"
+    "./png": "./src/png.ts",
+    "./fonts": "./src/fonts.ts"
   },
   "dependencies": {
     "@cartography/core": "workspace:*",

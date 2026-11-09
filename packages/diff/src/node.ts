@@ -7,8 +7,15 @@ import type { LayoutSidecar } from '@cartography/core';
 import type { RenderOptions } from '@cartography/engine';
 
 /** Runs git and returns what it printed; throws with git's own message when it fails. */
-export function git(args: string[], cwd: string, input?: string | Uint8Array): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'], ...(input !== undefined ? { input } : {}) });
+export function git(args: string[], cwd: string, input?: string | Uint8Array, env?: Record<string, string>): string {
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    ...(input !== undefined ? { input } : {}),
+    ...(env ? { env: { ...process.env, ...env } } : {}),
+  });
 }
 
 /** The top of the work tree `cwd` is in. */
@@ -39,7 +46,8 @@ export interface Version {
   read: Set<string>;
 }
 
-const sidecarOf = (file: string) => file.replace(/\.ya?ml$/, '') + '.layout.json';
+/** Where a diagram keeps its pins and layout note. */
+export const sidecarOf = (file: string) => file.replace(/\.ya?ml$/, '') + '.layout.json';
 const parse = (text: string | undefined): LayoutSidecar | undefined => {
   try {
     return text === undefined ? undefined : (JSON.parse(text) as LayoutSidecar);
@@ -47,7 +55,27 @@ const parse = (text: string | undefined): LayoutSidecar | undefined => {
     return undefined;
   }
 };
-const join = (file: string, rel: string) => path.posix.normalize(path.posix.join(path.posix.dirname(file), rel.split(path.sep).join('/')));
+/**
+ * What a diagram refers to, as a repository path. A diagram in a pull request is somebody else's text:
+ * it reads files of the repository and nothing else, so a path that leaves it (../../etc/passwd, or an
+ * absolute one) is refused rather than drawn into a picture that CI then publishes.
+ */
+function join(file: string, rel: string): string {
+  const p = path.posix.normalize(path.posix.join(path.posix.dirname(file), rel.split(path.sep).join('/')));
+  if (path.posix.isAbsolute(rel) || path.isAbsolute(rel) || p === '..' || p.startsWith('../')) throw new Error(`${rel} is outside the repository`);
+  return p;
+}
+
+/** The same guard for links: a file in the repository that points out of it is not followed. */
+function inside(root: string, p: string): boolean {
+  try {
+    const real = fs.realpathSync(path.join(root, p));
+    const top = fs.realpathSync(root);
+    return real === top || real.startsWith(top + path.sep);
+  } catch {
+    return true; // not there: reading it fails with the usual message
+  }
+}
 
 /** A diagram as it was at a ref (a branch, a tag, a commit). `file` is a repository path. */
 export function versionAt(root: string, ref: string, file: string): Version {
@@ -67,7 +95,12 @@ export function versionAt(root: string, ref: string, file: string): Version {
         return data.toString('utf8');
       },
       assets: (rel) => {
-        const p = join(file, rel);
+        let p: string;
+        try {
+          p = join(file, rel);
+        } catch {
+          return undefined;
+        }
         read.add(p);
         const data = fileAt(root, ref, p);
         return data ? new Uint8Array(data) : undefined;
@@ -80,7 +113,7 @@ export function versionAt(root: string, ref: string, file: string): Version {
 export function versionOnDisk(root: string, file: string): Version {
   const read = new Set<string>();
   const abs = (p: string) => path.join(root, p);
-  const text = (p: string) => (fs.existsSync(abs(p)) ? fs.readFileSync(abs(p), 'utf8') : undefined);
+  const text = (p: string) => (inside(root, p) && fs.existsSync(abs(p)) ? fs.readFileSync(abs(p), 'utf8') : undefined);
   const sidecar = parse(text(sidecarOf(file)));
   return {
     text: text(file),
@@ -91,12 +124,18 @@ export function versionOnDisk(root: string, file: string): Version {
       load: (rel) => {
         const p = join(file, rel);
         read.add(p);
+        if (!inside(root, p)) throw new Error(`${rel} is outside the repository`);
         return fs.readFileSync(abs(p), 'utf8');
       },
       assets: (rel) => {
-        const p = join(file, rel);
+        let p: string;
+        try {
+          p = join(file, rel);
+        } catch {
+          return undefined;
+        }
         read.add(p);
-        return fs.existsSync(abs(p)) ? new Uint8Array(fs.readFileSync(abs(p))) : undefined;
+        return inside(root, p) && fs.existsSync(abs(p)) ? new Uint8Array(fs.readFileSync(abs(p))) : undefined;
       },
     },
   };
@@ -109,12 +148,12 @@ export interface ChangedFile {
 }
 
 /** Files that differ between a ref and the work tree (or another ref). Renames count as a removal and an addition. */
-export function changedFiles(root: string, base: string, head?: string): ChangedFile[] {
-  const out = git(['diff', '--name-status', '--no-renames', '-z', base, ...(head ? [head] : []), '--'], root);
+export function changedFiles(root: string, base: string, head?: string, pathspecs: string[] = []): ChangedFile[] {
+  const out = git(['diff', '--name-status', '--no-renames', '-z', base, ...(head ? [head] : []), '--', ...pathspecs], root);
   const parts = out.split('\0').filter(Boolean);
   const files: ChangedFile[] = [];
   for (let i = 0; i + 1 < parts.length; i += 2) files.push({ path: parts[i + 1]!, status: parts[i] === 'A' ? 'added' : parts[i] === 'D' ? 'removed' : 'changed' });
   // New files that are not staged yet are a change too (a local run; in CI everything is committed).
-  if (!head) for (const p of git(['ls-files', '--others', '--exclude-standard', '-z'], root).split('\0').filter(Boolean)) files.push({ path: p, status: 'added' });
+  if (!head) for (const p of git(['ls-files', '--others', '--exclude-standard', '-z', '--', ...pathspecs], root).split('\0').filter(Boolean)) files.push({ path: p, status: 'added' });
   return files;
 }
