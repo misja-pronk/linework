@@ -28,6 +28,8 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.
 
+AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude Code, Claude Desktop and other MCP clients write diagrams that are checked against the schema and scored for layout quality before you see them. See [docs/mcp.md](docs/mcp.md).
+
 ## Try it
 
 ```sh
