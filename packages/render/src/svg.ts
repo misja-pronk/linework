@@ -544,11 +544,30 @@ function marker(kind: Marker, tip: Point, from: Point, color: string, theme: The
   }
 }
 
+
+/** A label lying over the arrowhead is slid back along its line until the head shows. */
+function offHead(points: Point[], b: Box): Box {
+  const q = points.at(-1);
+  const p = points.at(-2);
+  if (!p || !q) return b;
+  // The head is 9 to 12 px long; the rest is air.
+  const room = 20;
+  const upright = Math.abs(p.x - q.x) < 0.5;
+  if (!upright && Math.abs(p.y - q.y) >= 0.5) return b;
+  const [lo, size, end, from] = upright ? [b.y, b.height, q.y, p.y] : [b.x, b.width, q.x, p.x];
+  const across = upright ? b.x < q.x && q.x < b.x + b.width : b.y < q.y && q.y < b.y + b.height;
+  const dir = Math.sign(end - from);
+  const gap = dir > 0 ? end - (lo + size) : lo - end;
+  if (!across || gap >= room || gap <= -size || Math.abs(end - from) < size + room + 4) return b;
+  const by = -dir * (room - gap);
+  return upright ? { ...b, y: b.y + by } : { ...b, x: b.x + by };
+}
 /**
  * A label on a line that is hardly longer than the label would hide the line, its colour and its
  * dashes: move it just beside the piece it sits on (above a level one, right of an upright one).
  */
-export function besideShortLine(points: Point[], b: Box, placed?: Placed): Box {
+export function besideShortLine(points: Point[], at: Box, placed?: Placed): Box {
+  const b = offHead(points, at);
   const c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   let total = 0;
   let under: [Point, Point] | undefined;
