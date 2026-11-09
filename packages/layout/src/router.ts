@@ -37,6 +37,8 @@ export interface RouterInput {
   /** Areas lines should not run through (group headers). */
   /** Areas lines may cross but should not run in: group headers, group borders. `weight` scales the cost. */
   soft: (Box & { weight?: number })[];
+  /** More areas labels keep out of (group borders and headers); lines may run there. */
+  labelZones?: Box[];
   direction: 'right' | 'down';
   edges: RouteRequest[];
   /** Spread lines sharing a corridor after routing (see nudge.ts); on unless false. */
@@ -664,7 +666,7 @@ export function simplify(pts: Point[]): Point[] {
 function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): number {
   let bad = 0;
   const taken: Box[] = [...input.obstacles.values()].map((b) => ({ x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8 }));
-  taken.push(...input.soft);
+  taken.push(...input.soft, ...(input.labelZones ?? []));
   // Every line, tagged with its edge: a label may sit on its own line but not on another.
   const lines: { edge: string; box: Box }[] = [];
   for (const [id, r] of routes) for (let i = 1; i < r.points.length; i++) lines.push({ edge: id, box: segmentBox(r.points[i - 1]!, r.points[i]!) });

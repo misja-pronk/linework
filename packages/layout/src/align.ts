@@ -7,7 +7,8 @@ import type { Box, Graph, NodeSize } from '@cartography/core';
 import type { Placement } from './dot.ts';
 import { growGroups } from './pins.ts';
 
-/** Jogs up to this size are worth removing; bigger offsets are real layout decisions. */
+/** Jogs up to this size are worth removing; bigger offsets are real layout decisions, except for a
+ * node with a single line (a leaf), which may slide any distance to sit in line with its neighbour. */
 const MAX_JOG = 48;
 const GAP = 12;
 
@@ -15,6 +16,7 @@ export function alignPorts(p: Placement, graph: Graph, sizes: Map<string, NodeSi
   const down = graph.direction === 'down';
   const nodes = new Map(p.nodes);
   const parentOf = new Map(graph.nodes.map((n) => [n.id, n.parent]));
+  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
   // Only node-to-node lines between different nodes; lines to groups go through the router.
   const edges = graph.edges.filter((e) => e.from.node !== e.to.node && nodes.has(e.from.node) && nodes.has(e.to.node));
   const degree = new Map<string, number>();
@@ -28,13 +30,18 @@ export function alignPorts(p: Placement, graph: Graph, sizes: Map<string, NodeSi
   const offset = (e: (typeof edges)[number], at = nodes) => port(e.to.node, e.to.row, at.get(e.to.node)!) - port(e.from.node, e.from.row, at.get(e.from.node)!);
   const straight = (at = nodes) => edges.filter((e) => Math.abs(offset(e, at)) < 0.5).length;
 
-  const fits = (id: string, b: Box) => {
+  const fits = (id: string, b: Box, far = false) => {
     for (const [other, o] of nodes)
       if (other !== id && b.x < o.x + o.width + GAP && o.x < b.x + b.width + GAP && b.y < o.y + o.height + GAP && o.y < b.y + b.height + GAP) return false;
+    // Never into a group the node is not in.
+    const mine = new Set<string>();
+    for (let g = parentOf.get(id); g; g = groupParent.get(g)) mine.add(g);
+    for (const [gid, o] of p.groups) if (!mine.has(gid) && b.x < o.x + o.width + GAP && o.x < b.x + b.width + GAP && b.y < o.y + o.height + GAP && o.y < b.y + b.height + GAP) return false;
     const parent = parentOf.get(id);
     const g = parent ? p.groups.get(parent) : undefined;
     if (!g) return true;
-    // Never into the header or past the start; the far side may grow the group.
+    // Never into the header or past the start; the far side may grow the group, but not for a far move.
+    if (far && (down ? b.x + b.width > g.x + g.width - pad : b.y + b.height > g.y + g.height - pad)) return false;
     return down ? b.x >= g.x + pad : b.y >= g.y + header;
   };
 
@@ -44,14 +51,16 @@ export function alignPorts(p: Placement, graph: Graph, sizes: Map<string, NodeSi
     const order = [...edges].sort((a, b) => Math.min(degree.get(a.from.node)!, degree.get(a.to.node)!) - Math.min(degree.get(b.from.node)!, degree.get(b.to.node)!));
     for (const e of order) {
       const d = offset(e);
-      if (Math.abs(d) < 0.5 || Math.abs(d) > MAX_JOG) continue;
+      if (Math.abs(d) < 0.5) continue;
+      const far = Math.abs(d) > MAX_JOG;
       const before = straight();
       // Try the end with fewer lines first.
       const ends = degree.get(e.to.node)! <= degree.get(e.from.node)! ? [[e.to.node, -d], [e.from.node, d]] : [[e.from.node, d], [e.to.node, -d]];
       for (const [id, delta] of ends as [string, number][]) {
+        if (far && degree.get(id)! > 1) continue;
         const b = nodes.get(id)!;
         const moved = down ? { ...b, x: b.x + delta } : { ...b, y: b.y + delta };
-        if (!fits(id, moved)) continue;
+        if (!fits(id, moved, far)) continue;
         const trial = new Map(nodes).set(id, moved);
         if (straight(trial) > before) {
           nodes.set(id, moved);

@@ -116,7 +116,7 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     m.labelOverlaps * 200 +
     m.crossings * 12 +
     m.backward * 8 +
-    m.bends * 1.5 +
+    m.bends * 2.5 +
     m.edgeLength * 0.6 +
     aspectPenalty * 25 +
     (1 - m.density) * 20 +
