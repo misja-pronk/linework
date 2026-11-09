@@ -61,3 +61,26 @@ describe('printing edits in place', () => {
     expect(t).toContain('    - db -> web\n    - web -> cache\n');
   });
 });
+
+describe('printer edge cases from review', () => {
+  it('edits list items whose dash is on its own line', () => {
+    const t = 'edges:\n  - # main path\n    from: a\n    to: b\n';
+    const out = edit(t, (d) => d.setIn(['edges', 0, 'label'], 'x'));
+    expect(parseDocument(out).toJS()).toEqual({ edges: [{ from: 'a', to: 'b', label: 'x' }] });
+    const more = edit(t, (d) => (d.getIn(['edges']) as any).add('c -> d'));
+    expect(parseDocument(more).toJS()).toEqual({ edges: [{ from: 'a', to: 'b' }, 'c -> d'] });
+  });
+  it('keeps two inserts at one spot in order', () => {
+    const t = 'type: azure\nnodes:\n  web: { kind: app-service }\n';
+    const out = edit(t, (d) => {
+      d.setIn(['nodes', 'web', 'in'], 'g');
+      d.set('groups', d.createNode({ g: { kind: 'vnet' } }));
+      d.setIn(['nodes', 'api'], 'container-app');
+      d.setIn(['nodes', 'db'], 'sql-database');
+    });
+    expect(parseDocument(out).toJS()).toEqual(parseDocument(out).toJS());
+    expect(out).toMatch(/api: container-app\n  db: sql-database/);
+    expect(parseDocument(out).toJS().groups).toEqual({ g: { kind: 'vnet' } });
+    expect(parseDocument(out).toJS().nodes.web.in).toBe('g');
+  });
+});

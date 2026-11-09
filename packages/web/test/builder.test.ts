@@ -81,7 +81,9 @@ describe('connections', () => {
   it('adds an edge for graph types', () => {
     const r = connectEntries(shop, azure, 'web', 'rg');
     expect(r).toMatchObject({ text: expect.stringContaining('- web -> rg') });
-    expect(connectEntries(shop, azure, 'web', 'db')).toMatchObject({ text: expect.stringContaining('- web -> db\n') });
+    // "web -> db: SQL" is already there: a second, unlabelled line would be a duplicate.
+    expect(connectEntries(shop, azure, 'web', 'db')).toEqual({ error: 'They are already connected' });
+    expect(connectEntries(shop, azure, 'web', 'web')).toEqual({ error: 'Pick another element to connect to' });
   });
   it('follows the type: inputs, member-of, foreign keys', () => {
     const dpText = 'type: data-products\nsources:\n  db: database\nproducts:\n  orders:\n    inputs: [db]\n  revenue: {}\n';
@@ -182,5 +184,29 @@ nodes:
         kind: sql-database
 `;
     expect(setField(t, azure, ['nodes', 'db'], 'label', 'Orders')).toBe(t.replace('        kind: sql-database\n', '        kind: sql-database\n        label: Orders\n'));
+  });
+});
+
+describe('review 3 cases', () => {
+  const access = findType('access')!;
+  const erd = findType('erd')!;
+  it('removes a single approver field, not the whole policy', () => {
+    const t = `type: access
+principals:
+  eng: group
+  mgr: user
+packages:
+  dev:
+    policy:
+      - { requestors: eng, approval: mgr }
+`;
+    const d = deleteEntry(t, access, ['principals', 'mgr'])!;
+    expect(d).toContain('requestors: eng');
+    expect(d).not.toContain('approval');
+  });
+  it('lets an ERD table point at itself, and asks for a role first', () => {
+    const t = 'type: erd\ntables:\n  employees:\n    columns:\n      id: int pk\n';
+    expect(connectEntries(t, erd, 'employees', 'employees')).toMatchObject({ text: expect.stringContaining('employee_id: int fk employees') });
+    expect(connectEntries('type: access\nprincipals:\n  a: user\nresources:\n  rg: resource-group\n', access, 'a', 'rg')).toEqual({ error: 'Add a role first: a person or group gets a role on a resource' });
   });
 });

@@ -31,6 +31,8 @@ interface Props {
   onConnect(from: string, to: string): void;
   /** A drag that ends without a change (Escape, pointer lost). */
   onDragCancel(): void;
+  /** Whether a node can start a connection (derived cards, matrices and contracts cannot). */
+  canConnect(id: string): boolean;
   /** Whether a group can take a dragged node or a palette item. */
   canDrop(group: string, what: { node?: string; palette?: number }): boolean;
   children?: React.ReactNode;
@@ -378,7 +380,7 @@ export function Preview(p: Props) {
   };
 
   const box = selectedBox(result, selected);
-  const hoverBox = !dragging && hover && !stale ? result?.placed?.nodes.get(hover) : undefined;
+  const hoverBox = !dragging && hover && !stale && p.canConnect(hover) ? result?.placed?.nodes.get(hover) : undefined;
   const from = dragging === 'connect' && drag.current?.node ? result?.placed?.nodes.get(drag.current.node) : undefined;
   const linkTarget = link?.target ? result?.placed?.nodes.get(link.target) : undefined;
   const target = dropTarget && result?.placed?.groups.get(dropTarget);

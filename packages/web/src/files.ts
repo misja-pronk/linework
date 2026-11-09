@@ -115,12 +115,37 @@ export async function saveInFolder(ws: Workspace, path: string, text: string, pi
     if (!sh) throw new Error(`Cannot write ${side}`);
     await write(sh, json);
     ws.files.set(side, { handle: sh, text: json });
-  } else if (ws.files.has(side)) {
-    const parts = side.split('/');
-    let d = ws.dir;
-    for (const seg of parts.slice(0, -1)) d = await d.getDirectoryHandle(seg);
-    await d.removeEntry(parts.at(-1)!);
+  } else if (ws.files.has(side) && isSidecar(ws.files.get(side)!.text)) {
+    // Only a layout file we can read is removed; one we cannot read may hold someone's work.
+    try {
+      const parts = side.split('/');
+      let d = ws.dir;
+      for (const seg of parts.slice(0, -1)) d = await d.getDirectoryHandle(seg);
+      await d.removeEntry(parts.at(-1)!);
+    } catch {
+      /* already gone */
+    }
     ws.files.delete(side);
+  }
+}
+
+function isSidecar(text: string): boolean {
+  try {
+    const v = JSON.parse(text);
+    return !!v && typeof v === 'object' && (v.nodes || v.groups);
+  } catch {
+    return false;
+  }
+}
+
+/** The file as it is on disk now (not the cached copy). */
+export async function diskText(ws: Workspace, path: string): Promise<string | undefined> {
+  const h = ws.files.get(path)?.handle;
+  if (!h) return undefined;
+  try {
+    return await (await h.getFile()).text();
+  } catch {
+    return undefined;
   }
 }
 

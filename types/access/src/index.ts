@@ -541,7 +541,8 @@ export const access: DiagramType<AccessSource> = {
     // A value that is one id or a list of ids.
     const ids = (v: unknown, path: (string | number)[], collection: 'principals' | 'resources' | 'roles') => {
       if (typeof v === 'string') {
-        if (has(collection, v)) out.push({ path, id: v, start: 0, collection });
+        // A single id: deleting what it names removes this field, not the list (policy) around it.
+        if (has(collection, v)) out.push({ path, id: v, start: 0, collection, onDelete: 'key' });
       } else if (Array.isArray(v)) v.forEach((x, i) => typeof x === 'string' && has(collection, x) && out.push({ path: [...path, i], id: x, start: 0, collection }));
     };
     for (const [id, p] of Object.entries(src.principals ?? {})) if (p && typeof p === 'object') ids(p['member-of'], ['principals', id, 'member-of'], 'principals');
@@ -552,7 +553,10 @@ export const access: DiagramType<AccessSource> = {
       if (typeof p.catalog === 'string') out.push({ path: [...base, 'catalog'], id: p.catalog, start: 0, collection: 'catalogs' });
       ids(p.holders, [...base, 'holders'], 'principals');
       for (const [i, g] of (p.grants ?? []).entries()) {
-        if (typeof g === 'string') ids(g, [...base, 'grants', i], 'principals');
+        if (typeof g === 'string') {
+          const collection = has('principals', g) ? 'principals' : has('resources', g) ? 'resources' : undefined;
+          if (collection) out.push({ path: [...base, 'grants', i], id: g, start: 0, collection });
+        }
         else if (g && typeof g === 'object') for (const k of Object.keys(g)) if (has('resources', k)) out.push({ path: [...base, 'grants', i], key: true, id: k, start: 0, collection: 'resources' });
       }
       const policies = Array.isArray(p.policy) ? p.policy.map((x, i) => [x, [...base, 'policy', i]] as const) : p.policy ? [[p.policy, [...base, 'policy']] as const] : [];
@@ -575,13 +579,15 @@ export const access: DiagramType<AccessSource> = {
     return out;
   },
   connect(src, from, to) {
+    if (from === to) return 'Pick another element to connect to';
     const is = (collection: 'principals' | 'packages' | 'resources', id: string) => !!src[collection] && id in src[collection]!;
     if (is('principals', from) && is('principals', to)) return { path: ['principals', from, 'member-of'], value: to };
     if (is('principals', from) && is('packages', to)) return { path: ['packages', to, 'holders'], value: from };
     if (is('packages', from) && is('principals', to)) return { path: ['packages', from, 'grants'], value: to };
     if (is('packages', from) && is('resources', to)) return { path: ['packages', from, 'grants'], value: { [to]: 'User' } };
     if (is('principals', from) && is('resources', to)) {
-      const role = Object.keys(src.roles ?? {})[0] ?? 'reader';
+      const role = Object.keys(src.roles ?? {})[0];
+      if (!role) return 'Add a role first: a person or group gets a role on a resource';
       return { path: ['assignments'], value: `${from} is ${role} on ${to}` };
     }
     return 'Connect a person or group to a group, package or resource, or a package to what it grants';

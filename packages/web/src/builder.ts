@@ -274,9 +274,15 @@ function summary(v: unknown): string {
 function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to: string): { text: string } | { error: string } {
   const doc = parse(text);
   if (!doc) return { error: 'Fix the problems in the YAML first' };
-  if (from === to) return { error: 'Pick another element to connect to' };
   const data = doc.toJS() as Record<string, unknown>;
-  const plan = type.connect ? type.connect(data, from, to) : hasEdges(type) ? { path: ['edges'], value: `${from} -> ${to}` } : 'This diagram type has no connections';
+  // Types decide about self links (an ERD table can point at itself); plain edges cannot.
+  const plan = type.connect
+    ? type.connect(data, from, to)
+    : from === to
+      ? 'Pick another element to connect to'
+      : hasEdges(type)
+        ? { path: ['edges'], value: `${from} -> ${to}` }
+        : 'This diagram type has no connections';
   if (typeof plan === 'string') return { error: plan };
 
   // The entry that holds the list may still be shorthand ("alice: user").
@@ -301,10 +307,27 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
     return { text: str(doc) };
   }
   if (!isSeq(at)) return { error: 'Cannot add it there: that part of the YAML is not a list' };
-  const json = JSON.stringify(plan.value);
-  if (at.items.some((i) => JSON.stringify((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === json)) return { error: 'They are already connected' };
+  const want = connectionKey(plan.value);
+  if (at.items.some((i) => connectionKey((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === want)) return { error: 'They are already connected' };
   at.add(doc.createNode(plan.value, { flow: true }));
   return { text: str(doc) };
+}
+
+/** What a list item connects, ignoring labels and ports: "a -> b: SQL" and "a -> b" are the same link. */
+function connectionKey(v: unknown): string {
+  const ends = (s: string) => {
+    const m = /^\s*([\w.-]+)\s*(?:<->|-->|\.\.>|->|--)\s*([\w.-]+)\s*$/.exec(s);
+    return m ? `${m[1]!.split('.')[0]}->${m[2]!.split('.')[0]}` : s.split('.')[0]!;
+  };
+  if (typeof v === 'string') return ends(v);
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    if (typeof o.from === 'string' && typeof o.to === 'string') return ends(`${o.from} -> ${o.to}`);
+    if (typeof o.from === 'string') return o.from.split('.')[0]!;
+    const keys = Object.keys(o);
+    if (keys.length === 1) return ends(keys[0]!);
+  }
+  return JSON.stringify(v);
 }
 
 const hasEdges = (type: DiagramType) => !!(type.schema as Schema).properties?.edges;

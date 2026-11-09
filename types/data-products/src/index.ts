@@ -543,14 +543,15 @@ export const dataProducts: DiagramType<DataProductSource> = {
     return out;
   },
   connect(src, from, to) {
+    if (from === to) return 'Pick another element to connect to';
     const product = src.products?.[from];
     // From a product with several output ports, take the first: the port is easy to change in the YAML.
     const ports = Object.keys(product?.outputs ?? {});
     const ref = ports.length > 1 ? `${from}.${ports[0]}` : from;
     const source = !!src.sources && from in src.sources;
     if (src.products && to in src.products && (source || product !== undefined)) return { path: ['products', to, 'inputs'], value: ref };
-    if (src.consumers && to in src.consumers && product !== undefined) return { path: ['consumers', to, 'uses'], value: ref };
-    return 'Data flows from a source or product into a product, or from a product to a consumer';
+    if (src.consumers && to in src.consumers && (product !== undefined || source)) return { path: ['consumers', to, 'uses'], value: ref };
+    return 'Data flows from a source or product into a product, or into a consumer';
   },
   template: `type: data-products
 title: Customer data products

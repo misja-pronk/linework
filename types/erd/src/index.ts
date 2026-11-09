@@ -301,7 +301,7 @@ export const erd: DiagramType<ErdSource> = {
         const path = ['tables', id, 'columns', col];
         if (typeof spec === 'string') {
           // "uuid fk customers.id": deleting customers cuts the "fk customers.id" part, the column stays.
-          const m = /(^|\s)((?:fk|ref|->)\s+)([A-Za-z0-9_-]+)(\.[A-Za-z0-9_-]+)?/d.exec(spec);
+          const m = /(^|\s)((?:fk|ref|->)\s+)([A-Za-z0-9_-]+)(\.[A-Za-z0-9_-]+)?/di.exec(spec);
           if (m?.indices) out.push({ path, id: m[3]!, start: m.indices[3]![0], collection: 'tables', onDelete: 'cut', cut: [m.indices[2]![0] - m[1]!.length, m.indices[4]?.[1] ?? m.indices[3]![1]] });
         } else if (spec && typeof spec.fk === 'string') out.push({ path: [...path, 'fk'], id: spec.fk.split('.')[0]!, start: 0, collection: 'tables' });
       }

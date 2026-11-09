@@ -17,7 +17,7 @@ import { exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPng, exportSvg, yamlName } from './export.ts';
 import { addEntry, connectEntries, deleteEntry, duplicateEntry, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
-import { canSaveFiles, canUseFolders, diagrams, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
+import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -103,13 +103,6 @@ export function App() {
   useEffect(() => {
     if (canUseFolders) void lastFolder().then(setRemembered);
   }, []);
-  // Back in the window: read the folder again, so contract files edited elsewhere show up.
-  useEffect(() => {
-    if (!ws) return;
-    const onFocus = () => void scan(ws.dir).then(setWs).catch(() => undefined);
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [ws]);
 
   const load = useMemo(
     () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
@@ -161,6 +154,35 @@ export function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // Back in the window: read the folder again, so files edited elsewhere show up. The open file
+  // reloads when it has no unsaved changes; with changes, a warning (saving then asks first).
+  const onDisk = useRef({ ws, doc, dirty, savedText });
+  onDisk.current = { ws, doc, dirty, savedText };
+  useEffect(() => {
+    if (!ws) return;
+    let last = 0;
+    const onFocus = () => {
+      if (Date.now() - last < 1500) return;
+      last = Date.now();
+      void scan(ws.dir)
+        .then((next) => {
+          setWs(next);
+          const { doc: d, dirty: changed, savedText: base } = onDisk.current;
+          const disk = d.path ? next.files.get(d.path)?.text : undefined;
+          if (disk == null || base == null || disk === base) return;
+          if (!changed) {
+            editor.current?.load(disk, readSidecar(next, d.path!));
+            setSavedText(disk);
+            setDocKey((k) => k + 1);
+            notify(`${d.path} changed on disk: reloaded`);
+          } else notify(`${d.path} changed on disk. Saving will ask before it overwrites that.`, { tone: 'error' });
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [ws, notify]);
+
   const onChange = (next: string) => {
     setText(next);
     // The "undo open" offer ends with the first edit: it would throw that edit away.
@@ -172,7 +194,7 @@ export function App() {
 
   const open = useCallback(
     (next: string, nextDoc: Doc, nextPins?: LayoutSidecar) => {
-      const before = { text: editor.current?.text() ?? text, doc, pins };
+      const before = { text: editor.current?.text() ?? text, doc, pins, handle: fileHandle.current, savedText, savedPins };
       editor.current?.load(next, nextPins);
       setDoc(nextDoc);
       setSelected(undefined);
@@ -188,15 +210,25 @@ export function App() {
           run: () => {
             editor.current?.load(before.text, before.pins);
             setDoc(before.doc);
-            setSavedText(null);
+            // The file it belonged to comes back too, so the next save goes to the right place.
+            fileHandle.current = before.handle;
+            setSavedText(before.savedText);
+            setSavedPins(before.savedPins);
             setSelected(undefined);
             setDocKey((k) => k + 1);
           },
         },
       });
     },
-    [text, doc, pins, notify],
+    [text, doc, pins, notify, savedText, savedPins],
   );
+
+  /** Before replacing the document: save it where it lives, or ask. False keeps it open. */
+  const leave = async (): Promise<boolean> => {
+    if (!dirty) return true;
+    if ((ws && doc.path) || fileHandle.current) return save();
+    return window.confirm(`${doc.name} has changes that are not saved in a file. Discard them?`);
+  };
 
   const pick = (s: Starter) => {
     setModal(undefined);
@@ -207,18 +239,15 @@ export function App() {
   /** Saves where the document lives: its folder, its file, or a new file. Returns false when cancelled. */
   const save = async (): Promise<boolean> => {
     const now = textNow();
-    // Pins of elements that are no longer drawn are left out of the saved layout.
-    const drawn = (ids: string[] | undefined, map: Record<string, Point> | undefined) => {
-      if (!map || !ids) return map;
-      const keep = Object.fromEntries(Object.entries(map).filter(([k]) => ids.includes(k)));
-      return Object.keys(keep).length ? keep : undefined;
-    };
-    const keptNodes = drawn(result?.graph?.nodes.map((n) => n.id), pins?.nodes);
-    const keptGroups = drawn(result?.graph?.groups.map((g) => g.id), pins?.groups);
-    const pinsToSave: LayoutSidecar | undefined =
-      keptNodes || keptGroups ? { version: 1, ...(keptNodes ? { nodes: keptNodes } : {}), ...(keptGroups ? { groups: keptGroups } : {}) } : undefined;
+    // All pins are kept: other views of the same file (access matrices, data-products overview) draw other things.
+    const pinsToSave = pins;
     try {
-      if (ws && doc.path) await saveInFolder(ws, doc.path, now, pinsToSave);
+      if (ws && doc.path) {
+        // Never overwrite edits made elsewhere without asking.
+        const disk = await diskText(ws, doc.path);
+        if (disk != null && savedText != null && disk !== savedText && disk !== now && !window.confirm(`${doc.path} was changed outside Cartography. Overwrite it?`)) return false;
+        await saveInFolder(ws, doc.path, now, pinsToSave);
+      }
       else if (fileHandle.current) await saveFile(fileHandle.current, now);
       else if (canSaveFiles) {
         const r = await saveAs(yamlName(doc.name), now, ws?.dir);
@@ -250,6 +279,14 @@ export function App() {
     try {
       const next = dir ? await reopen(dir) : await pickFolder();
       if (!next) return;
+      // After a reload the document of that folder is back with its edits: carry on with it.
+      if (!ws && doc.path && next.files.has(doc.path)) {
+        setWs(next);
+        setRemembered(next.dir);
+        setSavedText(next.files.get(doc.path)!.text);
+        return;
+      }
+      if (!(await leave())) return;
       setWs(next);
       setRemembered(next.dir);
       const first = diagrams(next)[0];
@@ -261,8 +298,9 @@ export function App() {
   };
 
   const openInFolder = async (w: Workspace, path: string) => {
-    // Switching files keeps work: the current one is saved first when it lives in the folder.
-    if (dirty && ws && doc.path && doc.path !== path && !(await save())) return;
+    // Switching files keeps work: saved first where it lives, otherwise asked.
+    if (doc.path === path && ws === w) return;
+    if (!(await leave())) return;
     const f = w.files.get(path);
     if (!f) return;
     fileHandle.current = undefined;
@@ -736,6 +774,10 @@ export function App() {
               editor.current?.pin(withPin(id, at, true) ?? undefined);
             }}
             onDragCancel={() => setDraft(undefined)}
+            canConnect={(id) => {
+              const path = pathOf({ kind: 'node', id });
+              return !!type && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+            }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
               if (!type || !g || g.path.length !== 2) return false;

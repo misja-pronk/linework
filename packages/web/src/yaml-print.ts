@@ -10,6 +10,8 @@ interface Splice {
   from: number;
   to: number;
   text: string;
+  /** Push order: of two inserts at one spot, the later one goes in first so it ends up last. */
+  n?: number;
 }
 
 const json = (n: unknown) => JSON.stringify(n && typeof (n as { toJSON?: unknown }).toJSON === 'function' ? (n as { toJSON(): unknown }).toJSON() : n);
@@ -26,8 +28,12 @@ export function printPreserving(original: string, doc: Document): string {
   const splices: Splice[] = [];
   const ok = diffMap(original, old.contents, doc.contents as YAMLMap, 0, indentUnit, splices, true);
   if (!ok) return doc.toString({ ...FORMAT, indent: indentUnit });
+  splices.forEach((s, i) => (s.n = i));
   let out = original;
-  for (const s of splices.sort((a, b) => b.from - a.from || b.to - a.to)) out = out.slice(0, s.from) + s.text + out.slice(s.to);
+  for (const s of splices.sort((a, b) => b.from - a.from || b.to - a.to || b.n! - a.n!)) out = out.slice(0, s.from) + s.text + out.slice(s.to);
+  // Safety net: the text must mean exactly what the edited document means, or we print it plainly.
+  const check = parseDocument(out);
+  if (check.errors.length || JSON.stringify(check.toJS()) !== JSON.stringify(doc.toJS())) return doc.toString({ ...FORMAT, indent: indentUnit });
   return out;
 }
 
@@ -76,7 +82,18 @@ function pairSpan(text: string, p: Pair): [number, number] | undefined {
 function itemSpan(text: string, item: Node): [number, number] | undefined {
   const r = item.range;
   if (!r) return undefined;
-  return [lineStart(text, r[0]), contentEnd(text, r[0], r[1])];
+  return [lineStart(text, dashBefore(text, r[0])), contentEnd(text, r[0], r[1])];
+}
+
+/** The "-" of a list item: its value can start lines later ("- # note\n  from: a", "- &anchor"). */
+function dashBefore(text: string, pos: number): number {
+  for (let i = pos - 1; i >= 0; i--) {
+    const c = text[i]!;
+    if (c === '-' && (i === 0 || /\s/.test(text[i - 1]!))) return i;
+    if (c === '#') continue;
+    if (!/[\s&*!\w-]/.test(c) && c !== '#') break;
+  }
+  return pos;
 }
 
 /** One entry printed on its own, indented to `column`. */
@@ -173,7 +190,8 @@ function diffMap(text: string, a: YAMLMap, b: YAMLMap, column: number, indent: n
 function diffSeq(text: string, a: YAMLSeq, b: YAMLSeq, column: number, indent: number, out: Splice[]): boolean {
   const oi = a.items as Node[];
   const ni = b.items as Node[];
-  column = columnOf(text, lineStart(text, oi[0]!.range![0]) + (/^\s*/.exec(text.slice(lineStart(text, oi[0]!.range![0])))?.[0].length ?? 0));
+  const firstDash = dashBefore(text, oi[0]!.range![0]);
+  column = columnOf(text, firstDash);
   const oj = oi.map(json);
   const nj = ni.map(json);
   // Same length: compare item by item, so an edited item is replaced in place.
@@ -193,7 +211,7 @@ function diffSeq(text: string, a: YAMLSeq, b: YAMLSeq, column: number, indent: n
   for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i]![j] = oj[i] === nj[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
   let i = 0;
   let j = 0;
-  let prevEnd = lineStart(text, oi[0]!.range![0]) - 1;
+  let prevEnd = lineStart(text, firstDash) - 1;
   const inserts: { at: number; items: Node[] }[] = [];
   while (i < n || j < m) {
     if (i < n && j < m && oj[i] === nj[j]) {
@@ -215,7 +233,7 @@ function diffSeq(text: string, a: YAMLSeq, b: YAMLSeq, column: number, indent: n
   for (const ins of inserts) {
     const body = ins.items.map((it) => printItem(it, column, indent)).join('\n');
     // Before the first item: at its line start, with the newline after.
-    out.push(ins.at < lineStart(text, oi[0]!.range![0]) ? { from: ins.at + 1, to: ins.at + 1, text: body + '\n' } : { from: ins.at, to: ins.at, text: '\n' + body });
+    out.push(ins.at < lineStart(text, firstDash) ? { from: ins.at + 1, to: ins.at + 1, text: body + '\n' } : { from: ins.at, to: ins.at, text: '\n' + body });
   }
   return true;
 }
