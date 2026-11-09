@@ -70,6 +70,32 @@ export function tidy(p: Placement, graph: Graph, header: number, pad: number, ga
     }
   }
 
+  // The cards of one layer stand in a row (top-down) or a column (left to right), centred on one
+  // line by dot. Cards of unequal size then start a few pixels apart, which reads as a mistake:
+  // they start on one line instead, the top of the row or the left of the column (lines come in on
+  // that side and leave on the other, so none gets a jog). A card with a line to another card of
+  // its layer stays centred: that line runs along the layer, from middle to middle.
+  {
+    const [axis, size] = down ? (['y', 'height'] as const) : (['x', 'width'] as const);
+    const layers = new Map<number, string[]>();
+    for (const [id, b] of nodes) {
+      const mid = Math.round(b[axis] + b[size] / 2);
+      if (!rowBound.has(id)) layers.set(mid, [...(layers.get(mid) ?? []), id]);
+    }
+    for (const layer of layers.values()) {
+      if (layer.length < 2) continue;
+      const start = Math.min(...layer.map((id) => nodes.get(id)![axis]));
+      const inLayer = new Set(layer);
+      for (const id of layer) {
+        const b = nodes.get(id)!;
+        if (b[axis] - start < 0.5) continue;
+        if (edges.some((e) => (e.from.node === id && inLayer.has(e.to.node)) || (e.to.node === id && inLayer.has(e.from.node)))) continue;
+        const moved = { ...b, [axis]: start };
+        if (clear(id, moved, gap - GRID / 2)) nodes.set(id, moved);
+      }
+    }
+  }
+
   return { ...p, nodes, groups: fitGroups(graph, nodes, p.groups, header, pad, minWidth) };
 }
 
@@ -84,10 +110,19 @@ export function fitGroups(graph: Graph, nodes: Map<string, Box>, before: Map<str
       ...graph.groups.filter((c) => c.parent === g.id).map((c) => groups.get(c.id)),
     ].filter((b): b is Box => !!b);
     if (!box || !kids.length) continue;
-    const x0 = Math.min(...kids.map((k) => k.x)) - pad;
+    let x0 = Math.min(...kids.map((k) => k.x)) - pad;
     const y0 = Math.min(...kids.map((k) => k.y)) - header;
-    const x1 = Math.max(...kids.map((k) => k.x + k.width), x0 + (minWidth.get(g.id) ?? 0) - pad) + pad;
+    let x1 = Math.max(...kids.map((k) => k.x + k.width)) + pad;
     const y1 = Math.max(...kids.map((k) => k.y + k.height)) + pad;
+    // A title wider than what the group holds: the extra width goes where the group already had
+    // room (to the right first, then to the left), so it does not grow over its neighbour.
+    const extra = (minWidth.get(g.id) ?? 0) - (x1 - x0);
+    if (extra > 0) {
+      const right = Math.max(0, Math.min(extra, box.x + box.width - x1));
+      const left = Math.max(0, Math.min(extra - right, x0 - box.x));
+      x0 -= left;
+      x1 += extra - left;
+    }
     groups.set(g.id, { x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
   }
   return groups;

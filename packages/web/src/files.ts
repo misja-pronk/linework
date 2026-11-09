@@ -77,7 +77,7 @@ export function readSidecar(ws: Workspace, diagram: string): LayoutSidecar | und
   if (!f) return undefined;
   try {
     const v = JSON.parse(f.text) as LayoutSidecar;
-    return v && typeof v === 'object' && (v.nodes || v.groups || v.edges || v.views) ? v : undefined;
+    return v && typeof v === 'object' && (v.nodes || v.groups || v.edges || v.views || v.layout) ? v : undefined;
   } catch {
     return undefined;
   }
@@ -109,7 +109,7 @@ export async function saveInFolder(ws: Workspace, path: string, text: string, pi
   await write(h, text);
   ws.files.set(path, { handle: h, text });
   const side = sidecarPath(path);
-  if (['nodes', 'groups', 'edges', 'locked', 'views'].some((k) => Object.keys(pins?.[k as 'nodes'] ?? {}).length)) {
+  if (['nodes', 'groups', 'edges', 'locked', 'views', 'layout'].some((k) => Object.keys(pins?.[k as 'nodes'] ?? {}).length)) {
     const json = JSON.stringify(pins, null, 2) + '\n';
     const sh = await handleFor(ws, side, true);
     if (!sh) throw new Error(`Cannot write ${side}`);

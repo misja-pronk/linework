@@ -1,0 +1,63 @@
+# Copy to .github/workflows/diagrams.yml. Explained in docs/ci.md.
+#
+# Pull requests: checks every diagram, and keeps one comment up to date that shows what the
+# change does to the diagrams, as pictures and in words.
+# Pushes to main: draws every diagram to SVG next to its YAML and commits the ones that changed.
+name: Diagrams
+
+on:
+  pull_request:
+    # closed: the pictures of this pull request are removed from the picture branch.
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main]
+
+# One run per pull request or branch at a time; a newer push replaces a run that is still busy.
+concurrency:
+  group: diagrams-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Pull requests from forks get a read-only token whatever is written here. The action then
+    # skips the push and the comment, and leaves the pictures in the run's artifact and summary.
+    permissions:
+      contents: write        # pictures go to the cartography-diffs branch
+      pull-requests: write   # the comment
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # to compare with where the branch left main
+
+      - uses: misja-pronk/cartography/packages/action@main
+        with:
+          # files: |
+          #   docs/**/*.yaml
+          #   !docs/drafts/**
+          # side-by-side: true
+          # images: artifact   # no pictures in the comment, no write access to the repository needed
+          fail-on-error: true
+
+      # The action puts `carto` on the PATH. Not on closed: nothing to check any more.
+      - name: Saved positions still match the diagrams
+        if: github.event.action != 'closed'
+        run: |
+          shopt -s globstar nullglob
+          carto validate --drift docs/**/*.yaml
+
+  render:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # to commit the pictures
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: misja-pronk/cartography/packages/action@main
+        with:
+          formats: svg
+          commit: true
+          # Protected branch? Leave `commit` out and collect the pictures as an artifact instead:
+          # output: pictures

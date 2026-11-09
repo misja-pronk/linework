@@ -1,17 +1,20 @@
 // Layout: dot places nodes and groups, pins from the sidecar move nodes, our router draws the lines.
-import type { Box, EdgeOverride, Endpoint, LayoutSidecar, Marker, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
+import { unpackLayout, type Box, type EdgeOverride, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { tidy } from './tidy.ts';
+import { squeeze } from './squeeze.ts';
 import { measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
+import { movedShare, stayPlacement } from './stay.ts';
 
 export * from './dot.ts';
 export * from './pins.ts';
 export * from './router.ts';
 export * from './metrics.ts';
+export * from './stay.ts';
 
 export interface Tuning {
   /** Override the diagram's direction. */
@@ -28,95 +31,214 @@ export interface Tuning {
   autoDirection?: boolean;
   /** 'fit': columns of a left-to-right drawing open up for their longest label (C4's long relationship labels). */
   labelRoom?: 'fit';
+  /** With labelRoom 'fit': close each gap between columns to what its own labels need (see squeeze.ts); on unless false. */
+  squeeze?: boolean;
+  /**
+   * The drawing before this one (see stay.ts): what was there keeps its place unless another
+   * placement is clearly better. Without it the sidecar's note is used; null forgets that too.
+   */
+  previous?: LayoutMemory | null;
+}
+
+/** The ways dot is asked, by the name they have in a variant key. */
+const VARIANTS: [string, DotVariant][] = [
+  ['plain', {}],
+  ['same', { sameRank: true }],
+  ['out', { attrs: 'ordering=out' }],
+  ['same-rev', { sameRank: true, reverse: true }],
+];
+
+/**
+ * What moving away from the previous drawing costs, in score points: a little for moving anything
+ * at all, and more the larger the share of nodes that moves. Another placement has to be better by
+ * this much to win: about two crossings for a small shuffle, half a dozen for redrawing everything.
+ */
+const MOVE_BASE = 16;
+const MOVE_EACH = 60;
+/** With only the way it was made remembered (no positions), another way has to be this much better. */
+const SWITCH = 12;
+
+interface VariantKey {
+  direction: 'right' | 'down';
+  dot: DotVariant;
+  compact: boolean;
+  align: boolean;
+}
+
+function parseKey(key: string | undefined): VariantKey | undefined {
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)-?$/.exec(key ?? '');
+  const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4] } : undefined;
+}
+
+/** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
+interface Choice {
+  /** Boxes in pin space, tidied and with room opened for labels. */
+  p: Placement;
+  placed: Placed;
+  /** Quality (metrics.ts), lower is better. */
+  score: number;
+  /** Quality plus what it costs to move away from the previous drawing. */
+  cost: number;
+  key: string;
+  /** The sizes it was drawn with (its direction, its header height). */
+  sized: Sized;
+  held?: boolean;
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
   if (tuning.direction) sized = { ...sized, graph: { ...sized.graph, direction: tuning.direction } };
-  const first = await layoutOnce(sized, spacing, sidecar, tuning);
-  // A long chain drawn left to right can end up many times wider than tall: unreadable on a slide
-  // or a page. When the source did not choose a direction, top-down is tried too and kept when it
-  // scores better. Not with pins: they were placed on the drawing as it was.
+  const { graph } = sized;
+  // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
+  if (!graph.nodes.length && !graph.groups.length) return { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } };
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
-  if (!tuning.autoDirection || tuning.direction || pinned || sized.graph.direction !== 'right' || (first.bare ?? first.placed).width < WIDE * (first.bare ?? first.placed).height) return first.placed;
-  const down = await layoutOnce({ ...sized, graph: { ...sized.graph, direction: 'down' } }, spacing, sidecar, tuning);
-  return down.score < first.score - 1e-9 ? { ...down.placed, direction: 'down' } : first.placed;
+  const prev = tuning.previous === null ? undefined : (tuning.previous ?? unpackLayout(sidecar?.layout));
+  const was = parseKey(prev?.variant);
+  const open = !!tuning.autoDirection && !tuning.direction;
+  const turned = (d: 'right' | 'down'): Sized => (d === graph.direction ? sized : { ...sized, graph: { ...graph, direction: d } });
+  // The previous drawing is kept in the direction it had (when the source leaves the direction open).
+  const stayIn = open && was ? was.direction : graph.direction;
+
+  let best: Choice;
+  if (pinned && was && !tuning.dot) {
+    // Pins were set on one placement: the one the sidecar names is drawn again, whatever the others
+    // would score now. Moving a pin never redraws the rest.
+    const d = open ? was.direction : graph.direction;
+    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align }, prev, d === stayIn);
+  } else {
+    best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
+    // A long chain drawn left to right can end up many times wider than tall: unreadable on a slide
+    // or a page. When the source did not choose a direction, top-down is tried too and kept when it
+    // is better. It is also tried when the previous drawing was top-down, so it can stay that way.
+    if (open && graph.direction === 'right' && (best.placed.width >= WIDE * best.placed.height || stayIn === 'down')) {
+      const down = await choose(turned('down'), spacing, tuning, prev, stayIn === 'down');
+      // Its width is why top-down is tried at all: on a near tie the wide drawing loses, unless the
+      // previous drawing was that one.
+      if (down.cost < best.cost + (was?.direction === 'right' ? 0 : TIE) - 1e-9) best = down;
+    }
+  }
+
+  const s = best.sized;
+  const memory: LayoutMemory = {
+    variant: best.key,
+    ...(best.held ? { held: true } : {}),
+    nodes: new Map([...best.p.nodes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }])),
+    groups: new Map(best.p.groups),
+  };
+  const direction = s.graph.direction !== graph.direction ? { direction: s.graph.direction } : {};
+  // Pins and lines bent by hand come last, on the placement chosen without them: a pin moves its
+  // node (and makes room for it), a bend changes one line, and neither changes where the rest goes.
+  const joins = (id: string, o: EdgeOverride) => s.graph.edges.some((e) => e.id === id && (o.from == null || e.from.node === o.from) && (o.to == null || e.to.node === o.to));
+  const via = new Map(Object.entries(sidecar?.edges ?? {}).filter(([id, o]) => o.via?.length && joins(id, o)).map(([id, o]) => [id, o.via]));
+  if (!pinned && !via.size) return { ...best.placed, ...direction, memory };
+  const p = pinned ? applyPins(best.p, s.graph, sidecar, s.groupHeader, spacing.groupPad) : best.p;
+  return { ...normalise({ ...p, edges: route(s, p, via.size ? via : undefined) }), ...direction, memory };
 }
 
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
+/** How much better (in score) the wide drawing must be to be kept over the top-down one. */
+const TIE = 1;
 
-/** A drawing and its score; `bare` is the same drawing before lines bent by hand, which never steer the choices. */
-interface Drawn {
-  placed: Placed;
-  score: number;
-  bare?: Placed;
-}
-
-async function layoutOnce(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning): Promise<Drawn> {
-  const { graph } = sized;
-  // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
-  if (!graph.nodes.length && !graph.groups.length) return { placed: { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } }, score: 0 };
-  const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
-  // dot ranks and orders differently when asked differently, and no one way suits every diagram.
-  // Small diagrams also try a few other ways, each drawn in full, and the best-scoring one is kept. Big diagrams, and
-  // pinned ones (whose pins were set on one placement), ask once.
-  const others: DotVariant[] = tuning.dot || graph.nodes.length > VARIANT_LIMIT || pinned ? [] : [{ sameRank: true }, { attrs: 'ordering=out' }, { sameRank: true, reverse: true }];
-  let best = await candidates(sized, spacing, sidecar, tuning, tuning.dot ?? {});
-  for (const variant of others) {
-    const c = await candidates(sized, spacing, sidecar, tuning, variant);
-    if (c.score < best.score - 1e-9) best = c;
-  }
-  return best;
-}
-
-/** The best drawing from one dot placement: compacted or not, straightened or not. */
-async function candidates(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar | undefined, tuning: Tuning, variant: DotVariant): Promise<Drawn> {
+/** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was. */
+async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean): Promise<Choice> {
   // Top-down, lines come into a group's first row from above, and its header title sits right where
   // the leftmost of them would come in. A slightly taller header leaves a lane under the title: such
   // a line comes down beside the title, runs under it and drops into its node.
   if (sized.graph.direction === 'down') sized = { ...sized, groupHeader: sized.groupHeader + DOWN_LANE };
   const { graph } = sized;
+  // dot ranks and orders differently when asked differently, and no one way suits every diagram.
+  // Small diagrams try a few ways, each drawn in full, and the best one is kept. Big diagrams ask once.
+  const big = graph.nodes.length > VARIANT_LIMIT;
+  const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : big ? VARIANTS.slice(0, 1) : VARIANTS;
+  // A big diagram with a drawing before it is drawn the way that one was (packed or not, straightened
+  // or not) and no other: every candidate is routed in full, which is most of the time a layout takes,
+  // and next to the previous drawing kept as it was the other three rarely win.
+  const was = big ? parseKey(prev?.variant) : undefined;
+  if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align };
+  let best: Choice | undefined;
+  for (const [name, variant] of ways) {
+    const c = await candidates(sized, spacing, tuning, name, variant, prev);
+    if (!best || c.cost < best.cost - 1e-9) best = c;
+  }
+  if (stay && prev?.nodes?.size) {
+    const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+    if (kept) {
+      const placed = normalise({ ...kept, edges: route(sized, kept) });
+      const sc = score(measure(graph, placed, sized.groupHeader));
+      const cost = sc + moveCost(kept, prev);
+      // Only when it differs: a fresh placement that is exactly the previous one is not "held".
+      if (cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
+    }
+  }
+  return best!;
+}
+
+function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
+  const share = movedShare(p.nodes, prev?.nodes);
+  return share > 0 ? MOVE_BASE + MOVE_EACH * share : 0;
+}
+
+/** The best drawing from one dot placement: compacted or not, straightened or not. */
+async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice> {
+  const { graph } = sized;
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const widest = Math.max(0, ...[...sized.edgeLabels.values()].map((l) => l.width));
   const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
-  const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
-  const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
+  const fit = tuning.labelRoom === 'fit' && graph.direction === 'right' && sized.edgeLabels.size > 0;
+  const asked = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  // dot's gap is one size for all layers, the widest label's: each gap is closed to what its own lines need.
+  const squeezed = fit && tuning.squeeze !== false;
+  const placed = squeezed ? squeeze(asked, sized, spacing) : asked;
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
-    const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
-    let p = applyPins(tidied, graph, sidecar, sized.groupHeader, spacing.groupPad);
-    let edges = route(sized, p);
+    const start = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     // A label that cannot sit clear of a group border gets room: space is opened just before that
-    // border and the lines are drawn again. Not with pins, which must stay exactly where they were put.
-    for (let i = 0; i < 4 && !pinned; i++) {
-      const cut = labelOnBorder(p, edges, sized.groupHeader);
-      if (!cut) break;
-      p = openSpace(p, cut);
-      edges = route(sized, p);
-    }
+    // border and the lines are drawn again.
+    type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
+    const clear = (d: Drawn, left: number, branch: boolean): Drawn => {
+      const cuts = left ? labelOnBorder(d.p, d.edges, sized.groupHeader) : [];
+      if (!cuts.length) return d;
+      // A label at a group's corner can be cleared across or down. Which is better only shows in
+      // the finished drawing, so (once) both are drawn to the end: fewer crossings wins, then the better drawing.
+      const ends = (branch ? cuts : cuts.slice(0, 1)).map((cut) => {
+        const q = openSpace(d.p, cut, graph);
+        return clear({ p: q, edges: route(sized, q) }, left - 1, branch && cuts.length < 2);
+      });
+      if (ends.length < 2) return ends[0]!;
+      const worth = (e: Drawn) => {
+        const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader);
+        return m.crossings * 1000 + score(m);
+      };
+      return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
+    };
+    const { p, edges } = clear({ p: start, edges: route(sized, start) }, 4, true);
     return { placed: normalise({ ...p, edges }), p };
   };
-  // Each helps some diagrams and hurts others, so all are drawn and the best-scoring one is kept.
-  const packed = () => compact(placed, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap);
-  const bases = tuning.compact === false ? [placed] : tuning.compact ? [packed()] : [placed, packed()];
+  // Each helps some diagrams and hurts others, so all are drawn and the best one is kept.
+  const packed = (q = placed) => compact(q, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+  const bases: [boolean, Placement][] = tuning.compact === false ? [[false, placed]] : tuning.compact ? [[true, packed()]] : [[false, placed], [true, packed()]];
   const aligns = tuning.align === false ? [false] : tuning.align ? [true] : [false, true];
-  let best: { placed: Placed; p: Placement } | undefined;
-  let bestScore = Infinity;
-  for (const base of bases)
+  let best: Choice | undefined;
+  for (const [c, base] of bases)
     for (const a of aligns) {
-      const c = finish(base, a);
-      const sc = score(measure(graph, c.placed, sized.groupHeader));
-      if (!best || sc < bestScore - 1e-9) {
-        best = c;
-        bestScore = sc;
+      let drawn = finish(base, a);
+      const key = `${graph.direction}/${name}/${c ? 'c' : ''}${a ? 'a' : ''}${c || a ? '' : '-'}`;
+      let m = measure(graph, drawn.placed, sized.groupHeader);
+      // Closing the gaps can leave two labels of one fan without room beside each other: then the
+      // same drawing with dot's own gaps is the better one.
+      if (squeezed && m.labelOverlaps > 0) {
+        const wide = finish(c ? packed(asked) : asked, a);
+        const wm = measure(graph, wide.placed, sized.groupHeader);
+        if (score(wm) < score(m)) [drawn, m] = [wide, wm];
       }
+      const sc = score(m);
+      // Close to the previous drawing counts; with only its variant known, being that variant does.
+      const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && prev.variant !== key ? SWITCH : 0);
+      if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }
-  // Lines bent by hand are drawn last, on the placement chosen without them: a bend never changes where boxes go.
-  const joins = (id: string, o: EdgeOverride) => graph.edges.some((e) => e.id === id && (o.from == null || e.from.node === o.from) && (o.to == null || e.to.node === o.to));
-  const via = new Map(Object.entries(sidecar?.edges ?? {}).filter(([id, o]) => o.via?.length && joins(id, o)).map(([id, o]) => [id, o.via]));
-  if (via.size) return { placed: normalise({ ...best!.p, edges: route(sized, best!.p, via) }), score: bestScore, bare: best!.placed };
-  return { placed: best!.placed, score: bestScore };
+  return best!;
 }
 
 /** Above this many nodes dot is asked once: the other variants would cost more time than they win. */
@@ -177,17 +299,19 @@ interface Cut {
   axis: 'x' | 'y';
   at: number;
   by: number;
+  /** The group whose border the label lay on. */
+  group: string;
 }
 
-/** The first label lying on a group's border or header, as the space to open before that border. */
-function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: number): Cut | undefined {
+/** The first label lying on a group's border or header, as the space to open before that border: the cheapest cut across and the cheapest down, cheapest first. */
+function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: number): Cut[] {
   const t = 4;
   for (const e of edges.values()) {
     const l = e.label;
     if (!l) continue;
-    // A label at a group's corner touches two borders at once: the cheaper cut clears it.
-    let cut: Cut | undefined;
-    for (const b of p.groups.values())
+    // A label at a group's corner touches two borders at once.
+    const cuts: Partial<Record<'x' | 'y', Cut>> = {};
+    for (const [group, b] of p.groups)
       for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
         const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
         // Within the border's extent, and touching its line.
@@ -195,23 +319,41 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
         const [l0, l1] = axis === 'x' ? [l.y, l.y + l.height] : [l.x, l.x + l.width];
         // The top border is as thick as the header: a label may not sit in it either.
         const after = axis === 'y' && at === b.y ? header : t;
-        if (lo < at + after && hi > at - t && l0 < o1 && l1 > o0) {
-          const c: Cut = { axis, at: Math.min(lo, at) - 2 * t, by: Math.ceil((size + 4 * t) / 8) * 8 };
-          if (!cut || c.by < cut.by) cut = c;
-        }
+        if (!(lo < at + after && hi > at - t && l0 < o1 && l1 > o0)) continue;
+        const by = Math.ceil((size + 4 * t) / 8) * 8;
+        // On a group's far border with something beyond it: the room opens outside the group, which
+        // stays snug around what it holds. Otherwise before the border (the group moves on, or grows).
+        const far = at !== b[axis];
+        const beyond = far && [...p.nodes.values(), ...p.groups.values()].some((q) => q[axis] > at);
+        if (!cuts[axis] || by < cuts[axis].by) cuts[axis] = { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
       }
-    if (cut) return cut;
+    const found = [cuts.x, cuts.y].filter((c): c is Cut => !!c).sort((a, b) => a.by - b.by);
+    if (found.length) return found;
   }
-  return undefined;
+  return [];
 }
 
-/** Push everything that starts at or past the cut further along; boxes the cut runs through grow. */
-function openSpace(p: Placement, c: Cut): Placement {
+/**
+ * Push everything that starts at or past the cut further along. Of the groups the cut runs through,
+ * those grow that hold something pushed, and the one whose border the label lay on (with the groups
+ * around it): a group that merely reaches past the cut, with nothing in it moved, stays as it was
+ * instead of gaining an empty side.
+ */
+function openSpace(p: Placement, c: Cut, graph: Sized['graph']): Placement {
   const size = c.axis === 'x' ? 'width' : 'height';
-  const move = (b: Box) => (b[c.axis] >= c.at ? { ...b, [c.axis]: b[c.axis] + c.by } : b);
-  const grow = (b: Box) => (b[c.axis] >= c.at ? move(b) : b[c.axis] + b[size] > c.at ? { ...b, [size]: b[size] + c.by } : b);
+  const pushed = (b: Box | undefined) => !!b && b[c.axis] >= c.at;
+  const move = (b: Box) => (pushed(b) ? { ...b, [c.axis]: b[c.axis] + c.by } : b);
+  const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const grows = new Set<string>();
+  const mark = (id: string | undefined) => {
+    for (let g = id; g && !grows.has(g); g = parent.get(g)) grows.add(g);
+  };
+  mark(c.group);
+  for (const n of graph.nodes) if (pushed(p.nodes.get(n.id))) mark(n.parent);
+  for (const g of graph.groups) if (pushed(p.groups.get(g.id))) mark(g.parent);
+  const grow = (id: string, b: Box) => (pushed(b) ? move(b) : b[c.axis] + b[size] > c.at && grows.has(id) ? { ...b, [size]: b[size] + c.by } : b);
   const nodes = new Map([...p.nodes].map(([k, b]) => [k, move(b)]));
-  const groups = new Map([...p.groups].map(([k, b]) => [k, grow(b)]));
+  const groups = new Map([...p.groups].map(([k, b]) => [k, grow(k, b)]));
   return { nodes, groups, width: p.width + (c.axis === 'x' ? c.by : 0), height: p.height + (c.axis === 'y' ? c.by : 0) };
 }
 

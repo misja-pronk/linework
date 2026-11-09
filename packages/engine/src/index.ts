@@ -16,6 +16,7 @@ import {
   type Diagnostic,
   type DiagramType,
   type Graph,
+  type LayoutMemory,
   type LayoutSidecar,
   type ModelContext,
   type Path,
@@ -38,9 +39,10 @@ import { dataProducts } from '@cartography/data-products';
 import { sequence } from '@cartography/sequence';
 import { gitflow } from '@cartography/gitflow';
 import { roadmap } from '@cartography/roadmap';
+import { journey } from '@cartography/journey';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap];
+export const types: DiagramType[] = [systems, c4, network, azure, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -70,6 +72,11 @@ export interface RenderOptions extends SvgOptions {
   sidecar?: LayoutSidecar;
   /** Layout overrides, for experiments. */
   tuning?: Tuning;
+  /**
+   * The drawing before this one (a result's `placed.memory`): what was there keeps its place unless
+   * another placement is clearly better. Without it the sidecar's `layout` note is used; null forgets both.
+   */
+  previous?: LayoutMemory | null;
   /** Reads files the diagram refers to, relative to the diagram (contracts, includes). Leave out where there are no files. */
   load?: (file: string) => string;
   /** One of the diagram's `views:`; without it the diagram as written (or its first view when it only has views). */
@@ -152,6 +159,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
   let includes: string[] | undefined;
   let onlyViews = false;
+  // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
+  const ownViews = type.views?.(rest);
+  const ownView = opts.view && ownViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
+  if (ownView) opts = { ...opts, view: undefined };
   if (Object.keys(rest).some(isModelKey)) {
     const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : type.schema), report, self: opts.file, text });
     built = isModel ? { ...composed.data, type: type.id } : composed.data;
@@ -166,7 +177,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     } else if (onlyViews)
       // Only views, nothing drawn as written: the first view is the diagram.
       model.view = model.views.get(names[0]!);
-  } else if (opts.view) report([], `There is no view "${opts.view}": this diagram has no views`);
+  } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
+  if (ownView) built = { ...built, view: ownView };
 
   // Problems in entries that came from another file point at its include entry.
   const where = (path: Path, message: string): [Path, string] => {
@@ -204,7 +216,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
-  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
@@ -215,7 +227,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
-  const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : undefined;
+  const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : ownViews?.length ? ownViews : undefined;
   return {
     svg: out.svg,
     width: out.width,
@@ -227,7 +239,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     placed,
     theme,
     ...(views ? { views } : {}),
-    ...(model?.view ? { view: model.view.name } : {}),
+    ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
     ...(includes?.length ? { includes } : {}),
     ...(steps.length ? { steps } : {}),
@@ -252,4 +264,5 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 }
 
 export { themes };
+export { drift, type DriftItem, type DriftResult } from './drift.ts';
 export type { IconPackFile };

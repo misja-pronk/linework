@@ -37,6 +37,20 @@ export interface DiagramType<Source = any> {
   tuning?: { labelRoom?: 'fit' };
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
+  /**
+   * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
+   * and the editor's view picker choose one; build gets it as the source's `view`.
+   */
+  views?(source: Source): { name: string; title?: string }[];
+  /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
+  shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
+  /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */
+  refKeys?: Record<string, string[]>;
+  /**
+   * Collections drawn in the order written (journey steps), so the builder offers to move an entry
+   * earlier or later. A string names the field an entry without it takes from the entry above ("in").
+   */
+  ordered?: Record<string, true | string>;
 }
 
 export interface Connection {

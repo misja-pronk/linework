@@ -25,6 +25,8 @@ export interface InspectorProps {
   onRename(id: string): boolean;
   onReveal(): void;
   onDuplicate?(): void;
+  /** Entries drawn in the order written (journey steps): one place earlier or later; undefined at the end. */
+  onMove?: { earlier?(): void; later?(): void };
   onDelete(): void;
   onUnpin(): void;
   onClose(): void;
@@ -118,7 +120,7 @@ export function Inspector(p: InspectorProps) {
                 value={f.value}
                 inputMode={f.kind === 'number' ? 'numeric' : undefined}
                 placeholder={f.hint}
-                onCommit={(v) => p.onField(f.key, f.kind === 'number' && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : v.trim())}
+                onCommit={(v) => p.onField(f.key, (f.kind === 'number' || f.numeric) && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : v.trim())}
               />
             ) : f.kind === 'select' ? (
               <select value={f.value} onChange={(e) => p.onField(f.key, e.target.value || undefined)}>
@@ -134,13 +136,14 @@ export function Inspector(p: InspectorProps) {
               <input type="checkbox" role="switch" checked={f.value} onChange={(e) => p.onField(f.key, e.target.checked || undefined)} />
             ) : f.kind === 'list' ? (
               <TextInput
-                value={f.value.join(', ')}
+                // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
+                value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
                 placeholder="a, b, c"
                 onCommit={(v) =>
                   p.onField(
                     f.key,
                     v
-                      .split(',')
+                      .split(v.includes(';') ? ';' : ',')
                       .map((x) => x.trim())
                       .filter(Boolean),
                   )
@@ -190,6 +193,16 @@ export function Inspector(p: InspectorProps) {
           <button className="button ghost" onClick={p.onUnpin} title="Let the layout place it again">
             <Icon name="pin-off" /> Unpin
           </button>
+        )}
+        {p.onMove && (
+          <>
+            <button className="button ghost" onClick={p.onMove.earlier} disabled={!p.onMove.earlier} title="Move one place earlier">
+              <Icon name="arrow-left" /> Earlier
+            </button>
+            <button className="button ghost" onClick={p.onMove.later} disabled={!p.onMove.later} title="Move one place later">
+              <Icon name="arrow-right" /> Later
+            </button>
+          </>
         )}
         {p.onDuplicate && (
           <button className="button ghost" onClick={p.onDuplicate} title="Duplicate (⌘D)">

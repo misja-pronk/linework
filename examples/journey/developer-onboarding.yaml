@@ -1,0 +1,108 @@
+type: journey
+title: A new developer's first two weeks
+subtitle: From the first day to the first incident, as it goes today
+
+persona:
+  name: Dana Okafor
+  role: Backend developer, joined the Payments team
+  avatar: bob
+  goal: Ship something real in the first week
+  quote: I want to be useful, not a tourist in the codebase.
+
+phases:
+  day-one: First day
+  commit: First commit
+  deploy: First deploy
+  incident: First incident
+
+metrics:
+  Time to first commit: 4 days
+  Time to first deploy: 9 days
+  Access requests: 7
+
+steps:
+  welcome:
+    label: Gets a laptop and a welcome session
+    in: day-one
+    feel: 4 welcome
+    touchpoint: [Laptop, Slack]
+    with: People lead
+    says: Everyone is friendly. Where do I start?
+    gains: A buddy is assigned on day one
+
+  access:
+    label: Requests access to the repositories and the cloud
+    in: day-one
+    feel: 2 waiting
+    touchpoint: [Service desk portal, Email]
+    with: Service desk
+    thought: Seven forms, and I do not know half of these names.
+    pains:
+      - One request per system
+      - Approval takes two to three days
+    ideas: One access bundle per team role
+    metrics: 7 requests, 3 days
+
+  setup:
+    label: Sets up the local environment
+    in: commit
+    feel: 1 lost
+    touchpoint: [Wiki, Terminal]
+    thought: The wiki says Node 16. The build wants 20.
+    pains:
+      - Setup guide is out of date
+      - Secrets are passed around in chat
+    ideas: Dev container that works on the first try
+    metrics: 1.5 days
+
+  first-pr:
+    label: Opens a first pull request
+    in: commit
+    feel: 4 proud
+    touchpoint: [GitHub, CI pipeline]
+    with: Buddy
+    says: Reviewed within the hour. That felt good.
+    gains:
+      - Small starter issues are ready
+      - Fast, kind reviews
+
+  pipeline:
+    label: Ships the change through the pipeline
+    in: deploy
+    feel: 3 unsure
+    touchpoint: [CI pipeline, Deploy dashboard]
+    thought: Is it live now? Which stage is this?
+    pains: Nobody explains the release stages
+    ideas: A pipeline view that shows where a change is
+    metrics: 40 min per run
+
+  live:
+    label: Sees the change live in production
+    in: deploy
+    feel: 5 thrilled
+    touchpoint: [Grafana]
+    with: Team
+    says: My code handles real payments!
+    gains: The team celebrates first deploys
+
+  on-call:
+    label: Shadows an on-call shift
+    in: incident
+    feel: 2 anxious
+    touchpoint: [PagerDuty, Runbook]
+    with: On-call engineer
+    thought: I would not know where to look on my own.
+    pains:
+      - Runbooks assume years of context
+      - Dashboards have no owner
+    ideas: Game day in the first month
+
+  fix:
+    label: Fixes a small incident with help
+    in: incident
+    feel: 4 capable
+    touchpoint: [Grafana, Slack]
+    with: On-call engineer
+    says: Now I see how the pieces fit.
+    gains: Blameless review within two days
+    metrics: 35 min to recover

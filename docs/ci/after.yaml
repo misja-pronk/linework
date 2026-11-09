@@ -1,0 +1,27 @@
+type: azure
+title: Web shop
+subtitle: Production
+
+groups:
+  prod: { kind: subscription, label: Production }
+  rg: { kind: resource-group, label: rg-shop-prod, in: prod }
+  vnet: { kind: vnet, label: vnet-shop, in: rg }
+  apps: { kind: subnet, label: snet-apps, in: vnet }
+  data: { kind: subnet, label: snet-data, in: vnet }
+
+nodes:
+  users: users
+  edge: { kind: front-door, label: Front Door }
+  web: { kind: app-service, label: Web shop, in: apps }
+  api: { kind: container-app, label: Orders service, in: apps }
+  db: { kind: sql-database, label: Orders, in: data }
+  cache: { kind: redis, label: Sessions, in: data }
+  vault: { kind: key-vault, label: Secrets, in: rg }
+
+edges:
+  - users -> edge: { label: HTTPS, style: public }
+  - edge -> web: { style: public }
+  - web -> api: { label: REST, style: private }
+  - web -> cache: { style: private }
+  - api -> db: { label: T-SQL, style: private }
+  - api -> vault: { label: secrets, style: identity }

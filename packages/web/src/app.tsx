@@ -2,7 +2,7 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
+import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
@@ -23,7 +23,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
-import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -80,8 +80,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' ? n.shape.icon : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -175,7 +175,9 @@ export function App() {
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
   const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo);
+  /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
+  const [fresh, setFresh] = useState(0);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -183,6 +185,22 @@ export function App() {
   const drawn = rendered?.drawn;
   drawnView.current = drawn?.view;
   const vpins = viewPins(pins, drawn?.view);
+  /** How the drawing on screen was made and where things are before pins (stay.ts in the layout package). */
+  const drawnLayout = drawn?.placed?.memory;
+  // Positions go into the sidecar once asked for (carto render --stable wrote them), and when the
+  // drawing was kept from an earlier one: the variant alone would not draw it again.
+  const tracked = vpins?.layout?.at !== undefined;
+  const layoutNote = () => (drawnLayout ? packLayout(drawnLayout, tracked || !!drawnLayout.held) : vpins?.layout);
+  /**
+   * Pins with the note of the drawing they were set on, so the same placement is drawn under them
+   * next time: without it the first pin could redraw everything else. Null when nothing is left to keep.
+   */
+  const noted = (out: LayoutSidecar): LayoutSidecar | null => {
+    const note = layoutNote();
+    const { layout: _, ...rest } = out;
+    if (rest.nodes || rest.groups || rest.edges) return note ? { ...rest, layout: note } : rest;
+    return tracked && note ? { version: 1, layout: note } : null;
+  };
   const locked = useMemo(() => new Set(vpins?.locked ?? []), [vpins?.locked]);
   const bent = useMemo(() => new Set(Object.keys(vpins?.edges ?? {})), [vpins?.edges]);
   const craft = useCraftPrefs();
@@ -320,7 +338,8 @@ export function App() {
   const save = async (): Promise<boolean> => {
     const now = textNow();
     // All pins are kept: other views of the same file (access matrices, data-products overview) draw other things.
-    const pinsToSave = pins;
+    // The view on screen gets the note of the drawing as it is now, when it has a sidecar entry anyway.
+    const pinsToSave = vpins && drawnLayout ? withViewPins(pins, drawn?.view, noted(vpins) ?? undefined) : pins;
     try {
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
@@ -415,7 +434,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, step: stepNo });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -501,7 +520,14 @@ export function App() {
     if (Object.keys(groups).length) out.groups = groups;
     const keep = (vpins?.locked ?? []).filter((id) => nodes[id] || groups[id]);
     if (keep.length) out.locked = keep;
-    return out.nodes || out.groups || out.edges ? out : null;
+    return noted(out);
+  };
+  /** Unpins everything and draws the view from scratch: the automatic layout for the diagram as it is now. */
+  const resetLayout = () => {
+    setFresh((n) => n + 1);
+    // Positions that were asked for stay asked for: the note is filled in again with the next save.
+    if (vpins) pinTo(tracked ? { version: 1, layout: { at: '' } } : null);
+    else acted();
   };
   /** Pins with one line's bends set (or reset with undefined). */
   const withEdge = (id: string, via: Point[] | undefined): LayoutSidecar | null => {
@@ -511,7 +537,7 @@ export function App() {
     else delete edges[id];
     const out: LayoutSidecar = { ...(vpins ?? {}), version: 1, edges };
     if (!Object.keys(edges).length) delete out.edges;
-    return out.nodes || out.groups || out.edges ? out : null;
+    return noted(out);
   };
   /** Pins with one node (or group) moved or unpinned; null when nothing is pinned any more. */
   const withPin = (id: string, at: Point | undefined, group = false): LayoutSidecar | null => (group ? withPins({}, { [id]: at }) : withPins({ [id]: at }));
@@ -812,7 +838,7 @@ export function App() {
     const list = unlock ? [...locked].filter((id) => !ids.has(id)) : [...new Set([...locked, ...ids])];
     const out: LayoutSidecar = { ...(next ?? { version: 1 }), locked: list };
     if (!list.length) delete out.locked;
-    pinTo(out.nodes || out.groups || out.edges ? out : null);
+    pinTo(noted(out));
     notify(unlock ? `Unlocked ${count(items.length, 'element')}` : `Locked ${count(items.length, 'element')}: it stays where it is`);
   };
 
@@ -1011,7 +1037,7 @@ export function App() {
       : []),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    ...(vpins ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: () => pinTo(null) }] : []),
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: resetLayout }] : []),
     ...arrangeCommands(arrangeSelection),
     { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
@@ -1387,8 +1413,8 @@ export function App() {
               <button className="tool" onClick={() => editor.current?.redo()} title="Redo (⇧⌘Z)" aria-label="Redo">
                 <Icon name="redo-2" />
               </button>
-              {vpins && (
-                <button className="tool" onClick={() => pinTo(null)} title="Unpin everything: back to the automatic layout" aria-label="Reset layout">
+              {(vpins || drawnLayout?.held) && (
+                <button className="tool" onClick={resetLayout} title="Unpin everything and draw again from scratch: back to the automatic layout" aria-label="Reset layout">
                   <Icon name="pin-off" />
                 </button>
               )}
@@ -1487,6 +1513,14 @@ export function App() {
               editor.current?.focus();
             }}
             onDuplicate={isEntry ? duplicate : undefined}
+            onMove={
+              isEntry && type?.ordered?.[String(selectedPath![0])]
+                ? {
+                    earlier: canMove(text, type, selectedPath!, -1) ? () => apply(moveEntry(textNow(), type, selectedPath!, -1)) : undefined,
+                    later: canMove(text, type, selectedPath!, 1) ? () => apply(moveEntry(textNow(), type, selectedPath!, 1)) : undefined,
+                  }
+                : undefined
+            }
             onDelete={() => remove()}
             connections={
               selNode

@@ -69,7 +69,13 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   const sides = chooseSides(input);
   const trunk = input.trunks === false ? new Map<string, string>() : trunkGroups(input, sides);
   const ports = placePorts(input, sides, trunk);
-  const grid = buildGrid(input, [...ports.values()].flatMap((p) => [p.start, p.goal]));
+  // Lines bent by hand lie where they were put. They go on the grid first (their corners are grid
+  // points), so every other line pays for running along one or crossing it, as for any line that
+  // is already there: the others go around a hand-bent line instead of over it.
+  const bent = new Map<string, Point[]>();
+  for (const e of input.edges) if (e.via?.length) bent.set(e.id, throughVia(ports.get(e.id)!, e.via));
+  const grid = buildGrid(input, [...[...ports.values()].flatMap((p) => [p.start, p.goal]), ...[...bent.values()].flat()]);
+  for (const pts of bent.values()) mark(grid, cellsOf(grid, pts.slice(1, -1)), 1);
   const members = new Map<string, string[]>();
   for (const [id, t] of trunk) members.set(t, [...(members.get(t) ?? []), id]);
   const used = new Map<string, number[]>();
@@ -86,7 +92,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
       if (previous) mark(grid, previous, -1);
       let points: Point[];
       loose.delete(e.id);
-      if (e.via?.length) points = throughVia(p, e.via);
+      if (bent.has(e.id)) points = bent.get(e.id)!;
       else if (e.from.node === e.to.node) points = selfLoop(p);
       else {
         // Siblings' lines are cheap to run on, so the lines merge into one trunk.
@@ -560,6 +566,20 @@ function lowerBound(a: number[], v: number): number {
     else hi = mid;
   }
   return lo;
+}
+
+/** A polyline along grid coordinates as x, y index pairs; pieces that are not on the grid or not straight are left out. */
+function cellsOf(g: Grid, pts: Point[]): number[] {
+  const cells: number[] = [];
+  for (const p of pts) {
+    const x = g.xi.get(p.x);
+    const y = g.yi.get(p.y);
+    if (x == null || y == null) continue;
+    const n = cells.length;
+    if (n && cells[n - 2] !== x && cells[n - 1] !== y) continue;
+    cells.push(x, y);
+  }
+  return cells;
 }
 
 /** Add (+1) or remove (-1) a routed line's grid path from the usage counts. */

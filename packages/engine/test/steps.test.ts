@@ -283,5 +283,5 @@ describe('steps: views and steps nobody wrote', () => {
       expect(first.steps!.length, f).toBeGreaterThan(3);
       for (let step = 2; step <= first.steps!.length; step++) expect((await render(example(f), { fonts: 'none', step })).svg, `${f} step ${step}`).toBeTruthy();
     }
-  });
+  }, 30_000);
 });

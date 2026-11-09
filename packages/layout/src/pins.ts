@@ -38,21 +38,25 @@ export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | u
 
 /**
  * A pinned node never sits on another: nodes in its way move across the flow (down in a left-to-right
- * diagram), and so do the ones they then run into. Pinned nodes themselves stay exactly where they were put.
+ * diagram), and so do the ones they then run into. Pinned nodes themselves stay exactly where they were
+ * put, and a node nothing ran into stays where it was: two that the layout itself put closer together
+ * than the gap are left alone.
  */
 function makeRoom(nodes: Map<string, Box>, pinned: Set<string>, down: boolean, gap: number) {
-  const settled: Box[] = [...pinned].map((id) => nodes.get(id)!);
+  const settled: { box: Box; moved: boolean }[] = [...pinned].map((id) => ({ box: nodes.get(id)!, moved: true }));
   const hit = (a: Box, b: Box) => a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap;
   const free = [...nodes.keys()].filter((id) => !pinned.has(id)).sort((a, b) => (down ? nodes.get(a)!.x - nodes.get(b)!.x : nodes.get(a)!.y - nodes.get(b)!.y));
   for (const id of free) {
     let b = nodes.get(id)!;
+    let moved = false;
     for (let guard = 0; guard < 200; guard++) {
-      const blocker = settled.find((s) => hit(b, s));
+      const blocker = settled.find((s) => (moved || s.moved) && hit(b, s.box))?.box;
       if (!blocker) break;
       b = down ? { ...b, x: blocker.x + blocker.width + gap } : { ...b, y: blocker.y + blocker.height + gap };
+      moved = true;
     }
     nodes.set(id, b);
-    settled.push(b);
+    settled.push({ box: b, moved });
   }
 }
 

@@ -31,6 +31,7 @@ describe('type guidance', () => {
     expect(best('structurizr deployment diagram').type.id).toBe('c4');
     for (const q of ['branching', 'git flow', 'release and hotfix branches', 'trunk-based']) expect(best(q).type.id, q).toBe('gitflow');
     for (const q of ['roadmap', 'timeline', 'gantt', 'migration waves']) expect(best(q).type.id, q).toBe('roadmap');
+    for (const q of ['user journey', 'developer onboarding experience', 'service blueprint', 'pain points per step', 'customer experience touchpoints']) expect(best(q).type.id, q).toBe('journey');
   });
 
   it('keeps the order when nothing matches', () => {
