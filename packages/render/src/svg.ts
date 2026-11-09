@@ -116,7 +116,7 @@ function drawIcon(name: string | undefined, x: number, y: number, size: number, 
   return `<g transform="translate(${r1(x)} ${r1(y)}) scale(${s})" fill="none" stroke="${color}" stroke-width="${r1(stroke / s)}" stroke-linecap="round" stroke-linejoin="round">${markup}</g>`;
 }
 
-function byDepth(groups: GraphGroup[]): GraphGroup[] {
+export function byDepth(groups: GraphGroup[]): GraphGroup[] {
   const byId = new Map(groups.map((g) => [g.id, g]));
   const depth = (g: GraphGroup): number => (g.parent && byId.get(g.parent) ? 1 + depth(byId.get(g.parent)!) : 0);
   return [...groups].sort((a, b) => depth(a) - depth(b));
@@ -212,7 +212,7 @@ function roundedPolygon(pts: Point[], radius: number): string {
  * Lines meet a decision's side where the box is, but its pointed ends slant inwards: carry the
  * line's end on to the outline, so nothing stops short in the air.
  */
-function toOutline(points: Point[], graph: Graph, placed: Placed, from: string, to: string): Point[] {
+export function toOutline(points: Point[], graph: Graph, placed: Placed, from: string, to: string): Point[] {
   const decision = (id: string) => {
     const n = graph.nodes.find((x) => x.id === id);
     return n?.shape.kind === 'card' && n.shape.form === 'decision' ? placed.nodes.get(id) : undefined;
@@ -326,7 +326,7 @@ function junctions(graph: Graph, placed: Placed, theme: Theme): string {
 }
 
 /** Where two lines from the same start stop running on top of each other (undefined if they never shared). */
-function split(a: Point[], b: Point[]): Point | undefined {
+export function split(a: Point[], b: Point[]): Point | undefined {
   const same = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
   if (!same(a[0]!, b[0]!)) return undefined;
   let at = a[0]!;
@@ -416,7 +416,7 @@ function marker(kind: Marker, tip: Point, from: Point, color: string, theme: The
  * A label on a line that is hardly longer than the label would hide the line, its colour and its
  * dashes: move it just beside the piece it sits on (above a level one, right of an upright one).
  */
-function besideShortLine(points: Point[], b: Box): Box {
+export function besideShortLine(points: Point[], b: Box): Box {
   const c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   let total = 0;
   let under: [Point, Point] | undefined;
@@ -449,7 +449,7 @@ function titleWidth(g: Graph, theme: Theme): number {
   return Math.max(g.title ? measureText(g.title, theme.size.title, 600) : 0, g.subtitle ? measureText(g.subtitle, theme.size.subtitle, 400) : 0);
 }
 
-function legendItems(g: Graph, theme: Theme) {
+export function legendItems(g: Graph, theme: Theme) {
   let x = 0;
   return (g.legend ?? []).map((item) => {
     const at = x;
@@ -458,7 +458,7 @@ function legendItems(g: Graph, theme: Theme) {
   });
 }
 
-function legendWidth(g: Graph, theme: Theme): number {
+export function legendWidth(g: Graph, theme: Theme): number {
   return legendItems(g, theme).at(-1)?.end ?? 0;
 }
 

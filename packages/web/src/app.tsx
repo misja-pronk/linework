@@ -15,7 +15,7 @@ import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
-import { baseName, download, exportPng, exportSlide, exportSvg, yamlName } from './export.ts';
+import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
 import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -393,6 +393,8 @@ export function App() {
   const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await exportSvg(exportInput()), 'image/svg+xml'));
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
+  const savePptx = attempt('Export', async () => download(`${baseName(doc.name)}.pptx`, await exportPptx(exportInput(), yamlName(doc.name))));
+  const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await exportSvg(exportInput()));
     notify('SVG copied');
@@ -812,6 +814,8 @@ export function App() {
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
     { id: 'slide', group: 'Export', label: 'PNG for slides (16:9)', icon: 'monitor', run: saveSlide },
+    { id: 'pptx', group: 'Export', label: 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
+    { id: 'pdf', group: 'Export', label: 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
@@ -990,6 +994,12 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={saveSlide}>
                   <Icon name="monitor" /> PNG for slides (16:9)
+                </button>
+                <button role="menuitem" onClick={savePptx}>
+                  <Icon name="layout-template" /> PowerPoint slide (.pptx)
+                </button>
+                <button role="menuitem" onClick={savePdf}>
+                  <Icon name="file-text" /> PDF
                 </button>
                 <hr />
                 <button role="menuitem" onClick={copyPng}>

@@ -1,16 +1,22 @@
 #!/usr/bin/env node
-// carto render | watch | validate | new | import | types
+// carto render | deck | watch | validate | new | import | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { toPng } from './png.ts';
+import { iconPng, interTtf, toPng } from './png.ts';
+import { toPdf, toPptx, type Drawing } from '@cartography/export';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
 import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
 import type { Diagnostic, LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
 
-  carto render <file.yaml…> [-o out] [--format svg|png] [--theme light|dark] [--scale 2]
+  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme light|dark] [--scale 2]
+                                                -o x.pptx or x.pdf picks the format too
+  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each
+               [--title "Deck title"] [--subtitle …] title slide in front (pptx)
+               [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
+               [--page fit|a4|a3]                   page size (pdf, default fit)
   carto watch  <file.yaml…> [same options]      re-render on every save
   carto validate <file.yaml…>                   check files, print problems
   carto new <type> [file.yaml]                  start from a template
@@ -31,6 +37,11 @@ const { positionals, values } = parseArgs({
     scale: { type: 'string', default: '2' },
     'no-fonts': { type: 'boolean' },
     force: { type: 'boolean' },
+    title: { type: 'string' },
+    subtitle: { type: 'string' },
+    aspect: { type: 'string', default: '16:9' },
+    font: { type: 'string' },
+    page: { type: 'string', default: 'fit' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -73,22 +84,64 @@ function loaderFor(file: string) {
   };
 }
 
-async function renderFile(file: string): Promise<boolean> {
-  const format = values.format === 'png' ? 'png' : 'svg';
-  const opts: RenderOptions = {
-    theme: values.theme === 'dark' ? 'dark' : 'light',
-    sidecar: sidecarFor(file),
-    load: loaderFor(file),
-    // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
-    fonts: values['no-fonts'] || format === 'png' ? 'none' : 'embed',
-  };
-  const result = await render(fs.readFileSync(file, 'utf8'), opts);
+type Format = 'svg' | 'png' | 'pptx' | 'pdf';
+const formats: Format[] = ['svg', 'png', 'pptx', 'pdf'];
+
+/** -o deck.pptx says the format as clearly as --format pptx; the extension wins for one file. */
+function formatFor(): Format {
+  const ext = values.out && files.length === 1 ? path.extname(values.out).slice(1).toLowerCase() : '';
+  return formats.find((f) => f === ext) ?? formats.find((f) => f === values.format) ?? 'svg';
+}
+
+async function draw(file: string, fonts: RenderOptions['fonts']) {
+  const result = await render(fs.readFileSync(file, 'utf8'), { theme: values.theme === 'dark' ? 'dark' : 'light', sidecar: sidecarFor(file), load: loaderFor(file), fonts });
   report(file, result.diagnostics);
+  return result;
+}
+
+/** Slides and PDF pages, from one or many drawings. */
+function document(format: 'pptx' | 'pdf', drawings: Drawing[]): Promise<Uint8Array> {
+  const theme = values.theme === 'dark' ? 'dark' : 'light';
+  if (format === 'pptx')
+    return toPptx(drawings, { theme, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, rasterize: (svg, w) => iconPng(svg, w) });
+  const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
+  return toPdf(drawings, { theme, page, fonts: interTtf(), title: values.title });
+}
+
+async function renderFile(file: string): Promise<boolean> {
+  const format = formatFor();
+  // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
+  const result = await draw(file, values['no-fonts'] || format !== 'svg' ? 'none' : 'embed');
   if (!result.svg) return false;
   const out = outputPath(file, format);
-  fs.writeFileSync(out, format === 'png' ? toPng(result.svg, Number(values.scale) || 2) : result.svg);
+  const data =
+    format === 'png' ? toPng(result.svg, Number(values.scale) || 2)
+    : format === 'svg' ? result.svg
+    : await document(format, [{ ...result, name: path.basename(file) }]);
+  fs.writeFileSync(out, data);
   console.log(`${file} → ${out} ${dim(`${result.width}×${result.height}`)}`);
   return !result.diagnostics.some((d) => d.severity === 'error');
+}
+
+/** Several diagrams, one file: a slide or page each, in the order given. */
+async function deck(): Promise<boolean> {
+  const format = values.out?.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pptx';
+  if (!values.out || !/\.(pptx|pdf)$/i.test(values.out)) {
+    console.error('carto deck needs -o <file>.pptx or -o <file>.pdf');
+    return false;
+  }
+  const drawings: Drawing[] = [];
+  let ok = true;
+  for (const f of files) {
+    const r = await draw(f, 'none');
+    if (!r.graph || r.diagnostics.some((d) => d.severity === 'error')) ok = false;
+    if (r.graph) drawings.push({ ...r, name: path.basename(f) });
+  }
+  if (!drawings.length) return false;
+  fs.mkdirSync(path.dirname(values.out), { recursive: true });
+  fs.writeFileSync(values.out, await document(format, drawings));
+  console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''} → ${values.out}`);
+  return ok;
 }
 
 /** Mermaid or Markdown → <name>.yaml (or <name>-<n>.yaml per block), checked by rendering it once. */
@@ -201,6 +254,9 @@ async function main(): Promise<number> {
       for (const f of files) ok = (await renderFile(f)) && ok;
       return ok ? 0 : 1;
     }
+    case 'deck':
+      if (!files.length) return (console.error(help), 1);
+      return (await deck()) ? 0 : 1;
     case 'watch': {
       for (const f of files) {
         let timer: NodeJS.Timeout | undefined;
