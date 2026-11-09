@@ -1,6 +1,6 @@
 // Measures every shape before layout, so layout can reserve exactly the space render will draw.
 import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@cartography/core';
-import { measureText, type Theme } from '@cartography/theme';
+import { fitText, measureText, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
 import { sequenceGeometry } from './sequence.ts';
 
@@ -40,7 +40,7 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const edgeLabels = new Map<string, { width: number; height: number }>();
   for (const e of graph.edges)
-    if (e.label) edgeLabels.set(e.id, { width: measureText(e.label, theme.size.edgeLabel, 500) + 16 + (e.icon ? LABEL_ICON : 0), height: 20 });
+    if (e.label || e.step) edgeLabels.set(e.id, { width: (e.label ? measureText(e.label, theme.size.edgeLabel, 500) + 16 + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0), height: 20 });
 
   const groupMinWidth = new Map<string, number>();
   for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
@@ -62,6 +62,11 @@ function cardSize(shape: CardShape, theme: Theme, list: Chip[] = [], linked = fa
   const c = theme.space.card;
   const inset = cardInsets(shape, theme, linked);
   const text = inset.left + cardTextWidth(shape, theme) + inset.right + 4;
+  if (shape.body && !list.length) {
+    // A described card is wider than a plain one, so three short lines hold a real sentence.
+    const width = Math.round(Math.min(c.maxWidth, Math.max(BODY.minWidth, text)));
+    return { width, height: cardHeight(0, theme) + bodyHeight(bodyLines(shape.body, width, theme)) };
+  }
   // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
   const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
   const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, inset.left + row + inset.right)));
@@ -74,6 +79,40 @@ function cardSize(shape: CardShape, theme: Theme, list: Chip[] = [], linked = fa
 export const STACK = 6;
 /** Room for an icon in an edge label pill (a lock on a tunnel). */
 export const LABEL_ICON = 15;
+
+/** The description in a C4 card: under the header, across the card, at most three lines. */
+export const BODY = { minWidth: 232, line: 15, lines: 3, bottom: 12, top: -3 } as const;
+
+export function bodyLines(text: string, width: number, theme: Theme): string[] {
+  return wrapText(text, theme.size.caption, 400, width - 2 * theme.space.card.padX - 2, BODY.lines);
+}
+
+export const bodyHeight = (lines: string[]) => (lines.length ? BODY.top + lines.length * BODY.line + BODY.bottom : 0);
+
+/** Words in lines of at most `width`; the last line ends in an ellipsis when the text goes on. */
+export function wrapText(text: string, size: number, weight: 400 | 500 | 600, width: number, max: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  const words = text.trim().split(/\s+/);
+  for (const [i, w] of words.entries()) {
+    const next = line ? `${line} ${w}` : w;
+    if (!line || measureText(next, size, weight) <= width) {
+      line = next;
+      continue;
+    }
+    if (lines.length === max - 1) {
+      lines.push(fitText(`${line} ${words.slice(i).join(' ')}`, size, weight, width));
+      return lines;
+    }
+    lines.push(line);
+    line = w;
+  }
+  if (line) lines.push(fitText(line, size, weight, width));
+  return lines;
+}
+
+/** Room for a step number in front of an edge label. */
+export const STEP_ROOM = 20;
 
 /** How deep a decision's pointed ends reach in from its box. */
 export const DECISION_TIP = 14;

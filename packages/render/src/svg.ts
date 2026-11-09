@@ -3,7 +3,7 @@
 import { chips, linkHref, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type LegendItem, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LABEL_ICON, LINK_ROOM, markWidth, rowMarks, STACK, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LABEL_ICON, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 
@@ -41,8 +41,9 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   const legend = where === 'bottom' || where === 'top' ? 40 : 0;
   const side = where === 'right' ? 40 + legendColumnWidth(graph, theme) : 0;
   const footer = block?.footer || block?.classification ? 44 : 0;
-  const width = Math.ceil(Math.max(placed.width + side, brand ? brand.width : titleWidth(graph, theme), legend ? legendWidth(graph, theme) : 0) + 2 * pad);
-  const height = Math.ceil(Math.max(placed.height, side ? legendColumnHeight(graph) : 0) + header + legend + footer + 2 * pad);
+  const list = stepList(graph, theme);
+  const width = Math.ceil(Math.max(placed.width + side, brand ? brand.width : titleWidth(graph, theme), legend ? legendWidth(graph, theme) : 0, list.width) + 2 * pad);
+  const height = Math.ceil(Math.max(placed.height + list.height, side ? legendColumnHeight(graph) : 0) + header + legend + footer + 2 * pad);
   const origin = { x: pad, y: pad + header + (where === 'top' ? legend : 0) };
   const data = (kind: string, key: string) => (opts.interactive ? ` data-${kind}="${esc(key)}"` : '');
   const nodeImages = opts.images?.nodes;
@@ -101,9 +102,10 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   for (const e of graph.edges) {
     if (badged.has(e.id)) continue;
     const pe = placed.edges.get(e.id);
-    if (e.label && pe?.label) out.push(drawEdgeLabel(e.label, besideShortLine(pe.points, pe.label), theme, e.icon, e.tone));
+    if ((e.label || e.step) && pe?.label) out.push(drawEdgeLabel(e.label ?? '', besideShortLine(pe.points, pe.label, placed), theme, e.step, e.icon, e.tone));
   }
   out.push('</g>');
+  if (list.height) out.push(list.draw(origin.x, origin.y + placed.height));
 
   if (where === 'bottom') out.push(drawLegend(graph, theme, pad, height - pad - footer - 14));
   if (where === 'right') out.push(drawLegendColumn(graph, theme, pad + placed.width + 40, origin.y));
@@ -246,15 +248,20 @@ function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Ch
 function drawOneCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[], data: (edge: string) => string, link: boolean, img?: string): string {
   const c = theme.space.card;
   const tone = theme.tones[shape.tone];
-  // With badges the tile and text keep the top of the card and the chips fill the rest.
-  const top = badges.length ? c.height : b.height;
+  // With badges or a description the tile and text keep the top of the card, and those fill the rest.
+  const body = shape.body && !badges.length ? bodyLines(shape.body, b.width, theme) : [];
+  const top = badges.length || body.length ? c.height : b.height;
+  const muted = !!shape.muted;
   const inset = cardInsets(shape, theme, link);
   const centred = inset.centred && !badges.length;
   const tx = b.x + inset.left;
   const room = b.width - inset.left - inset.right;
   const caption = cardCaption(shape);
   const cy = b.y + top / 2;
-  const frame = `fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"`;
+  // Out of scope (an external system): a flat grey card, so what is in scope stands out.
+  const frame = muted
+    ? `fill="${theme.tones.slate.bg}" stroke="${theme.tones.slate.line}" stroke-width="${theme.stroke.card}"`
+    : `fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"`;
   let s: string;
   if (shape.form === 'decision') {
     // Pointed ends and an accent outline: a question, at a glance, without a diamond's wasted space.
@@ -280,27 +287,30 @@ function drawOneCard(shape: CardShape, b: Box, theme: Theme, id: string, badges:
     if (theme.cardBar && !pill) s += leftBar(b, theme.radius.card, tone.fg);
     const tileX = b.x + c.padX;
     const tileY = b.y + (top - c.tile) / 2;
-    const rx = pill ? c.tile / 2 : theme.radius.tile;
+    const rx = pill || shape.form === 'person' ? c.tile / 2 : theme.radius.tile;
     if (img && shape.form !== 'plain') {
       s += `<rect x="${r1(tileX)}" y="${r1(tileY)}" width="${c.tile}" height="${c.tile}" rx="${rx}" fill="${neutralTile(theme)}"/>`;
       s += image(img, tileX + 5, tileY + 5, c.tile - 10, c.tile - 10);
     } else if (shape.icon) {
       // Solid tiles carry the tone with a light icon; outline tiles print well; soft is the default tint.
       const style = theme.tile ?? 'soft';
-      const fill = style === 'solid' ? tone.fg : style === 'outline' ? theme.surface : tone.bg;
+      const fill = muted ? theme.surface : style === 'solid' ? tone.fg : style === 'outline' ? theme.surface : tone.bg;
       const stroke = style === 'outline' ? ` stroke="${tone.line}" stroke-width="1"` : '';
       const inset = style === 'outline' ? 0.5 : 0;
       s += `<rect x="${r1(tileX + inset)}" y="${r1(tileY + inset)}" width="${c.tile - 2 * inset}" height="${c.tile - 2 * inset}" rx="${rx}" fill="${fill}"${stroke}/>`;
-      s += drawIcon(shape.icon, tileX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, style === 'solid' ? theme.surface : tone.fg, theme.stroke.icon);
+      s += drawIcon(shape.icon, tileX + (c.tile - 18) / 2, tileY + (c.tile - 18) / 2, 18, style === 'solid' && !muted ? theme.surface : tone.fg, theme.stroke.icon);
     }
   }
   const x = centred ? b.x + b.width / 2 : tx;
   const anchor = centred ? 'middle' : undefined;
   const label = fitText(shape.label, theme.size.label, 600, room);
+  const ink = muted ? theme.textMuted : theme.text;
   if (caption) {
-    s += textMid(x, cy - 8, label, theme.size.label, 600, theme.text, anchor);
-    s += textMid(x, cy + 9.5, fitText(caption, theme.size.caption, 400, room), theme.size.caption, 400, theme.textMuted, anchor);
-  } else s += textMid(x, cy, label, theme.size.label, 600, theme.text, anchor);
+    s += textMid(x, cy - 8, label, theme.size.label, 600, ink, anchor);
+    s += textMid(x, cy + 9.5, fitText(caption, theme.size.caption, 400, room), theme.size.caption, 400, muted ? theme.textFaint : theme.textMuted, anchor);
+  } else s += textMid(x, cy, label, theme.size.label, 600, ink, anchor);
+  for (const [i, line] of body.entries())
+    s += textMid(b.x + c.padX + 1, b.y + c.height + BODY.top + BODY.line * (i + 0.5), line, theme.size.caption, 400, muted ? theme.textFaint : theme.textMuted);
   for (const p of chipRows(badges, room, theme).placed)
     s += `<g${data(p.chip.edge)}><title>${esc(p.chip.title)}</title>${drawChip(p.chip, tx + p.x, b.y + CHIP.top + p.y, p.width, theme)}</g>`;
   return s;
@@ -544,7 +554,7 @@ function marker(kind: Marker, tip: Point, from: Point, color: string, theme: The
  * A label on a line that is hardly longer than the label would hide the line, its colour and its
  * dashes: move it just beside the piece it sits on (above a level one, right of an upright one).
  */
-export function besideShortLine(points: Point[], b: Box): Box {
+export function besideShortLine(points: Point[], b: Box, placed?: Placed): Box {
   const c = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   let total = 0;
   let under: [Point, Point] | undefined;
@@ -561,20 +571,60 @@ export function besideShortLine(points: Point[], b: Box): Box {
   const level = Math.abs(p.y - q.y) < 0.5;
   const hidden = Math.min(level ? Math.abs(q.x - p.x) : Math.abs(q.y - p.y), level ? b.width : 20);
   if (total - hidden >= 40) return b;
-  return level ? { ...b, y: p.y - b.height / 2 - 14 } : { ...b, x: p.x + 5 };
+  const moved = level ? { ...b, y: p.y - b.height / 2 - 14 } : { ...b, x: p.x + 5 };
+  // Never onto a card: covering a short line is the lesser evil.
+  const hit = (n: Box) => moved.x < n.x + n.width && n.x < moved.x + moved.width && moved.y < n.y + n.height && n.y < moved.y + moved.height;
+  return placed && [...placed.nodes.values()].some(hit) ? b : moved;
 }
 
-function drawEdgeLabel(label: string, b: Box, theme: Theme, iconName?: string, tone?: GraphEdge['tone']): string {
+function drawEdgeLabel(label: string, b: Box, theme: Theme, step?: number, iconName?: string, tone?: GraphEdge['tone']): string {
   const h = 20;
   const y = b.y + (b.height - h) / 2;
+  const n = step ? stepMark(b.x + 10, y + h / 2, step, theme) : '';
+  if (!label) return n;
+  const room = step ? STEP_ROOM : 0;
   // An icon (a tunnel's lock) leads the text, in the line's colour; the text stays centred in what is left.
   const ix = iconName && icon(iconName) ? LABEL_ICON : 0;
-  const glyph = ix ? drawIcon(iconName, b.x + 8, y + h / 2 - 5.5, 11, tone ? theme.tones[tone].fg : theme.textMuted, 1.8) : '';
+  const glyph = ix ? drawIcon(iconName, b.x + room + 8, y + h / 2 - 5.5, 11, tone ? theme.tones[tone].fg : theme.textMuted, 1.8) : '';
+  // A [technology] is quieter than what the line does.
+  const body = /^\[[^\]]*\]$/.test(label) ? esc(label) : esc(label).replace(/\[[^\]]*\]/g, (t) => `<tspan fill="${theme.textFaint}" font-weight="400">${t}</tspan>`);
+  const cx = b.x + room + ix + (b.width - room - ix) / 2;
   return (
     `<rect x="${r1(b.x)}" y="${r1(y)}" width="${r1(b.width)}" height="${h}" rx="${h / 2}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="1"/>` +
+    n +
     glyph +
-    textMid(b.x + (b.width + ix) / 2, y + h / 2, label, theme.size.edgeLabel, 500, theme.textMuted, 'middle')
+    `<text x="${r1(cx)}" y="${r1(y + h / 2 + baselineOffset(theme.size.edgeLabel))}" font-size="${theme.size.edgeLabel}" font-weight="500" fill="${theme.textMuted}" text-anchor="middle">${body}</text>`
   );
+}
+
+/** A step number: a small filled circle, the same on the line and in the step list. */
+function stepMark(cx: number, cy: number, n: number, theme: Theme): string {
+  const r = 9;
+  const fill = theme.accent ?? theme.tones.blue.fg;
+  return `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${r}" fill="${fill}"/>` + textMid(cx, cy, String(n), 10.5, 600, theme.surface, 'middle');
+}
+
+const STEP_ROW = 24;
+
+/** The steps of a dynamic view as a numbered list under the drawing: who does what, in order. */
+function stepList(graph: Graph, theme: Theme) {
+  const steps = graph.steps ?? [];
+  if (!steps.length) return { width: 0, height: 0, draw: () => '' };
+  const names = new Map<string, string>([...graph.groups.map((g) => [g.id, g.label] as const), ...graph.nodes.map((n) => [n.id, n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id] as const)]);
+  const rows = steps.map((s) => ({ n: s.n, who: `${names.get(s.from) ?? s.from} → ${names.get(s.to) ?? s.to}`, what: s.label ?? '' }));
+  const whoW = Math.max(...rows.map((r) => measureText(r.who, theme.size.caption, 600)));
+  const width = 28 + whoW + 16 + Math.max(...rows.map((r) => measureText(r.what, theme.size.caption, 400)));
+  const draw = (x: number, y0: number) => {
+    let s = '';
+    for (const [i, r] of rows.entries()) {
+      const cy = y0 + 40 + i * STEP_ROW;
+      s += stepMark(x + 9, cy, r.n, theme);
+      s += textMid(x + 28, cy, r.who, theme.size.caption, 600, theme.text);
+      s += textMid(x + 28 + whoW + 16, cy, r.what, theme.size.caption, 400, theme.textMuted);
+    }
+    return s;
+  };
+  return { width, height: 28 + rows.length * STEP_ROW, draw };
 }
 
 function titleWidth(g: Graph, theme: Theme): number {
@@ -620,6 +670,15 @@ function legendItem(item: LegendItem, theme: Theme, x0: number, cy: number): str
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
   const label = textMid(x0 + 28, cy, item.label, theme.size.caption, 500, theme.textMuted);
   if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate']) + label;
+  if (item.swatch === 'tile') {
+    // A small icon tile, as on the cards: what a kind of element looks like.
+    const t = theme.tones[item.tone ?? 'slate'];
+    const fill = item.muted ? theme.tones.slate.bg : t.bg;
+    const edge = item.muted ? ` stroke="${theme.tones.slate.line}" stroke-width="1"` : '';
+    return `<rect x="${x0 + 0.5}" y="${cy - 9.5}" width="19" height="19" rx="5.5" fill="${fill}"${edge}/>` + drawIcon(item.icon, x0 + 3.5, cy - 6.5, 13, t.fg, 1.6) + label;
+  }
+  if (item.swatch === 'boundary')
+    return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="4" fill="none" stroke="${theme.textFaint}" stroke-width="1.2" stroke-dasharray="3 2.5"/>` + label;
   if (item.swatch === 'fill')
     return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="7" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
   if (item.swatch === 'check' || item.swatch === 'check-outline') {

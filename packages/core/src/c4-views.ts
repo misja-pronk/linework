@@ -1,0 +1,265 @@
+// C4 view kinds. A view with `kind:` picks its own elements from the model, the way Structurizr and
+// LikeC4 do, and the result goes through the same include/expand/exclude rules as any other view:
+//
+//   views:
+//     landscape: { kind: landscape, enterprise: Kestrel Bank }
+//     context: { kind: context, of: online }            # online + whatever talks to it, directly
+//     containers: { kind: container, of: online }       # online opened up + its outside neighbours
+//     api: { kind: component, of: online.api }          # one container opened up, inside its system
+//     signin: { kind: dynamic, steps: ['customer -> online.web: Opens the app', …] }
+//     prod: { kind: deployment, nodes: { aws: { technology: eu-west-1, nodes: { … instances: [online.api] } } } }
+//
+// Views of a lower level link to the next one down for drill-down (context → containers → components).
+import { parseEdge } from './edges.ts';
+import { withTechnology, type ModelContext, type ViewKind, type ViewSpec } from './catalogue.ts';
+import type { BuildContext } from './diagram-type.ts';
+import type { Path } from './model.ts';
+import type { Entry, GraphSource, GraphTypeConfig } from './graph-source.ts';
+import { fromElement, resolveSource, type Origins } from './views.ts';
+
+type Out = GraphSource & { origin: Origins };
+
+/** How deep a view looks; drill-down links go from a view to one of the same level or deeper. */
+const LEVEL: Record<ViewKind, number> = { landscape: 0, context: 1, container: 2, component: 3, dynamic: 0, deployment: 0 };
+
+const within = (id: string, scope: string) => id === scope || id.startsWith(scope + '.');
+const ancestors = (id: string) => id.split('.').slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join('.'));
+
+/**
+ * The element that stands for `id` next to `scope`: the child of their deepest common ancestor that
+ * holds `id` (a sibling container for a component view), or its top-level element.
+ */
+function beside(id: string, scope: string): string {
+  const a = id.split('.');
+  const b = scope.split('.');
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return a.slice(0, i + 1).join('.');
+}
+
+/** The diagram as the type should build it for a view with or without a C4 kind. */
+export function viewSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContext, ctx: BuildContext): Out {
+  const v = m.view;
+  if (!v?.kind) return resolveSource(src, cfg, m, ctx);
+  if (v.kind === 'deployment') return deploymentSource(src, cfg, m, ctx);
+  const els = m.elements;
+  const scoped = v.kind === 'context' || v.kind === 'container' || v.kind === 'component';
+  if (v.of != null && !els.has(v.of)) ctx.warn([...v.at, 'of'], `There is no element "${v.of}" in the model`);
+  if (scoped && !(v.of && els.has(v.of))) {
+    if (v.of == null) ctx.warn(v.at, `A ${v.kind} view needs of: the element it is about`);
+    return resolveSource(src, cfg, { ...m, view: { ...v, kind: undefined } }, ctx);
+  }
+  const of = v.of!;
+  const children = (id: string) => [...els.values()].filter((e) => e.parent === id).map((e) => e.id);
+  if (v.kind === 'container' && !children(of).length) ctx.warn([...v.at, 'of'], `"${of}" has no parts to show: add elements: under it`);
+  if (v.kind === 'component' && !children(of).length) ctx.warn([...v.at, 'of'], `"${of}" has no components to show: add elements: under it`);
+
+  // What the kind picks, on top of what the view says itself.
+  const include: string[] = [];
+  const expand: string[] = [];
+  const exclude: string[] = [];
+  let model = m;
+  let base = src;
+  if (v.kind === 'landscape') include.push('*');
+  else if (scoped) {
+    const near = new Set<string>();
+    for (const r of m.relations)
+      for (const [a, b] of [[r.from, r.to], [r.to, r.from]] as const) if (within(a, of) && !within(b, of) && els.has(b)) near.add(beside(b, of));
+    include.push(of, ...near);
+    if (v.kind === 'container') expand.push(of);
+    if (v.kind === 'component') {
+      // The container inside its system (and further up), with only the siblings that take part.
+      const path = [...ancestors(of), of];
+      expand.push(...path);
+      for (const p of path.slice(0, -1)) for (const c of children(p)) if (!path.includes(c) && !near.has(c)) exclude.push(c);
+    }
+  } else {
+    // Dynamic: the elements the steps name, inside the boundaries of what they belong to.
+    for (const s of v.steps ?? []) for (const id of [s.from, s.to]) if (!include.includes(id)) include.push(id);
+    for (const id of include) for (const a of ancestors(id)) if (els.has(a) && !include.includes(a) && !expand.includes(a)) expand.push(a);
+    // An opened boundary shows only the parts that take part in the story.
+    for (const a of expand) for (const c of children(a)) if (!include.includes(c) && !expand.includes(c)) exclude.push(c);
+    // Only the steps are drawn, not the relations of the model.
+    model = { ...m, relations: [] };
+    base = { ...src, edges: [] };
+  }
+  const view: ViewSpec = {
+    ...v,
+    include: [...include, ...(v.include ?? [])],
+    expand: [...expand, ...(v.expand ?? [])],
+    exclude: [...exclude, ...(v.exclude ?? [])],
+  };
+  const out = resolveSource(base, cfg, { ...model, view }, ctx);
+
+  if (v.kind === 'dynamic')
+    for (const [i, s] of (v.steps ?? []).entries()) {
+      const ids = new Set([...Object.keys(out.nodes ?? {}), ...Object.keys(out.groups ?? {})]);
+      const end = [s.from, s.to].find((id) => !ids.has(id));
+      if (end) {
+        ctx.warn(s.at, ids.size && els.has(end) ? `"${end}" is not drawn in this view` : `There is no element "${end}" in the model`);
+        continue;
+      }
+      out.edges!.push({ from: s.from, to: s.to, ...(s.label || s.technology ? { label: withTechnology(s.label, s.technology) } : {}), step: i + 1 });
+      out.origin.edges.push({ path: s.at, id: `s${i + 1}` });
+    }
+
+  if (v.enterprise && (v.kind === 'landscape' || v.kind === 'context')) {
+    const id = out.groups!.enterprise || out.nodes!.enterprise ? '_enterprise' : 'enterprise';
+    for (const coll of ['groups', 'nodes'] as const)
+      for (const e of Object.values(out[coll]!)) if (e && typeof e === 'object' && !e.in && !e.tags?.includes('external')) e.in = id;
+    out.groups = { [id]: { kind: cfg.groupKinds.enterprise ? 'enterprise' : 'boundary', label: v.enterprise }, ...out.groups };
+    out.origin.groups[id] = [...v.at, 'enterprise'];
+  }
+
+  // Drill-down: a card links to the next view about it (context → containers → components).
+  const level = LEVEL[v.kind];
+  const views = [...m.views.values()].filter((w) => w.kind && w.of && w.name !== v.name && LEVEL[w.kind] >= Math.max(1, level) && w.kind !== 'dynamic');
+  for (const [id, e] of Object.entries(out.nodes ?? {})) {
+    if (!e || typeof e !== 'object' || !els.has(id)) continue;
+    const next = views.filter((w) => w.of === id).sort((a, b) => LEVEL[a.kind!] - LEVEL[b.kind!])[0];
+    if (next && !e.links?.includes(`#${next.name}`)) e.links = [`#${next.name}`, ...(e.links ?? [])];
+  }
+  return out;
+}
+
+/**
+ * A deployment view: nested deployment nodes as groups (a node without instances or children is an
+ * infrastructure card, e.g. a load balancer), model elements as instances inside them, and the model's
+ * relations between the instances.
+ */
+function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContext, ctx: BuildContext): Out {
+  const v = m.view!;
+  const els = m.elements;
+  const out: Out = {
+    title: v.title ?? src.title,
+    subtitle: v.subtitle ?? (v.title ? undefined : src.subtitle),
+    direction: v.direction ?? src.direction,
+    groups: {},
+    nodes: {},
+    edges: [],
+    origin: { nodes: {}, groups: {}, edges: [] },
+  };
+  const known = (k: string) => !!cfg.groupKinds[k] || !!cfg.nodeKinds[k];
+  // Element id → where it runs, in order; `root` is the outermost deployment node (an environment, a region).
+  const placed = new Map<string, { node: string; root: string; at: Path }[]>();
+  const roots = new Map<string, string>();
+  const walk = (map: unknown, parent: string | undefined, base: Path) => {
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return;
+    for (const [key, raw] of Object.entries(map as Record<string, unknown>)) {
+      const path = [...base, key];
+      const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      if (roots.has(key)) {
+        ctx.error(path, `Deployment node "${key}" is already in this view`);
+        continue;
+      }
+      roots.set(key, parent ? roots.get(parent)! : key);
+      const list = typeof o.instances === 'string' ? [o.instances] : Array.isArray(o.instances) ? o.instances.map(String) : [];
+      const leaf = !list.length && !(o.nodes && typeof o.nodes === 'object' && Object.keys(o.nodes).length);
+      let kind = typeof o.kind === 'string' ? o.kind : leaf ? 'infrastructure' : 'deployment-node';
+      if (!known(kind)) {
+        if (typeof o.kind === 'string') ctx.warn([...path, 'kind'], `Kind "${kind}" has no match in this diagram type: drawn as a plain ${leaf ? 'card' : 'node'}`);
+        kind = leaf ? (known('server') ? 'server' : '') : known('deployment-node') ? 'deployment-node' : known('boundary') ? 'boundary' : '';
+      }
+      const count = typeof o.count === 'number' && o.count > 1 ? `×${o.count}` : undefined;
+      const technology = typeof o.technology === 'string' ? o.technology : undefined;
+      const caption = [technology, count].filter(Boolean).join(' · ');
+      const entry: Entry = {
+        ...(kind ? { kind } : { icon: 'server' }),
+        label: typeof o.label === 'string' ? o.label : key,
+        ...(caption ? { caption } : {}),
+        ...(technology ? { technology } : {}),
+        ...(count ? { count: o.count as number } : {}),
+        ...(parent ? { in: parent } : {}),
+        ...(typeof o.icon === 'string' ? { icon: o.icon } : {}),
+        ...(typeof o.tone === 'string' ? { tone: o.tone as Entry['tone'] } : {}),
+        ...(typeof o.description === 'string' ? { description: o.description } : {}),
+        ...(Array.isArray(o.tags) ? { tags: o.tags.map(String) } : {}),
+        ...(Array.isArray(o.links) ? { links: o.links } : {}),
+      };
+      out[leaf ? 'nodes' : 'groups']![key] = entry;
+      out.origin[leaf ? 'nodes' : 'groups'][key] = path;
+      for (const [j, id] of list.entries()) {
+        if (!els.has(id)) ctx.warn([...path, 'instances', j], els.size ? `There is no element "${id}" in the model` : `"${id}" needs a model: add include: [model.yaml] or elements:`);
+        else placed.set(id, [...(placed.get(id) ?? []), { node: key, root: roots.get(key)!, at: [...path, 'instances', j] }]);
+      }
+      walk(o.nodes, key, [...path, 'nodes']);
+    }
+  };
+  walk(v.nodes, undefined, [...v.at, 'nodes']);
+  if (!v.nodes) ctx.warn(v.at, 'A deployment view needs nodes: the deployment nodes and what runs in them');
+
+  // Instance ids: the element's own id, or id@node when it runs in more than one place.
+  const instances = new Map<string, { id: string; root: string }[]>();
+  for (const [elId, list] of placed) {
+    const el = els.get(elId)!;
+    instances.set(
+      elId,
+      list.map((p) => {
+        const id = list.length > 1 ? `${elId}@${p.node}` : elId;
+        out.nodes![id] = fromElement(el, { in: p.node }, 'nodes', cfg, ctx, el.at);
+        out.origin.nodes[id] = p.at;
+        return { id, root: p.root };
+      }),
+    );
+  }
+  // A relation of a component is drawn from the container it is deployed in.
+  const running = (id: string) => {
+    for (let cur: string | undefined = id; cur; cur = els.get(cur)?.parent) if (instances.has(cur)) return { el: cur, list: instances.get(cur)! };
+    return undefined;
+  };
+  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; id: string; exact?: boolean }>();
+  const pair = (from: { id: string; root: string }[], to: { id: string; root: string }[], add: (f: string, t: string) => void) => {
+    // Instances in the same environment talk to each other; across environments only when there is no other.
+    for (const f of from) {
+      const near = to.filter((t) => t.root === f.root);
+      for (const t of near.length ? near : to) if (f.id !== t.id) add(f.id, t.id);
+    }
+  };
+  for (const r of m.relations) {
+    const f = running(r.from);
+    const t = running(r.to);
+    if (!f || !t || f.el === t.el) continue;
+    // As in other views: a relation between exactly the deployed elements wins over ones implied by their parts.
+    const exact = f.el === r.from && t.el === r.to;
+    pair(f.list, t.list, (a, b) => {
+      const key = `${a}\0${b}`;
+      const old = drawn.get(key);
+      if (old?.exact && !exact) return;
+      const d = old && (old.exact || !exact) ? old : { labels: [], style: r.style, at: r.at, id: `r${r.index}`, exact };
+      const label = withTechnology(r.label, r.technology);
+      if (label && !d.labels.includes(label)) d.labels.push(label);
+      drawn.set(key, d);
+    });
+  }
+  for (const [i, item] of (v.edges ?? []).entries()) {
+    const at = [...v.at, 'edges', i];
+    const spec = parseEdge(item, at);
+    if (typeof spec === 'string') {
+      ctx.error(at, spec);
+      continue;
+    }
+    const ends = [spec.from, spec.to].map((e) => {
+      const id = e.row ? `${e.node}.${e.row}` : e.node;
+      return roots.has(id) ? [{ id, root: roots.get(id)! }] : running(id)?.list;
+    });
+    if (!ends[0] || !ends[1]) {
+      ctx.warn(at, 'Connect deployment nodes or elements that run in this view');
+      continue;
+    }
+    const style = typeof spec.props.style === 'string' ? spec.props.style : undefined;
+    const label = withTechnology(spec.label, typeof spec.props.technology === 'string' ? spec.props.technology : undefined);
+    // Written here, so it wins over the model's relation between the same two.
+    pair(ends[0], ends[1], (a, b) => drawn.set(`${a}\0${b}`, { labels: label ? [label] : [], style, at, id: `d${i}` }));
+  }
+  const ids = new Set<string>();
+  for (const [key, d] of drawn) {
+    const [from, to] = key.split('\0') as [string, string];
+    out.edges!.push({ from, to, ...(d.labels.length ? { label: d.labels.join(', ') } : {}), ...(d.style && cfg.edgeStyles?.[d.style] ? { style: d.style } : {}) });
+    // One relation between instances in two places is two lines.
+    let id = d.id;
+    for (let n = 2; ids.has(id); n++) id = `${d.id}-${n}`;
+    ids.add(id);
+    out.origin.edges.push({ path: d.at, id });
+  }
+  return out;
+}

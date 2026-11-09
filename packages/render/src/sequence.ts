@@ -70,7 +70,7 @@ export interface SequenceGeometry {
 }
 
 /** Words into lines of at most `max` wide; a word longer than that is cut with an ellipsis. */
-export function wrapText(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
+function wrapLines(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
   const lines: string[] = [];
   let line = '';
   for (const word of text.split(/\s+/).filter(Boolean)) {
@@ -123,7 +123,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const open: { index: number; first: number; branches: { row: number; label?: string }[] }[] = [];
   for (const ev of shape.events) {
     if (ev.kind === 'message') {
-      const lines = ev.label ? wrapText(ev.label, L.size, 500, L.max) : [];
+      const lines = ev.label ? wrapLines(ev.label, L.size, 500, L.max) : [];
       const text = lines.length * L.line;
       if (ev.from === ev.to) {
         const h = Math.max(22, text);
@@ -131,7 +131,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       } else rows.push({ ev, lines, size: 8 + text + (lines.length ? 6 : 0) + 14, anchor: 8 + text + (lines.length ? 6 : 0) });
     } else if (ev.kind === 'note') {
       const N = K.note;
-      const lines = wrapText(ev.text, N.size, 400, N.max);
+      const lines = wrapLines(ev.text, N.size, 400, N.max);
       const width = Math.ceil(widest(lines, N.size, 400) + 2 * N.padX);
       const height = lines.length * N.line + 2 * N.padY;
       rows.push({ ev, note: { lines, width, height }, size: height + 16 });
@@ -241,7 +241,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       const b = lane.get(ev.to)!;
       const room = Math.abs(cx(b) - cx(a)) - 32 - numberRoom(ev) - Math.abs(edgeOffset(a, r, 1)) - Math.abs(edgeOffset(b, r, 1));
       if (room <= L.max) continue;
-      row.lines = wrapText(ev.label, L.size, 500, Math.min(room, 2 * L.max));
+      row.lines = wrapLines(ev.label, L.size, 500, Math.min(room, 2 * L.max));
       const text = row.lines.length * L.line + 6;
       row.size = 8 + text + 14;
       row.anchor = 8 + text;
@@ -249,7 +249,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       const ls = ev.over.map((id) => lane.get(id)!);
       const span = cx(Math.max(...ls)) - cx(Math.min(...ls)) + 2 * 26;
       const N = K.note;
-      const lines = wrapText(ev.text, N.size, 400, Math.max(N.max, Math.min(span, 2 * N.max + 80) - 2 * N.padX));
+      const lines = wrapLines(ev.text, N.size, 400, Math.max(N.max, Math.min(span, 2 * N.max + 80) - 2 * N.padX));
       const height = lines.length * N.line + 2 * N.padY;
       row.note = { lines, width: Math.ceil(widest(lines, N.size, 400) + 2 * N.padX), height };
       row.size = height + 16;

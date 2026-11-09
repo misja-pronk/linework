@@ -7,7 +7,7 @@
 // whatever is shown: one to a part of a closed element ends on that element (C4's implied relations).
 import { parseEdge } from './edges.ts';
 import type { BuildContext, KindTable } from './diagram-type.ts';
-import type { ModelContext, ModelElement, ViewSpec } from './catalogue.ts';
+import { withTechnology, type ModelContext, type ModelElement, type ViewSpec } from './catalogue.ts';
 import type { Graph, LayoutSidecar, Path, Point } from './model.ts';
 import type { Entry, GraphSource, GraphTypeConfig } from './graph-source.ts';
 
@@ -179,7 +179,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     } else out.edges!.push(item);
     out.origin.edges.push({ path: ['edges', i], id: `e${i}` });
   }
-  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; index: number }>();
+  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; index: number; exact: boolean }>();
   for (const r of relations) {
     if (r.model == null || hidden(r)) continue;
     const rel = m.relations[r.model]!;
@@ -187,8 +187,13 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     const to = lift(r.to);
     if (!from || !to || from === to || pairs.has(`${from}\0${to}`)) continue;
     const key = `${from}\0${to}`;
-    const d = drawn.get(key) ?? { labels: [], style: rel.style, at: rel.at, index: rel.index };
-    if (rel.label && !d.labels.includes(rel.label)) d.labels.push(rel.label);
+    // A relation written between exactly these two says it best; implied ones only fill in when there is none.
+    const exact = from === r.from && to === r.to;
+    const old = drawn.get(key);
+    const d = old && (old.exact || !exact) ? old : { labels: [], style: rel.style, at: rel.at, index: rel.index, exact };
+    if (old?.exact && !exact) continue;
+    const label = withTechnology(rel.label, rel.technology);
+    if (label && !d.labels.includes(label)) d.labels.push(label);
     drawn.set(key, d);
   }
   for (const [key, d] of drawn) {
@@ -208,7 +213,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
 }
 
 /** A model element as a node or group entry; `local` fields win. */
-function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: GraphTypeConfig, ctx: BuildContext, at: Path): Entry {
+export function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: GraphTypeConfig, ctx: BuildContext, at: Path): Entry {
   const kind = local.kind ?? mapKind(el.kind, coll, cfg, (msg) => ctx.warn(at, msg));
   const links = local.links ?? el.links;
   const description = local.description ?? el.description;
@@ -224,6 +229,9 @@ function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: GraphTypeC
     ...(local.badges ? { badges: local.badges } : {}),
     ...(links ? { links } : {}),
     ...(description ? { description } : {}),
+    // Types that style by tag (C4 greys tag:external) read them; buildGraph ignores them.
+    ...(el.tags.length || local.tags?.length ? { tags: [...new Set([...(local.tags ?? []), ...el.tags])] } : {}),
+    ...((local.technology ?? el.technology) ? { technology: local.technology ?? el.technology } : {}),
   };
 }
 

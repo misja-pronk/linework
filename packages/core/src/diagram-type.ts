@@ -33,6 +33,8 @@ export interface DiagramType<Source = any> {
   connect?(source: Source, from: string, to: string): Connection | string;
   /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
   references?(source: Source): Reference[];
+  /** Layout hints for the shared graph layout, e.g. room for long labels. */
+  tuning?: { labelRoom?: 'fit' };
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
 }

@@ -17,6 +17,13 @@ const crossingBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'azure/microservices.yaml': 7,
   'azure/web-shop.yaml': 0,
+  'c4/kestrel-bank.yaml': 0,
+  'c4/kestrel-bank.yaml#landscape': 0,
+  'c4/kestrel-bank.yaml#context': 0,
+  'c4/kestrel-bank.yaml#containers': 0,
+  'c4/kestrel-bank.yaml#components': 2,
+  'c4/kestrel-bank.yaml#payment': 0,
+  'c4/kestrel-bank.yaml#production': 0,
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 0,
   'data-products/customer-focus.yaml': 0,
@@ -46,15 +53,19 @@ const crossingBudget: Record<string, number> = {
 
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
-  it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).sort()));
+  // C4 examples are one model with many views: each view is a drawing of its own.
+  const views = files.filter((f) => f.startsWith('c4/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
+  it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).filter((k) => !k.includes('#')).sort()));
 
-  for (const file of files)
-    it(file, async () => {
+  for (const key of [...files, ...views])
+    it(key, async () => {
+      const [file, view] = key.split('#') as [string, string | undefined];
       const load = (rel: string) => fs.readFileSync(path.resolve(examples, path.dirname(file), rel), 'utf8');
-      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', load });
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', load, view });
+      if (file.startsWith('c4/')) expect(r.diagnostics).toEqual([]);
       const m = measure(r.graph!, r.placed!);
       expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward }).toEqual({ through: 0, labels: 0, backward: 0 });
-      expect(m.crossings).toBeLessThanOrEqual(crossingBudget[file]!);
+      expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
     });
 
   it('lays out 200 nodes in under a second', async () => {

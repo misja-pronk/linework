@@ -45,14 +45,39 @@ export interface ModelRelation {
   from: string;
   to: string;
   label?: string;
+  /** How it talks, e.g. HTTPS/JSON: drawn after the label as "Places orders [HTTPS/JSON]". */
+  technology?: string;
   style?: string;
   at: Path;
   /** Position in the model, for a stable edge id. */
   index: number;
 }
 
+/** C4 view kinds: each picks its elements from the model by itself (see c4-views.ts). */
+export const viewKinds = ['landscape', 'context', 'container', 'component', 'dynamic', 'deployment'] as const;
+export type ViewKind = (typeof viewKinds)[number];
+
+/** One numbered interaction of a dynamic view: "customer -> shop.web: Browses". */
+export interface StepSpec {
+  from: string;
+  to: string;
+  label?: string;
+  technology?: string;
+  at: Path;
+}
+
 export interface ViewSpec {
   name: string;
+  kind?: ViewKind;
+  /** The element a context, container, component or dynamic view is about. */
+  of?: string;
+  /** A landscape or context view draws the elements that are not external inside a boundary with this name. */
+  enterprise?: string;
+  steps?: StepSpec[];
+  /** Deployment nodes of a deployment view, as written (nested `nodes:`, `instances:` of model elements). */
+  nodes?: Record<string, unknown>;
+  /** Extra lines of a deployment view, between deployment nodes or instances. */
+  edges?: unknown[];
   title?: string;
   subtitle?: string;
   direction?: Direction;
@@ -111,7 +136,8 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         description: str('description'),
         technology: str('technology'),
         owner: str('owner'),
-        tags: Array.isArray(o.tags) ? o.tags.map(String) : [],
+        // `external: true` is the C4 way of saying it; views select it as tag:external.
+        tags: [...(Array.isArray(o.tags) ? o.tags.map(String) : []), ...(o.external === true && !(o.tags as unknown[] | undefined)?.includes('external') ? ['external'] : [])],
         ...(Array.isArray(o.links) ? { links: included ? o.links.map((l) => rebase(l, included)) : o.links } : {}),
         icon: str('icon'),
         tone: tones.includes(o.tone as Tone) ? (o.tone as Tone) : undefined,
@@ -130,10 +156,9 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         report(at(['relations', i]), spec);
         continue;
       }
-      // Model ids are dotted paths: "shop.api" is one element, not a row.
-      const full = (e: { node: string; row?: string }) => (e.row ? `${e.node}.${e.row}` : e.node);
       const style = typeof spec.props.style === 'string' ? spec.props.style : undefined;
-      cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, style, at: at(['relations', i]), index: cat.relations.length });
+      const technology = typeof spec.props.technology === 'string' ? spec.props.technology : undefined;
+      cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(technology ? { technology } : {}), style, at: at(['relations', i]), index: cat.relations.length });
     }
 
   if (!included && data.views && typeof data.views === 'object' && !Array.isArray(data.views))
@@ -144,8 +169,23 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       }
       const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
       const list = (k: string) => (Array.isArray(o[k]) ? (o[k] as unknown[]).map(String) : typeof o[k] === 'string' ? [o[k] as string] : undefined);
+      const steps: StepSpec[] = [];
+      if (Array.isArray(o.steps))
+        for (const [j, item] of o.steps.entries()) {
+          const vp = at(['views', name, 'steps', j]);
+          const spec = parseEdge(item, vp);
+          if (typeof spec === 'string') report(vp, spec);
+          else steps.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(typeof spec.props.technology === 'string' ? { technology: spec.props.technology } : {}), at: vp });
+        }
+      const kind = viewKinds.find((k) => k === o.kind);
       cat.views.set(name, {
         name,
+        ...(kind ? { kind } : {}),
+        ...(typeof o.of === 'string' ? { of: o.of } : {}),
+        ...(typeof o.enterprise === 'string' ? { enterprise: o.enterprise } : {}),
+        ...(steps.length ? { steps } : {}),
+        ...(o.nodes && typeof o.nodes === 'object' && !Array.isArray(o.nodes) ? { nodes: o.nodes as Record<string, unknown> } : {}),
+        ...(Array.isArray(o.edges) ? { edges: o.edges } : {}),
         title: typeof o.title === 'string' ? o.title : undefined,
         subtitle: typeof o.subtitle === 'string' ? o.subtitle : undefined,
         direction: o.direction === 'right' || o.direction === 'down' ? o.direction : undefined,
@@ -156,6 +196,12 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       });
     }
 }
+
+// Model ids are dotted paths: "shop.api" is one element, not a row.
+const full = (e: { node: string; row?: string }) => (e.row ? `${e.node}.${e.row}` : e.node);
+
+/** "Places orders" with HTTPS/JSON → "Places orders [HTTPS/JSON]", the way C4 writes a relationship. */
+export const withTechnology = (label: string | undefined, technology: string | undefined) => (technology ? (label ? `${label} [${technology}]` : `[${technology}]`) : label);
 
 /** A file or view link written in another file, as seen from the diagram. */
 function rebase(raw: unknown, move: (link: string) => string): unknown {
@@ -215,6 +261,8 @@ export const elementFields = {
   links: linksSchema,
 };
 
+const relationProps = { style: { type: 'string' }, technology: { type: 'string', description: 'How it talks, e.g. HTTPS/JSON; drawn as "label [technology]"' } };
+
 // Nested to a fixed depth instead of $ref, so autocomplete can walk it: system → container → component.
 function elementSchema(depth: number): object {
   const props: Record<string, object> = {
@@ -223,6 +271,7 @@ function elementSchema(depth: number): object {
     ...elementFields,
     icon: { type: 'string' },
     tone: { enum: tones },
+    external: { type: 'boolean', description: 'Outside the scope (C4): drawn greyed, kept out of an enterprise boundary; same as tags: [external]' },
   };
   if (depth > 0) props.elements = { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: elementSchema(depth - 1), description: 'Parts of this element' };
   return { anyOf: [{ type: 'null' }, { type: 'string', description: 'Its kind' }, { type: 'object', properties: props, additionalProperties: false }] };
@@ -238,9 +287,32 @@ const viewSchema = {
     include: { ...selectors, description: 'What the view shows (default: everything at the top)' },
     exclude: { ...selectors, description: 'Left out of what include picked' },
     expand: { type: 'array', items: { type: 'string' }, description: 'Elements drawn as a boundary with their parts inside' },
+    kind: { enum: viewKinds, description: 'A C4 view that picks its elements itself: landscape, context/container/component of an element, dynamic (steps) or deployment (nodes)' },
+    of: { type: 'string', description: 'The element the view is about, e.g. shop or shop.api' },
+    enterprise: { type: 'string', description: 'Draw what is not external inside an enterprise boundary with this name' },
+    steps: { type: 'array', items: edgeItemSchema({ technology: relationProps.technology }), description: 'Dynamic view: numbered interactions, e.g. "customer -> shop.web: Browses"' },
+    nodes: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(4), description: 'Deployment view: deployment nodes, nested, with instances of model elements' },
+    edges: { type: 'array', items: edgeItemSchema(relationProps), description: 'Deployment view: lines between deployment nodes or instances' },
   },
   additionalProperties: false,
 };
+
+function deploymentNodeSchema(depth: number): object {
+  const props: Record<string, object> = {
+    kind: { type: 'string', description: 'deployment-node (default), or an infrastructure kind such as load-balancer, dns, firewall' },
+    label: { type: 'string' },
+    technology: { type: 'string', description: 'e.g. Kubernetes 1.31, PostgreSQL 16, eu-west-1' },
+    description: { type: 'string' },
+    count: { type: 'integer', minimum: 1, description: 'How many of these run, shown as ×3' },
+    instances: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Model elements running here, e.g. [shop.api]' },
+    icon: { type: 'string' },
+    tone: { enum: tones },
+    tags,
+    links: linksSchema,
+  };
+  if (depth > 0) props.nodes = { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(depth - 1), description: 'Nested deployment nodes' };
+  return { anyOf: [{ type: 'null' }, { type: 'object', properties: props, additionalProperties: false }] };
+}
 
 /** Top-level properties of the model layer, merged into a type's schema. */
 export const modelProperties = {
@@ -249,7 +321,7 @@ export const modelProperties = {
     description: 'Other YAML files merged into this one, relative to it (a type: model file or one of this type)',
   },
   elements: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: elementSchema(3), description: 'Shared elements that nodes reference with ref:' },
-  relations: { type: 'array', items: edgeItemSchema({ style: { type: 'string' } }), description: 'Relations between model elements, e.g. "shop.web -> shop.api: REST"' },
+  relations: { type: 'array', items: edgeItemSchema(relationProps), description: 'Relations between model elements, e.g. "shop.web -> shop.api: REST"' },
   views: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: viewSchema, description: 'Named views: what each drawing of this model shows' },
 };
 

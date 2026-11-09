@@ -18,6 +18,19 @@ export interface Graph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   legend?: LegendItem[];
+  /** Numbered interactions of a dynamic view, in order: drawn as numbers on their lines, and what a step-through shows one by one. */
+  steps?: GraphStep[];
+}
+
+export interface GraphStep {
+  /** 1, 2, 3, … as drawn on the line. */
+  n: number;
+  /** The edge that draws it. */
+  edge: string;
+  from: string;
+  to: string;
+  label?: string;
+  path: Path;
 }
 
 export interface GraphGroup {
@@ -68,13 +81,17 @@ export interface CardShape {
   icon?: string;
   tone: Tone;
   badges?: string[];
-  /** Flow-chart outlines: a decision (pointed ends), a terminal (pill) or a plain step (no icon tile). */
+  /** Flow-chart outlines: a decision (pointed ends), a terminal (pill) or a plain step (no icon tile); a person has a round tile. */
   form?: CardForm;
   /** Two cards stacked: a redundant pair (HA firewalls, a switch stack). */
   stack?: boolean;
+  /** A short description written in the card under the caption (C4 style), wrapped to at most three lines. */
+  body?: string;
+  /** Outside the scope of the drawing (an external system): drawn greyed. */
+  muted?: boolean;
 }
 
-export type CardForm = 'decision' | 'terminal' | 'plain';
+export type CardForm = 'decision' | 'terminal' | 'plain' | 'person';
 
 /** Header + rows, with a connection point per row: tables, data products in detail. */
 export interface TableShape {
@@ -157,6 +174,8 @@ export interface GraphEdge {
   width?: number;
   /** Icon in the label pill, e.g. a lock on a VPN tunnel. */
   icon?: string;
+  /** Its number in a dynamic view, drawn in a small circle on the line. */
+  step?: number;
   path: Path;
 }
 
@@ -165,10 +184,14 @@ export interface LegendItem {
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge';
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary';
   tone?: Tone;
   /** Weight of the line sample, as GraphEdge.width. */
   width?: number;
+  /** The icon of a tile sample (an element type). */
+  icon?: string;
+  /** A greyed sample: external elements. */
+  muted?: boolean;
 }
 
 // Geometry, filled in by layout.

@@ -25,6 +25,10 @@ describe('type guidance', () => {
     expect(best('teams and repositories').type.id).toBe('github');
     expect(best('data mesh contracts').type.id).toBe('data-products');
     expect(best('microservices and queues').type.id).toBe('systems');
+    expect(best('c4').type.id).toBe('c4');
+    expect(best('context diagram').type.id).toBe('c4');
+    expect(best('container diagram').type.id).toBe('c4');
+    expect(best('structurizr deployment diagram').type.id).toBe('c4');
   });
 
   it('keeps the order when nothing matches', () => {

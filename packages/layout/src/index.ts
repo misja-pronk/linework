@@ -26,6 +26,8 @@ export interface Tuning {
   dot?: DotVariant;
   /** The source left the direction open: a drawing far wider than a slide may turn top-down. */
   autoDirection?: boolean;
+  /** 'fit': columns of a left-to-right drawing open up for their longest label (C4's long relationship labels). */
+  labelRoom?: 'fit';
 }
 
 export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSidecar, tuning: Tuning = {}): Promise<Placed> {
@@ -69,7 +71,9 @@ async function candidates(sized: Sized, spacing: Spacing, sidecar: LayoutSidecar
   const { graph } = sized;
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
-  const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? 24 : 0) + (rows ? 48 : 0), variant);
+  const widest = Math.max(0, ...[...sized.edgeLabels.values()].map((l) => l.width));
+  const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
+  const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;

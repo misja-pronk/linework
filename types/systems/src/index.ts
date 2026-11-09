@@ -96,8 +96,9 @@ export const systems: DiagramType<GraphSource> = {
     { text: 'What runs where in Azure', use: 'azure' },
     { text: 'Tables and their columns', use: 'erd' },
     { text: 'Who may access what', use: 'access' },
+    { text: 'C4 context, container and component views', use: 'c4' },
   ],
-  keywords: ['architecture', 'system', 'service', 'microservice', 'api', 'component', 'flow', 'c4', 'overview', 'queue', 'event', 'frontend', 'backend', 'integration', 'flowchart', 'boxes and arrows'],
+  keywords: ['architecture', 'system', 'service', 'microservice', 'api', 'component', 'flow', 'overview', 'queue', 'event', 'frontend', 'backend', 'integration', 'flowchart', 'boxes and arrows'],
   schema: graphSchema('systems', config, 'Cartography architecture diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
@@ -136,3 +137,5 @@ edges:
   - orders -> stripe: { label: charge, style: sync }
 `,
 };
+
+export { c4, c4Config } from './c4.ts';

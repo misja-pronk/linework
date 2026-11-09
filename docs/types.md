@@ -15,6 +15,7 @@ carto new erd orders.yaml      # start from a type's template
 | You want to show… | Type | `type:` |
 | --- | --- | --- |
 | Services, apps, queues and databases and how they talk; anything when unsure | [Architecture](#architecture) | `systems` |
+| C4: system context, containers, components, dynamic and deployment views of one model | [C4 model](#c4-model) | `c4` |
 | What runs where in Azure: subscriptions, resource groups, VNets, subnets | [Azure infrastructure](#azure-infrastructure) | `azure` |
 | Network topology: zones, VLANs, firewalls, switches and links; an IP plan | [Network](#network) | `network` |
 | Tables, columns, keys and how tables relate | [Database design](#database-design) | `erd` |
@@ -26,6 +27,7 @@ carto new erd orders.yaml      # start from a type's template
 Look-alikes that trip people up:
 
 - **A service that uses a database** is Architecture; **the tables inside it** are Database design.
+- **A quick boxes-and-arrows sketch** is Architecture; **a context diagram that drills down into containers and components** is the C4 model.
 - **Azure resources and networks** are Azure infrastructure; **who may touch them** is Access.
 - **Firewalls, switches, VLANs and circuits** are Network; **the Azure resources behind them** are Azure infrastructure.
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
@@ -53,6 +55,33 @@ edges:
 ```
 
 Examples: [examples/systems](../examples/systems)
+
+## C4 model
+
+`type: c4` · one model, C4 views: context, containers, components, deployment.
+
+Use it when you work the way Structurizr, LikeC4 or IcePanel do: describe people, software systems, containers and components once, then draw a landscape, a system context, a container or component diagram, a numbered dynamic view or a deployment view from it. Cards read like C4 (`[Container: Spring Boot]` and a short description), external systems are greyed, boundaries are dashed, the legend fills itself and each card links down to the next level. Structurizr DSL imports with `carto import workspace.dsl`.
+
+Not for: a quick sketch without levels (use `systems`), Azure resources and networks (use `azure`).
+
+```yaml
+type: c4
+elements:
+  customer: { kind: person, label: Customer }
+  shop:
+    label: Web shop
+    elements:
+      web: { kind: web-app, label: Storefront, technology: Next.js }
+      db: { kind: database, label: Orders DB, technology: PostgreSQL }
+relations:
+  - customer -> shop.web: { label: Orders, technology: HTTPS }
+  - shop.web -> shop.db: Reads and writes
+views:
+  context: { kind: context, of: shop }
+  containers: { kind: container, of: shop }
+```
+
+Examples: [examples/c4](../examples/c4) · guide: [c4.md](c4.md)
 
 ## Azure infrastructure
 
