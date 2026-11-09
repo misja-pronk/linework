@@ -128,12 +128,14 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
 /**
  * Trunk groups: lines drawn alike leaving one node side (fan-out) share a port and run as one line
  * until they branch; so do solid lines arriving at one side (fan-in; dashes would not line up there).
+ * Only unlabelled lines: a label on the shared part would not say which line it names.
  * Returns edge id → group key, only for groups of two or more.
  */
 function trunkGroups(input: RouterInput, sides: Map<string, [Side, Side]>): Map<string, string> {
   const groups = new Map<string, string[]>();
   const add = (key: string, id: string) => groups.set(key, [...(groups.get(key) ?? []), id]);
-  const usable = input.edges.filter((e) => e.style && e.from.node !== e.to.node);
+  // Labelled lines keep their own path: on a shared trunk a label could not say which line it names.
+  const usable = input.edges.filter((e) => e.style && !e.label && e.from.node !== e.to.node);
   for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}`, e.id);
   const out = new Map<string, string>();
   for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
