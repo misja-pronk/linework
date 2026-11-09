@@ -7,6 +7,7 @@
 // overlapping lines already routed. Ports are spread along each side, ordered by where the other
 // end is, so lines do not cross right at the box.
 import type { Box, PlacedEdge, Point } from '@cartography/core';
+import { nudge } from './nudge.ts';
 
 export type Side = 'N' | 'E' | 'S' | 'W';
 
@@ -36,6 +37,8 @@ export interface RouterInput {
   soft: (Box & { weight?: number })[];
   direction: 'right' | 'down';
   edges: RouteRequest[];
+  /** Spread lines sharing a corridor after routing (see nudge.ts); on unless false. */
+  nudge?: boolean;
 }
 
 const MARGIN = 14;
@@ -55,6 +58,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   const grid = buildGrid(input, [...ports.values()].flatMap((p) => [p.start, p.goal]));
   const used = new Map<string, number[]>();
   const out = new Map<string, PlacedEdge>();
+  const loose = new Set<string>();
 
   const order = [...input.edges].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || span(a) - span(b));
   // First pass routes against what is already there; later passes re-route every line knowing
@@ -65,6 +69,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
       const previous = used.get(e.id);
       if (previous) mark(grid, previous, -1);
       let points: Point[];
+      loose.delete(e.id);
       if (e.from.node === e.to.node) points = selfLoop(p);
       else {
         const found = search(grid, p);
@@ -73,9 +78,34 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
           used.set(e.id, found.cells);
         }
         points = found?.points ?? fallback(p);
+        if (found) loose.add(e.id);
       }
       out.set(e.id, { points: simplify(points) });
     }
+  if (input.nudge !== false) {
+    const list = input.edges.filter((e) => out.has(e.id));
+    const moved = nudge({
+      obstacles: [...input.obstacles.values()],
+      zones: input.soft,
+      edges: list.map((e) => ({
+        id: e.id,
+        points: out.get(e.id)!.points,
+        fromBox: e.from.box,
+        toBox: e.to.box,
+        fromStub: e.from.stub,
+        toStub: e.to.stub,
+        fromFixed: e.from.rowY != null,
+        toFixed: e.to.rowY != null,
+        fixed: !loose.has(e.id),
+      })),
+    });
+    const nudged = new Map(out);
+    list.forEach((e, i) => nudged.set(e.id, { points: moved[i]! }));
+    // Spreading lines can shorten the pieces labels sat on: keep the spread only when every label still fits.
+    const before = placeLabels(input, new Map([...out].map(([k, v]) => [k, { points: v.points }])));
+    const after = placeLabels(input, nudged);
+    if (after <= before) return nudged;
+  }
   placeLabels(input, out);
   return out;
 }
@@ -573,7 +603,9 @@ export function simplify(pts: Point[]): Point[] {
 
 // ---------------------------------------------------------------- labels
 
-function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>) {
+/** Puts each label on its line where it covers nothing; returns how many could not avoid covering something. */
+function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): number {
+  let bad = 0;
   const taken: Box[] = [...input.obstacles.values()].map((b) => ({ x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8 }));
   taken.push(...input.soft);
   // Every line, tagged with its edge: a label may sit on its own line but not on another.
@@ -613,10 +645,12 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>) {
       }
     }
     candidates.sort((p, q) => p.score - q.score);
+    if (!candidates[0] || candidates[0].score >= 500) bad++;
     const best = candidates[0]?.box ?? midLabel(pts, width, height);
     route.label = best;
     taken.push(best);
   }
+  return bad;
 }
 
 function segmentBox(a: Point, b: Point): Box {

@@ -112,8 +112,8 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
 export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
   const aspectPenalty = Math.abs(Math.log(m.aspect / targetAspect));
   return (
-    m.edgeThroughNode * 40 +
-    m.labelOverlaps * 30 +
+    m.edgeThroughNode * 200 +
+    m.labelOverlaps * 200 +
     m.crossings * 12 +
     m.backward * 8 +
     m.bends * 1.5 +
