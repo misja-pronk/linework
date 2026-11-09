@@ -8,7 +8,7 @@ import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { findType, render, types, type RenderOptions } from '@cartography/engine';
 import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
-import { importKubernetes, importMarkdown, importMermaid, isKubernetes } from '@cartography/import';
+import { importKubernetes, importMarkdown, importMermaid, importNetwork, isKubernetes, isNetworkInventory } from '@cartography/import';
 import { matchTypes, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -22,7 +22,8 @@ const help = `carto — architecture diagrams that look good
   carto import <file.mmd|.md|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta,
                                                 erDiagram) to YAML; .md: every mermaid block;
-                                                Kubernetes manifests: all files in one diagram
+                                                Kubernetes manifests: all files in one diagram;
+                                                .csv inventory or NetBox JSON: a network diagram
   carto icons import <folder|file.zip> --pack azure
                                                 index an official icon download (Azure, AWS,
                                                 GCP) into a pack in ${configDir()}
@@ -176,6 +177,26 @@ async function importFile(file: string): Promise<boolean> {
   return ok;
 }
 
+/** A network inventory (CSV name,type,ip,zone,uplink or NetBox JSON) → <name>.yaml next to it. */
+async function importInventory(file: string): Promise<boolean> {
+  const base = path.basename(file).replace(/\.(csv|json)$/i, '');
+  const r = importNetwork(fs.readFileSync(file, 'utf8'), base);
+  for (const w of r.warnings) console.error(`${file}  ${yellow('warning')}  ${w}`);
+  if (!r.yaml) return false;
+  const check = await render(r.yaml, { fonts: 'none' });
+  report(`${file} (imported)`, check.diagnostics);
+  if (values.out === '-') return (process.stdout.write(r.yaml), true);
+  const out = values.out ? (path.extname(values.out) ? values.out : path.join(values.out, `${base}.yaml`)) : path.join(path.dirname(file), `${base}.yaml`);
+  if (fs.existsSync(out) && !values.force) {
+    console.error(`${out} already exists, use --force to overwrite`);
+    return false;
+  }
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, r.yaml);
+  console.log(`${file} → ${out}`);
+  return !check.diagnostics.some((d) => d.severity === 'error');
+}
+
 /** Kubernetes manifests, all files merged into one diagram grouped by namespace. */
 async function importManifests(list: string[]): Promise<boolean> {
   const base = list.length === 1 ? path.basename(list[0]!).replace(/\.(ya?ml|json)$/i, '') : 'kubernetes';
@@ -288,8 +309,10 @@ async function main(): Promise<number> {
       if (!files.length) return (console.error(help), 1);
       // Manifests are read together: a platform is spread over many files, but it is one drawing.
       const manifests = files.filter((f) => /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
+      const inventories = files.filter((f) => /\.csv$/i.test(f) || (/\.json$/i.test(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8'))));
       let ok = manifests.length ? await importManifests(manifests) : true;
-      for (const f of files) if (!manifests.includes(f)) ok = (await importFile(f)) && ok;
+      for (const f of inventories) ok = (await importInventory(f)) && ok;
+      for (const f of files) if (!manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'render': {

@@ -1,0 +1,34 @@
+type: network
+title: Small office
+subtitle: One site, four VLANs behind an active/passive firewall pair
+
+groups:
+  internet: internet
+  office: { kind: site, label: Utrecht office, cidr: 10.20.0.0/16 }
+  mgmt: { kind: vlan, label: Management, in: office, vlan: 1, cidr: 10.20.1.0/24 }
+  staff: { kind: vlan, label: Staff, in: office, vlan: 10, cidr: 10.20.10.0/24 }
+  voice: { kind: vlan, label: Voice, in: office, vlan: 20, cidr: 10.20.20.0/24 }
+  guest: { kind: vlan, label: Guest, in: office, vlan: 30, cidr: 10.20.30.0/24 }
+
+nodes:
+  isp: { kind: isp, label: KPN Fibre, in: internet, ip: 203.0.113.1 }
+  fw: { kind: firewall, label: fw-utr, in: office, model: FortiGate 60F, ha: true, ip: 10.20.1.1 }
+  core: { kind: switch, label: sw-core, in: mgmt, model: USW Pro 24 PoE, ip: 10.20.1.2 }
+  ap1: { kind: access-point, label: ap-ground, in: mgmt, model: U6 Pro, ip: 10.20.1.11 }
+  ap2: { kind: access-point, label: ap-first, in: mgmt, model: U6 Pro, ip: 10.20.1.12 }
+  nas: { kind: nas, label: nas-01, in: staff, model: Synology DS923+, ip: 10.20.10.5 }
+  printer: { kind: printer, label: print-01, in: staff, ip: 10.20.10.9 }
+  laptops: { kind: clients, label: Laptops, in: staff }
+  phones: { kind: phone, label: Desk phones, in: voice }
+  guests: { kind: clients, label: Guest devices, in: guest }
+
+edges:
+  - isp -- fw: { style: wan, speed: 1G, label: PPPoE }
+  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20, 30] }
+  - core -- ap1: { speed: 2.5G }
+  - core -- ap2: { speed: 2.5G }
+  - core -- nas: { speed: 10G }
+  - core -- printer
+  - core -- phones
+  - ap1 -- laptops: { style: wireless, label: Staff SSID }
+  - ap2 -- guests: { style: wireless, label: Guest SSID }

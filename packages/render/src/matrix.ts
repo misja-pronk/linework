@@ -27,6 +27,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
     (h.icon ? iconWidth : 0) + Math.max(measureText(h.label, theme.size.cell, 600), h.caption ? measureText(h.caption, theme.size.caption, 400) : 0);
   const cellWidth = (c: MatrixCell | undefined) => {
     if (!c) return 0;
+    if (m.plain) return measureText(c.text ?? '–', theme.size.cell, c.strong ? 600 : 400);
     const pill = c.check ? CHECK : c.text ? measureText(c.text, theme.size.edgeLabel, 500) + 2 * PILL_X : 0;
     return Math.max(pill, c.note ? measureText(c.note, NOTE, 400) : 0);
   };
@@ -67,7 +68,8 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     const cx = x + w / 2;
     const iconW = col.icon ? COL_ICON : 0;
     const labelW = Math.min(w - 2 * PAD - iconW, measureText(col.label, theme.size.cell, 600));
-    const start = cx - (labelW + iconW) / 2;
+    // A plain table reads like a spreadsheet: everything flush left.
+    const start = m.plain ? x + PAD : cx - (labelW + iconW) / 2;
     const cy = col.caption ? b.y + HEAD / 2 - 7 : b.y + HEAD / 2;
     if (col.icon) s += glyph(col.icon, start, cy - 7, 14, tone(col.tone).fg);
     s += text(start + iconW, cy, fitText(col.label, theme.size.cell, 600, w - 2 * PAD - iconW), theme.size.cell, 600, theme.text);
@@ -81,8 +83,10 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
   let y = b.y + HEAD;
   for (const [i, row] of m.rows.entries()) {
     const cy = y + g.rowHeight / 2;
+    // A row without a label continues the one above (more interfaces of one device): the rule skips its header.
+    const more = m.plain && !row.label;
     if (i > 0)
-      s += `<line x1="${r1(b.x + PAD)}" y1="${r1(y)}" x2="${r1(b.x + b.width - PAD)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
+      s += `<line x1="${r1(more ? b.x + g.rowHeader : b.x + PAD)}" y1="${r1(y)}" x2="${r1(b.x + b.width - PAD)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
     const t = tone(row.tone);
     let tx = b.x + PAD;
     if (row.icon) {
@@ -98,7 +102,10 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     let cx = b.x + g.rowHeader;
     for (const [j] of m.columns.entries()) {
       const w = g.columns[j]!;
-      s += drawCell(m.cells[i]?.[j], cx + w / 2, cy, w - 2 * PAD, theme);
+      const cell = m.cells[i]?.[j];
+      s += m.plain
+        ? text(cx + PAD, cy, fitText(cell?.text ?? '–', theme.size.cell, cell?.strong ? 600 : 400, w - 2 * PAD), theme.size.cell, cell?.strong ? 600 : 400, cell?.text ? theme.text : theme.textFaint)
+        : drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme);
       cx += w;
     }
     y += g.rowHeight;

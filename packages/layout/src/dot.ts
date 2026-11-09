@@ -67,6 +67,15 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
     }
   };
   emit(undefined, '  ');
+  // Rank hints (network tiers): one layer per rank across groups, and the layers in order, even
+  // where no line runs between two of them (an invisible, weightless link keeps the order).
+  const ranks = new Map<number, string[]>();
+  for (const n of graph.nodes) if (n.rank != null && !n.folded) ranks.set(n.rank, [...(ranks.get(n.rank) ?? []), n.id]);
+  const layers = [...ranks.entries()].sort((a, b) => a[0] - b[0]).map(([, ids]) => ids);
+  for (const [i, row] of layers.entries()) {
+    if (row.length > 1) lines.push(`  { rank=same; ${row.map(q).join('; ')}; }`);
+    if (i) lines.push(`  ${q(layers[i - 1]![0]!)} -> ${q(row[0]!)} [style=invis, weight=0];`);
+  }
 
   // Edges to a group attach to one of its nodes and are clipped at the cluster (lhead/ltail).
   const groupIds = new Set(graph.groups.map((g) => g.id));

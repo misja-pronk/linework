@@ -1,0 +1,38 @@
+type: network
+title: Small office IP plan
+subtitle: The same kind of file as small-office.yaml, drawn as a table
+view: table   # graph (default) or table
+
+groups:
+  internet: internet
+  office: { kind: site, label: Utrecht office, cidr: 10.20.0.0/16 }
+  mgmt: { kind: vlan, label: Management, in: office, vlan: 1, cidr: 10.20.1.0/24 }
+  staff: { kind: vlan, label: Staff, in: office, vlan: 10, cidr: 10.20.10.0/24 }
+  voice: { kind: vlan, label: Voice, in: office, vlan: 20, cidr: 10.20.20.0/24 }
+  guest: { kind: vlan, label: Guest, in: office, vlan: 30, cidr: 10.20.30.0/24 }
+
+nodes:
+  fw:
+    kind: firewall
+    label: fw-utr
+    in: office
+    model: FortiGate 60F
+    ha: true
+    interfaces:
+      wan1: { ip: 203.0.113.2/30, zone: internet }
+      internal.1: { ip: 10.20.1.1/24, zone: mgmt }
+      internal.10: { ip: 10.20.10.1/24, zone: staff }
+      internal.20: { ip: 10.20.20.1/24, zone: voice }
+      internal.30: { ip: 10.20.30.1/24, zone: guest }
+  core: { kind: switch, label: sw-core, in: mgmt, model: USW Pro 24 PoE, interfaces: { mgmt: 10.20.1.2/24 } }
+  ap1: { kind: access-point, label: ap-ground, in: mgmt, model: U6 Pro, ip: 10.20.1.11 }
+  ap2: { kind: access-point, label: ap-first, in: mgmt, model: U6 Pro, ip: 10.20.1.12 }
+  nas: { kind: nas, label: nas-01, in: staff, model: Synology DS923+, interfaces: { lan1: 10.20.10.5/24, lan2: { ip: 10.20.1.5/24, zone: mgmt } } }
+  printer: { kind: printer, label: print-01, in: staff, ip: 10.20.10.9 }
+
+edges:
+  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20, 30] }
+  - core -- ap1
+  - core -- ap2
+  - core -- nas
+  - core -- printer

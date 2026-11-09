@@ -105,6 +105,9 @@ importers:
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
+      '@cartography/network':
+        specifier: workspace:*
+        version: link:../../types/network
       '@cartography/render':
         specifier: workspace:*
         version: link:../render
@@ -299,6 +302,19 @@ importers:
         version: link:../../packages/core
 
   types/kubernetes:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+
+  types/network:
     dependencies:
       '@cartography/core':
         specifier: workspace:*

@@ -42,6 +42,12 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'network', label: 'Networking', kind: 'choice', options: ['Public endpoints', 'Private endpoints in a VNet', 'Mixed'], initial: 'Mixed' },
     { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
   ],
+  network: (t) => [
+    { ...about, label: 'Which network?', placeholder: 'E.g. our office: a firewall pair, a core switch, four VLANs and Wi-Fi; a VPN to Azure.' },
+    parts(t, 'What should appear?', 'Zones and devices; Claude adds what is clearly missing.'),
+    { id: 'addressing', label: 'Addressing (if you know it)', kind: 'text', placeholder: 'VLAN 10 staff 10.0.10.0/24, VLAN 20 voice…' },
+    { id: 'view', label: 'Show it as', kind: 'choice', options: ['Topology', 'IP plan table'], initial: 'Topology' },
+  ],
   erd: (t) => [
     { ...about, label: 'What is the database for?', placeholder: 'E.g. a webshop: customers, orders, products, payments.' },
     { id: 'tables', label: 'Main tables (if you know them)', kind: 'text', placeholder: 'customers, orders, order_lines, products' },

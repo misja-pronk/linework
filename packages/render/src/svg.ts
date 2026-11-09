@@ -3,7 +3,7 @@
 import { chips, linkHref, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type LegendItem, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, embeddedFonts, fitText, measureText, type Theme, type ToneColors } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LINK_ROOM, markWidth, rowMarks, tableHeader } from './size.ts';
+import { cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupLabelWidth, LABEL_ICON, LINK_ROOM, markWidth, rowMarks, STACK, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 
 export interface SvgOptions {
@@ -99,7 +99,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
   for (const e of graph.edges) {
     if (badged.has(e.id)) continue;
     const pe = placed.edges.get(e.id);
-    if (e.label && pe?.label) out.push(drawEdgeLabel(e.label, besideShortLine(pe.points, pe.label), theme));
+    if (e.label && pe?.label) out.push(drawEdgeLabel(e.label, besideShortLine(pe.points, pe.label), theme, e.icon, e.tone));
   }
   out.push('</g>');
 
@@ -232,6 +232,16 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme, link = false, img?: stri
 }
 
 function drawCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[] = [], data: (edge: string) => string = () => '', link = false, img?: string): string {
+  // A stacked pair: the second card peeks out below and to the right, the first is drawn as usual.
+  let plate = '';
+  if (shape.stack) {
+    plate = `<rect x="${r1(b.x + STACK)}" y="${r1(b.y + STACK)}" width="${r1(b.width - STACK)}" height="${r1(b.height - STACK)}" rx="${theme.radius.card}" fill="${theme.surface}" stroke="${theme.textFaint}" stroke-opacity="0.45" stroke-width="${theme.stroke.card}" filter="url(#${id}-shadow)"/>`;
+    b = { ...b, width: b.width - STACK, height: b.height - STACK };
+  }
+  return plate + drawOneCard(shape, b, theme, id, badges, data, link, img);
+}
+
+function drawOneCard(shape: CardShape, b: Box, theme: Theme, id: string, badges: Chip[], data: (edge: string) => string, link: boolean, img?: string): string {
   const c = theme.space.card;
   const tone = theme.tones[shape.tone];
   // With badges the tile and text keep the top of the card and the chips fill the rest.
@@ -416,7 +426,8 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   if (e.start === 'arrow') shorten(pts, 0, 1, 5);
   const dash = e.line === 'dashed' ? ' stroke-dasharray="6 4"' : e.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';
   const opacity = e.tone ? ' stroke-opacity="0.9"' : '';
-  let s = `<path d="${roundedPath(pts, theme.radius.corner)}" fill="none" stroke="${color}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" stroke-linejoin="round"${dash}${opacity}/>`;
+  const width = theme.stroke.edge * (e.width ?? 1);
+  let s = `<path d="${roundedPath(pts, theme.radius.corner)}" fill="none" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round" stroke-linejoin="round"${dash}${opacity}/>`;
   s += marker(e.end, points[points.length - 1]!, points[points.length - 2]!, color, theme);
   s += marker(e.start, points[0]!, points[1]!, color, theme);
   return s;
@@ -551,12 +562,16 @@ function besideShortLine(points: Point[], b: Box): Box {
   return level ? { ...b, y: p.y - b.height / 2 - 14 } : { ...b, x: p.x + 5 };
 }
 
-function drawEdgeLabel(label: string, b: Box, theme: Theme): string {
+function drawEdgeLabel(label: string, b: Box, theme: Theme, iconName?: string, tone?: GraphEdge['tone']): string {
   const h = 20;
   const y = b.y + (b.height - h) / 2;
+  // An icon (a tunnel's lock) leads the text, in the line's colour; the text stays centred in what is left.
+  const ix = iconName && icon(iconName) ? LABEL_ICON : 0;
+  const glyph = ix ? drawIcon(iconName, b.x + 8, y + h / 2 - 5.5, 11, tone ? theme.tones[tone].fg : theme.textMuted, 1.8) : '';
   return (
     `<rect x="${r1(b.x)}" y="${r1(y)}" width="${r1(b.width)}" height="${h}" rx="${h / 2}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="1"/>` +
-    textMid(b.x + b.width / 2, y + h / 2, label, theme.size.edgeLabel, 500, theme.textMuted, 'middle')
+    glyph +
+    textMid(b.x + (b.width + ix) / 2, y + h / 2, label, theme.size.edgeLabel, 500, theme.textMuted, 'middle')
   );
 }
 
@@ -619,5 +634,5 @@ function legendItem(item: LegendItem, theme: Theme, x0: number, cy: number): str
   if (item.swatch === 'outline')
     return `<rect x="${x0 + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="6.5" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
   const dash = item.line === 'dashed' ? ' stroke-dasharray="6 4"' : item.line === 'dotted' ? ' stroke-dasharray="1.5 3.5"' : '';
-  return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${color}" stroke-width="${theme.stroke.edge + 0.4}" stroke-linecap="round"${dash}/>` + label;
+  return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${color}" stroke-width="${theme.stroke.edge * (item.width ?? 1) + 0.4}" stroke-linecap="round"${dash}/>` + label;
 }
