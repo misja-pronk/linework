@@ -1281,14 +1281,13 @@ kbd {
 
 .hint {
   position: absolute;
-  left: 50%;
-  bottom: 72px;
-  transform: translateX(-50%);
+  right: 16px;
+  top: 16px;
   z-index: 4;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: min(640px, calc(100% - 32px));
+  max-width: min(420px, calc(100% - 320px));
   padding: 9px 8px 9px 16px;
   border-radius: 12px;
   background: var(--surface);
