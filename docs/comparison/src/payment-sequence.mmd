@@ -1,0 +1,35 @@
+---
+title: Card payment
+---
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    box Shop system
+        participant W as Web shop
+        participant O as Order Service
+        participant DB as Orders DB
+    end
+    participant S as Stripe
+    participant Q as order-events queue
+
+    C->>W: Pay for order
+    W->>+O: POST /orders/42/pay
+    O->>O: Check stock and prices
+    O->>+S: Create payment intent
+    S-->>-O: client secret
+    O-->>-W: 202 Accepted
+    Note over W,S: The browser confirms the card with 3-D Secure
+    alt payment succeeded
+        S-)O: webhook payment_intent.succeeded
+        O->>+DB: UPDATE status = paid
+        DB-->>-O: ok
+        O-)Q: OrderPaid
+    else card declined
+        S-)O: webhook payment_failed
+        O->>DB: UPDATE status = failed
+    end
+    loop every 2 s until paid or failed
+        W->>O: GET /orders/42
+        O-->>W: status
+    end
+    W-->>C: Order confirmation

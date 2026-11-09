@@ -135,7 +135,7 @@ export function createServer(cwd = process.cwd()): McpServer {
     'import_mermaid',
     {
       title: 'Import Mermaid',
-      description: 'Converts a Mermaid diagram (flowchart/graph, architecture-beta, erDiagram) to Cartography YAML, with warnings for what could not be carried over. Validate the result before rendering.',
+      description: 'Converts a Mermaid diagram (flowchart/graph, architecture-beta, erDiagram, sequenceDiagram) to Cartography YAML, with warnings for what could not be carried over. Validate the result before rendering.',
       inputSchema: { text: z.string().describe('The Mermaid source, without the ``` fence') },
       annotations: { readOnlyHint: true },
     },

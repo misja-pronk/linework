@@ -19,7 +19,8 @@
     "@cartography/erd": "workspace:*",
     "@cartography/access": "workspace:*",
     "@cartography/github": "workspace:*",
-    "@cartography/data-products": "workspace:*"
+    "@cartography/data-products": "workspace:*",
+    "@cartography/sequence": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

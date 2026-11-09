@@ -1,6 +1,6 @@
 # Cartography next to Mermaid and D2
 
-Five everyday diagrams, written once in Mermaid (and by hand in D2), each drawn by its own tool.
+Six everyday diagrams, written once in Mermaid (and by hand in D2), each drawn by its own tool.
 The Cartography column is **not hand-tuned**: it is the Mermaid source run through `carto import`
 and rendered as is. The imported YAML is in [`cartography/`](cartography/).
 
@@ -66,3 +66,19 @@ steps without an icon or caption. Next to Mermaid this is now a fair match: the 
 same order, yes/no labels readable on every branch, and a slightly shorter drawing (decisions do not
 need a diamond's height). Mermaid's diamonds are still the more familiar symbol at first sight, and the
 long "yes" line from the first decision runs the whole height of the drawing in both tools.
+
+## Card payment (sequenceDiagram)
+
+| Mermaid | D2 | Cartography |
+| --- | --- | --- |
+| ![Mermaid](png/payment-sequence-mermaid.png) | ![D2](png/payment-sequence-d2.png) | ![Cartography](png/payment-sequence-cartography.png) |
+
+Imported as a `sequence` diagram: the actor became a person, "Orders DB" a database and "order-events
+queue" a queue, each with its icon; `->>` became a call, `-->>` a reply and `-)` an async message
+(violet, open head); the `box` became a tinted participant box, the `+`/`-` activations stay exactly as
+written (`activations: explicit`). Every message owns its row and each gap between lifelines is as
+wide as its widest label, so no label crosses a lifeline or a number badge. Mermaid's labels sit on
+the lifelines they cross ("Check stock and prices", "Create payment intent") and its loop condition
+wraps into the frame; D2 keeps labels clear by cutting the line around them, but has no participant
+boxes or numbering and comes out almost twice as tall. Mermaid still has the stick-figure actor that
+people recognise at once, and repeats the headers at the bottom by default (`footers: true` here).

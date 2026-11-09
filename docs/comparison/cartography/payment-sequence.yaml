@@ -1,0 +1,40 @@
+type: sequence
+title: Card payment
+autonumber: true
+activations: explicit
+
+boxes:
+  shop-system: Shop system
+
+participants:
+  C: { kind: person, label: Customer }
+  W: { kind: client, label: Web shop, box: shop-system }
+  O: { kind: service, label: Order Service, box: shop-system }
+  DB: { kind: database, label: Orders DB, box: shop-system }
+  S: { kind: payments, label: Stripe }
+  Q: { kind: queue, label: order-events queue }
+
+steps:
+  - C -> W: Pay for order
+  - W -> +O: POST /orders/42/pay
+  - O -> O: Check stock and prices
+  - O -> +S: Create payment intent
+  - S --> -O: client secret
+  - O --> -W: "202 Accepted"
+  - note: The browser confirms the card with 3-D Secure
+    over: [W, S]
+  - alt: payment succeeded
+    steps:
+      - S ->> O: webhook payment_intent.succeeded
+      - O -> +DB: "UPDATE status = paid"
+      - DB --> -O: ok
+      - O ->> Q: OrderPaid
+    else:
+      card declined:
+        - S ->> O: webhook payment_failed
+        - O -> DB: "UPDATE status = failed"
+  - loop: every 2 s until paid or failed
+    steps:
+      - W -> O: GET /orders/42
+      - O --> W: status
+  - W --> C: Order confirmation

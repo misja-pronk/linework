@@ -825,7 +825,7 @@ function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened):
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, architecture-beta or erDiagram
+          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, architecture-beta, erDiagram or sequenceDiagram
         </div>
         <textarea className="paste mono" autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={MERMAID_SAMPLE} spellCheck={false} />
         {!text && (

@@ -1,4 +1,5 @@
 export * from './model.ts';
+export * from './sequence.ts';
 export * from './source.ts';
 export * from './edges.ts';
 export * from './diagram-type.ts';

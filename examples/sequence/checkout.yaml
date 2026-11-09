@@ -1,0 +1,41 @@
+type: sequence
+title: Checkout
+subtitle: Card payment with a payment provider, confirmed by webhook
+autonumber: true
+
+boxes:
+  shop: { label: Shop system, tone: blue }
+
+participants:
+  shopper: { kind: person, label: Shopper }
+  web: { kind: client, label: Storefront, box: shop }
+  orders: { kind: service, label: Orders API, box: shop }
+  db: { kind: database, label: Orders DB, box: shop }
+  bus: { kind: topic, label: order-events, box: shop }
+  psp: { kind: payments, label: Stripe }
+
+steps:
+  - shopper -> web: Place order
+  - web -> orders: POST /orders
+  - orders -> orders: Validate cart and prices
+  - orders -> db: INSERT order (pending)
+  - db --> orders: order id
+  - divider: Payment
+  - orders -> psp: Create payment intent
+  - psp --> orders: client secret
+  - orders --> web: 201 Created
+  - web ->> psp: Confirm card (3-D Secure in the browser)
+  - note: The order stays pending until the webhook arrives, never on the browser's word
+    over: [orders, psp]
+  - alt: Payment succeeded
+    steps:
+      - psp ->> orders: webhook payment_intent.succeeded
+      - orders -> db: UPDATE order SET status = paid
+      - db --> orders: ok
+      - orders ->> bus: OrderPaid
+    else:
+      Card declined:
+        - psp ->> orders: webhook payment_failed
+        - orders -> db: UPDATE order SET status = failed
+        - db --> orders: ok
+  - web --> shopper: Order confirmation

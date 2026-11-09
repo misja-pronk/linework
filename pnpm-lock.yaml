@@ -111,6 +111,9 @@ importers:
       '@cartography/render':
         specifier: workspace:*
         version: link:../render
+      '@cartography/sequence':
+        specifier: workspace:*
+        version: link:../../types/sequence
       '@cartography/systems':
         specifier: workspace:*
         version: link:../../types/systems
@@ -178,6 +181,8 @@ importers:
         specifier: workspace:*
         version: link:../engine
 
+  packages/lanes: {}
+
   packages/layout:
     dependencies:
       '@cartography/core':
@@ -219,6 +224,9 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
+      '@cartography/lanes':
+        specifier: workspace:*
+        version: link:../lanes
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
@@ -353,6 +361,31 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../../packages/icons
+
+  types/sequence:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@cartography/lanes':
+        specifier: workspace:*
+        version: link:../../packages/lanes
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   types/systems:
     dependencies:

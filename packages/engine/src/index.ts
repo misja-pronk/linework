@@ -30,9 +30,10 @@ import { erd } from '@cartography/erd';
 import { access } from '@cartography/access';
 import { github } from '@cartography/github';
 import { dataProducts } from '@cartography/data-products';
+import { sequence } from '@cartography/sequence';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, azure, kubernetes, erd, access, github, dataProducts];
+export const types: DiagramType[] = [systems, azure, kubernetes, erd, access, github, dataProducts, sequence];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
