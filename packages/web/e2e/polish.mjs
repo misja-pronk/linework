@@ -5,7 +5,7 @@ const browser = await chromium.launch();
 const problems = [];
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
 page.on('pageerror', (e) => problems.push(e.message));
-await page.goto('http://localhost:5178/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
@@ -48,7 +48,7 @@ await page.waitForTimeout(300);
 await page.screenshot({ path: `${out}/p-narrow.png` });
 await page.close();
 const dark = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2, colorScheme: 'dark' });
-await dark.goto('http://localhost:5178/');
+await dark.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await dark.evaluate(() => { localStorage.clear(); localStorage.setItem('cartography:started', 'true'); });
 await dark.reload();
 await dark.waitForSelector('.drawing svg');

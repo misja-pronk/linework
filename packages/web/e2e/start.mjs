@@ -54,7 +54,7 @@ await page.route('https://api.anthropic.com/**', async (route) => {
   await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream', 'access-control-allow-origin': '*' }, body: sse(answer) });
 });
 
-await page.goto('http://localhost:5178/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 // 1. A first visit opens the start dialog.
