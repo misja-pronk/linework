@@ -3,10 +3,13 @@
 // make a drawing look made rather than computed. Runs before pins, so pinned nodes stay exact.
 import type { Box, Graph } from '@cartography/core';
 import type { Placement } from './dot.ts';
+import { siblingSet } from './metrics.ts';
 
 const GRID = 8;
 /** Centres this close across the flow are meant to be one row (or column). */
 const NEAR = 12;
+/** A group grows by at most this part of its size to match its siblings: more is a band of empty room, with lines through it. */
+const EVEN = 0.3;
 
 /** `gap` is the room kept between nodes: the layout's node gap, so line ends keep room for their stubs. */
 export function tidy(p: Placement, graph: Graph, header: number, pad: number, gap: number, minWidth: Map<string, number>): Placement {
@@ -127,6 +130,52 @@ export function fitGroups(graph: Graph, nodes: Map<string, Box>, before: Map<str
     groups.set(g.id, { x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
   }
   return groups;
+}
+
+/**
+ * Sibling groups of one kind read as a set (the subnets of a zone, the zones of a network): stacked
+ * they get one width, side by side one length, the widest of the set. A group grows only a little
+ * (a card next to a row of five stays the size of a card) and only into room that is free: over no
+ * card or group it does not hold, and no nearer to one than the padding.
+ */
+export function evenGroups(p: Placement, graph: Graph, pad: number): Placement {
+  const groups = new Map(p.groups);
+  const parentOf = new Map<string, string | undefined>([...graph.groups, ...graph.nodes].map((x) => [x.id, x.parent]));
+  const holds = (g: string, id: string): boolean => {
+    for (let at = parentOf.get(id); at; at = parentOf.get(at)) if (at === g) return true;
+    return false;
+  };
+  const sets = new Map<string, string[]>();
+  for (const g of graph.groups) if (groups.has(g.id)) sets.set(siblingSet(g), [...(sets.get(siblingSet(g)) ?? []), g.id]);
+  for (const ids of sets.values()) {
+    if (ids.length < 2) continue;
+    for (const [axis, size] of [['x', 'width'], ['y', 'height']] as const) {
+      const [other, otherSize] = axis === 'x' ? (['y', 'height'] as const) : (['x', 'width'] as const);
+      const overlap = (a: Box, b: Box, on: 'x' | 'y', len: 'width' | 'height') => a[on] < b[on] + b[len] && b[on] < a[on] + a[len];
+      // Stacked along the other axis: they share room on this one and none on the other.
+      const stacked = (a: string, b: string) => overlap(groups.get(a)!, groups.get(b)!, axis, size) && !overlap(groups.get(a)!, groups.get(b)!, other, otherSize);
+      const seen = new Set<string>();
+      for (const first of ids) {
+        if (seen.has(first)) continue;
+        const stack = [first];
+        for (const id of stack) for (const o of ids) if (!stack.includes(o) && stacked(id, o)) stack.push(o);
+        for (const id of stack) seen.add(id);
+        if (stack.length < 2) continue;
+        const lo = Math.min(...stack.map((id) => groups.get(id)![axis]));
+        const hi = Math.max(...stack.map((id) => groups.get(id)![axis] + groups.get(id)![size]));
+        for (const id of stack) {
+          const b = groups.get(id)!;
+          const wide = { ...b, [axis]: lo, [size]: hi - lo };
+          if (hi - lo > b[size] * (1 + EVEN)) continue;
+          // What it was already near stays as near; nothing else comes nearer than the padding.
+          const blocked = (oid: string, o: Box) => oid !== id && !holds(id, oid) && !holds(oid, id) && hit(wide, o, pad) && !hit(b, o, pad);
+          if ([...p.nodes].some(([oid, o]) => blocked(oid, o)) || [...groups].some(([oid, o]) => blocked(oid, o))) continue;
+          groups.set(id, wide);
+        }
+      }
+    }
+  }
+  return { ...p, groups };
 }
 
 function hit(a: Box, b: Box, gap: number) {

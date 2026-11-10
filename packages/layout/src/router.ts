@@ -337,19 +337,24 @@ function centrePorts(e: RouteRequest, f: Side, t: Side, texts: Box[] = []): Port
   return { from, to, fromSide: f, toSide: t, start: out1(from, f, e.from.stub), goal: out1(to, t, e.to.stub) };
 }
 
-/** How far out from a side a line is likely to run straight on: past a group header above it. */
+/** How far out from a side a line is likely to run straight on when its other end is not ahead of that side: past a group header above it. */
 const REACH = 72;
 
 /**
  * Where on a side ports may go (12px from the corners): the widest stretch from which a line can
- * run straight out for REACH without crossing header text, when `n` ports fit there 12px apart;
- * otherwise the whole side.
+ * run straight out for `reach` without crossing header text, when `n` ports fit there 12px apart;
+ * else such a stretch for REACH (the header nearest the card matters most); otherwise the whole side.
  */
 function clearSpan(box: Box, side: Side, texts: Box[], n: number, reach = REACH): [number, number] {
   const along = side === 'N' || side === 'S' ? 'x' : 'y';
   const lo = along === 'x' ? box.x + 12 : box.y + 12;
   const hi = along === 'x' ? box.x + box.width - 12 : box.y + box.height - 12;
   if (!texts.length) return [lo, hi];
+  return clearStretch(box, side, texts, n, reach, lo, hi) ?? (reach > REACH ? clearStretch(box, side, texts, n, REACH, lo, hi) : undefined) ?? [lo, hi];
+}
+
+function clearStretch(box: Box, side: Side, texts: Box[], n: number, reach: number, lo: number, hi: number): [number, number] | undefined {
+  const along = side === 'N' || side === 'S' ? 'x' : 'y';
   const nrm = normal[side];
   const p = side === 'N' ? box.y : side === 'S' ? box.y + box.height : side === 'W' ? box.x : box.x + box.width;
   const q = p + (along === 'x' ? nrm.y : nrm.x) * reach;
@@ -367,13 +372,16 @@ function clearSpan(box: Box, side: Side, texts: Box[], n: number, reach = REACH)
     if (a > at && (!best || a - at > best[1] - best[0])) best = [at, Math.min(a, hi)];
     at = Math.max(at, b);
   }
-  return best && best[1] - best[0] >= 12 * (n - 1) ? best : [lo, hi];
+  return best && best[1] - best[0] >= 12 * (n - 1) ? best : undefined;
 }
 
-/** How far a line runs straight out from a side: REACH, or as far as the other end when that lies nearer (a group right below, whose title the line never gets to). */
+/**
+ * How far a line runs straight out from a side: as far as the other end when that lies ahead (past
+ * the title of every group on the way, however many lie around the card), REACH when it does not.
+ */
 function reachTo(box: Box, side: Side, other: Box): number {
   const gap = side === 'N' ? box.y - (other.y + other.height) : side === 'S' ? other.y - (box.y + box.height) : side === 'W' ? box.x - (other.x + other.width) : other.x - (box.x + box.width);
-  return gap > 0 ? Math.min(REACH, gap) : REACH;
+  return gap > 0 ? gap : REACH;
 }
 
 /**

@@ -81,15 +81,17 @@ const crossingBudget: Record<string, number> = {
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
-const headerBudget: Record<string, number> = {};
+const headerBudget: Record<string, number> = {
+  'cloud/aws-landing-zone.yaml': 1, // the dev VPC's line steps aside beside Infrastructure's title: the transit gateway has no spot in line clear of it
+};
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
+  'cloud/aws-landing-zone.yaml': 1, // the same step aside as over the header
   'data-products/customer-detailed.yaml': 1, // the same
   'data-products/customer-focus.yaml': 2, // the same, twice
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
-  'deployment/azure.yaml': 1, // Users' line to Storefront goes under Front Door
   'erd/saas.yaml': 5, // ends are fixed on their rows
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
@@ -99,7 +101,6 @@ const jogBudget: Record<string, number> = {
 // Labels sitting on a corner of their line: none, but for the ones named here.
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
-  'deployment/azure.yaml#test': 1, // OrderPlaced fits between the subnet's border and the turn, to the pixel
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -176,6 +177,10 @@ describe('layout quality', () => {
     expect(c).toBeGreaterThan(a);
     [lines[a], lines[c]] = [lines[c]!, lines[a]!];
     expect((await zones(lines.join('\n'), first.memory)).ids).toEqual(['az-c', 'az-b', 'az-a']);
+  });
+  it('draws sibling groups of one kind as a set: the subnets of a zone one width', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'cloud/aws-three-tier.yaml'), 'utf8'), { fonts: 'none' });
+    expect(measure(r.graph!, r.placed!).siblingSpread).toBe(0);
   });
   it('keeps what one card names in a badge by that card', async () => {
     const r = await render(fs.readFileSync(path.join(examples, 'azure/web-shop.yaml'), 'utf8'), { fonts: 'none' });

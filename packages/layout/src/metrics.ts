@@ -406,11 +406,10 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
   // Sibling groups of one kind (the zones of a network, the subnets of a zone): side by side they
   // start and end on one line, stacked they are equally wide.
   let siblingSpread = 0;
-  const kindOf = (g: Graph['groups'][number]) => `${g.parent ?? ''}|${g.kind ?? `${g.icon ?? ''}/${g.tone}/${g.border}`}`;
   const sets = new Map<string, Box[]>();
   for (const g of graph.groups) {
     const b = placed.groups.get(g.id);
-    if (b) sets.set(kindOf(g), [...(sets.get(kindOf(g)) ?? []), b]);
+    if (b) sets.set(siblingSet(g), [...(sets.get(siblingSet(g)) ?? []), b]);
   }
   for (const list of sets.values())
     for (const [i, a] of list.entries())
@@ -440,6 +439,11 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     borderHits,
     portCrowding,
   };
+}
+
+/** Groups with the same answer are siblings of one kind: they read as a set. */
+export function siblingSet(g: Graph['groups'][number]): string {
+  return `${g.parent ?? ''}|${g.kind ?? `${g.icon ?? ''}/${g.tone}/${g.border}`}`;
 }
 
 function boxDistance(b: Box, x: number, y: number): number {

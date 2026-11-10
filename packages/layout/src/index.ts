@@ -4,7 +4,7 @@ import { placeWithDot, type DotVariant, type Placement, type Spacing } from './d
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
-import { tidy } from './tidy.ts';
+import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
 import { disorder, measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
@@ -216,7 +216,8 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
     const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
-    const start = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
+    const opened = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
+    const start = tuning.tidy === false ? opened : evenGroups(opened, graph, spacing.groupPad);
     // A label that cannot sit clear of a group border gets room: space is opened just before that
     // border and the lines are drawn again.
     type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
