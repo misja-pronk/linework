@@ -39,7 +39,7 @@ const NAV: { title: string; items: [string, string?][] }[] = [
     title: 'Diagram types',
     items: [['c4.md', 'C4 model'], ['process.md', 'Processes'], ['states.md', 'State machines'], ['capabilities.md', 'Capability maps'], ['teams.md', 'Teams and org charts'], ['class.md', 'Class diagrams'], ['mindmap.md', 'Mind maps'], ['context-map.md', 'Context maps'], ['matrix.md', 'Matrices'], ['data-products.md', 'Data products'], ['threats.md', 'Threat models']],
   },
-  { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['workspace.md', 'The folder as one model'], ['steps.md', 'Steps'], ['layers.md', 'Layers'], ['compare.md', 'Compare versions'], ['share.md', 'Share links'], ['html-export.md', 'Interactive HTML']] },
+  { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['workspace.md', 'The folder as one model'], ['steps.md', 'Steps'], ['layers.md', 'Layers'], ['compare.md', 'Compare versions'], ['share.md', 'Share links'], ['html-export.md', 'Interactive HTML'], ['animate.md', 'Animation']] },
   { title: 'Import and export', items: [['azure-import.md', 'Azure import'], ['access-import.md', 'Access import'], ['interop.md', 'draw.io, Excalidraw, Office']] },
   { title: 'Docs, CI and AI', items: [['embed.md', 'In a docs site'], ['ci.md', 'In CI'], ['mcp.md', 'MCP and agents']] },
   { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes'], ['icons.md', 'Official icons']] },

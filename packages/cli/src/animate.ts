@@ -9,6 +9,7 @@ import { Resvg } from '@resvg/resvg-js';
 import { allFontFiles } from '@cartography/theme/node';
 import { duration, encodePng, frames, frameSize, gifOf, layerBeats, stepBeats, sceneRasters, walkBeats, type Animated, type Raster, type SceneRaster, type Timing } from '@cartography/export';
 import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { ttfFiles } from './fonts.ts';
 
 export interface AnimateFlags {
   out: string;
@@ -75,7 +76,7 @@ async function beatsOf(text: string, opts: RenderOptions, r: RenderResult, flags
 }
 
 /** Writes the animation of one diagram to flags.out (.gif, .mp4 or .webm). */
-export async function animate(text: string, opts: RenderOptions, flags: AnimateFlags, shown: string, say: Say, extraFonts: string[] = []): Promise<boolean> {
+export async function animate(text: string, opts: RenderOptions, flags: AnimateFlags, shown: string, say: Say): Promise<boolean> {
   const ext = path.extname(flags.out).slice(1).toLowerCase();
   if (!['gif', 'mp4', 'webm'].includes(ext)) throw new Error(`-o ${flags.out}: an animation is a .gif, .mp4 or .webm`);
   const r = await render(text, { ...opts, fonts: 'none', step: undefined });
@@ -84,7 +85,8 @@ export async function animate(text: string, opts: RenderOptions, flags: AnimateF
   const beats = await beatsOf(text, opts, r, flags, say);
   if (!beats?.length) return false;
   const anim: Animated = { graph: r.graph, placed: r.placed, theme: r.theme, beats, ...(r.images ? { images: r.images } : {}) };
-  const list = await sceneRasters(anim, rasterize(extraFonts), { width: flags.width, drawLines: flags.drawLines, captions: flags.captions });
+  // A brand theme's own faces as files resvg can read.
+  const list = await sceneRasters(anim, rasterize(await ttfFiles(r.theme.font.faces ?? [])), { width: flags.width, drawLines: flags.drawLines, captions: flags.captions });
   const timing: Timing = { ...(flags.hold != null ? { hold: flags.hold } : {}), ...(flags.transition != null ? { transition: flags.transition } : {}) };
   const { width, height } = list[0]!.full;
   fs.mkdirSync(path.dirname(path.resolve(flags.out)), { recursive: true });

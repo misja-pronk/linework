@@ -144,7 +144,7 @@ export function scenes(a: Animated, opts: SceneOptions = {}): Scene[] {
         const marker = `${i + 1} / ${beats.length}`;
         out += `<text x="${FRAME.width - LT.padX}" y="${base(15)}" font-size="15" font-weight="500" fill="${theme.textFaint}" text-anchor="end"${theme.font.mono ? ` font-family="${esc(theme.font.mono)}"` : ''}>${esc(marker)}</text>`;
         // A dot per beat under the marker: where the story is, at a glance.
-        const dots = beats.length <= 24 ? beats.map((_, j) => `<circle cx="${r1(FRAME.width - LT.padX - (beats.length - 1 - j) * 12 - 3)}" cy="${r1(cy + 20)}" r="3" fill="${j === i ? accent : theme.border}"/>`).join('') : '';
+        const dots = beats.length <= 24 ? beats.map((_, j) => `<circle cx="${r1(FRAME.width - LT.padX - (beats.length - 1 - j) * 12 - 3)}" cy="${r1(cy + 20)}" r="3" fill="${j === i ? accent : theme.textFaint}"${j === i ? '' : ' fill-opacity="0.4"'}/>`).join('') : '';
         out += dots;
       }
       for (const l of said[i] ?? []) {
