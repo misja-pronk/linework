@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | notes | decisions | new | import | export | threats | share | icons | themes | types | describe | export-md | export-confluence
+// carto render | deck | watch | validate | review | diff | notes | decisions | new | import | export | threats | share | icons | themes | types | describe | export-md | export-confluence
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -113,6 +113,15 @@ const helpAll = `carto — architecture diagrams that look good
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
+  carto review <file.yaml…|folder>              the architecture review: built-in rule packs (Azure, AWS,
+                                                Kubernetes, systems and C4, GitHub, data products) and the
+                                                folder's .cartography/rules.yaml or rules/*.yaml; findings by
+                                                Well-Architected pillar, each with why and how to fix it
+               [--pack azure]                   only these packs (again for more)
+               [--fail-on error|warn|info|never] exit 1 when a finding this bad or worse is left (default
+                                                error); 2 when a file cannot be reviewed. For CI: docs/review.md
+               [-o report.md|.html|.pdf]        a report to hand over: a summary per pillar, the drawing with
+                                                the findings marked, each finding with its fix; --json for tools
   carto diff <before.yaml> <after.yaml>         what changed between two versions, by id: added, removed and
                                                 changed nodes, groups and lines
   carto diff <old-folder> <new-folder>          two exports (access, GitHub or Azure; two Azure export files too) imported and compared; for access
@@ -250,6 +259,7 @@ const groups: [string, [string, string][]][] = [
   ]],
   ['Check', [
     ['validate', 'check files and their views'],
+    ['review', 'architecture review rules: findings, fixes, a report'],
     ['diff', 'what changed between two versions'],
     ['describe', 'the diagram in plain words'],
     ['threats', 'the threat table as markdown'],
@@ -340,6 +350,7 @@ const parsed = (() => {
     'side-by-side': { type: 'boolean' },
     fresh: { type: 'boolean' },
     'exit-code': { type: 'boolean' },
+    'fail-on': { type: 'string' },
     fix: { type: 'boolean' },
     step: { type: 'string' },
     'all-steps': { type: 'boolean' },
@@ -1853,6 +1864,24 @@ async function main(): Promise<number> {
       }
       for (const dir of folders) ok = validateWorkspace(dir) && ok;
       return ok ? 0 : 1;
+    }
+    case 'review': {
+      if (!files.length) return (console.error(helpFor(command)), 2);
+      if (!themeFlag()) return 2;
+      const { reviewCommand } = await import('./review.ts');
+      return reviewCommand({
+        inputs: files,
+        packs: values.pack?.flatMap((p) => p.split(',')).map((p) => p.trim()).filter(Boolean),
+        failOn: values['fail-on'],
+        out: values.out,
+        json: values.json,
+        title: values.title,
+        // Rule packs, not icon packs: --pack means the review's own here.
+        options: (f) => ({ ...optionsFor(f, values.out?.endsWith('.html') ? 'embed' : 'none'), packs: undefined, view: undefined, step: undefined, focus: undefined }),
+        png: async (svg, theme) => toPng(svg, Number(values.scale) || 2, await ttfFiles(theme?.font.faces ?? [])),
+        pdf: (drawings, theme, title) => toPdf(drawings, { theme: theme ?? 'light', page: 'fit', fonts: interTtf(), families: themeTtf(theme ?? themes.light), title }),
+        say: { red, yellow, dim },
+      });
     }
     case 'notes':
       return notesCommand();

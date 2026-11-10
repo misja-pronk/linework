@@ -1,0 +1,93 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the examples under review > stay quiet: at most three findings a file, no errors 1`] = `
+{
+  "azure/data-platform.yaml": [
+    "azure.secrets-without-key-vault",
+    "azure.no-diagnostics",
+  ],
+  "azure/hub-spoke.yaml": [
+    "azure.secrets-without-key-vault",
+  ],
+  "azure/microservices.yaml": [
+    "azure.secrets-without-key-vault",
+    "azure.public-without-waf",
+    "azure.prod-single-region",
+  ],
+  "azure/web-shop.yaml": [
+    "azure.prod-single-region",
+    "azure.no-diagnostics",
+  ],
+  "cloud/aws-data-lake.yaml": [
+    "aws.no-audit-trail",
+  ],
+  "cloud/aws-three-tier.yaml": [
+    "aws.no-audit-trail",
+  ],
+  "cloud/multi-cloud.yaml": [
+    "aws.no-audit-trail",
+  ],
+  "data-products/customer-detailed.yaml": [
+    "data.output-without-contract",
+    "data.output-without-contract",
+  ],
+  "data-products/customer-focus.yaml": [
+    "data.output-without-contract",
+    "data.output-without-contract",
+  ],
+  "data-products/customer.yaml": [
+    "data.output-without-contract",
+    "data.output-without-contract",
+  ],
+  "data-products/finance.yaml": [
+    "data.output-without-contract",
+  ],
+  "data-products/mesh.yaml": [
+    "data.output-without-contract",
+    "data.output-without-contract",
+  ],
+  "deployment/aws.yaml": [
+    "aws.alb-without-waf",
+    "aws.no-audit-trail",
+  ],
+  "deployment/azure.yaml": [
+    "azure.no-diagnostics",
+  ],
+  "kubernetes/platform.yaml": [
+    "k8s.no-network-policy",
+  ],
+  "kubernetes/web-app.yaml": [
+    "k8s.no-network-policy",
+  ],
+  "model/deployment.yaml": [
+    "azure.secrets-without-key-vault",
+    "azure.prod-single-region",
+    "azure.no-diagnostics",
+  ],
+  "repo/shop/diagrams/infra-azure.yaml": [
+    "azure.data-without-private-endpoint",
+  ],
+  "repo/shop/diagrams/kubernetes.yaml": [
+    "k8s.no-network-policy",
+  ],
+  "repo/shop/diagrams/shop-chart.yaml": [
+    "k8s.no-network-policy",
+  ],
+  "workspace/deployment.yaml": [
+    "azure.secrets-without-key-vault",
+    "azure.prod-single-region",
+    "azure.no-diagnostics",
+  ],
+}
+`;
+
+exports[`the examples under review > wizard outputs, in every combination of answers, stay as quiet 1`] = `
+{
+  "aks-baseline azure.no-diagnostics": 11,
+  "aks-baseline azure.secrets-without-key-vault": 4,
+  "aws-three-tier aws.alb-without-waf": 8,
+  "aws-three-tier aws.no-audit-trail": 24,
+  "data-mesh data.output-without-contract": 24,
+  "hub-spoke azure.no-diagnostics": 12,
+}
+`;

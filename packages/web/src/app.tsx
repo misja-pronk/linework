@@ -57,6 +57,7 @@ import { useBlocks } from './blocks/use-blocks.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { useDecisionsTool } from './decisions-panel.tsx';
+import { useReviewTool } from './review-panel.tsx';
 import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
@@ -344,6 +345,7 @@ export function App() {
 
   const [notesOpen, setNotesOpen] = useState(false);
   const [decisionsOpen, setDecisionsOpen] = useState(false);
+  const [archReviewOpen, setArchReviewOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
   const [noteMine, setNoteMine] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
@@ -1428,6 +1430,7 @@ export function App() {
       case 'review': toggleReview(); break;
       case 'decisions': decisionsTool.toggle(); break;
       case 'decision-new': decisionsTool.newAbout(); break;
+      case 'arch-review': reviewTool.toggle(); break;
       case 'edit':
         if (!selected) return;
         if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
@@ -1600,12 +1603,13 @@ export function App() {
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
   /** One panel on the right, with tabs: the selection's properties, the review notes, the decisions, or Ask. */
-  const sideTab: 'properties' | 'notes' | 'decisions' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : 'properties';
+  const sideTab: 'properties' | 'notes' | 'decisions' | 'review' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : archReviewOpen ? 'review' : 'properties';
   const showInspector = sideTab === 'properties' && inspector && hasProperties;
-  const sideOpen = asking || notesOpen || decisionsOpen || showInspector;
+  const sideOpen = asking || notesOpen || decisionsOpen || archReviewOpen || showInspector;
   const showSide = (tab: typeof sideTab) => {
     setAsking(tab === 'ask');
     setDecisionsOpen(tab === 'decisions');
+    setArchReviewOpen(tab === 'review');
     if (tab === 'ask') setAskKept(true);
     if (tab !== 'notes' && notesOpen) toggleNotes();
     else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
@@ -1696,6 +1700,24 @@ export function App() {
     setOpen: setDecisionsOpen,
   });
   decisionsRef.current = decisionsTool;
+
+  // Architecture review (review-panel.tsx): the Review tab, its flags on the drawing, its commands.
+  const reviewTool = useReviewTool({
+    ws,
+    drawn,
+    text: rendered?.text ?? text,
+    textNow,
+    load,
+    inline: !!(type?.schema as { properties?: { nodes?: { additionalProperties?: { anyOf?: { properties?: object }[] } } } } | undefined)?.properties?.nodes?.additionalProperties?.anyOf?.some((x) => !!x.properties && 'review' in x.properties),
+    select: (s) => select(s),
+    zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    focusDrawing,
+    notify,
+    apply: (yaml) => apply(yaml),
+    decide: (title, about, context) => (setArchReviewOpen(false), decisionsTool.newWith(title, about, context)),
+    open: archReviewOpen,
+    setOpen: (o) => (o ? showSide('review') : setArchReviewOpen(false)),
+  });
   // One panel on the right at a time: notes and decisions take turns.
   useEffect(() => {
     if (notesOpen && decisionsTool.open) decisionsTool.close();
@@ -1835,6 +1857,7 @@ export function App() {
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
     ...decisionsTool.commands,
+    ...reviewTool.commands,
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
@@ -2306,6 +2329,7 @@ export function App() {
                 <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
                 {blocks.overlay(scale)}
                 {decisionsTool.markers(scale)}
+                {reviewTool.markers(scale)}
               </>
             )}
             onContextMenu={(s, at, client) => {
@@ -2481,6 +2505,9 @@ export function App() {
               <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={`Architecture decisions (${keyHint('decisions')})`}>
                 <Icon name="scroll-text" size={14} /> Decisions{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
               </button>
+              <button role="tab" aria-selected={sideTab === 'review'} onClick={() => showSide('review')} disabled={!type} title={`Architecture review (${keyHint('arch-review')})`}>
+                <Icon name="shield-check" size={14} /> Review{reviewTool.count > 0 && <span className="tab-count">{reviewTool.count}</span>}
+              </button>
               <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
                 <Icon name="sparkles" size={14} /> Ask Claude
               </button>
@@ -2510,6 +2537,7 @@ export function App() {
             />
           )}
         {sideTab === 'decisions' && decisionsTool.panel}
+        {sideTab === 'review' && reviewTool.panel}
         {notesOpen && !asking && (
           <NotesPanel
             review={review}

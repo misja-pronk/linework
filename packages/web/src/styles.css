@@ -1491,6 +1491,12 @@ button.rail {
   gap: 2px;
   padding: 6px 6px 0;
   border-bottom: 1px solid var(--border);
+  /* Five tabs are more than a narrow panel holds: the strip scrolls, the open tab is scrolled to. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.side-tabs button {
+  flex: none;
 }
 .side-tabs button {
   display: inline-flex;

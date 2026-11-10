@@ -15,6 +15,7 @@ import {
   modeOf,
   pickLayers,
   readLayers,
+  reviewSchema,
   writtenTags,
   modelKeys,
   modelProperties,
@@ -110,7 +111,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema };
+  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -234,6 +235,7 @@ const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspec
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
 const layersOnly = { type: 'object', properties: { layers: layersSchema } };
+const reviewOnly = { type: 'object', properties: { review: reviewSchema } };
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
@@ -257,7 +259,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // such a type defines itself (an ERD's relations) stays the type's.
   // Theme and icons are about the look, shared by every type: they never reach the type's schema.
   // So is the shape the drawing aims for (aspect: 16:9, 4:3, 1.5 or auto).
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, ...rest } = data;
+  // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, ...rest } = data;
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
   // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
   const stepsRef = 'steps' in props ? undefined : rest.steps;
@@ -277,6 +280,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
+  if (reviewRef !== undefined) invalid.push(...validate({ ...source, data: { review: reviewRef } }, reviewOnly));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
@@ -669,6 +673,8 @@ export type { IconPackFile, IconMode };
 export { noteMarker, noteSpots, withReviewNotes, type NoteSpot } from '@cartography/render';
 /** Architecture decisions drawn on an export ("with decisions"); see packages/core/src/decisions.ts. */
 export { decisionInk, decisionLines, decisionLook, decisionMarker, decisionSpots, targetName, withDecisions, type DecisionSpot, type DrawingAt } from '@cartography/render';
+/** Architecture review findings drawn on a drawing (carto review, the Review tab); see packages/review. */
+export { reviewInk, reviewMarker, reviewMarkerWidth, reviewSpots, reviewTitle, severityGlyph, withReview, type FindingSeverity, type ReviewMark, type ReviewSpot } from '@cartography/render';
 
 /**
  * A drawing of a graph made outside a diagram file (the Decisions view, a table of the decisions
