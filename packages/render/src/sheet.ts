@@ -58,7 +58,7 @@ function sheetMarks(width: number, height: number, theme: Theme): string {
     const cols = Math.max(2, Math.round(iw / ZONE));
     const rows = Math.min(LETTERS.length, Math.max(2, Math.round(ih / ZONE)));
     const label = (x: number, y: number, t: string) =>
-      `<text x="${r1(x)}" y="${r1(y + 2.9)}" font-size="8" font-weight="500" fill="${theme.textFaint}" text-anchor="middle" font-family="${esc(theme.font.mono)}">${t}</text>`;
+      `<text x="${r1(x)}" y="${r1(y + 2.9)}" font-size="8" font-weight="500" fill="${theme.textFaint}" text-anchor="middle" font-family="${esc(theme.font.mono)}" data-aside="">${t}</text>`;
     for (let i = 0; i < cols; i++) {
       const x0 = i0 + (iw * i) / cols;
       const xc = x0 + iw / cols / 2;

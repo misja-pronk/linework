@@ -93,7 +93,7 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
   const imprint = where === 'bottom' ? imprintOf(theme) : undefined;
   if (!items.length && !imprint) return NONE;
   const mark = (x: number, cy: number) =>
-    `<text x="${r1(x)}" y="${r1(cy + baselineOffset(IMPRINT.size, 'mono'))}" font-size="${IMPRINT.size}" font-weight="500" letter-spacing="${IMPRINT.tracking}" fill="${theme.textFaint}" text-anchor="end"${monoAttr(theme)}>${esc(imprint ?? '')}</text>`;
+    `<text x="${r1(x)}" y="${r1(cy + baselineOffset(IMPRINT.size, 'mono'))}" font-size="${IMPRINT.size}" font-weight="500" letter-spacing="${IMPRINT.tracking}" fill="${theme.textFaint}" text-anchor="end"${monoAttr(theme)} data-aside="">${esc(imprint ?? '')}</text>`;
   if (look(theme).legend !== 'key') {
     const placed = legendItems({ legend: items }, theme);
     const row = legendWidth({ legend: items }, theme);
@@ -117,7 +117,7 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
     const first = where === 'bottom' ? y0 + 40 : y0 + 8;
     const rule = where === 'bottom' ? y0 + 16 : y0 + 8 + (count - 1) * ROW + 20;
     let s = `<rect x="${r1(x0)}" y="${r1(rule)}" width="${r1(total)}" height="1" fill="${theme.border}"/>`;
-    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(9.5))}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}">KEY</text>`;
+    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(9.5))}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}" data-aside="">KEY</text>`;
     for (const [i, row] of rows.entries()) for (const p of row) s += legendItem(p.item, theme, x0 + p.x, first + i * ROW);
     if (imprint) s += mark(x0 + total, first + (count - 1) * ROW);
     return s;

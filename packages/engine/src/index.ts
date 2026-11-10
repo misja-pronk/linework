@@ -383,8 +383,14 @@ function hashText(text: string): string {
 
 /** A 16:9 slide, 13.33 by 7.5 inches, in CSS pixels (96 to the inch). */
 const SLIDE = { width: 1280, height: 720 };
-/** Text smaller than this (points) on a slide is hard to read from the back of a room. */
-export const SLIDE_MIN_PT = 9;
+/**
+ * The words a reader needs (card names, line labels: the text slideTextPt measures) smaller than
+ * this (points) on a slide are hard to read from the back of a room. Line labels are drawn at 10 px,
+ * 7.5 pt at full size: under 6 pt the drawing is shrunk to less than four fifths, too much for one page.
+ */
+export const SLIDE_MIN_PT = 6;
+/** Text smaller than this (px) is detail (a tag, a count, a badge): it may get small before the drawing is too big for a page. */
+const DETAIL_PX = 10;
 
 /** A page a drawing is meant for, in CSS pixels (96 to the inch). */
 export interface Page {
@@ -411,9 +417,17 @@ export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
   return { name: `${Math.round(a * 100) / 100}:1 page`, width: Math.round(720 * a), height: 720 };
 }
 
-/** The smallest text size (px) in a drawing's SVG; undefined when it has no text. */
+/**
+ * The smallest size (px) of the text a reader needs in a drawing's SVG: the words on cards, lines and
+ * groups, not the asides (the word KEY, the imprint, a map sheet's grid letters, marked data-aside)
+ * nor the details under DETAIL_PX (tags, counts, badges).
+ * Undefined when it has no such text.
+ */
 export function smallestTextPx(svg: string): number | undefined {
-  const sizes = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1])).filter((n) => n > 0);
+  const sizes = [...svg.matchAll(/<text\b[^>]*>/g)]
+    .filter((m) => !m[0].includes('data-aside'))
+    .map((m) => Number(/font-size="([\d.]+)"/.exec(m[0])?.[1]))
+    .filter((n) => n >= DETAIL_PX);
   return sizes.length ? Math.min(...sizes) : undefined;
 }
 
@@ -426,8 +440,8 @@ export function slideTextPt(svg: string, width: number, height: number, page: { 
   const px = smallestTextPx(svg);
   if (px == null || !width || !height) return undefined;
   const scale = Math.min(page.width / width, page.height / height);
-  // A pixel is three quarters of a point.
-  return px * scale * 0.75;
+  // A pixel is three quarters of a point; said to a tenth, and compared as said.
+  return Math.round(px * scale * 0.75 * 10) / 10;
 }
 
 /**
