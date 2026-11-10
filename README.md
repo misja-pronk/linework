@@ -28,7 +28,7 @@ YAML on the left, the drawing on the right; both stay in sync and select the sam
 
 Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side, and [the benchmark](docs/benchmark.md) for the numbers.
 
-**A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels set on the lines, a key. Transit and Drafting are built in as alternatives, and a theme file puts a client's colours, font and logo on top. See [docs/style.md](docs/style.md) and [docs/themes.md](docs/themes.md).
+**A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels set on the lines, a key. Transit, Drafting and a hand-drawn Sketch look for workshops are built in as alternatives, a theme file puts a client's colours, font and logo on top, and the vendors' official Azure, AWS, Google Cloud and Kubernetes icons can be used once you have downloaded them. See [docs/style.md](docs/style.md), [docs/themes.md](docs/themes.md) and [docs/icons.md](docs/icons.md).
 
 ![Survey](docs/themes/png/survey-azure.png)
 
@@ -84,4 +84,4 @@ pnpm bench                                        # the layout benchmark (d2 opt
 pnpm licences && pnpm pack:check                  # licence check; what npm would get, without publishing
 ```
 
-Fonts: Instrument Sans, Geist Mono, Barlow, IBM Plex Sans, IBM Plex Mono and Inter (all SIL OFL 1.1; licence texts in `packages/theme/fonts`). Icons: Lucide (ISC). Node placement: Graphviz dot (EPL) via @hpcc-js/wasm-graphviz (Apache-2.0); lines are drawn by our own router.
+Fonts: Instrument Sans, Geist Mono, Barlow, IBM Plex Sans, IBM Plex Mono, Kalam and Inter (all SIL OFL 1.1; licence texts in `packages/theme/fonts`). Icons: Lucide (ISC). Node placement: Graphviz dot (EPL) via @hpcc-js/wasm-graphviz (Apache-2.0); lines are drawn by our own router.

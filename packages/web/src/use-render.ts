@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { render, type RenderResult } from '@cartography/engine';
 import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
 import { useBrand } from './brand.ts';
+import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';
 import { store } from './store.ts';
 
@@ -30,7 +31,8 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   // close to it, so an edit does not make the picture jump. Null: forgotten on purpose (reset).
   const memory = useRef({ doc: docKey, fresh, views: new Map<string, LayoutMemory | null>() });
   // The editor's theme picker and icon folder (brand.ts) apply to the live drawing too.
-  const { theme: themeOverride, icons } = useBrand();
+  const { theme: themeOverride } = useBrand();
+  const icons = useIconOptions();
   /** Whether this document has drawn something since it opened. */
   const hasDrawn = useRef<number>(-1);
   useEffect(() => {
@@ -48,7 +50,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
       m.views.set((view ?? '') + lens, null);
     }
     // Nothing remembered yet (a file just opened): the note in its sidecar says where things were.
-    render(text, { theme, themeOverride, icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous: m.views.get((view ?? '') + lens), ...(focus !== undefined ? { focus } : {}) })
+    render(text, { theme, themeOverride, ...icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous: m.views.get((view ?? '') + lens), ...(focus !== undefined ? { focus } : {}) })
       .then(async (result) => {
         // The page needs the theme's faces before the drawing shows (Transit and Drafting bring their own).
         await registerThemeFonts(result.theme);
@@ -66,7 +68,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
         let fallback: RenderResult | undefined;
         const good = !result.svg && hasDrawn.current !== docKey ? store.get<{ file: string; text: string }>('lastGood') : undefined;
         if (good && file && good.file === file && good.text !== text) {
-          fallback = await render(good.text, { theme, themeOverride, icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' }).catch(() => undefined);
+          fallback = await render(good.text, { theme, themeOverride, ...icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' }).catch(() => undefined);
           if (n !== seq.current) return;
           if (!fallback?.svg) fallback = undefined;
         }

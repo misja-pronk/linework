@@ -35,7 +35,10 @@ import {
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
-import { resolveIcons, type IconPackFile } from './icons.ts';
+import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
+import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
+
+const typesOfVendor = (vendor: string) => (iconVendors as Record<string, { types: string[] }>)[vendor]?.types ?? [];
 import { c4, contextMap, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { cloud } from '@cartography/cloud';
@@ -59,6 +62,30 @@ import { mindmap } from '@cartography/mindmap';
 
 // Systems first: the generic type people reach for, and what imports produce.
 export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap, matrix, capabilities, teams, classDiagram, mindmap];
+
+/**
+ * The kinds an icon pack is matched against: the type of the same name (azure, kubernetes), or for a
+ * vendor pack (aws, gcp) the kinds that say they are that vendor's, then every type's general kinds.
+ * Kinds of another vendor are left out: BigQuery has no AWS icon.
+ */
+export function iconKinds(pack: string): KindInfo[] {
+  const own = types.find((t) => t.id === pack);
+  const seen = new Map<string, KindInfo>();
+  // With official names at hand the search words (category, vendor) would only add false matches.
+  const add = (p: DiagramType['palette'][number]) => void (seen.has(p.kind) || seen.set(p.kind, { kind: p.kind, label: p.label, keywords: p.names ? undefined : p.keywords, names: p.names }));
+  for (const t of types) for (const p of t.palette) if (p.provider === pack) add(p);
+  for (const t of own ? [own] : types) for (const p of t.palette) if (!p.provider || p.provider === pack) add(p);
+  return [...seen.values()];
+}
+
+/** The kinds a vendor's set is for, to count its coverage: the kinds of the types that use it, less those of other vendors. */
+export function vendorKinds(vendor: string): KindInfo[] {
+  const typeIds = typesOfVendor(vendor);
+  const seen = new Map<string, KindInfo>();
+  for (const t of types.filter((x) => typeIds.includes(x.id) || x.id === vendor))
+    for (const p of t.palette) if ((!p.provider || p.provider === vendor) && !seen.has(p.kind)) seen.set(p.kind, { kind: p.kind, label: p.label });
+  return [...seen.values()];
+}
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -86,6 +113,10 @@ export interface RenderOptions extends SvgOptions {
   packs?: string[];
   /** Finds a named pack (the CLI looks in the user's config dir). */
   pack?: (name: string) => IconPackFile | undefined;
+  /** Packs already read, name → kind → SVG markup (the editor keeps its imported sets in the browser). */
+  iconPacks?: Record<string, Record<string, string>>;
+  /** Wins over the diagram's `icons:` official or lucide (--icons, the editor's toggle). */
+  iconsOverride?: IconMode;
   sidecar?: LayoutSidecar;
   /** Layout overrides, for experiments. */
   tuning?: Tuning;
@@ -134,6 +165,8 @@ export interface RenderResult {
   stepsImplied?: boolean;
   /** The theme it was drawn with (PNG export needs its font files). */
   theme?: Theme;
+  /** Official icons drawn (BYO packs), as data URIs by node and group id: exports that draw for themselves (slides) use them. */
+  images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
   /** The focus drawn: what it is about (as labelled), how far it reaches, and how much of the diagram that left. */
   focus?: FocusSpec & { names: string[]; kept: number; total: number; written: boolean };
   /** The diagram (or the view drawn) has a `focus:` of its own, whether or not it was drawn. */
@@ -279,7 +312,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
   const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
-  const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
+  const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
   // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
@@ -294,6 +327,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph,
     placed,
     theme,
+    ...(images ? { images } : {}),
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
@@ -351,4 +385,4 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 
 export { themes };
 export { drift, type DriftItem, type DriftResult } from './drift.ts';
-export type { IconPackFile };
+export type { IconPackFile, IconMode };

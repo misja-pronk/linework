@@ -1,6 +1,6 @@
 // The font families Cartography ships with: their metrics (so text is measured the same everywhere,
 // each face by its own advance widths) and the woff2 data embedded in exported SVGs.
-// Inter, Instrument Sans and Geist Mono are always there; Barlow and IBM Plex load on first use.
+// Inter, Instrument Sans and Geist Mono are always there; Barlow, IBM Plex and Kalam load on first use.
 import { embeddedFonts } from './generated/fonts.ts';
 import metrics from './generated/metrics.json' with { type: 'json' };
 import { font as instrumentSans } from './generated/font-instrument-sans.ts';
@@ -41,6 +41,7 @@ const optional: Record<string, () => Promise<{ font: BundledFont }>> = {
   Barlow: () => import('./generated/font-barlow.ts'),
   'IBM Plex Sans': () => import('./generated/font-ibm-plex-sans.ts'),
   'IBM Plex Mono': () => import('./generated/font-ibm-plex-mono.ts'),
+  Kalam: () => import('./generated/font-kalam.ts'),
 };
 
 /** Every family that can be named in a theme without shipping font files. */

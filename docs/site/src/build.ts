@@ -42,7 +42,7 @@ const NAV: { title: string; items: [string, string?][] }[] = [
   { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['steps.md', 'Steps'], ['share.md', 'Share links']] },
   { title: 'Import and export', items: [['azure-import.md', 'Azure import'], ['access-import.md', 'Access import'], ['interop.md', 'draw.io, Excalidraw, Office']] },
   { title: 'Docs, CI and AI', items: [['embed.md', 'In a docs site'], ['ci.md', 'In CI'], ['mcp.md', 'MCP and agents']] },
-  { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes']] },
+  { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes'], ['icons.md', 'Official icons']] },
   { title: 'Compare', items: [['benchmark.md', 'Layout benchmark'], ['comparison/README.md', 'Side by side']] },
 ];
 /** Pages that are written for the repository's own work, not for users. */
