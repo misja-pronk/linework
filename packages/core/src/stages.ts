@@ -424,17 +424,16 @@ export function stageGraph(union: Graph, placed: Placed, plan: StagePlan, k: num
       const r = changed.has(key) ? rebuiltEdges.get(byEnds(e)) : undefined;
       return { ...e, ...(r ? { label: r.label, line: r.line, tone: r.tone, pattern: r.pattern, tags: r.tags } : {}), id: ownId(e.id), from: { ...e.from, node: ownId(e.from.node) }, to: { ...e.to, node: ownId(e.to.node) } };
     });
-  if (!plan.copies.size) return { graph: { ...union, nodes, groups, edges }, placed };
-  // A moved element is drawn where its copy for this stage was laid out, under its own id.
+  // Only what is drawn keeps a place (a ghost of what went may stand there); a moved element is
+  // drawn where its copy for this stage was laid out, under its own id.
   const pick = <T>(m: Map<string, T>, has: Set<string>) => {
     const out = new Map<string, T>();
-    for (const [id, v] of m) if (!plan.copies.has(id) && !out.has(id)) out.set(id, v);
-    for (const [id, v] of m) if (plan.copies.has(id) && has.has(id)) out.set(ownId(id), v);
+    for (const [id, v] of m) if (has.has(id)) out.set(ownId(id), v);
     return out;
   };
   return {
     graph: { ...union, nodes, groups, edges },
-    placed: { ...placed, nodes: pick(placed.nodes, p.nodes), edges: pick(placed.edges, p.edges), ...(placed.labels ? { labels: pick(placed.labels, p.nodes) } : {}) },
+    placed: { ...placed, nodes: pick(placed.nodes, p.nodes), groups: pick(placed.groups, p.groups), edges: pick(placed.edges, p.edges), ...(placed.labels ? { labels: pick(placed.labels, p.nodes) } : {}) },
   };
 }
 

@@ -41,6 +41,8 @@ const helpAll = `carto — architecture diagrams that look good
                                                 next render after an edit keeps them there
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
+               [--stage q2 | --stage overview]  one of its stages: (as-is to to-be; without it the to-be), or
+                                                everything marked with the stage it comes and goes in
                [--svg-safe]                     an SVG that PowerPoint, Word and Keynote take whole: no CSS, no
                                                 filters or markers, system fonts, one group per node and line
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
@@ -76,6 +78,12 @@ const helpAll = `carto — architecture diagrams that look good
                [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
                [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
                [--no-captions]                      and the frames as PNG). More: docs/animate.md
+  carto stages <file.yaml> [-o folder] [-f png]  everything its stages: make: each stage, the migration overview,
+               [--from as-is --to q2]           each transition (what is added, changed, removed, replaced),
+               [--side-by-side]                 the as-is and to-be side by side, the roadmap (YAML and drawn)
+                                                and the stages in words; --from/--to: that transition only.
+                                                Decks and animations: carto deck --stages, carto animate --stages.
+                                                More: docs/transitions.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
@@ -250,6 +258,7 @@ const groups: [string, [string, string][]][] = [
     ['render', 'a diagram to SVG, PNG, PowerPoint or PDF'],
     ['deck', 'several diagrams in one deck'],
     ['animate', 'steps or layers as a GIF, MP4 or WebM'],
+    ['stages', 'as-is, transition stages and to-be: each, compared, a roadmap'],
     ['watch', 'render again on every save'],
     ['embed', 'a web page that carries the drawing'],
     ['export-html', 'one HTML file to send, every view inside'],
@@ -1867,6 +1876,22 @@ async function main(): Promise<number> {
       }
       for (const dir of folders) ok = validateWorkspace(dir) && ok;
       return ok ? 0 : 1;
+    }
+    case 'stages': {
+      if (files.length !== 1) return (console.error(helpFor(command)), 2);
+      if (!themeFlag()) return 2;
+      const { stagesCommand } = await import('./stages.ts');
+      return stagesCommand({
+        file: files[0]!,
+        out: values.out,
+        format: values.format === 'png' ? 'png' : 'svg',
+        from: values.from,
+        to: values.to,
+        sideBySide: values['side-by-side'],
+        options: { ...optionsFor(files[0]!, 'none'), stage: undefined },
+        png: async (svg, theme) => toPng(svg, Number(values.scale) || 2, await ttfFiles(theme?.font.faces ?? [])),
+        say: { red, yellow, dim },
+      });
     }
     case 'review': {
       if (!files.length) return (console.error(helpFor(command)), 2);
