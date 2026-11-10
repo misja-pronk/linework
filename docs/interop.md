@@ -17,11 +17,14 @@ A diagram does not have to stay in Cartography. It goes out as a file another to
 - Every group is a container: drag it and its contents come along, drop a shape into it and it belongs there.
 - Every line is a connector attached to the two shapes it joins (source and target set), with the route as waypoints and fixed points where it leaves and enters. It looks the same as in Cartography; move a shape and draw.io re-routes the line from there.
 - An ERD table is a draw.io table: a swimlane that stacks its rows. A row is a column, with its marks (PK, FK) and type; relations run from row to row with crow's feet.
+- A process keeps its lanes as containers; a task is a rounded box with its name inside, an event a circle, a gateway a rhombus, each with its mark. A state machine's states, composite states (as containers), start and end work the same way.
 - A sequence diagram keeps its participants as shapes, the lifelines and frames behind them, and every message as a connector.
 - Every view of the file is a page, named after the view. In the editor the export holds every view too.
 - What each cell stands for (node `api`, kind `container-app`) is kept as data on the cell (draw.io: Edit Data), so the importer reads its own files back exactly.
 
-Lost on the way: the theme's fonts if they are not installed (draw.io falls back to Helvetica or Arial), the numbered list of steps under the drawing, a theme's brand header and footer. Git flow and roadmap diagrams have no shapes to map to: they go in as one picture. A journey's curves and faces are small pictures that move and scale but cannot be edited point by point.
+Lost on the way: a document's fold and a note's bracket are small pictures on their shape; the theme's fonts if they are not installed (draw.io falls back to Helvetica or Arial), the numbered list of steps under the drawing, a theme's brand header and footer. Git flow and roadmap diagrams have no shapes to map to: they go in as one picture. A journey's curves and faces are small pictures that move and scale but cannot be edited point by point.
+
+Reading back: a process or state machine exported to draw.io or Excalidraw comes back with every shape, lane and line, but as an architecture (`systems`) diagram, not as `type: process` or `type: states`. Through Mermaid a state machine comes back as `type: states`.
 
 **In.** Compressed (deflate and base64, draw.io's default) and plain `.drawio` files, `.xml` exports, and a bare `<mxGraphModel>`. Every page becomes its own diagram (`shop-<page>.yaml`), and its type is guessed per page:
 
@@ -50,6 +53,8 @@ Lost on the way: Excalidraw has one font size and colour per text and no letter-
 | Cartography | Mermaid |
 |---|---|
 | architecture, C4, Azure, cloud, Kubernetes, network, GitHub, access (an access matrix is left out) | `flowchart`, groups as subgraphs, lines with their label and style (dashed, dotted, thick) |
+| process | `flowchart`: lanes as subgraphs, events as circles (an end event a double circle), gateways as rhombi, documents, subprocesses |
+| states | `stateDiagram-v2`: composite states as blocks, start and end as `[*]`, choices, entry / exit / do lines, notes |
 | ERD | `erDiagram` with columns, PK/FK/UK, and relations with their cardinality |
 | sequence | `sequenceDiagram`: participants, messages, notes, alt/opt/loop/par frames |
 | git branching | `gitGraph` |

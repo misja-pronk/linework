@@ -92,7 +92,13 @@ describe('draw.io export', () => {
       // Fixed points where the route leaves and enters, so draw.io keeps our route until the user moves a shape.
       expect(e.style).toMatch(/exitX=.*entryX=/);
     }
-    expect(edges.some((e) => findAll(e.geometry!, 'Array').length)).toBe(true);
+    // A bent route keeps its bends as waypoints.
+    const routed = await example('systems/saas-platform.yaml');
+    const scene = toScene(routed);
+    const out = cells(findAll(parseXml(toDrawio([scene])), 'mxGraphModel')[0]!);
+    const bent = scene.connectors.filter((c) => c.points.length > 2);
+    expect(bent.length).toBeGreaterThan(0);
+    for (const c of bent) expect(findAll(out.find((x) => x.id === c.id)!.geometry!, 'mxPoint').filter((p) => !p.attrs.as).length, c.id).toBe(c.points.length - 2);
   });
 
   it('writes the tables of an ERD as draw.io tables, a row per column', async () => {
@@ -119,6 +125,21 @@ describe('draw.io export', () => {
     expect(back!.yaml).toContain('caption: People who buy');
     expect(back!.yaml).toContain('category_id: uuid null fk categories.id');
     expect(back!.yaml).not.toContain('uuid?');
+  });
+
+  it('draws a process: lanes as containers, every task, event and gateway a shape the lines attach to', async () => {
+    const r = await example('process/order-to-cash.yaml');
+    const list = cells(findAll(parseXml(toDrawio([toScene(r)])), 'mxGraphModel')[0]!);
+    const lanes = list.filter((c) => c.data.carto === 'group');
+    expect(lanes.map((c) => c.data.cartoLane)).toEqual(['true', 'true', 'true']);
+    const nodes = list.filter((c) => c.data.carto === 'node');
+    expect(nodes.length).toBe(r.graph!.nodes.length);
+    expect(nodes.some((c) => /ellipse/.test(c.style!))).toBe(true);
+    expect(nodes.some((c) => /rhombus/.test(c.style!))).toBe(true);
+    const ids = new Set(nodes.map((c) => c.id));
+    const edges = list.filter((c) => c.data.carto === 'edge');
+    expect(edges.length).toBe(r.graph!.edges.length);
+    for (const e of edges) expect(ids.has(e.source!) && ids.has(e.target!), e.id).toBe(true);
   });
 
   it('makes every view a page', async () => {
@@ -303,6 +324,23 @@ describe('Mermaid export', () => {
     const { a, b } = await roundTrip('sequence/checkout.yaml', 'sequenceDiagram');
     expect(b.graph!.nodes.map((n) => n.id)).toEqual(a.graph!.nodes.map((n) => n.id));
     expect(b.graph!.edges.map((e) => e.label)).toEqual(a.graph!.edges.map((e) => e.label));
+  });
+
+  it('a state machine is a stateDiagram, composite states and all', async () => {
+    const { a, b, m } = await roundTrip('states/pull-request.yaml', 'stateDiagram-v2');
+    expect(m.text).toMatch(/state "In review" as In_review \{/);
+    expect(m.text).toMatch(/note right of Draft/);
+    expect(b.type!.id).toBe('states');
+    const hops = (r: RenderResult) => r.graph!.edges.filter((e) => e.label).map((e) => e.label).sort();
+    expect(hops(b)).toEqual(hops(a));
+  });
+
+  it('a process is a flowchart with its lanes, events and gateways', async () => {
+    const { a, b, m } = await roundTrip('process/order-to-cash.yaml', 'flowchart');
+    expect(m.text).toMatch(/subgraph finance\["Finance"\]/);
+    expect(m.text).toMatch(/Credit-ok\{"Credit ok\?"\}/);
+    expect(m.text).toMatch(/Order-closed\(\(\("Order closed"\)\)\)/);
+    expect(b.graph!.edges.length).toBe(a.graph!.edges.length);
   });
 
   it('git, journey and roadmap have a Mermaid diagram of their own', async () => {

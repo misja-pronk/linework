@@ -43,7 +43,7 @@ function outlineStyle(r: Rect): { names: string[]; pairs: Style } {
 }
 
 const ARROW: Record<ArrowStyle, string> = { filled: 'block', slim: 'blockThin', open: 'open' };
-const ER: Partial<Record<Marker, string>> = { one: 'ERmandOne', zeroOrOne: 'ERzeroToOne', many: 'ERmany', oneOrMany: 'ERoneToMany', zeroOrMany: 'ERzeroToMany' };
+const ER: Partial<Record<Marker, string>> = { one: 'ERmandOne', zeroOrOne: 'ERzeroToOne', many: 'ERmany', oneOrMany: 'ERoneToMany', zeroOrMany: 'ERzeroToMany', slash: 'dash' };
 
 /** The end of a line: a plain arrowhead in the theme's style, or draw.io's crow's-foot for a cardinality. */
 function markerStyle(side: 'start' | 'end', m: Marker, arrow: ArrowStyle): Style {

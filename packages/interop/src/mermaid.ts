@@ -8,9 +8,9 @@
 //   gitflow       gitGraph
 //   journey       journey
 //   roadmap       gantt, or timeline when the roadmap names its periods instead of dates
-import type { GitCommit, GitflowShape, Graph, JourneyShape, Marker, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
+import type { FlowShape, GitCommit, GitflowShape, Graph, GraphNode, JourneyShape, Marker, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
 
-export type MermaidKind = 'flowchart' | 'erDiagram' | 'sequenceDiagram' | 'gitGraph' | 'journey' | 'gantt' | 'timeline';
+export type MermaidKind = 'flowchart' | 'stateDiagram-v2' | 'erDiagram' | 'sequenceDiagram' | 'gitGraph' | 'journey' | 'gantt' | 'timeline';
 
 export interface MermaidExport {
   kind: MermaidKind;
@@ -104,6 +104,7 @@ export function toMermaid(d: { graph?: Graph; type?: { id: string } }): MermaidE
     if (s.kind === 'roadmap') return s.scale === 0 ? done('timeline', timeline(s, g.title, sub, notes)) : done('gantt', gantt(s, g.title, sub, notes));
   }
   if (d.type?.id === 'erd') return done('erDiagram', [...front(g.title), ...er(g, sub, notes)]);
+  if (d.type?.id === 'states') return done('stateDiagram-v2', [...front(g.title), ...states(g, sub, notes)]);
   return done('flowchart', [...front(g.title), ...flowchart(g, sub, notes)]);
 }
 
@@ -133,9 +134,13 @@ function flowchart(g: Graph, sub: string[], notes: Notes): string[] {
         notes.once('A matrix (who may do what) has no Mermaid form: left out');
         continue;
       }
-      if (s.kind !== 'card' && s.kind !== 'table') continue;
+      if (s.kind !== 'card' && s.kind !== 'table' && s.kind !== 'flow') continue;
       const id = names.of(n.id);
       written.add(n.id);
+      if (s.kind === 'flow') {
+        out.push(`${indent}${id}${flowNode(s)}`);
+        continue;
+      }
       if (s.kind === 'table') {
         notes.once('Tables are written as plain boxes: a flowchart has no rows');
         out.push(`${indent}${id}[${quoted(s.title)}]`);
@@ -167,9 +172,95 @@ function flowchart(g: Graph, sub: string[], notes: Notes): string[] {
   return out;
 }
 
+/** A process shape in the outline Mermaid has for it: an event a circle, a gateway a rhombus, a subprocess a framed box. */
+function flowNode(s: FlowShape): string {
+  // Mermaid wants words in every shape: an unnamed one is called by what it is.
+  const unnamed = s.mark === 'end' || s.mark === 'final' ? 'end' : s.mark === 'start' || s.mark === 'initial' ? 'start' : s.mark === 'and' ? '+' : s.mark === 'or' ? 'o' : s.form === 'gateway' ? 'x' : s.form;
+  const text = quoted(s.label || unnamed);
+  if (s.form === 'event' || s.form === 'pseudo') return s.mark === 'end' || s.mark === 'final' ? `(((${text})))` : `((${text}))`;
+  if (s.form === 'gateway') return `{${text}}`;
+  if (s.form === 'subprocess') return `[[${text}]]`;
+  if (s.form === 'document') return `[/${text}/]`;
+  if (s.form === 'note') return `>${text}]`;
+  if (s.form === 'state') return `(${text})`;
+  return `[${text}]`;
+}
+
+const STATE_WORDS = ['end', 'state', 'note', 'direction', 'classdef', 'class', 'style', 'as', 'left', 'right', 'of', 'over', 'scale', 'hide', 'title'];
+
+/**
+ * A state machine as a stateDiagram: composite states as blocks, start and end as [*] of the block
+ * they stand in, a choice as <<choice>>, entry / exit / do lines as the state's description, a note
+ * as the note of the state it hangs on. Every transition is written in the innermost block that
+ * holds both ends, so [*] means the right start or end.
+ */
+function states(g: Graph, sub: string[], notes: Notes): string[] {
+  const out = ['stateDiagram-v2', ...(g.direction === 'right' ? ['  direction LR'] : []), ...sub];
+  const names = new Names(STATE_WORDS, /-/);
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const groups = new Map(g.groups.map((x) => [x.id, x]));
+  const flow = (n: GraphNode | undefined) => (n?.shape.kind === 'flow' ? n.shape : undefined);
+  const ends = (id: string) => {
+    const s = flow(byId.get(id));
+    return s?.form === 'pseudo' && (s.mark === 'initial' || s.mark === 'final' || !s.mark);
+  };
+  const ref = (id: string) => (ends(id) ? '[*]' : names.of(id));
+  const parentOf = (id: string) => byId.get(id)?.parent ?? groups.get(id)?.parent;
+  const chain = (id: string | undefined) => {
+    const up: (string | undefined)[] = [];
+    for (let at = id; at; at = groups.get(at)?.parent) up.push(at);
+    return [...up, undefined];
+  };
+  // The block a transition is written in: the innermost one holding both ends (a group end counts as standing beside its block).
+  const scope = (a: string, b: string) => {
+    const pa = chain(parentOf(a));
+    const pb = new Set(chain(parentOf(b)));
+    return pa.find((x) => pb.has(x));
+  };
+  const attached = new Map<string, string>();
+  for (const e of g.edges) {
+    const s = flow(byId.get(e.from.node));
+    if (s?.form === 'note' && !attached.has(e.from.node)) attached.set(e.from.node, e.to.node);
+  }
+  const walk = (parent: string | undefined, indent: string) => {
+    // Notes last in their block: Mermaid wants the state a note hangs on to be known first.
+    const later: string[] = [];
+    for (const x of g.groups) {
+      if (x.parent !== parent) continue;
+      out.push(`${indent}state ${quoted(x.label).replace(/#quot;/g, "'")} as ${names.of(x.id)} {`);
+      walk(x.id, indent + '  ');
+      out.push(`${indent}}`);
+    }
+    for (const n of g.nodes) {
+      if (n.parent !== parent) continue;
+      const s = flow(n);
+      if (!s || ends(n.id)) continue;
+      if (s.form === 'note') {
+        const to = attached.get(n.id);
+        if (to) later.push(`${indent}note right of ${ref(to)} : ${lineText(s.label)}`);
+        else notes.once('A note that hangs on no state is left out');
+        continue;
+      }
+      const id = names.of(n.id);
+      if (s.form === 'pseudo' && s.mark === 'choice') out.push(`${indent}state ${id} <<choice>>`);
+      else if (s.form === 'pseudo' && s.mark === 'history') notes.once('A history state has no Mermaid form: written as a plain state');
+      if (!(s.form === 'pseudo' && s.mark === 'choice') && s.label && (s.label !== id || s.lines?.length)) out.push(`${indent}state ${quoted(s.label).replace(/#quot;/g, "'")} as ${id}`);
+      for (const l of s.lines ?? []) out.push(`${indent}${id} : ${lineText(l)}`);
+    }
+    for (const e of g.edges) {
+      if (flow(byId.get(e.from.node))?.form === 'note') continue;
+      if (scope(e.from.node, e.to.node) !== parent) continue;
+      out.push(`${indent}${ref(e.from.node)} --> ${ref(e.to.node)}${e.label ? ` : ${lineText(e.label)}` : ''}`);
+    }
+    out.push(...later);
+  };
+  walk(undefined, '  ');
+  return out;
+}
+
 // A crow's foot as Mermaid writes it at the left and at the right of a relation.
-const LEFT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: '|o', many: '}o', zeroOrMany: '}o', oneOrMany: '}|' };
-const RIGHT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: 'o|', many: 'o{', zeroOrMany: 'o{', oneOrMany: '|{' };
+const LEFT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: '|o', many: '}o', zeroOrMany: '}o', oneOrMany: '}|', slash: '||' };
+const RIGHT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: 'o|', many: 'o{', zeroOrMany: 'o{', oneOrMany: '|{', slash: '||' };
 
 /** A column type or name as one Mermaid word. */
 const word = (s: string) => {

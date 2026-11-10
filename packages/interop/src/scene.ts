@@ -3,10 +3,10 @@
 // PowerPoint): the same boxes, insets and colours, so the file opens looking like the picture.
 // An element is one thing a person moves: its body (the editable shape), the picture and small
 // parts that go with it. A connector is a line bound to the elements it joins.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
+import { chips, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { kinds as sequenceKinds } from '@cartography/sequence';
-import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground } from '@cartography/render';
+import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
 
 /** What the engine's `render` returns; only what is drawn from is asked for. */
@@ -275,7 +275,7 @@ class SceneBuilder {
 
     for (const g of byDepth(graph.groups)) {
       const box = placed.groups.get(g.id);
-      if (box) this.elements.push(this.group(g, this.at(box)));
+      if (box) this.elements.push(g.lane ? this.lane(g, this.at(box)) : this.group(g, this.at(box)));
     }
     const badged = new Set([...this.chipsByNode.values()].flat().map((c) => c.edge));
     const edges = graph.edges.filter((e) => !badged.has(e.id) && (placed.edges.get(e.id)?.points.length ?? 0) > 1);
@@ -292,8 +292,10 @@ class SceneBuilder {
       else if (s.kind === 'matrix') this.elements.push(this.matrix(n, s, this.at(box)));
       else if (s.kind === 'sequence') this.sequence(s, this.at(box));
       else if (s.kind === 'journey') this.journey(s, this.at(box));
+      else if (s.kind === 'flow') this.elements.push(this.flow(n, s, this.at(box)));
       // journey-part: drawn by the journey itself.
     }
+    if (this.flowCurves) this.warnings.push(`Small drawings on process shapes (${this.flowCurves}: a document's fold, a note's bracket) are pictures: they move with the shape`);
     if (graph.steps?.length && !graph.nodes.some((n) => WHOLE.has(n.shape.kind))) this.warnings.push('The numbered list of steps under the drawing is left out');
     if (theme.titleBlock && Object.keys(theme.titleBlock).length) this.warnings.push('The brand header and footer of the theme are left out');
     this.titles();
@@ -851,10 +853,16 @@ class SceneBuilder {
 
   /** A journey as flat shapes: the marks render/journey.ts lays out, one box, text or picture each; curves go in as small pictures. */
   private journey(s: JourneyShape, b: Box) {
-    const scene = journeyScene(s, this.theme);
+    const { parts, curves } = this.markParts(journeyScene(s, this.theme).marks, b);
+    if (curves) this.warnings.push(`A journey's curves and drawn faces (${curves}) are small pictures: they move and scale, their points cannot be edited`);
+    this.loose.push({ id: 'journey', role: 'decor', parts });
+  }
+
+  /** Marks laid out by the renderer (a journey's, a process shape's) as parts, moved by `b`; a curve is a small picture. */
+  private markParts(marks: JourneyMark[], b: Point): { parts: Part[]; curves: number } {
     const parts: Part[] = [];
     let curves = 0;
-    for (const m of scene.marks) {
+    for (const m of marks) {
       const paint: Paint = 'fill' in m && m.t !== 'text' ? { ...(m.fill && m.fill !== 'none' ? { fill: m.fill } : {}), ...(m.stroke ? { stroke: m.stroke, strokeWidth: m.sw ?? 1, ...('dash' in m && m.dash ? { dash: 'dashed' as const } : {}) } : {}) } : {};
       if (m.t === 'rect') parts.push(this.rect(m.name ?? 'Box', { x: b.x + m.x, y: b.y + m.y, width: m.w, height: m.h }, m.r ?? 0, paint));
       else if (m.t === 'circle') parts.push({ ...this.rect('Dot', { x: b.x + m.cx - m.r, y: b.y + m.cy - m.r, width: 2 * m.r, height: 2 * m.r }, m.r, paint), outline: 'ellipse' });
@@ -883,8 +891,60 @@ class SceneBuilder {
         curves++;
       }
     }
-    if (curves) this.warnings.push(`A journey's curves and drawn faces (${curves}) are small pictures: they move and scale, their points cannot be edited`);
-    this.loose.push({ id: 'journey', role: 'decor', parts });
+    return { parts, curves };
+  }
+
+  /**
+   * A task, event, gateway, state or document: its outline is the shape lines attach to, with its
+   * mark and its name moving along. A task or a plain state carries its name inside, as a card does.
+   */
+  private flow(n: GraphNode, s: FlowShape, b: Box): Element {
+    const t = this.theme;
+    const label = this.placed.labels?.get(n.id);
+    const marks = flowMarks(s, b, t, label ? this.at(label) : undefined);
+    const first = marks[0];
+    const data = { carto: 'node', id: n.id, label: s.label, ...(n.kind ? { kind: n.kind } : {}), ...(s.caption ? { caption: s.caption } : {}) };
+    const paintOf = (m: { fill?: string; stroke?: string; sw?: number; dash?: boolean }): Paint => ({ ...(m.fill && m.fill !== 'none' ? { fill: m.fill } : {}), ...(m.stroke ? { stroke: m.stroke, strokeWidth: m.sw ?? 1, ...(m.dash ? { dash: 'dashed' as const } : {}) } : {}) });
+    let body: Rect;
+    let rest = marks.slice(1);
+    if (first?.t === 'rect') {
+      // Words inside a box without entry/exit lines become its own label, so typing over them keeps them centred.
+      const inside = (s.form === 'task' || s.form === 'subprocess' || s.form === 'state') && !s.lines?.length && !s.icon;
+      const texts = inside ? rest.filter((m): m is Extract<JourneyMark, { t: 'text' }> => m.t === 'text') : [];
+      const lines = texts.flatMap((m) => m.lines.map((l) => [this.run(l, m.size, m.weight as 400 | 500 | 600, m.fill)]));
+      body = this.rect(s.label || s.form, b, first.r ?? 0, paintOf(first), lines.length ? { label: { lines, align: 'center', valign: 'middle', inset: { left: 4, right: 4, top: 0, bottom: s.form === 'subprocess' ? 12 : 0 } } } : {});
+      if (texts.length) rest = rest.filter((m) => m.t !== 'text');
+    } else if (first?.t === 'circle') {
+      body = { ...this.rect(s.label || s.form, { x: first.cx - first.r, y: first.cy - first.r, width: 2 * first.r, height: 2 * first.r }, first.r, paintOf(first)), outline: 'ellipse' };
+    } else if (first?.t === 'path' && (s.form === 'gateway' || s.mark === 'choice')) {
+      body = { ...this.rect(s.label || 'Gateway', b, 0, paintOf(first)), outline: 'diamond' };
+    } else {
+      // A document or a note: an empty box to hold on to, the drawing on it.
+      body = this.rect(s.label || s.form, b, 0, {});
+      rest = marks;
+    }
+    const { parts, curves } = this.markParts(rest, { x: 0, y: 0 });
+    if (curves) this.flowCurves += curves;
+    return { id: `node:${n.id}`, role: 'node', parent: this.parentOf(n), body, under: [], parts, data };
+  }
+  private flowCurves = 0;
+
+  /** A lane: a group whose name stands in a header band at its start. */
+  private lane(g: GraphGroup, b: Box): Element {
+    const across = (this.placed.direction ?? this.graph.direction) === 'right';
+    const head = across ? Math.max(0, ...this.graph.groups.filter((x) => x.lane).map((x) => laneHeader(x.label, this.theme))) : this.theme.space.group.header;
+    const [ground, ...rest] = laneMarks(g, b, this.theme, across, head);
+    const r = ground as Extract<JourneyMark, { t: 'rect' }>;
+    const body = this.rect(`Lane: ${g.label}`, b, r.r ?? 0, { ...(r.fill ? { fill: r.fill } : {}), ...(r.stroke ? { stroke: r.stroke, strokeWidth: r.sw ?? 1, ...(r.dash ? { dash: 'dashed' as const } : {}) } : {}) });
+    return {
+      id: `group:${g.id}`,
+      role: 'group',
+      parent: g.parent && this.placed.groups.has(g.parent) ? `group:${g.parent}` : undefined,
+      body,
+      under: [],
+      parts: this.markParts(rest, { x: 0, y: 0 }).parts,
+      data: { carto: 'group', id: g.id, label: g.label, ...(g.kind ? { kind: g.kind } : {}), lane: 'true', ...(g.tone ? { tone: g.tone } : {}) },
+    };
   }
 
   // ------------------------------------------------------------ title and legend
