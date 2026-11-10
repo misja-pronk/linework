@@ -482,13 +482,13 @@ Topics
 `;
 
 exports[`templates > network renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1128" height="763" viewBox="0 0 1128 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-l8uzjm838-title" aria-describedby="carto-l8uzjm838-desc"><title id="carto-l8uzjm838-title">Office network</title><desc id="carto-l8uzjm838-desc">Network diagram: Amsterdam. 6 elements in 4 groups, with 5 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1128" height="763" viewBox="0 0 1128 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-84pzww820-title" aria-describedby="carto-84pzww820-desc"><title id="carto-84pzww820-title">Office network</title><desc id="carto-84pzww820-desc">Network diagram: Amsterdam. 6 elements in 4 groups, with 5 connections.
 
 Groups and elements
 - Internet
   - Fibre ISP
 - Amsterdam office (10.10.0.0/16)
-  - fw (FortiGate 60F · 10.10.0.1 · HA pair, a redundant pair)
+  - fw (FortiGate 60F · 10.10.0.1 · HA pair)
   - core (USW Pro 24 · 10.10.0.2)
   - Staff (VLAN 10 · 10.10.10.0/24)
     - ap-floor1 (U6 Pro)
