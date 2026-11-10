@@ -47,8 +47,8 @@ describe('the CLI catalog', () => {
 
 describe('carto --lang', () => {
   it('speaks Dutch with --lang nl, CARTO_LANG=nl or a Dutch locale, English otherwise', () => {
-    const dutch = /^Tekenen:\n {2}render/m;
-    const english = /^Draw:\n {2}render/m;
+    const dutch = /^Tekenen {5}render/m;
+    const english = /^Draw {4}render/m;
     expect(carto({}, '--lang', 'nl', '--help').out).toMatch(dutch);
     expect(carto({}, '--lang=nl', '--help').out).toMatch(dutch);
     expect(carto({ CARTO_LANG: 'nl' }, '--help').out).toMatch(dutch);
@@ -62,7 +62,7 @@ describe('carto --lang', () => {
   it('gives English help byte for byte as before when the language is English', () => {
     const top = carto({ CARTO_LANG: 'en' }, '--help').out;
     expect(top).toContain('Usage: carto <command> [files…] [options] [--lang en|nl]\n');
-    expect(top).toContain('carto <command> --help   the options of one command\n');
+    expect(top).toContain('carto <command> --help: its options · carto help all: everything · - is stdin or stdout\n');
     const render = carto({}, '--lang', 'en', 'render', '--help').out;
     expect(render).toContain('               [--view name | --all-views]      one of the diagram\'s views, or each to <file>-<view>.svg\n');
     expect(render.endsWith('\n\nAll commands: carto --help\n')).toBe(true);

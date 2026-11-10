@@ -290,10 +290,13 @@ const aliases: [string, string][] = [
 ];
 const commands = [...groups.flatMap(([, list]) => list.map(([c]) => c)), ...aliases.map(([c]) => c)];
 
+// The group names' column: as wide as the longest (Controleren) and a space.
+const groupWidth = Math.max(8, ...groups.map(([title]) => title.length + 1));
+
 const help = `${helpText('carto — architecture diagrams that look good')}
 ${helpText('Usage: carto <command> [files…] [options] [--lang en|nl]')}
 
-${groups.map(([title, list]) => list.map(([c, what], i) => `${(i ? '' : title).padEnd(8)}${c.padEnd(11)}${what}`).join('\n')).join('\n')}
+${groups.map(([title, list]) => list.map(([c, what], i) => `${(i ? '' : title).padEnd(groupWidth)}${c.padEnd(11)}${what}`).join('\n')).join('\n')}
 
 ${t('carto <command> --help: its options · carto help all: everything · - is stdin or stdout')}
 ${t('Example: carto render shop.yaml -o shop.png')}`;
@@ -520,7 +523,7 @@ function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): 
  */
 async function traceCommand(): Promise<number> {
   const [f] = files;
-  if (f && !values.from && !values.steps) return (console.error(t("carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram's steps\nOptions: carto trace --help")), 1);
+  if (f && !values.from && !values.steps) return (console.error(`${t("carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram's steps")}\n${t('Options: carto {command} --help', { command: 'trace' })}`), 1);
   if (!f) return (console.error(helpFor('trace')), 1);
   const traced = await traceable(fs.readFileSync(f, 'utf8'), { load: loaderFor(f), file: path.basename(f), view: values.view });
   const errors = traced.diagnostics.filter((d) => d.severity === 'error');

@@ -477,7 +477,6 @@ export const nlPanels = {
   '{count} hour ago|{count} hours ago': '{count} uur geleden|{count} uur geleden',
   '{count} day ago|{count} days ago': '{count} dag geleden|{count} dagen geleden',
   // trace-dialog.tsx
-  'routes': 'routes',
   'until it ends': 'tot het einde',
   'along the steps': 'langs de stappen',
   'Trace a request': 'Een request volgen',
@@ -672,7 +671,6 @@ export const nlPanels = {
   'Decisions {count}': 'Besluiten {count}',
   'Open decision {n}': 'Besluit {n} openen',
   '{count} selected': '{count} geselecteerd',
-  ', {count} on this drawing': ', {count} op deze tekening',
   'New decision': 'Nieuw besluit',
   'New decision about the selection (⌥⇧D)': 'Nieuw besluit over de selectie (⌥⇧D)',
   'New decision (⌥⇧D)': 'Nieuw besluit (⌥⇧D)',

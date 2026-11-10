@@ -5,35 +5,20 @@ export const nl = {
   // carto --help
   Draw: 'Tekenen',
   Check: 'Controleren',
-  'Start and convert': 'Beginnen en omzetten',
   Look: 'Uiterlijk',
   'a diagram to SVG, PNG, PowerPoint or PDF': 'een diagram naar SVG, PNG, PowerPoint of PDF',
   'several diagrams in one deck': 'meer diagrammen in één deck',
   'steps or layers as a GIF, MP4 or WebM': 'stappen of lagen als GIF, MP4 of WebM',
   'render again on every save': 'opnieuw renderen bij elke keer opslaan',
   'a web page that carries the drawing': 'een webpagina met de tekening erin',
-  'one HTML file to send, every view inside': 'één HTML-bestand om te versturen, met elke weergave',
-  'Markdown pages with pictures, for a wiki or a repo': "Markdown-pagina's met plaatjes, voor een wiki of een repo",
-  'Confluence pages with their attachments': "Confluence-pagina's met hun bijlagen",
-  'a link that opens the diagram in the web app': 'een link die het diagram opent in de webapp',
   'check files and their views': 'bestanden en hun weergaven controleren',
   'architecture review rules: findings, fixes, a report': 'regels voor de architectuurreview: bevindingen, oplossingen, een rapport',
   'what changed between two versions': 'wat er veranderde tussen twee versies',
   'the diagram in plain words': 'het diagram in gewone woorden',
-  'the threat table as markdown': 'de dreigingstabel als markdown',
-  'a request through the architecture, as a sequence diagram': 'een verzoek door de architectuur, als sequencediagram',
-  'review notes as markdown': 'reviewnotities als markdown',
   'architecture decisions: log, table, new': 'architectuurbesluiten: log, tabel, nieuw',
-  'start from a template': 'beginnen vanuit een sjabloon',
   'which diagram type to pick': 'welk diagramtype je kiest',
-  'Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML': 'Mermaid, draw.io, Excalidraw, Terraform, Azure, … naar YAML',
-  'reusable fragments: list, show, save and insert': 'herbruikbare fragmenten: tonen, bekijken, bewaren en invoegen',
-  'to draw.io, Excalidraw or Mermaid': 'naar draw.io, Excalidraw of Mermaid',
   'built-in themes': "ingebouwde thema's",
   'import and list vendor icon packs': 'iconenpakketten van leveranciers importeren en tonen',
-  'carto <command> --help   the options of one command': 'carto <command> --help   de opties van één commando',
-  'carto help all           every command with every option': 'carto help all           elk commando met elke optie',
-  '- for a file (or -o -) is standard input or output; a drawing with errors is not written': '- als bestand (of -o -) is standaardinvoer of -uitvoer; een tekening met fouten wordt niet geschreven',
   'Example: carto render shop.yaml -o shop.png': 'Voorbeeld: carto render shop.yaml -o shop.png',
   'All commands: carto --help': "Alle commando's: carto --help",
 
@@ -219,26 +204,32 @@ export const nl = {
   'the threat table': 'de dreigingstabel',
   'review notes': 'reviewnotities',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
-  'carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram\'s steps\nOptions: carto trace --help': 'carto trace moet weten waar het verzoek begint: --from <element> (met --to <element> voor één route), of --steps om de stappen van het diagram te volgen\nOpties: carto trace --help',
+  'carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram\'s steps': 'carto trace moet weten waar het verzoek begint: --from <element> (met --to <element> voor één route), of --steps om de stappen van het diagram te volgen',
   '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
 } as const satisfies Record<string, string>;
 
 /** The help, part by part (see helpChunks): the English as main.ts writes it, the Dutch laid out the same way. */
 export const nlHelp: Record<string, string> = {
+  [`  carto export <file.yaml…|folder> --to html|md|confluence|drawio|excalidraw|mermaid [-o out]
+                                                one command for every export: html is export-html, md is
+                                                export-md, confluence is export-confluence (their options apply)`]:
+    `  carto export <file.yaml…|folder> --to html|md|confluence|drawio|excalidraw|mermaid [-o out]
+                                                één opdracht voor elke export: html is export-html, md is
+                                                export-md, confluence is export-confluence (hun opties gelden)`,
   'Usage: carto <command> [files…] [options] [--lang en|nl]': 'Gebruik: carto <command> [files…] [options] [--lang en|nl]',
   [`carto — architecture diagrams that look good`]:
     `carto — architectuurdiagrammen die er goed uitzien`,
   [`  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
+               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
+                                                pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
                                                 whatever the diagram's icons: says
-               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
                [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>-<layer>.svg;
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
-               [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
-                                                pptx and pdf get a slide (page) per step by themselves
                [--svg-safe]                     an SVG that PowerPoint, Word and Keynote take whole: no CSS, no
                                                 filters or markers, system fonts, one group per node and line
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
@@ -255,15 +246,15 @@ export const nlHelp: Record<string, string> = {
                                                 template's own slides in front`]:
     `  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme gaat voor theme: in het diagram; -o x.pptx of x.pdf kiest ook het formaat
+               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>-<view>.svg
+               [--step 3 | --all-steps]         de tekening bij een van zijn steps:, of elke stap naar <file>-step-01.svg;
+                                                pptx en pdf krijgen vanzelf een dia (pagina) per stap
                [--icons official|lucide]        de officiële iconen van de leverancier (carto icons import) of onze lijniconen,
                                                 wat icons: in het diagram ook zegt
-               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>-<view>.svg
                [--layer security | --all-layers] door één (of meer) van zijn layers:, of elke laag naar <file>-<layer>.svg;
                [--dim]                          pptx en pdf: een dia (pagina) per laag. --dim laat de rest vervaagd staan
                [--stable]                       onthoudt in <file>.layout.json waar alles stond, zodat de
                                                 volgende render na een wijziging het daar laat
-               [--step 3 | --all-steps]         de tekening bij een van zijn steps:, of elke stap naar <file>-step-01.svg;
-                                                pptx en pdf krijgen vanzelf een dia (pagina) per stap
                [--svg-safe]                     een SVG die PowerPoint, Word en Keynote heel overnemen: geen CSS, geen
                                                 filters of markers, systeemlettertypen, één groep per element en lijn
                [--outline-text]                 met --svg-safe: tekst als contouren in het eigen lettertype van het thema
