@@ -203,6 +203,19 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
   });
 }
 
+/**
+ * The drawing without a step asked for: where the story ends, at full strength. What a step hid
+ * (today's lines a proposal replaces) is not drawn, so the picture is never today and tomorrow at
+ * once. `keep` draws it quiet instead, for an editor where it must stay at hand.
+ */
+export function finalState(steps: StepState[], keep = false): StepState | undefined {
+  const last = steps.at(-1);
+  if (!last) return undefined;
+  const gone = (r: Record<string, Emphasis>): Record<string, Emphasis> => Object.fromEntries(Object.entries(r).flatMap(([id, e]) => (e === 'hidden' ? [[id, keep ? 'dim' : 'hidden'] as const] : [])));
+  const state: StepState = { nodes: gone(last.nodes), groups: gone(last.groups), edges: gone(last.edges), notes: [] };
+  return Object.keys(state.nodes).length + Object.keys(state.groups).length + Object.keys(state.edges).length ? state : undefined;
+}
+
 /** Steps a drawing has without any written: the numbered lines of a dynamic view, the messages of a sequence diagram. */
 export function impliedSteps(graph: Graph): StepState[] {
   const name = (id: string) => {

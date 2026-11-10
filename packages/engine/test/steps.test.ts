@@ -285,3 +285,37 @@ describe('steps: views and steps nobody wrote', () => {
     }
   }, 30_000);
 });
+
+describe('steps: without a step', () => {
+  const story = steps(`  - The shop today.\n  - title: Without Stripe\n    hide: [api -> stripe, stripe]\n`);
+
+  it('draws where the story ends: what a step hid is not drawn, the rest at full strength', async () => {
+    const { r, edge } = await told(story);
+    const svg = (await render(story, { fonts: 'none', marks: true })).svg!;
+    expect(svg).not.toContain(`data-edge="${edge('api', 'stripe')}"`);
+    expect(svg).not.toContain('data-node="stripe"');
+    expect(svg).toContain(`data-edge="${edge('api', 'db')}"`);
+    // No caption or "2 / 2": it is the drawing, not a step of it.
+    expect(svg).not.toContain('2 / 2');
+    expect(r.step).toBeUndefined();
+  });
+
+  it('in the editor what was hidden stays at hand, standing back', async () => {
+    const svg = (await render(story, { fonts: 'none', interactive: true })).svg!;
+    expect(part(svg, 'node', 'stripe')).toContain('data-dim');
+  });
+
+  it('a story that hides nothing is drawn as written', async () => {
+    const text = steps(`  - focus: web\n  - path: api -> db\n`);
+    expect((await render(text, { fonts: 'none' })).svg).toBe((await render(shop, { fonts: 'none' })).svg);
+  });
+
+  it('the walkthrough example draws the proposal, not today and the proposal at once', async () => {
+    const r = await render(example('systems/invoice-walkthrough.yaml'), { fonts: 'none', marks: true });
+    const g = r.graph!;
+    const id = (from: string, to: string) => g.edges.find((e) => e.from.node === from && e.to.node === to)!.id;
+    expect(r.svg).not.toContain(`data-edge="${id('orders', 'erp')}"`);
+    expect(r.svg).not.toContain(`data-edge="${id('orders', 'mail')}"`);
+    expect(r.svg).toContain(`data-edge="${id('invoicing', 'erp')}"`);
+  });
+});

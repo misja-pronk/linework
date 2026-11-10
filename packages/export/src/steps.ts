@@ -1,5 +1,6 @@
 // A diagram with steps becomes one slide or page per step: the same drawing in the same place,
 // only what shows and what stands out changes, so clicking through (or Morph) reads as one build-up.
+import { finalState } from '@cartography/core';
 import type { StepView } from '@cartography/render';
 import type { Drawing } from './pptx.ts';
 
@@ -19,7 +20,11 @@ export function pages(drawings: Drawing[], all?: boolean): Page[] {
     const states = drawing.steps;
     if (!states?.length) return [{ drawing }];
     if (drawing.step) return [{ drawing, view: { index: Math.min(states.length, Math.max(1, drawing.step)) - 1, states } }];
-    if (!(all ?? !drawing.stepsImplied)) return [{ drawing }];
+    if (!(all ?? !drawing.stepsImplied)) {
+      // One page for the story: where it ends, not every step's lines at once.
+      const end = drawing.stepsImplied ? undefined : finalState(states);
+      return [{ drawing, ...(end ? { view: { index: 0, states: [end], caption: false } } : {}) }];
+    }
     return states.map((_, index) => ({ drawing, view: { index, states } }));
   });
 }

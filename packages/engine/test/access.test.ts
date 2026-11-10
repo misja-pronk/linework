@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { MatrixShape } from '@cartography/core';
 import { parse, stringify } from 'yaml';
@@ -169,5 +170,16 @@ describe('gained and lost access', () => {
     const r = await render(source('graph'), { fonts: 'none', view: 'access' });
     expect(r.graph!.nodes[0]!.shape.kind).toBe('matrix');
     expect(r.views!.map((v) => v.name)).toEqual(['graph', 'access', 'packages', 'roles']);
+  });
+
+  it('offers no view with nothing to show: no packages, no packages table', async () => {
+    const r = await render(fs.readFileSync(new URL('../../../examples/workspace/access.yaml', import.meta.url), 'utf8'), {
+      fonts: 'none',
+      load: (f) => fs.readFileSync(new URL(`../../../examples/workspace/${f}`, import.meta.url), 'utf8'),
+    });
+    expect(r.views!.map((v) => v.name)).toEqual(['graph', 'access', 'roles']);
+    expect(r.empty).toBeUndefined();
+    // A table without a row is empty: --all-views and decks leave it out.
+    expect((await render('type: access\nview: packages\n', { fonts: 'none' })).empty).toBe(true);
   });
 });
