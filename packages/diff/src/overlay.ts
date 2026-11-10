@@ -405,3 +405,15 @@ function panels(base: Drawing, before: Drawing | undefined, after: Drawing | und
     key(theme, diff, pad, foot + KEY / 2, opts.against).svg;
   return { svg: root(base.svg, width, height, theme, body), width, height };
 }
+
+/**
+ * One side of a comparison on its own, with that side's marks: the older drawing with what was removed
+ * and changed, the newer with what was added and changed. For an editor that shows both side by side
+ * in panes of its own (synced pan and zoom), where one picture of both would not do.
+ */
+export function markedSide(d: Drawing, diff: GraphDiff, side: 'before' | 'after'): Picture {
+  return withTextFonts(themeTextFonts(d.theme), () => {
+    const svg = d.svg.replace(/<\/svg>\s*$/, `<g data-diff-overlay="${side}" transform="translate(${d.origin.x} ${d.origin.y})">${marksSvg(d, marksFor(diff, side))}</g></svg>`);
+    return { svg, width: d.width, height: d.height };
+  });
+}

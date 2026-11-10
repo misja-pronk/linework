@@ -3,3 +3,4 @@ export { toPdf, pdfFamilies, type FamilyBytes, type FontBytes, type PdfOptions }
 export * from './steps.ts';
 export { svgOnPage } from './page.ts';
 export type { SlideText } from './pptx.ts';
+export { toPictureDeck, type PictureSlide } from './pictures.ts';
