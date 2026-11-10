@@ -27,6 +27,7 @@ const EXPORT_ENTRY = {
   azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
+import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
 import { renamePins } from './ai/ask.ts';
 import { Present, type PresentDoc } from './present.tsx';
@@ -1472,6 +1473,26 @@ export function App() {
 
   // ------------------------------------------------------------ commands
 
+  // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
+  const comparing = useCompare({
+    docKey: ws && doc.path ? `${ws.name}/${doc.path}` : docId,
+    docName: doc.name,
+    path: ws ? doc.path : undefined,
+    ws,
+    text,
+    textNow,
+    pins,
+    savedText,
+    savedPins,
+    load,
+    file: docFile,
+    view: drawn?.view ?? viewName,
+    theme,
+    blocked: !!modal || presenting,
+    notify,
+    onSelect: (s) => select(s),
+  });
+
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
@@ -1516,6 +1537,7 @@ export function App() {
           ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
         ]
       : []),
+    ...comparing.commands,
     { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: 'N', run: () => addNote() },
     { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: '⇧N', run: toggleNotes },
     { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: '⇧R', run: toggleReview },
@@ -1991,6 +2013,7 @@ export function App() {
                   <Icon name="layers" /> Step <kbd>S</kbd>
                 </button>
               )}
+              {comparing.button}
               <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
                 <Icon name="play" /> Present <kbd>P</kbd>
               </button>
@@ -2056,6 +2079,7 @@ export function App() {
               />
             )}
           </Preview>
+          {comparing.view}
           {stepList.length > 0 && (
             <StepsStrip
               steps={stepList}
@@ -2249,6 +2273,7 @@ export function App() {
 
       {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
+      {comparing.dialogs}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
           placeholder={`Connect ${nodeName(selected.id)} to…`}
