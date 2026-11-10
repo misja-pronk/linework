@@ -10,7 +10,7 @@
 //   importPlantUml(text)   PlantUML sequence → sequence, component and deployment → systems, C4-PlantUML → c4,
 //                          state → states, activity → process, entity → erd
 //   importText(text, name) any of these, by the file's ending or what the text looks like
-//   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
+//   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes; over an earlier import, hand edits kept
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
 //   importDataMesh(files)  data product files (ODPS) and data contracts (ODCS) → data-products
 //   importTerraform(text)  `terraform show -json` of a state or a plan (AWS, Google Cloud) → cloud
@@ -36,7 +36,7 @@ export interface Imported {
 }
 
 export { guessKind } from './systems.ts';
-export { importKubernetes, isKubernetes } from './kubernetes.ts';
+export { importKubernetes, isKubernetes, type KubernetesOptions } from './kubernetes.ts';
 export { importNetwork, isNetworkInventory, networkKind } from './network.ts';
 export { importStructurizr, isStructurizr } from './structurizr.ts';
 export { dataFileKind, importDataMesh, isDataMeshFile, type DataFileKind, type ImportedMesh, type MeshFile, type MeshOptions, type MeshProblem } from './data-mesh.ts';
