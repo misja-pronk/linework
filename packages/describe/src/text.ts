@@ -53,7 +53,9 @@ export function toText(d: Description, o: WriteOptions = {}): string {
 /** What Markdown would read as markup at the start of a line or anywhere: escaped, so a label stays a label. */
 export function escapeMarkdown(s: string): string {
   return s
-    .replace(/([\\`*_[\]<>|])/g, '\\$1')
+    .replace(/([\\`*[\]<>|])/g, '\\$1')
+    // An underscore inside a word (customer_id) is never emphasis; only one at a word's edge is escaped.
+    .replace(/(^|\W)_|_(?=\W|$)/g, (m) => m.replace('_', '\\_'))
     .replace(/^(\s*)([#+-])(?=\s)/, '$1\\$2')
     .replace(/^(\s*\d+)([.)])(?=\s)/, '$1\\$2');
 }
