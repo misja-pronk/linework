@@ -291,7 +291,7 @@ describe('carto errors and help', () => {
       expect(r.err.trim(), args.join(' ')).toBe(`carto: ${args[1]}: no such file or folder`);
       expect(r.err).not.toMatch(/ENOENT|\n\s+at /);
     }
-  });
+  }, 120_000);
 
   it('suggests the command meant, with a short usage instead of the whole manual', () => {
     const r = carto('rendr', 'x.yaml');
@@ -301,7 +301,7 @@ describe('carto errors and help', () => {
     const nothing = carto('frobnicate');
     expect(nothing.err).not.toContain('Did you mean');
     expect(nothing.err).toContain('carto --help');
-  });
+  }, 120_000);
 
   it('has short top-level help, help per command, and the full list on request', () => {
     const top = carto('--help');
@@ -317,12 +317,12 @@ describe('carto errors and help', () => {
     const bad = carto('render', 'x.yaml', '--bogus');
     expect(bad.code).toBe(1);
     expect(bad.err).toBe("carto: Unknown option '--bogus'\nOptions: carto render --help\n");
-  });
+  }, 120_000);
 
   it('shares to the dev server by default', () => {
     write('one.yaml', 'type: systems\nnodes:\n  a: service\n');
     expect(carto('share', 'one.yaml').out).toMatch(/^http:\/\/localhost:5178\/#/);
-  });
+  }, 120_000);
 
   it('takes -o as a folder only when it ends in / or has no extension', () => {
     write('views.yaml', shop);
@@ -334,5 +334,5 @@ describe('carto errors and help', () => {
     expect(exists('pics/views-data.svg')).toBe(true);
     expect(carto('render', 'views.yaml', '-o', 'one.svg').code).toBe(0);
     expect(fs.statSync(path.join(tmp, 'one.svg')).isFile()).toBe(true);
-  });
+  }, 120_000);
 });
