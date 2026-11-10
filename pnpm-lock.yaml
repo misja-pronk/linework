@@ -491,6 +491,54 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/vscode:
+    devDependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/docs-plugins':
+        specifier: workspace:*
+        version: link:../docs-plugins
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@cartography/export':
+        specifier: workspace:*
+        version: link:../export
+      '@cartography/import':
+        specifier: workspace:*
+        version: link:../import
+      '@cartography/interop':
+        specifier: workspace:*
+        version: link:../interop
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
+      '@playwright/test':
+        specifier: ^1.65.0
+        version: 1.65.0
+      '@types/markdown-it':
+        specifier: ^14.2.0
+        version: 14.2.0
+      '@types/vscode':
+        specifier: 1.90.0
+        version: 1.90.0
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      markdown-it:
+        specifier: ^15.0.3
+        version: 15.0.3
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
   packages/web:
     dependencies:
       '@anthropic-ai/sdk':
@@ -1485,6 +1533,9 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@types/vscode@1.90.0':
+    resolution: {integrity: sha512-oT+ZJL7qHS9Z8bs0+WKf/kQ27qWYR3trsXpq46YDjFqBsMLG4ygGGjPaJ2tyrH0wJzjOEmDyg9PDJBBhWg9pkQ==}
 
   '@ungap/structured-clone@1.4.0':
     resolution: {integrity: sha512-1mEZtMKPM09vDmQt5y7YvmN2+DFTP7Tg0EWXdic8/C6VRnpb33e4ghisCIE3WZjsE2N8mf+QV1Zqh7ZFYLWInQ==}
@@ -3446,6 +3497,8 @@ snapshots:
   '@types/unist@2.0.11': {}
 
   '@types/unist@3.0.3': {}
+
+  '@types/vscode@1.90.0': {}
 
   '@ungap/structured-clone@1.4.0': {}
 
