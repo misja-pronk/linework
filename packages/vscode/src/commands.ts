@@ -42,7 +42,8 @@ function askOf(doc: vscode.TextDocument, previews: Previews): DrawAsk {
     view: p?.last?.result.view ?? p?.view,
     step: p?.step,
     ...(p?.focus !== undefined ? { focus: p.focus } : {}),
-    scheme: scheme(),
+    // Exports look as `carto render` makes them: the diagram's theme, else light (not the editor's colours).
+    scheme: 'light',
     themeOverride: settings().theme,
   };
 }
