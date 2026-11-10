@@ -3,6 +3,7 @@
 // accepted (⏎, one undo step) or rejected (Esc). Only what is listed under "What is sent" goes to
 // api.anthropic.com, with the user's own key, and only when they press Ask.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Anthropic from '@anthropic-ai/sdk';
 import type { Diagnostic, DiagramType, Graph, LayoutSidecar, Placed } from '@cartography/core';
 import { compare, summary as diffSummary, type Comparison } from '@cartography/diff';
 import { Icon } from '../icon.tsx';
@@ -56,7 +57,7 @@ export function AskPanel(p: AskPanelProps) {
   const [key, setKey] = useState(() => store.get<string>('claude-key') ?? sessionKey);
   const [remember, setRemember] = useState(() => !!store.get<string>('claude-key'));
   const [model, setModel] = useState<ModelId>(() => store.get<ModelId>('claude-model') ?? 'claude-opus-5-5');
-  const [askingKey, setAskingKey] = useState(false);
+  const [askingKey, setAskingKey] = useState(() => !(store.get<string>('claude-key') ?? sessionKey));
   const [question, setQuestion] = useState('');
   const [turns, setTurns] = useState<Turn[]>([]);
   const [progress, setProgress] = useState<AskProgress>();
@@ -114,6 +115,7 @@ export function AskPanel(p: AskPanelProps) {
     store.set('claude-key', remember ? key.trim() : null);
     sessionKey = key.trim();
     store.set('claude-model', model);
+    setAskingKey(false);
     const content = messageFor(q);
     // An open proposal that gets a follow-up is replaced by the answer to it.
     if (proposal) setTurns((t) => t.map((x) => (x.who === 'claude' && x.kind === 'proposal' && x.state === 'open' ? { ...x, state: 'replaced' } : x)));
@@ -134,7 +136,10 @@ export function AskPanel(p: AskPanelProps) {
       }
     } catch (e) {
       if (abort.current?.signal.aborted) setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: 'Stopped. Nothing was changed.' }]);
-      else setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: failure(e) }]);
+      else {
+        setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: failure(e) }]);
+        if (e instanceof Anthropic.AuthenticationError) setAskingKey(true);
+      }
     } finally {
       setProgress(undefined);
     }
@@ -203,7 +208,7 @@ export function AskPanel(p: AskPanelProps) {
           <Icon name="x" />
         </button>
       </header>
-      {(askingKey || !hasKey) && (
+      {askingKey && (
         <div className="ask-key">
           <label className="ask-field">
             <span className="ask-label">Anthropic API key</span>
@@ -268,7 +273,10 @@ export function AskPanel(p: AskPanelProps) {
                 <Icon name="circle-exclamation-point" size={14} />
                 <span>
                   Claude’s change did not validate after two fixes, so it is not offered. Nothing was changed. Try asking for a smaller step.
-                  <small className="ask-errors">{t.errors.join('\n')}</small>
+                  <details>
+                    <summary>What was wrong</summary>
+                    <small className="ask-errors">{t.errors.map((e) => (e.length > 240 ? `${e.slice(0, 240)}…` : e)).join('\n')}</small>
+                  </details>
                 </span>
               </p>
             </div>

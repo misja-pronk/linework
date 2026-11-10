@@ -1,7 +1,8 @@
 /* The Ask panel (ask-panel.tsx): docked on the right of the drawing, over it, never moving it. */
 .ask-panel {
   position: absolute;
-  top: 10px;
+  /* Under the canvas tools, which stay in reach. */
+  top: 60px;
   right: 10px;
   bottom: 10px;
   z-index: 6;
@@ -300,4 +301,9 @@
     width: auto;
     height: min(78vh, 640px);
   }
+}
+.turn details summary {
+  cursor: pointer;
+  margin-top: 4px;
+  font-size: 12px;
 }

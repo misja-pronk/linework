@@ -1326,7 +1326,8 @@ export function App() {
         : [],
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
-  const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector);
+  // The Ask panel takes the right side while it is open: the inspector would squeeze the drawing between the two.
+  const showInspector = !asking && (!!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1936,11 +1937,7 @@ export function App() {
               docKey={docKey}
               seed={askSeed}
               onAccept={(yaml, renames) => apply(yaml, renames.size ? (renamePins(vpins, renames) ?? null) : undefined)}
-              onRef={(r) => {
-                select(r);
-                // The drawing frames the element once it knows it is selected.
-                setTimeout(() => previewControl.current?.zoomToSelection(), 30);
-              }}
+              onRef={(r) => select(r)}
               onClose={() => {
                 setAsking(false);
                 focusDrawing();
@@ -1948,7 +1945,7 @@ export function App() {
             />
           )}
         </section>
-            {selected && inspector && type && (selNode || selGroup || selEdge) && (
+            {showInspector && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
@@ -2009,7 +2006,7 @@ export function App() {
             onClose={() => setInspector(false)}
           />
         )}
-        {selection.length > 1 && inspector && (
+        {showInspector && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">
