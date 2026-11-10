@@ -30,6 +30,7 @@ const groups: [string, [string, string][]][] = [
       ['⌘Z / ⇧⌘Z', 'Undo / redo (text, edits and moves)'],
       ['⌘0 / ⌘+ / ⌘−', 'Fit / zoom in / zoom out'],
       ['⇧1 / ⇧2', 'Zoom to fit / to the selection'],
+      ['V', 'Next view (overview, detailed…); the YAML stays as it is'],
     ],
   ],
   [
@@ -67,6 +68,7 @@ const groups: [string, [string, string][]][] = [
       ['Home / End', 'Presenting: first / last'],
       ['3 ↵', 'Presenting: jump to a number'],
       ['B or .', 'Presenting: blank the screen'],
+      ['A', 'Presenting: everything, or the focus set with F'],
       ['Tab ↵ / ⌘-click', 'Presenting: follow a link, ⌫ comes back'],
       ['Esc', 'Presenting: stop'],
     ],

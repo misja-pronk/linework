@@ -48,6 +48,32 @@ await page.waitForSelector('.drawing svg');
   if (!/^type: access/m.test((await stored()).text ?? '')) fail('the drop should open an access diagram');
   await page.screenshot({ path: `${out}/access-1-dropped.png` });
 
+  // 1b. With files it cannot read: the toast says the first and offers all of them, listed with the problems.
+  await drop([...fs.readdirSync(dir).map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') })), { name: 'broken.json', text: '{ nope' }, { name: 'cut-off.json', text: '[{"id": ' }, { name: 'other.json', text: '{"value": [{"x": 1}]}' }]);
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('broken.json'), null, { timeout: 10000 }).catch(() => {});
+  const told = await toast();
+  if (!told.includes('broken.json') || !told.includes('Show all 3')) fail('the toast should say the first note and offer all 3: ' + told);
+  await page.click('.toast button:has-text("Show all")').catch(() => fail('no Show all on the toast'));
+  await wait();
+  const listed = await page.locator('.palette-list').innerText().catch(() => '');
+  for (const f of ['broken.json', 'cut-off.json', 'other.json']) if (!listed.includes(f)) fail(`the problems list should name ${f}: ${listed}`);
+  // The highlighted row is read in full, however long; the others keep to one line.
+  await page.keyboard.type('broken');
+  await wait();
+  const cut = await page.evaluate(() => {
+    const l = document.querySelector('.palette [aria-selected="true"] .palette-label');
+    return l ? l.scrollWidth > l.clientWidth + 1 || !l.textContent.includes('position 2 (line 1 column 3)') : true;
+  });
+  if (cut) fail('the highlighted import note is cut off');
+  await page.screenshot({ path: `${out}/access-1b-notes.png` });
+  await page.keyboard.press('Escape');
+  // Still there from the palette while this diagram is open.
+  await page.keyboard.press('Meta+k');
+  await page.keyboard.type('show problems');
+  await wait();
+  if (!(await page.locator('.palette [role="option"]:has-text("Show problems")').innerText().catch(() => '')).includes('3 from the import')) fail('the palette should say the problems include the import notes');
+  await page.keyboard.press('Escape');
+
   // 2. What can this group reach: focus on it, downstream.
   await page.locator('.drawing [data-node="sg-developers"]').click();
   await page.locator('.preview').focus();
@@ -93,21 +119,23 @@ await page.waitForSelector('.drawing svg');
     // The diagram of the drop before is not kept: this is about the folder.
     window.confirm = () => true;
   }, files);
-  await page.click('button:has-text("Open folder")');
+  // All by keyboard, right after the folder is drawn: ⌘K, then ⌘S and Enter in the palette.
+  await page.keyboard.press('Meta+k');
+  await page.keyboard.type('open folder');
+  await page.keyboard.press('Enter');
   // No diagram in the folder yet: its exports are drawn straight away.
   await page.waitForSelector('.drawing [data-node="shop-production"]', { timeout: 15000 }).catch(() => fail('the folder of gh api responses was not drawn'));
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('→ github.yaml'), null, { timeout: 5000 }).catch(() => {});
   if (!(await toast()).includes('→ github.yaml')) fail('opening the folder should say where the diagram goes: ' + (await toast()));
-  // Saved from the palette: the new diagram is not in the folder until then.
-  await page.keyboard.press('Meta+k');
-  await page.keyboard.type('save github.yaml');
-  await page.click('.palette [role="option"]:has-text("Save github.yaml")');
+  // Saved with ⌘S: the new diagram is not in the folder until then.
+  await page.keyboard.press('Meta+s');
   await wait(800);
   const written = await page.evaluate(async () => {
     const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('kestrel-gh');
     return (await (await d.getFileHandle('github.yaml')).getFile()).text().catch(() => '');
   }).catch(() => '');
-  if (!/^type: github/m.test(written)) fail('saving should write github.yaml into the folder');
+  if (!/^type: github/m.test(written)) fail('⌘S should write github.yaml into the folder');
+  if (!(await toast()).includes('Saved github.yaml')) fail('⌘S should say it saved: ' + (await toast()));
   // Again from the palette: the hand edit stays.
   await page.evaluate(async () => {
     const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('kestrel-gh');
@@ -120,13 +148,14 @@ await page.waitForSelector('.drawing svg');
   // The folder again, as it is on disk now: github.yaml is one of its diagrams.
   await page.keyboard.press('Meta+k');
   await page.keyboard.type('open folder');
-  await page.click('.palette [role="option"]:has-text("Open folder")');
+  await page.keyboard.press('Enter');
   await wait(1000);
   await page.keyboard.press('Meta+k');
   await page.keyboard.type('GitHub organisation of');
-  const offer = page.locator('.palette [role="option"]:has-text("GitHub organisation of kestrel-gh")');
-  if (!(await offer.count())) fail('the palette should offer the GitHub organisation of the folder');
-  else await offer.click();
+  await wait(200);
+  const offer = await page.locator('.palette [role="option"][aria-selected="true"]').innerText().catch(() => '');
+  if (!offer.includes('GitHub organisation of kestrel-gh')) fail('the palette should offer the GitHub organisation of the folder first: ' + offer);
+  await page.keyboard.press('Enter');
   await wait(900);
   if (!((await stored()).text ?? '').includes('label: Infrastructure')) fail('importing again should keep the label written by hand');
   if (!(await toast()).includes('what you added by hand is kept')) fail('importing again should say the hand edits are kept: ' + (await toast()));

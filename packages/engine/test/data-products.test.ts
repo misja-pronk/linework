@@ -67,4 +67,19 @@ describe('schema messages', () => {
     const r = await render('type: data-products\nconsumers:\n  bi: { kind: dashboard, inputs: [x] }\n', { fonts: 'none' });
     expect(r.diagnostics.map((d) => d.message)).toEqual([expect.stringMatching(/inputs/)]);
   });
+
+  it('offers overview and detailed as views: asked for, a view wins over the one written, focus included', async () => {
+    const r = await render(source('view: overview'), { fonts: 'none' });
+    expect(r.views).toEqual([
+      { name: 'overview', title: 'Overview' },
+      { name: 'detailed', title: 'Detailed' },
+    ]);
+    const d = await render(source('view: overview'), { fonts: 'none', view: 'detailed' });
+    expect(d.diagnostics).toEqual([]);
+    expect(d.view).toBe('detailed');
+    expect(d.graph!.nodes.some((n) => n.id.startsWith('contract:'))).toBe(true);
+    // A focus on a detailed drawing stays detailed: both views are elements and lines.
+    const f = await render(source('view: detailed'), { fonts: 'none', focus: 'orders' });
+    expect(f.graph!.nodes.some((n) => n.id.startsWith('contract:'))).toBe(true);
+  });
 });
