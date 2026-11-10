@@ -65,6 +65,8 @@ export function comment(text: string, indent = 0): string[] {
 export const file = (lines: (string | false | undefined)[]) =>
   lines
     .filter((l): l is string => typeof l === 'string')
+    // A section header with nothing under it (`edges:` when there are none) is left out.
+    .filter((l, i, all) => !/^[a-z]+:$/.test(l) || /^\s+\S/.test(all.slice(i + 1).find((n) => n.trim() && !/^\s*#/.test(n)) ?? ''))
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim() + '\n';
