@@ -6,6 +6,7 @@ import { Icon } from '../icon.tsx';
 import { score } from '../palette.tsx';
 
 export const BLOCK_MIME = 'application/x-cartography-block';
+const OPEN_KEY = 'cartography:blocks-open';
 
 const SOURCE = { folder: 'blocks/', library: 'mine', starter: 'starter' } as const;
 
@@ -22,8 +23,26 @@ export function BlocksPanel(p: {
   hint: string;
 }) {
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(true);
   const mine = p.listed.filter((l) => l.block?.type === p.typeId);
+  // Open once chosen open (remembered), and by itself when there are blocks of your own: the starters
+  // alone do not take the room of the shapes until asked for.
+  const [chosen, setChosen] = useState<boolean | undefined>(() => {
+    try {
+      const v = localStorage.getItem(OPEN_KEY);
+      return v == null ? undefined : v === 'true';
+    } catch {
+      return undefined;
+    }
+  });
+  const open = chosen ?? (mine.some((l) => l.source !== 'starter') || p.outdated > 0);
+  const setOpen = (v: boolean) => {
+    setChosen(v);
+    try {
+      localStorage.setItem(OPEN_KEY, String(v));
+    } catch {
+      /* private window: not remembered */
+    }
+  };
   const shown = useMemo(() => {
     const hits = mine.map((l) => ({ l, s: score(query, blockSearch(l.block!)) })).filter((x) => x.s > 0);
     if (query) hits.sort((a, b) => b.s - a.s);
