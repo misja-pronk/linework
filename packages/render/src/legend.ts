@@ -4,6 +4,8 @@
 import type { Graph, LegendItem } from '@cartography/core';
 import { baselineOffset, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
 import { dashAttr, esc, glyph, iconTile, monoAttr, r1 } from './paint.ts';
+import { blockSample } from './block.ts';
+import { drawMarks } from './flow.ts';
 
 /** Sample, gap, label, then the gap to the next item. */
 const SAMPLE = 28;
@@ -147,6 +149,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
   const label = `<text x="${r1(x0 + SAMPLE)}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
   if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme) + label;
+  if (item.swatch === 'block' && item.block) return drawMarks(blockSample(item.block.form, theme, x0, cy, item.block.heat), theme, '') + label;
   if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
     // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.
     const t = theme.tones[item.tone ?? 'slate'];

@@ -1,0 +1,31 @@
+type: capabilities
+title: E-commerce capabilities
+subtitle: Run cost per capability and the systems behind it
+heat:
+  - { by: cost, title: Run cost per year }
+  - fit
+
+capabilities:
+  Attract:
+    - Search engine marketing: { cost: €220k, fit: 4, systems: [Google Ads] }
+    - Content: { cost: €140k, fit: 3, systems: [Contentful] }
+    - Personalisation: { cost: €310k, fit: 2, systems: [Dynamic Yield] }
+  Sell:
+    - Catalogue:
+        - Product information: { cost: €180k, fit: 3, systems: [Akeneo] }
+        - Search and filters: { cost: €260k, fit: 4, systems: [Algolia] }
+    - Checkout:
+        - Basket: { cost: €90k, fit: 4, systems: [Commerce engine] }
+        - Payment: { cost: €410k, fit: 5, systems: [Adyen] }
+        - Promotions: { cost: €70k, fit: 2, systems: [Commerce engine] }
+  Deliver:
+    - Order management: { cost: €520k, fit: 2, systems: [Legacy OMS, SAP] }
+    - Warehouse: { cost: €640k, fit: 3, systems: [WMS] }
+    - Carrier management: { cost: €120k, fit: 3, systems: [Sendcloud] }
+  Serve:
+    - Customer service: { cost: €380k, fit: 3, systems: [Zendesk] }
+    - Returns: { cost: €160k, fit: 1, systems: [Legacy OMS] }
+    - Reviews: { cost: €30k, fit: 4, systems: [Trustpilot] }
+  Run:
+    - Finance: { cost: €200k, fit: 4, systems: [SAP] }
+    - Analytics: { cost: €290k, fit: 3, systems: [Snowflake, Looker] }

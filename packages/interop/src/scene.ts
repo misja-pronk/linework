@@ -3,10 +3,10 @@
 // PowerPoint): the same boxes, insets and colours, so the file opens looking like the picture.
 // An element is one thing a person moves: its body (the editable shape), the picture and small
 // parts that go with it. A connector is a line bound to the elements it joins.
-import { chips, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
+import { chips, type BlockShape, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { kinds as sequenceKinds } from '@cartography/sequence';
-import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
+import { besideShortLine, blockMarks, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
 
 /** What the engine's `render` returns; only what is drawn from is asked for. */
@@ -293,6 +293,7 @@ class SceneBuilder {
       else if (s.kind === 'sequence') this.sequence(s, this.at(box));
       else if (s.kind === 'journey') this.journey(s, this.at(box));
       else if (s.kind === 'flow') this.elements.push(this.flow(n, s, this.at(box)));
+      else if (s.kind === 'block') this.elements.push(this.block(n, s, this.at(box)));
       // journey-part: drawn by the journey itself.
     }
     if (this.flowCurves) this.warnings.push(`Small drawings on process shapes (${this.flowCurves}: a document's fold, a note's bracket) are pictures: they move with the shape`);
@@ -928,6 +929,17 @@ class SceneBuilder {
     return { id: `node:${n.id}`, role: 'node', parent: this.parentOf(n), body, under: [], parts, data };
   }
   private flowCurves = 0;
+
+  /** A capability, a person or a team (render/block.ts): its outline as the body, its words and tags on it. */
+  private block(n: GraphNode, s: BlockShape, b: Box): Element {
+    const marks = blockMarks(s, b, this.theme);
+    const first = marks[0];
+    const paint = first?.t === 'rect' ? { ...(first.fill && first.fill !== 'none' ? { fill: first.fill } : {}), ...(first.stroke ? { stroke: first.stroke, strokeWidth: first.sw ?? 1, ...(first.dash ? { dash: 'dashed' as const } : {}) } : {}) } : {};
+    const body = this.rect(s.label || s.form, b, first?.t === 'rect' ? (first.r ?? 0) : 0, first?.t === 'rect' ? paint : {});
+    const { parts, curves } = this.markParts(first?.t === 'rect' ? marks.slice(1) : marks, { x: 0, y: 0 });
+    if (curves) this.flowCurves += curves;
+    return { id: `node:${n.id}`, role: 'node', parent: this.parentOf(n), body, under: [], parts, data: { carto: 'node', id: n.id, label: s.label, ...(n.kind ? { kind: n.kind } : {}), ...(s.caption ? { caption: s.caption } : {}) } };
+  }
 
   /** A lane: a group whose name stands in a header band at its start. */
   private lane(g: GraphGroup, b: Box): Element {

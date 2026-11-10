@@ -135,8 +135,8 @@ export function Preview(p: Props) {
   const selected = selection.length === 1 ? selection[0] : undefined;
   /** Types with their own layout (sequence) draw lines themselves: no hand-made bends there. */
   const bendable = !stale && !!p.onBend && !result?.type?.layout;
-  /** A process stands where its flow puts it: its steps and lanes are picked, not dragged. */
-  const flowed = !!result?.type?.layout && !!result.graph?.nodes.some((n) => n.shape.kind === 'flow');
+  /** A process stands where its flow puts it, a capability map or an org chart where the tree engine does: picked, not dragged. */
+  const flowed = !!result?.type?.layout && !!result.graph?.nodes.some((n) => n.shape.kind === 'flow' || n.shape.kind === 'block');
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
   const [dragging, setDragging] = useState<Drag['mode']>();

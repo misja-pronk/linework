@@ -1,0 +1,27 @@
+type: teams
+title: Platform organisation
+subtitle: How the platform group serves the product teams
+flow: Flow of change to customers
+
+teams:
+  payments: { kind: stream-aligned, caption: Pay in and pay out, size: 8 }
+  lending: { kind: stream-aligned, caption: Loans from quote to repayment, size: 7 }
+  onboarding: { kind: stream-aligned, caption: New customers and KYC, size: 6 }
+  insights: { kind: stream-aligned, caption: Spending insights in the app, size: 5 }
+  devex: { label: Developer experience, kind: enabling, caption: Golden paths, size: 3 }
+  security-champions: { label: Security champions, kind: enabling, caption: Threat modelling, size: 2 }
+  fraud-models: { label: Fraud models, kind: complicated-subsystem, caption: Real-time scoring, size: 4 }
+  credit-engine: { label: Credit engine, kind: complicated-subsystem, caption: Risk rules, size: 3 }
+  cloud-platform: { label: Cloud platform, kind: platform, caption: "Clusters, pipelines, observability", size: 9 }
+  data-platform: { label: Data platform, kind: platform, caption: Lakehouse and streaming, size: 6 }
+
+interactions:
+  - devex -> payments: facilitating
+  - devex -> lending: facilitating
+  - security-champions -> onboarding: facilitating
+  - security-champions -> insights: facilitating
+  - payments <-> fraud-models: collaboration
+  - lending -> credit-engine: x-as-a-service
+  - payments <-> lending: collaboration
+  - insights -> cloud-platform: x-as-a-service
+  - insights -> data-platform: x-as-a-service
