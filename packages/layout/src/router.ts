@@ -828,6 +828,13 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     if (!e.label || !route) continue;
     const { width, height } = e.label;
     const pts = route.points;
+    // A line back to its own node: outside the loop, where it covers neither the node nor the arrowhead.
+    if (e.from.node === e.to.node && pts.length === 4) {
+      const [a, b] = [pts[1]!, pts[2]!];
+      route.label = a.y === b.y ? { x: (a.x + b.x) / 2 - width / 2, y: a.y - 4 - height, width, height } : { x: a.x + 6, y: (a.y + b.y) / 2 - height / 2, width, height };
+      taken.push(route.label);
+      continue;
+    }
     const candidates: { box: Box; score: number }[] = [];
     const total = pts.length - 1;
     for (let i = 1; i < pts.length; i++) {

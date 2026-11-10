@@ -267,6 +267,12 @@ describe('the layout', () => {
     expect(pts.slice(1, -1).some((p) => p.x > box.x && p.x < box.x + box.width && p.y > box.y && p.y < box.y + box.height)).toBe(false);
   });
 
+  it.each(['right', 'down'])('keeps what a loop is called off the state it loops on, flowing %s', async (direction) => {
+    const r = await render(door.replace('title: Door', `title: Door\ndirection: ${direction}`), { fonts: 'none' });
+    const [box, l] = [r.placed!.nodes.get('Closed')!, r.placed!.edges.get('t5')!.label!];
+    expect(l.x + l.width <= box.x || l.x >= box.x + box.width || l.y + l.height <= box.y || l.y >= box.y + box.height).toBe(true);
+  });
+
   it('runs left to right from the start, and draws the same picture twice', async () => {
     const one = await render(door, { fonts: 'none' });
     const two = await render(door, { fonts: 'none' });
