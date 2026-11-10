@@ -1,0 +1,240 @@
+{
+  "count": 16,
+  "data": [
+    {
+      "id": "/providers/Microsoft.Management/managementGroups/kestrel",
+      "name": "kestrel",
+      "type": "microsoft.management/managementgroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "displayName": "Kestrel Logistics",
+        "details": {
+          "parent": null
+        }
+      }
+    },
+    {
+      "id": "/providers/Microsoft.Management/managementGroups/kestrel-platform",
+      "name": "kestrel-platform",
+      "type": "microsoft.management/managementgroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "displayName": "Platform",
+        "details": {
+          "parent": {
+            "id": "/providers/Microsoft.Management/managementGroups/kestrel",
+            "name": "kestrel"
+          }
+        }
+      }
+    },
+    {
+      "id": "/providers/Microsoft.Management/managementGroups/kestrel-landingzones",
+      "name": "kestrel-landingzones",
+      "type": "microsoft.management/managementgroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "displayName": "Landing zones",
+        "details": {
+          "parent": {
+            "id": "/providers/Microsoft.Management/managementGroups/kestrel",
+            "name": "kestrel"
+          }
+        }
+      }
+    },
+    {
+      "id": "/providers/Microsoft.Management/managementGroups/kestrel-corp",
+      "name": "kestrel-corp",
+      "type": "microsoft.management/managementgroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "displayName": "Corp",
+        "details": {
+          "parent": {
+            "id": "/providers/Microsoft.Management/managementGroups/kestrel-landingzones",
+            "name": "kestrel-landingzones"
+          }
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "name": "Kestrel Connectivity",
+      "type": "microsoft.resources/subscriptions",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "state": "Enabled",
+        "managementGroupAncestorsChain": [
+          {
+            "name": "kestrel-platform",
+            "displayName": "Platform"
+          },
+          {
+            "name": "kestrel",
+            "displayName": "Kestrel Logistics"
+          }
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "name": "Kestrel Shop Production",
+      "type": "microsoft.resources/subscriptions",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "state": "Enabled",
+        "managementGroupAncestorsChain": [
+          {
+            "name": "kestrel-corp",
+            "displayName": "Corp"
+          },
+          {
+            "name": "kestrel-landingzones",
+            "displayName": "Landing zones"
+          },
+          {
+            "name": "kestrel",
+            "displayName": "Kestrel Logistics"
+          }
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/30671016-5a56-24fd-c8a6-1eba38b5f7d1",
+      "name": "Kestrel Data Platform",
+      "type": "microsoft.resources/subscriptions",
+      "subscriptionId": "30671016-5a56-24fd-c8a6-1eba38b5f7d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "properties": {
+        "state": "Enabled",
+        "managementGroupAncestorsChain": [
+          {
+            "name": "kestrel-corp",
+            "displayName": "Corp"
+          },
+          {
+            "name": "kestrel-landingzones",
+            "displayName": "Landing zones"
+          },
+          {
+            "name": "kestrel",
+            "displayName": "Kestrel Logistics"
+          }
+        ]
+      }
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network",
+      "name": "rg-hub-network",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-dns",
+      "name": "rg-hub-dns",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-hub-dns",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-management",
+      "name": "rg-management",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-management",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/NetworkWatcherRG",
+      "name": "NetworkWatcherRG",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "NetworkWatcherRG",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network",
+      "name": "rg-shop-network",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-shop-network",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-app",
+      "name": "rg-shop-app",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-shop-app",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-edge",
+      "name": "rg-shop-edge",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-shop-edge",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/30671016-5a56-24fd-c8a6-1eba38b5f7d1/resourceGroups/rg-data-network",
+      "name": "rg-data-network",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-data-network",
+      "subscriptionId": "30671016-5a56-24fd-c8a6-1eba38b5f7d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    },
+    {
+      "id": "/subscriptions/30671016-5a56-24fd-c8a6-1eba38b5f7d1/resourceGroups/rg-data-prod",
+      "name": "rg-data-prod",
+      "type": "microsoft.resources/subscriptions/resourcegroups",
+      "resourceGroup": "rg-data-prod",
+      "subscriptionId": "30671016-5a56-24fd-c8a6-1eba38b5f7d1",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "location": "westeurope",
+      "properties": {
+        "provisioningState": "Succeeded"
+      }
+    }
+  ],
+  "skip_token": null,
+  "total_records": 16
+}

@@ -319,6 +319,9 @@ importers:
 
   packages/import:
     dependencies:
+      '@cartography/azure':
+        specifier: workspace:*
+        version: link:../../types/azure
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
