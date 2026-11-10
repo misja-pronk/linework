@@ -100,6 +100,18 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Comparing versions',
+    [
+      ['⇧⌘D', 'Compare with last saved, a snapshot, another file or a commit'],
+      ['⇧⌘S', 'Take a snapshot to compare with later'],
+      ['N / P', 'Comparing: next / previous change'],
+      ['↵', 'Comparing: edit the change in focus'],
+      ['M', 'Comparing: overlay or side by side'],
+      ['0 / + / −', 'Comparing: fit / zoom in / zoom out'],
+      ['Esc', 'Comparing: back to editing'],
+    ],
+  ],
+  [
     'Mouse and trackpad',
     [
       ['Drag an element', 'Move it (pins it), snapping to guides; drop into a group to nest'],

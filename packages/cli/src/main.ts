@@ -15,7 +15,7 @@ import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureEx
 import { execFileSync } from 'node:child_process';
 import { runLive, type LiveFlags } from './live.ts';
 import type { Fetched } from '@cartography/import/node';
-import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
+import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
 import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
@@ -76,8 +76,10 @@ const helpAll = `carto — architecture diagrams that look good
                                                 and GitHub also who gained and lost what, effective access, in words
                [-o diff.svg|diff.md] [--view access]  the picture, the words as markdown; --view access: the matrix
                                                 with gained, lost and changed cells marked
-  carto diff --git <ref> <file.yaml…>           the same against the file at a branch, tag or commit (includes too)
-               [-o diff.svg|diff.png|folder]    also the picture: the newer drawing with what was added and
+  carto diff --git <ref> <file.yaml…>           the same against the file at a branch, tag or commit (includes too);
+                                                --since <ref> says the same
+  carto diff --snapshot <label> <file.yaml…>    against a snapshot the editor wrote next to it (<name>.snapshots/<label>.yaml)
+               [-o diff.svg|diff.png|diff.md|folder]  also the picture (or, .md, the changes in plain sentences): the newer drawing with what was added and
                                                 changed marked, what was removed as ghosts where it was, and a key
                [--side-by-side]                 the picture as before and after, each with its own marks
                [--json] [--view name] [--fresh] [--exit-code]
@@ -267,6 +269,7 @@ const parsed = (() => {
     page: { type: 'string', default: 'fit' },
     git: { type: 'string' },
     since: { type: 'string' },
+    snapshot: { type: 'string' },
     branches: { type: 'string' },
     max: { type: 'string' },
     principals: { type: 'string' },
@@ -824,11 +827,24 @@ function accessMarkdown(name: string, changes: AccessChange[]): string {
 
 /** carto diff: two files, or files against a git ref. Words (or JSON) on stdout, the picture with -o. */
 async function diffFiles(): Promise<number> {
-  const ref = values.git;
+  // --since <ref> reads as "what changed since": the same as --git.
+  const ref = values.git ?? values.since;
+  const snap = values.snapshot;
   if (values.live) {
     if (files.length !== 1) return (console.error('One saved diagram: carto diff --live <source> <saved.yaml>'), 1);
     if (!fs.existsSync(files[0]!)) return (console.error(`${files[0]}  ${red('error')}  not found`), 1);
-  } else if (ref ? !files.length : files.length !== 2) return (console.error(ref ? 'Name the diagrams: carto diff --git <ref> <file.yaml…>' : 'Two files: carto diff <before.yaml> <after.yaml>, or carto diff --git <ref> <file.yaml…>'), 1);
+  } else if (ref || snap ? !files.length : files.length !== 2)
+    return (console.error(ref ? 'Name the diagrams: carto diff --git <ref> <file.yaml…>' : snap ? 'Name the diagrams: carto diff --snapshot <label> <file.yaml…>' : 'Two files: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> or carto diff --snapshot <label> <file.yaml…>'), 1);
+  if (snap) {
+    // A snapshot that is not there: say which there are.
+    const missing = files.filter((f) => !fs.existsSync(snapshotPath(f, snap)));
+    for (const f of missing) {
+      const dir = snapshotDir(f);
+      const there = fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => /\.ya?ml$/i.test(x)).map((x) => x.replace(/\.ya?ml$/i, '')) : [];
+      console.error(`${f}  ${red('error')}  no snapshot "${snap}" (${snapshotPath(f, snap)})${there.length ? `; there are: ${there.join(', ')}` : '; take one in the editor with ⇧⌘S'}`);
+    }
+    if (missing.length) return 1;
+  }
   const ext = values.out ? path.extname(values.out).slice(1).toLowerCase() : '';
   const format = ext === 'png' || ext === 'svg' ? ext : values.format === 'png' ? 'png' : 'svg';
   const fonts: RenderOptions['fonts'] = format === 'svg' && !values['no-fonts'] ? 'embed' : 'none';
@@ -866,6 +882,12 @@ async function diffFiles(): Promise<number> {
   }
   const pairs = live
     ? [{ name: live.name, against: path.basename(files[0]!), before: disk(files[0]!), beforeOptions: optionsFor(files[0]!, fonts), after: live.yaml, afterFile: files[0]! }]
+    : snap
+    ? files.map((f) => {
+        const file = snapshotPath(f, snap);
+        // Read as the diagram itself would be: includes from beside it, pins from beside the snapshot.
+        return { name: f, against: `snapshot ${snap}`, before: disk(file), beforeOptions: { ...optionsFor(f, fonts), sidecar: sidecarFor(file) }, after: disk(f), afterFile: f };
+      })
     : folders
     ? [{ name: files[1]!, against: path.basename(path.resolve(files[0]!)), before: exported!.before, beforeOptions: optionsFor(besideFolder(files[0]!), fonts), after: exported!.after, afterFile: besideFolder(files[1]!) }]
     : ref
@@ -903,7 +925,7 @@ async function diffFiles(): Promise<number> {
     if (!c.diff.same) changed = true;
     const state = p.before === undefined ? 'new' : p.after === undefined ? 'removed' : undefined;
     if (changes?.length) changed = true;
-    if (values.json) json.push({ file: p.name, ...(values.view ? { view: values.view } : {}), against: p.against, ...(state ? { state } : {}), summary: summary(c.diff), ...c.diff, ...(changes ? { access: changes } : {}) });
+    if (values.json) json.push({ file: p.name, ...(values.view ? { view: values.view } : {}), against: p.against, ...(state ? { state } : {}), summary: summary(c.diff), explained: explain(c.diff, c.before?.graph, c.after?.graph).map((x) => x.text), ...c.diff, ...(changes ? { access: changes } : {}) });
     else {
       console.log(`${bold(p.name)}${values.view ? `#${values.view}` : ''} ${dim(`against ${p.against}`)}: ${state ? `${state}, ` : ''}${summary(c.diff)}`);
       if (!c.diff.same) console.log(formatDiff(c.diff));
@@ -912,7 +934,7 @@ async function diffFiles(): Promise<number> {
     if (!values.out) continue;
     const single = pairs.length === 1 && !!ext;
     if (markdown) {
-      const text = changes ? accessMarkdown(path.basename(p.name), changes) : `## ${path.basename(p.name)}\n\n${summary(c.diff)}\n`;
+      const text = changes ? accessMarkdown(path.basename(p.name), changes) : explainMarkdown(c.diff, c.before?.graph, c.after?.graph, { name: path.basename(p.name), against: p.against });
       const out = single ? values.out : path.join(values.out, path.basename(p.name).replace(/\.ya?ml$/, '') + '.diff.md');
       fs.mkdirSync(path.dirname(out), { recursive: true });
       fs.writeFileSync(out, text);
@@ -934,7 +956,7 @@ async function diffFiles(): Promise<number> {
     fs.writeFileSync(out, format === 'png' ? toPng(picture.svg, Number(values.scale) || 2, await ttfFiles(faces)) : picture.svg);
     console.error(`${p.name} → ${out} ${dim(`${picture.width}×${picture.height}`)}`);
   }
-  if (values.json) console.log(JSON.stringify(ref ? json : json[0], null, 2));
+  if (values.json) console.log(JSON.stringify(ref || snap ? json : json[0], null, 2));
   return !ok ? 1 : values['exit-code'] && changed ? 1 : 0;
 }
 

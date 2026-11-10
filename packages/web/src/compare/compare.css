@@ -1,0 +1,315 @@
+/* The compare view: over the drawing pane, the YAML beside it stays editable. */
+.compare {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  outline: none;
+}
+.cmp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 12px 12px 0;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.cmp-bar .segmented button {
+  gap: 6px;
+}
+.cmp-against strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.cmp-counts {
+  display: flex;
+  gap: 10px;
+  padding: 0 8px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+.cmp-count b {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  color: var(--surface);
+  font-weight: 700;
+}
+.cmp-count.added b,
+.cmp-sign.added {
+  background: var(--success);
+}
+.cmp-count.changed b,
+.cmp-sign.changed {
+  background: var(--warning);
+}
+.cmp-count.removed b,
+.cmp-sign.removed {
+  background: var(--danger);
+}
+.cmp-busy {
+  color: var(--text-faint);
+}
+.cmp-done kbd {
+  background: none;
+}
+.cmp-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+.cmp-panes {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+}
+.cmp-pane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cmp-pane:active {
+  cursor: grabbing;
+}
+.cmp-pane-title {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 560;
+}
+.cmp-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cmp-stage.gliding {
+  transition: transform 0.24s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmp-stage.gliding {
+    transition: none;
+  }
+}
+.cmp-stage > svg {
+  display: block;
+}
+.cmp-stage [data-diff] {
+  cursor: pointer;
+}
+/* The change in focus: a thicker outline and a halo, besides the row marked in the list. */
+.cmp-stage [data-current] > rect,
+.cmp-stage [data-current] > path {
+  stroke-width: 4.5;
+}
+.cmp-stage [data-current] {
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+.cmp-empty,
+.cmp-note {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+}
+.cmp-note {
+  top: auto;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  max-width: 90%;
+}
+.cmp-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.cmp-list {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.cmp-list header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-keys {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.cmp-list ol {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+}
+.cmp-none {
+  margin: 12px;
+  color: var(--text-muted);
+}
+.cmp-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.cmp-item:hover {
+  background: var(--active-line);
+}
+.cmp-item.current {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.cmp-sign {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  color: var(--surface);
+  font-weight: 700;
+  line-height: 1;
+}
+.cmp-text {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+/* Removed: struck through, so the list says it in more than colour. */
+.cmp-item[data-status='removed'] .cmp-text {
+  text-decoration: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+/* Narrow panes: the list under the drawing, side by side stacked. */
+@media (max-width: 1100px) {
+  .cmp-body {
+    flex-direction: column;
+  }
+  .cmp-list {
+    width: auto;
+    max-height: 34%;
+  }
+}
+.compare.mode-side .cmp-panes.stacked {
+  flex-direction: column;
+}
+@media (max-width: 720px) {
+  .compare.mode-side .cmp-panes {
+    flex-direction: column;
+  }
+  .cmp-bar .tool span,
+  .cmp-bar .segmented button {
+    font-size: 12px;
+  }
+}
+
+/* The snapshot dialog. */
+.snap-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: start center;
+  padding-top: 18vh;
+  background: var(--overlay);
+}
+.snap-dialog form {
+  width: min(440px, calc(100vw - 32px));
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sheet);
+}
+.snap-dialog h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.snap-dialog input[type='text'] {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--editor-bg);
+  color: var(--text);
+}
+.snap-dialog label.check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.snap-dialog code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.snap-dialog .row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
