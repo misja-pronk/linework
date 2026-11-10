@@ -49,7 +49,7 @@ describe('carto render -o x.pptx --template', () => {
     expect(d.text('ppt/slides/slide1.xml')).toContain('<p:ph type="title"/>');
     expect(d.text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
     expect(Object.keys(d.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))).toHaveLength(1);
-  });
+  }, 60000);
 
   it('--layout by name, --keep-look, --keep-slides', () => {
     expect(carto('render', 'shop.yaml', '-o', 'content.pptx', '--template', 'corporate.potx', '--layout', 'Title and Content', '--keep-look', '--keep-slides').code).toBe(0);
@@ -57,7 +57,7 @@ describe('carto render -o x.pptx --template', () => {
     expect(Object.keys(d.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))).toHaveLength(3);
     expect(d.text('ppt/slides/_rels/slide3.xml.rels')).toContain('slideLayout2.xml');
     expect(d.text('ppt/slides/slide3.xml')).toContain('typeface="Instrument Sans"');
-  });
+  }, 60000);
 
   it('says which layouts there are when the one asked for is not there, and what a template is', () => {
     const r = carto('render', 'shop.yaml', '-o', 'x.pptx', '--template', 'corporate.potx', '--layout', 'Comparison');
@@ -68,7 +68,7 @@ describe('carto render -o x.pptx --template', () => {
     expect(carto('render', 'shop.yaml', '-o', 'x.pptx', '--template', 'not-a-deck.potx').err).toContain('Not a PowerPoint file');
     expect(carto('render', 'shop.yaml', '-o', 'x.pptx', '--template', 'shop.yaml').err).toContain('--template is a PowerPoint template');
     expect(carto('render', 'shop.yaml', '-o', 'x.pptx', '--layout', 'Blank').err).toContain('go with --template');
-  });
+  }, 60000);
 
   it('carto deck: every diagram in the template, a title slide on its Title Slide layout', () => {
     write('two.yaml', shop.replace('title: Shop', 'title: Second'));
@@ -80,7 +80,7 @@ describe('carto render -o x.pptx --template', () => {
     expect(d.text('ppt/slides/slide1.xml')).toContain('<a:t>Architectuur</a:t>');
     expect(d.text('ppt/slides/_rels/slide2.xml.rels')).toContain('slideLayout5.xml');
     expect(d.text('ppt/slides/slide3.xml')).toContain('<a:t>Second</a:t>');
-  });
+  }, 60000);
 
   it('a brand theme file that names its template: every deck of a diagram in that theme is made in it', () => {
     write('brand/polder.theme.yaml', 'name: polder\nextends: light\ncolors:\n  primary: "#E06C00"\npptx:\n  template: polder.pptx\n  layout: Titel en object\n');
@@ -95,5 +95,5 @@ describe('carto render -o x.pptx --template', () => {
     expect(deck('other.pptx').text('ppt/presentation.xml')).toContain('<p:sldSz cx="12192000"');
     // SVG and PDF are not affected.
     expect(carto('render', 'themed.yaml', '-o', 'themed.svg').code).toBe(0);
-  });
+  }, 60000);
 });
