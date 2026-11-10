@@ -51,14 +51,15 @@ export function focusReach(spec: Pick<FocusSpec, 'hops' | 'direction'>): string 
 }
 
 /** Drawings that are one shape: there is nothing in them to walk from. */
-const WHOLE: Record<string, string> = { sequence: 'a sequence diagram', gitflow: 'a git graph', roadmap: 'a roadmap', matrix: 'a matrix' };
+const WHOLE: Record<string, string> = { sequence: 'a sequence diagram', gitflow: 'a git graph', roadmap: 'a roadmap', matrix: 'a matrix', journey: 'a journey map' };
 
 /**
  * The graph cut down to what the focus is about and its neighbourhood. Groups around what stays are
  * kept, what it is about is marked. Undefined (with a report) when there is nothing to focus on.
  */
 export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: string, severity?: 'error' | 'warning') => void): Focused | undefined {
-  const only = graph.nodes.length === 1 && !graph.groups.length ? WHOLE[graph.nodes[0]!.shape.kind] : undefined;
+  // Such a drawing is its first node; a journey has its steps as nodes on top of that one, to click and link.
+  const only = graph.nodes.length && !graph.groups.length ? WHOLE[graph.nodes[0]!.shape.kind] : undefined;
   if (only) return report(`Focus works on diagrams of elements and lines; ${only} is one drawing, so it is shown whole`, 'warning'), undefined;
 
   const s = selectorsOf(graph);

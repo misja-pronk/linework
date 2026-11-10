@@ -126,7 +126,7 @@ describe('focus', () => {
 
   // The first line of each type's template, focused on where it starts: the type needs no code for it.
   it('works on every type of elements and lines', async () => {
-    for (const id of ['systems', 'c4', 'network', 'azure', 'kubernetes', 'erd', 'access', 'github', 'data-products']) {
+    for (const id of ['systems', 'c4', 'network', 'azure', 'cloud', 'kubernetes', 'erd', 'access', 'github', 'data-products']) {
       const type = findType(id)!;
       expect((schemaOf(type) as { properties: Record<string, unknown> }).properties.focus, id).toBeDefined();
       const whole = await render(type.template, { fonts: 'none' });
@@ -172,7 +172,7 @@ describe('focus', () => {
   });
 
   it('a drawing that is one shape is shown whole, with a note', async () => {
-    for (const [id, what] of [['sequence', 'a sequence diagram'], ['gitflow', 'a git graph'], ['roadmap', 'a roadmap']] as const) {
+    for (const [id, what] of [['sequence', 'a sequence diagram'], ['gitflow', 'a git graph'], ['roadmap', 'a roadmap'], ['journey', 'a journey map']] as const) {
       const type = findType(id)!;
       const whole = await render(type.template, { fonts: 'none' });
       const r = await render(type.template, { fonts: 'none', focus: 'anything' });
