@@ -15,6 +15,14 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2, acceptDownloads: true });
 await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 const page = await context.newPage();
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
@@ -231,11 +239,10 @@ const download = async (menuItem) => {
     window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('shop-repo');
   }, files);
   // The unsaved document is discarded (asked twice: before the folder, and before its first file).
-  const discard = (d) => d.accept();
-  page.on('dialog', discard);
+  const stop = discarding();
   await page.click('button:has-text("Open folder")');
   await page.waitForSelector('.files .file.active:has-text("shop.yaml")');
-  page.off('dialog', discard);
+  stop();
   await page.waitForSelector('.drawing [data-node="admin"]');
 
   await page.locator('.preview').focus();

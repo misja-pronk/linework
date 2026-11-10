@@ -133,6 +133,13 @@ await step('insert by keyboard into the selected group, with a parameter', async
   if (!/pay-snet: \{ kind: subnet, label: snet-pay, in: sub \} # from block: shop-stack@[0-9a-f]{8} #1 name=pay/.test(y)) fail(`not inserted into sub with its mark:\n${y}`);
   if (!y.includes('  - pay-app -> pay-db: SQL # from block: shop-stack@')) fail('the inner line is not there');
   if ((await page.locator('.block-handle').count()) < 2) fail('no connect handles on what was inserted');
+  // The drawing grew: it is fitted again, wholly in the pane, with no minimap over it (review 3).
+  await wait(900);
+  const pane = await page.locator('.preview').boundingBox();
+  const drawn = await page.locator('.drawing svg').first().boundingBox();
+  if (drawn.x < pane.x - 1 || drawn.y < pane.y - 1 || drawn.x + drawn.width > pane.x + pane.width + 1 || drawn.y + drawn.height > pane.y + pane.height + 1)
+    fail(`after the insert the drawing runs past the pane: ${JSON.stringify(drawn)} in ${JSON.stringify(pane)}`);
+  if (await page.locator('.minimap').count()) fail('the minimap came up over the grown drawing');
   await page.screenshot({ path: `${out}/blocks-4-inserted.png` });
 });
 

@@ -333,9 +333,9 @@ function DecisionsPanel(p: PanelProps) {
         </span>
         <div className="inspector-title">
           <strong>Decisions</strong>
-          <span>
-            {decisions.list.length} in {decisions.inFolder ? `${decisions.dir}/` : 'this browser'}
-            {here.size ? `, ${here.size} on this drawing` : ''}
+          <span title={decisions.inFolder ? `In ${decisions.dir}/ of the folder` : 'Kept in this browser'}>
+            {decisions.list.length} {decisions.list.length === 1 ? 'decision' : 'decisions'}
+            {here.size ? ` · ${here.size} about this drawing` : ''}
           </span>
         </div>
         <button className="icon-button" onClick={() => p.onNew()} aria-label="New decision" title={`New decision${sel.length ? ' about the selection' : ''} (⌥⇧D)`}>

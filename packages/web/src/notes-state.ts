@@ -24,7 +24,8 @@ export interface Review {
   dirty: boolean;
   author: string;
   setAuthor(name: string): void;
-  add(anchor: NoteAnchor, body: string, view?: string): NoteThread;
+  /** `as`: the author's name when it was just given with this note (the first one). */
+  add(anchor: NoteAnchor, body: string, view?: string, as?: string): NoteThread;
   reply(id: string, body: string): void;
   edit(id: string, body: string, reply?: string): void;
   remove(id: string, reply?: string): void;
@@ -116,8 +117,8 @@ export function useReview(docId: string, docKey: number, folder: { ws: Workspace
         store.set('note-author', name.trim());
         setAuthorState(name.trim());
       },
-      add(anchor, body, view) {
-        const t: NoteThread = { id: newNoteId(), anchor, ...(view ? { view } : {}), status: 'open', author: me, created: now(), text: body.trim() };
+      add(anchor, body, view, as) {
+        const t: NoteThread = { id: newNoteId(), anchor, ...(view ? { view } : {}), status: 'open', author: as?.trim() || me, created: now(), text: body.trim() };
         change((n) => ({ ...n, threads: [...n.threads, t] }));
         return t;
       },

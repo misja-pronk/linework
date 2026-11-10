@@ -21,6 +21,11 @@ const isBlockSeq = (n: unknown): n is YAMLSeq => isSeq(n) && !n.flow;
 
 /** The new document as text, with as much of `original` kept as possible. */
 export function printPreserving(original: string, doc: Document): string {
+  // A document YAML could not read cannot be written either: say why, not "cannot be stringified".
+  if (doc.errors.length) {
+    const many = doc.errors.some((e) => /multiple documents/i.test(e.message));
+    throw new Error(many ? 'This file holds more than one YAML document (a line with ---): a diagram is one document, so split it into files' : `The YAML has a problem to fix first: ${doc.errors[0]!.message.split('\n')[0]}`);
+  }
   style = flowStyle(original);
   const old = parseDocument(original);
   const indentUnit = detectIndent(original);

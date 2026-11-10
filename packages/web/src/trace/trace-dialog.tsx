@@ -51,7 +51,10 @@ export function TraceDialog({
   }, [yaml, theme]);
   useEffect(() => box.current?.focus(), []);
 
-  const what = r.mode === 'between' ? 'routes' : r.mode === 'until' ? 'until it ends' : 'along the steps';
+  // "from Web shop to Orders DB · 3 routes": what is traced, in words (review 3: it read "Trace a request  routes").
+  const nameOf = (id?: string) => (id ? (t.graph.elements.get(id)?.label ?? id) : '');
+  const routes = `${r.options.length} ${r.options.length === 1 ? 'route' : 'routes'}`;
+  const what = r.mode === 'between' ? `from ${nameOf(r.from)} to ${nameOf(r.to)} · ${routes}` : r.mode === 'until' ? `from ${nameOf(r.from)} until it ends` : 'along the steps';
   const keys = (e: React.KeyboardEvent) => {
     const go = (i: number) => (e.preventDefault(), setN(Math.max(0, Math.min(r.options.length - 1, i))));
     if (e.key === 'Escape') (e.preventDefault(), onClose());

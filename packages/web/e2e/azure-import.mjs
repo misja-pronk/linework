@@ -11,6 +11,14 @@ fs.mkdirSync(out, { recursive: true });
 const examples = path.resolve(import.meta.dirname, '../../../examples/azure/import');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
@@ -85,10 +93,11 @@ if (!((await stored()).text ?? '').includes('+ create')) fail('the plan should m
       await w.close();
     }
     window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('bookings');
-    window.confirm = () => true;
   }, files);
+  const stop = discarding();
   await page.click('button:has-text("Open folder")');
   await page.waitForSelector('.drawing [data-node="app-kestrel-bookings"]', { timeout: 15000 }).catch(() => fail('the folder of Azure exports was not drawn'));
+  stop();
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('→ azure.yaml'), null, { timeout: 5000 }).catch(() => {});
   if (!(await toast()).includes('→ azure.yaml')) fail('opening the folder should say where the diagram goes: ' + (await toast()));
   await page.keyboard.press('Meta+k');

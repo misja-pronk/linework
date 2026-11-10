@@ -122,6 +122,21 @@ async function run(width, height, theme) {
     if (wide > 1) fail(`${tag}: the properties run ${wide} px past the panel`);
   });
 
+  // Next to the side panel in a folder the YAML is too narrow to read: folded, not the drawing squeezed
+  // (review 3). Opened from its rail on purpose, it stays.
+  await step('the YAML folds before the drawing gives way', async () => {
+    if (!(await page.locator('button.yaml-rail').count())) fail(`${tag}: with the side panel the YAML should fold to its rail`);
+    else {
+      await page.click('button.yaml-rail');
+      await page.waitForSelector('.fold-yaml');
+    }
+    // The folded file list says it holds files, not the folder's name on its side.
+    if (await page.locator('.files-rail').count()) {
+      const said = await page.locator('.files-rail .rail-label').innerText();
+      if (!/^Files · \d+$/.test(said)) fail(`${tag}: the file rail says "${said}"`);
+    }
+  });
+
   await step('header on one line with unsaved changes', async () => {
     await page.click('.cm-content');
     await page.keyboard.press('Meta+End');

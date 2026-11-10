@@ -7,7 +7,7 @@ A diagram does not have to stay in Cartography. It goes out as a file another to
 | draw.io (diagrams.net) | `carto export shop.yaml -o shop.drawio`, Export menu | `carto import shop.drawio`, open or drop in the editor |
 | Excalidraw | `carto export shop.yaml -o shop.excalidraw`, Export menu | `carto import sketch.excalidraw`, open or drop in the editor |
 | Mermaid | `carto export shop.yaml -o shop.mmd` (or `.md`, a fenced block), Export menu, Copy as Mermaid | `carto import shop.mmd` (see the README) |
-| PowerPoint, Word, Keynote | `carto render shop.yaml --svg-safe [--outline-text]`, Office-safe SVG in the Export menu | |
+| PowerPoint, Word, Keynote | `carto render shop.yaml --svg-safe [--outline-text]`, *SVG for PowerPoint / Word* in the Export menu | |
 
 ## draw.io
 
@@ -65,7 +65,7 @@ Lost: captions, icons and colours (Mermaid draws a box with its label); schemas 
 
 ## Office-safe SVG
 
-PowerPoint, Word and Keynote take an SVG, but drop or misdraw much of what a browser draws: style sheets, CSS variables, filters, markers, `foreignObject`, web fonts. `--svg-safe` (in the editor: the *Office-safe SVG* switch in the Export menu, remembered) writes the same drawing without them:
+PowerPoint, Word and Keynote take an SVG, but drop or misdraw much of what a browser draws: style sheets, CSS variables, filters, markers, `foreignObject`, web fonts. `--svg-safe` (in the editor: the *SVG for PowerPoint / Word* switch in the Export menu, remembered) writes the same drawing without them:
 
 - every style is a presentation attribute (`fill="…"`), variables become their value;
 - no filters, patterns, gradients, clip paths, masks, markers or links; shadows and the dot grid go;
