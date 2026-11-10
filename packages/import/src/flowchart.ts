@@ -1,7 +1,12 @@
-// Mermaid flowchart / graph → systems. Nodes with shapes, subgraphs as nested groups, edges with
-// labels: -.-> becomes async, ==> becomes sync (the main path), --> stays a plain arrow.
+// Mermaid flowchart / graph → systems, or → process when it is one. Nodes with shapes, subgraphs as
+// nested groups, edges with labels: -.-> becomes async, ==> becomes sync (the main path), --> stays
+// a plain arrow.
 // Flow logic keeps its shapes: {…}, {{…}} and questions become decisions, ([…]) and ((…)) at the
 // ends of the flow start and end; in such a process flow every other box is a plain step.
+// A flowchart is a process when it decides something: at least one decision, and decisions, starts
+// and ends together are two or more and at least a quarter of its nodes. Then it lands as
+// `type: process` (subgraphs become lanes); an architecture with one stray question stays systems.
+import { processYaml, type FlowLink, type FlowNode } from './process.ts';
 import { guessGroupKind, guessKind, systemsYaml, type SysDiagram, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
 import { cleanLabel, faIcon, Ids, slug, type Warnings } from './text.ts';
 
@@ -122,6 +127,32 @@ export function importFlowchart(body: string[], header: string, title: string | 
   // steps, whatever their words suggest. One stray question in an architecture changes nothing.
   const logic = [...kinds.values()].filter((k) => k === 'decision' || k === 'start' || k === 'end').length;
   const process = logic >= 2 && logic * 4 >= kinds.size;
+  // A process that decides something is drawn as one, unless a line ends on a subgraph: a lane is
+  // not something a flow can point at.
+  const visible = links.filter((l) => l.link.line !== 'invisible');
+  if (process && [...kinds.values()].includes('decision') && !visible.some((l) => [...l.from, ...l.to].some((id) => groups.has(id)))) {
+    if (links.length > visible.length) warn.onceFor('invisible', 'Invisible links (~~~) are left out');
+    // Lanes do not nest: what stands in a subgraph of a subgraph stands in the outer one.
+    const top = (g: string | undefined): string | undefined => (g && groups.get(g)?.parent ? top(groups.get(g)!.parent) : g);
+    if ([...groups.values()].some((g) => g.parent)) warn.onceFor('nested', 'Subgraphs inside subgraphs are not kept: lanes do not nest, their steps stand in the outer lane');
+    // A diamond with one way in and one way out decides nothing: it comes in as a step.
+    const ways = (id: string, end: 'from' | 'to') => visible.reduce((n, l) => n + (l[end].includes(id) ? l[end === 'from' ? 'to' : 'from'].length : 0), 0);
+    const flowNodes: FlowNode[] = [...kinds].map(([n, kind]) => ({
+      source: n.source,
+      label: n.label ?? n.source,
+      kind: kind === 'decision' ? (ways(n.source, 'from') > 1 || ways(n.source, 'to') > 1 ? kind : 'task') : kind === 'start' || kind === 'end' ? kind : n.shape === 'subroutine' ? 'subprocess' : n.shape === 'cylinder' ? 'document' : 'task',
+      ...(n.parent ? { lane: ids.get(top(n.parent)!) } : {}),
+    }));
+    const flowLinks: FlowLink[] = [];
+    for (const { from, to, link } of visible)
+      for (const a of from)
+        for (const b of to) {
+          if (link.start && link.end) warn.onceFor('both', 'Lines with an arrow at both ends are drawn one way');
+          const [x, y] = link.start && !link.end ? [b, a] : [a, b];
+          flowLinks.push({ from: x, to: y, ...(link.label ? { label: link.label } : {}), message: link.line === 'dotted' });
+        }
+    return processYaml({ title, lanes: [...groups.values()].filter((g) => !g.parent).map((g) => ({ id: ids.get(g.source), label: g.label })), nodes: flowNodes, links: flowLinks });
+  }
   const nodeList: SysNode[] = [];
   for (const [n, kind] of kinds) {
     const box = !n.shape || ['rect', 'round', 'subroutine', 'asymmetric', 'parallelogram', 'trapezoid'].includes(n.shape);

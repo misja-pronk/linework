@@ -25,6 +25,15 @@ export interface Source {
   at(path: Path, message: string, severity?: Diagnostic['severity']): Diagnostic;
 }
 
+/**
+ * What YAML says, in the words of someone writing a label: "a -> b: [paid] / ship" is a list with
+ * text after it, which YAML reports as a scalar it did not expect.
+ */
+function plain(message: string, line: string): string {
+  if (/^Unexpected scalar at node end/.test(message) && /:\s+\[[^\]]*\]\s*[^\s#]/.test(line)) return 'Text that starts with [ ] and goes on after it needs quotes, like "[paid] / ship"';
+  return message;
+}
+
 export function parseSource(text: string): Source {
   const lines = new LineCounter();
   const doc = parseDocument(text, { lineCounter: lines, prettyErrors: false, uniqueKeys: true });
@@ -39,7 +48,7 @@ export function parseSource(text: string): Source {
     const [from = 0, to = from] = e.pos;
     diagnostics.push({
       severity: doc.errors.includes(e as never) ? 'error' : 'warning',
-      message: e.message.split('\n')[0]!,
+      message: plain(e.message.split('\n')[0]!, text.slice(text.lastIndexOf('\n', from - 1) + 1).split('\n')[0]!),
       ...position(from, to),
     });
   }

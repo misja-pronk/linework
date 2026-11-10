@@ -1,0 +1,25 @@
+type: process
+title: Incident handling
+subtitle: From the first alert to the review, and who steps in when it is a major one
+
+lanes:
+  monitoring: Monitoring
+  oncall: On-call engineer
+  lead: Incident lead
+  comms: Communications
+
+nodes:
+  Alert fires: { kind: signal, in: monitoring }
+  Acknowledge page: { in: oncall, kind: user }
+  Mitigate: { in: oncall, caption: roll back or fail over }
+  Declare incident: { in: lead, kind: user }
+  Post status update: { in: comms, kind: user, caption: status page and customers }
+  Escalate to owning team: lead
+  Close incident: oncall
+  Write review: { in: lead, kind: user, caption: within five working days }
+  Incident closed: end
+
+flow:
+  - Alert fires -> Acknowledge page -> Assess impact -> Major incident? -no-> Mitigate -> Service restored? -yes-> Close incident -> Write review -> Incident closed
+  - Major incident? -yes-> Declare incident -> Post status update -> Mitigate
+  - Service restored? -no-> Escalate to owning team -> Mitigate

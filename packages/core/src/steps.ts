@@ -207,7 +207,7 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
 export function impliedSteps(graph: Graph): StepState[] {
   const name = (id: string) => {
     const n = graph.nodes.find((x) => x.id === id);
-    return n ? (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (graph.groups.find((g) => g.id === id)?.label ?? id);
+    return n ? (n.shape.kind === 'card' || n.shape.kind === 'flow' ? n.shape.label || id : n.shape.kind === 'table' ? n.shape.title : id) : (graph.groups.find((g) => g.id === id)?.label ?? id);
   };
   if (graph.steps?.length)
     return graph.steps.map((s) => {
@@ -220,6 +220,21 @@ export function impliedSteps(graph: Graph): StepState[] {
         nodes: Object.fromEntries(graph.nodes.map((n) => [n.id, lit.has(n.id) ? 'focus' : 'dim'])),
         groups: Object.fromEntries(graph.groups.filter((g) => !lit.has(g.id)).map((g) => [g.id, 'dim'])),
         edges: Object.fromEntries(graph.edges.map((e) => [e.id, e.id === s.edge ? 'focus' : 'dim'])),
+        notes: [],
+      } satisfies StepState;
+    });
+  // A process or a state machine is walked along its main line: the stop in focus, the rest standing back.
+  if (graph.walk?.length)
+    return graph.walk.map((b) => {
+      const lit = new Set(b.nodes);
+      const groups = new Map(graph.groups.map((g) => [g.id, g.parent]));
+      for (const id of [...lit]) for (let g = graph.nodes.find((n) => n.id === id)?.parent ?? groups.get(id); g && !lit.has(g); g = groups.get(g)) lit.add(g);
+      return {
+        title: b.title,
+        ...(b.caption ? { caption: b.caption } : {}),
+        nodes: Object.fromEntries(graph.nodes.map((n) => [n.id, lit.has(n.id) ? 'focus' : 'dim'])),
+        groups: Object.fromEntries(graph.groups.filter((g) => !lit.has(g.id)).map((g) => [g.id, 'dim'])),
+        edges: Object.fromEntries(graph.edges.map((e) => [e.id, b.edges.includes(e.id) ? 'focus' : 'dim'])),
         notes: [],
       } satisfies StepState;
     });

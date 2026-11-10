@@ -29,21 +29,29 @@ export function squeeze(p: Placement, sized: Sized, s: Spacing): Placement {
     end = Math.max(end, b);
   }
 
-  // Right to left, so that what is still to do keeps its coordinates.
-  for (const [a, b] of bands.reverse()) {
-    let lines = 0;
-    let label = 0;
-    for (const e of graph.edges) {
-      const from = boxOf(e.from.node);
-      const to = boxOf(e.to.node);
-      if (!from || !to) continue;
-      const [l, r] = from.x <= to.x ? [from, to] : [to, from];
-      if (l.x + l.width > a + 1 || r.x < b - 1) continue;
-      lines++;
-      label = Math.max(label, sized.edgeLabels.get(e.id)?.width ?? 0);
+  // The lines that cross each gap, and the room each asks of it for its label. A line that passes
+  // several columns has what stands between them to put its label along: it asks each gap for its
+  // share of what is still short.
+  const crossing = bands.map(() => ({ lines: 0, label: 0 }));
+  for (const e of graph.edges) {
+    const from = boxOf(e.from.node);
+    const to = boxOf(e.to.node);
+    if (!from || !to) continue;
+    const [l, r] = from.x <= to.x ? [from, to] : [to, from];
+    const over = bands.flatMap(([a, b], i) => (l.x + l.width > a + 1 || r.x < b - 1 ? [] : [i]));
+    const label = sized.edgeLabels.get(e.id)?.width ?? 0;
+    const between = r.x - (l.x + l.width) - over.reduce((sum, i) => sum + bands[i]![1] - bands[i]![0], 0);
+    for (const i of over) {
+      crossing[i]!.lines++;
+      if (label) crossing[i]!.label = Math.max(crossing[i]!.label, (label + AROUND - Math.max(0, between)) / over.length);
     }
+  }
+
+  // Right to left, so that what is still to do keeps its coordinates.
+  for (const [i, [a, b]] of [...bands.entries()].reverse()) {
+    const { lines, label } = crossing[i]!;
     if (!lines) continue;
-    const least = Math.max(s.layerGap + 24 + Math.max(0, lines - LANES) * LANE, label ? label + AROUND : 0);
+    const least = Math.max(s.layerGap + 24 + Math.max(0, lines - LANES) * LANE, label);
     let by = Math.floor((b - a - least) / 8) * 8;
     // A group around the gap stays as wide as its title.
     for (const [id, g] of groups) if (g.x < a && g.x + g.width > b) by = Math.min(by, Math.floor(g.width - (sized.groupMinWidth.get(id) ?? 0)));

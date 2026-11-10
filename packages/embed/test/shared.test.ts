@@ -100,4 +100,35 @@ describe('the text alternative', () => {
     const text = JSON.stringify(describeGraph(drawn.graph!));
     for (const part of ['Web shop', 'System context', 'Customer', 'Sells things', 'Orders']) expect(text).toContain(part);
   });
+
+  it('says of a process what its outlines show: the decision, the kind of task, the lane, the start and the end', async () => {
+    const yaml = [
+      'type: process',
+      'lanes:',
+      '  manager: Manager',
+      'nodes:',
+      '  Approve: { in: manager, kind: user, caption: in the portal }',
+      'flow:',
+      '  - start -> Ask for leave -> Enough days? -yes-> Approve -> end',
+      '  - Enough days? -no-> Explain -> end',
+    ].join('\n');
+    const d = describeGraph((await render(yaml, {})).graph!);
+    const said = (label: string) => d.elements.find((e) => e.label === label);
+    expect(said('Enough days?')!.detail).toBe('decision');
+    expect(said('Approve')).toMatchObject({ detail: 'user task, in the portal', in: 'Manager' });
+    expect(d.elements.map((e) => e.label)).toEqual(expect.arrayContaining(['start event', 'end event']));
+    expect(d.relations).toContainEqual({ from: 'Enough days?', to: 'Approve', label: 'yes' });
+    expect(d.relations).toContainEqual({ from: 'start event', to: 'Ask for leave' });
+  });
+
+  it('says of a state machine where it starts, what a state does and what moves it on', async () => {
+    const yaml = ['type: states', 'states:', '  Closed: { entry: lock }', 'transitions:', '  - start -> Closed -> Open: push', '  - Open -> end: "[worn out]"'].join('\n');
+    const d = describeGraph((await render(yaml, {})).graph!);
+    expect(d.elements.find((e) => e.label === 'Closed')!.detail).toBe('state, entry / lock');
+    expect(d.relations).toEqual([
+      { from: 'start', to: 'Closed', label: 'push' },
+      { from: 'Closed', to: 'Open' },
+      { from: 'Open', to: 'end', label: '[worn out]' },
+    ]);
+  });
 });

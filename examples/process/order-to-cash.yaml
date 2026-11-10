@@ -1,0 +1,28 @@
+type: process
+title: Order to cash
+subtitle: A customer order from the moment it arrives until the money is booked
+
+lanes:
+  sales: Sales
+  warehouse: Warehouse
+  finance: Finance
+
+nodes:
+  Order received: { kind: message, in: sales }
+  Check credit: { in: finance, kind: service }
+  Confirm order: { in: sales, kind: user }
+  Ask for prepayment: sales
+  Pick and pack: { in: warehouse, kind: manual }
+  Ship goods: warehouse
+  Send invoice: { in: finance, kind: service }
+  Invoice: document
+  Payment term: { kind: timer, label: 30 days }
+  Send reminder: { in: finance, kind: service }
+  Book payment: finance
+  Order closed: end
+
+flow:
+  - Order received -> Check credit -> Credit ok? -yes-> Confirm order -> Pick and pack -> Ship goods -> Send invoice -> Payment term -> Paid? -yes-> Book payment -> Order closed
+  - Credit ok? -no-> Ask for prepayment -> Confirm order
+  - Paid? -no-> Send reminder -> Payment term
+  - Send invoice -> Invoice

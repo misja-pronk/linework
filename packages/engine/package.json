@@ -25,7 +25,9 @@
     "@cartography/sequence": "workspace:*",
     "@cartography/gitflow": "workspace:*",
     "@cartography/roadmap": "workspace:*",
-    "@cartography/journey": "workspace:*"
+    "@cartography/journey": "workspace:*",
+    "@cartography/process": "workspace:*",
+    "@cartography/states": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

@@ -177,7 +177,7 @@ const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2
 function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
   const out = new Map<string, [Side, Side]>();
   const options = new Map<string, [Side, Side][]>();
-  for (const e of input.edges) options.set(e.id, candidates(e));
+  for (const e of input.edges) options.set(e.id, candidates(e, input.direction));
 
   // A grid with the stub ends of every candidate side, at the side's centre.
   const probe = new Map<string, Ports>();
@@ -212,10 +212,11 @@ function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
   return out;
 }
 
-function candidates(e: RouteRequest): [Side, Side][] {
+function candidates(e: RouteRequest, direction: 'right' | 'down'): [Side, Side][] {
   const a = e.from.box;
   const b = e.to.box;
-  if (e.from.node === e.to.node) return [['E', 'E']];
+  // A line back to its own node loops off the side the flow does not use (rows attach left or right only).
+  if (e.from.node === e.to.node) return direction === 'right' && e.from.rowY == null && e.to.rowY == null ? [['N', 'N']] : [['E', 'E']];
   const ca = centre(a);
   const cb = centre(b);
   if (e.from.rowY != null || e.to.rowY != null) {
@@ -386,6 +387,19 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
         : { x: box.x + t, y: box.y + box.height };
       pos.set(`${s.edge.id}:${s.end}`, p);
     });
+    // A group's side is long: there a line leaves in line with its other end when that end lies
+    // along the side, and the lines beside it make room, as long as all keep their order and stay
+    // on the side. A line straight out of a group has room for its label; one that jogs a few
+    // pixels has not.
+    if (list.length > 1 && !input.obstacles.has(list[0]!.edge[list[0]!.end].node)) {
+      const axis = along ? 'y' : 'x';
+      const straight = list.map((s) => s.other[axis] >= lo && s.other[axis] <= hi);
+      const wanted = list.map((s, i) => (straight[i] ? s.other[axis] : pos.get(`${s.edge.id}:${s.end}`)![axis]));
+      for (let i = 1; i < list.length; i++) if (!straight[i]) wanted[i] = Math.max(wanted[i]!, wanted[i - 1]! + 2 * LANE);
+      for (let i = list.length - 2; i >= 0; i--) if (!straight[i]) wanted[i] = Math.min(wanted[i]!, wanted[i + 1]! - 2 * LANE);
+      if (straight.includes(true) && wanted.every((v, i) => v >= lo && v <= hi && (!i || v - wanted[i - 1]! >= 2 * LANE)))
+        list.forEach((s, i) => pos.set(`${s.edge.id}:${s.end}`, { ...pos.get(`${s.edge.id}:${s.end}`)!, [axis]: wanted[i]! }));
+    }
   }
   for (const [member, first] of shared) pos.set(member, pos.get(first)!);
 
@@ -744,6 +758,10 @@ class Heap {
 // ---------------------------------------------------------------- helpers
 
 function selfLoop(p: Ports): Point[] {
+  if (p.fromSide === 'N') {
+    const y = Math.min(p.start.y, p.goal.y);
+    return [p.from, { x: p.from.x, y }, { x: p.to.x, y }, p.to];
+  }
   const x = Math.max(p.start.x, p.goal.x) + 14;
   return [p.from, { x, y: p.from.y }, { x, y: p.to.y }, p.to];
 }
@@ -810,6 +828,13 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     if (!e.label || !route) continue;
     const { width, height } = e.label;
     const pts = route.points;
+    // A line back to its own node: outside the loop, where it covers neither the node nor the arrowhead.
+    if (e.from.node === e.to.node && pts.length === 4) {
+      const [a, b] = [pts[1]!, pts[2]!];
+      route.label = a.y === b.y ? { x: (a.x + b.x) / 2 - width / 2, y: a.y - 4 - height, width, height } : { x: a.x + 6, y: (a.y + b.y) / 2 - height / 2, width, height };
+      taken.push(route.label);
+      continue;
+    }
     const candidates: { box: Box; score: number }[] = [];
     const total = pts.length - 1;
     for (let i = 1; i < pts.length; i++) {

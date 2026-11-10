@@ -1,0 +1,19 @@
+type: process
+title: Build, buy or reuse?
+subtitle: The questions an architecture board asks before a new application is funded
+# A decision tree has no main route: every outcome weighs the same.
+happy: false
+
+nodes:
+  Reuse it: { caption: extend the existing platform }
+  Buy it: { caption: SaaS behind the API layer }
+  Build it: { caption: on the container platform }
+  Build the minimum: { caption: the smallest thing that works }
+  Do not start: { caption: no owner means no budget }
+
+flow:
+  - start -> Is there a business owner? -yes-> Do we already have this capability? -no-> Does it set us apart? -yes-> Build it
+  - Is there a business owner? -no-> Do not start
+  - Do we already have this capability? -yes-> Reuse it
+  - Does it set us apart? -no-> Is there a product that fits? -yes-> Buy it
+  - Is there a product that fits? -no-> Build the minimum

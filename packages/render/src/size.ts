@@ -6,6 +6,7 @@ import { sequenceGeometry } from './sequence.ts';
 import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
 import { journeyScene } from './journey.ts';
+import { flowSize, laneHeader } from './flow.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -41,6 +42,7 @@ export function size(graph: Graph, theme: Theme): Sized {
     }
     // Parts of a journey are placed by the journey's own layout.
     else if (shape.kind === 'journey-part') nodes.set(n.id, { width: 0, height: 0 });
+    else if (shape.kind === 'flow') nodes.set(n.id, flowSize(shape, theme));
     else {
       const m = matrixGeometry(shape, theme);
       nodes.set(n.id, { width: Math.round(m.width), height: Math.round(m.height) });
@@ -52,7 +54,8 @@ export function size(graph: Graph, theme: Theme): Sized {
     if (e.label || e.step) edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0), height: 20 });
 
   const groupMinWidth = new Map<string, number>();
-  for (const g of graph.groups) groupMinWidth.set(g.id, groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
+  // A lane's name stands in a header at its start: that header's width is what it needs.
+  for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g.label, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
 
   return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth };
 }
