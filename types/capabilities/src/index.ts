@@ -147,7 +147,8 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
   const view = src.view && views.includes(src.view) ? src.view : (entries[0]?.by ?? 'map');
   const showSystems = view === 'systems';
   const entry = entries.find((e) => e.by === view);
-  const valueOf = (c: Cap, by: string) => (by === 'systems' && c.props.systems !== undefined && typeof c.props.systems !== 'number' ? systemsOf(c).length : c.props[by]);
+  // Systems are counted, none as 0 (the key says "none").
+  const valueOf = (c: Cap, by: string) => (by === 'systems' && typeof c.props.systems !== 'number' ? systemsOf(c).length : c.props[by]);
   const scale: HeatScale | undefined = entry ? heatScale(entry, flat.map((f) => valueOf(f.cap, entry.by))) : undefined;
   if (entry && !flat.some((f) => valueOf(f.cap, entry.by) != null)) ctx.warn(['heat'], `No capability has "${entry.by}" yet: give some a value, e.g. ${entry.by}: 3`);
 
@@ -182,7 +183,7 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
     nodes.push({ id: cap.id, shape, path: cap.path, kind: shape.form, ...(tags.length ? { tags } : {}), ...(links?.length ? { links } : {}), ...(description ? { description } : {}) });
   }
 
-  const legend = scale ? [...scale.legend, ...(missing ? [{ label: 'No value', swatch: 'block' as const, block: { form: 'chip' as const } }] : [])] : undefined;
+  const legend = scale ? [...scale.legend, ...(missing ? [{ label: scale.missing, swatch: 'block' as const, block: { form: 'chip' as const } }] : [])] : undefined;
   const subtitle = src.subtitle ?? (showSystems ? 'Supporting systems per capability' : undefined);
   return {
     title: src.title,

@@ -20,6 +20,11 @@ export interface HeatEntry {
   reverse?: boolean;
   /** What the numbers are in: €, $, %, FTE. Left out, it is read from the values (€220k → €). */
   unit?: string;
+  /**
+   * The numbers count something (systems): the key says "1 system", "2 systems", a capability with
+   * none is drawn plain and the key says "none", and the shades stay light (a count is no alarm).
+   */
+  count?: string;
 }
 
 /** What the common properties mean, so `heat: maturity` is all a map needs. */
@@ -31,7 +36,7 @@ const PRESETS: Record<string, Omit<HeatEntry, 'by'>> = {
   risk: { scale: 'sequential', tone: 'rose' },
   cost: { scale: 'sequential', tone: 'orange' },
   spend: { scale: 'sequential', tone: 'orange' },
-  systems: { scale: 'sequential', tone: 'violet', title: 'Systems' },
+  systems: { scale: 'sequential', tone: 'violet', title: 'Systems', count: 'system' },
 };
 
 /** Words that usually come with a heatmap, and how they read. Gartner's TIME and the usual investment calls. */
@@ -61,6 +66,8 @@ const CATEGORY: Record<string, { tone: Tone; pattern?: 'hatch' | 'dots' }> = {
   commodity: { tone: 'slate', pattern: 'dots' },
   differentiating: { tone: 'violet' },
 };
+/** How deep the shade of the highest count goes (0 to 1): light enough to read the names on it. */
+const COUNT_DEPTH = 0.45;
 const CYCLE: Tone[] = ['blue', 'teal', 'violet', 'amber', 'sky', 'indigo', 'orange', 'green', 'rose'];
 
 /** "€1.2M", "800k", "35%", 3 → a number; undefined for words. */
@@ -126,6 +133,8 @@ export interface HeatScale {
   /** The heat of one value; undefined when there is none. */
   of(v: unknown): BlockHeat | undefined;
   legend: LegendItem[];
+  /** What the key calls a capability without a value. */
+  missing: string;
 }
 
 /** A heat entry, preset filled in, read against the values the map has. */
@@ -163,17 +172,20 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
         const l = look(k);
         return { label: i === 0 ? `${title}: ${l.label}` : l.label, swatch: 'block', block: { form: 'chip', heat: { scale: 'categorical', tone: l.tone, text: l.label, ...(l.pattern ? { pattern: l.pattern } : {}) } } };
       }),
+      missing: 'No value',
     };
   }
 
-  const found = nums.filter((n): n is number => n !== undefined);
+  // A count of none is no value: drawn plain, and the key says "none".
+  const found = nums.filter((n): n is number => n !== undefined && !(e.count && n === 0));
   const unit = e.unit ?? unitOf(present);
   const lo = e.min ?? (found.length ? Math.min(...found) : 0);
   const hi = e.max ?? (found.length ? Math.max(...found) : 1);
   const scale = e.scale ?? 'sequential';
   const tone = e.tone ?? 'blue';
   const at = (n: number) => {
-    const t = hi > lo ? Math.max(0, Math.min(1, (n - lo) / (hi - lo))) : 0.5;
+    // A count runs from light to a middle shade: two systems is not twice as alarming as one.
+    const t = e.count ? Math.min(1, n / Math.max(hi, 1)) * COUNT_DEPTH : hi > lo ? Math.max(0, Math.min(1, (n - lo) / (hi - lo))) : 0.5;
     return e.reverse ? 1 - t : t;
   };
   // The legend: a sample per labelled value, per whole number of a short range, or five even steps.
@@ -187,7 +199,7 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
     return e.reverse ? 1 - t : t;
   };
   const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(n), tone, text });
-  const label = (i: number, s: string) => (i === 0 ? `${title}: ${s}` : s);
+  const label = (i: number, s: string) => (e.count ? `${s} ${e.count}${s === '1' ? '' : 's'}` : i === 0 ? `${title}: ${s}` : s);
   if (e.labels && Object.keys(e.labels).length) {
     const keys = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
     keys.forEach((k, i) => legend.push({ label: label(i, `${short(k)} ${e.labels![String(k)]}`), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } }));
@@ -205,10 +217,11 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
     title,
     of: (v) => {
       const n = numberOf(v);
-      if (n === undefined) return undefined;
+      if (n === undefined || (e.count && n === 0)) return undefined;
       // A number says itself; a labelled one keeps its number in the tag and its word in the legend.
       return heat(n, typeof v === 'number' ? withUnit(v, unit) : String(v).trim());
     },
     legend,
+    missing: e.count ? 'none' : 'No value',
   };
 }

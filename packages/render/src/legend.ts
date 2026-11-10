@@ -60,16 +60,27 @@ export function keyLayout(items: LegendItem[], theme: Theme, room: number, after
   const widths = items.map((item) => SAMPLE + labelWidth(item, theme));
   const natural = head + widths.reduce((a, w) => a + w + GAP, 0) - (items.length ? GAP : 0);
   const limit = Math.max(room, Math.min(natural + (after ? after + 32 : 0), WRAP), head + Math.max(0, ...widths), after);
-  const rows: { item: LegendItem; x: number }[][] = [[]];
-  let x = head;
-  for (const [i, item] of items.entries()) {
-    if (x > head && x + widths[i]! > limit) {
-      rows.push([]);
-      x = head;
+  const wrapAt = (at: number) => {
+    const rows: { item: LegendItem; x: number }[][] = [[]];
+    let x = head;
+    for (const [i, item] of items.entries()) {
+      if (x > head && x + widths[i]! > at) {
+        rows.push([]);
+        x = head;
+      }
+      rows.at(-1)!.push({ item, x });
+      x += widths[i]! + GAP;
     }
-    rows.at(-1)!.push({ item, x });
-    x += widths[i]! + GAP;
-  }
+    return rows;
+  };
+  let rows = wrapAt(limit);
+  // Wrapped, the rows come out even: the narrowest wrap with as many rows, so no sample is left alone on the last.
+  if (rows.length > 1)
+    for (let at = limit - 8; at >= head + Math.max(0, ...widths); at -= 8) {
+      const fewer = wrapAt(at);
+      if (fewer.length > rows.length) break;
+      rows = fewer;
+    }
   const ends = rows.map((r) => (r.length ? r.at(-1)!.x + SAMPLE + labelWidth(r.at(-1)!.item, theme) : 0));
   return { rows, ends, limit };
 }
