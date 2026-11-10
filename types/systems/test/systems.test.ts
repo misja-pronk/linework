@@ -59,7 +59,7 @@ edges:
     expect(r.graph!.legend).toEqual([]);
     // Pill (rx = half the height) and a closed pointed outline in the decision's accent.
     expect(r.svg).toMatch(/rx="29"/);
-    expect(r.svg).toMatch(/<path d="M[^"]+Z" fill="#FFFFFF" stroke="#B45309"/);
+    expect(r.svg).toContain(`Z" fill="#FFFFFF" stroke="${r.theme!.tones.amber.fg}"`);
     // Yes and no stay readable on the branches.
     expect(r.svg).toContain('>yes</text>');
     expect(r.svg).toContain('>no</text>');

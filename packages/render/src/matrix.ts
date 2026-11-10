@@ -1,8 +1,9 @@
 // Matrix shape: row headers on the left, column headers on top, a pill or check mark per cell.
 // Direct values are filled, inherited ones outlined, so the difference does not rely on colour.
 import type { Box, MatrixCell, MatrixShape, Tone } from '@cartography/core';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, chipText, fitText, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
+import { chipBack, iconTile, shadowAttr, tagRadius, topBand } from './paint.ts';
 
 /** Matrix metrics, shared with the slide export. ROW_ICON/COL_ICON: room an icon takes before a header label (a tile in rows, a bare icon in columns). */
 export const MATRIX = { PAD: 16, HEAD: 56, PILL_H: 22, PILL_X: 10, NOTE: 10.5, CHECK: 18, ROW_ICON: 30, COL_ICON: 22 } as const;
@@ -22,7 +23,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
   const cellWidth = (c: MatrixCell | undefined) => {
     if (!c) return 0;
     if (m.plain) return measureText(c.text ?? '–', theme.size.cell, c.strong ? 600 : 400);
-    const pill = c.check ? CHECK : c.text ? measureText(c.text, theme.size.edgeLabel, 500) + 2 * PILL_X : 0;
+    const pill = c.check ? CHECK : c.text ? measureText(c.text, chipText(theme), 500) + 2 * PILL_X : 0;
     return Math.max(pill, c.note ? measureText(c.note, NOTE, 400) : 0);
   };
   const rowHeader = Math.max(m.corner ? measureText(m.corner, theme.size.caption, 500) : 0, ...m.rows.map((r) => label(r, ROW_ICON))) + 2 * PAD;
@@ -51,10 +52,12 @@ function glyph(name: string, x: number, y: number, size: number, color: string, 
 export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: string): string {
   const g = matrixGeometry(m, theme);
   const tone = (t?: Tone) => theme.tones[t ?? 'slate'];
-  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.card}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="1" filter="url(#${shadowId})"/>`;
+  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.card}" fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}"${shadowAttr(theme, shadowId)}/>`;
 
-  // Header band.
-  s += `<line x1="${r1(b.x)}" y1="${r1(b.y + HEAD)}" x2="${r1(b.x + b.width)}" y2="${r1(b.y + HEAD)}" stroke="${theme.border}" stroke-width="1"/>`;
+  // Header band: on a paper look it lies on the paper tint, with the contour under it, like a table's header.
+  const paper = look(theme).tableHead === 'paper' ? paperTint(theme, 0) : undefined;
+  if (paper) s += topBand(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5, Math.max(0, theme.radius.card - 0.5), paper);
+  s += `<line x1="${r1(b.x)}" y1="${r1(b.y + HEAD)}" x2="${r1(b.x + b.width)}" y2="${r1(b.y + HEAD)}" stroke="${paper ? (groupLine(theme, theme.tones.slate) ?? theme.border) : theme.border}" stroke-width="1"/>`;
   if (m.corner) s += text(b.x + PAD, b.y + HEAD / 2, m.corner, theme.size.caption, 500, theme.textFaint);
   let x = b.x + g.rowHeader;
   for (const [j, col] of m.columns.entries()) {
@@ -84,7 +87,7 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     const t = tone(row.tone);
     let tx = b.x + PAD;
     if (row.icon) {
-      s += `<rect x="${r1(tx)}" y="${r1(cy - 11)}" width="22" height="22" rx="6" fill="${t.bg}"/>` + glyph(row.icon, tx + 4, cy - 7, 14, t.fg);
+      s += iconTile(theme, { x: tx, y: cy - 11, slot: 22, tone: t, icon: row.icon, rx: Math.min(6, theme.radius.tile), iconSize: look(theme).tile === 'bare' ? 17 : look(theme).tile === 'disc' || look(theme).tile === 'ring' ? 12 : 14 });
       tx += ROW_ICON;
     }
     const room = g.rowHeader - (tx - b.x) - PAD;
@@ -119,13 +122,16 @@ function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: numbe
       : `<circle cx="${r1(cx)}" cy="${r1(py)}" r="${r}" fill="${t.fg}"/>`;
     s += glyph('check', cx - 6, py - 6, 12, c.inherited ? t.fg : theme.surface, 2.4);
   } else if (c.text) {
-    const label = fitText(c.text, theme.size.edgeLabel, 500, room - 2 * PILL_X);
-    const w = measureText(label, theme.size.edgeLabel, 500) + 2 * PILL_X;
+    const size = chipText(theme);
+    const label = fitText(c.text, size, 500, room - 2 * PILL_X);
+    const w = measureText(label, size, 500) + 2 * PILL_X;
     const x = cx - w / 2;
+    const rx = tagRadius(theme, PILL_H);
+    // Direct: a filled tag (outlined where the theme's chips are). Inherited: always a dashed outline.
     s += c.inherited
-      ? `<rect x="${r1(x + 0.5)}" y="${r1(py - PILL_H / 2 + 0.5)}" width="${r1(w - 1)}" height="${PILL_H - 1}" rx="${PILL_H / 2}" fill="${theme.surface}" stroke="${t.fg}" stroke-opacity="0.7" stroke-width="1" stroke-dasharray="3 2"/>`
-      : `<rect x="${r1(x)}" y="${r1(py - PILL_H / 2)}" width="${r1(w)}" height="${PILL_H}" rx="${PILL_H / 2}" fill="${t.bg}"/>`;
-    s += text(cx, py, label, theme.size.edgeLabel, 500, t.fg, 'middle');
+      ? `<rect x="${r1(x + 0.5)}" y="${r1(py - PILL_H / 2 + 0.5)}" width="${r1(w - 1)}" height="${PILL_H - 1}" rx="${rx}" fill="${theme.surface}" stroke="${t.fg}" stroke-opacity="0.7" stroke-width="1" stroke-dasharray="3 2"/>`
+      : chipBack(theme, x, py - PILL_H / 2, w, PILL_H, t, rx);
+    s += text(cx, py, label, size, 500, t.fg, 'middle');
   }
   if (c.note) s += text(cx, cy + 13, fitText(c.note, NOTE, 400, room), NOTE, 400, theme.textMuted, 'middle');
   return s;

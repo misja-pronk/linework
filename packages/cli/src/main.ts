@@ -3,12 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { iconPng, interTtf, toPng } from './png.ts';
+import { iconPng, interTtf, themeTtf, toPng } from './png.ts';
 import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { builtinSpecs, isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
+import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
@@ -255,7 +255,7 @@ function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResu
   if (format === 'pptx')
     return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w) });
   const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
-  return toPdf(drawings, { theme: t, page, fonts: interTtf(), title: values.title, steps: stepsFlag() });
+  return toPdf(drawings, { theme: t, page, fonts: interTtf(), families: themeTtf(typeof t === 'object' ? t : themes[t]), title: values.title, steps: stepsFlag() });
 }
 
 async function renderFile(file: string): Promise<boolean> {
@@ -524,9 +524,9 @@ async function main(): Promise<number> {
       typeGuide(files.join(' '));
       return 0;
     case 'themes':
-      console.log(`${'light'.padEnd(10)} ${dim('— the default')}\n${'dark'.padEnd(10)} ${dim('— the default, dark')}`);
-      for (const [k, s] of Object.entries(builtinSpecs)) console.log(`${k.padEnd(10)} ${dim('— ' + s.description)}`);
-      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md)'));
+      for (const t of themeCatalog) console.log(`${t.name.padEnd(14)} ${dim('— ' + t.description)}`);
+      console.log(`${'light, dark'.padEnd(14)} ${dim('— other names for survey and survey-dark')}`);
+      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md and docs/style.md)'));
       return 0;
     case 'icons': {
       const [sub, src] = files;

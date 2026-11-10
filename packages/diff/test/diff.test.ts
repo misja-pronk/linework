@@ -249,6 +249,17 @@ describe('visual diff', () => {
     expect(picture.svg).toContain('No changes');
   });
 
+  it('is one sheet: the corner marks of the look stand around the whole picture, the key included', async () => {
+    const c = await compare(before, after);
+    for (const p of [c.picture()!, c.sideBySide()!]) {
+      expect(p.svg.match(/<g data-sheet="">/g)).toHaveLength(1);
+      const corners = [...p.svg.match(/<g data-sheet="">.*?<\/g>/s)![0].matchAll(/<path d="M[\d.]+ ([\d.]+)H/g)].map((m) => Number(m[1]));
+      expect(Math.max(...corners)).toBeGreaterThan(p.height - 20);
+    }
+    const plain = await compare(before, after, { before: { themeOverride: 'classic' }, after: { themeOverride: 'classic' } });
+    expect(plain.picture()!.svg).not.toContain('data-sheet');
+  });
+
   it('is one well-formed svg', async () => {
     const c = await compare(before, after);
     for (const svg of [c.picture()!.svg, c.sideBySide()!.svg]) {

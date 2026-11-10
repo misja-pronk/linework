@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { LayoutSidecar, Link } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
 import { useBrand } from './brand.ts';
+import { registerThemeFonts } from './fonts.ts';
 import { Icon } from './icon.tsx';
 import { linkTarget } from './links.ts';
 import { useRestoreFocus } from './menu.tsx';
@@ -86,7 +87,11 @@ export function Present(p: PresentProps) {
       const key = `${d.id}:${i}`;
       let hit = cache.current.get(key);
       if (!hit) {
-        hit = render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}` });
+        hit = render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}` }).then(async (r) => {
+          // A linked diagram can have a theme of its own: the page needs its faces before the slide shows.
+          await registerThemeFonts(r.theme);
+          return r;
+        });
         cache.current.set(key, hit);
       }
       return hit;

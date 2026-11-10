@@ -26,7 +26,7 @@ import {
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
-import { resolveTheme, themes, withTextScale, type FontFace, type Theme } from '@cartography/theme';
+import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconPackFile } from './icons.ts';
 import { c4, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
@@ -206,9 +206,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   }
 
   const theme = pickTheme(opts, themeRef, source, diagnostics);
-  const scale = theme.font.scale ?? (theme.font.faces?.length ? opts.fontScale?.(theme.font.faces) : undefined);
+  // Text is measured in the theme's own faces: a bundled family by its advance widths, a brand font as Inter times its width.
+  const brandFaces = theme.font.faces?.filter((f) => !f.mono);
+  const fonts = themeTextFonts(theme, brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined);
+  await loadFonts([fonts.sans, fonts.mono]);
   // Cards are sized with their badge chips; layout and routing never see the badged edges.
-  const measured = withTextScale(scale, () => size(graph, theme));
+  const measured = withTextFonts(fonts, () => size(graph, theme));
   const sized = { ...measured, graph: withoutBadges(graph) };
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
@@ -224,7 +227,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
-  const out = withTextScale(scale, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
+  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
   const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : ownViews?.length ? ownViews : undefined;
   return {
     svg: out.svg,

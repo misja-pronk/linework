@@ -4,8 +4,9 @@
 // owns its row, and a row is as tall as its wrapped label.
 import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
+import { cardStroke, iconTile, numberMark, shadowAttr } from './paint.ts';
 
 const K = {
   gap: 28,
@@ -454,17 +455,27 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
 
   for (const b of g.boxes) {
     const t = tone(b.tone);
-    out.push(rect(b.box, theme.radius.group, `fill="${t.wash}" stroke="${t.line}" stroke-width="${theme.stroke.group}"`));
-    out.push(text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitText(b.label, theme.size.group, 600, b.box.width - 28), theme.size.group, 600, theme.text));
+    const line = groupLine(theme, t);
+    out.push(rect(b.box, theme.radius.group, `fill="${groupFill(theme, 0, t)}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
+    const lab = groupLabel(theme, b.label);
+    const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
+    out.push(text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitText(lab.text, lab.size, 600, b.box.width - 28, 'sans', lab.tracking), lab.size, 600, groupLabelInk(theme, t), undefined, track));
   }
 
-  for (const f of g.frames) if (f.box.y <= limit) out.push(drawFrameBack(f, theme));
+  const fills = frameFills(g, theme);
+  // The colour under a point: the innermost frame there, else a box, else the page. Labels cut their halo in it.
+  const ground = (x: number, y: number): string => {
+    for (let i = g.frames.length - 1; i >= 0; i--) if (fills[i]!.solid && inside(g.frames[i]!.box, x, y)) return fills[i]!.fill;
+    if (look(theme).group.tints) for (const b of g.boxes) if (inside(b.box, x, y)) return groupFill(theme, 0, tone(b.tone));
+    return theme.canvas;
+  };
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrameBack(f, theme, fills[i]!));
 
   const [y1, y2] = g.lifeline;
   for (const h of g.headers)
     out.push(`<path d="M${r1(h.x)} ${r1(y1)}V${r1(y2)}" stroke="${theme.edge}" stroke-opacity="0.75" stroke-width="1.2" stroke-dasharray="1.5 4" stroke-linecap="round"/>`);
 
-  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme));
+  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
 
   for (const b of g.bars) {
     if (b.box.y > limit) continue;
@@ -473,8 +484,8 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     out.push(rect({ ...b.box, height: Math.min(b.box.height, limit - b.box.y + 6) }, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
   }
 
-  for (const f of g.frames) if (f.box.y <= limit) out.push(drawFrame(f, theme));
-  for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme));
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, ground));
   for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme));
   for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));
 
@@ -491,7 +502,7 @@ function drawHeader(h: Header, y: number, height: number, theme: Theme, shadowId
   const p = h.p;
   const t = theme.tones[p.tone];
   const b = { x: h.x - h.width / 2, y, width: h.width, height };
-  let s = rect(b, theme.radius.card, `fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${shadowId})"`);
+  let s = rect(b, theme.radius.card, `fill="${theme.surface}" stroke="${cardStroke(theme, t)}" stroke-width="${theme.stroke.card}"${shadowAttr(theme, shadowId)}`);
   const cy = y + height / 2;
   const textW = Math.max(measureText(p.label, theme.size.label, 600), p.caption ? measureText(p.caption, theme.size.caption, 400) : 0);
   const room = h.width - 2 * H.padX - (p.icon ? H.tile + H.gap : 0);
@@ -499,8 +510,7 @@ function drawHeader(h: Header, y: number, height: number, theme: Theme, shadowId
   const content = (p.icon ? H.tile + H.gap : 0) + Math.min(room, textW);
   let x = h.x - content / 2;
   if (p.icon && icon(p.icon)) {
-    s += rect({ x, y: cy - H.tile / 2, width: H.tile, height: H.tile }, 8, `fill="${t.bg}"`);
-    s += glyph(p.icon, x + (H.tile - 16) / 2, cy - 8, 16, t.fg, theme.stroke.icon);
+    s += iconTile(theme, { x, y: cy - H.tile / 2, slot: H.tile, tone: t, icon: p.icon, rx: Math.min(8, theme.radius.tile), iconSize: look(theme).tile === 'bare' ? 20 : 16 });
     x += H.tile + H.gap;
   }
   if (p.caption) {
@@ -510,17 +520,47 @@ function drawHeader(h: Header, y: number, height: number, theme: Theme, shadowId
   return s;
 }
 
+interface FrameFill {
+  fill: string;
+  /** An opaque paper tint (a label's halo takes it), not a wash over what lies under it. */
+  solid: boolean;
+  line: string;
+}
+
+const inside = (b: Box, x: number, y: number) => x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+
+/**
+ * Fill and outline of each frame. On a paper look a frame is a step deeper than what it lies in (a
+ * box, the frames around it) with the contour around it; otherwise it is a wash of its own tone.
+ */
+function frameFills(g: SequenceGeometry, theme: Theme): FrameFill[] {
+  return g.frames.map((f, i) => {
+    const t = theme.tones[f.tone];
+    const b = f.box;
+    const cx = b.x + b.width / 2;
+    const cy = b.y + b.height / 2;
+    const depth = g.frames.filter((o, j) => j < i && inside(o.box, cx, cy) && o.box.width >= b.width).length + (g.boxes.some((o) => inside(o.box, cx, cy)) ? 1 : 0);
+    const tint = paperTint(theme, depth);
+    return tint ? { fill: tint, solid: true, line: groupLine(theme, t) ?? theme.border } : { fill: t.wash, solid: false, line: t.line };
+  });
+}
+
 /** The band and its branch lines, under the lifelines. */
-function drawFrameBack(f: Frame, theme: Theme): string {
-  const t = theme.tones[f.tone];
+function drawFrameBack(f: Frame, theme: Theme, ff: FrameFill): string {
   const b = f.box;
-  let s = rect(b, 10, `fill="${t.wash}" fill-opacity="0.7" stroke="${t.line}" stroke-width="1.2"`);
-  for (const br of f.branches) s += `<path d="M${r1(b.x)} ${r1(br.y + 6)}H${r1(b.x + b.width)}" stroke="${t.line}" stroke-width="1.2" stroke-dasharray="5 4"/>`;
+  let s = rect(b, Math.min(10, theme.radius.group), `fill="${ff.fill}"${ff.solid ? '' : ' fill-opacity="0.7"'} stroke="${ff.line}" stroke-width="1.2"`);
+  for (const br of f.branches) s += `<path d="M${r1(b.x)} ${r1(br.y + 6)}H${r1(b.x + b.width)}" stroke="${ff.line}" stroke-width="1.2" stroke-dasharray="5 4"/>`;
   return s;
 }
 
+/** A corner tab: the frame's top-left corner filled, with the frame's own rounding. */
+function tab(b: Box, ww: number, th: number, r: number, fill: string): string {
+  const q = Math.min(6, r);
+  return `<path d="M${r1(b.x)} ${r1(b.y + th)}V${r1(b.y + r)}Q${r1(b.x)} ${r1(b.y)} ${r1(b.x + r)} ${r1(b.y)}H${r1(b.x + ww)}V${r1(b.y + th - q)}Q${r1(b.x + ww)} ${r1(b.y + th)} ${r1(b.x + ww - q)} ${r1(b.y + th)}Z" fill="${fill}"/>`;
+}
+
 /** Tab and branch labels, over the lifelines and bars so nothing crosses the words. */
-function drawFrame(f: Frame, theme: Theme): string {
+function drawFrame(f: Frame, theme: Theme, ff: FrameFill): string {
   const t = theme.tones[f.tone];
   const b = f.box;
   let s = '';
@@ -528,11 +568,10 @@ function drawFrame(f: Frame, theme: Theme): string {
   const word = f.ev.frame.toUpperCase();
   const ww = measureText(word, TAB.size, 600) + 2 * TAB.padX;
   const th = K.frame.tab;
-  const r = 10;
-  s += `<path d="M${r1(b.x)} ${r1(b.y + th)}V${r1(b.y + r)}Q${r1(b.x)} ${r1(b.y)} ${r1(b.x + r)} ${r1(b.y)}H${r1(b.x + ww)}V${r1(b.y + th - 6)}Q${r1(b.x + ww)} ${r1(b.y + th)} ${r1(b.x + ww - 6)} ${r1(b.y + th)}Z" fill="${t.bg}"/>`;
+  s += tab(b, ww, th, Math.min(10, theme.radius.group), t.bg);
   s += text(b.x + TAB.padX, b.y + th / 2, word, TAB.size, 600, t.fg, undefined, ' letter-spacing="0.4"');
   // Words sit on a patch of the frame's own tint, so a lifeline or bar never runs through them.
-  const patch = (x: number, cy: number, w: number) => rect({ x: x - 4, y: cy - 8, width: w + 8, height: 16 }, 4, `fill="${t.wash}"`);
+  const patch = (x: number, cy: number, w: number) => rect({ x: x - 4, y: cy - 8, width: w + 8, height: 16 }, Math.min(4, theme.radius.chip), `fill="${ff.fill}"`);
   if (f.ev.label) {
     const label = fitText(f.ev.label, theme.size.caption, 500, b.width - ww - 2 * TAB.labelGap);
     s += patch(b.x + ww + TAB.labelGap, b.y + th / 2, measureText(label, theme.size.caption, 500));
@@ -550,12 +589,21 @@ function drawFrame(f: Frame, theme: Theme): string {
   return s;
 }
 
-function drawDivider(d: { y: number; label: string }, width: number, theme: Theme): string {
-  const w = measureText(d.label, theme.size.caption, 600) + 28;
+function drawDivider(d: { y: number; label: string }, width: number, theme: Theme, ground: string): string {
+  const style = look(theme).edgeLabel.style;
   const cx = width / 2;
+  const rule = `<path d="M0 ${r1(d.y)}H${r1(width)}" stroke="${theme.border}" stroke-width="1.2"/>`;
+  if (style === 'halo') {
+    // No pill: the words sit in a gap in the rule, lettered like a group label.
+    const lab = groupLabel(theme, d.label);
+    const size = Math.min(lab.size, theme.size.caption);
+    const w = measureText(lab.text, size, 600, 'sans', lab.tracking) + 24;
+    return rule + rect({ x: cx - w / 2, y: d.y - 9, width: w, height: 18 }, 0, `fill="${ground}"`) + text(cx, d.y, lab.text, size, 600, theme.textMuted, 'middle', lab.tracking ? ` letter-spacing="${lab.tracking}"` : '');
+  }
+  const w = measureText(d.label, theme.size.caption, 600) + 28;
   return (
-    `<path d="M0 ${r1(d.y)}H${r1(width)}" stroke="${theme.border}" stroke-width="1.2"/>` +
-    rect({ x: cx - w / 2, y: d.y - 11, width: w, height: 22 }, 11, `fill="${theme.canvas}" stroke="${theme.border}" stroke-width="1"`) +
+    rule +
+    rect({ x: cx - w / 2, y: d.y - 11, width: w, height: 22 }, style === 'plate' ? theme.radius.chip : 11, `fill="${style === 'plate' ? theme.surface : theme.canvas}" stroke="${theme.border}" stroke-width="1"`) +
     text(cx, d.y, d.label, theme.size.caption, 600, theme.textMuted, 'middle')
   );
 }
@@ -563,7 +611,7 @@ function drawDivider(d: { y: number; label: string }, width: number, theme: Them
 function drawNote(b: Box, lines: string[], centred: boolean, theme: Theme): string {
   const t = theme.tones.amber;
   const N = K.note;
-  let s = rect(b, 8, `fill="${t.bg}" fill-opacity="0.8" stroke="${t.line}" stroke-width="1"`);
+  let s = rect(b, Math.min(8, theme.radius.card), `fill="${t.bg}" fill-opacity="0.8" stroke="${t.line}" stroke-width="1"`);
   const x = centred ? b.x + b.width / 2 : b.x + N.padX;
   for (const [i, l] of lines.entries()) s += text(x, b.y + N.padY + N.line * i + N.line / 2, l, N.size, 400, theme.text, centred ? 'middle' : undefined);
   return s;
@@ -574,8 +622,9 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
   const b = r.box;
   const ww = measureText('REF', TAB.size, 600) + 2 * TAB.padX;
   const th = K.frame.tab;
-  let s = rect(b, 10, `fill="${theme.surface}" stroke="${t.line}" stroke-width="1.2"`);
-  s += `<path d="M${r1(b.x)} ${r1(b.y + th)}V${r1(b.y + 10)}Q${r1(b.x)} ${r1(b.y)} ${r1(b.x + 10)} ${r1(b.y)}H${r1(b.x + ww)}V${r1(b.y + th - 6)}Q${r1(b.x + ww)} ${r1(b.y + th)} ${r1(b.x + ww - 6)} ${r1(b.y + th)}Z" fill="${t.bg}"/>`;
+  const rx = Math.min(10, theme.radius.group);
+  let s = rect(b, rx, `fill="${theme.surface}" stroke="${groupLine(theme, t) ?? t.line}" stroke-width="1.2"`);
+  s += tab(b, ww, th, rx, t.bg);
   s += text(b.x + TAB.padX, b.y + th / 2, 'REF', TAB.size, 600, t.fg, undefined, ' letter-spacing="0.4"');
   const cx = b.x + b.width / 2;
   const cy = b.y + b.height / 2 + 3;
@@ -591,13 +640,16 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
   return s + text(cx, cy, r.label, theme.size.label, 600, theme.text, 'middle');
 }
 
-function drawMessage(m: Message, theme: Theme): string {
+function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) => string): string {
   const ev = m.ev;
   const L = K.label;
   const color = ev.arrow === 'async' ? theme.tones.violet.fg : ev.arrow === 'reply' ? theme.edge : theme.textMuted;
-  const dash = ev.arrow === 'reply' ? ' stroke-dasharray="5 4"' : '';
-  const stroke = `stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-  const halo = ` stroke="${theme.canvas}" stroke-width="4" stroke-linejoin="round" paint-order="stroke"`;
+  const w = theme.stroke.edge;
+  const k = look(theme).line.dashScale ? Math.max(1, w / 1.4) : 1;
+  const dash = ev.arrow === 'reply' ? ` stroke-dasharray="${r1(5 * k)} ${r1(4 * k)}"` : '';
+  const stroke = `stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
+  // Words keep clear of what they cross with an outline in the colour of the ground they lie on.
+  const halo = (x: number, y: number) => ` stroke="${ground(x, y)}" stroke-width="4" stroke-linejoin="round" paint-order="stroke"`;
   let s = '';
   const num = ev.number !== undefined;
   if (m.self) {
@@ -612,7 +664,7 @@ function drawMessage(m: Message, theme: Theme): string {
       tx += 2 * K.number + 6;
     }
     const top = y + h / 2 - (m.lines.length * L.line) / 2;
-    for (const [i, l] of m.lines.entries()) s += text(tx, top + L.line * i + L.line / 2, l, L.size, 500, theme.text, undefined, halo);
+    for (const [i, l] of m.lines.entries()) s += text(tx, top + L.line * i + L.line / 2, l, L.size, 500, theme.text, undefined, halo(tx + 12, top + L.line * i + L.line / 2));
     return s;
   }
   const dir = m.x2 > m.x1 ? 1 : -1;
@@ -623,20 +675,21 @@ function drawMessage(m: Message, theme: Theme): string {
   if (num) s += numberBadge(ev.number!, m.x1 + dir * (K.number + 2), m.y, theme);
   const mid = m.mid;
   const base = m.y - 6 - m.lines.length * L.line;
-  for (const [i, l] of m.lines.entries()) s += text(mid, base + L.line * i + L.line / 2, l, L.size, 500, theme.text, 'middle', halo);
+  for (const [i, l] of m.lines.entries()) s += text(mid, base + L.line * i + L.line / 2, l, L.size, 500, theme.text, 'middle', halo(mid, base + L.line * i + L.line / 2));
   return s;
 }
 
 function numberBadge(n: number, cx: number, cy: number, theme: Theme): string {
-  const t = theme.tones.slate;
-  return `<circle cx="${r1(cx)}" cy="${r1(cy)}" r="${K.number}" fill="${t.fg}"/>` + text(cx, cy, String(n), 10, 600, theme.surface, 'middle');
+  return numberMark(theme, cx, cy, n, K.number, theme.tones.slate.fg, 10);
 }
 
 /** Arrowheads at `tip`, pointing along `dir` (1 right, -1 left): filled for a call, open otherwise, a cross when lost. */
 function head(kind: Ev<'message'>['arrow'], tip: { x: number; y: number }, dir: number, color: string, theme: Theme): string {
   const P = (dx: number, dy: number) => `${r1(tip.x - dir * dx)} ${r1(tip.y + dy)}`;
+  // A call keeps its filled head on every theme (filled and open heads tell calls from signals); only its cut follows the theme.
+  if (kind === 'sync' && look(theme).line.arrow === 'slim') return `<path d="M${P(11, -3.6)}L${P(0, 0)}L${P(11, 3.6)}Z" fill="${color}"/>`;
   if (kind === 'sync') return `<path d="M${P(9, -4.5)}L${P(0, 0)}L${P(9, 4.5)}Q${P(7, 0)} ${P(9, -4.5)}Z" fill="${color}" stroke="${color}" stroke-width="1" stroke-linejoin="round"/>`;
   if (kind === 'lost')
     return `<path d="M${P(4, -4)}L${P(-4, 4)}M${P(4, 4)}L${P(-4, -4)}" stroke="${theme.tones.rose.fg}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`;
-  return `<path d="M${P(8, -4.5)}L${P(0, 0)}L${P(8, 4.5)}" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  return `<path d="M${P(8, -4.5)}L${P(0, 0)}L${P(8, 4.5)}" stroke="${color}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
 }

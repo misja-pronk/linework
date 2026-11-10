@@ -178,11 +178,13 @@ describe('steps: drawing', () => {
     const r = await render(text, { fonts: 'none', step: 2, marks: true });
     const two = r.svg!;
     const node = (id: string) => part(two, 'node', id);
-    // In focus: drawn as always, with its shadow and the theme's text colour. Standing back: no shadow, a quieter ink.
-    expect(node('api')).toContain('filter="url(#');
+    // In focus: drawn as always, in the theme's text colour. Standing back: a quieter ink.
     expect(node('api')).toContain(`fill="${r.theme!.text}"`);
-    expect(node('web')).not.toContain('filter="url(#');
     expect(node('web')).not.toContain(`fill="${r.theme!.text}"`);
+    // In a look with shadows (classic) what is in focus keeps its shadow and what stands back lies flat.
+    const classic = (await render(text, { fonts: 'none', step: 2, marks: true, theme: 'classic' })).svg!;
+    expect(part(classic, 'node', 'api')).toContain('filter="url(#');
+    expect(part(classic, 'node', 'web')).not.toContain('filter="url(#');
     expect(two).toContain('>Stripe<');
     // The route does not lean on colour alone: a halo under it and a heavier line.
     const edge = r.graph!.edges.find((e) => e.to.node === 'stripe')!.id;

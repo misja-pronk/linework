@@ -10,6 +10,7 @@
   "dependencies": {
     "@cartography/core": "workspace:*",
     "@cartography/engine": "workspace:*",
+    "@cartography/render": "workspace:*",
     "@cartography/theme": "workspace:*"
   }
 }

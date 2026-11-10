@@ -8,8 +8,7 @@ export default defineConfig({
   // Only for diagrams marked interactive: the component, a few kB until one scrolls into view.
   head: [['script', { type: 'module', src: '/carto/carto-diagram.js' }]],
   markdown: {
-    // VitePress compiles pages as Vue templates (vue: true), marks a dark page with a .dark class,
-    // and has Inter of its own, so the plugin need not add it (fonts: 'none').
-    config: (md) => md.use(cartography, { vue: true, dark: '.dark', fonts: 'none', description: true }),
+    // VitePress compiles pages as Vue templates (vue: true) and marks a dark page with a .dark class.
+    config: (md) => md.use(cartography, { vue: true, dark: '.dark', description: true }),
   },
 });

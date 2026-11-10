@@ -2,7 +2,7 @@
 // diagram comes near the viewport. The loader (element.ts) only knows these few functions.
 import { includesOf, joinPath, parseSource, type LayoutSidecar } from '@cartography/core';
 import { render, themes, type RenderResult } from '@cartography/engine';
-import { embeddedFonts } from '@cartography/theme';
+import { bundledFont, type Theme } from '@cartography/theme';
 
 export interface DrawRequest {
   text: string;
@@ -81,4 +81,9 @@ export async function draw(req: DrawRequest): Promise<RenderResult> {
 }
 
 export const themeNames = Object.keys(themes);
-export { embeddedFonts };
+/** The bundled faces a theme sets its text in, as woff2 per weight (render has loaded them): what the page registers. Inter where a brand brings its own files. */
+export const themeFonts = (theme: Theme | undefined) =>
+  [theme?.font.sans ?? 'Inter', theme?.font.monoFace].flatMap((name) => {
+    const f = bundledFont(name);
+    return f ? [{ family: f.family, woff2: f.woff2 }] : [];
+  });

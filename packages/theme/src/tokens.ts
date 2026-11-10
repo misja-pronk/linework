@@ -21,6 +21,8 @@ export interface FontFace {
   data: string;
   /** Where it came from, for renderers that read files (resvg); absent in the browser. */
   file?: string;
+  /** A face of the theme's monospace family (font.mono), not of its text face. */
+  mono?: boolean;
 }
 
 /** The deliverable frame around a diagram: logo, client, version, footer (brand themes). */
@@ -33,9 +35,80 @@ export interface TitleBlock {
   date?: string;
   classification?: string;
   footer?: string;
+  /** One small line of client, project, version, date and classification beside the legend, as on a map sheet. */
+  imprint?: boolean;
 }
 
 export type LegendPosition = 'bottom' | 'top' | 'right' | 'none';
+
+/** Icon tiles: a soft tint, a solid tone, an outlined square, no tile at all, a filled roundel or a ring. */
+export type TileStyle = 'soft' | 'solid' | 'outline' | 'bare' | 'disc' | 'ring';
+
+/** Text that can be set in the theme's monospace face. */
+export type MonoRole = 'edgeLabel' | 'type' | 'title';
+
+/** How groups (zones, boundaries, subnets) are drawn. All optional: absent means the tone's own wash and line. */
+export interface GroupLook {
+  /** Fill by nesting depth (1, 2, 3 and deeper), instead of each tone's wash. Depth is the information. */
+  tints?: string[];
+  /** One outline colour for every group, instead of each tone's line; 'none' draws no outline. */
+  line?: string;
+  /** Dash pattern of a dashed outline. */
+  dash?: string;
+  /** Label in spaced capitals. */
+  label?: 'plain' | 'caps';
+  labelSize?: number;
+  /** Letter-spacing of the label, px. */
+  tracking?: number;
+  /** Label colour: the group's tone (default), muted or text. */
+  labelColor?: 'tone' | 'muted' | 'text';
+  captionColor?: 'faint' | 'muted';
+  /** Size of the header icon; 0 leaves it out. */
+  icon?: number;
+}
+
+/** Labels on lines: a pill (default), bare text with a halo in the ground colour, or a bordered plate. */
+export interface EdgeLabelLook {
+  style?: 'pill' | 'halo' | 'plate';
+  /** Text colour: muted, text or the line's own colour. */
+  ink?: 'muted' | 'text' | 'line';
+  caps?: boolean;
+}
+
+/** How lines run and end. */
+export interface LineLook {
+  /** Gap (px) left in the line that is crossed, where two lines cross; 0 or absent draws them straight through. */
+  bridge?: number;
+  /** Where lines join: a filled dot or a ring. */
+  junction?: 'dot' | 'ring';
+  junctionSize?: number;
+  /** Bends: rounded (default), cut at 45 degrees, or square. */
+  corner?: 'round' | 'chamfer' | 'square';
+  arrow?: 'filled' | 'slim' | 'open';
+  arrowScale?: number;
+  /** Dashes grow with the line weight, so a thick dashed line still reads as dashed. */
+  dashScale?: boolean;
+}
+
+/** Marks around the page: small corner marks, or a frame with a zone grid for sheets that get printed. */
+export interface SheetLook {
+  marks: 'none' | 'corners' | 'frame';
+  /** Distance from the page edge, px. */
+  inset?: number;
+  /** Numbered and lettered zones along the frame. */
+  zones?: boolean;
+  /** Centring ticks on the frame. */
+  ticks?: boolean;
+}
+
+/** The title line, where it differs from plain text in the title size. */
+export interface TitleLook {
+  mono?: boolean;
+  caps?: boolean;
+  size?: number;
+  weight?: 400 | 500 | 600;
+  tracking?: number;
+}
 
 export interface Theme {
   /** light, dark, a built-in brand theme or the name in a theme file. */
@@ -54,6 +127,12 @@ export interface Theme {
   font: {
     family: string;
     mono: string;
+    /** Bundled family the text is measured with and embedded as (Inter when absent, or when a brand font brings files). */
+    sans?: string;
+    /** Bundled monospace family, likewise. */
+    monoFace?: string;
+    /** Which text is set in the monospace face. */
+    monoFor?: MonoRole[];
     faces?: FontFace[];
     /** Width of the font against Inter's metrics, so text measured with Inter fits a wider or narrower face. */
     scale?: number;
@@ -81,13 +160,32 @@ export interface Theme {
   accent?: string;
   titleBlock?: TitleBlock;
   legend?: LegendPosition;
-  /** Icon tiles: soft tint (default), solid tone with a light icon, or an outline for print. */
-  tile?: 'soft' | 'solid' | 'outline';
+  /** Icon tiles: soft tint (default), solid tone with a light icon, an outline for print, bare, disc or ring. */
+  tile?: TileStyle;
+  /** Size of the icon in its slot; by default what suits the tile style. */
+  iconSize?: number;
   /** A tone bar along the left edge of cards. */
   cardBar?: boolean;
+  group?: GroupLook;
+  edgeLabel?: EdgeLabelLook;
+  line?: LineLook;
+  /** The legend as a plain row (default), or under a rule with a KEY heading and the kinds' own icons. */
+  legendStyle?: 'row' | 'key';
+  sheet?: SheetLook;
+  /** Table headers: tinted in the table's tone (default), in the paper tint, or plain with a rule. */
+  tableHead?: 'tone' | 'paper' | 'plain';
+  /** Step numbers: a solid disc in the accent (default), a solid disc in the text colour, or a ring. */
+  number?: 'solid' | 'ink' | 'ring';
+  /** Chips: filled with the tone's tint (default) or outlined. */
+  chip?: 'fill' | 'outline';
+  /** Card outline: the border colour (default) or the card's own tone. */
+  cardLine?: 'border' | 'tone';
+  title?: TitleLook;
+  /** A dot grid behind the drawing. */
+  background?: { dots?: { step: number; r: number; color: string } };
 }
 
-const shared = {
+export const shared = {
   font: {
     family: "Inter, 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
     mono: "'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
@@ -105,9 +203,10 @@ const shared = {
   stroke: { card: 1, group: 1, edge: 1.4, icon: 1.75 },
 } as const;
 
-export const light: Theme = {
+/** The look before Survey: Inter, tone-washed groups, soft icon tiles, pill labels. */
+export const classic: Theme = {
   ...shared,
-  name: 'light',
+  name: 'classic',
   mode: 'light',
   canvas: '#FFFFFF',
   surface: '#FFFFFF',
@@ -131,9 +230,9 @@ export const light: Theme = {
   },
 };
 
-export const dark: Theme = {
+export const classicDark: Theme = {
   ...shared,
-  name: 'dark',
+  name: 'classic-dark',
   mode: 'dark',
   canvas: '#0D1117',
   surface: '#161B23',

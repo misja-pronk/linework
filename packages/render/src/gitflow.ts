@@ -8,9 +8,10 @@
 // and notes go below the line, its tags above, unless a line takes that side.
 import type { Box, GitBranch, GitCommit, GitflowShape, GitPipeline, GitStage, Tone } from '@cartography/core';
 import { spread, stack, tracks, type Apart, type Row, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, fitText, groupFill, groupLine, look, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { wrapLines } from './sequence.ts';
+import { arrowHead, cardStroke, chipBack, iconTile, shadowAttr, tagRadius } from './paint.ts';
 
 const K = {
   dot: 6.5,
@@ -487,11 +488,11 @@ function rect(b: Box, rx: number, attrs: string) {
 }
 
 /** A pill with an optional icon, centred on cx: tags, notes, gates, lane names. */
-function pill(cx: number, cy: number, label: string, iconName: string | undefined, fill: string, stroke: string | undefined, color: string, iconColor = color): string {
+function pill(theme: Theme, cx: number, cy: number, label: string, iconName: string | undefined, fill: string, stroke: string | undefined, color: string, iconColor = color): string {
   const P = K.pill;
   const w = pillWidth(label, !!iconName);
   const x = cx - w / 2;
-  let s = rect({ x, y: cy - P.h / 2, width: w, height: P.h }, P.h / 2, `fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="1"` : ''}`);
+  let s = rect({ x, y: cy - P.h / 2, width: w, height: P.h }, tagRadius(theme, P.h), `fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="1"` : ''}`);
   let tx = x + P.padX;
   if (iconName) {
     s += glyph(iconName, tx, cy - P.icon / 2, P.icon, iconColor, 1.9);
@@ -513,7 +514,7 @@ function laneLabel(x: number, cy: number, label: string, tone: Tone, theme: Them
   const t = theme.tones[tone];
   const size = K.pill.size + 0.5;
   const w = Math.ceil(measureText(label, size, 600) + 2 * K.gutter.padX + (iconName ? 16 : 0));
-  let s = rect({ x, y: cy - K.gutter.h / 2, width: w, height: K.gutter.h }, K.gutter.h / 2, `fill="${t.bg}"`);
+  let s = chipBack(theme, x, cy - K.gutter.h / 2, w, K.gutter.h, t, tagRadius(theme, K.gutter.h));
   let tx = x + K.gutter.padX;
   if (iconName) {
     s += glyph(iconName, tx - 2, cy - 6.5, 13, t.fg, 1.9);
@@ -551,7 +552,8 @@ function drawBranches(g: GitflowGeometry, theme: Theme): string {
       // Perpendicular of the direction: the two wings of the head.
       const px = -dy;
       const py = dx;
-      out.push(`<path d="M${r1(x - dx * 7 + px * 4.5)} ${r1(y - dy * 7 + py * 4.5)}L${r1(x)} ${r1(y)}L${r1(x - dx * 7 - px * 4.5)} ${r1(y - dy * 7 - py * 4.5)}Z" fill="${t.fg}" stroke="${t.fg}" stroke-width="1" stroke-linejoin="round"/>`);
+      if (look(theme).line.arrow !== 'filled') out.push(arrowHead({ x, y }, { x: x - dx, y: y - dy }, t.fg, theme, 1.8));
+      else out.push(`<path d="M${r1(x - dx * 7 + px * 4.5)} ${r1(y - dy * 7 + py * 4.5)}L${r1(x)} ${r1(y)}L${r1(x - dx * 7 - px * 4.5)} ${r1(y - dy * 7 - py * 4.5)}Z" fill="${t.fg}" stroke="${t.fg}" stroke-width="1" stroke-linejoin="round"/>`);
     }
   }
 
@@ -560,7 +562,7 @@ function drawBranches(g: GitflowGeometry, theme: Theme): string {
     const c = p.c;
     if (c.count) {
       const w = 2 * p.half;
-      out.push(rect({ x: p.x - p.half, y: p.y - 10, width: w, height: 20 }, 10, `fill="${t.bg}" stroke="${t.fg}" stroke-width="1.6"`));
+      out.push(rect({ x: p.x - p.half, y: p.y - 10, width: w, height: 20 }, tagRadius(theme, 20), `fill="${t.bg}" stroke="${t.fg}" stroke-width="1.6"`));
       out.push(text(p.x, p.y, countText(c.count), K.pill.size, 600, t.fg, 'middle'));
     } else if (c.merge) out.push(`<circle cx="${r1(p.x)}" cy="${r1(p.y)}" r="${K.dot}" fill="${theme.surface}" stroke="${t.fg}" stroke-width="3"/>`);
     else out.push(`<circle cx="${r1(p.x)}" cy="${r1(p.y)}" r="${K.dot}" fill="${t.fg}" stroke="${theme.canvas}" stroke-width="2"/>`);
@@ -569,8 +571,8 @@ function drawBranches(g: GitflowGeometry, theme: Theme): string {
       for (const piece of pieces) {
         const h = piece.height;
         const cy = side === 'up' ? y - h / 2 : y + h / 2;
-        if (piece.kind === 'tag') out.push(pill(p.x, cy, piece.text, 'tag', theme.text, undefined, theme.canvas));
-        else if (piece.kind === 'note') out.push(pill(p.x, cy, piece.text, 'message-square', theme.tones.amber.bg, theme.tones.amber.line, theme.text, theme.tones.amber.fg));
+        if (piece.kind === 'tag') out.push(pill(theme, p.x, cy, piece.text, 'tag', theme.text, undefined, theme.canvas));
+        else if (piece.kind === 'note') out.push(pill(theme, p.x, cy, piece.text, 'message-square', theme.tones.amber.bg, theme.tones.amber.line, theme.text, theme.tones.amber.fg));
         else if (piece.kind === 'branch') out.push(text(p.x, cy, piece.text, K.label.size, 600, t.fg, 'middle', halo));
         else for (const [k, l] of piece.lines!.entries()) out.push(text(p.x, cy - h / 2 + K.label.line * k + K.label.line / 2, l, K.label.size, 500, theme.textMuted, 'middle', halo));
         y += (side === 'up' ? -1 : 1) * (h + K.stackGap);
@@ -589,7 +591,12 @@ function drawDelivery(g: GitflowGeometry, theme: Theme, shadowId: string): strin
   const d = g.delivery!;
   const out: string[] = [];
   const tone = (t: Tone) => theme.tones[t];
-  for (const [i, b] of d.bands.entries()) out.push(rect(b, theme.radius.group, `fill="${tone(d.stages[i]!.s.tone).wash}" stroke="${tone(d.stages[i]!.s.tone).line}" stroke-width="1"`));
+  for (const [i, b] of d.bands.entries()) {
+    // A stage is a band like a group: the paper tint and contour on a paper look, its tone's wash otherwise.
+    const t = tone(d.stages[i]!.s.tone);
+    const line = groupLine(theme, t);
+    out.push(rect(b, theme.radius.group, `fill="${groupFill(theme, 0, t)}"${line ? ` stroke="${line}" stroke-width="1"` : ''}`));
+  }
   for (const r of d.rows) out.push(`<path d="M${r1(g.gutter - 8)} ${r1(r.y)}H${r1(g.width - 4)}" stroke="${theme.border}" stroke-width="1" stroke-dasharray="2 5" stroke-linecap="round"/>`);
   // Stage headers: icon tile and name at the top of each band.
   for (const st of d.stages) {
@@ -597,12 +604,11 @@ function drawDelivery(g: GitflowGeometry, theme: Theme, shadowId: string): strin
     const H = D.head;
     const w = st.width;
     const b = { x: st.x - w / 2, y: 8, width: w, height: H.h - 12 };
-    out.push(rect(b, theme.radius.card, `fill="${theme.surface}" stroke="${theme.border}" stroke-width="${theme.stroke.card}" filter="url(#${shadowId})"`));
+    out.push(rect(b, theme.radius.card, `fill="${theme.surface}" stroke="${cardStroke(theme, t)}" stroke-width="${theme.stroke.card}"${shadowAttr(theme, shadowId)}`));
     const tw = measureText(st.s.label, theme.size.label, 600);
     const x = st.x - (H.tile + H.gap + tw) / 2;
     const cy = b.y + b.height / 2;
-    out.push(rect({ x, y: cy - H.tile / 2 + 2, width: H.tile - 4, height: H.tile - 4 }, 7, `fill="${t.bg}"`));
-    out.push(glyph(st.s.icon, x + (H.tile - 4 - 15) / 2, cy - 7.5, 15, t.fg, theme.stroke.icon));
+    out.push(iconTile(theme, { x, y: cy - H.tile / 2 + 2, slot: H.tile - 4, tone: t, icon: st.s.icon, rx: Math.min(7, theme.radius.tile), iconSize: look(theme).tile === 'bare' ? 19 : look(theme).tile === 'disc' || look(theme).tile === 'ring' ? 14 : 15 }));
     out.push(text(x + H.tile + H.gap - 4, cy, st.s.label, theme.size.label, 600, theme.text));
   }
   for (const a of d.arrows) {
@@ -612,15 +618,16 @@ function drawDelivery(g: GitflowGeometry, theme: Theme, shadowId: string): strin
       const gb = a.gate.box;
       out.push(`<path d="M${r1(a.x1 + 2)} ${r1(a.y)}H${r1(gb.x)}M${r1(gb.x + gb.width)} ${r1(a.y)}H${r1(end - 6)}" stroke="${t.fg}" stroke-width="1.8" stroke-linecap="round"/>`);
     } else out.push(`<path d="M${r1(a.x1 + 2)} ${r1(a.y)}H${r1(end - 6)}" stroke="${t.fg}" stroke-width="1.8" stroke-linecap="round"/>`);
-    out.push(`<path d="M${r1(end - 8)} ${r1(a.y - 4.5)}L${r1(end)} ${r1(a.y)}L${r1(end - 8)} ${r1(a.y + 4.5)}Z" fill="${t.fg}" stroke="${t.fg}" stroke-width="1" stroke-linejoin="round"/>`);
+    if (look(theme).line.arrow !== 'filled') out.push(arrowHead({ x: end, y: a.y }, { x: end - 1, y: a.y }, t.fg, theme, 1.8));
+    else out.push(`<path d="M${r1(end - 8)} ${r1(a.y - 4.5)}L${r1(end)} ${r1(a.y)}L${r1(end - 8)} ${r1(a.y + 4.5)}Z" fill="${t.fg}" stroke="${t.fg}" stroke-width="1" stroke-linejoin="round"/>`);
     if (a.gate) {
       const gb = a.gate.box;
-      out.push(pill(gb.x + gb.width / 2, a.y, a.gate.label, 'shield-check', theme.tones.amber.bg, theme.tones.amber.line, theme.text, theme.tones.amber.fg));
+      out.push(pill(theme, gb.x + gb.width / 2, a.y, a.gate.label, 'shield-check', theme.tones.amber.bg, theme.tones.amber.line, theme.text, theme.tones.amber.fg));
     }
   }
   for (const c of d.cells) {
     const t = tone(c.tone);
-    out.push(rect(c.box, 10, `fill="${theme.surface}" stroke="${t.line}" stroke-width="1.2"`));
+    out.push(rect(c.box, Math.min(10, theme.radius.card + 2), `fill="${theme.surface}" stroke="${t.line}" stroke-width="1.2"`));
     const tw = measureText(c.label, theme.size.caption, 600);
     const x = c.box.x + c.box.width / 2 - (D.cell.icon + 6 + tw) / 2;
     const cy = c.box.y + c.box.height / 2;
