@@ -255,3 +255,30 @@ describe('carto import and diff of access and GitHub exports', () => {
     expect(read('gh.svg')).toContain('was write');
   }, 60_000);
 });
+
+describe('threats and share', () => {
+  const model = fs.readFileSync(path.join(root, 'examples/systems/threat-model.yaml'), 'utf8');
+  it('writes the threat table as markdown, and says when there is no threat model', () => {
+    write('tm.yaml', model);
+    const r = carto('threats', 'tm.yaml', '-o', 'tm.md');
+    expect(r.code).toBe(0);
+    expect(read('tm.md')).toContain('| T1 | Storefront → API gateway | Spoofing |');
+    write('plain.yaml', 'type: systems\nnodes:\n  a: service\n');
+    const none = carto('threats', 'plain.yaml');
+    expect(none.code).toBe(1);
+    expect(none.err).toContain('no threat model here');
+  });
+
+  it('prints a share link for a base URL, and refuses one too long for a link', () => {
+    write('tm.yaml', model);
+    const r = carto('share', 'tm.yaml', '--base', 'https://carto.example/');
+    expect(r.code).toBe(0);
+    expect(r.out.trim()).toMatch(/^https:\/\/carto\.example\/#share=[A-Za-z0-9_-]+$/);
+    let big = 'type: systems\nnodes:\n';
+    for (let i = 0; i < 3000; i++) big += `  n${i}: { kind: service, label: "${(i * 7919).toString(36)}-${(i * 104729).toString(36)}-${(i * 1299709).toString(36)}" }\n`;
+    write('big.yaml', big);
+    const no = carto('share', 'big.yaml');
+    expect(no.code).toBe(1);
+    expect(no.err).toContain('Share the file itself instead');
+  });
+});

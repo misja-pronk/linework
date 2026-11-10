@@ -35,7 +35,7 @@ import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconPackFile } from './icons.ts';
-import { c4, systems } from '@cartography/systems';
+import { c4, contextMap, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { cloud } from '@cartography/cloud';
 import { kubernetes } from '@cartography/kubernetes';
@@ -50,11 +50,12 @@ import { roadmap } from '@cartography/roadmap';
 import { journey } from '@cartography/journey';
 import { process } from '@cartography/process';
 import { states } from '@cartography/states';
+import { matrix } from '@cartography/matrix';
 import { capabilities } from '@cartography/capabilities';
 import { teams } from '@cartography/teams';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, capabilities, teams];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap, matrix, capabilities, teams];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -273,7 +274,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
-  const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : ownViews?.length ? ownViews : undefined;
+  // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
+  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(ownViews?.slice(1) ?? [])] : ownViews?.length ? ownViews : undefined;
   return {
     svg: out.svg,
     width: out.width,

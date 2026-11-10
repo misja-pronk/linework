@@ -1,0 +1,24 @@
+type: context-map
+title: E-commerce context map
+subtitle: Bounded contexts and how they integrate
+
+groups:
+  sales: { kind: domain, label: Sales }
+  fulfilment: { kind: domain, label: Fulfilment }
+
+nodes:
+  catalog: { kind: context, label: Catalogue, domain: supporting, in: sales }
+  pricing: { kind: context, label: Pricing, domain: core, in: sales }
+  ordering: { kind: context, label: Ordering, domain: core, in: sales }
+  billing: { kind: context, label: Billing, domain: generic }
+  shipping: { kind: context, label: Shipping, domain: supporting, in: fulfilment }
+  warehouse: { kind: legacy, label: Warehouse ERP, in: fulfilment }
+  payments: { kind: external, label: Payment provider }
+
+edges:
+  - catalog -> ordering: { relation: customer-supplier, upstream: [OHS, PL] }
+  - pricing -- ordering: { relation: partnership }
+  - ordering -> shipping: { relation: customer-supplier }
+  - ordering -> billing: { relation: customer-supplier }
+  - warehouse -> shipping: { relation: anticorruption-layer, label: stock levels }
+  - payments -> billing: { relation: conformist }

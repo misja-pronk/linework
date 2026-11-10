@@ -1,0 +1,31 @@
+type: matrix
+title: Platform migration — RACI
+subtitle: Who does what in the move to the new platform
+legend: raci
+counts: true
+
+columns:
+  sponsor: { label: Sponsor, group: Business }
+  pm: { label: Programme manager, group: Business }
+  arch: { label: Architect, group: IT }
+  platform: { label: Platform team, group: IT }
+  apps: { label: App teams, group: IT }
+  security: { label: Security officer, group: Risk }
+
+rows:
+  case: { label: Business case, group: Prepare }
+  plan: { label: Migration plan, group: Prepare }
+  landing: { label: Landing zone, group: Build }
+  pipelines: { label: Deployment pipelines, group: Build }
+  migrate: { label: Move the applications, group: Migrate }
+  test: { label: Acceptance tests, group: Migrate }
+  cutover: { label: Cut-over and decommission, group: Run }
+
+cells:
+  case: { sponsor: A, pm: R, arch: C, security: I }
+  plan: { sponsor: I, pm: A, arch: R, platform: C, apps: C, security: C }
+  landing: { pm: I, arch: A, platform: R, security: C }
+  pipelines: { arch: C, platform: A/R, apps: C }
+  migrate: { pm: A, platform: C, apps: R, security: I }
+  test: { pm: A, apps: R, security: C }
+  cutover: { sponsor: I, pm: A, platform: R, apps: R, security: I }

@@ -556,9 +556,12 @@ class SceneBuilder {
     const parts: (Part | undefined)[] = [];
     const hline = (x0: number, x1: number, y: number, color: string, opacity?: number) => this.line('Rule', [{ x: x0, y }, { x: x1, y }], color, 1, opacity ? { opacity } : {});
     const paper = look(t).tableHead === 'paper' ? paperTint(t, 0) : undefined;
-    if (paper) parts.push(this.rect('Header', { x: b.x + 0.5, y: b.y + 0.5, width: b.width - 1, height: HEAD - 0.5 }, Math.max(0, t.radius.card - 0.5), { fill: paper }));
-    parts.push(hline(b.x, b.x + b.width, b.y + HEAD, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
-    if (m.corner) parts.push(this.text('Corner', b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
+    if (paper) parts.push(this.rect('Header', { x: b.x + 0.5, y: b.y + 0.5, width: b.width - 1, height: g.head - 0.5 }, Math.max(0, t.radius.card - 0.5), { fill: paper }));
+    parts.push(hline(b.x, b.x + b.width, b.y + g.head, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
+    // Grouped columns and rows: their names over the columns and between the rows.
+    for (const band of g.bands) parts.push(this.text(`Group: ${band.label}`, b.x + band.x + band.width / 2, b.y + g.band / 2 + 4, band.label.toUpperCase(), 10, 600, t.textMuted, 'middle'));
+    for (const sec of g.sections) parts.push(this.text(`Group: ${sec.label}`, b.x + PAD, b.y + sec.y + MATRIX.SECTION / 2, sec.label.toUpperCase(), 10, 600, t.textMuted));
+    if (m.corner) parts.push(this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
       const w = g.columns[j]!;
@@ -568,16 +571,17 @@ class SceneBuilder {
       const labelW = Math.min(w - 2 * PAD - iconW, measureText(col.label, t.size.cell, 600));
       // A plain table reads like a spreadsheet: everything flush left.
       const start = m.plain ? x + PAD : cx - (labelW + iconW) / 2;
-      const cy = col.caption ? b.y + HEAD / 2 - 7 : b.y + HEAD / 2;
+      const cy = (col.caption ? b.y + HEAD / 2 - 7 : b.y + HEAD / 2) + g.band;
       if (col.icon) parts.push(this.picture(col.icon, start, cy - 7, 14, tone(col.tone).fg, 1.75));
       parts.push(this.text(`Column: ${col.label}`, start + iconW, cy, label, t.size.cell, 600, t.text));
       if (col.caption) parts.push(this.text('Caption', cx, cy + 16, fitText(col.caption, t.size.caption, 400, w - 2 * PAD), t.size.caption, 400, t.textFaint, 'middle'));
       parts.push(this.line('Rule', [{ x, y: b.y + 10 }, { x, y: b.y + b.height - 10 }], t.border, 1, { opacity: 0.5 }));
       x += w;
     }
-    let y = b.y + HEAD;
     for (const [i, row] of m.rows.entries()) {
-      const cy = y + g.rowHeight / 2;
+      const y = b.y + g.rows[i]!.y;
+      const tall = g.rows[i]!.height > g.rowHeight;
+      const cy = tall ? y + 10 + MATRIX.LINE / 2 : y + g.rowHeight / 2;
       // A row without a label continues the one above: the rule skips its header.
       if (i > 0) parts.push(hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
       const rt = tone(row.tone);
@@ -596,11 +600,12 @@ class SceneBuilder {
       for (const [j] of m.columns.entries()) {
         const w = g.columns[j]!;
         const c = m.cells[i]?.[j];
-        if (m.plain) parts.push(this.text('Cell', cx + PAD, cy, fitText(c?.text ?? '–', t.size.cell, c?.strong ? 600 : 400, w - 2 * PAD), t.size.cell, c?.strong ? 600 : 400, c?.text ? t.text : t.textFaint));
+        const lines = g.lines[i]?.[j];
+        if (lines) lines.forEach((l, k) => parts.push(this.text('Cell', cx + PAD, y + 10 + MATRIX.LINE * (k + 0.5), l, t.size.cell, c?.strong ? 600 : 400, t.text)));
+        else if (m.plain) parts.push(this.text('Cell', cx + PAD, cy, fitText(c?.text ?? '–', t.size.cell, c?.strong ? 600 : 400, w - 2 * PAD), t.size.cell, c?.strong ? 600 : 400, c?.text ? t.text : t.textFaint));
         else parts.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD));
         cx += w;
       }
-      y += g.rowHeight;
     }
     return {
       id: `node:${n.id}`,

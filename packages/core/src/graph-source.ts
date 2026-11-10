@@ -14,6 +14,7 @@ import { tones } from './model.ts';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
 import type { Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
+import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
 
 export interface GraphTypeConfig {
   nodeKinds: KindTable;
@@ -24,6 +25,11 @@ export interface GraphTypeConfig {
   plainEdge?: string;
   /** Model kinds this type draws as one of its own, e.g. database → sql-database. Unknown kinds become a plain card. */
   kindAliases?: Record<string, string>;
+  /**
+   * The threat overlay (threats.ts): trust boundaries, STRIDE threats and the threat table view.
+   * `true` lets the rules find outside parties and data stores by the usual kind names.
+   */
+  threats?: ThreatKinds | true;
 }
 
 /** The kind's name as caption, unless the kind is quiet or the label already says it ("Order service"). */
@@ -70,6 +76,11 @@ export interface GraphSource {
   badges?: string[];
   /** Set by the model layer: where drawn entries are written when not at their usual place. */
   origin?: Origins;
+  /** The threat overlay's own keys (threats.ts) and the view asked for: diagram or threats. */
+  threats?: unknown[];
+  trust?: string[];
+  'threat-rules'?: string;
+  view?: string;
 }
 
 /** References in node-and-edge YAML: `in:` and edge ends. */
@@ -86,6 +97,7 @@ export function graphReferences(src: GraphSource): Reference[] {
 const envSchema = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] };
 
 export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string): object {
+  const overlay = !!cfg.threats;
   const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
     anyOf: [
       { enum: kinds },
@@ -132,14 +144,15 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       title: { type: 'string' },
       subtitle: { type: 'string' },
       direction: { enum: ['right', 'down'] },
-      groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds)) },
+      groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds), overlay ? threatFields.group : {}) },
       nodes: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: entry(Object.keys(cfg.nodeKinds), { badges: { type: 'array', items: { type: 'string' } } }),
+        additionalProperties: entry(Object.keys(cfg.nodeKinds), { badges: { type: 'array', items: { type: 'string' } }, ...(overlay ? threatFields.node : {}) }),
       },
-      edges: { type: 'array', items: edgeItemSchema(styles) },
+      edges: { type: 'array', items: edgeItemSchema(overlay ? { ...styles, ...threatFields.edge } : styles) },
       ...badges,
+      ...(overlay ? { ...threatFields.top, view: { enum: ['diagram', 'threats'], description: 'diagram, or its threat table' } } : {}),
       ...modelProperties,
     },
     additionalProperties: false,
@@ -152,7 +165,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   if (ctx.model || refs) {
     const model = ctx.model ?? { ...emptyCatalogue() };
     model.used = true;
-    src = viewSource(src, cfg, model, ctx);
+    // A view is drawn from the model; what the threat overlay says stays with the diagram.
+    src = { ...viewSource(src, cfg, model, ctx), ...overlayKeys(src as Record<string, unknown>) };
   }
   const origin = src.origin;
   const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
@@ -283,7 +297,10 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing.
   if (cfg.plainEdge && plainLines && legend.length) legend.unshift({ label: cfg.plainEdge, line: 'solid' });
 
-  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
+  const graph: Graph = { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
+  if (!cfg.threats) return graph;
+  applyThreats(graph, src as Record<string, unknown>, cfg.threats === true ? threatKindsOf(cfg.nodeKinds) : cfg.threats, ctx);
+  return src.view === 'threats' ? threatTable(graph) : graph;
 }
 
 function breakCycles(groups: GraphGroup[], ctx: BuildContext) {

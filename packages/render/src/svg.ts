@@ -15,6 +15,7 @@ import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
 import { drawJourney } from './journey.ts';
 import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.ts';
+import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 
@@ -121,7 +122,9 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
-    out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${g.focused ? focusRing(box, theme.radius.group, theme) : ''}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}</g>`, opts));
+    // Threat numbers sit on the top edge, at the end, where they never cover the name.
+    const tags = g.marks?.length ? drawTags(theme, g.marks, box.x + box.width - 16 - tagsWidth(g.marks) - (mark ? 24 : 0), box.y) : '';
+    out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${g.focused ? focusRing(box, theme.radius.group, theme) : ''}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}${tags}</g>`, opts));
   }
   const badges = chips(graph);
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
@@ -169,18 +172,30 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
     const boxed = shape.kind !== 'flow' || shape.form === 'task' || shape.form === 'subprocess' || shape.form === 'state';
     const mark = link && shape.kind !== 'matrix' && boxed ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
+    // Threat numbers on the top edge, at the end: on the card, never over its name.
+    const tags = n.marks?.length && shape.kind !== 'matrix' ? drawTags(theme, n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y) : '';
     // Marked as standing back in words too: a look without shadows shows it only in its colours.
-    out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${n.focused ? focusRing(box, theme.radius.card, theme) : ''}${body}${mark}</g>`, opts));
+    out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${n.focused ? focusRing(box, theme.radius.card, theme) : ''}${body}${mark}${tags}</g>`, opts));
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
     const em = state?.edges[e.id];
     if (badged.has(e.id) || em === 'hidden') continue;
     const pe = placed.edges.get(e.id);
-    if (!(e.label || e.step) || !pe?.label) continue;
-    const box = besideShortLine(pe.points, pe.label, placed);
+    if (!(e.label || e.step || e.marks?.length) || !pe?.label) continue;
+    // The room kept for a context map's end tags is not the label's.
+    const room = endsRoom(e.ends);
+    const box = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
     const lt = lineTheme(e);
-    out.push(drawEdgeLabel(e.label ?? '', box, lt, ground.under(box), edgeColor(e, lt), e.step, e.icon, e.tone));
+    out.push(drawEdgeLabel(e.label ?? '', box, lt, ground.under(box), edgeColor(e, lt), e.step, e.icon, e.tone, e.marks));
+  }
+  // The ends of a context map's relationships: U and D, and the patterns on each side.
+  const taken: Box[] = [];
+  for (const e of graph.edges) {
+    const pe = placed.edges.get(e.id);
+    if (!e.ends || badged.has(e.id) || state?.edges[e.id] === 'hidden' || !pe || pe.points.length < 2) continue;
+    const pts = toOutline(pe.points, graph, placed, e.from.node, e.to.node);
+    out.push(drawEnds(e, pts, lineTheme(e), taken));
   }
   if (state) for (const n of placeNotes(state, placed)) out.push(drawNote(n, theme));
   out.push('</g>');
@@ -307,8 +322,10 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme, depth = 0, link = false,
   const lk = look(theme).group;
   const tone = theme.tones[g.tone];
   // Depth tints tell nesting; where a theme draws no outline, a dashed boundary still gets one.
-  const line = groupLine(theme, tone) ?? (g.border === 'dashed' ? theme.border : undefined);
-  const dash = g.border === 'dashed' ? ` stroke-dasharray="${lk.dash}"` : '';
+  // A trust boundary is the threat model's dashed line: heavier, longer dashes, in the threat colour.
+  const line = g.trust ? theme.tones.rose.fg : (groupLine(theme, tone) ?? (g.border === 'dashed' ? theme.border : undefined));
+  const dash = g.trust ? ' stroke-dasharray="8 4"' : g.border === 'dashed' ? ` stroke-dasharray="${lk.dash}"` : '';
+  const weight = g.trust ? Math.max(1.6, theme.stroke.group + 0.6) : theme.stroke.group;
   const cy = b.y + 22;
   const x = b.x + 16;
   const lab = groupLabel(theme, g.label);
@@ -317,7 +334,7 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme, depth = 0, link = false,
   const labelW = measureText(lab.text, lab.size, 600, 'sans', lab.tracking);
   const maxLabel = b.width - 32 - iconRoom - (link ? LINK_ROOM : 0);
   const label = fitText(lab.text, lab.size, 600, maxLabel, 'sans', lab.tracking);
-  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.group}" fill="${groupFill(theme, depth, tone)}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"${dash}` : ''}/>`;
+  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${theme.radius.group}" fill="${groupFill(theme, depth, tone)}"${line ? ` stroke="${line}" stroke-width="${weight}"${dash}` : ''}/>`;
   if (img) s += image(img, x - 1, cy - 9, 18, 18);
   else if (lk.icon) s += drawIcon(g.icon, x, cy - lk.icon / 2, lk.icon, tone.fg, 1.75);
   s += textMid(x + iconRoom, cy, label, lab.size, 600, groupLabelInk(theme, tone), undefined, spacing);
@@ -680,11 +697,25 @@ export function besideShortLine(points: Point[], at: Box, placed?: Placed): Box 
   return free.find((m) => !others.some((o) => hit(m, o))) ?? free[0] ?? b;
 }
 
-function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, lineColor: string, step?: number, iconName?: string, tone?: GraphEdge['tone']): string {
+function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[]): string {
+  let s = '';
+  for (const [tags, tip, from] of [[e.ends?.from, pts[0]!, pts[1]!], [e.ends?.to, pts.at(-1)!, pts.at(-2)!]] as const) {
+    if (!tags?.length) continue;
+    const at = endTagAt(tags, tip, from, taken);
+    if (at) s += drawTags(theme, tags, at.x, at.cy, endStyle);
+  }
+  return s;
+}
+
+function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, lineColor: string, step?: number, iconName?: string, tone?: GraphEdge['tone'], marks?: string[]): string {
   const h = 20;
   const y = b.y + (b.height - h) / 2;
   const n = step ? stepMark(b.x + 10, y + h / 2, step, theme) : '';
-  if (!label) return n;
+  // Threat numbers end the label, after its text; a line without a label shows only them.
+  const tagW = marks?.length ? tagsWidth(marks) : 0;
+  const tags = tagW ? drawTags(theme, marks!, b.x + b.width - tagW, y + h / 2) : '';
+  if (tagW) b = { ...b, width: b.width - tagW - TAG.GAP };
+  if (!label) return n + tags;
   const lk = look(theme).edgeLabel;
   const room = step ? STEP_ROOM : 0;
   // An icon (a tunnel's lock) leads the text, in the line's colour; the text stays centred in what is left.
@@ -698,7 +729,8 @@ function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, line
     labelBack(theme, { x: b.x, y, width: b.width, height: h }, ground) +
     n +
     glyph +
-    `<text x="${r1(cx)}" y="${r1(y + h / 2 + baselineOffset(theme.size.edgeLabel, lk.mono ? 'mono' : 'sans'))}" font-size="${theme.size.edgeLabel}" font-weight="500" fill="${labelInk(theme, lineColor)}" text-anchor="middle"${labelAttrs(theme)}>${body}</text>`
+    `<text x="${r1(cx)}" y="${r1(y + h / 2 + baselineOffset(theme.size.edgeLabel, lk.mono ? 'mono' : 'sans'))}" font-size="${theme.size.edgeLabel}" font-weight="500" fill="${labelInk(theme, lineColor)}" text-anchor="middle"${labelAttrs(theme)}>${body}</text>` +
+    tags
   );
 }
 

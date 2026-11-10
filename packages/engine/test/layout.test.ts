@@ -24,6 +24,7 @@ const crossingBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'azure/microservices.yaml': 7,
   'azure/web-shop.yaml': 0,
+  'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
   'c4/kestrel-bank.yaml#context': 0,
@@ -80,6 +81,8 @@ const crossingBudget: Record<string, number> = {
   'journey/data-product-consumer.yaml': 0,
   'journey/developer-onboarding.yaml': 0,
   'journey/first-deploy.yaml': 0,
+  'matrix/crud-services.yaml': 0,
+  'matrix/raci-migration.yaml': 0,
   'kubernetes/inference.yaml': 0,
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,
@@ -93,19 +96,22 @@ const crossingBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 2, // Orders' confirmation line passes its own OrderPlaced line: the lower drawing with one crossing scores a hair worse
   'systems/saas-platform.yaml': 2,
+  'systems/threat-model.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
-  'cloud/aws-landing-zone.yaml': 1, // the dev VPC's line steps aside beside Infrastructure's title: the transit gateway has no spot in line clear of it
+  'cloud/aws-landing-zone.yaml': 1,
+  'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way // the dev VPC's line steps aside beside Infrastructure's title: the transit gateway has no spot in line clear of it
   'states/device-connection.yaml': 1, // link lost leaves Connected through its bottom border, under the header of nothing but its own
 };
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
-  'cloud/aws-landing-zone.yaml': 1, // the same step aside as over the header
+  'cloud/aws-landing-zone.yaml': 1,
+  'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way // the same step aside as over the header
   'data-products/customer-detailed.yaml': 1, // the same
   'data-products/customer-focus.yaml': 2, // the same, twice
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
@@ -132,6 +138,7 @@ const orderBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'c4/kestrel-bank.yaml#production': 3,
   'cloud/aws-landing-zone.yaml': 1,
+  'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way
   'cloud/multi-cloud.yaml': 1,
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
