@@ -1,0 +1,38 @@
+[
+  {
+    "login": "dev-101",
+    "id": 1285,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-110",
+    "id": 1294,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-138",
+    "id": 1322,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-155",
+    "id": 1339,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-183",
+    "id": 1367,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-298",
+    "id": 1482,
+    "type": "User",
+    "site_admin": false
+  }
+]

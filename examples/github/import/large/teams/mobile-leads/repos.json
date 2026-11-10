@@ -1,0 +1,420 @@
+[
+  {
+    "id": 1070,
+    "name": "shop-docs",
+    "full_name": "kestrel-logistics/shop-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1085,
+    "name": "data-docs",
+    "full_name": "kestrel-logistics/data-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1100,
+    "name": "route-docs",
+    "full_name": "kestrel-logistics/route-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1115,
+    "name": "fleet-docs",
+    "full_name": "kestrel-logistics/fleet-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1130,
+    "name": "billing-docs",
+    "full_name": "kestrel-logistics/billing-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1145,
+    "name": "warehouse-docs",
+    "full_name": "kestrel-logistics/warehouse-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1160,
+    "name": "partner-docs",
+    "full_name": "kestrel-logistics/partner-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1175,
+    "name": "mobile-docs",
+    "full_name": "kestrel-logistics/mobile-docs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1170,
+    "name": "mobile-api",
+    "full_name": "kestrel-logistics/mobile-api",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1171,
+    "name": "mobile-web",
+    "full_name": "kestrel-logistics/mobile-web",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1172,
+    "name": "mobile-worker",
+    "full_name": "kestrel-logistics/mobile-worker",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1173,
+    "name": "mobile-schema",
+    "full_name": "kestrel-logistics/mobile-schema",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1174,
+    "name": "mobile-infra",
+    "full_name": "kestrel-logistics/mobile-infra",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1176,
+    "name": "mobile-client",
+    "full_name": "kestrel-logistics/mobile-client",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1177,
+    "name": "mobile-jobs",
+    "full_name": "kestrel-logistics/mobile-jobs",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1178,
+    "name": "mobile-gateway",
+    "full_name": "kestrel-logistics/mobile-gateway",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1179,
+    "name": "mobile-events",
+    "full_name": "kestrel-logistics/mobile-events",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1180,
+    "name": "mobile-reports",
+    "full_name": "kestrel-logistics/mobile-reports",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1181,
+    "name": "mobile-tools",
+    "full_name": "kestrel-logistics/mobile-tools",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1182,
+    "name": "mobile-tests",
+    "full_name": "kestrel-logistics/mobile-tests",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1183,
+    "name": "mobile-config",
+    "full_name": "kestrel-logistics/mobile-config",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1184,
+    "name": "mobile-sdk",
+    "full_name": "kestrel-logistics/mobile-sdk",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  }
+]

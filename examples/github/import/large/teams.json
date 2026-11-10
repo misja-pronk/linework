@@ -1,0 +1,346 @@
+[
+  {
+    "id": 1002,
+    "name": "Platform",
+    "slug": "platform",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1040,
+    "name": "Engineering",
+    "slug": "engineering",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1006,
+    "name": "Security",
+    "slug": "security",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1041,
+    "name": "Shop developers",
+    "slug": "shop-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1042,
+    "name": "Shop leads",
+    "slug": "shop-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1041,
+      "name": "Shop developers",
+      "slug": "shop-developers"
+    }
+  },
+  {
+    "id": 1043,
+    "name": "Shop readers",
+    "slug": "shop-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1044,
+    "name": "Data developers",
+    "slug": "data-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1045,
+    "name": "Data leads",
+    "slug": "data-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1044,
+      "name": "Data developers",
+      "slug": "data-developers"
+    }
+  },
+  {
+    "id": 1046,
+    "name": "Data readers",
+    "slug": "data-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1047,
+    "name": "Route developers",
+    "slug": "route-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1048,
+    "name": "Route leads",
+    "slug": "route-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1047,
+      "name": "Route developers",
+      "slug": "route-developers"
+    }
+  },
+  {
+    "id": 1049,
+    "name": "Route readers",
+    "slug": "route-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1050,
+    "name": "Fleet developers",
+    "slug": "fleet-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1051,
+    "name": "Fleet leads",
+    "slug": "fleet-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1050,
+      "name": "Fleet developers",
+      "slug": "fleet-developers"
+    }
+  },
+  {
+    "id": 1052,
+    "name": "Fleet readers",
+    "slug": "fleet-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1053,
+    "name": "Billing developers",
+    "slug": "billing-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1054,
+    "name": "Billing leads",
+    "slug": "billing-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1053,
+      "name": "Billing developers",
+      "slug": "billing-developers"
+    }
+  },
+  {
+    "id": 1055,
+    "name": "Billing readers",
+    "slug": "billing-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1056,
+    "name": "Warehouse developers",
+    "slug": "warehouse-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1057,
+    "name": "Warehouse leads",
+    "slug": "warehouse-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1056,
+      "name": "Warehouse developers",
+      "slug": "warehouse-developers"
+    }
+  },
+  {
+    "id": 1058,
+    "name": "Warehouse readers",
+    "slug": "warehouse-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1059,
+    "name": "Partner developers",
+    "slug": "partner-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1060,
+    "name": "Partner leads",
+    "slug": "partner-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1059,
+      "name": "Partner developers",
+      "slug": "partner-developers"
+    }
+  },
+  {
+    "id": 1061,
+    "name": "Partner readers",
+    "slug": "partner-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1062,
+    "name": "Mobile developers",
+    "slug": "mobile-developers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1040,
+      "name": "Engineering",
+      "slug": "engineering"
+    }
+  },
+  {
+    "id": 1063,
+    "name": "Mobile leads",
+    "slug": "mobile-leads",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": {
+      "id": 1062,
+      "name": "Mobile developers",
+      "slug": "mobile-developers"
+    }
+  },
+  {
+    "id": 1064,
+    "name": "Mobile readers",
+    "slug": "mobile-readers",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  },
+  {
+    "id": 1065,
+    "name": "Release",
+    "slug": "release",
+    "description": null,
+    "privacy": "closed",
+    "notification_setting": "notifications_enabled",
+    "permission": "pull",
+    "parent": null
+  }
+]

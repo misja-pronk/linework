@@ -49,7 +49,7 @@ export async function dropped(data: DataTransfer): Promise<MeshFile[]> {
   const items = [...data.items].filter((i) => i.kind === 'file').map((i) => i.webkitGetAsEntry?.() ?? i.getAsFile());
   const out: MeshFile[] = [];
   const add = async (path: string, f: File) => {
-    if (READ.test(f.name) && f.size <= MAX_BYTES && out.length < MAX_FILES) out.push({ path, text: await f.text() });
+    if ((READ.test(f.name) || /^codeowners$/i.test(f.name)) && f.size <= MAX_BYTES && out.length < MAX_FILES) out.push({ path, text: await f.text() });
   };
   const walk = async (e: FileSystemEntry, prefix: string, depth: number): Promise<void> => {
     if (e.isFile) return add(prefix + e.name, await new Promise<File>((ok, fail) => (e as FileSystemFileEntry).file(ok, fail)));

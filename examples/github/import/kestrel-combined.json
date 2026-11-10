@@ -1,0 +1,1100 @@
+{
+  "org": {
+    "login": "kestrel-logistics",
+    "id": 1001,
+    "name": "Kestrel Logistics",
+    "type": "Organization",
+    "default_repository_permission": "read",
+    "two_factor_requirement_enabled": true,
+    "members_can_create_repositories": false
+  },
+  "teams": [
+    {
+      "id": 1002,
+      "name": "Platform",
+      "slug": "platform",
+      "description": null,
+      "privacy": "closed",
+      "notification_setting": "notifications_enabled",
+      "permission": "pull",
+      "parent": null
+    },
+    {
+      "id": 1003,
+      "name": "Developers",
+      "slug": "developers",
+      "description": null,
+      "privacy": "closed",
+      "notification_setting": "notifications_enabled",
+      "permission": "pull",
+      "parent": null
+    },
+    {
+      "id": 1004,
+      "name": "Shop",
+      "slug": "shop-team",
+      "description": null,
+      "privacy": "closed",
+      "notification_setting": "notifications_enabled",
+      "permission": "pull",
+      "parent": {
+        "id": 1003,
+        "name": "Developers",
+        "slug": "developers"
+      }
+    },
+    {
+      "id": 1005,
+      "name": "Data",
+      "slug": "data-team",
+      "description": null,
+      "privacy": "closed",
+      "notification_setting": "notifications_enabled",
+      "permission": "pull",
+      "parent": {
+        "id": 1003,
+        "name": "Developers",
+        "slug": "developers"
+      }
+    },
+    {
+      "id": 1006,
+      "name": "Security",
+      "slug": "security",
+      "description": null,
+      "privacy": "closed",
+      "notification_setting": "notifications_enabled",
+      "permission": "pull",
+      "parent": null
+    }
+  ],
+  "repos": [
+    {
+      "id": 1007,
+      "name": "shop",
+      "full_name": "kestrel-logistics/shop",
+      "private": true,
+      "visibility": "private",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": "The web shop"
+    },
+    {
+      "id": 1008,
+      "name": "shop-web",
+      "full_name": "kestrel-logistics/shop-web",
+      "private": true,
+      "visibility": "private",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    },
+    {
+      "id": 1009,
+      "name": "data-pipeline",
+      "full_name": "kestrel-logistics/data-pipeline",
+      "private": true,
+      "visibility": "private",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    },
+    {
+      "id": 1010,
+      "name": "infra",
+      "full_name": "kestrel-logistics/infra",
+      "private": true,
+      "visibility": "internal",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    },
+    {
+      "id": 1011,
+      "name": "docs",
+      "full_name": "kestrel-logistics/docs",
+      "private": false,
+      "visibility": "public",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    },
+    {
+      "id": 1012,
+      "name": "legacy-billing",
+      "full_name": "kestrel-logistics/legacy-billing",
+      "private": true,
+      "visibility": "private",
+      "archived": true,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    },
+    {
+      "id": 1013,
+      "name": "sandbox",
+      "full_name": "kestrel-logistics/sandbox",
+      "private": true,
+      "visibility": "private",
+      "archived": false,
+      "fork": false,
+      "default_branch": "main",
+      "description": null
+    }
+  ],
+  "members": [
+    {
+      "login": "anna-visser",
+      "id": 1014,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "bram-dekker",
+      "id": 1015,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "chloe-jansen",
+      "id": 1016,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "daan-bakker",
+      "id": 1017,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "eva-smit",
+      "id": 1018,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "farid-haddou",
+      "id": 1019,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "gijs-mulder",
+      "id": 1020,
+      "type": "User",
+      "site_admin": false
+    }
+  ],
+  "owners": [
+    {
+      "login": "anna-visser",
+      "id": 1014,
+      "type": "User",
+      "site_admin": false
+    },
+    {
+      "login": "bram-dekker",
+      "id": 1015,
+      "type": "User",
+      "site_admin": false
+    }
+  ],
+  "outside_collaborators": [
+    {
+      "login": "ivo-extern",
+      "id": 1021,
+      "type": "User",
+      "site_admin": false
+    }
+  ],
+  "team_members": {
+    "platform": [
+      {
+        "login": "anna-visser",
+        "id": 1014,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "bram-dekker",
+        "id": 1015,
+        "type": "User",
+        "site_admin": false
+      }
+    ],
+    "developers": [
+      {
+        "login": "chloe-jansen",
+        "id": 1016,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "daan-bakker",
+        "id": 1017,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "eva-smit",
+        "id": 1018,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "farid-haddou",
+        "id": 1019,
+        "type": "User",
+        "site_admin": false
+      }
+    ],
+    "shop-team": [
+      {
+        "login": "chloe-jansen",
+        "id": 1016,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "daan-bakker",
+        "id": 1017,
+        "type": "User",
+        "site_admin": false
+      }
+    ],
+    "data-team": [
+      {
+        "login": "eva-smit",
+        "id": 1018,
+        "type": "User",
+        "site_admin": false
+      },
+      {
+        "login": "farid-haddou",
+        "id": 1019,
+        "type": "User",
+        "site_admin": false
+      }
+    ],
+    "security": [
+      {
+        "login": "gijs-mulder",
+        "id": 1020,
+        "type": "User",
+        "site_admin": false
+      }
+    ]
+  },
+  "team_repos": {
+    "platform": [
+      {
+        "id": 1007,
+        "name": "shop",
+        "full_name": "kestrel-logistics/shop",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": "The web shop",
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1008,
+        "name": "shop-web",
+        "full_name": "kestrel-logistics/shop-web",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1009,
+        "name": "data-pipeline",
+        "full_name": "kestrel-logistics/data-pipeline",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1010,
+        "name": "infra",
+        "full_name": "kestrel-logistics/infra",
+        "private": true,
+        "visibility": "internal",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1011,
+        "name": "docs",
+        "full_name": "kestrel-logistics/docs",
+        "private": false,
+        "visibility": "public",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1012,
+        "name": "legacy-billing",
+        "full_name": "kestrel-logistics/legacy-billing",
+        "private": true,
+        "visibility": "private",
+        "archived": true,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      },
+      {
+        "id": 1013,
+        "name": "sandbox",
+        "full_name": "kestrel-logistics/sandbox",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      }
+    ],
+    "developers": [
+      {
+        "id": 1011,
+        "name": "docs",
+        "full_name": "kestrel-logistics/docs",
+        "private": false,
+        "visibility": "public",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      },
+      {
+        "id": 1013,
+        "name": "sandbox",
+        "full_name": "kestrel-logistics/sandbox",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      }
+    ],
+    "shop-team": [
+      {
+        "id": 1011,
+        "name": "docs",
+        "full_name": "kestrel-logistics/docs",
+        "private": false,
+        "visibility": "public",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      },
+      {
+        "id": 1013,
+        "name": "sandbox",
+        "full_name": "kestrel-logistics/sandbox",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      },
+      {
+        "id": 1007,
+        "name": "shop",
+        "full_name": "kestrel-logistics/shop",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": "The web shop",
+        "permissions": {
+          "admin": false,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "maintain"
+      },
+      {
+        "id": 1008,
+        "name": "shop-web",
+        "full_name": "kestrel-logistics/shop-web",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      }
+    ],
+    "data-team": [
+      {
+        "id": 1011,
+        "name": "docs",
+        "full_name": "kestrel-logistics/docs",
+        "private": false,
+        "visibility": "public",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      },
+      {
+        "id": 1013,
+        "name": "sandbox",
+        "full_name": "kestrel-logistics/sandbox",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      },
+      {
+        "id": 1009,
+        "name": "data-pipeline",
+        "full_name": "kestrel-logistics/data-pipeline",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      }
+    ],
+    "security": [
+      {
+        "id": 1007,
+        "name": "shop",
+        "full_name": "kestrel-logistics/shop",
+        "private": true,
+        "visibility": "private",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": "The web shop",
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "triage"
+      },
+      {
+        "id": 1010,
+        "name": "infra",
+        "full_name": "kestrel-logistics/infra",
+        "private": true,
+        "visibility": "internal",
+        "archived": false,
+        "fork": false,
+        "default_branch": "main",
+        "description": null,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": false,
+          "triage": false,
+          "pull": true
+        },
+        "role_name": "read"
+      }
+    ]
+  },
+  "collaborators": {
+    "shop": [
+      {
+        "login": "ivo-extern",
+        "id": 1021,
+        "type": "User",
+        "site_admin": false,
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "write"
+      }
+    ],
+    "shop-web": [],
+    "data-pipeline": [],
+    "infra": [
+      {
+        "login": "bram-dekker",
+        "id": 1015,
+        "type": "User",
+        "site_admin": false,
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "push": true,
+          "triage": true,
+          "pull": true
+        },
+        "role_name": "admin"
+      }
+    ],
+    "docs": [],
+    "legacy-billing": [],
+    "sandbox": []
+  },
+  "environments": {
+    "shop": {
+      "total_count": 2,
+      "environments": [
+        {
+          "id": 1024,
+          "name": "staging",
+          "protection_rules": [],
+          "deployment_branch_policy": null
+        },
+        {
+          "id": 1025,
+          "name": "production",
+          "protection_rules": [
+            {
+              "id": 1026,
+              "type": "required_reviewers",
+              "reviewers": [
+                {
+                  "type": "Team",
+                  "reviewer": {
+                    "id": 1002,
+                    "slug": "platform",
+                    "name": "Platform"
+                  }
+                }
+              ]
+            },
+            {
+              "id": 1027,
+              "type": "wait_timer",
+              "wait_timer": 10
+            }
+          ],
+          "deployment_branch_policy": {
+            "protected_branches": true,
+            "custom_branch_policies": false
+          }
+        }
+      ]
+    },
+    "shop-web": {
+      "total_count": 0,
+      "environments": []
+    },
+    "data-pipeline": {
+      "total_count": 1,
+      "environments": [
+        {
+          "id": 1028,
+          "name": "production",
+          "protection_rules": [
+            {
+              "id": 1029,
+              "type": "required_reviewers",
+              "reviewers": [
+                {
+                  "type": "Team",
+                  "reviewer": {
+                    "id": 1002,
+                    "slug": "platform",
+                    "name": "Platform"
+                  }
+                }
+              ]
+            }
+          ],
+          "deployment_branch_policy": {
+            "protected_branches": true,
+            "custom_branch_policies": false
+          }
+        }
+      ]
+    },
+    "infra": {
+      "total_count": 0,
+      "environments": []
+    },
+    "docs": {
+      "total_count": 0,
+      "environments": []
+    },
+    "legacy-billing": {
+      "total_count": 0,
+      "environments": []
+    },
+    "sandbox": {
+      "total_count": 0,
+      "environments": []
+    }
+  },
+  "rulesets": [
+    {
+      "id": 1022,
+      "name": "Default branches",
+      "target": "branch",
+      "source_type": "Organization",
+      "source": "kestrel-logistics",
+      "enforcement": "active",
+      "bypass_actors": [
+        {
+          "actor_id": 1,
+          "actor_type": "OrganizationAdmin",
+          "bypass_mode": "always"
+        }
+      ],
+      "conditions": {
+        "ref_name": {
+          "include": [
+            "~DEFAULT_BRANCH"
+          ],
+          "exclude": []
+        },
+        "repository_name": {
+          "include": [
+            "~ALL"
+          ],
+          "exclude": [
+            "legacy-*",
+            "docs",
+            "sandbox"
+          ],
+          "protected": true
+        }
+      },
+      "rules": [
+        {
+          "type": "pull_request",
+          "parameters": {
+            "required_approving_review_count": 1,
+            "dismiss_stale_reviews_on_push": true,
+            "require_code_owner_review": true,
+            "require_last_push_approval": false,
+            "required_review_thread_resolution": true
+          }
+        },
+        {
+          "type": "required_status_checks",
+          "parameters": {
+            "strict_required_status_checks_policy": true,
+            "required_status_checks": [
+              {
+                "context": "build"
+              },
+              {
+                "context": "test"
+              }
+            ]
+          }
+        },
+        {
+          "type": "non_fast_forward"
+        },
+        {
+          "type": "deletion"
+        }
+      ]
+    }
+  ],
+  "repo_rulesets": {
+    "shop": [
+      {
+        "id": 1023,
+        "name": "Release branches",
+        "target": "branch",
+        "source_type": "Repository",
+        "source": "kestrel-logistics/shop",
+        "enforcement": "active",
+        "bypass_actors": [],
+        "conditions": {
+          "ref_name": {
+            "include": [
+              "refs/heads/release/*"
+            ],
+            "exclude": []
+          }
+        },
+        "rules": [
+          {
+            "type": "pull_request",
+            "parameters": {
+              "required_approving_review_count": 2,
+              "dismiss_stale_reviews_on_push": true,
+              "require_code_owner_review": false,
+              "require_last_push_approval": false,
+              "required_review_thread_resolution": true
+            }
+          },
+          {
+            "type": "deletion"
+          }
+        ]
+      },
+      {
+        "id": 1022,
+        "name": "Default branches",
+        "target": "branch",
+        "source_type": "Organization",
+        "source": "kestrel-logistics",
+        "enforcement": "active"
+      }
+    ],
+    "shop-web": [
+      {
+        "id": 1022,
+        "name": "Default branches",
+        "target": "branch",
+        "source_type": "Organization",
+        "source": "kestrel-logistics",
+        "enforcement": "active"
+      }
+    ],
+    "data-pipeline": [
+      {
+        "id": 1022,
+        "name": "Default branches",
+        "target": "branch",
+        "source_type": "Organization",
+        "source": "kestrel-logistics",
+        "enforcement": "active"
+      }
+    ],
+    "infra": [
+      {
+        "id": 1022,
+        "name": "Default branches",
+        "target": "branch",
+        "source_type": "Organization",
+        "source": "kestrel-logistics",
+        "enforcement": "active"
+      }
+    ],
+    "docs": [],
+    "legacy-billing": [],
+    "sandbox": []
+  },
+  "branch_protection": {
+    "docs": {
+      "url": "https://api.github.com/repos/kestrel-logistics/docs/branches/main/protection",
+      "required_pull_request_reviews": {
+        "dismiss_stale_reviews": false,
+        "require_code_owner_reviews": false,
+        "required_approving_review_count": 1
+      },
+      "enforce_admins": {
+        "enabled": true
+      },
+      "required_linear_history": {
+        "enabled": false
+      },
+      "allow_force_pushes": {
+        "enabled": false
+      },
+      "allow_deletions": {
+        "enabled": false
+      }
+    }
+  },
+  "codeowners": {
+    "shop": "# Who looks at what\n*        @kestrel-logistics/shop-team\n/infra/  @kestrel-logistics/platform\n/docs/   @kestrel-logistics/developers\n"
+  },
+  "secrets": [
+    {
+      "name": "AZURE_CLIENT_ID",
+      "created_at": "2025-03-01T09:00:00Z",
+      "updated_at": "2025-03-01T09:00:00Z",
+      "visibility": "all"
+    },
+    {
+      "name": "NPM_TOKEN",
+      "created_at": "2025-03-01T09:00:00Z",
+      "updated_at": "2025-03-01T09:00:00Z",
+      "visibility": "selected"
+    }
+  ],
+  "variables": [
+    {
+      "name": "AZURE_TENANT_ID",
+      "value": "example",
+      "created_at": "2025-03-01T09:00:00Z",
+      "updated_at": "2025-03-01T09:00:00Z",
+      "visibility": "all"
+    }
+  ],
+  "repo_secrets": {
+    "shop": [
+      {
+        "name": "DEPLOY_KEY",
+        "created_at": "2025-03-01T09:00:00Z",
+        "updated_at": "2025-03-01T09:00:00Z"
+      }
+    ],
+    "shop-web": [],
+    "data-pipeline": [
+      {
+        "name": "WAREHOUSE_PASSWORD",
+        "created_at": "2025-03-01T09:00:00Z",
+        "updated_at": "2025-03-01T09:00:00Z"
+      },
+      {
+        "name": "DBT_TOKEN",
+        "created_at": "2025-03-01T09:00:00Z",
+        "updated_at": "2025-03-01T09:00:00Z"
+      }
+    ],
+    "infra": [],
+    "docs": [],
+    "legacy-billing": [],
+    "sandbox": []
+  },
+  "repo_variables": {
+    "shop": [
+      {
+        "name": "REGION",
+        "value": "example",
+        "created_at": "2025-03-01T09:00:00Z",
+        "updated_at": "2025-03-01T09:00:00Z"
+      }
+    ],
+    "shop-web": [],
+    "data-pipeline": [],
+    "infra": [],
+    "docs": [],
+    "legacy-billing": [],
+    "sandbox": []
+  },
+  "runners": [
+    {
+      "id": 1031,
+      "name": "runner-ams-01",
+      "os": "linux",
+      "status": "online",
+      "busy": false,
+      "runner_group_id": 1030,
+      "labels": [
+        {
+          "id": 1,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 2,
+          "name": "linux",
+          "type": "read-only"
+        },
+        {
+          "id": 10,
+          "name": "prod",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 1032,
+      "name": "runner-ams-02",
+      "os": "linux",
+      "status": "online",
+      "busy": false,
+      "runner_group_id": 1030,
+      "labels": [
+        {
+          "id": 1,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 2,
+          "name": "linux",
+          "type": "read-only"
+        },
+        {
+          "id": 10,
+          "name": "prod",
+          "type": "custom"
+        }
+      ]
+    }
+  ],
+  "runner_groups": [
+    {
+      "id": 1030,
+      "name": "prod-deploy",
+      "visibility": "selected",
+      "default": false,
+      "allows_public_repositories": false
+    }
+  ],
+  "installations": [
+    {
+      "id": 1033,
+      "app_id": 1034,
+      "app_slug": "kestrel-deploy",
+      "target_type": "Organization",
+      "repository_selection": "selected",
+      "permissions": {
+        "contents": "read",
+        "deployments": "write",
+        "metadata": "read"
+      }
+    },
+    {
+      "id": 1035,
+      "app_id": 1036,
+      "app_slug": "dependency-bot",
+      "target_type": "Organization",
+      "repository_selection": "all",
+      "permissions": {
+        "contents": "write",
+        "pull_requests": "write",
+        "metadata": "read"
+      }
+    }
+  ]
+}

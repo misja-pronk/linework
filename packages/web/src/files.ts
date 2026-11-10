@@ -45,7 +45,7 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
       if (files.size >= MAX_FILES) return;
       if (h.kind === 'directory') {
         if (depth < 6 && !SKIP.has(name) && !name.startsWith('.')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
-      } else if (TEXT.test(name)) {
+      } else if (TEXT.test(name) || /^codeowners$/i.test(name)) {
         const file = await (h as FileSystemFileHandle).getFile();
         if (file.size <= MAX_BYTES) files.set(prefix + name, { handle: h as FileSystemFileHandle, text: await file.text() });
       }

@@ -1,0 +1,43 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups",
+  "value": [
+    {
+      "id": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+      "displayName": "sg-platform-admins",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": true
+    },
+    {
+      "id": "f1997d55-a4c7-9409-1b10-3c60944853f7",
+      "displayName": "sg-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "9bbb809c-907f-c391-df3c-e91b68047f12",
+      "displayName": "sg-data-engineers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "2f43c348-d4ae-78b9-1c8b-e9c0ee6f8d56",
+      "displayName": "sg-auditors",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "4b744098-6f60-7a65-c5f3-632e82469001",
+      "displayName": "All Engineering",
+      "securityEnabled": true,
+      "groupTypes": [
+        "DynamicMembership"
+      ],
+      "isAssignableToRole": null,
+      "membershipRule": "user.department -eq \"Engineering\""
+    }
+  ]
+}

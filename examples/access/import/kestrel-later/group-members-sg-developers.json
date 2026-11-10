@@ -1,0 +1,24 @@
+[
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "e947fc70-7833-aaa7-7f0f-6bb4f9cc2a6a",
+    "displayName": "Chen Wei",
+    "userPrincipalName": "chen.wei@kestrel.example",
+    "userType": "Member"
+  },
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "30c27d81-4a08-2ef4-3db0-5bd357ad802e",
+    "displayName": "Dina Okafor",
+    "userPrincipalName": "dina.okafor@kestrel.example",
+    "userType": "Member"
+  },
+  {
+    "@odata.type": "#microsoft.graph.group",
+    "id": "9bbb809c-907f-c391-df3c-e91b68047f12",
+    "displayName": "sg-data-engineers",
+    "securityEnabled": true,
+    "groupTypes": [],
+    "isAssignableToRole": null
+  }
+]
