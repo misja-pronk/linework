@@ -1,0 +1,58 @@
+# The database the chart's services use, run by the platform team in its own namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shop-postgres
+  namespace: data
+spec:
+  serviceName: shop-postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: shop-postgres }
+  template:
+    metadata:
+      labels: { app: shop-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.4
+          ports: [{ containerPort: 5432 }]
+          envFrom:
+            - secretRef: { name: shop-db }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 50Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-postgres
+  namespace: data
+spec:
+  selector: { app: shop-postgres }
+  ports: [{ port: 5432 }]
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shop-backup
+  namespace: data
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: ghcr.io/acme/pg-backup:1.2
+              envFrom:
+                - secretRef: { name: shop-db }
+          restartPolicy: OnFailure

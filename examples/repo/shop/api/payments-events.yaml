@@ -1,0 +1,39 @@
+asyncapi: '2.6.0'
+info:
+  title: Payments service
+  version: 1.9.0
+servers:
+  kafka:
+    url: kafka.shop.internal:9092
+    protocol: kafka
+  rabbit:
+    url: rabbitmq.shop.internal:5672
+    protocol: amqp
+channels:
+  shop.orders.v1:
+    servers: [kafka]
+    # The payments service reads what orders sends.
+    publish:
+      operationId: onOrderPlaced
+      message:
+        $ref: '#/components/messages/OrderPlaced'
+  payments.results:
+    servers: [rabbit]
+    bindings:
+      amqp:
+        is: queue
+    # The payments service sends this.
+    subscribe:
+      operationId: sendPaymentResult
+      message:
+        oneOf:
+          - $ref: '#/components/messages/PaymentSucceeded'
+          - $ref: '#/components/messages/PaymentFailed'
+components:
+  messages:
+    OrderPlaced:
+      name: OrderPlaced
+    PaymentSucceeded:
+      name: PaymentSucceeded
+    PaymentFailed:
+      name: PaymentFailed

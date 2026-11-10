@@ -1,0 +1,6 @@
+apiVersion: v2
+name: shop
+description: The shop on Kubernetes - storefront, orders API, payments and the order worker
+type: application
+version: 0.7.2
+appVersion: "2.14.0"

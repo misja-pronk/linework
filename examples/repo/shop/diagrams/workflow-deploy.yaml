@@ -1,0 +1,29 @@
+type: process
+title: Deploy
+subtitle: "From deploy.yml: 6 jobs"
+
+lanes:
+  pipeline: { label: Pipeline }
+  env-staging: { label: staging }
+  env-production: { label: production }
+
+nodes:
+  On push to main, by hand: { kind: start, in: pipeline, tags: [imported] }
+  build: { kind: subprocess, in: pipeline, caption: uses ci.yml, tags: [imported] }
+  Azure infrastructure: { kind: service, in: env-staging, links: [../docs/github.yaml], tags: [imported] }
+  Deploy to staging: { kind: service, in: env-staging, caption: staging.shop.example.com, links: [../docs/github.yaml], tags: [imported] }
+  Smoke tests: { kind: script, in: pipeline, tags: [imported] }
+  Deploy to production: { kind: service, in: env-production, caption: shop.example.com, links: [../docs/github.yaml], tags: [imported] }
+  Approve production: { kind: user, in: env-production, caption: environment protection, tags: [imported] }
+  Announce release: { kind: script, in: pipeline, tags: [imported] }
+
+flow:
+  - On push to main, by hand -> build
+  - build -> Azure infrastructure
+  - build -> Deploy to staging
+  - Azure infrastructure -> Deploy to staging
+  - Deploy to staging -> Smoke tests
+  - Smoke tests -> Approve production: on main
+  - Approve production -> Deploy to production
+  - Deploy to production -> Announce release
+  - Announce release -> end

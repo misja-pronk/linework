@@ -5,6 +5,7 @@
 // changed by hand. Nothing is fetched: every file is read where it is.
 import { config as azureType } from '@cartography/azure';
 import { readTemplate, isParameters, isTemplate } from './azure-arm.ts';
+import { bicepEntries, readBicepParams } from './bicep.ts';
 import { Estate, normPath, TARGET_RG, TARGET_SUB, parseId, type AzContainer, type AzResource, type Change } from './azure-estate.ts';
 import { graphRows, hasResources, onlyContainers, readGraph } from './azure-graph.ts';
 import { hasAzurerm, readTerraform } from './azure-terraform.ts';
@@ -41,9 +42,29 @@ function parse(files: ExportFile[], warn: Warnings) {
   const read: ImportedExport['read'] = [];
   const skipped: ImportedExport['skipped'] = [];
   const problems: MeshProblem[] = [];
-  const templates: { path: string; json: Obj }[] = [];
+  const templates: { path: string; json: Obj; what?: string }[] = [];
   const given: Obj = {};
+  // Bicep source: compiled here to the template `az bicep build` would write, the files no other uses as a module each one.
+  const bicep = new Map(files.filter((f) => /\.bicep$/i.test(f.path)).map((f) => [f.path, f.text]));
+  if (bicep.size) {
+    const { entries, compiled } = bicepEntries(bicep);
+    for (const p of entries) {
+      const c = compiled.get(p)!;
+      for (const n of c.notes) warn.add(n);
+      if (!isObj(c.template.resources)) continue;
+      templates.push({ path: p, json: c.template, what: 'Bicep' });
+      estate.sources.add('bicep');
+    }
+  }
   for (const f of files) {
+    if (/\.bicep$/i.test(f.path)) continue;
+    if (/\.bicepparam$/i.test(f.path)) {
+      const r = readBicepParams(f.text, f.path);
+      for (const n of r.notes) warn.add(n);
+      Object.assign(given, r.values);
+      read.push({ file: f.path, what: 'Bicep parameters', count: Object.keys(r.values).length });
+      continue;
+    }
     if (!/\.json$/i.test(f.path)) {
       skipped.push({ file: f.path, why: 'not a JSON file' });
       continue;
@@ -72,7 +93,7 @@ function parse(files: ExportFile[], warn: Warnings) {
   }
   for (const t of templates) {
     const unresolved = new Set<string>();
-    read.push({ file: t.path, what: 'ARM template', count: readTemplate(estate, t.json, given, {}, unresolved) });
+    read.push({ file: t.path, what: t.what ?? 'ARM template', count: readTemplate(estate, t.json, given, {}, unresolved) });
     if (unresolved.size) warn.add(`${t.path}: some values are only known when it is deployed (${[...unresolved].slice(0, 5).join(', ')}${unresolved.size > 5 ? ', …' : ''}): a name made from one keeps the expression's words in {braces}`);
   }
   return { estate, read, skipped, problems };
@@ -682,6 +703,7 @@ function subtitleOf(estate: Estate): string {
   const s = estate.sources;
   if (s.has('plan')) return 'From a Terraform plan';
   if (s.has('state')) return 'From Terraform state';
+  if (s.has('bicep')) return 'From the Bicep source';
   if (s.has('arm')) return 'From an ARM template';
   return 'From Azure Resource Graph';
 }

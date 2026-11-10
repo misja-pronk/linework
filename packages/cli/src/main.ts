@@ -25,6 +25,7 @@ import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
 import { indexWorkspace, isDiagramFile, threatMarkdown } from '@cartography/core';
 import { dynamicView, sequenceYaml, traceable, traceAsk, type TraceMeta } from '@cartography/trace';
 import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
+import { looksLikeRepo, repoDiagrams } from './repo.ts';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const helpAll = `carto — architecture diagrams that look good
@@ -169,6 +170,13 @@ const helpAll = `carto — architecture diagrams that look good
                                                 only some subscriptions or resource groups; containers down to
                                                 subscriptions, resource groups or (3) networks and subnets; --all also
                                                 NICs, disks, NSGs, public IPs, plans; above 12 in one place, 3+ of a kind are one card
+  carto import <repo> [--diagrams diagrams/]    a code repository: a diagram of each Compose file (systems), Helm
+               [--values values-prod.yaml]      chart (rendered here; kubernetes), folder of manifests, Bicep entry
+               [--dry-run] [--force]            file (azure), OpenAPI / AsyncAPI file (systems; callbacks as a
+                                                sequence) and GitHub Actions workflow (process), into diagrams/;
+                                                again updates them, your edits stay (--force: start over);
+                                                --values: read over every chart's own. More: docs/repo-import.md
+  carto render <repo> [-o pictures/]            the same diagrams drawn, without writing them
   carto import <file.drawio|.excalidraw…> [--keep-positions] [-o out|-] [--force]
                                                 a draw.io file (every page) or an Excalidraw file to YAML, with a
                                                 report of what was mapped and what was left out; --keep-positions
@@ -382,6 +390,8 @@ const parsed = (() => {
     steps: { type: 'boolean' },
     dynamic: { type: 'boolean' },
     'dry-run': { type: 'boolean' },
+    diagrams: { type: 'string' },
+    values: { type: 'string' },
     timeout: { type: 'string' },
     'keep-raw': { type: 'string' },
     wizard: { type: 'string' },
@@ -1293,6 +1303,52 @@ async function deck(): Promise<boolean> {
   return ok;
 }
 
+/** A folder that is a code repository (and not one of data products or exports). */
+const isRepoFolder = (f: string): boolean => isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) && looksLikeRepo(f);
+
+/** The diagrams folder of a repository, relative to it: --diagrams is relative to where carto runs. */
+const diagramsOf = (repo: string) => (values.diagrams ? path.relative(repo, path.resolve(values.diagrams)).split(path.sep).join('/') : undefined);
+
+/** carto import <repo>: a diagram of each source into diagrams/ (or --diagrams); again, over them, your edits kept. */
+async function importRepo(repo: string): Promise<boolean> {
+  const scan = repoDiagrams(repo, { out: diagramsOf(repo), values: values.values && fs.readFileSync(values.values, 'utf8'), fresh: values.force });
+  if (!scan.diagrams.length) {
+    console.error(`${repo}  ${yellow('warning')}  nothing to draw: no Compose file, Helm chart, manifests, Bicep, OpenAPI, AsyncAPI or workflow found`);
+    for (const h of scan.hints) console.error(`  ${dim(h)}`);
+    return false;
+  }
+  let ok = true;
+  for (const d of scan.diagrams) {
+    const out = path.join(repo, d.file);
+    for (const w of d.warnings) console.error(`${d.sources[0]}  ${yellow('warning')}  ${w}`);
+    const check = await render(d.yaml, { fonts: 'none', load: loaderFor(out) });
+    report(`${d.file} (imported)`, check.diagnostics);
+    if (check.diagnostics.some((x) => x.severity === 'error')) ok = false;
+    if (values['dry-run']) {
+      console.log(`${d.sources.join(', ')} → ${out} ${dim(`${d.summary} (not written: --dry-run)`)}`);
+      continue;
+    }
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, d.yaml);
+    console.log(`${d.sources.join(', ')} → ${out} ${dim(`${d.summary}${d.kept ? ', what was added by hand kept' : ''}`)}`);
+  }
+  for (const h of scan.hints) console.log(dim(`  also: ${h}`));
+  return ok;
+}
+
+/** carto render <repo>: each of its diagrams drawn, as carto import would make them; nothing written but the pictures. */
+async function renderRepo(repo: string): Promise<boolean> {
+  const scan = repoDiagrams(repo, { out: diagramsOf(repo), values: values.values && fs.readFileSync(values.values, 'utf8') });
+  if (!scan.diagrams.length) return (console.error(`${repo}  ${yellow('warning')}  nothing to draw`), false);
+  let ok = true;
+  for (const d of scan.diagrams) {
+    const file = path.join(repo, d.file);
+    if (!values.out) fs.mkdirSync(path.dirname(file), { recursive: true });
+    ok = (await renderFile(file, d.yaml, `${d.sources[0]} (${d.kind})`)) && ok;
+  }
+  return ok;
+}
+
 /** Mermaid, D2, PlantUML or Markdown → <name>.yaml (or <name>-<n>.yaml per block or diagram), checked by rendering it once. */
 async function importFile(file: string): Promise<boolean> {
   const text = fs.readFileSync(file, 'utf8');
@@ -1824,6 +1880,12 @@ async function main(): Promise<number> {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
       if (values.live) return files.length ? (console.error('carto import --live reads from the tool, not from files: --into <diagram.yaml> imports over one'), 1) : (await importLive()) ? 0 : 1;
       if (!files.length) return (console.error(helpFor(command)), 1);
+      // A code repository: a diagram of each Compose file, chart, Bicep, API description and workflow in it.
+      const repos = files.filter(isRepoFolder);
+      let repoOk = true;
+      for (const r of repos) repoOk = (await importRepo(r)) && repoOk;
+      for (const r of repos) files.splice(files.indexOf(r), 1);
+      if (!files.length) return repoOk ? 0 : 1;
       // Access exports and gh api responses: a folder (or the files) is one diagram, as a mesh is.
       const kinds = new Map(files.map((f) => [f, isFolder(f) ? (dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? undefined : exportKind([f])) : /\.json$/i.test(f) ? exportKind([f]) : undefined] as const));
       const exports = files.filter((f) => kinds.get(f));
@@ -1848,7 +1910,7 @@ async function main(): Promise<number> {
       for (const f of plans) ok = (await importInventory(f, importTerraform)) && ok;
       for (const f of inventories) ok = (await importInventory(f)) && ok;
       for (const f of files) if (!exports.includes(f) && !mesh.includes(f) && !drawings.includes(f) && !plans.includes(f) && !manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
-      return ok ? 0 : 1;
+      return ok && repoOk ? 0 : 1;
     }
     case 'render': {
       if (!files.length) return (console.error(helpFor(command)), 1);
@@ -1859,6 +1921,7 @@ async function main(): Promise<number> {
         const kind = isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? exportKind([f]) : /\.json$/i.test(f) && exportKind([f]) === 'azure' ? 'azure' : undefined;
         // `-` reads the diagram from standard input; the picture then goes to standard output unless -o says where.
         if (f === '-') ok = (await renderFile(path.resolve('stdin.yaml'), fs.readFileSync(0, 'utf8'), 'stdin')) && ok;
+        else if (!kind && isRepoFolder(f)) ok = (await renderRepo(f)) && ok;
         else ok = (await (kind ? renderExport(f, kind) : isFolder(f) ? renderMesh(f) : renderFile(f))) && ok;
       }
       return ok ? 0 : 1;

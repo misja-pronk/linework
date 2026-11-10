@@ -1,0 +1,22 @@
+type: systems
+title: Shop events
+subtitle: "From the AsyncAPI files: who sends what to which channel"
+captions: written
+
+groups:
+  broker-kafka-shop-internal: { kind: zone, label: kafka.shop.internal, caption: kafka, tags: [imported] }
+  broker-rabbitmq-shop-internal: { kind: zone, label: rabbitmq.shop.internal, caption: amqp, tags: [imported] }
+
+nodes:
+  orders-service: { kind: service, label: Orders service, caption: v2.14.0, tags: [imported] }
+  payments-service: { kind: service, label: Payments service, caption: v1.9.0, tags: [imported] }
+  ch-shop-orders-v1: { kind: topic, label: shop.orders.v1, in: broker-kafka-shop-internal, tags: [imported] }
+  ch-payments-results: { kind: queue, label: payments.results, in: broker-rabbitmq-shop-internal, tags: [imported] }
+  ch-emails: { kind: queue, label: emails, in: broker-rabbitmq-shop-internal, tags: [imported] }
+
+edges:
+  - orders-service -> ch-shop-orders-v1: { label: "OrderPlaced, OrderCancelled", style: async }
+  - ch-payments-results -> orders-service: { label: "PaymentSucceeded, PaymentFailed", style: async }
+  - orders-service -> ch-emails: { label: SendEmail, style: async }
+  - ch-shop-orders-v1 -> payments-service: { label: OrderPlaced, style: async }
+  - payments-service -> ch-payments-results: { label: "PaymentSucceeded, PaymentFailed", style: async }

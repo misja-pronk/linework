@@ -1,0 +1,35 @@
+Shop API
+
+Architecture diagram: What the storefront and partners call. 13 elements in 6 groups, with 12 connections.
+
+Groups and elements
+- API clients
+- Shop API (v2.14.0)
+  - api.shop.example.com (Production · Staging)
+  - orders: Placing and following orders
+    - /orders (GET · POST · DELETE · PATCH · 7 operations)
+  - payments: Paying for an order
+    - /payments (POST · GET · 3 operations)
+  - catalog: Products and prices
+    - /products (GET · 2 operations)
+    - /categories (GET)
+    - /prices (GET)
+  - customers: Accounts and addresses
+    - /customers (GET · PUT · POST · 4 operations)
+  - untagged
+    - /health (GET)
+- auth.shop.example.com (OAuth 2 · authorizationCode)
+- API key (X-Partner-Key in header)
+- Callback receivers (the URL the caller gives)
+- Webhook subscribers
+
+Connections
+- API clients call api.shop.example.com over HTTPS, connect to auth.shop.example.com (Supporting: token) and connect to API key (Supporting: key).
+- api.shop.example.com calls /orders, calls /payments, calls /products, calls /categories, calls /prices, calls /customers and calls /health.
+- /payments sends paymentResult to Callback receivers.
+- Shop API sends orderShipped to Webhook subscribers.
+
+Key
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Dotted line: Supporting

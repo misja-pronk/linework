@@ -1,0 +1,40 @@
+# Defaults for every environment; values-prod.yaml says what production does differently.
+global:
+  registry: ghcr.io/acme
+  imageTag: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  host: shop.example.com
+  tls: true
+
+web:
+  replicas: 2
+  port: 3000
+
+api:
+  replicas: 2
+  port: 8000
+  autoscaling:
+    enabled: false
+    min: 2
+    max: 10
+
+payments:
+  enabled: true
+  replicas: 1
+  port: 8000
+
+workers:
+  orders:
+    queues: [orders]
+  emails:
+    queues: [emails, notifications]
+
+database:
+  host: shop-postgres.data.svc
+  secretName: shop-db
+
+serviceAccount:
+  create: true
