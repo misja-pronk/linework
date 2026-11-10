@@ -1,0 +1,20 @@
+type: process
+title: Access request
+subtitle: From request to access, approved by the line manager
+
+lanes:
+  employee: Employee
+  manager: Line manager
+  it: IT service desk
+
+nodes:
+  Request access: { in: employee, kind: user }
+  Check request: { in: manager, kind: user }
+  Grant access: { in: it, kind: service }
+  Confirm access: employee
+  Explain why: manager
+  Request rejected: end
+
+flow:
+  - start -> Request access -> Check request -> Approved? -yes-> Grant access -> Confirm access -> end
+  - Approved? -no-> Explain why -> Request rejected

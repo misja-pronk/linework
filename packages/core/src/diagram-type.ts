@@ -36,7 +36,7 @@ export interface DiagramType<Source = any> {
   /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
   references?(source: Source): Reference[];
   /** Layout hints for the shared graph layout, e.g. room for long labels. */
-  tuning?: { labelRoom?: 'fit' };
+  tuning?: { labelRoom?: 'fit'; autoDirection?: false };
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
   /**
@@ -53,6 +53,27 @@ export interface DiagramType<Source = any> {
    * earlier or later. A string names the field an entry without it takes from the entry above ("in").
    */
   ordered?: Record<string, true | string>;
+  /** Entries are named as a reader says them (a process step, a state): a new name may hold spaces. */
+  freeNames?: true;
+  /**
+   * For types whose list items hold more than one line ("a -> b -> c" in a process): how the builder
+   * changes one drawn line. Each gives what the list item becomes, or nothing for a line that is
+   * not written as one (a note's line).
+   */
+  lines?: {
+    /** What a label looks like, under the builder's field: "event [guard] / action". */
+    hint?: string;
+    /** The line gets this label; '' takes it away. */
+    label(source: Source, edge: string, label: string): Rewrite | undefined;
+    /** The line goes: a chain is cut in two where it was. */
+    remove(source: Source, edge: string): Rewrite | undefined;
+  };
+}
+
+/** A list item written anew: the item at `path` becomes `items` (none: it goes, two: it is split). */
+export interface Rewrite {
+  path: Path;
+  items: unknown[];
 }
 
 export interface Connection {
@@ -80,6 +101,8 @@ export interface Reference {
   onDelete?: 'item' | 'key' | 'cut';
   /** Characters to cut on delete, e.g. "fk orders.id" out of a column spec. */
   cut?: [number, number];
+  /** With `cut`: how many ids the string holds ("a -> b -> c": 3). Cut down to fewer than two, the whole list item goes. */
+  among?: number;
 }
 
 export interface BuildContext {

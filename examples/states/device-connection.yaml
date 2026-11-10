@@ -1,0 +1,28 @@
+type: states
+title: Device connection
+subtitle: How a field sensor connects to the platform, keeps the link alive and recovers when it drops
+
+states:
+  Disconnected: { entry: radio off }
+  Connecting: { entry: start the 10 s timer, do: TLS handshake }
+  Connected:
+    states:
+      Idle: { do: send a heartbeat every 30 s }
+      Sending: { entry: open the batch, exit: clear the buffer }
+      Receiving update: { do: download firmware }
+  Backing off: { entry: double the wait }
+
+transitions:
+  - start -> Disconnected
+  - Disconnected -> Connecting: wake up
+  - Connecting -> Connected: handshake done
+  - start -> Idle
+  - Idle -> Sending: buffer full
+  - Sending -> Idle: batch acknowledged
+  - Idle -> Receiving update: update offered
+  - Receiving update -> Idle: update verified
+  - Idle -> Idle: heartbeat
+  - Connected -> Backing off: link lost
+  - Connecting -> Backing off: timeout
+  - Backing off -> Connecting: wait over [under 5 tries]
+  - Backing off -> Disconnected: wait over [5 tries]

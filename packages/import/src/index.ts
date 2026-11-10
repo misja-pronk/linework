@@ -1,7 +1,8 @@
 // Imports from other diagram languages. Pure functions (text in, YAML out), shared by the CLI and the web app.
 //
-//   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd, sequenceDiagram → sequence,
-//                          gitGraph → gitflow, gantt and timeline → roadmap, journey → journey
+//   importMermaid(text)    flowchart/graph and architecture-beta → systems (a flowchart that decides → process),
+//                          erDiagram → erd, sequenceDiagram → sequence, stateDiagram → states, gitGraph → gitflow,
+//                          gantt and timeline → roadmap, journey → journey
 //   importGitLog(text)     `git log --format=GIT_LOG_FORMAT` of a real repository → gitflow
 //   importMarkdown(text)   every ```mermaid block in a Markdown file
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
@@ -15,6 +16,7 @@ import { importSequence } from './sequence.ts';
 import { importGitGraph } from './gitgraph.ts';
 import { importGantt, importTimeline } from './gantt.ts';
 import { importJourney } from './journey.ts';
+import { importState } from './state.ts';
 import { Warnings } from './text.ts';
 
 export interface Imported {
@@ -65,11 +67,12 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   else if (/^architecture(-beta)?$/.test(kind)) yaml = importArchitecture(body, title, warn);
   else if (kind === 'erDiagram') yaml = importEr(body, title, warn);
   else if (kind === 'sequenceDiagram') yaml = importSequence(body, title, warn);
+  else if (/^stateDiagram(-v2)?$/.test(kind)) yaml = importState(body, title, warn);
   else if (/^gitGraph/.test(kind)) yaml = importGitGraph(body, header, title, warn);
   else if (kind === 'gantt') yaml = importGantt(body, title, warn);
   else if (kind === 'timeline') yaml = importTimeline(body, title, warn);
   else if (kind === 'journey') yaml = importJourney(body, title, warn);
-  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline and journey can`);
+  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, stateDiagram, gitGraph, gantt, timeline and journey can`);
   return { yaml, warnings: warn.list };
 }
 

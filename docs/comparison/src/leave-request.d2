@@ -1,0 +1,27 @@
+title: Leave request {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+Employee: {
+  start: Wants time off {shape: oval}
+  ask: Ask for leave
+  other: Pick other dates
+}
+Manager: {
+  enough: Enough days left? {shape: diamond}
+  covered: Team covered? {shape: diamond}
+  approve: Approve
+}
+HR: {
+  book: Book the days
+  done: Leave booked {shape: oval}
+}
+
+Employee.start -> Employee.ask
+Employee.ask -> Manager.enough
+Manager.enough -> Manager.covered: yes
+Manager.enough -> Employee.other: no
+Manager.covered -> Manager.approve: yes
+Manager.covered -> Employee.other: no
+Employee.other -> Employee.ask
+Manager.approve -> HR.book
+HR.book -> HR.done

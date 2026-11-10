@@ -133,6 +133,22 @@ export function describe(graph: Graph): Description {
     }
     // Drawn and told by the journey it is part of.
     if (s.kind === 'journey-part') continue;
+    if (s.kind === 'flow') {
+      // What its outline says, in words: a reader cannot see the diamond or the heavy ring.
+      const trigger = n.kind && !['start', 'end'].includes(n.kind) ? `${n.kind} ` : '';
+      const what =
+        s.form === 'event'
+          ? `${trigger}${s.mark === 'mid' ? 'intermediate' : (s.mark ?? '')} event`.trim()
+          : s.form === 'gateway'
+            ? s.mark === 'and' ? 'parallel gateway' : s.mark === 'or' ? 'inclusive gateway' : s.mark === 'event' ? 'event gateway' : 'decision'
+            : s.form === 'pseudo'
+              ? s.mark === 'final' ? 'end' : s.mark === 'choice' ? 'choice' : s.mark === 'history' ? 'history' : 'start'
+              : s.form === 'task' && n.kind && n.kind !== 'task' ? `${n.kind} task` : s.form;
+      const label = s.label || what;
+      names.set(n.id, label);
+      elements.push({ id: n.id, label, detail: [s.label ? what : '', s.caption, ...(s.lines ?? [])].filter(Boolean).join(', '), ...(parent ? { in: parent } : {}), description: n.description, links: n.links ?? [] });
+      continue;
+    }
     const label = s.kind === 'card' ? s.label : s.kind === 'table' ? s.title : (s.corner ?? n.id);
     const detail =
       s.kind === 'card'

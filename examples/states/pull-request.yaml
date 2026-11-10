@@ -1,0 +1,27 @@
+type: states
+title: Pull request lifecycle
+subtitle: What a pull request can become, and what moves it there
+
+states:
+  Draft: { note: Not yet visible in the review queue }
+  In review:
+    states:
+      Awaiting review: { entry: request reviewers }
+      Changes requested:
+      Approved:
+  Merged: { entry: delete the branch }
+  Closed:
+
+transitions:
+  - start -> Draft: opened
+  - Draft -> In review: ready for review
+  - start -> Awaiting review
+  - Awaiting review -> Changes requested: review [needs work]
+  - Changes requested -> Awaiting review: new commits pushed
+  - Awaiting review -> Approved: review [looks good]
+  - Approved -> Awaiting review: new commits pushed
+  - Approved -> Merged: merge [checks green]
+  - Merged -> end
+  - In review -> Draft: converted to draft
+  - In review -> Closed: closed without merging
+  - Closed -> In review: reopened

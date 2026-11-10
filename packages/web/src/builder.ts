@@ -57,6 +57,21 @@ function uniqueId(doc: Document, base: string): string {
   for (let i = 2; ; i++) if (!taken.has(`${clean}-${i}`)) return `${clean}-${i}`;
 }
 
+/** A new name for a type whose entries are named as said ("Task", then "Task 2"): not one written anywhere yet. */
+function uniqueName(doc: Document, type: DiagramType, base: string): string {
+  const taken = new Set((type.references?.(doc.toJS() as never) ?? []).map((r) => r.id));
+  const walk = (n: unknown) => {
+    if (!isMap(n)) return;
+    for (const p of n.items) {
+      taken.add(String((p.key as { value?: unknown })?.value));
+      if (isMap(p.value)) for (const q of p.value.items) walk(q.value);
+    }
+  };
+  if (isMap(doc.contents)) for (const p of doc.contents.items) walk(p.value);
+  if (!taken.has(base)) return base;
+  for (let i = 2; ; i++) if (!taken.has(`${base} ${i}`)) return `${base} ${i}`;
+}
+
 /** Schemas of one entry in a collection, object branches only. */
 function entrySchemas(type: DiagramType, collection: string): Schema[] {
   return schemasAt(type.schema as Schema, [collection, '*']).filter((s) => s.type === 'object' || s.properties);
@@ -86,11 +101,12 @@ export interface Added {
 function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, parent?: { collection: string; id: string }): Added | undefined {
   const doc = parse(text);
   if (!doc) return undefined;
-  const id = uniqueId(doc, item.kind);
+  const id = type.freeNames ? uniqueName(doc, type, item.label) : uniqueId(doc, item.kind);
   const value: Record<string, unknown> = {};
   const kk = kindKey(type, item.collection, item.kind);
   if (kk) value[kk] = item.kind;
-  value.label = item.label;
+  // Where the name is what the drawing says, there is no label to write.
+  if (!type.freeNames) value.label = item.label;
   if (parent) {
     const pk = parentKey(type, item.collection, parent.collection);
     if (pk) value[pk] = parent.id;
@@ -99,7 +115,9 @@ function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, pare
   const collection = doc.get(item.collection);
   if (!isMap(collection)) return undefined;
   if (collection.flow) collection.flow = false;
-  collection.set(id, doc.createNode(value, { flow: true }));
+  // Just a kind is written short, as by hand: "Check stock: task".
+  const short = type.freeNames && kk && Object.keys(value).length === 1 ? item.kind : undefined;
+  collection.set(id, short ?? doc.createNode(value, { flow: true }));
   return { text: str(doc), id, path: [item.collection, id] };
 }
 
@@ -140,17 +158,26 @@ function referencesTo(doc: Document, type: DiagramType, collection: string, id: 
   return type.references(doc.toJS() as never).filter((r) => r.collection === collection && r.id === id);
 }
 
+/** An entry of a collection, also one nested in an entry of the same collection (a state in a composite state). */
+export const isEntryPath = (path: Path): boolean => path.length >= 2 && path.length % 2 === 0 && typeof path.at(-1) === 'string' && path.every((s, i) => i % 2 === 1 || s === path[0]);
+
+const ID = /^[A-Za-z0-9_-]+$/;
+/** A name as a reader says it: words with spaces, and nothing YAML or an arrow would trip over. */
+const NAME = /^[\p{L}\p{N}](?:[^:#>[\]{},&*!|'"%@`\\]*[^\s:#>[\]{},&*!|'"%@`\\-])?$/u;
+
 /** Renames an entry and every reference to it, and nothing else (labels and other collections stay). */
 function renameEntryUnsafe(text: string, type: DiagramType, path: Path, to: string): string | undefined {
   const doc = parse(text);
   const from = String(path.at(-1));
-  if (!doc || !/^[A-Za-z0-9_-]+$/.test(to) || from === to || path.length !== 2) return undefined;
+  if (!doc || !(type.freeNames ? NAME : ID).test(to) || from === to || !isEntryPath(path)) return undefined;
   const parentNode = doc.getIn(path.slice(0, -1));
-  if (!isMap(parentNode) || parentNode.has(to)) return undefined;
-  const pair = parentNode.items.find((p) => String((p.key as { value?: unknown }).value) === from);
-  if (!pair) return undefined;
+  const pair = isMap(parentNode) ? parentNode.items.find((p) => String((p.key as { value?: unknown }).value) === from) : undefined;
   const refs = referencesTo(doc, type, String(path[0]), from);
-  (pair.key as { value: unknown }).value = to;
+  if (isMap(parentNode) && parentNode.has(to)) return undefined;
+  // A step that only the flow names has no entry: it is renamed where it is written. Its new name
+  // must be new there too, or two steps would silently become one.
+  if (type.freeNames ? referencesTo(doc, type, String(path[0]), to).length > 0 || (!pair && !refs.length) : !pair) return undefined;
+  if (pair) (pair.key as { value: unknown }).value = to;
   // Later ids in the same string first, so earlier offsets stay right.
   for (const r of [...refs].sort((a, b) => b.start - a.start)) {
     const node = doc.getIn(r.path, true);
@@ -169,7 +196,14 @@ function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string 
   const doc = parse(text);
   if (!doc) return undefined;
   const isListItem = typeof path.at(-1) === 'number';
-  const refs = isListItem || path.length !== 2 ? [] : referencesTo(doc, type, String(path[0]), String(path[1]));
+  // With a composite state go the states inside it, and what names them.
+  const inside = (v: unknown): string[] => {
+    const nested = v && typeof v === 'object' ? (v as Record<string, unknown>)[String(path[0])] : undefined;
+    return nested && typeof nested === 'object' && !Array.isArray(nested) ? Object.entries(nested).flatMap(([k, e]) => [k, ...inside(e)]) : [];
+  };
+  const entry = path.reduce<unknown>((v, seg) => (v && typeof v === 'object' ? (v as Record<string | number, unknown>)[seg] : undefined), doc.toJS());
+  const gone = isListItem || !isEntryPath(path) ? [] : [String(path.at(-1)), ...inside(entry)];
+  const refs = gone.flatMap((id) => referencesTo(doc, type, String(path[0]), id));
   const items = new Map<string, Path>();
   const keys: Path[] = [];
   const cuts: Reference[] = [];
@@ -180,25 +214,37 @@ function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string 
     else if (mode === 'cut') cuts.push(r);
     else keys.push(r.path);
   }
-  for (const r of cuts) {
+  // A chain that would be left with one name is no line any more: its item goes.
+  const cutsAt = new Map<string, number>();
+  for (const r of cuts) cutsAt.set(JSON.stringify(r.path), (cutsAt.get(JSON.stringify(r.path)) ?? 0) + 1);
+  for (const r of cuts.splice(0)) {
+    const last = r.path.reduce<number>((at, seg, i) => (typeof seg === 'number' ? i : at), -1);
+    if (r.among != null && last >= 0 && r.among - cutsAt.get(JSON.stringify(r.path))! < 2) items.set(JSON.stringify(r.path.slice(0, last + 1)), r.path.slice(0, last + 1));
+    else cuts.push(r);
+  }
+  // Later cuts in the same string first, so earlier offsets stay right.
+  for (const r of cuts.sort((a, b) => (b.cut?.[0] ?? 0) - (a.cut?.[0] ?? 0))) {
     const node = doc.getIn(r.path, true);
-    if (isScalar(node) && typeof node.value === 'string' && r.cut) node.value = (node.value.slice(0, r.cut[0]) + node.value.slice(r.cut[1])).trim();
+    const holder = r.key && isMap(node) && node.items.length === 1 ? node.items[0]!.key : node;
+    if (isScalar(holder) && typeof holder.value === 'string' && r.cut) holder.value = (holder.value.slice(0, r.cut[0]) + holder.value.slice(r.cut[1])).trim();
   }
   for (const k of keys) doc.deleteIn(k);
   // List items last, highest index first, so earlier indexes stay valid.
   for (const p of [...items.values()].sort((a, b) => (b.at(-1) as number) - (a.at(-1) as number))) doc.deleteIn(p);
-  doc.deleteIn(path);
+  // A step that only the flow names has no entry of its own to take away.
+  if (doc.hasIn(path)) doc.deleteIn(path);
+  else if (!refs.length) return undefined;
   return str(doc);
 }
 
 /** Copies an entry under a new id next to it. */
-function duplicateEntryUnsafe(text: string, path: Path): Added | undefined {
+function duplicateEntryUnsafe(text: string, path: Path, type?: DiagramType): Added | undefined {
   const doc = parse(text);
   if (!doc || typeof path.at(-1) === 'number') return undefined;
   const parentNode = doc.getIn(path.slice(0, -1));
   const value = doc.getIn(path, true) as Node | undefined;
   if (!isMap(parentNode) || value === undefined) return undefined;
-  const id = uniqueId(doc, String(path.at(-1)));
+  const id = type?.freeNames ? uniqueName(doc, type, String(path.at(-1))) : uniqueId(doc, String(path.at(-1)));
   const copy = doc.createNode(doc.getIn(path) ?? null, { flow: isMap(value) ? value.flow : undefined });
   const index = parentNode.items.findIndex((p) => String((p.key as { value?: unknown }).value) === String(path.at(-1)));
   parentNode.items.splice(index + 1, 0, doc.createPair(id, copy) as Pair);
@@ -352,7 +398,7 @@ export type Field =
   | { key: string; kind: 'number'; label: string; value: string; hint?: string }
   | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean; labels?: Record<string, string> }
   | { key: string; kind: 'toggle'; label: string; value: boolean; hint?: string }
-  | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string }
+  | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string; one?: true }
   | { key: string; kind: 'yaml'; label: string; summary: string; hint?: string };
 
 const titleCase = (k: string) => k.charAt(0).toUpperCase() + k.slice(1).replace(/-/g, ' ');
@@ -377,6 +423,8 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
 
   const fields: Field[] = [];
   for (const key of keys) {
+    // Entries nested in this one (states in a composite state) are drawn, not filled in.
+    if (key === collection) continue;
     const s = props.get(key)!;
     const alts: Schema[] = s.anyOf ?? [s];
     const v = values[key];
@@ -384,6 +432,8 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
     const label = titleCase(key);
     const enumAlt = alts.find((a) => Array.isArray(a.enum));
     const refs = refsOf(type, key);
+    const words = (a?: Schema) => a?.type === 'string' || (Array.isArray(a?.type) && a.type.includes('string'));
+    const either = alts.some(words) && alts.some((a) => a.type === 'array' && words(a.items));
     if (enumAlt && !alts.some((a) => a.type === 'object')) {
       // Kinds read as their names ("Key Vault"), from the palette of this collection.
       const names = Object.fromEntries(type.palette.filter((p) => p.collection === collection).map((p) => [p.kind, p.label]));
@@ -403,8 +453,9 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
         }
       fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true, labels });
     } else if (alts.some((a) => a.type === 'boolean')) fields.push({ key, kind: 'toggle', label, value: v === true, hint });
-    else if (alts.some((a) => a.type === 'array') && (v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
-      fields.push({ key, kind: 'list', label, value: (v as string[] | undefined) ?? [], hint });
+    else if (alts.some((a) => a.type === 'array') && (v == null || (either && typeof v !== 'object') || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
+      // One thing or a list of them ("entry: lock" or "entry: [lock, log]"): one stays written as one.
+      fields.push({ key, kind: 'list', label, value: v == null ? [] : Array.isArray(v) ? (v as string[]) : [String(v)], hint, ...(either && !Array.isArray(v) ? { one: true as const } : {}) });
     else if (alts.some((a) => a.type === 'object' || a.type === 'array'))
       fields.push({ key, kind: 'yaml', label, summary: summary(v), hint });
     else if (alts.some((a) => a.type === 'integer' || a.type === 'number') && !alts.some((a) => a.type === 'string' || (Array.isArray(a.type) && a.type.includes('string'))))
@@ -465,8 +516,32 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
   if (!isSeq(at)) return { error: 'Cannot add it there: that part of the YAML is not a list' };
   const want = connectionKey(plan.value);
   if (at.items.some((i) => connectionKey((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === want)) return { error: 'They are already connected' };
-  at.add(doc.createNode(plan.value, { flow: true }));
+  at.add(lineItem(doc, plan.value));
   return { text: str(doc) };
+}
+
+/** A line as a list item, written like the others: "- a -> b: SQL", with any nested properties inline. */
+function lineItem(doc: Document, value: unknown): Node {
+  // A guard alone is written bare, as by hand ("a -> b: [paid]"): YAML's one-item list, which the type reads back.
+  const entries = value && typeof value === 'object' && !Array.isArray(value) ? Object.entries(value) : [];
+  const guard = entries.length === 1 && typeof entries[0]![1] === 'string' ? /^\[([A-Za-z](?:[A-Za-z0-9 _.?!<>=+-]*[A-Za-z0-9?!])?)\]$/.exec(entries[0]![1]) : null;
+  const node = doc.createNode(guard ? { [entries[0]![0]]: [guard[1]] } : value, { flow: true }) as Node;
+  if (isMap(node) && node.items.length === 1 && /\s-.*>\s/.test(String((node.items[0]!.key as { value?: unknown }).value))) {
+    node.flow = false;
+    const inner = node.items[0]!.value;
+    if (isSeq(inner) || isMap(inner)) inner.flow = true;
+  }
+  return node;
+}
+
+/** Puts `items` where one list item stood: the same line with another label, a chain cut in two, or nothing. */
+function rewriteItemUnsafe(text: string, path: Path, items: unknown[]): string | undefined {
+  const doc = parse(text);
+  const list = doc?.getIn(path.slice(0, -1), true);
+  const at = path.at(-1);
+  if (!doc || !isSeq(list) || typeof at !== 'number' || at >= list.items.length) return undefined;
+  list.items.splice(at, 1, ...items.map((v) => lineItem(doc, v)));
+  return str(doc);
 }
 
 /** What a list item connects, ignoring labels and ports: "a -> b: SQL" and "a -> b" are the same link. */
@@ -572,6 +647,17 @@ export const deleteEntries = safe((text: string, type: DiagramType, paths: Path[
   return out;
 });
 export const setEdgeField = safe(setEdgeFieldUnsafe);
+/** Whether the type writes this drawn line as one arrow of a chain ("a -> b -> c"), which it then changes itself. */
+export function isChainLine(text: string, type: DiagramType, edge: string): boolean {
+  const doc = type.lines && parse(text);
+  return !!doc && !!type.lines!.remove(doc.toJS() as never, edge);
+}
+/** Labels one arrow of a chain ('' takes the label away), or removes it: the chain is cut in two there. */
+export const editChainLine = safe((text: string, type: DiagramType, edge: string, label?: string): string | undefined => {
+  const doc = type.lines && parse(text);
+  const plan = doc && (label == null ? type.lines!.remove(doc.toJS() as never, edge) : type.lines!.label(doc.toJS() as never, edge, label));
+  return plan ? rewriteItemUnsafe(text, plan.path, plan.items) : undefined;
+});
 export function connectEntries(...args: Parameters<typeof connectEntriesUnsafe>): ReturnType<typeof connectEntriesUnsafe> {
   try {
     return connectEntriesUnsafe(...args);

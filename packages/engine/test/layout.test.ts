@@ -62,6 +62,12 @@ const crossingBudget: Record<string, number> = {
   'gitflow/git-flow.yaml': 0,
   'gitflow/github-flow-environments.yaml': 0,
   'gitflow/trunk-delivery.yaml': 0,
+  'process/access-request.yaml': 1, // the approver's "no" passes the line down to IT: drawn with a gap
+  'process/build-buy-reuse.yaml': 0,
+  'process/incident-handling.yaml': 0,
+  'process/onboarding.yaml': 1, // the manager's branch passes IT's line on its way down
+  'process/order-to-cash.yaml': 0,
+  'process/release-with-gate.yaml': 0,
   'roadmap/migration-waves.yaml': 0,
   'roadmap/now-next-later.yaml': 0,
   'journey/access-request.yaml': 0,
@@ -74,6 +80,10 @@ const crossingBudget: Record<string, number> = {
   'sequence/checkout.yaml': 0,
   'sequence/oauth-login.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
+  'states/device-connection.yaml': 2,
+  'states/document-approval.yaml': 0,
+  'states/order-lifecycle.yaml': 0,
+  'states/pull-request.yaml': 1, // review [needs work] passes the shared line back from Approved and Changes requested: one label for both
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 2, // Orders' confirmation line passes its own OrderPlaced line: the lower drawing with one crossing scores a hair worse
   'systems/saas-platform.yaml': 2,
@@ -83,6 +93,7 @@ const crossingBudget: Record<string, number> = {
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
   'cloud/aws-landing-zone.yaml': 1, // the dev VPC's line steps aside beside Infrastructure's title: the transit gateway has no spot in line clear of it
+  'states/device-connection.yaml': 1, // link lost leaves Connected through its bottom border, under the header of nothing but its own
 };
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
@@ -95,12 +106,17 @@ const jogBudget: Record<string, number> = {
   'erd/saas.yaml': 5, // ends are fixed on their rows
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
+  'states/device-connection.yaml': 1, // returns to Idle share its side
+  'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
+  'states/pull-request.yaml': 3, // the returns into In review and Closed
   'systems/data-pipeline.yaml': 1, // two lines into one side
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
+  'states/device-connection.yaml': 1, // update verified, between two returns
+  'states/pull-request.yaml': 1, // review [needs work], beside the line back
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -113,6 +129,17 @@ const orderBudget: Record<string, number> = {
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
+};
+
+// Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
+const returns: Record<string, number> = {
+  'process/incident-handling.yaml': 1,
+  'process/order-to-cash.yaml': 1,
+  'process/release-with-gate.yaml': 1,
+  'states/device-connection.yaml': 5,
+  'states/document-approval.yaml': 1,
+  'states/order-lifecycle.yaml': 1,
+  'states/pull-request.yaml': 4,
 };
 
 describe('layout quality', () => {
@@ -128,7 +155,7 @@ describe('layout quality', () => {
       const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', load, view });
       if (file.startsWith('c4/') || file.startsWith('deployment/')) expect(r.diagnostics).toEqual([]);
       const m = measure(r.graph!, r.placed!);
-      expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward, overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
+      expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: Math.max(0, m.backward - (returns[key] ?? 0)), overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
       expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
       expect(m.labelOnBend).toBeLessThanOrEqual(bendBudget[key] ?? 0);

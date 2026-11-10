@@ -358,6 +358,7 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
 
   // Headers and foreign groups: a line has no business in a group that holds neither of its ends,
   // least of all over its header; inside any header it may cross (on its way in) but not run along.
+  // Lanes are bands across the drawing with their name at the start: lines cross them freely.
   const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
   const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const home = (e: GraphEdge) => {
@@ -373,7 +374,7 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     const own = home(e);
     for (const g of graph.groups) {
       const b = placed.groups.get(g.id);
-      if (!b) continue;
+      if (!b || g.lane) continue;
       const away = !own.has(g.id);
       const head = { x: b.x + 1, y: b.y + 1, width: b.width - 2, height: Math.min(header, b.height) - 2 };
       let hit = false;

@@ -529,7 +529,7 @@ export const journey: DiagramType<JourneySource> = {
   notFor: [
     { text: 'Messages between systems in one flow', use: 'sequence' },
     { text: 'A plan with dates and milestones', use: 'roadmap' },
-    { text: 'A process with decisions and branches', use: 'systems' },
+    { text: 'A process with decisions and branches', use: 'process' },
   ],
   keywords: [
     'journey',

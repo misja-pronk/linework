@@ -142,27 +142,75 @@ flowchart TD
   q@{ shape: diamond, label: "Retry" } --> b
   d --> q
 `);
-    const d = parse(yaml);
-    expect(d.title).toBe('Password reset');
-    expect(d.nodes).toEqual({
-      a: { kind: 'start', label: 'Forgot password' },
-      b: { kind: 'step', label: 'Enter email' },
-      c: { kind: 'decision', label: 'Known address?' },
-      d: { kind: 'step', label: 'Show generic notice' },
-      e: { kind: 'step', label: 'Send reset link' },
-      f: { kind: 'decision', label: 'Link used in time' },
-      g: { kind: 'step', label: 'Set new password' },
-      z: { kind: 'end', label: 'Done' },
-      q: { kind: 'decision', label: 'Retry' },
+    // A flowchart that decides is a process: steps by their name, the happy path first.
+    expect(parse(yaml)).toEqual({
+      type: 'process',
+      title: 'Password reset',
+      nodes: { 'Forgot password': 'start', 'Link used in time': 'decision', Done: 'end' },
+      flow: [
+        'Forgot password -> Enter email -> Known address? -yes-> Send reset link -> Link used in time -yes-> Set new password -> Done',
+        'Known address? -no-> Show generic notice -> Retry -> Enter email',
+        'Link used in time -no-> Show generic notice',
+      ],
     });
-    expect(d.edges).toContainEqual({ 'c -> d': 'no' });
     expect(warnings).toEqual([]);
+    const r = await clean(yaml);
+    // The diamond with one way in and one way out ("Retry") decides nothing: it is a step.
+    const kinds = new Map(r.graph!.nodes.map((n) => [n.id, n.kind]));
+    expect([kinds.get('Known address?'), kinds.get('Link used in time'), kinds.get('Retry')]).toEqual(['decision', 'decision', 'task']);
+  });
+
+  it('makes subgraphs lanes, dotted links messages and unnamed terminals start and end', async () => {
+    const { yaml, warnings } = importMermaid(`flowchart LR
+  subgraph emp [Employee]
+    s([Start]) --> ask[Ask for access]
+  end
+  subgraph mgr [Manager]
+    ok{Approve?}
+  end
+  subgraph it [IT]
+    grant[[Grant access]] --> tell[Tell the employee]
+  end
+  ask --> ok
+  ok -->|yes| grant
+  ok -->|no, with a reason| ask
+  tell -.-> ask
+  tell --> e([End])
+`);
+    expect(parse(yaml)).toEqual({
+      type: 'process',
+      title: 'Imported diagram',
+      lanes: { emp: 'Employee', mgr: 'Manager', it: 'IT' },
+      nodes: { start: 'emp', 'Ask for access': 'emp', 'Approve?': 'mgr', 'Grant access': { in: 'it', kind: 'subprocess' }, 'Tell the employee': 'it' },
+      flow: [
+        'start -> Ask for access -> Approve? -yes-> Grant access -> Tell the employee -> end',
+        { 'Approve? -> Ask for access': 'no, with a reason' },
+        'Tell the employee --> Ask for access',
+      ],
+    });
+    expect(warnings).toEqual([]);
+    const r = await clean(yaml);
+    expect(r.graph!.groups.map((g) => g.label)).toEqual(['Employee', 'Manager', 'IT']);
+  });
+
+  it('stays a systems diagram when a line ends on a subgraph', async () => {
+    const { yaml } = importMermaid(`flowchart LR
+  a([Request]) --> b{In stock?}
+  subgraph w [Warehouse]
+    p[Pick] --> s[Ship]
+  end
+  b -->|yes| w
+  b -->|no| c[Order more] --> z([Done])
+`);
+    const d = parse(yaml);
+    expect(d.type).toBe('systems');
+    expect(d.nodes).toMatchObject({ a: { kind: 'start', label: 'Request' }, b: { kind: 'decision', label: 'In stock?' }, c: { kind: 'step', label: 'Order more' }, z: { kind: 'end', label: 'Done' } });
+    expect(d.edges).toContainEqual({ 'b -> w': 'yes' });
     const r = await clean(yaml);
     // Steps, decisions and terminals speak for themselves: no "Service" captions.
     const cards = r.graph!.nodes.map((n) => n.shape).filter((s) => s.kind === 'card');
     expect(cards.map((s) => s.caption)).toEqual(cards.map(() => undefined));
-    expect(cards.map((s) => s.form)).toEqual(['terminal', 'plain', 'decision', 'plain', 'plain', 'decision', 'plain', 'terminal', 'decision']);
-    expect(cards[1]!.icon).toBeUndefined();
+    expect(cards.map((s) => s.form)).toEqual(['terminal', 'decision', 'plain', 'plain', 'plain', 'terminal']);
   });
 
   it('keeps word kinds in architectures, and pills mid-flow are boxes', () => {
@@ -315,6 +363,100 @@ describe('erDiagram cardinality', () => {
   it('names the lowercased table in warnings', () => {
     const { warnings } = importMermaid('erDiagram\n  A ||--o{ B : x\n  A ||--o{ C : y\n  B ||--o{ C : z\n  C {\n    int other FK\n  }\n');
     expect(warnings).toContain('c.other is a foreign key, but it is not clear to which table');
+  });
+});
+
+describe('stateDiagram', () => {
+  it('reads [*], composite states, choices, notes and described states', async () => {
+    const { yaml, warnings } = importMermaid(`stateDiagram-v2
+  direction LR
+  [*] --> New
+  New --> Paid: payment received
+  New --> Cancelled: cancel
+  state Fulfilment {
+    [*] --> Picking
+    Picking --> Packed: all items picked
+    Packed --> [*]
+  }
+  Paid --> Fulfilment
+  Fulfilment --> Shipped: handed to carrier
+  Shipped --> Delivered
+  state check <<choice>>
+  Delivered --> check: 14 days pass
+  check --> Closed: [no return]
+  check --> Returned: [returned]
+  note right of Shipped : Tracking number sent
+  note left of New
+    Stock is reserved
+    for 30 minutes
+  end note
+  state "Waiting for refund" as wr
+  Returned --> wr
+  wr --> Closed: refunded
+  Closed --> [*]
+  Cancelled --> [*]
+`);
+    expect(parse(yaml)).toEqual({
+      type: 'states',
+      title: 'Imported diagram',
+      states: {
+        New: { note: 'Stock is reserved for 30 minutes' },
+        Fulfilment: { states: { Picking: null, Packed: null } },
+        Shipped: { note: 'Tracking number sent' },
+        check: 'choice',
+      },
+      transitions: [
+        'start -> New',
+        { 'New -> Paid': 'payment received' },
+        { 'New -> Cancelled': 'cancel' },
+        'start -> Picking',
+        { 'Picking -> Packed': 'all items picked' },
+        'Packed -> end',
+        'Paid -> Fulfilment',
+        { 'Fulfilment -> Shipped': 'handed to carrier' },
+        'Shipped -> Delivered',
+        { 'Delivered -> check': '14 days pass' },
+        { 'check -> Closed': ['no return'] },
+        { 'check -> Returned': ['returned'] },
+        'Returned -> Waiting for refund',
+        { 'Waiting for refund -> Closed': 'refunded' },
+        'Closed -> end',
+        'Cancelled -> end',
+      ],
+    });
+    // A guard alone is written bare, as by hand: the type reads YAML's one-item list as the guard.
+    expect(yaml).toContain('- check -> Closed: [no return]');
+    expect(warnings).toEqual([]);
+    const r = await clean(yaml);
+    expect(r.graph!.groups.map((g) => g.id)).toEqual(['Fulfilment']);
+    expect(r.graph!.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(['start', 'end', 'Fulfilment.start', 'Fulfilment.end', 'New.note', 'check']));
+  });
+
+  it('reads the older syntax, names states by their description and says what it cannot draw', async () => {
+    const { yaml, warnings } = importMermaid(`---
+title: Car
+---
+stateDiagram
+  direction TB
+  s1 : Still
+  [*] --> s1
+  s1 --> Moving
+  Moving --> s1
+  Moving --> Crash
+  state fork1 <<fork>>
+  Crash --> fork1
+  fork1 --> End
+  End --> [*]
+  classDef bad fill:#f00
+`);
+    expect(parse(yaml)).toEqual({
+      type: 'states',
+      title: 'Car',
+      direction: 'down',
+      transitions: ['start -> Still', 'Still -> Moving', 'Moving -> Still', 'Moving -> Crash', 'Crash -> fork1', 'fork1 -> End state', 'End state -> end'],
+    });
+    expect(warnings).toEqual(['Fork and join bars are drawn as states: write the parallel work as states of their own', 'Styling (classDef) is not imported: Cartography colours by kind']);
+    await clean(yaml);
   });
 });
 

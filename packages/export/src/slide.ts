@@ -1,8 +1,8 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type Box, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type PlacedNote, type StepView } from '@cartography/render';
+import { chips, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
+import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { connector, group, picture, shape, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -186,11 +186,14 @@ class SlideDrawing {
     const quiet = state ? quietTheme(full) : full;
     const strong = state ? strongTheme(full) : full;
     const as = (em: string | undefined) => (this.theme = em === 'dim' ? quiet : full);
+    // Lanes share one header size, as in the SVG.
+    const across = (placed.direction ?? graph.direction) === 'right';
+    const laneHead = across ? Math.max(0, ...graph.groups.filter((g) => g.lane).map((g) => laneHeader(g.label, full))) : full.space.group.header;
     for (const g of byDepth(graph.groups)) {
       const box = placed.groups.get(g.id);
       if (!box || state?.groups[g.id] === 'hidden') continue;
       as(state?.groups[g.id]);
-      out.push(this.drawGroup(g, box).xml);
+      out.push((g.lane ? this.group(`Lane: ${g.label}`, this.marks(laneMarks(g, box, this.theme, across, laneHead), { x: 0, y: 0 }, this.idFor(`group:${g.id}`))) : this.drawGroup(g, box)).xml);
     }
     const badged = new Set([...chips(graph).values()].flat().map((c) => c.edge));
     const weight = (e: GraphEdge) => (state?.edges[e.id] === 'dim' ? 0 : state?.edges[e.id] === 'focus' ? 2 : 1);
@@ -219,7 +222,7 @@ class SlideDrawing {
         continue;
       }
       as(state?.nodes[n.id]);
-      out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : this.drawMatrix(n, s, box)).xml);
+      out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : s.kind === 'flow' ? this.drawFlow(n, s, box) : this.drawMatrix(n, s, box)).xml);
     }
     for (const e of edges) {
       const pe = placed.edges.get(e.id)!;
@@ -560,6 +563,15 @@ class SlideDrawing {
     const midY = near(p.y, box.y + box.height / 2);
     // A decision's pointed ends: a line ending on one meets the left or right site.
     const decision = shape?.kind === 'card' && shape.form === 'decision';
+    if (shape?.kind === 'flow') {
+      // A circle has eight sites, the four sides being the even ones; a diamond and a task count like a rectangle. Other shapes stay unbound.
+      const round = shape.form === 'event' || (shape.form === 'pseudo' && shape.mark !== 'choice');
+      if (shape.form === 'document' || shape.form === 'note') return undefined;
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const side = midX && p.y < cy ? 0 : midY && p.x < cx ? 1 : midX && p.y > cy ? 2 : midY && p.x > cx ? 3 : -1;
+      return side < 0 ? undefined : { id: this.idFor(key), idx: round ? side * 2 : side };
+    }
     const idx = midY && (near(p.x, box.x) || (decision && p.x < box.x + box.width / 2)) ? 1 : midY && (near(p.x, box.x + box.width) || decision) ? 3 : midX && near(p.y, box.y) ? 0 : midX && near(p.y, box.y + box.height) ? 2 : -1;
     return idx < 0 ? undefined : { id: this.idFor(key), idx };
   }
@@ -610,33 +622,63 @@ class SlideDrawing {
     if (kind === 'many') crow();
     if (kind === 'oneOrMany') crow(), bar(16);
     if (kind === 'zeroOrMany') crow(), circles.push(at(20));
+    if (kind === 'slash') segs.push([at(12, -5), at(6, 5)]);
     const line: Line = { color, width: this.L(this.theme.stroke.edge) };
     const out = [this.freeform('End', segs.flatMap(([a, b]) => [{ op: 'm', pts: [a] }, { op: 'l', pts: [b] }] as PxCmd[]), line)];
     for (const c of circles) out.push(this.sp({ name: 'End', frame: this.frame(c.x - 4, c.y - 4, 8, 8), geom: { prst: 'ellipse' }, fill: { color: this.theme.surface }, line }));
     return out;
   }
 
+  /**
+   * A task, an event, a gateway or a state: its outline is one native shape that lines stay bound
+   * to, grouped with its mark and its name. A task or a plain state carries its name inside, so
+   * typing over it keeps it centred.
+   */
+  private drawFlow(n: GraphNode, s: FlowShape, b: Box): Item {
+    const t = this.theme;
+    const marks = flowMarks(s, b, t, this.placed.labels?.get(n.id));
+    const id = this.idFor(`node:${n.id}`);
+    const name = s.label || n.kind || s.form;
+    const first = marks[0];
+    if (first?.t === 'rect' && !s.lines?.length) {
+      const texts = marks.filter((m) => m.t === 'text');
+      const paras: Para[] = texts.map((m, i) => ({ align: 'ctr', before: i ? this.pt(2) : 0, runs: [this.run(m.lines.join(' '), m.size, m.weight, m.fill)] }));
+      const body = this.sp({ id, name, descr: [s.label, s.caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), geom: this.roundRect(b, first.r ?? 0), fill: { color: t.surface }, line: { color: t.border, width: this.L(t.stroke.card) }, shadow: this.shadow(), text: { anchor: 'ctr', inset: { l: this.L(s.icon ? 31 : 8), r: this.L(8), b: this.L(s.form === 'subprocess' ? 12 : 0) }, paras } });
+      return this.group(name, [body, ...this.marks(marks.slice(1).filter((m) => m.t !== 'text'), { x: 0, y: 0 })]);
+    }
+    return this.group(name, this.marks(marks, { x: 0, y: 0 }, id));
+  }
+
   /** A journey as flat native shapes: the marks render/journey.ts lays out, one shape, text box or picture each. */
   private drawJourney(s: JourneyShape, b: Box): string {
-    const scene = journeyScene(s, this.theme, this.state?.journey);
-    const out: string[] = [];
+    return this.marks(journeyScene(s, this.theme, this.state?.journey).marks, b).map((i) => i.xml).join('');
+  }
+
+  /** Marks as native shapes, moved by `b`; the first outline takes `id`, so connectors can bind to it. */
+  private marks(marks: JourneyMark[], b: Point, id?: number): Item[] {
+    const out: Item[] = [];
     const paint = (m: { fill?: string; stroke?: string; sw?: number; dash?: boolean }) => ({
       fill: m.fill && m.fill !== 'none' ? { color: m.fill } : null,
       line: m.stroke ? ({ color: m.stroke, width: this.L(m.sw ?? 1), dash: m.dash ? 'dashed' : 'solid' } as Line) : null,
     });
-    for (const m of scene.marks) {
+    const own = () => {
+      const mine = id;
+      id = undefined;
+      return mine;
+    };
+    for (const m of marks) {
       if (m.t === 'rect') {
         const box = { x: b.x + m.x, y: b.y + m.y, width: m.w, height: m.h };
-        out.push(this.sp({ name: m.name ?? 'Box', frame: this.frame(box.x, box.y, m.w, m.h), geom: m.r ? this.roundRect(box, Math.min(m.r, m.w / 2, m.h / 2)) : { prst: 'rect' }, ...paint(m), shadow: m.shadow ? this.shadow() : undefined }).xml);
+        out.push(this.sp({ id: own(), name: m.name ?? 'Box', frame: this.frame(box.x, box.y, m.w, m.h), geom: m.r ? this.roundRect(box, Math.min(m.r, m.w / 2, m.h / 2)) : { prst: 'rect' }, ...paint(m), shadow: m.shadow ? this.shadow() : undefined }));
       } else if (m.t === 'circle') {
-        out.push(this.sp({ name: 'Dot', frame: this.frame(b.x + m.cx - m.r, b.y + m.cy - m.r, 2 * m.r, 2 * m.r), geom: { prst: 'ellipse' }, ...paint(m) }).xml);
+        out.push(this.sp({ id: own(), name: 'Dot', frame: this.frame(b.x + m.cx - m.r, b.y + m.cy - m.r, 2 * m.r, 2 * m.r), geom: { prst: 'ellipse' }, ...paint(m) }));
       } else if (m.t === 'icon') {
         const item = this.icon(m.name, b.x + m.x, b.y + m.y, m.size, m.color, m.sw);
-        if (item) out.push(item.xml);
+        if (item) out.push(item);
       } else if (m.t === 'text') {
         const gap = Math.max(0, this.pt(m.lh - 1.21 * m.size));
-        const paras: Para[] = m.lines.map((l, i) => ({ align: m.align === 'c' ? 'ctr' : m.align, before: i ? gap : 0, runs: [this.run(l, m.size, m.weight, m.fill)] }));
-        out.push(this.sp({ name: m.lines.join(' ').slice(0, 60), frame: this.frame(b.x + m.x, b.y + m.y, m.w, m.lines.length * m.lh), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras, anchor: 'ctr' } }).xml);
+        const paras: Para[] = m.lines.map((l, i) => ({ align: m.align === 'c' ? 'ctr' : m.align, before: i ? gap : 0, runs: [this.run(l, m.size, m.weight, m.fill, { tracking: m.tracking })] }));
+        out.push(this.sp({ name: m.lines.join(' ').slice(0, 60), frame: this.frame(b.x + m.x, b.y + m.y, m.w, m.lines.length * m.lh), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras, anchor: 'ctr' } }));
       } else {
         const pts = m.d.flatMap((c) => (c[0] === 'Z' ? [] : c[0] === 'C' ? [[c[1], c[2]], [c[3], c[4]], [c[5], c[6]]] : [[c[1], c[2]]])) as [number, number][];
         if (!pts.length) continue;
@@ -649,7 +691,12 @@ class SlideDrawing {
         if (m.d.length === 2 && m.d[1]![0] === 'L' && !m.fill) {
           // A straight stroke is a line shape, which every app draws and lets you drag by its ends.
           const [a, z] = pts as [[number, number], [number, number]];
-          out.push(this.sp({ name: m.name ?? 'Line', frame: { ...frame, flipV: (z[0] - a[0]) * (z[1] - a[1]) < 0 }, geom: { prst: 'line' }, ...paint(m), fill: null }).xml);
+          out.push(this.sp({ name: m.name ?? 'Line', frame: { ...frame, flipV: (z[0] - a[0]) * (z[1] - a[1]) < 0 }, geom: { prst: 'line' }, ...paint(m), fill: null }));
+          continue;
+        }
+        if (pts.length === 4 && closed && m.d.every((c) => c[0] !== 'C') && pts[0]![0] === pts[2]![0] && pts[1]![1] === pts[3]![1]) {
+          // A square on its point is the preset diamond, with a site on each corner.
+          out.push(this.sp({ id: own(), name: m.name ?? 'Diamond', frame, geom: { prst: 'diamond' }, ...paint(m) }));
           continue;
         }
         const path: PathCmd[] = [];
@@ -660,10 +707,10 @@ class SlideDrawing {
           else if (c[0] === 'L') path.push({ l: [X(c[1]), Y(c[2])] });
           else if (c[0] === 'C') path.push({ c: [X(c[1]), Y(c[2]), X(c[3]), Y(c[4]), X(c[5]), Y(c[6])] });
         }
-        out.push(this.sp({ name: m.name ?? (closed ? 'Shape' : 'Curve'), frame, geom: { path, closed }, ...paint(m) }).xml);
+        out.push(this.sp({ id: own(), name: m.name ?? (closed ? 'Shape' : 'Curve'), frame, geom: { path, closed }, ...paint(m) }));
       }
     }
-    return out.join('');
+    return out;
   }
 
   private junctions(edges: GraphEdge[]): Item[] {
