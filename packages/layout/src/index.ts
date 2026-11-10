@@ -155,7 +155,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       const kept = best;
       best = wrapped(best, spacing, target) ?? best;
       // The other direction, wrapped, may read better still (a drawing far off the page's shape both ways).
-      const other = turnedAlt && turnedAlt !== kept && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target) : undefined;
+      const other = turnedAlt && turnedAlt !== kept && graph.nodes.length <= WRAP_ALL && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target) : undefined;
       if (other && readsBetter(other, best, target)) best = other;
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
@@ -229,6 +229,8 @@ export function slideReadability(scale: number, crossings: number, backward: num
   return Math.log2(scale) - CROSSING_COST * crossings - BACKWARD_COST * backward - VOID_COST * voids;
 }
 
+/** Up to this many nodes every way of wrapping is tried (inside groups, chains, loose cuts, four parts). */
+const WRAP_ALL = 30;
 /** Further than this from the target shape (log ratio), wrapping into rows or columns is tried. */
 const WRAP_OFF = Math.log(1.3);
 
@@ -262,10 +264,13 @@ function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undef
   const m0 = measure(s.graph, best.placed, s.groupHeader, s.groupMinWidth);
   let found: Choice | undefined;
   let bar = slideReadability(pageScale(best.placed, s.graph, target), m0.crossings, m0.backward, m0.voids) + WRAP_GAIN;
-  const scopes: (string | undefined)[] = [undefined, ...wrapScopes(best.p, s.graph)];
+  // Every candidate is routed in full: a bigger diagram tries the plain cuts only.
+  const small = s.graph.nodes.length <= WRAP_ALL;
+  const scopes: (string | undefined)[] = [undefined, ...(small ? wrapScopes(best.p, s.graph) : [])];
+  const modes = small ? [[false, false], [true, false], [true, true]] : [[false, false]];
   for (const scope of scopes)
-    for (const [chains, loose] of [[false, false], [true, false], [true, true]])
-      for (const parts of [2, 3, 4]) {
+    for (const [chains, loose] of modes)
+      for (const parts of small ? [2, 3, 4] : [2, 3]) {
         const c = rewrap(best, spacing, parts, { scope, chains, loose });
         const r = c && readability(c, best, target);
         if (c && r != null && r > bar + 1e-9) [found, bar] = [c, r];
