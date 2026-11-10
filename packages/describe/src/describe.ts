@@ -3,10 +3,12 @@
 // is told the way a person would tell it: a sequence as its messages in order, a database as its
 // tables and how they relate, a matrix row by row, a journey phase by phase, a roadmap lane by lane,
 // an org chart as who reports to whom. Kept short: someone should grasp the drawing in half a minute.
+import { term } from '@cartography/i18n/drawing';
 import { strideNames, type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@cartography/core';
 import type { BlockShape, GitflowShape, JourneyShape, JourneyStep, MatrixShape, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
 import type { Description, Item, Section } from './text.ts';
-import type { Lang } from '@cartography/i18n';
+import { listWords as joinWords, lookup, translator, type Lang, type Params } from '@cartography/i18n';
+import { nl, words } from './nl.ts';
 
 /** What render() returns, or anything else that carries a built graph: describe(result) works as is. */
 export interface DescribeInput {
@@ -29,17 +31,41 @@ export interface DescribeInput {
   name?: string;
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-/** "a, b and c". */
-export const listWords = (xs: string[]) => (xs.length < 2 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+// The language of the description being made: set by describe() for the length of one call (it is
+// synchronous), so the helpers below say their words in it without each taking it along.
+let L: Lang = 'en';
+const tr = translator(nl);
+const said = lookup(words);
+/** One of the description's sentences or phrases, in its language. */
+const d = (id: keyof typeof nl, params?: Params) => tr(L, id, params);
+/** A word from one of the tables below (a flow mark, a key's sample), in the description's language. */
+const w = (text: string) => said(L, text);
+
+/** "3 elements"; the noun in the description's language (./nl.ts `words` has each "one|many"). */
+const plural = (n: number, one: string, many = `${one}s`) => {
+  const own = L === 'nl' ? words[`${one}|${many}`]?.split('|') : undefined;
+  return `${n} ${n === 1 ? (own?.[0] ?? one) : (own?.[1] ?? many)}`;
+};
+/** "a, b and c" ("a, b en c"). */
+export const listWords = (xs: string[]) => joinWords(L, xs);
 const sentence = (s: string) => (s && !/[.!?:…]["”')]*$/.test(s) ? `${s}.` : s);
 const lowerFirst = (s: string) => (/^[A-Z][a-z]/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s);
 const clean = (s: string | undefined) => s?.replace(/\s+/g, ' ').trim() || undefined;
 
 export function describe(input: DescribeInput): Description {
+  const before = L;
+  L = input.lang ?? 'en';
+  try {
+    return describeIn(input);
+  } finally {
+    L = before;
+  }
+}
+
+function describeIn(input: DescribeInput): Description {
   const graph = input.graph ?? { direction: 'right', groups: [], nodes: [], edges: [] };
   const view = input.view ? input.views?.find((v) => v.name === input.view) : undefined;
-  const title = clean(graph.title) ?? clean(view?.title) ?? input.name?.replace(/\.ya?ml$/i, '') ?? input.type?.name ?? 'Diagram';
+  const title = clean(graph.title) ?? clean(view?.title) ?? input.name?.replace(/\.ya?ml$/i, '') ?? input.type?.name ?? d('Diagram');
   const kind = kindWords(input, graph);
   const s = shapes(graph);
   const told: Told =
@@ -66,12 +92,12 @@ interface Told {
 /** "Architecture diagram", "Sequence diagram", "Org chart": what a reader is looking at. */
 function kindWords(input: DescribeInput, graph: Graph): string {
   const own = input.view ? input.views?.find((v) => v.name === input.view)?.title : undefined;
-  const name = input.type?.name ?? 'Diagram';
+  const name = (L === 'nl' && input.type ? words[`type:${input.type.id}`] : undefined) ?? input.type?.name ?? d('Diagram');
   // A type with several drawings (teams: org chart or topology) says which one by its view.
   const blocks = graph.nodes.flatMap((n) => (n.shape.kind === 'block' ? [n.shape.form] : []));
-  if (input.type?.id === 'teams') return blocks.includes('person') ? 'Org chart' : 'Team topology';
+  if (input.type?.id === 'teams') return blocks.includes('person') ? d('Org chart') : d('Team topology');
   if (own && input.type && !own.includes('—') && own.length < 40 && !own.toLowerCase().includes(graph.title?.toLowerCase() ?? '\u0000')) return `${name}, ${lowerFirst(own)}`;
-  return /diagram|map|chart|design|matrix|timeline|flow|model/i.test(name) ? name : `${name} diagram`;
+  return L === 'nl' || /diagram|map|chart|design|matrix|timeline|flow|model/i.test(name) ? name : `${name} diagram`;
 }
 
 const nodesOf = (graph: Graph) => graph.nodes.filter((n) => !n.folded && n.shape.kind !== 'journey-part');
@@ -118,18 +144,18 @@ export function nameOf(n: GraphNode | GraphGroup | undefined, fallback = ''): st
     case 'flow': {
       if (clean(s.label)) return clean(s.label)!;
       // A process names its gateways by id ("Approved?"); a state machine's start is just "start".
-      const what = FLOW_WORDS[s.mark ?? ''] ?? s.form;
+      const what = w(FLOW_WORDS[s.mark ?? ''] ?? s.form);
       const own = n.id.replace(/^.*\./, '');
       if (s.form === 'pseudo') {
         const inside = n.id.includes('.') ? n.id.split('.').slice(0, -1).join('.') : '';
-        return `${what[0]!.toUpperCase()}${what.slice(1)}${inside ? ` of ${inside}` : ''}`;
+        return `${what[0]!.toUpperCase()}${what.slice(1)}${inside ? d(' of {name}', { name: inside }) : ''}`;
       }
       return own && !/^(start|end|n?\d+)$/i.test(own) ? own : `${what[0]!.toUpperCase()}${what.slice(1)}`;
     }
     case 'table':
       return clean(s.title) ?? n.id;
     case 'matrix':
-      return clean(s.corner) ?? 'Table';
+      return clean(s.corner) ?? d('Table');
     default:
       return n.id;
   }
@@ -142,12 +168,12 @@ function detailOf(n: GraphNode): string[] {
   if (s.kind === 'card') {
     // C4 writes its kinds in brackets: "[Container: Spring Boot]".
     if (s.caption) out.push(s.caption.replace(/^\[(.*)\]$/, '$1'));
-    if (s.muted) out.push('external');
-    if (s.stack && !/\b(ha|pair|stack|cluster|redundant)\b/i.test(s.caption ?? '')) out.push('a redundant pair');
+    if (s.muted) out.push(d('external'));
+    if (s.stack && !/\b(ha|pair|stack|cluster|redundant)\b/i.test(s.caption ?? '')) out.push(d('a redundant pair'));
   } else if (s.kind === 'flow') {
-    const what = FLOW_WORDS[s.mark ?? ''];
-    if (s.form === 'gateway' || s.form === 'event') out.push(clean(s.label) || s.form === 'event' ? [n.kind && !['start', 'end', 'message', 'none'].includes(n.kind) ? n.kind : '', what ?? s.form].filter(Boolean).join(' ') : (what ?? s.form));
-    else if (s.form === 'subprocess' || s.form === 'document' || s.form === 'note') out.push(s.form);
+    const what = w(FLOW_WORDS[s.mark ?? ''] ?? s.form);
+    if (s.form === 'gateway' || s.form === 'event') out.push(clean(s.label) || s.form === 'event' ? [n.kind && !['start', 'end', 'message', 'none'].includes(n.kind) ? w(n.kind) : '', what].filter(Boolean).join(' ') : what);
+    else if (s.form === 'subprocess' || s.form === 'document' || s.form === 'note') out.push(w(s.form));
     if (s.caption) out.push(s.caption);
   } else if (s.kind === 'table' && s.caption) out.push(s.caption);
   return out;
@@ -159,14 +185,14 @@ function elementText(n: GraphNode): string {
   const detail = detailOf(n).filter((d, i, all) => d.toLowerCase() !== nameOf(n).toLowerCase() && all.findIndex((x) => x.toLowerCase() === d.toLowerCase()) === i);
   const said = [s.kind === 'card' ? s.body : undefined, n.description, s.kind === 'flow' && s.lines?.length ? s.lines.join('; ') : undefined].map(clean).filter((x): x is string => !!x);
   const unique = said.filter((x, i) => said.indexOf(x) === i);
-  const marks = n.marks?.length ? [`threats ${n.marks.join(', ')}`] : [];
-  const badges = s.kind === 'card' && s.badges?.length ? [`with ${listWords(s.badges)}`] : [];
+  const marks = n.marks?.length ? [d('threats {ids}', { ids: n.marks.join(', ') })] : [];
+  const badges = s.kind === 'card' && s.badges?.length ? [d('with {names}', { names: listWords(s.badges) })] : [];
   return `${nameOf(n)}${detail.length ? ` (${detail.join(', ')})` : ''}${[...unique, ...badges, ...marks].length ? `: ${[...unique, ...badges, ...marks].join('; ')}` : ''}`;
 }
 
 function groupText(g: GraphGroup): string {
-  const detail = [g.caption?.replace(/^\[(.*)\]$/, '$1'), g.lane ? 'lane' : '', g.trust ? 'trust boundary' : ''].filter((x, i, all): x is string => !!x && x.toLowerCase() !== g.label.toLowerCase() && all.findIndex((y) => y?.toLowerCase() === x.toLowerCase()) === i);
-  const said = [clean(g.description), g.marks?.length ? `threats ${g.marks.join(', ')}` : ''].filter(Boolean);
+  const detail = [g.caption?.replace(/^\[(.*)\]$/, '$1'), g.lane ? d('lane') : '', g.trust ? d('trust boundary') : ''].filter((x, i, all): x is string => !!x && x.toLowerCase() !== g.label.toLowerCase() && all.findIndex((y) => y?.toLowerCase() === x.toLowerCase()) === i);
+  const said = [clean(g.description), g.marks?.length ? d('threats {ids}', { ids: g.marks.join(', ') }) : ''].filter(Boolean);
   return `${nameOf(g)}${detail.length ? ` (${detail.join(', ')})` : ''}${said.length ? `: ${said.join('; ')}` : ''}`;
 }
 
@@ -231,6 +257,7 @@ const PLURAL: Record<string, string> = { mounts: 'mount', moves: 'move', leads: 
 
 /** One line as a clause after its source: "calls Orders API (REST)", "sends OrderPlaced to order-events". */
 function clause(e: GraphEdge, to: string, plural: boolean, flow: 'process' | 'states' | undefined): string {
+  if (L !== 'en') return clauseSaid(e, to, plural, flow);
   const label = clean(e.label);
   const s = (verb: string) => (plural ? (PLURAL[verb] ?? verb) : verb);
   const over = label && PROTOCOL.test(label) ? ` over ${label}` : label ? ` (${label})` : '';
@@ -255,6 +282,32 @@ function clause(e: GraphEdge, to: string, plural: boolean, flow: 'process' | 'st
   if (kind) return `${s('connects')} to ${to} (${e.kind}${label ? `: ${label}` : ''})`;
   if (both || none) return `${s('is')} linked with ${to}${label ? ` (${label})` : ''}`;
   return `${s('connects')} to ${to}${over}`;
+}
+
+/** clause() in another language than English: the same cases, each a message whose two forms are for one subject and for more ("Users call"). */
+function clauseSaid(e: GraphEdge, to: string, plural: boolean, flow: 'process' | 'states' | undefined): string {
+  const label = clean(e.label);
+  const over = label && PROTOCOL.test(label) ? d(' over {label}', { label }) : label ? ` (${label})` : '';
+  const p = { to, over, label: label ?? '', count: plural ? 2 : 1 };
+  if (flow === 'states') return label ? d('moves to {to} on {label}|move to {to} on {label}', p) : d('moves to {to}|move to {to}', p);
+  if (flow === 'process') return d('leads to {to}{over}|lead to {to}{over}', { ...p, over: label ? ` (${label})` : '' });
+  const kind = (e.kind ?? '').toLowerCase();
+  const both = e.start !== 'none' && e.end !== 'none' && e.start === e.end;
+  const none = e.start === 'none' && e.end === 'none';
+  const said = !!label && /^[A-Z]?[a-z]+s\b/.test(label);
+  if (/async|message|event|publish/.test(kind)) return label && !PROTOCOL.test(label) && !said ? d('sends {label} to {to}|send {label} to {to}', p) : d('sends messages to {to}{over}|send messages to {to}{over}', p);
+  if (/data|replicat|backup|etl/.test(kind)) return d('sends data to {to}{over}|send data to {to}{over}', p);
+  if (/request|call|sync|api/.test(kind)) return d('calls {to}{over}|call {to}{over}', p);
+  if (/identity|auth|login/.test(kind)) return d('signs in with {to}{over}|sign in with {to}{over}', p);
+  if (/depend|uses/.test(kind)) return d('depends on {to}{over}|depend on {to}{over}', p);
+  if (/secret|key/.test(kind)) return d('gets secrets from {to}{over}|get secrets from {to}{over}', p);
+  if (/traffic|route/.test(kind)) return d('sends traffic to {to}{over}|send traffic to {to}{over}', p);
+  if (/mount|volume/.test(kind)) return d('mounts {to}{over}|mount {to}{over}', p);
+  if (/scale/.test(kind)) return d('is scaled by {to}{over}|are scaled by {to}{over}', p);
+  if (/monitor|telemetry|log|metric/.test(kind)) return d('sends telemetry to {to}{over}|send telemetry to {to}{over}', p);
+  if (kind) return d('connects to {to} ({kind})|connect to {to} ({kind})', { ...p, kind: `${term(L, e.kind!)}${label ? `: ${label}` : ''}` });
+  if (both || none) return d('is linked with {to}{over}|are linked with {to}{over}', { ...p, over: label ? ` (${label})` : '' });
+  return d('connects to {to}{over}|connect to {to}{over}', p);
 }
 
 /** The ends of a line as tags say them (a context map's U and D): "upstream, open host service". */
@@ -285,7 +338,7 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
     for (const e of tagged) {
       const from = endsText(e.ends?.from, legend);
       const to = endsText(e.ends?.to, legend);
-      items.push({ text: sentence(`${name(id)}${from ? ` (${from})` : ''} and ${name(e.to.node)}${to ? ` (${to})` : ''}${e.label ? `: ${clean(e.label)}` : ''}`) });
+      items.push({ text: sentence(`${name(id)}${from ? ` (${from})` : ''} ${d('and')} ${name(e.to.node)}${to ? ` (${to})` : ''}${e.label ? `: ${clean(e.label)}` : ''}`) });
     }
     const rest = own.filter((e) => !tagged.includes(e));
     if (!rest.length) continue;
@@ -294,7 +347,7 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
       const n = byId.get(id);
       return !!n && 'shape' in n && n.shape.kind === 'flow' && n.shape.form === 'note';
     })();
-    const parts = rest.map((e) => `${note ? `is a note on ${name(e.to.node)}` : clause(e, name(e.to.node, e.to.row), plural, flow)}${e.marks?.length ? ` [threats ${e.marks.join(', ')}]` : ''}`);
+    const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row), plural, flow)}${e.marks?.length ? ` [${d('threats {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
     items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${listWords(parts)}`) });
   }
   return items;
@@ -308,19 +361,20 @@ function tellGraph(graph: Graph, type: string | undefined): Told {
   const sections: Section[] = [];
   const matrices = nodes.filter((n) => n.shape.kind === 'matrix');
   const drawn = nodes.filter((n) => n.shape.kind !== 'matrix');
-  if (drawn.length || graph.groups.length) sections.push({ heading: lanes.length ? 'Lanes and steps' : graph.groups.length ? 'Groups and elements' : 'Elements', items: elementTree({ ...graph, nodes: graph.nodes.filter((n) => n.shape.kind !== 'matrix') }, order) });
+  if (drawn.length || graph.groups.length) sections.push({ heading: lanes.length ? d('Lanes and steps') : graph.groups.length ? d('Groups and elements') : d('Elements'), items: elementTree({ ...graph, nodes: graph.nodes.filter((n) => n.shape.kind !== 'matrix') }, order) });
   // The main line of a process, as its stops in order.
   if (graph.walk?.length) {
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     const stop = (b: NonNullable<Graph['walk']>[number]) => b.nodes.map((id) => byId.get(id)).find((n) => n && n.shape.kind === 'flow');
-    sections.push({ heading: 'Main path', ordered: true, items: graph.walk.map((b) => ({ text: [stop(b) ? nameOf(stop(b)) : b.title, clean(b.caption)].filter(Boolean).join(': ') })) });
+    sections.push({ heading: d('Main path'), ordered: true, items: graph.walk.map((b) => ({ text: [stop(b) ? nameOf(stop(b)) : b.title, clean(b.caption)].filter(Boolean).join(': ') })) });
   }
   const tables = drawn.filter((n) => n.shape.kind === 'table');
   if (tables.length && type === 'class') sections.push(...tellTables(graph, tables as TableNode[]).sections);
-  else if (graph.edges.length) sections.push({ heading: flow === 'states' ? 'Transitions' : 'Connections', items: connectionItems(graph, order, flow) });
+  else if (graph.edges.length) sections.push({ heading: flow === 'states' ? d('Transitions') : d('Connections'), items: connectionItems(graph, order, flow) });
   for (const m of matrices) sections.push(...matrixSections(graph, m as MatrixNode));
-  const parts = [plural(drawn.length, flow === 'states' ? 'state' : 'element'), lanes.length ? `in ${plural(lanes.length, 'lane')}` : graph.groups.length ? `in ${plural(graph.groups.length, 'group')}` : '', graph.edges.length ? `with ${plural(graph.edges.length, flow === 'states' ? 'transition' : 'connection')}` : ''];
-  return { size: drawn.length ? parts.filter(Boolean).join(' ').replace(/ with /, ', with ') : matrices.length ? undefined : 'It is empty', sections };
+  const parts = [plural(drawn.length, flow === 'states' ? 'state' : 'element'), lanes.length ? d('in {n}', { n: plural(lanes.length, 'lane') }) : graph.groups.length ? d('in {n}', { n: plural(graph.groups.length, 'group') }) : '', graph.edges.length ? d('with {n}', { n: plural(graph.edges.length, flow === 'states' ? 'transition' : 'connection') }) : ''];
+  const comma = ` ${d('with {n}', { n: '' }).trim()} `;
+  return { size: drawn.length ? parts.filter(Boolean).join(' ').replace(comma, `,${comma}`) : matrices.length ? undefined : d('It is empty'), sections };
 }
 
 // ------------------------------------------------------------------ tables: ERD and class diagrams
@@ -343,11 +397,11 @@ function tableItem(n: TableNode, refs?: Map<string, string>): Item {
     }
     const [first, ...rest] = r.cells.map((c) => clean(c.text)).filter((x): x is string => !!x);
     const ref = refs?.get(`${n.id}.${r.id}`);
-    const marks = (r.marks ?? []).map((m) => (m === 'fk' && ref ? `foreign key to ${ref}` : (MARKS[m] ?? m)));
-    const what = [...rest, ...marks, ...(r.sign && SIGNS[r.sign] ? [SIGNS[r.sign]!] : [])];
+    const marks = (r.marks ?? []).map((m) => (m === 'fk' && ref ? d('foreign key to {name}', { name: ref }) : w(MARKS[m] ?? m)));
+    const what = [...rest, ...marks, ...(r.sign && SIGNS[r.sign] ? [w(SIGNS[r.sign]!)] : [])];
     items.push({ text: `${section && s.form !== 'class' ? `${section}: ` : ''}${first ?? r.id}${what.length ? ` (${what.join(', ')})` : ''}` });
   }
-  const detail = [s.caption?.replace(/^«(.*)»$/, '$1'), s.italic && !/abstract/i.test(s.caption ?? '') ? 'abstract' : ''].filter(Boolean);
+  const detail = [s.caption?.replace(/^«(.*)»$/, '$1'), s.italic && !/abstract/i.test(s.caption ?? '') ? d('abstract') : ''].filter(Boolean);
   const said = clean(n.description);
   return { text: `${s.title}${detail.length ? ` (${detail.join(', ')})` : ''}${said ? `: ${said}` : ''}`, ...(items.length ? { items } : {}) };
 }
@@ -357,6 +411,17 @@ function umlText(e: GraphEdge, from: string, to: string): string {
   const card = (t?: string[]) => (t?.length ? ` (${t.join(' ')})` : '');
   const label = clean(e.label);
   const named = label ? ` "${label}"` : '';
+  if (L !== 'en') {
+    const verb = (a: string, b: string, how: 'implements' | 'extends') => d(how === 'implements' ? '{a} implements {b}' : '{a} extends {b}', { a, b });
+    if (e.start === 'triangle') return verb(to, from, e.line === 'dashed' ? 'implements' : 'extends');
+    if (e.end === 'triangle') return verb(from, to, e.line === 'dashed' ? 'implements' : 'extends');
+    if (e.start === 'filledDiamond') return d('{a} is made of {b}', { a: `${from}${card(e.ends?.from)}`, b: `${to}${card(e.ends?.to)}${named}` });
+    if (e.end === 'filledDiamond') return d('{a} is made of {b}', { a: `${to}${card(e.ends?.to)}`, b: `${from}${card(e.ends?.from)}${named}` });
+    if (e.start === 'diamond') return d('{a} has {b}', { a: `${from}${card(e.ends?.from)}`, b: `${to}${card(e.ends?.to)}${named}` });
+    if (e.end === 'diamond') return d('{a} has {b}', { a: `${to}${card(e.ends?.to)}`, b: `${from}${card(e.ends?.from)}${named}` });
+    if (e.line === 'dashed') return d('{a} depends on {b}', { a: from, b: `${to}${named}` });
+    return label ? `${from}${card(e.ends?.from)} ${label} ${to}${card(e.ends?.to)}` : d('{a} is associated with {b}', { a: `${from}${card(e.ends?.from)}`, b: `${to}${card(e.ends?.to)}` });
+  }
   if (e.start === 'triangle') return `${to} ${e.line === 'dashed' ? 'implements' : 'extends'} ${from}`;
   if (e.end === 'triangle') return `${from} ${e.line === 'dashed' ? 'implements' : 'extends'} ${to}`;
   if (e.start === 'filledDiamond') return `${from}${card(e.ends?.from)} is made of ${to}${card(e.ends?.to)}${named}`;
@@ -386,15 +451,16 @@ function tellTables(graph: Graph, tables: TableNode[]): Told {
     const a = CARD[e.end];
     const b = CARD[e.start];
     const keys = e.from.row || e.to.row ? `${from}${e.from.row ? `.${e.from.row}` : ''} → ${to}${e.to.row ? `.${e.to.row}` : ''}` : `${from} → ${to}`;
-    const said = [a ? `each ${from} row has ${a} ${to} row${/many/.test(a) ? 's' : ''}` : '', b ? `each ${to} row has ${b} ${from} row${/many/.test(b) ? 's' : ''}` : ''].filter(Boolean);
+    const rows = (one: string, card: string, other: string) => (L === 'en' ? `each ${one} row has ${card} ${other} row${/many/.test(card) ? 's' : ''}` : d('each {one} row has {card} {other} row|each {one} row has {card} {other} rows', { one, card: w(card), other, count: /many/.test(card) ? 2 : 1 }));
+    const said = [a ? rows(from, a, to) : '', b ? rows(to, b, from) : ''].filter(Boolean);
     return { text: sentence(`${keys}${said.length ? `: ${said.join('; ')}` : ''}${e.label ? ` (${clean(e.label)})` : ''}`) };
   });
   const noun = classes ? 'class' : 'table';
   return {
-    size: `${plural(tables.length, noun, classes ? 'classes' : 'tables')}${graph.edges.length ? `, with ${plural(graph.edges.length, 'relation')}` : ''}`,
+    size: `${plural(tables.length, noun, classes ? 'classes' : 'tables')}${graph.edges.length ? `, ${d('with {n}', { n: plural(graph.edges.length, 'relation') })}` : ''}`,
     sections: [
-      { heading: classes ? 'Classes' : 'Tables', items },
-      { heading: 'Relations', items: relations },
+      { heading: classes ? d('Classes') : d('Tables'), items },
+      { heading: d('Relations'), items: relations },
     ],
   };
 }
@@ -403,18 +469,18 @@ function tellTables(graph: Graph, tables: TableNode[]): Told {
 
 function cellText(c: NonNullable<MatrixShape['cells'][number][number]>, tags: Map<string, string>): string {
   const parts = c.parts?.length ? c.parts.map((p) => p.text) : c.text ? [c.text] : [];
-  const said = parts.map((p) => (tags.has(p) ? `${p} (${tags.get(p)})` : p)).join(', ') || (c.check ? 'yes' : '');
-  const change = c.change === 'added' ? ', new' : c.change === 'removed' ? ', removed' : c.change === 'changed' ? ', changed' : '';
-  return `${said}${c.inherited ? ', inherited' : ''}${c.note ? ` (${clean(c.note)})` : ''}${change}`;
+  const said = parts.map((p) => (tags.has(p) ? `${p} (${tags.get(p)})` : p)).join(', ') || (c.check ? d('yes') : '');
+  const change = c.change === 'added' ? `, ${d('new')}` : c.change === 'removed' ? `, ${d('removed')}` : c.change === 'changed' ? `, ${d('changed')}` : '';
+  return `${said}${c.inherited ? `, ${d('inherited')}` : ''}${c.note ? ` (${clean(c.note)})` : ''}${change}`;
 }
 
 function matrixSections(graph: Graph, n: MatrixNode, heading?: string): Section[] {
   const m = n.shape;
   // What the tags in cells mean, from the key: R is "Responsible".
   const tags = new Map((graph.legend ?? []).flatMap((l) => (l.tag ? [[l.tag, l.label.replace(/:.*$/, '')] as const] : [])));
-  const cols = m.columns.map((c) => `${c.label}${c.change === 'removed' ? ' (removed)' : c.change === 'added' ? ' (new)' : ''}`);
+  const cols = m.columns.map((c) => `${c.label}${c.change === 'removed' ? ` (${d('removed')})` : c.change === 'added' ? ` (${d('new')})` : ''}`);
   const colGroups = [...new Set(m.columns.map((c) => c.group).filter((g): g is string => !!g))];
-  const text = `Columns: ${colGroups.length ? colGroups.map((g) => `${g} (${m.columns.filter((c) => c.group === g).map((c) => c.label).join(', ')})`).join('; ') : listWords(cols)}.`;
+  const text = `${d('Columns')}: ${colGroups.length ? colGroups.map((g) => `${g} (${m.columns.filter((c) => c.group === g).map((c) => c.label).join(', ')})`).join('; ') : listWords(cols)}.`;
   const rowItem = (i: number): Item => {
     const r = m.rows[i]!;
     const cells = m.columns.flatMap((c, j) => {
@@ -424,7 +490,7 @@ function matrixSections(graph: Graph, n: MatrixNode, heading?: string): Section[
       return said ? [m.plain ? `${c.label} ${said}` : `${c.label}: ${said}`] : [];
     });
     const label = r.label || (i ? '…' : '');
-    return { text: `${label}${r.caption ? ` (${r.caption})` : ''}${r.change ? `, ${r.change === 'added' ? 'new' : 'removed'}` : ''}: ${cells.length ? cells.join('; ') : 'nothing'}` };
+    return { text: `${label}${r.caption ? ` (${r.caption})` : ''}${r.change ? `, ${r.change === 'added' ? d('new') : d('removed')}` : ''}: ${cells.length ? cells.join('; ') : d('nothing')}` };
   };
   // In a plain table a row without a label goes on with the one above (a second interface of one device).
   const rows = (pick: (i: number) => boolean): Item[] => {
@@ -445,13 +511,13 @@ function matrixSections(graph: Graph, n: MatrixNode, heading?: string): Section[
   };
   const rowGroups = [...new Set(m.rows.map((r) => r.group).filter((g): g is string => !!g))];
   const items: Item[] = rowGroups.length ? [...rowGroups.map((g) => ({ text: g, items: rows((i) => m.rows[i]!.group === g) })), ...rows((i) => !m.rows[i]!.group)] : rows(() => true);
-  return [{ heading: heading ?? (m.corner ? `By row (${m.corner.replace(/\\\\/g, '\\').replace(/\s*\\\s*/, ' by ')})` : 'By row'), text, items }];
+  return [{ heading: heading ?? (m.corner ? `${d('By row')} (${m.corner.replace(/\\\\/g, '\\').replace(/\s*\\\s*/, ` ${d('by')} `)})` : d('By row')), text, items }];
 }
 
 function tellMatrices(graph: Graph, matrices: MatrixNode[]): Told {
   const m = matrices[0]!.shape;
   return {
-    size: matrices.length === 1 ? `A table of ${plural(m.rows.length, 'row')} by ${plural(m.columns.length, 'column')}` : `${matrices.length} tables`,
+    size: matrices.length === 1 ? d('A table of {rows} by {columns}', { rows: plural(m.rows.length, 'row'), columns: plural(m.columns.length, 'column') }) : plural(matrices.length, 'table'),
     sections: matrices.flatMap((n) => matrixSections(graph, n, matrices.length > 1 ? nameOf(n) : undefined)),
   };
 }
@@ -480,31 +546,31 @@ function tellSequence(s: SequenceShape): Told {
       messages++;
       const label = clean(e.label);
       const self = e.from === e.to;
-      const verb = e.arrow === 'reply' ? `replies to ${who(e.to)}` : e.arrow === 'async' ? `sends to ${who(e.to)}` : self ? 'does' : `calls ${who(e.to)}`;
-      const text = `${e.number ?? messages}. ${who(e.from)} ${verb}${label ? `: ${label}` : ''}${e.arrow === 'lost' ? ' (lost: no one receives it)' : ''}`;
+      const verb = e.arrow === 'reply' ? d('replies to {name}', { name: who(e.to) }) : e.arrow === 'async' ? d('sends to {name}', { name: who(e.to) }) : self ? d('does') : d('calls {name}', { name: who(e.to) });
+      const text = `${e.number ?? messages}. ${who(e.from)} ${verb}${label ? `: ${label}` : ''}${e.arrow === 'lost' ? ` (${d('lost: no one receives it')})` : ''}`;
       top().items.push({ text: sentence(text) });
     } else if (e.kind === 'frame') {
-      const item: Item = { text: `${FRAME[e.frame] ?? e.frame}${e.label ? `: ${clean(e.label)}` : ''}`, items: [] };
+      const item: Item = { text: `${w(FRAME[e.frame] ?? e.frame)}${e.label ? `: ${clean(e.label)}` : ''}`, items: [] };
       top().items.push(item);
       stack.push({ items: item.items!, frame: e.frame });
     } else if (e.kind === 'branch') {
       const frame = top().frame;
       if (stack.length < 2) continue;
       stack.pop();
-      const item: Item = { text: `${BRANCH[frame ?? ''] ?? 'Then'}${e.label ? `: ${clean(e.label)}` : ''}`, items: [] };
+      const item: Item = { text: `${w(BRANCH[frame ?? ''] ?? 'Then')}${e.label ? `: ${clean(e.label)}` : ''}`, items: [] };
       top().items.push(item);
       stack.push({ items: item.items!, frame });
     } else if (e.kind === 'end') {
       if (stack.length > 1) stack.pop();
-    } else if (e.kind === 'divider') top().items.push({ text: `${clean(e.label) ?? 'Next'}:` });
-    else if (e.kind === 'note') top().items.push({ text: `Note ${e.side === 'over' ? 'over' : `${e.side} of`} ${listWords(e.over.map(who))}: ${clean(e.text) ?? ''}` });
-    else if (e.kind === 'ref') top().items.push({ text: `See ${clean(e.label) ?? 'another diagram'} (over ${listWords(e.over.map(who))})` });
+    } else if (e.kind === 'divider') top().items.push({ text: `${clean(e.label) ?? d('Next')}:` });
+    else if (e.kind === 'note') top().items.push({ text: `${e.side === 'over' ? d('Note over {names}', { names: listWords(e.over.map(who)) }) : e.side === 'left' ? d('Note left of {names}', { names: listWords(e.over.map(who)) }) : d('Note right of {names}', { names: listWords(e.over.map(who)) })}: ${clean(e.text) ?? ''}` });
+    else if (e.kind === 'ref') top().items.push({ text: d('See {what} (over {names})', { what: clean(e.label) ?? d('another diagram'), names: listWords(e.over.map(who)) }) });
   }
   return {
-    size: `${plural(s.participants.length, 'participant')} and ${plural(messages, 'message')}`,
+    size: `${plural(s.participants.length, 'participant')} ${d('and')} ${plural(messages, 'message')}`,
     sections: [
-      { heading: 'Participants', items: participants },
-      { heading: 'Message flow', text: 'In order, top to bottom.', items: root },
+      { heading: d('Participants'), items: participants },
+      { heading: d('Message flow'), text: d('In order, top to bottom.'), items: root },
     ],
   };
 }
@@ -517,11 +583,11 @@ function tellGitflow(s: GitflowShape): Told {
   if (s.view === 'delivery' && s.pipelines.length) {
     const stage = new Map(s.stages.map((x) => [x.id, x.label]));
     return {
-      size: `${plural(s.pipelines.length, 'pipeline')} through ${plural(s.stages.length, 'stage')}`,
+      size: d('{a} through {b}', { a: plural(s.pipelines.length, 'pipeline'), b: plural(s.stages.length, 'stage') }),
       sections: [
         {
-          heading: 'Pipelines',
-          items: s.pipelines.map((p) => ({ text: sentence(`${p.label}: ${p.steps.map((st) => `${st.gate ? `${st.gate}, then ` : ''}${st.label || stage.get(st.stage) || st.stage}`).join(' → ')}${p.into ? `; merges into ${p.into}` : ''}`) })),
+          heading: d('Pipelines'),
+          items: s.pipelines.map((p) => ({ text: sentence(`${p.label}: ${p.steps.map((st) => `${st.gate ? d('{gate}, then ', { gate: st.gate }) : ''}${st.label || stage.get(st.stage) || st.stage}`).join(' → ')}${p.into ? `; ${d('merges into {name}', { name: p.into })}` : ''}`) })),
         },
       ],
     };
@@ -529,25 +595,25 @@ function tellGitflow(s: GitflowShape): Told {
   const branches: Item[] = s.branches.map((b) => {
     const own = s.commits.filter((c) => c.branch === b.name);
     const n = own.reduce((k, c) => k + (c.count ?? 1), 0);
-    return { text: `${b.label ?? b.name} (${[b.family !== 'other' && b.family !== b.name ? b.family : '', b.keep ? 'long-lived' : '', plural(n, 'commit')].filter(Boolean).join(', ')})` };
+    return { text: `${b.label ?? b.name} (${[b.family !== 'other' && b.family !== b.name ? b.family : '', b.keep ? d('long-lived') : '', plural(n, 'commit')].filter(Boolean).join(', ')})` };
   });
   const history: Item[] = s.commits.map((c) => {
     const what = [
       c.count ? plural(c.count, 'commit') : clean(c.label) ?? (c.merge ? '' : 'commit'),
-      c.fork && branchOf.get(c.fork) !== c.branch ? `branches off ${branchOf.get(c.fork)}` : '',
-      c.merge ? `merges ${branchOf.get(c.merge) ?? c.merge}` : '',
-      c.pick ? `cherry-picks from ${branchOf.get(c.pick) ?? c.pick}` : '',
-      c.tags.length ? `tagged ${c.tags.join(', ')}` : '',
-      c.deploy.length ? `deployed to ${listWords(c.deploy.map((d) => env.get(d) ?? d))}` : '',
+      c.fork && branchOf.get(c.fork) !== c.branch ? d('branches off {name}', { name: branchOf.get(c.fork) ?? c.fork }) : '',
+      c.merge ? d('merges {name}', { name: branchOf.get(c.merge) ?? c.merge }) : '',
+      c.pick ? d('cherry-picks from {name}', { name: branchOf.get(c.pick) ?? c.pick }) : '',
+      c.tags.length ? d('tagged {tags}', { tags: c.tags.join(', ') }) : '',
+      c.deploy.length ? d('deployed to {names}', { names: listWords(c.deploy.map((x) => env.get(x) ?? x)) }) : '',
       ...c.notes.map((x) => clean(x) ?? ''),
     ].filter(Boolean);
     return { text: sentence(`${c.branch}: ${what.join(', ')}`) };
   });
   return {
-    size: `${plural(s.branches.length, 'branch', 'branches')} and ${plural(s.commits.length, 'commit')}`,
+    size: `${plural(s.branches.length, 'branch', 'branches')} ${d('and')} ${plural(s.commits.length, 'commit')}`,
     sections: [
-      { heading: 'Branches', items: branches },
-      { heading: 'History', text: 'Oldest first.', ordered: true, items: history },
+      { heading: d('Branches'), items: branches },
+      { heading: d('History'), text: d('Oldest first.'), ordered: true, items: history },
     ],
   };
 }
@@ -562,7 +628,7 @@ function roadmapClock(s: RoadmapShape) {
   const days = s.ticks.some((t) => t.end - t.start > 1);
   const date = (d: number) => {
     const x = new Date(Math.round(d) * 86400000);
-    return { day: x.getUTCDate(), month: MONTHS[x.getUTCMonth()]!, year: x.getUTCFullYear() };
+    return { day: x.getUTCDate(), month: w(MONTHS[x.getUTCMonth()]!), year: x.getUTCFullYear() };
   };
   const period = (at: number) => {
     const t = s.ticks.find((k) => at >= k.start && at < k.end) ?? (at >= s.end ? s.ticks.at(-1) : s.ticks[0]);
@@ -577,18 +643,18 @@ function roadmapClock(s: RoadmapShape) {
     if (!days) {
       const a = period(start);
       const b = period(end - 1e-6);
-      return a === b ? a : `${a} to ${b}`;
+      return a === b ? a : d('{a} to {b}', { a, b });
     }
     const a = date(start);
     const b = date(end - 1);
     if (a.year === b.year && a.month === b.month) return a.day === b.day ? `${a.day} ${a.month} ${a.year}` : `${a.day}–${b.day} ${a.month} ${a.year}`;
-    return a.year === b.year ? `${a.day} ${a.month} to ${b.day} ${b.month} ${b.year}` : `${a.day} ${a.month} ${a.year} to ${b.day} ${b.month} ${b.year}`;
+    return a.year === b.year ? d('{a} to {b}', { a: `${a.day} ${a.month}`, b: `${b.day} ${b.month} ${b.year}` }) : d('{a} to {b}', { a: `${a.day} ${a.month} ${a.year}`, b: `${b.day} ${b.month} ${b.year}` });
   };
   const whole = () => {
     if (!days) return span(s.start, s.end);
     const a = date(s.start);
     const b = date(s.end - 1);
-    return a.year === b.year ? `${a.month} to ${b.month} ${b.year}` : `${a.month} ${a.year} to ${b.month} ${b.year}`;
+    return a.year === b.year ? d('{a} to {b}', { a: a.month, b: `${b.month} ${b.year}` }) : d('{a} to {b}', { a: `${a.month} ${a.year}`, b: `${b.month} ${b.year}` });
   };
   return { on, span, whole };
 }
@@ -599,19 +665,19 @@ function tellRoadmap(s: RoadmapShape): Told {
   const clock = roadmapClock(s);
   const label = new Map(s.items.map((i) => [i.id, i.label]));
   const item = (i: RoadmapShape['items'][number]): Item => {
-    const when = i.milestone ? `milestone on ${clock.on(i.start)}` : clock.span(i.start, i.end);
-    const said = [STATUS[i.status ?? ''] ?? i.status, i.progress != null && i.status !== 'done' ? `${Math.round(i.progress * 100)}% done` : '', i.after.length ? `after ${listWords(i.after.map((a) => label.get(a) ?? a))}` : ''].filter(Boolean);
+    const when = i.milestone ? d('milestone on {date}', { date: clock.on(i.start) }) : clock.span(i.start, i.end);
+    const said = [i.status && STATUS[i.status] ? w(STATUS[i.status]!) : i.status, i.progress != null && i.status !== 'done' ? d('{n}% done', { n: Math.round(i.progress * 100) }) : '', i.after.length ? d('after {names}', { names: listWords(i.after.map((a) => label.get(a) ?? a)) }) : ''].filter(Boolean);
     return { text: `${i.label}: ${when}${said.length ? `, ${said.join(', ')}` : ''}` };
   };
   const byStart = (a: RoadmapShape['items'][number], b: RoadmapShape['items'][number]) => a.start - b.start || a.end - b.end;
   const lanes: Item[] = s.lanes.map((l) => ({ text: `${l.label}${l.caption ? ` (${l.caption})` : ''}`, items: s.items.filter((i) => i.lane === l.id).sort(byStart).map(item) }));
   const loose = s.items.filter((i) => !i.lane || !s.lanes.some((l) => l.id === i.lane)).sort(byStart).map(item);
   const milestones = s.items.filter((i) => i.milestone).length;
-  const sections: Section[] = [{ heading: s.lanes.length ? 'By lane' : 'Items', items: [...lanes, ...loose] }];
-  if (s.phases.length) sections.push({ heading: 'Phases', items: s.phases.map((p) => ({ text: `${p.label}: ${clock.span(p.start, p.end)}` })) });
-  if (s.today) sections.push({ heading: 'Today', text: sentence(/\d/.test(s.today.label) ? `Marked: ${s.today.label}` : `${s.today.label || 'Today'} is marked at ${clock.on(s.today.at)}`) });
+  const sections: Section[] = [{ heading: s.lanes.length ? d('By lane') : d('Items'), items: [...lanes, ...loose] }];
+  if (s.phases.length) sections.push({ heading: d('Phases'), items: s.phases.map((p) => ({ text: `${p.label}: ${clock.span(p.start, p.end)}` })) });
+  if (s.today) sections.push({ heading: d('Today'), text: sentence(/\d/.test(s.today.label) ? d('Marked: {label}', { label: s.today.label }) : d('{label} is marked at {date}', { label: s.today.label || d('Today'), date: clock.on(s.today.at) })) });
   return {
-    size: `${plural(s.items.length - milestones, 'item')}${milestones ? ` and ${plural(milestones, 'milestone')}` : ''}${s.lanes.length ? ` in ${plural(s.lanes.length, 'lane')}` : ''}, ${clock.whole()}`,
+    size: `${plural(s.items.length - milestones, 'item')}${milestones ? ` ${d('and')} ${plural(milestones, 'milestone')}` : ''}${s.lanes.length ? ` ${d('in {n}', { n: plural(s.lanes.length, 'lane') })}` : ''}, ${clock.whole()}`,
     sections,
   };
 }
@@ -619,18 +685,19 @@ function tellRoadmap(s: RoadmapShape): Told {
 // ------------------------------------------------------------------ journey
 
 function stepItem(st: JourneyStep, s: JourneyShape): Item {
-  const feel = st.score != null ? `feels ${st.feeling ? `${st.feeling}, ` : ''}${st.score} of ${s.scale.max}` : st.feeling ? `feels ${st.feeling}` : '';
+  const score = st.score != null ? d('{n} of {max}', { n: st.score, max: s.scale.max }) : '';
+  const feel = st.score != null ? d('feels {how}', { how: `${st.feeling ? `${st.feeling}, ` : ''}${score}` }) : st.feeling ? d('feels {how}', { how: st.feeling }) : '';
   const items: Item[] = [
-    ...(st.thought ? [{ text: `Thinks: “${clean(st.thought)}”` }] : []),
-    ...(st.says ? [{ text: `Says: “${clean(st.says)}”` }] : []),
-    ...(st.touchpoints.length ? [{ text: `Through ${listWords(st.touchpoints.map((t) => t.label))}` }] : []),
-    ...(st.actors.length ? [{ text: `With ${listWords(st.actors)}` }] : []),
-    ...st.pains.map((p) => ({ text: `Pain: ${p}` })),
-    ...st.gains.map((p) => ({ text: `Works well: ${p}` })),
-    ...st.ideas.map((p) => ({ text: `Idea: ${p}` })),
-    ...st.metrics.map((p) => ({ text: `Measured: ${p}` })),
+    ...(st.thought ? [{ text: `${d('Thinks')}: “${clean(st.thought)}”` }] : []),
+    ...(st.says ? [{ text: `${d('Says')}: “${clean(st.says)}”` }] : []),
+    ...(st.touchpoints.length ? [{ text: d('Through {names}', { names: listWords(st.touchpoints.map((t) => t.label)) }) }] : []),
+    ...(st.actors.length ? [{ text: d('With {names}', { names: listWords(st.actors) }) }] : []),
+    ...st.pains.map((p) => ({ text: `${d('Pain')}: ${p}` })),
+    ...st.gains.map((p) => ({ text: `${d('Works well')}: ${p}` })),
+    ...st.ideas.map((p) => ({ text: `${d('Idea')}: ${p}` })),
+    ...st.metrics.map((p) => ({ text: `${d('Measured')}: ${p}` })),
     ...(s.view === 'blueprint'
-      ? [...st.frontstage.map((p) => ({ text: `Frontstage: ${p}` })), ...st.backstage.map((p) => ({ text: `Backstage: ${p}` })), ...st.support.map((p) => ({ text: `Support: ${p}` }))]
+      ? [...st.frontstage.map((p) => ({ text: `${w('Frontstage')}: ${p}` })), ...st.backstage.map((p) => ({ text: `${w('Backstage')}: ${p}` })), ...st.support.map((p) => ({ text: `${w('Support')}: ${p}` }))]
       : []),
   ];
   return { text: `${st.label}${feel ? ` (${feel})` : ''}`, ...(items.length ? { items } : {}) };
@@ -640,24 +707,24 @@ function tellJourney(s: JourneyShape): Told {
   const sections: Section[] = [];
   const p = s.persona;
   if (p) {
-    const items = [p.role ? `Role: ${p.role}` : '', p.goal ? `Goal: ${p.goal}` : '', p.quote ? `Says: “${clean(p.quote)}”` : ''].filter(Boolean).map((text) => ({ text }));
-    sections.push({ heading: `Persona: ${p.name}`, items });
+    const items = [p.role ? `${d('Role')}: ${p.role}` : '', p.goal ? `${d('Goal')}: ${p.goal}` : '', p.quote ? `${d('Says')}: “${clean(p.quote)}”` : ''].filter(Boolean).map((text) => ({ text }));
+    sections.push({ heading: `${d('Persona')}: ${p.name}`, items });
   }
   const phase = (track: JourneyStep[]) => s.phases.map((ph) => ({ text: `${ph.label}${ph.caption ? ` (${ph.caption})` : ''}`, items: track.filter((st) => st.phase === ph.id).map((st) => stepItem(st, s)) })).filter((x) => x.items.length);
   if (s.view === 'compare' && s.future) {
-    sections.push({ heading: s.label || 'Today', items: phase(s.steps) }, { heading: s.future.label || 'Future', items: phase(s.future.steps) });
-  } else sections.push({ heading: 'By phase', items: phase(s.steps) });
+    sections.push({ heading: s.label || d('Today'), items: phase(s.steps) }, { heading: s.future.label || d('Future'), items: phase(s.future.steps) });
+  } else sections.push({ heading: d('By phase'), items: phase(s.steps) });
   // Where it feels worst and best: the first thing anyone asks of a journey.
   const scored = s.steps.filter((st) => st.score != null);
   if (scored.length > 2) {
     const low = scored.reduce((a, b) => (b.score! < a.score! ? b : a));
     const high = scored.reduce((a, b) => (b.score! > a.score! ? b : a));
-    sections.push({ heading: 'Feeling', text: sentence(`Lowest at “${low.label}” (${low.score} of ${s.scale.max}); highest at “${high.label}” (${high.score} of ${s.scale.max})`) });
+    sections.push({ heading: d('Feeling'), text: sentence(d('Lowest at “{low}” ({lowScore}); highest at “{high}” ({highScore})', { low: low.label, high: high.label, lowScore: d('{n} of {max}', { n: low.score!, max: s.scale.max }), highScore: d('{n} of {max}', { n: high.score!, max: s.scale.max }) })) });
   }
   const metrics = [...s.metrics, ...(s.future?.metrics ?? [])];
-  if (metrics.length) sections.push({ heading: 'Metrics', items: metrics.map((m) => ({ text: `${m.label}: ${m.value}` })) });
+  if (metrics.length) sections.push({ heading: d('Metrics'), items: metrics.map((m) => ({ text: `${m.label}: ${m.value}` })) });
   const phases = s.phases.filter((ph) => s.steps.some((st) => st.phase === ph.id)).length;
-  return { size: `${p ? `${p.name}'s journey` : 'A journey'} through ${plural(phases, 'phase')} and ${plural(s.steps.length, 'step')}`, sections };
+  return { size: d('{who} through {phases} and {steps}', { who: p ? d("{name}'s journey", { name: p.name }) : d('A journey'), phases: plural(phases, 'phase'), steps: plural(s.steps.length, 'step') }), sections };
 }
 
 // ------------------------------------------------------------------ blocks: org charts, capability maps, teams, mind maps
@@ -671,14 +738,14 @@ function blockText(n: BlockNode): string {
   const b = n.shape;
   const said = [
     b.form === 'person' ? '' : b.caption,
-    b.heat ? b.heat.text : b.blank ? 'no value' : '',
+    b.heat ? b.heat.text : b.blank ? d('no value') : '',
     b.badge ? b.badge : '',
-    b.lines?.length && b.form !== 'person' ? `systems: ${b.lines.join(', ')}` : '',
-    TEAM[b.form] ?? '',
-    b.vacant ? 'open role' : '',
+    b.lines?.length && b.form !== 'person' ? `${d('systems')}: ${b.lines.join(', ')}` : '',
+    TEAM[b.form] ? w(TEAM[b.form]!) : '',
+    b.vacant ? d('open role') : '',
   ].filter((x): x is string => !!x);
   if (b.form === 'person') said.unshift(...(b.lines ?? []));
-  const head = b.form === 'person' ? `${b.vacant ? 'Vacancy' : b.label}${b.caption ? `${b.vacant ? ':' : ','} ${b.caption}` : ''}` : b.label;
+  const head = b.form === 'person' ? `${b.vacant ? d('Vacancy') : b.label}${b.caption ? `${b.vacant ? ':' : ','} ${b.caption}` : ''}` : b.label;
   const desc = clean(n.description);
   const shown = desc && !said.some((x) => x.toLowerCase() === desc.toLowerCase()) && desc.toLowerCase() !== head.toLowerCase();
   return `${head}${said.length ? ` (${said.join(', ')})` : ''}${shown ? `: ${desc}` : ''}`;
@@ -707,10 +774,10 @@ function tellBlocks(graph: Graph, blocks: BlockNode[]): Told {
     const walk = tree((id) => people.filter((p) => (id ? boss.get(p.id) === id : !boss.has(p.id) || !byId.has(boss.get(p.id)!))));
     const top = people.filter((p) => !boss.has(p.id));
     const dotted = graph.edges.filter((e) => e.loose || e.line !== 'solid');
-    const sections: Section[] = [{ heading: 'Who reports to whom', text: 'Each person, with the people who report to them under them.', items: walk(undefined) }];
-    if (dotted.length) sections.push({ heading: 'Dotted lines', items: dotted.map((e) => ({ text: sentence(`${name(e.to.node)} also reports to ${name(e.from.node)}${e.label ? ` (${clean(e.label)})` : ''}`) })) });
+    const sections: Section[] = [{ heading: d('Who reports to whom'), text: d('Each person, with the people who report to them under them.'), items: walk(undefined) }];
+    if (dotted.length) sections.push({ heading: d('Dotted lines'), items: dotted.map((e) => ({ text: sentence(`${d('{a} also reports to {b}', { a: name(e.to.node), b: name(e.from.node) })}${e.label ? ` (${clean(e.label)})` : ''}`) })) });
     const vacant = people.filter((p) => p.shape.vacant).length;
-    return { size: `${plural(people.length - vacant, 'person', 'people')}${vacant ? ` and ${plural(vacant, 'open role')}` : ''}${top.length === 1 ? `, led by ${name(top[0]!.id)}` : ''}`, sections };
+    return { size: `${plural(people.length - vacant, 'person', 'people')}${vacant ? ` ${d('and')} ${plural(vacant, 'open role')}` : ''}${top.length === 1 ? `, ${d('led by {name}', { name: name(top[0]!.id) })}` : ''}`, sections };
   }
   if (forms.has('topic')) {
     const parent = new Map(graph.edges.map((e) => [e.to.node, e.from.node]));
@@ -718,12 +785,12 @@ function tellBlocks(graph: Graph, blocks: BlockNode[]): Told {
     const items = walk(undefined);
     const centre = blocks.find((b) => b.shape.level === 0);
     const branches = blocks.filter((b) => b.shape.level === 1).length;
-    return { size: `${centre ? `Around ${centre.shape.label}, ` : ''}${plural(branches, 'branch', 'branches')} and ${plural(blocks.length, 'topic')} in all`, sections: [{ heading: 'Topics', items: centre && items.length === 1 ? (items[0]!.items ?? []) : items }] };
+    return { size: `${centre ? `${d('Around {name}', { name: centre.shape.label })}, ` : ''}${d('{a} and {b} in all', { a: plural(branches, 'branch', 'branches'), b: plural(blocks.length, 'topic') })}`, sections: [{ heading: d('Topics'), items: centre && items.length === 1 ? (items[0]!.items ?? []) : items }] };
   }
   const zones = blocks.filter((b) => b.shape.between);
   const teams = blocks.filter((b) => TEAM[b.shape.form]);
   if (teams.length) {
-    const sections: Section[] = [{ heading: 'Teams', items: teams.map((t) => ({ text: blockText(t) })) }];
+    const sections: Section[] = [{ heading: d('Teams'), items: teams.map((t) => ({ text: blockText(t) })) }];
     // An interaction mode as a line's kind: "x-as-a-service" or "service".
     const modeOf = (kind: string | undefined) => Object.keys(MODE).find((k) => k === kind || MODE[k]!.toLowerCase() === kind?.toLowerCase());
     const said = [...zones.map((z) => ({ a: z.shape.between![0], b: z.shape.between![1], mode: z.shape.form, label: z.shape.label })), ...graph.edges.flatMap((e) => (modeOf(e.kind) ? [{ a: e.from.node, b: e.to.node, mode: modeOf(e.kind)!, label: e.label }] : []))];
@@ -732,20 +799,20 @@ function tellBlocks(graph: Graph, blocks: BlockNode[]): Told {
       const key = [z.a, z.b].sort().join('|');
       if (seen.has(key)) return [];
       seen.add(key);
-      return [{ text: sentence(`${name(z.a)} and ${name(z.b)}: ${MODE[z.mode] ?? z.mode}${z.label && z.label !== MODE[z.mode] ? ` (${clean(z.label)})` : ''}`) }];
+      return [{ text: sentence(`${name(z.a)} ${d('and')} ${name(z.b)}: ${w(MODE[z.mode] ?? z.mode)}${z.label && z.label !== MODE[z.mode] ? ` (${clean(z.label)})` : ''}`) }];
     });
-    if (items.length) sections.push({ heading: 'Interactions', items });
+    if (items.length) sections.push({ heading: d('Interactions'), items });
     const flows = graph.edges.filter((e) => !modeOf(e.kind) && !seen.has([e.from.node, e.to.node].sort().join('|')) && byId.has(e.from.node) && byId.has(e.to.node));
-    if (flows.length) sections.push({ heading: 'Connections', items: connectionItems({ ...graph, edges: flows }, readingOrder(graph)) });
-    return { size: `${plural(teams.length, 'team')}${items.length ? `, with ${plural(items.length, 'interaction')}` : ''}`, sections };
+    if (flows.length) sections.push({ heading: d('Connections'), items: connectionItems({ ...graph, edges: flows }, readingOrder(graph)) });
+    return { size: `${plural(teams.length, 'team')}${items.length ? `, ${d('with {n}', { n: plural(items.length, 'interaction') })}` : ''}`, sections };
   }
   // A capability map: areas, capabilities, and what they hold.
   const walk = tree((id) => blocks.filter((b) => !b.shape.between && (id ? b.shape.inside === id : !b.shape.inside || !byId.has(b.shape.inside))));
   const areas = blocks.filter((b) => b.shape.form === 'area').length;
   const caps = blocks.filter((b) => b.shape.form === 'capability' || b.shape.form === 'chip').length;
-  const sections: Section[] = [{ heading: areas ? 'Areas and capabilities' : 'Capabilities', items: walk(undefined) }];
-  if (graph.edges.length) sections.push({ heading: 'Connections', items: connectionItems(graph, readingOrder(graph)) });
-  return { size: `${areas ? `${plural(areas, 'area')} and ` : ''}${plural(caps || blocks.length, 'capability', 'capabilities')}`, sections };
+  const sections: Section[] = [{ heading: areas ? d('Areas and capabilities') : d('Capabilities'), items: walk(undefined) }];
+  if (graph.edges.length) sections.push({ heading: d('Connections'), items: connectionItems(graph, readingOrder(graph)) });
+  return { size: `${areas ? `${plural(areas, 'area')} ${d('and')} ` : ''}${plural(caps || blocks.length, 'capability', 'capabilities')}`, sections };
 }
 
 // ------------------------------------------------------------------ what every drawing can have
@@ -756,11 +823,11 @@ function walkthrough(graph: Graph, input: DescribeInput): Section[] {
   if (input.steps?.length && !input.stepsImplied) {
     const items = input.steps.map((s, i) => {
       const shown = Object.entries(s.nodes).filter(([, e]) => e === 'focus').map(([id]) => nameOf(byId.get(id), id));
-      const text = [clean(s.title), clean(s.caption)].filter(Boolean).join(': ') || (shown.length ? `Shows ${listWords(shown)}` : `Step ${i + 1}`);
+      const text = [clean(s.title), clean(s.caption)].filter(Boolean).join(': ') || (shown.length ? d('Shows {names}', { names: listWords(shown) }) : d('Step {n}', { n: i + 1 }));
       const notes = s.notes.map((n) => ({ text: `${nameOf(byId.get(n.id), n.id)}: ${clean(n.text) ?? ''}` }));
       return { text: sentence(text), ...(notes.length ? { items: notes } : {}) };
     });
-    return [{ heading: 'Walkthrough', ordered: true, items }];
+    return [{ heading: d('Walkthrough'), ordered: true, items }];
   }
   if (graph.steps?.length) {
     const edges = new Map(graph.edges.map((e) => [e.id, e]));
@@ -770,7 +837,7 @@ function walkthrough(graph: Graph, input: DescribeInput): Section[] {
       const to = nameOf(byId.get(s.to), s.to);
       return { text: sentence(`${from} → ${to}${clean(s.label ?? e?.label) ? `: ${clean(s.label ?? e?.label)}` : ''}`) };
     });
-    return [{ heading: 'Steps', ordered: true, items }];
+    return [{ heading: d('Steps'), ordered: true, items }];
   }
   return [];
 }
@@ -778,19 +845,19 @@ function walkthrough(graph: Graph, input: DescribeInput): Section[] {
 function layerSection(input: DescribeInput): Section[] {
   const list = input.layers?.list ?? [];
   if (!list.length) return [];
-  return [{ heading: 'Layers', text: 'Ways to look at this drawing by tag.', items: list.map((l) => ({ text: sentence(`${l.title ?? l.name}${l.caption ? `: ${clean(l.caption)}` : ''} (tags ${l.tags.join(', ')}${l.count != null ? `; ${plural(l.count, 'element')}` : ''})`) })) }];
+  return [{ heading: d('Layers'), text: d('Ways to look at this drawing by tag.'), items: list.map((l) => ({ text: sentence(`${l.title ?? l.name}${l.caption ? `: ${clean(l.caption)}` : ''} (${d('tags {tags}', { tags: l.tags.join(', ') })}${l.count != null ? `; ${plural(l.count, 'element')}` : ''})`) })) }];
 }
 
 function threatSections(graph: Graph): Section[] {
   const out: Section[] = [];
   const trust = graph.groups.filter((g) => g.trust);
-  if (trust.length) out.push({ heading: 'Trust boundaries', items: trust.map((g) => ({ text: nameOf(g) })) });
+  if (trust.length) out.push({ heading: d('Trust boundaries'), items: trust.map((g) => ({ text: nameOf(g) })) });
   const rows = graph.threats ?? [];
   if (rows.length)
     out.push({
-      heading: 'Threats',
+      heading: d('Threats'),
       items: rows.map((t) => ({
-        text: `${t.id} on ${t.on}: ${sentence(t.title ? `${t.title} (${t.stride.map((x) => strideNames[x]).join(', ')})` : t.stride.map((x) => strideNames[x]).join(', '))} Status ${t.status}${t.mitigation ? `; mitigation: ${sentence(lowerFirst(t.mitigation))}` : '.'}`,
+        text: `${d('{id} on {name}', { id: t.id, name: t.on })}: ${sentence(t.title ? `${t.title} (${t.stride.map((x) => strideNames[x]).join(', ')})` : t.stride.map((x) => strideNames[x]).join(', '))} ${d('Status')} ${w(t.status)}${t.mitigation ? `; ${d('mitigation')}: ${sentence(lowerFirst(t.mitigation))}` : '.'}`,
       })),
     });
   return out;
@@ -799,7 +866,7 @@ function threatSections(graph: Graph): Section[] {
 function decisionSection(input: DescribeInput): Section[] {
   const list = input.decisions ?? [];
   if (!list.length) return [];
-  return [{ heading: 'Decisions', items: list.map((d) => ({ text: sentence(`${d.id ? `${d.id}: ` : ''}${d.title}${d.status ? ` (${d.status})` : ''}${d.summary ? `. ${clean(d.summary)}` : ''}`) })) }];
+  return [{ heading: d('Decisions'), items: list.map((d) => ({ text: sentence(`${d.id ? `${d.id}: ` : ''}${d.title}${d.status ? ` (${d.status})` : ''}${d.summary ? `. ${clean(d.summary)}` : ''}`) })) }];
 }
 
 const ENDS: Partial<Record<Marker, string>> = { arrow: 'arrow', one: 'bar', zeroOrOne: 'ring and bar', many: "crow's foot", oneOrMany: "bar and crow's foot", zeroOrMany: "ring and crow's foot", triangle: 'hollow triangle', diamond: 'hollow diamond', filledDiamond: 'filled diamond', open: 'open arrowhead', slash: 'slash' };
@@ -807,6 +874,7 @@ const SWATCH: Record<string, string> = { fill: 'filled pill', outline: 'outlined
 
 /** A key entry in words: what the sample looks like, and what it means. */
 function keyText(l: LegendItem, shade?: { n: number; of: number }): string {
+  if (L !== 'en') return keySaid(l, shade);
   const tone = l.tone && l.tone !== 'slate' ? `${l.tone} ` : '';
   let look: string;
   if (l.swatch === 'mark') look = l.tag ? `tag ${l.tag}` : 'numbered tag';
@@ -823,9 +891,26 @@ function keyText(l: LegendItem, shade?: { n: number; of: number }): string {
   return `${look[0]!.toUpperCase()}${look.slice(1)}: ${l.label}`;
 }
 
+/** keyText in another language than English: the sample's look from the word tables (./nl.ts), adjective first as Dutch says it. */
+function keySaid(l: LegendItem, shade?: { n: number; of: number }): string {
+  const tone = l.tone && l.tone !== 'slate' ? `${w(`tone:${l.tone}`)} ` : '';
+  let look: string;
+  if (l.swatch === 'mark') look = l.tag ? d('tag {tag}', { tag: l.tag }) : d('numbered tag');
+  else if (l.swatch === 'message') look = l.arrow === 'reply' ? d('dashed arrow') : l.arrow === 'async' ? d('arrow with an open head') : l.arrow === 'lost' ? d('arrow ending in a cross') : d('arrow with a filled head');
+  else if (l.swatch === 'block') look = l.block?.heat && shade ? `${d('shade {n} of {of}', { n: shade.n, of: shade.of })}${shade.n === 1 ? ` (${d('lightest')})` : shade.n === shade.of ? ` (${d('strongest')})` : ''}` : l.block?.heat?.text ? d('block marked {text}', { text: l.block.heat.text }) : d('block');
+  else if (l.swatch === 'glyph' && l.icon) look = d('{tone}{icon} symbol', { tone, icon: l.icon.split('-')[0]! });
+  else if (l.swatch) look = `${tone}${w(SWATCH[l.swatch] ?? l.swatch)}${l.muted ? `, ${d('greyed')}` : ''}`;
+  else {
+    const pattern = l.pattern === 'ticks' ? ` ${d('with ticks')}` : l.pattern === 'beads' ? ` ${d('with beads')}` : l.pattern === 'double' ? `, ${d('double')}` : '';
+    const what = l.end && l.end !== 'arrow' ? w(ENDS[l.end] ?? l.end) : '';
+    look = `${w(`line:${l.line ?? 'solid'}`)} ${tone}${d('line')}${pattern}${l.width && l.width > 1.2 ? `, ${d('thick')}` : ''}${what ? ` ${d('ending in {what}', { what })}` : ''}`;
+  }
+  return `${look[0]!.toUpperCase()}${look.slice(1)}: ${l.label}`;
+}
+
 function keySection(graph: Graph): Section[] {
   const legend = graph.legend ?? [];
   // A heatmap's key is a row of shades: said by their place in it, the colour alone says nothing.
   const heat = legend.filter((l) => l.swatch === 'block' && l.block?.heat && l.block.heat.scale !== 'categorical');
-  return legend.length ? [{ heading: 'Key', items: legend.map((l) => ({ text: keyText(l, heat.includes(l) ? { n: heat.indexOf(l) + 1, of: heat.length } : undefined) })) }] : [];
+  return legend.length ? [{ heading: d('Key'), items: legend.map((l) => ({ text: keyText(l, heat.includes(l) ? { n: heat.indexOf(l) + 1, of: heat.length } : undefined) })) }] : [];
 }
