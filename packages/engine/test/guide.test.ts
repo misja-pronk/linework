@@ -35,6 +35,8 @@ describe('type guidance', () => {
     for (const q of ['flowchart', 'decision tree', 'swimlanes', 'bpmn', 'approval process', 'workflow with gateways']) expect(best(q).type.id, q).toBe('process');
     for (const q of ['state machine', 'order lifecycle', 'statuses and transitions', 'statechart']) expect(best(q).type.id, q).toBe('states');
     for (const q of ['capability map', 'business capabilities heatmap', 'maturity per capability', 'invest tolerate migrate eliminate']) expect(best(q).type.id, q).toBe('capabilities');
+    for (const q of ['class diagram', 'uml classes and interfaces', 'domain model with aggregates and value objects', 'inheritance hierarchy']) expect(best(q).type.id, q).toBe('class');
+    for (const q of ['mind map', 'mindmap', 'brainstorm', 'workshop agenda']) expect(best(q).type.id, q).toBe('mindmap');
     for (const q of ['org chart', 'organogram', 'who reports to whom', 'team topologies', 'platform team and stream-aligned teams']) expect(best(q).type.id, q).toBe('teams');
   });
 

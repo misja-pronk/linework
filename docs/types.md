@@ -37,6 +37,8 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | Who reports to whom (vacancies, dotted lines), and which teams there are and how they interact (Team Topologies) | [Teams & org chart](#teams--org-chart) | `teams` |
 | DDD bounded contexts and how they integrate: upstream, downstream, ACL, OHS, shared kernel | [Context map](#context-map) | `context-map` |
 | A grid with a value per cell: a RACI chart, a CRUD matrix of services × data, an ownership table | [Matrix](#matrix) | `matrix` |
+| Classes, interfaces and enums with their members, and how they relate: extends, implements, composition (UML) | [Class diagram](#class-diagram) | `class` |
+| A central topic with branches around it: a brainstorm, a workshop agenda, options before a decision | [Mind map](#mind-map) | `mindmap` |
 | Trust boundaries and STRIDE threats on an architecture, with a threat table | [Architecture](#architecture), [C4](#c4-model) or [Azure](#azure-infrastructure) with a [threat overlay](threats.md) | `systems`, `c4`, `azure` |
 
 Look-alikes that trip people up:
@@ -62,6 +64,9 @@ Look-alikes that trip people up:
 - **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
 - **What the business does** is a Capability map; **which systems do it and how they talk** is Architecture. A capability map names systems only as the support of a capability.
 - **Who reports to whom, and how teams work together** is Teams; **GitHub teams and their repositories** are GitHub design; **who may do what in Entra or Azure** is Access.
+- **Types in code: classes, interfaces, inheritance and operations** are a Class diagram; **tables, columns and foreign keys** are Database design. An entity in a domain model is a class; the table it is stored in is an ERD.
+- **The components inside a service** are the C4 model's component view; **the classes inside one component** are a Class diagram. **Bounded contexts and how they integrate** are a Context map, the aggregates inside one are a Class diagram.
+- **A brainstorm or an agenda around one subject** is a Mind map; **what the business does, in levels with a fixed meaning and a heatmap** is a Capability map; **who reports to whom** is Teams. All three are trees; only the mind map says nothing about who or what owns the branches.
 - **A capability map and an org chart both look like boxes in boxes**: a capability says *what is done* and outlives any reorganisation; an org chart says *who does it* today. Draw both and link them, rather than one that mixes the two.
 
 ## Architecture
@@ -666,6 +671,44 @@ cells:
 ```
 
 Guide: [matrix.md](matrix.md). Examples: [examples/matrix](../examples/matrix)
+
+## Class diagram
+
+`type: class` · UML: classes, interfaces, enums and records, their members, and how they relate.
+
+Use it for a domain model (aggregates, entities, value objects), a design pattern in a design document, or what extends and implements what. Members are one line each (`+total(): Money`), relations are written with Mermaid's and PlantUML's arrows (`--|>`, `..|>`, `*--`, `o--`, `-->`, `..>`) and drawn with the UML ends. Parents stand above their children.
+
+Not for: tables and foreign keys (`erd`), the components of a service (`c4`), bounded contexts (`context-map`).
+
+```yaml
+type: class
+classes:
+  Shape: { kind: interface, members: [+area(): Double] }
+  Circle: { implements: Shape, members: [-radius: Double, +area(): Double] }
+  Drawing: { members: [+add(shape: Shape)] }
+relations:
+  - Drawing "1" o-- "*" Shape
+```
+
+Guide: [class.md](class.md). Examples: [examples/class](../examples/class)
+
+## Mind map
+
+`type: mindmap` · a central topic with branches around it.
+
+Use it for a brainstorm before a decision, a workshop agenda, or the parts of a subject on one slide. Each level out is a step lighter; each branch keeps its colour. Branches go on both sides or one, `depth:` folds deeper levels into a count.
+
+Not for: what the business does (`capabilities`), who reports to whom (`teams`), steps in order (`process`).
+
+```yaml
+type: mindmap
+center: Event store
+topics:
+  Options: [EventStoreDB, Kafka, Postgres outbox]
+  Risks: [Nobody knows it yet, Lock-in]
+```
+
+Guide: [mindmap.md](mindmap.md). Examples: [examples/mindmap](../examples/mindmap)
 
 ## Adding a type
 

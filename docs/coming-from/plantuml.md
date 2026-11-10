@@ -20,7 +20,9 @@ In the editor: drop a `.puml` or `.plantuml` file on the window, or paste PlantU
 | State diagram | `type: states`: `[*]`, composite states, `state "Long name" as x`, `<<choice>>`, notes, every arrow (`-->`, `->`, `-down->`) as a transition |
 | Activity diagram (new syntax) | `type: process`: `start`, `stop`, `:action;` (over several lines too), `if/elseif/else/endif`, `while … endwhile`, `repeat … repeat while`, `switch/case`, `fork`/`split` as parallel gateways, `|Swimlanes|` as lanes, `-> label;` on the next line |
 | Entity diagram (`entity X { … }`) | `type: erd`: columns with `<<PK>>`, `<<FK>>` and `<<UK>>`, crow's feet (`||--o{`) as relations and foreign keys |
-| Class, use case, mindmap, wbs, Gantt, old-style activity diagrams | Not imported: the report says so. A class diagram type is planned; for Gantt write a `roadmap` |
+| Class diagram | `type: class`: `class`, `abstract class`, `interface`, `enum` (its values), `record`, `class "Long name" as X`, `<<stereotypes>>`, generics, members (`- String name` or `- name : String`, `{static}`, `{abstract}`, separators dropped), `extends` and `implements`, `package` and `namespace` as packages, relations with multiplicities and labels (direction words and colours taken out) |
+| Mind map (`@startmindmap`) | `type: mindmap`: `*` levels, `+` and `-` for the right and left side, `left side`, boxless `_` topics, `:multi-line;` topics; colours and icons left out |
+| Use case, wbs, Gantt, old-style activity diagrams | Not imported: the report says so. For Gantt write a `roadmap` |
 
 What is left out, each said in the report: `skinparam`, `!theme` and colours (the theme draws each kind its own way), stereotypes, legends, headers, footers and captions, preprocessor lines (`!define`, `!function`, `!if`), notes in component and activity diagrams, partitions, `destroy` and `create` marks, delays (drawn as dividers), history states, notes on transitions, C4 tags and styles (`AddElementTag`, `UpdateElementStyle`), `Lay_*` hints and generic boundaries (their contents are kept).
 
@@ -41,7 +43,7 @@ What is left out, each said in the report: `skinparam`, `!theme` and colours (th
 
 ## What you lose
 
-- **UML.** Class diagrams, use cases, object, timing and Gantt-in-PlantUML have no Cartography type.
+- **UML.** Use cases, object, timing and Gantt-in-PlantUML have no Cartography type.
 - **What the importer leaves out** (above): layout hints, notes outside sequence and state diagrams, styling.
 - **`skinparam`-level control** over every colour and font of every element.
 - **The PlantUML ecosystem**: its server, the IDE plugins, Confluence and wiki macros that render `.puml` in place.
