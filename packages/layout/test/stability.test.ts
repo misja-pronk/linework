@@ -173,6 +173,8 @@ describe('the note in the sidecar', () => {
     expect(back.variant).toBe(p.memory!.variant);
     expect([...back.nodes!.keys()].sort()).toEqual(['a', 'b', 'c']);
     expect(back.groups!.get('my group')).toEqual(p.memory!.groups!.get('my group'));
+    // What the drawing was made of goes with the positions, so --stable draws it the same way next time.
+    expect(back.shape).toBe(p.memory!.shape);
     expect(packLayout(p.memory, false)).toEqual({ variant: p.memory!.variant });
   });
 

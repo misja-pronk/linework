@@ -1233,11 +1233,11 @@ async function main(): Promise<number> {
         const rest = values.view ? [] : await Promise.all((r.views ?? []).map((v) => render(text, { ...opts, view: v.name })));
         const seen = new Set<string>();
         const diagnostics = [r, ...rest].flatMap((x) => x.diagnostics).filter((d) => !seen.has(`${d.line}:${d.column}:${d.message}`) && !!seen.add(`${d.line}:${d.column}:${d.message}`));
-        // Fitted onto a 16:9 slide, the smallest text of each drawing should still be readable.
+        // Fitted onto its page (a 16:9 slide unless aspect: says otherwise), the smallest text of each drawing should still be readable.
         for (const x of [r, ...rest.filter((v) => v.view !== r.view)]) {
-          const pt = x.svg && x.width && x.height ? slideTextPt(x.svg, x.width, x.height) : undefined;
+          const pt = x.svg && x.width && x.height ? slideTextPt(x.svg, x.width, x.height, x.page) : undefined;
           if (pt != null && pt < SLIDE_MIN_PT)
-            diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a 16:9 slide its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
+            diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${x.page?.name ?? '16:9 slide'} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
         }
         report(f, diagnostics);
         const drifted = values.drift && !(await checkDrift(f));

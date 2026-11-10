@@ -143,7 +143,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
           <button className="button ghost" onClick={attempt(async () => download(`${base}.png`, await exportPng(input(), 2)))}>
             PNG
           </button>
-          <button className="button ghost" onClick={attempt(async () => download(`${base}.pptx`, await exportPptx(input(), yamlName(name))))}>
+          <button className="button ghost" onClick={attempt(async () => download(`${base}.pptx`, (await exportPptx(input(), yamlName(name))).blob))}>
             PowerPoint
           </button>
           <button className="button ghost" onClick={attempt(async () => download(`${base}.pdf`, await exportPdf(input(), yamlName(name))))}>

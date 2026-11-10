@@ -22,6 +22,8 @@ export interface Placement {
   k: number;
   x: number;
   y: number;
+  /** Told the size (points) of every text set, so the smallest on a slide can be checked. */
+  onText?(pt: number): void;
 }
 
 interface Item {
@@ -112,6 +114,7 @@ class SlideDrawing {
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
+    if (text.trim()) this.at.onText?.(this.pt(size));
     return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
 

@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, throughVia, type RouteRequest } from '@cartography/layout';
-import { render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
-import { big, timed } from './perf.ts';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
+import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
+import { big, budget, race, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
@@ -181,6 +181,15 @@ const returns: Record<string, number> = {
   'states/order-lifecycle.yaml': 1,
   'states/pull-request.yaml': 4,
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
+  // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
+  'cloud/multi-cloud.yaml': 3,
+  'deployment/azure.yaml': 1,
+  'deployment/azure.yaml#prod': 1,
+  'model/containers.yaml': 2,
+  'network/campus.yaml': 2,
+  'systems/threat-model.yaml': 2,
+  'c4/kestrel-bank.yaml#payment': 2,
+  'deployment/model.yaml#containers': 2,
 };
 
 describe('layout quality', () => {
@@ -289,7 +298,7 @@ describe('layout quality', () => {
     // Best of three, so a busy machine does not fail it.
     const { ms, result } = await timed(big(10, 20), {}, 3);
     expect(result.graph!.nodes).toHaveLength(200);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(budget(1000));
   }, 20_000);
 
   it('and as fast one line later, knowing the drawing before', async () => {
@@ -298,13 +307,67 @@ describe('layout quality', () => {
     // A line right across the drawing: the longest route there can be. Best of two, so a busy machine does not fail it.
     const { ms, result } = await timed(text + '  - n0_1 -> n9_19\n', { previous: before.placed!.memory }, 2);
     expect(result.graph!.edges).toHaveLength(before.graph!.edges.length + 1);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(budget(1000));
     // Drawn the way the drawing before was, and nothing that was there moved.
     expect(result.placed!.memory!.variant).toBe(before.placed!.memory!.variant);
     const was = before.placed!.memory!.nodes!;
     const now = result.placed!.memory!.nodes!;
     const far = [...was].filter(([id, p]) => Math.hypot(now.get(id)!.x - p.x, now.get(id)!.y - p.y) > 16);
     expect(far.length / was.size).toBeLessThan(0.1);
+  });
+});
+
+describe('drawn again', () => {
+  const file = path.join(examples, 'cloud/multi-cloud.yaml');
+  const text = fs.readFileSync(file, 'utf8');
+  const load = (rel: string) => fs.readFileSync(path.resolve(path.dirname(file), rel), 'utf8');
+
+  it('the same diagram with a label edited is drawn the way it was, without trying the others', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const memory = first.placed!.memory!;
+    // A drawing that was turned and wrapped for the page: the search is long, its answer is kept.
+    expect(memory.variant).toMatch(/w\d/);
+    const edited = text.replace('label: Web shop CDN', 'label: Web shop content delivery network');
+    const [fresh, again] = await race(
+      () => render(edited, { fonts: 'none', load }),
+      () => render(edited, { fonts: 'none', load, previous: memory }),
+    );
+    const r = await render(edited, { fonts: 'none', load, previous: memory });
+    expect(r.placed!.memory!.variant).toBe(memory.variant);
+    expect(r.placed!.memory!.shape).toBe(memory.shape);
+    const far = [...memory.nodes!].filter(([id, p]) => Math.hypot(r.placed!.memory!.nodes!.get(id)!.x - p.x, r.placed!.memory!.nodes!.get(id)!.y - p.y) > 48);
+    expect(far.map(([id]) => id)).toEqual([]);
+    // Taken in turns, so a busy machine slows both: one way drawn is a small part of the search.
+    expect(again).toBeLessThan(fresh / 3);
+    expect(again).toBeLessThan(budget(300));
+  }, 30_000);
+
+  it('the same diagram drawn again comes out exactly as it was', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const again = await render(text, { fonts: 'none', load, previous: first.placed!.memory });
+    expect(again.svg).toBe(first.svg);
+  });
+
+  it('a pin moved keeps the way it was drawn and costs no search', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const shop = first.placed!.nodes.get('cdn')!;
+    const shift = first.placed!.shift!;
+    const sidecar = (dy: number) => ({ version: 1 as const, nodes: { cdn: { x: shop.x + shift.x, y: shop.y + shift.y + dy } }, layout: { variant: first.placed!.memory!.variant } });
+    const [fresh, pinned] = await race(
+      () => render(text, { fonts: 'none', load, previous: null }),
+      () => render(text, { fonts: 'none', load, sidecar: sidecar(48), previous: first.placed!.memory }),
+    );
+    const r = await render(text, { fonts: 'none', load, sidecar: sidecar(48), previous: first.placed!.memory });
+    expect(r.placed!.memory!.variant).toBe(first.placed!.memory!.variant);
+    expect(pinned).toBeLessThan(fresh / 3);
+  }, 30_000);
+
+  it('a diagram that changed shape (a card added) is laid out afresh', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const added = text.replace('nodes:\n', 'nodes:\n  extra: { kind: users, label: Partners }\n');
+    const r = await render(added, { fonts: 'none', load, previous: first.placed!.memory });
+    expect(r.placed!.memory!.shape).not.toBe(first.placed!.memory!.shape);
+    expect(r.placed!.nodes.has('extra')).toBe(true);
   });
 });
 
@@ -508,6 +571,31 @@ describe('slide shape', () => {
     expect(shape(wide)).toBeGreaterThan(3);
     const bad = await render(pipeline.replace('direction: right', 'direction: right\naspect: square'), { fonts: 'none' });
     expect(bad.diagnostics.map((d) => d.message).join()).toMatch(/aspect/);
+  });
+  it('weighs crossings, lines back and empty room against the size on the page', () => {
+    // Twice the size is worth a crossing and more; a crossing is not worth 10% more size.
+    expect(slideReadability(1, 1, 0)).toBeGreaterThan(slideReadability(0.5, 0, 0));
+    expect(slideReadability(1.1, 1, 0)).toBeLessThan(slideReadability(1, 0, 0));
+    expect(slideReadability(1, 0, 0, 0.3)).toBeLessThan(slideReadability(1, 0, 0));
+  });
+  it('fits the wide examples nearer a slide', async () => {
+    for (const [file, most] of [['cloud/multi-cloud.yaml', 2.2], ['states/pull-request.yaml', 2.4], ['systems/web-shop.yaml', 2.2]] as const) {
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+      expect(shape(r), file).toBeLessThan(most);
+    }
+  });
+  it('knows its page: 16:9 by default, 4:3 and A4 by name, none with auto', async () => {
+    const page = async (aspect?: string) => (await render(aspect ? pipeline.replace('direction: right', `direction: right\naspect: ${aspect}`) : pipeline, { fonts: 'none' })).page;
+    expect(await page()).toMatchObject({ name: '16:9 slide', width: 1280, height: 720 });
+    expect(await page('4:3')).toMatchObject({ name: '4:3 slide' });
+    expect(await page('a4')).toMatchObject({ name: 'A4 landscape' });
+    expect(await page('A4 portrait')).toMatchObject({ name: 'A4 portrait', width: 794, height: 1123 });
+    expect(await page('auto')).toBeUndefined();
+    // The readable part of a page: where the smallest text is still SLIDE_MIN_PT.
+    const r = await render(pipeline, { fonts: 'none' });
+    const area = readableArea(r.svg!, r.page!)!;
+    expect(area.width / area.height).toBeCloseTo(16 / 9);
+    expect(slideTextPt(r.svg!, area.width, area.height)).toBeCloseTo(SLIDE_MIN_PT);
   });
   it('knows how small the text gets on a 16:9 slide', async () => {
     const small = await render('type: azure\nnodes:\n  a: app-service\n  b: sql-database\nedges:\n  - a -> b\n', { fonts: 'none' });

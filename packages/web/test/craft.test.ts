@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@cartography/engine';
-import { arrange, bendsOf, dragSegment, nearestSegment, nearestToward, snapBox, viewFor } from '../src/craft.ts';
+import { arrange, bendAt, bendsOf, dragSegment, nearestSegment, nearestToward, removeBend, snapBox, viewFor } from '../src/craft.ts';
 
 const box = (x: number, y: number, width = 100, height = 50) => ({ x, y, width, height });
 
@@ -86,5 +86,29 @@ describe('a dragged segment, drawn again', () => {
     const bent = await render(text, { fonts: 'none', sidecar: { version: 1, edges: { e2: { via: bendsOf(moved) } } } });
     expect(pinSpace(bent, bent.placed!.edges.get('e2')!.points)).toEqual(moved);
     for (const id of ['a', 'b', 'c', 'd']) expect(pinSpace(bent, [bent.placed!.nodes.get(id)!])).toEqual(pinSpace(free, [free.placed!.nodes.get(id)!]));
+  });
+});
+
+describe('taking a bend out', () => {
+  const step = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 40 },
+    { x: 300, y: 40 },
+    { x: 300, y: 120 },
+    { x: 400, y: 120 },
+  ];
+  const orthogonal = (pts: { x: number; y: number }[]) => pts.slice(1).every((q, i) => q.x === pts[i]!.x || q.y === pts[i]!.y);
+  it('collapses the shorter piece at the bend: two bends fewer, still orthogonal, ends where they were', () => {
+    const out = removeBend(step, 2)!;
+    expect(orthogonal(out)).toBe(true);
+    expect(out[0]).toEqual(step[0]);
+    expect(out.at(-1)).toEqual(step.at(-1));
+    expect(out.length).toBe(step.length - 2);
+  });
+  it('finds the bend under the pointer, never an end', () => {
+    expect(bendAt(step, { x: 103, y: 38 }, 8)).toBe(2);
+    expect(bendAt(step, { x: 0, y: 0 }, 8)).toBeUndefined();
+    expect(removeBend(step, 0)).toBeUndefined();
   });
 });

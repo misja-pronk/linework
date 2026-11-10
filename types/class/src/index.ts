@@ -611,7 +611,7 @@ export const classDiagram: DiagramType<ClassSource> = {
   build,
   references,
   // Parents above their children, whatever shape the slide has.
-  tuning: { autoDirection: false },
+  tuning: { autoDirection: false, wrap: false },
   connect(src, from, to) {
     if (!src.classes || !Object.hasOwn(src.classes, from) || !Object.hasOwn(src.classes, to)) return 'Connect one class to another';
     return { path: ['relations'], value: `${from} --> ${to}` };
