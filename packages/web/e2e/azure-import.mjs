@@ -28,7 +28,7 @@ const drop = (files) =>
     at.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
   }, files);
 
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5194/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(async () => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
