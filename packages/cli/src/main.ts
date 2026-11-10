@@ -58,6 +58,11 @@ const helpAll = `carto — architecture diagrams that look good
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
+  carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
+               [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
+                                                details, print; works offline from disk. A file brings the
+                                                diagrams it drills into; a folder gets a contents page.
+                                                --notes: the open review notes too. More: docs/html-export.md
   carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
@@ -165,7 +170,7 @@ const usage = new Map<string, string>();
 {
   let current = '';
   for (const line of helpAll.split('\n').slice(2)) {
-    const m = /^  carto (\w+)/.exec(line);
+    const m = /^  carto ([\w-]+)/.exec(line);
     if (m) current = m[1]!;
     else if (!line.startsWith('   ')) current = '';
     if (current) usage.set(current, (usage.has(current) ? usage.get(current) + '\n' : '') + line);
@@ -179,6 +184,7 @@ const groups: [string, [string, string][]][] = [
     ['deck', 'several diagrams in one deck'],
     ['watch', 'render again on every save'],
     ['embed', 'a web page that carries the drawing'],
+    ['export-html', 'one HTML file to send, every view inside'],
     ['share', 'a link that opens the diagram in the web app'],
   ]],
   ['Check', [
@@ -1459,6 +1465,19 @@ async function main(): Promise<number> {
       else if (r.ok || values.fragment) fs.writeFileSync(out, r.html);
       if (out && r.ok) console.error(`${f} → ${out}`);
       return r.ok ? 0 : 1;
+    }
+    case 'export-html': {
+      const [f] = files;
+      if (!f || files.length > 1) return (console.error(helpFor(command)), 1);
+      if (!fs.existsSync(f)) return (console.error(`${f}: no such file or folder`), 1);
+      if (!themeFlag()) return 1;
+      const { exportHtmlFile } = await import('./html-export.ts');
+      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale } });
+      for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red('error')}  ${p.message}`);
+      if (!r.stats.drawings) return (console.error(`${f}: nothing to draw`), 1);
+      const s = r.stats;
+      console.log(`${f} → ${r.file} ${dim(`${s.drawings} drawing${s.drawings === 1 ? '' : 's'}${s.steps ? `, ${s.steps} steps` : ''}, ${s.elements} elements, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
+      return r.problems.length ? 1 : 0;
     }
     case 'threats': {
       const [f] = files;

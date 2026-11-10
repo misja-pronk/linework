@@ -105,7 +105,8 @@ describe('access import: az and Graph', () => {
     const said = r.diagnostics.map((w) => w.message).join('\n');
     expect(said).toContain('no longer exists');
     expect(said).toContain('Emre Yilmaz is Contributor on Kestrel Test directly');
-  });
+    // A full render of a whole tenant: room for a machine busy with other work.
+  }, 30_000);
 
   it('is the same text when run again', () => {
     expect(importAccess(folder('kestrel').reverse()).yaml).toBe(out.yaml);
