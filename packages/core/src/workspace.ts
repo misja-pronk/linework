@@ -90,6 +90,8 @@ export interface WsFile {
   views: WsView[];
   entries: WsEntry[];
   sites: (WsSite & { line?: number })[];
+  /** The diagram a traced sequence came from (`traced: { file }`): its model is in scope here, as an include's is. */
+  traced?: string;
 }
 
 /** Where an element appears: a drawing (file and view) and how it is named there. */
@@ -133,7 +135,7 @@ const str = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? St
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : v == null ? [] : [v]);
 
 /** Keys that are not collections of entries. */
-const NOT_ENTRIES = new Set(['type', 'title', 'subtitle', 'direction', 'include', 'elements', 'relations', 'views', 'focus', 'steps', 'theme', 'icons', 'aspect', 'badges', 'view', 'provider', 'edges']);
+const NOT_ENTRIES = new Set(['type', 'title', 'subtitle', 'direction', 'include', 'traced', 'elements', 'relations', 'views', 'focus', 'steps', 'theme', 'icons', 'aspect', 'badges', 'view', 'provider', 'edges']);
 
 /** Types that resolve the model into their nodes and groups (ref:, of:, views). */
 export const GRAPH_TYPES = new Set(['model', 'c4', 'systems', 'azure', 'cloud', 'kubernetes', 'network']);
@@ -158,6 +160,7 @@ export function indexFile(file: string, text: string): WsFile {
   const data = src.data;
   out.type = str(data.type);
   out.title = str(data.title);
+  if (isMap(data.traced) && typeof data.traced.file === 'string') out.traced = joinPath(dirOf(file), data.traced.file);
   for (const [i, rel] of includesOf(data).entries()) out.includes.push({ rel, file: joinPath(dirOf(file), rel), line: line(['include', Array.isArray(data.include) ? i : []].flat() as Path) });
 
   const walk = (map: unknown, parent: string | undefined, base: Path) => {
@@ -288,7 +291,8 @@ export function sitesOf(data: Record<string, unknown>): WsSite[] {
     const walk = (v: unknown, path: Path) => {
       if (typeof v === 'string') return /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(v) && out.push({ path, form: 'id', how: 'name', text: v });
       if (Array.isArray(v)) return v.forEach((x, i) => walk(x, [...path, i]));
-      if (isMap(v)) for (const [k, x] of Object.entries(v)) if (!PROSE.has(k)) walk(x, [...path, k]);
+      // A participant's ref: is listed as one below, not once more as a name.
+      if (isMap(v)) for (const [k, x] of Object.entries(v)) if (!PROSE.has(k) && !(k === 'ref' && path[0] === 'participants' && path.length === 2)) walk(x, [...path, k]);
     };
     for (const [k, v] of Object.entries(data)) if (!NOT_ENTRIES.has(k)) walk(v, [k]);
   }
@@ -305,7 +309,7 @@ export function sitesOf(data: Record<string, unknown>): WsSite[] {
       deployment(raw.nodes, [...at, 'nodes'], name);
       edges(raw.edges, [...at, 'edges'], 'edge', name);
     }
-  for (const coll of ['nodes', 'groups']) {
+  for (const coll of ['nodes', 'groups', 'participants']) {
     const m = data[coll];
     if (!isMap(m)) continue;
     for (const [k, raw] of Object.entries(m)) {
@@ -388,6 +392,8 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
       if (seen.includes(f)) return;
       seen.push(f);
       for (const inc of files.get(f)?.includes ?? []) if (files.has(inc.file)) visit(inc.file);
+      const traced = files.get(f)?.traced;
+      if (traced && files.has(traced)) visit(traced);
     };
     visit(file);
     scope.set(file, seen);
@@ -453,6 +459,8 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
         }
         // Rules and lines may name the diagram's own entries; a ref:, of:, instance or a view's of: names the model.
         if (localIds.has(id) || localIds.has(id.split('.')[0]!)) continue;
+        // A traced participant may stand for a node of the diagram it was traced from (no model there).
+        if (s.path[0] === 'participants' && f.traced && files.get(f.traced)?.entries.some((e) => e.id === id)) continue;
         if (s.how === 'selector' || s.how === 'edge') {
           if (!id.includes('.') && !els.size) continue;
         }

@@ -47,6 +47,7 @@ import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
+import { useTrace } from './trace/use-trace.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { AnimateDialog } from './animate-dialog.tsx';
@@ -1522,6 +1523,35 @@ export function App() {
     notify,
   });
 
+  // Trace a request through the drawing into a sequence diagram (trace/).
+  const trace = useTrace({
+    ws,
+    file: ws && doc.path ? doc.path : docId,
+    inFolder: !!(ws && doc.path),
+    text: rendered?.text ?? text,
+    drawn,
+    current,
+    selection,
+    theme,
+    index: wsTools.index,
+    // In a folder the diagram traced is saved first; outside one the toast's Undo brings it back.
+    openNew: (next, name, path) =>
+      void (path ? leave() : Promise.resolve(true)).then((ok) => {
+        if (!ok) return;
+        fileHandle.current = undefined;
+        open(next, path ? { name, path } : { name }, undefined, false, `Traced into ${name}: ⌘S keeps it`);
+        if (path) notify(`Traced into ${path}: ⌘S writes it into the folder`);
+        setSavedText(null);
+        focusDrawing();
+      }),
+    replace: (next, name) => {
+      editor.current?.replace(next);
+      if (name) setPicked({ doc: docId, name });
+    },
+    go: (p) => void wsTools.go(p),
+    notify,
+  });
+
   // ------------------------------------------------------------ commands
 
   // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
@@ -1552,6 +1582,7 @@ export function App() {
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
+    ...trace.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
@@ -1673,7 +1704,7 @@ export function App() {
       }
       // "?" opens the shortcuts, unless someone is typing.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
-      if (!modal && !presenting && wsTools.onKey(e, mod(e), !!typing)) return e.preventDefault();
+      if (!modal && !presenting && (wsTools.onKey(e, mod(e), !!typing) || trace.onKey(e, mod(e), !!typing))) return e.preventDefault();
       if (e.key === '?' && !typing && !modal) {
         setModal('shortcuts');
         return e.preventDefault();
@@ -2364,6 +2395,7 @@ export function App() {
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
+      {trace.dialog}
       {noteMenu && (
         <div className="context-menu" style={{ left: noteMenu.x, top: noteMenu.y }}>
           <Menu onClose={() => setNoteMenu(undefined)}>
@@ -2378,6 +2410,7 @@ export function App() {
             <button role="menuitem" onClick={() => setNotesOpen(true)}>
               <Icon name="message-square" /> Show the notes
             </button>
+            {trace.menuItems(() => setNoteMenu(undefined))}
           </Menu>
         </div>
       )}
