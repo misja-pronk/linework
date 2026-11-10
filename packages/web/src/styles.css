@@ -166,6 +166,34 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: none;
+}
+/* The header is one line at any width: the document name gives way first, then the key hints and
+   the labels of the quieter buttons (their names stay in the tooltips). */
+.topbar {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.topbar .view-switch {
+  flex-wrap: nowrap;
+}
+.topbar .view-switch button {
+  white-space: nowrap;
+}
+.doc-name {
+  flex: 1 1 auto;
+}
+@media (max-width: 1360px) {
+  .topbar .actions .button.ghost kbd {
+    display: none;
+  }
+}
+@media (max-width: 1220px) {
+  .topbar .actions .button.ghost {
+    font-size: 0;
+    gap: 0;
+    padding: 0 8px;
+  }
 }
 
 .button {
@@ -283,11 +311,10 @@ kbd {
 
 .workspace {
   display: grid;
-  grid-template-columns: var(--split) 1px 1fr;
+  /* Worked out in pane-layout.ts: the drawing keeps its room, the panes around it give way. */
+  grid-template-columns: var(--cols, 40% 1px 1fr);
   min-height: 0;
-}
-.workspace.with-inspector {
-  grid-template-columns: var(--split) 1px 1fr 300px;
+  position: relative;
 }
 .pane {
   min-width: 0;
@@ -765,6 +792,7 @@ kbd {
   left: 50%;
   bottom: 44px;
   transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
   z-index: 60;
   display: flex;
   align-items: center;
@@ -776,8 +804,17 @@ kbd {
   box-shadow: var(--shadow);
   animation: rise 160ms ease-out;
 }
-.app.with-hint .toast {
-  bottom: calc(44px + var(--hint-h, 72px) + 12px);
+/* Next to the drawing's tools, under them: never over the zoom bar, the hint or a panel (see Toast in app.tsx). */
+.toast.docked {
+  transform: none;
+  bottom: auto;
+  animation: drop 160ms ease-out;
+}
+@keyframes drop {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
 }
 .toast button {
   border: none;
@@ -976,6 +1013,41 @@ kbd {
 .tool kbd {
   background: none;
 }
+/* The toolbar fits the drawing's pane, however narrow: first the key hints go, then the labels
+   (they stay in the tooltips and for screen readers), then the less used tools fold into ⋯. */
+.canvas-pane {
+  container: canvas / inline-size;
+}
+.tool-overflow {
+  display: none;
+}
+span.tool-more {
+  display: contents;
+}
+@container canvas (max-width: 1080px) {
+  .canvas-tools .tool kbd {
+    display: none;
+  }
+}
+@container canvas (max-width: 860px) {
+  .canvas-tools .tool-label {
+    display: none;
+  }
+  .canvas-tools .tool {
+    gap: 0;
+  }
+  .view-picker select {
+    max-width: 150px;
+  }
+}
+@container canvas (max-width: 620px) {
+  .canvas-tools .tool-more {
+    display: none;
+  }
+  .canvas-tools .tool-overflow {
+    display: block;
+  }
+}
 
 /* Under the tools: what the drawing is cut down to, and the way back. */
 .focus-chip {
@@ -1114,6 +1186,7 @@ kbd {
   overflow-y: auto;
   padding: 10px 14px 6px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 .field {
@@ -1295,12 +1368,137 @@ kbd {
 
 /* ------------------------------------------------------------- files */
 
-.workspace.with-files {
-  grid-template-columns: 220px var(--split) 1px 1fr;
+/* A folded pane: a strip with its name on it, one click opens it again. */
+.rail {
+  min-height: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
 }
-.workspace.with-files.with-inspector {
-  grid-template-columns: 220px var(--split) 1px 1fr 300px;
+.rail-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
 }
+button.rail {
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  justify-content: flex-start;
+}
+.rail-button:hover,
+.rail-button[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--bg);
+}
+.rail-label {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 60vh;
+}
+/* Opened from its rail when there is no room beside: over the YAML and the drawing, until a file is picked. */
+.files.over {
+  position: absolute;
+  left: var(--rail-w, 40px);
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: 30;
+  box-shadow: var(--shadow);
+}
+.files header .icon-button {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+}
+.files-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold-yaml {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  opacity: 0.5;
+}
+.fold-yaml:hover,
+.fold-yaml:focus-visible {
+  opacity: 1;
+}
+
+/* The one panel on the right: properties, notes or Ask, on tabs. */
+.side {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.side > .inspector,
+.side > .ask-panel {
+  flex: 1;
+  border-left: none;
+}
+.side-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.side-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 520;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.side-tabs button:hover:not(:disabled) {
+  color: var(--text);
+}
+.side-tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.side-tabs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tab-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .files {
   min-height: 0;
   overflow-y: auto;
@@ -1448,6 +1646,7 @@ kbd {
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
 }
 .connections li {
@@ -1475,12 +1674,19 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.connection span {
+  flex: none;
+  max-width: 60%;
+}
 .connection em {
   margin-left: auto;
+  min-width: 0;
   font-style: normal;
   font-size: 12px;
   color: var(--text-faint);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .connection:hover {
   background: var(--bg);
@@ -1524,24 +1730,31 @@ kbd {
     color: var(--accent);
     font-weight: 550;
   }
-  .workspace,
-  .workspace.with-files,
-  .workspace.with-inspector,
-  .workspace.with-files.with-inspector {
+  .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
   .splitter,
-  .files {
+  .files,
+  .rail,
+  .fold-yaml {
     display: none;
+  }
+  /* One pane at a time here: the YAML shows on its tab even when it is folded on a wide screen. */
+  .workspace.yaml-is-rail.show-yaml .editor-pane {
+    display: block;
   }
   .workspace.show-drawing .editor-pane,
   .workspace.show-yaml .canvas-pane,
-  .workspace.show-yaml .inspector {
+  .workspace.show-yaml .side {
     display: none;
   }
-  .inspector {
+  .side {
     max-height: 45vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .inspector {
     border-left: none;
     border-top: 1px solid var(--border);
   }
@@ -1581,7 +1794,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: min(400px, calc(100% - 260px));
+  /* Clear of the zoom bar on the right (it is about 280 px wide). */
+  max-width: min(420px, calc(100% - 340px));
   padding: 9px 8px 9px 16px;
   border-radius: 12px;
   background: var(--surface);
@@ -1593,21 +1807,21 @@ kbd {
 .hint kbd {
   color: var(--text);
 }
+/* A narrow drawing: the hint sits above the zoom bar, the full width of the pane, and the minimap
+   (which would have no room of its own) stays away. */
+@container canvas (max-width: 760px) {
+  .hint {
+    bottom: 64px;
+    right: 16px;
+    max-width: none;
+  }
+  .minimap {
+    display: none;
+  }
+}
 
 /* ------------------------------------------------------------- builder view */
 
-.workspace.view-visual {
-  grid-template-columns: 248px 1fr;
-}
-.workspace.view-visual.with-inspector {
-  grid-template-columns: 248px 1fr 300px;
-}
-.workspace.view-visual.with-files {
-  grid-template-columns: 220px 248px 1fr;
-}
-.workspace.view-visual.with-files.with-inspector {
-  grid-template-columns: 220px 248px 1fr 300px;
-}
 .workspace.view-visual .editor-pane,
 .workspace.view-visual .splitter {
   display: none;
@@ -2177,10 +2391,7 @@ kbd {
   }
 }
 @media (max-width: 860px) {
-  .workspace.view-visual,
-  .workspace.view-visual.with-inspector,
-  .workspace.view-visual.with-files,
-  .workspace.view-visual.with-files.with-inspector {
+  .workspace.view-visual {
     grid-template-columns: 1fr;
   }
   .workspace.view-visual.show-yaml .editor-pane {

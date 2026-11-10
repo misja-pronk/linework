@@ -260,5 +260,9 @@ export function useWorkspaceTools(h: Host) {
     </>
   );
 
-  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, dialogs, open: dialog !== undefined };
+  /** Where the selected element is defined, when that is another file than this one (an included model). */
+  const definedUse = selectedElement ? (index.uses.get(selectedElement) ?? []).find((u) => u.how === 'defined') : undefined;
+  const definedElsewhere = definedUse && definedUse.file !== h.file ? { file: definedUse.file, line: definedUse.line, kind: index.elements.get(selectedElement!)?.[0]?.kind, open: () => void go({ file: definedUse.file, line: definedUse.line }) } : undefined;
+
+  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, definedElsewhere, dialogs, open: dialog !== undefined };
 }

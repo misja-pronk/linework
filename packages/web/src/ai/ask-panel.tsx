@@ -51,6 +51,8 @@ export interface AskPanelProps {
   onAccept(yaml: string, renames: Map<string, string>): void;
   onRef(r: Ref): void;
   onClose(): void;
+  /** Behind another tab of the side panel: kept, conversation and all, but out of sight and keys. */
+  hidden?: boolean;
 }
 
 export function AskPanel(p: AskPanelProps) {
@@ -80,7 +82,7 @@ export function AskPanel(p: AskPanelProps) {
     setProgress(undefined);
   }, [p.docKey]);
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => box.current?.focus(), []);
+  useEffect(() => void (!p.hidden && box.current?.focus()), [p.hidden]);
   useEffect(() => {
     if (!p.seed) return;
     setQuestion(p.seed.text);
@@ -176,6 +178,7 @@ export function AskPanel(p: AskPanelProps) {
   // ⏎ accepts and Esc rejects an open proposal from anywhere but a text field; Esc also stops a run.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (p.hidden) return;
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
       if (e.key === 'Escape' && busy) {
         cancel();
@@ -197,7 +200,7 @@ export function AskPanel(p: AskPanelProps) {
 
   const what = ctx(question);
   return (
-    <aside className="ask-panel" ref={panel} aria-label="Ask Claude" onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
+    <aside className="ask-panel" ref={panel} aria-label="Ask Claude" hidden={p.hidden} onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
       <header>
         <Icon name="sparkles" size={16} />
         <strong>Ask Claude</strong>

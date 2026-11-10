@@ -866,6 +866,12 @@ export function Preview(p: Props) {
       aria-roledescription="drawing"
       aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
       aria-label="Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes."
+      // The pane pans by its transform, never by scrolling: a browser that scrolls it to bring a focused
+      // link into view (after an edit, a click on a linked element did) would shift everything off its place.
+      onScroll={(e) => {
+        e.currentTarget.scrollTop = 0;
+        e.currentTarget.scrollLeft = 0;
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => end(e, false)}

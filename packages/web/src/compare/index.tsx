@@ -293,7 +293,8 @@ export function useCompare(ctx: CompareContext) {
     </button>
   );
 
-  return { active: !!baseline, commands, view, dialogs, button };
+  const toggle = () => (baseline ? setBaseline(undefined) : void choose());
+  return { active: !!baseline, commands, view, dialogs, button, toggle };
 }
 
 function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Promise<Snapshot[]>; onCancel(): void; onTake(label: string, toFolder: boolean): void }) {

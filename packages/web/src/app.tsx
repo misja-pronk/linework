@@ -27,6 +27,7 @@ const EXPORT_ENTRY = {
   azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
+import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
 import { renamePins } from './ai/ask.ts';
@@ -90,6 +91,33 @@ function useSystemDark() {
 }
 
 /** Debounced value that passes straight through when `key` changes (another document). */
+/** The window's width, for sharing it out between the panes (pane-layout.ts). */
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return w;
+}
+
+/**
+ * Puts a toast just under the drawing's tools, at their left: where the eyes are after an action, and
+ * never over the zoom bar, the hint or a panel. Without a drawing on screen (a phone on the YAML tab)
+ * it stays at the bottom of the window.
+ */
+function dockToast(el: HTMLDivElement | null) {
+  if (!el) return;
+  const top = [...document.querySelectorAll('.canvas-top > *')].filter((x) => (x as HTMLElement).offsetParent);
+  const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
+  if (!top.length || !pane?.width) return el.classList.remove('docked');
+  el.classList.add('docked');
+  el.style.top = `${Math.max(...top.map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
+  el.style.left = `${pane.left + 16}px`;
+  el.style.maxWidth = `${pane.width - 32}px`;
+}
+
 function useDebounced<T>(value: T, ms: number, key: unknown): T {
   const [state, setState] = useState({ value, key });
   if (state.key !== key) setState({ value, key });
@@ -179,6 +207,8 @@ export function App() {
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
+  /** The drawing's tools that fold into ⋯ when the pane is narrow. */
+  const [toolsMore, setToolsMore] = useState(false);
   /** The type pill's card: what this type is for, and the way to the type guide. */
   const [typeCard, setTypeCard] = useState(false);
   /** Opened from the type pill: the dialog marks the open diagram's type. */
@@ -187,6 +217,16 @@ export function App() {
   /** All an import or export had to say (the toast says the first), for the document it was about: listed with the problems. */
   const [notes, setNotes] = useState<{ doc: string; title: string; items: string[] }>();
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
+  /** The file list and the YAML as people left them: open, or folded to a rail (pane-layout.ts). */
+  const [filesPref, setFilesPrefState] = useState<'list' | 'rail'>(() => (store.get('files') === 'rail' ? 'rail' : 'list'));
+  const setFilesPref = (v: 'list' | 'rail') => (setFilesPrefState(v), store.set('files', v));
+  const [yamlFolded, setYamlFoldedState] = useState(() => store.get<boolean>('yaml-folded') === true);
+  const setYamlFolded = (v: boolean) => (setYamlFoldedState(v), store.set('yaml-folded', v), setForceYaml(false));
+  /** The YAML opened from its rail although there is no room: it stays open until folded again. */
+  const [forceYaml, setForceYaml] = useState(false);
+  /** The file list over the drawing, opened from its rail when there is no room for it beside. */
+  const [filesOver, setFilesOver] = useState(false);
+  const windowWidth = useWindowWidth();
   const editor = useRef<EditorHandle>(null);
   const openedText = useRef<string | null>(null);
   const [ws, setWs] = useState<Workspace>();
@@ -224,11 +264,15 @@ export function App() {
   const [presenting, setPresenting] = useState(false);
   /** The Ask panel (⌘J), and a question the palette put in it. */
   const [asking, setAsking] = useState(false);
+  /** The Ask panel stays mounted (its conversation kept) behind another tab until it is closed. */
+  const [askKept, setAskKept] = useState(false);
   const [askSeed, setAskSeed] = useState<{ text: string; n: number }>();
   const askWith = (q?: string) => {
     setAsking(true);
+    setAskKept(true);
     if (q) setAskSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 }));
   };
+  const toggleAsk = () => (asking ? setAsking(false) : askWith());
   // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
   const [lens, setLens] = useState<{ doc: string; view?: string; focus: { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null }>();
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
@@ -360,7 +404,8 @@ export function App() {
   };
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(undefined), toast.action || toast.tone ? 7000 : 2600);
+    // Gone within five seconds; one with an action to take waits a little longer for it.
+    const t = setTimeout(() => setToast(undefined), toast.action ? 8000 : toast.tone ? 5000 : 3500);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -1448,8 +1493,20 @@ export function App() {
         : [],
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
-  // The Ask panel takes the right side while it is open: the inspector and notes would squeeze the drawing between the two.
-  const showInspector = !asking && (notesOpen || !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
+  /** The selection has properties to show (one element, or several to arrange). */
+  const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
+  /** One panel on the right, with tabs: the selection's properties, the review notes, or Ask. */
+  const sideTab: 'properties' | 'notes' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : 'properties';
+  const showInspector = sideTab === 'properties' && inspector && hasProperties;
+  const sideOpen = asking || notesOpen || showInspector;
+  const showSide = (tab: typeof sideTab) => {
+    setAsking(tab === 'ask');
+    if (tab === 'ask') setAskKept(true);
+    if (tab !== 'notes' && notesOpen) toggleNotes();
+    else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
+    if (tab === 'properties') setInspector(true);
+  };
+  const panes = paneLayout({ width: windowWidth, folder: !!ws, files: filesPref, view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen });
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1534,7 +1591,7 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: () => (asking ? setAsking(false) : askWith()) },
+    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: toggleAsk },
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
@@ -1668,7 +1725,7 @@ export function App() {
       if (e.defaultPrevented || e.altKey || !mod(e)) return;
       const k = e.key.toLowerCase();
       if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
-      else if (k === 'j' && !e.shiftKey) setAsking((a) => !a);
+      else if (k === 'j' && !e.shiftKey) toggleAsk();
       else if (k === 's' && !e.shiftKey) saveYaml();
       else if (k === 'o' && !e.shiftKey) openFile();
       else if (k === 'e') e.shiftKey ? savePng() : saveSvg();
@@ -1697,7 +1754,9 @@ export function App() {
   const dragSplit = (e: React.PointerEvent) => {
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => setSplit(Math.min(0.7, Math.max(0.2, ev.clientX / window.innerWidth)));
+    // The YAML's wanted width, from its left edge (the file list is beside it in a folder).
+    const left = el.parentElement!.getBoundingClientRect().left + panes.files;
+    const move = (ev: PointerEvent) => setSplit(Math.min(0.7, Math.max(0.15, (ev.clientX - left) / window.innerWidth)));
     const up = () => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
@@ -1779,10 +1838,10 @@ export function App() {
               <Icon name="code" /> YAML
             </button>
           </div>
-          <button className="button ghost wide-only" onClick={() => setModal('templates')}>
+          <button className="button ghost wide-only" onClick={() => setModal('templates')} title="A new diagram: from a template, a wizard, an example or an import">
             <Icon name="file-plus" /> New
           </button>
-          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Command palette">
+          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Commands, elements and templates (⌘K)">
             <Icon name="search" /> Commands <kbd>⌘K</kbd>
           </button>
           {/* On a phone the actions above fold into one menu. */}
@@ -1904,21 +1963,39 @@ export function App() {
           <Icon name="image" /> Drawing
         </button>
       </nav>
-      <main className={`workspace view-${view}${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''} show-${pane}`}>
-        {ws && (
-          <nav className="files" aria-label={`Diagrams in ${ws.name}`}>
+      <main
+        className={`workspace view-${view}${sideOpen ? ' with-side' : ''}${ws ? ' with-files' : ''} files-is-${panes.filesMode} yaml-is-${panes.editorMode} show-${pane}`}
+        style={{ ['--cols' as string]: paneColumns(panes, sideOpen) }}
+      >
+        {ws && panes.filesMode === 'rail' && (
+          <nav className="rail files-rail" aria-label={`Diagrams in ${ws.name}`}>
+            <button
+              className="rail-button"
+              onClick={() => (paneLayout({ width: windowWidth, folder: true, files: 'list', view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen }).filesMode === 'list' ? setFilesPref('list') : setFilesOver((o) => !o))}
+              aria-expanded={filesOver}
+              title={`The diagrams in ${ws.name}`}
+            >
+              <Icon name="folder-open" size={16} />
+              <span className="rail-label">{ws.name}</span>
+            </button>
+          </nav>
+        )}
+        {ws && (panes.filesMode === 'list' || filesOver) && (
+          <nav className={panes.filesMode === 'list' ? 'files' : 'files over'} aria-label={`Diagrams in ${ws.name}`} onKeyDown={(e) => e.key === 'Escape' && filesOver && (setFilesOver(false), e.stopPropagation())}>
             <header>
-              <Icon name="folder-open" size={14} /> {ws.name}
+              <Icon name="folder-open" size={14} /> <span className="files-name">{ws.name}</span>
+              <button className="icon-button small" onClick={() => (filesOver ? setFilesOver(false) : setFilesPref('rail'))} title={filesOver ? 'Close the file list' : 'Fold the file list to the side'} aria-label="Fold the file list">
+                <Icon name="panel-left-close" size={14} />
+              </button>
             </header>
             {diagrams(ws).map((p) => (
-              <button key={p} className={doc.path === p ? 'file active' : 'file'} onClick={() => void openInFolder(ws, p)} title={p} aria-current={doc.path === p}>
+              <button key={p} className={doc.path === p ? 'file active' : 'file'} onClick={() => (setFilesOver(false), void openInFolder(ws, p))} title={p} aria-current={doc.path === p}>
                 <Icon name="file-code" size={14} />
                 <span>{p}</span>
                 {doc.path === p && dirty && <span className="dirty" />}
               </button>
             ))}
             {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
-            {wsTools.wherePanel}
           </nav>
         )}
         {view === 'visual' && type && (
@@ -1926,7 +2003,23 @@ export function App() {
             <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
           </aside>
         )}
-        <section className="pane editor-pane" aria-label="YAML">
+        {panes.editorMode === 'rail' && (
+          <button
+            className="rail rail-button yaml-rail"
+            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : setYamlFolded(false))}
+            title={panes.editorSqueezed ? 'Show the YAML (the window is narrow: the drawing gets less room)' : 'Show the YAML'}
+            aria-label="Show the YAML"
+          >
+            <Icon name="code" size={16} />
+            <span className="rail-label">YAML</span>
+          </button>
+        )}
+        <section className="pane editor-pane" aria-label="YAML" hidden={panes.editorMode === 'rail'}>
+          {view === 'code' && (
+            <button className="icon-button small fold-yaml" onClick={() => setYamlFolded(true)} title="Fold the YAML to the side: more room for the drawing" aria-label="Fold the YAML">
+              <Icon name="panel-left-close" size={14} />
+            </button>
+          )}
           <Editor
             ref={editor}
             initial={text}
@@ -1948,6 +2041,7 @@ export function App() {
         </section>
         <div
           className="splitter"
+          hidden={panes.editorMode === 'rail'}
           onPointerDown={dragSplit}
           role="separator"
           tabIndex={0}
@@ -2030,8 +2124,8 @@ export function App() {
             <div className="canvas-top">
             {wsTools.crumbBar}
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
-                <Icon name="plus" /> Add <kbd>A</kbd>
+              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-label="Add a shape" aria-expanded={adding} disabled={!type}>
+                <Icon name="plus" /> <span className="tool-label">Add</span> <kbd>A</kbd>
               </button>
               <button className="tool" onClick={() => editor.current?.undo()} title="Undo (⌘Z)" aria-label="Undo">
                 <Icon name="undo-2" />
@@ -2040,33 +2134,59 @@ export function App() {
                 <Icon name="redo-2" />
               </button>
               <button className="tool" onClick={tidyLayout} title="Tidy: lay out again what is not pinned, pins stay (T)" aria-label="Tidy">
-                <Icon name="sparkles" />
+                <Icon name="layout-grid" />
               </button>
               {(vpins || drawnLayout?.held) && (
-                <button className="tool" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⇧T, ⌘Z undoes it)" aria-label="Reset layout">
+                <button className="tool tool-more" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⌘Z undoes it)" aria-label="Tidy all">
                   <Icon name="pin-off" />
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
-              <button className={drawn?.focus ? 'tool active' : 'tool'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" disabled={!selection.length && !focusOn}>
-                <Icon name="focus" /> Focus <kbd>F</kbd>
+              <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" aria-label="Focus" disabled={!selection.length && !focusOn}>
+                <Icon name="focus" /> <span className="tool-label">Focus</span> <kbd>F</kbd>
               </button>
               {!stepList.length && (
-                <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
-                  <Icon name="layers" /> Step <kbd>S</kbd>
+                <button className="tool tool-more" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" aria-label="Add a step" disabled={!type}>
+                  <Icon name="layers" /> <span className="tool-label">Step</span> <kbd>S</kbd>
                 </button>
               )}
-              {comparing.button}
-              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
-                <Icon name="play" /> Present <kbd>P</kbd>
+              <span className="tool-more">{comparing.button}</span>
+              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" aria-label="Present" disabled={!drawn?.svg}>
+                <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
               </button>
-              <button className={asking ? 'tool active' : 'tool'} onClick={() => setAsking((a) => !a)} title="Ask Claude for a change or about the diagram (⌘J)" aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> Ask <kbd>⌘J</kbd>
+              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title="Ask Claude for a change or about the diagram (⌘J)" aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> <span className="tool-label">Ask</span> <kbd>⌘J</kbd>
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
+              {/* A narrow drawing: the tools that fold away are here, in the same order. */}
+              <div className="menu-anchor tool-overflow">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More tools">
+                  <span className="more-dots" aria-hidden="true">⋯</span>
+                </button>
+                {toolsMore && (
+                  <Menu onClose={() => setToolsMore(false)}>
+                    {(vpins || drawnLayout?.held) && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), tidyAll())}>
+                        <Icon name="pin-off" /> Tidy all
+                      </button>
+                    )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), focusOnSelection())} disabled={!selection.length && !focusOn}>
+                      <Icon name="focus" /> Focus <kbd>F</kbd>
+                    </button>
+                    {!stepList.length && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
+                        <Icon name="layers" /> Add a step <kbd>S</kbd>
+                      </button>
+                    )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
+                      <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'}
+                    </button>
+                  </Menu>
+                )}
+              </div>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
@@ -2138,8 +2258,23 @@ export function App() {
               onDelete={(n) => editSteps(deleteStep(textNow(), stepsPath(drawn?.view), n))}
             />
           )}
-          {asking && (
+        </section>
+        {sideOpen && (
+          <div className="side" role="region" aria-label="Side panel">
+            <div className="side-tabs" role="tablist" aria-label="Side panel">
+              <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
+                <Icon name="file-sliders" size={14} /> Properties
+              </button>
+              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title="Review notes (⇧N)">
+                <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
+              </button>
+              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title="Ask Claude (⌘J)">
+                <Icon name="sparkles" size={14} /> Ask Claude
+              </button>
+            </div>
+          {askKept && (
             <AskPanel
+              hidden={sideTab !== 'ask'}
               text={text}
               type={type}
               file={docFile}
@@ -2156,11 +2291,11 @@ export function App() {
               onRef={(r) => select(r)}
               onClose={() => {
                 setAsking(false);
+                setAskKept(false);
                 focusDrawing();
               }}
             />
           )}
-        </section>
         {notesOpen && !asking && (
           <NotesPanel
             review={review}
@@ -2190,14 +2325,14 @@ export function App() {
             onClose={toggleNotes}
           />
         )}
-            {showInspector && !notesOpen && selected && type && (selNode || selGroup || selEdge) && (
+        {showInspector && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
             id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
+            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : wsTools.definedElsewhere ? `${(wsTools.definedElsewhere.kind ?? 'element').replace(/-/g, ' ')} · from ${wsTools.definedElsewhere.file}` : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
             freeName={!!type.freeNames}
@@ -2249,9 +2384,12 @@ export function App() {
               editor.current?.pin(withViewPins(pins, drawn?.view, next && { ...next, locked: next.locked?.filter((id) => id !== selected.id) }));
             }}
             onClose={() => setInspector(false)}
-          />
+            definedIn={wsTools.definedElsewhere}
+          >
+            {wsTools.wherePanel}
+          </Inspector>
         )}
-        {showInspector && !notesOpen && selection.length > 1 && (
+        {showInspector && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">
@@ -2287,6 +2425,8 @@ export function App() {
               </button>
             </footer>
           </aside>
+        )}
+          </div>
         )}
       </main>
 
@@ -2381,7 +2521,7 @@ export function App() {
         </div>
       )}
       {toast && (
-        <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'}>
+        <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'} ref={dockToast} key={toast.message}>
           {toast.message}
           {toast.action && (
             <button

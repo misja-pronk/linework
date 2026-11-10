@@ -344,3 +344,29 @@ button.crumb:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* An element of an included model, selected here: where it is written, and the way there. */
+.defined-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.defined-in strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.defined-in > span {
+  flex: 1;
+  min-width: 0;
+}
+.inspector .where-used {
+  margin: 4px 0 0;
+}
