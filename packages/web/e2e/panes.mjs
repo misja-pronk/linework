@@ -87,6 +87,33 @@ async function run(width, height, theme) {
     if (mini && mini.width * mini.height > c.width * c.height * 0.08) fail(`${tag}: the minimap takes ${Math.round((100 * mini.width * mini.height) / (c.width * c.height))}% of the drawing`);
   });
 
+  // Zoomed in, the floating breadcrumbs and tools may sit over the drawing; fit and zoom to the
+  // selection never put what they show under them.
+  await step('fit and zoom to selection stay clear of the tools', async () => {
+    // The topmost and the bottommost element: a selection taller than wide, the case that ran under the tools.
+    const ends = await page.locator('.drawing [data-node]').evaluateAll((els) => {
+      const at = els.map((el) => [el.getAttribute('data-node'), el.getBoundingClientRect().top]).sort((a, b) => a[1] - b[1]);
+      return [at[0][0], at.at(-1)[0]];
+    });
+    await page.click(`.drawing [data-node="${ends[0]}"]`);
+    await page.click(`.drawing [data-node="${ends[1]}"]`, { modifiers: ['Shift'] });
+    await page.waitForTimeout(700);
+    await page.focus('.preview');
+    await page.keyboard.press('Shift+2');
+    await page.waitForTimeout(500);
+    const top = await box('.canvas-top');
+    const rings = await page.locator('.selection-ring').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
+    const ring = { y: Math.min(...rings) };
+    if (ring.y < top.y + top.height) fail(`${tag}: zoom to selection puts the element under the tools (${Math.round(ring.y)} < ${Math.round(top.y + top.height)})`);
+    await page.screenshot({ path: `${out}/panes-${tag}-1b-zoom-selection.png` });
+    await page.keyboard.press('Shift+1');
+    await page.waitForTimeout(500);
+    const shown = (await page.locator('.page-frame').count()) ? await box('.page-frame') : await box('.drawing svg');
+    if (shown.y < top.y + top.height) fail(`${tag}: fit puts the drawing under the tools (${Math.round(shown.y)} < ${Math.round(top.y + top.height)})`);
+    await page.click('.drawing [data-node="online.api"]');
+    await page.waitForTimeout(1400);
+  });
+
   await step('where used and the file it is defined in, with the selection', async () => {
     if (!(await page.locator('.side .where-used').count())) fail(`${tag}: where-used is not with the selection`);
     const defined = await page.locator('.side .defined-in').innerText();
