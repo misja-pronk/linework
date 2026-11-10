@@ -214,8 +214,8 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   for (const [id, p] of products) {
     const k = classes[p.class ?? ''] ?? classes['source-aligned']!;
     usedClasses.add(p.class ?? 'source-aligned');
-    // The status comes early: a long owner may push the end of a caption off the card.
-    const caption = p.caption ?? [k.label, p.status, p.owner, p.version != null && `v${p.version}`].filter(Boolean).join(' · ');
+    // The owner comes last: a long one is cut at the edge of the card, and a status or version cut in half says nothing.
+    const caption = p.caption ?? [k.label, p.status, p.version != null && `v${p.version}`, p.owner].filter(Boolean).join(' · ');
     const parent = domainOf(p.domain, ['products', id, 'domain']);
     if (!detailed.has(id)) {
       nodes.push({ id, parent, shape: { kind: 'card', label: p.label ?? id, caption, icon: k.icon, tone: k.tone }, path: ['products', id] });
