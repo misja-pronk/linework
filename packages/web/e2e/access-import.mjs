@@ -111,21 +111,23 @@ await page.waitForSelector('.drawing svg');
     // The diagram of the drop before is not kept: this is about the folder.
     window.confirm = () => true;
   }, files);
-  await page.click('button:has-text("Open folder")');
+  // All by keyboard, right after the folder is drawn: ⌘K, then ⌘S and Enter in the palette.
+  await page.keyboard.press('Meta+k');
+  await page.keyboard.type('open folder');
+  await page.keyboard.press('Enter');
   // No diagram in the folder yet: its exports are drawn straight away.
   await page.waitForSelector('.drawing [data-node="shop-production"]', { timeout: 15000 }).catch(() => fail('the folder of gh api responses was not drawn'));
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('→ github.yaml'), null, { timeout: 5000 }).catch(() => {});
   if (!(await toast()).includes('→ github.yaml')) fail('opening the folder should say where the diagram goes: ' + (await toast()));
-  // Saved from the palette: the new diagram is not in the folder until then.
-  await page.keyboard.press('Meta+k');
-  await page.keyboard.type('save github.yaml');
-  await page.click('.palette [role="option"]:has-text("Save github.yaml")');
+  // Saved with ⌘S: the new diagram is not in the folder until then.
+  await page.keyboard.press('Meta+s');
   await wait(800);
   const written = await page.evaluate(async () => {
     const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('kestrel-gh');
     return (await (await d.getFileHandle('github.yaml')).getFile()).text().catch(() => '');
   }).catch(() => '');
-  if (!/^type: github/m.test(written)) fail('saving should write github.yaml into the folder');
+  if (!/^type: github/m.test(written)) fail('⌘S should write github.yaml into the folder');
+  if (!(await toast()).includes('Saved github.yaml')) fail('⌘S should say it saved: ' + (await toast()));
   // Again from the palette: the hand edit stays.
   await page.evaluate(async () => {
     const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('kestrel-gh');
@@ -138,13 +140,14 @@ await page.waitForSelector('.drawing svg');
   // The folder again, as it is on disk now: github.yaml is one of its diagrams.
   await page.keyboard.press('Meta+k');
   await page.keyboard.type('open folder');
-  await page.click('.palette [role="option"]:has-text("Open folder")');
+  await page.keyboard.press('Enter');
   await wait(1000);
   await page.keyboard.press('Meta+k');
   await page.keyboard.type('GitHub organisation of');
-  const offer = page.locator('.palette [role="option"]:has-text("GitHub organisation of kestrel-gh")');
-  if (!(await offer.count())) fail('the palette should offer the GitHub organisation of the folder');
-  else await offer.click();
+  await wait(200);
+  const offer = await page.locator('.palette [role="option"][aria-selected="true"]').innerText().catch(() => '');
+  if (!offer.includes('GitHub organisation of kestrel-gh')) fail('the palette should offer the GitHub organisation of the folder first: ' + offer);
+  await page.keyboard.press('Enter');
   await wait(900);
   if (!((await stored()).text ?? '').includes('label: Infrastructure')) fail('importing again should keep the label written by hand');
   if (!(await toast()).includes('what you added by hand is kept')) fail('importing again should say the hand edits are kept: ' + (await toast()));
