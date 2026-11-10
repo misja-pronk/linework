@@ -32,7 +32,20 @@
   document.querySelector('.side')?.addEventListener('click', (e) => {
     if (e.target.closest('a')) document.body.classList.remove('nav-open');
   });
-  document.querySelector('.side a[aria-current]')?.scrollIntoView({ block: 'center' });
+  // The current page in view in the section list, without scrolling the page itself.
+  const side = document.querySelector('.side');
+  const here = side?.querySelector('a[aria-current]');
+  if (side && here) side.scrollTop = here.offsetTop - side.clientHeight / 2;
+
+  // Opened from disk, the pages work but the editor (an ES module app) cannot load: say what to do.
+  if (location.protocol === 'file:') {
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href*="app/index.html"]');
+      if (!a) return;
+      e.preventDefault();
+      alert('The editor needs to be served, not opened from disk. Run  pnpm docs:serve  and open the site from there.');
+    });
+  }
 
   // Copy buttons on code.
   for (const pre of document.querySelectorAll('pre.code')) {

@@ -26,6 +26,7 @@
     "web": "pnpm --filter @cartography/web dev",
     "web:build": "pnpm --filter @cartography/web build",
     "docs:build": "pnpm --filter @cartography/web build && pnpm --filter @cartography/site build",
+    "docs:serve": "pnpm --filter @cartography/site serve",
     "bench": "pnpm --filter @cartography/site bench",
     "licences": "node scripts/licences.mjs",
     "pack:check": "node scripts/pack-check.mjs",

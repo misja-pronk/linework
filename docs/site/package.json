@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsx src/build.ts",
     "bench": "tsx src/bench.ts",
-    "shoot": "tsx src/shoot.ts"
+    "shoot": "tsx src/shoot.ts",
+    "serve": "tsx src/serve.ts"
   },
   "dependencies": {
     "@cartography/core": "workspace:*",

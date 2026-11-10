@@ -6,7 +6,7 @@ Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, networ
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
-**Docs, gallery, benchmark.** `pnpm docs:build` builds the documentation site into `docs/site/dist` (open `index.html`; it works offline, the web app included): [get started](docs/getting-started.md), a gallery (`gallery/index.html`) of every template and every file in [examples](examples), drawn light and dark, each with its YAML and an "Open in the editor" link, the [layout benchmark](docs/benchmark.md) against Mermaid and D2 (including where Cartography loses), and guides for people coming from [Mermaid](docs/coming-from/mermaid.md), [D2](docs/coming-from/d2.md), [draw.io](docs/coming-from/drawio.md), [PlantUML](docs/coming-from/plantuml.md) and [Structurizr](docs/coming-from/structurizr.md).
+**Docs, gallery, benchmark.** `pnpm docs:build` builds the documentation site into `docs/site/dist`, the web app included; `pnpm docs:serve` serves it on localhost (the pages also open from disk, offline): [get started](docs/getting-started.md), a gallery (`gallery/index.html`) of every template and every file in [examples](examples), drawn light and dark, each with its YAML and an "Open in the editor" link, the [layout benchmark](docs/benchmark.md) against Mermaid and D2 (including where Cartography loses), and guides for people coming from [Mermaid](docs/coming-from/mermaid.md), [D2](docs/coming-from/d2.md), [draw.io](docs/coming-from/drawio.md), [PlantUML](docs/coming-from/plantuml.md) and [Structurizr](docs/coming-from/structurizr.md).
 
 ## The editor
 

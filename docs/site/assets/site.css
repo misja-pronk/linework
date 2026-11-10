@@ -519,6 +519,9 @@ body.wide .side a:hover { background: var(--paper-2); }
   .type-head { gap: 14px; }
   .type-badge { width: 44px; height: 44px; }
   .tiles { grid-template-columns: 1fr; }
+  /* A wide drawing keeps a readable size and scrolls sideways inside its card. */
+  .card.wide .card-drawing { place-items: start; }
+  .card.wide .card-drawing svg { min-width: 680px; }
   .foot { padding: 20px 16px; }
   .foot a:first-child { margin-left: 0; }
 }

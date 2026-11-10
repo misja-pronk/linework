@@ -204,7 +204,9 @@ export function galleryIndex(all: TypeEntry[]): string {
   const total = all.reduce((n, e) => n + e.cards.length, 0);
   const tiles = all
     .map((e) => {
-      const show = e.cards.find((c) => c.id !== `template-${e.id}`) ?? e.cards[0]!;
+      // The drawing whose shape fits the tile best (wide drawings shrink to nothing in a tile).
+      const fit = (c: Card) => Math.abs(Math.log(c.aspect / 1.5)) + (c.id === `template-${e.id}` ? 0.3 : 0);
+      const show = [...e.cards].sort((a, b) => fit(a) - fit(b))[0]!;
       return `<a class="tile" href="${e.id}.html">
   <div class="tile-drawing">${show.figure}</div>
   <div class="tile-meta">${typeIcon(e.icon)}<div><h2>${escape(e.name)}</h2><p>${escape(e.tagline)}</p></div><span class="tile-count">${e.cards.length}</span></div>
