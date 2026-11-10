@@ -1,0 +1,26 @@
+# The data side: the same systems as sources, by the same ids as in the model.
+type: data-products
+title: Harbour Bank data products
+include: [model.yaml]
+
+domains:
+  core: { label: Core banking, owner: team-data }
+
+sources:
+  ledger: { kind: database, label: Core ledger, domain: core }
+  payments: { kind: stream, label: Payments hub, caption: payment events, domain: core }
+
+products:
+  transactions:
+    label: Transactions
+    class: source-aligned
+    domain: core
+    inputs: [ledger, { from: payments, label: events }]
+  balances:
+    label: Daily balances
+    class: consumer-aligned
+    domain: core
+    inputs: [transactions]
+
+consumers:
+  finance: { kind: dashboard, label: Finance dashboard, uses: [balances] }

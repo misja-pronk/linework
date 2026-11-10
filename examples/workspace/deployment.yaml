@@ -1,0 +1,21 @@
+# Production on Azure: each node runs a model element (of:), the model's relations are drawn between them.
+type: azure
+title: Harbour Bank
+subtitle: Production
+include: [model.yaml]
+
+groups:
+  prod: { kind: subscription, label: Production }
+  rg: { kind: resource-group, label: rg-harbour-prod, in: prod }
+  vnet: { kind: vnet, label: vnet-harbour, in: rg }
+  apps: { kind: subnet, label: snet-apps, in: vnet }
+  data: { kind: subnet, label: snet-data, in: vnet }
+
+nodes:
+  web: { of: online.web, kind: static-web-app, in: rg }
+  api: { of: online.api, kind: container-app, in: apps }
+  gateway: { of: payments.gateway, kind: container-app, in: apps }
+  engine: { of: payments.engine, kind: aks, in: apps }
+  events: { of: payments.events, kind: event-hub, in: rg }
+  db: { of: online.db, kind: postgres, in: data }
+  ledger: { ref: ledger, kind: external }

@@ -194,6 +194,10 @@ Moved elements are saved in `<name>.layout.json` as before. Each view keeps its 
 
 The top level holds the pins of the diagram as written, so existing sidecars keep working unchanged.
 
+## A folder of them
+
+Open the folder in the editor and every diagram in it is one model: search all of it with ⌘P, walk down from the landscape and back with ⌘[, see where an element is used and rename it in every file at once. `carto validate <folder>` checks what only goes wrong between files. See [workspace.md](workspace.md) and [examples/workspace](../examples/workspace).
+
 ## How it fits together
 
 `include:` merging and the catalogue are in `@cartography/core` (`include.ts`, `catalogue.ts`). For graph types, refs and views are resolved into plain nodes, groups and edges before the type builds them (`views.ts`), so each type's kinds, edge styles and legend still apply; other types are filtered by id after they built their graph. Diagrams without any of these keys go through exactly the old path.

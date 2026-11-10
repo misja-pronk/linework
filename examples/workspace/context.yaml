@@ -1,0 +1,6 @@
+# System context of Harbour Online: the model picks who and what it works with.
+type: c4
+include: [model.yaml]
+
+views:
+  context: { kind: context, of: online, title: Harbour Online — system context }

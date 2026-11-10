@@ -1,0 +1,346 @@
+/* The folder as one model: search, breadcrumbs, where-used and rename everywhere (workspace/). */
+
+.ws-hit {
+  align-items: flex-start;
+}
+.ws-hit > .icon {
+  margin-top: 2px;
+  flex: none;
+}
+.ws-hit-text {
+  min-width: 0;
+  flex: 1;
+}
+.ws-hit-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.ws-hit-head .palette-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-where {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+.ws-chip {
+  font: inherit;
+  font-size: 11.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ws-chip:hover,
+.ws-chip.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.ws-chip.active {
+  background: var(--accent-soft);
+}
+.ws-more,
+.ws-none {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.ws-search .palette-empty kbd {
+  margin: 0 2px;
+}
+
+/* Breadcrumbs, a row of their own above the drawing's tools. */
+.canvas-top > .crumbs-row {
+  flex-basis: 100%;
+  display: flex;
+  min-width: 0;
+  pointer-events: none;
+}
+.crumbs-row > .crumbs {
+  pointer-events: auto;
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px 3px 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm, none);
+  max-width: 100%;
+  min-width: 0;
+}
+.crumbs .tool:disabled {
+  opacity: 0.35;
+}
+.crumbs ol {
+  display: flex;
+  align-items: center;
+  list-style: none;
+  margin: 0 0 0 4px;
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.crumbs li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+.crumbs li + li::before {
+  content: '›';
+  color: var(--text-faint);
+  margin: 0 5px;
+}
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button.crumb {
+  cursor: pointer;
+}
+button.crumb:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.crumb.here {
+  color: var(--text);
+  font-weight: 550;
+}
+
+/* Where used, under the file list. */
+.where-used {
+  margin: 12px 2px 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.where-used header {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--text);
+  padding: 2px 6px 2px 8px;
+}
+.where-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.where-sub {
+  margin: 0 8px 6px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.where-sub code {
+  font-family: var(--mono);
+}
+.where-used h4 {
+  margin: 10px 8px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.where-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.where-row span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.where-row:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.where-row.active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.where-as {
+  margin-left: auto;
+  flex: none;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.where-none {
+  margin: 2px 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Rename everywhere. */
+.rename-everywhere {
+  width: min(760px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 80px);
+}
+.rename-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+.rename-head code {
+  font-family: var(--mono);
+  color: var(--text-muted);
+}
+.rename-head kbd {
+  margin-left: auto;
+}
+.rename-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+.rename-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+  min-width: 0;
+}
+.rename-fields input {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+  width: 100%;
+}
+.rename-fields input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.rename-id {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.rename-id code {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.rename-id input {
+  font-family: var(--mono);
+}
+.rename-summary {
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.rename-problem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--danger, #c0392b);
+}
+.rename-diff {
+  overflow-y: auto;
+  padding: 4px 16px 8px;
+  min-height: 60px;
+}
+.rename-file h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+.rename-file h4 span {
+  font-weight: 400;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.diff-hunk {
+  margin: 0 0 6px;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  background: var(--bg);
+}
+.diff-hunk > div {
+  white-space: pre;
+  padding-right: 10px;
+}
+.diff-hunk .ln {
+  display: inline-block;
+  width: 3.5em;
+  text-align: right;
+  padding-right: 8px;
+  color: var(--text-faint);
+  user-select: none;
+}
+.diff-hunk .sign {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--text-faint);
+  user-select: none;
+}
+.diff-hunk .del {
+  background: color-mix(in srgb, #e5484d 14%, transparent);
+}
+.diff-hunk .ins {
+  background: color-mix(in srgb, #30a46c 16%, transparent);
+}
+.rename-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .rename-fields {
+    grid-template-columns: 1fr;
+  }
+}
