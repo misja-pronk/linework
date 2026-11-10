@@ -22,7 +22,7 @@ export interface Workspace {
 /** Paths of the diagrams in a workspace: YAML with a top-level "type:" (snapshots of one, in <name>.snapshots/, are not). */
 export function diagrams(ws: Workspace): string[] {
   return [...ws.files]
-    .filter(([p, f]) => /\.ya?ml$/i.test(p) && /^type:\s*[\w-]+/m.test(f.text) && !/\.odcs\.ya?ml$/i.test(p) && !/(^|\/)[^/]+\.snapshots\//.test(p))
+    .filter(([p, f]) => /\.ya?ml$/i.test(p) && /^type:\s*[\w-]+/m.test(f.text) && !/\.(odcs|block)\.ya?ml$/i.test(p) && !/(^|\/)[^/]+\.snapshots\//.test(p))
     .map(([p]) => p)
     .sort((a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b));
 }

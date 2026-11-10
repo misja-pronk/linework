@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@cartography/access": "workspace:*",
+    "@cartography/blocks": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/describe": "workspace:*",
     "@cartography/docs-plugins": "workspace:*",

@@ -196,6 +196,14 @@ const helpAll = `carto — architecture diagrams that look good
                then: icons: official in a diagram, or --icons official|lucide on render, deck, watch, embed
   carto themes                                  built-in themes
   carto types [words…]                          which type to pick, best match first
+  carto blocks list [--json]                    reusable fragments (docs/blocks.md): ./blocks, your library in
+                                                ${configDir()}/blocks, and the starters
+  carto blocks show <block> [-o preview.svg|png] [--param k=v]   what it holds, its parameters and problems
+  carto blocks new <name> --from file.yaml --select a,b,c [--title …] [--user]
+                                                the selection, with its groups and the lines between, as
+                                                ./blocks/<name>.block.yaml (--user: into your library)
+  carto blocks insert <block> into <file.yaml> [--into group] [--param k=v…] [-o out.yaml|-]
+                                                as plain YAML, ids made unique, marked "# from block: name@hash"
 
 Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
@@ -239,6 +247,7 @@ const groups: [string, [string, string][]][] = [
     ['new', 'start from a template'],
     ['types', 'which diagram type to pick'],
     ['import', 'Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML'],
+    ['blocks', 'reusable fragments: list, show, save and insert'],
     ['export', 'to draw.io, Excalidraw or Mermaid'],
   ]],
   ['Look', [
@@ -353,6 +362,9 @@ const parsed = (() => {
     'with-access': { type: 'boolean' },
     org: { type: 'string' },
     into: { type: 'string' },
+    select: { type: 'string' },
+    param: { type: 'string', multiple: true },
+    user: { type: 'boolean' },
     yes: { type: 'boolean', short: 'y' },
     from: { type: 'string' },
     to: { type: 'string' },
@@ -1523,6 +1535,8 @@ async function main(): Promise<number> {
     return command || values.help ? 0 : 1;
   }
   switch (command) {
+    case 'blocks':
+      return (await import('./blocks.ts')).blocksCommand(files, { ...values, out: values.out }, helpFor('blocks'));
     case 'types':
       typeGuide(files.join(' '));
       return 0;

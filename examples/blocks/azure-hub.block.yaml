@@ -1,0 +1,26 @@
+# Azure hub: the shared network of a hub-and-spoke landing zone (docs/blocks.md).
+# Insert it from the Blocks section of the shapes panel, or: carto blocks insert azure-hub into <file.yaml>
+type: azure
+title: Azure hub with firewall and bastion
+description: A hub VNet with Azure Firewall, Bastion and a VPN gateway in their own subnets, logging to Log Analytics
+tags: [network, hub, landing zone]
+params:
+  name: { default: hub, label: Hub name }
+  cidr: { default: 10.0.0.0/16, label: Address space }
+
+groups:
+  ${name}: { kind: vnet, label: "vnet-${name} · ${cidr}" }
+  ${name}-fw-snet: { kind: subnet, label: AzureFirewallSubnet, in: "${name}" }
+  ${name}-bastion-snet: { kind: subnet, label: AzureBastionSubnet, in: "${name}" }
+  ${name}-gw-snet: { kind: subnet, label: GatewaySubnet, in: "${name}" }
+
+nodes:
+  ${name}-fw: { kind: firewall, label: "afw-${name}", in: "${name}-fw-snet" }
+  ${name}-bastion: { kind: bastion, label: "bas-${name}", in: "${name}-bastion-snet" }
+  ${name}-vpn: { kind: vpn-gateway, label: "vgw-${name}", in: "${name}-gw-snet" }
+  ${name}-logs: { kind: log-analytics, label: "log-${name}", in: "${name}" }
+
+edges:
+  - ${name}-vpn -> ${name}-fw: { style: private }
+  - ${name}-fw -> ${name}-logs: { label: diagnostics, style: management }
+  - ${name}-bastion -> ${name}-logs: { label: diagnostics, style: management }

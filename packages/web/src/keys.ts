@@ -166,6 +166,11 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'forward', keys: ['mod+]'], what: 'Forward (not in the YAML: there it indents)', context: 'folder', group: 'Folder (one model)' },
   { id: 'rename-everywhere', keys: ['shift+f2'], what: 'Rename the selected element in every file', context: 'folder-anywhere', group: 'Folder (one model)' },
 
+  // ------------------------------------------------------------ blocks
+  { id: 'insert-block', keys: ['b'], what: 'Insert a block (into the selected group); its parameters, then ↵', context: 'drawing', group: 'Blocks' },
+  { id: 'save-block', keys: ['shift+b'], what: 'Save the selection as a block, with its groups and the lines between', context: 'drawing', group: 'Blocks' },
+  { id: 'drop-block', keys: [], show: 'Drag a block', what: 'From the Blocks section onto the drawing or into a group: it stays where dropped', context: 'mouse', group: 'Mouse and trackpad' },
+
   // ------------------------------------------------------------ trace a request
   { id: 'trace', keys: ['shift+q'], what: 'Two selected: a request from the first to the second; one: until it ends', context: 'drawing', group: 'Trace a request' },
   { id: 'trace-pick', keys: [], show: '↑ ↓ or 1–9', what: 'In the trace dialog: pick a route; Z shows the preview at its own size', context: 'not-typing', group: 'Trace a request' },

@@ -128,7 +128,7 @@ export async function buildGallery(o: GalleryOptions): Promise<TypeEntry[]> {
   const examples = path.join(o.root, 'examples');
   for (const dir of fs.readdirSync(examples).sort()) {
     if (!fs.statSync(path.join(examples, dir)).isDirectory()) continue;
-    for (const f of fs.readdirSync(path.join(examples, dir)).filter((x) => /\.ya?ml$/.test(x)).sort()) {
+    for (const f of fs.readdirSync(path.join(examples, dir)).filter((x) => /\.ya?ml$/.test(x) && !/\.block\.ya?ml$/.test(x)).sort()) {
       const file = path.join(examples, dir, f);
       const text = fs.readFileSync(file, 'utf8');
       const type = typeOf(text);

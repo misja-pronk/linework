@@ -362,8 +362,8 @@ describe('carto errors and help', () => {
     const top = carto('--help');
     expect(top.code).toBe(0);
     expect(top.out).toMatch(/Draw:\n {2}render/);
-    // One line per command: 37 since `carto decisions` and `carto animate` (still one screen). 40 since describe, export-md and export-confluence.
-    expect(top.out.split('\n').length).toBeLessThan(40);
+    // One line per command: 41 since describe, export-md, export-confluence and blocks joined decisions and animate (still one screen).
+    expect(top.out.split('\n').length).toBeLessThan(41);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');

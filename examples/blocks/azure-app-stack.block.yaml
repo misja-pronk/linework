@@ -1,0 +1,27 @@
+# App Service with its Key Vault and SQL database, both reached over private endpoints (docs/blocks.md).
+type: azure
+title: App Service + Key Vault + SQL, private endpoints
+description: A web app on App Service that reads its secrets from Key Vault and its data from Azure SQL, both behind private endpoints in a data subnet
+tags: [app, paas, private endpoint]
+params:
+  name: { default: shop, label: App name }
+  label: { default: Shop, label: What the app is called }
+
+groups:
+  ${name}-app-snet: { kind: subnet, label: "snet-${name}-app" }
+  ${name}-data-snet: { kind: subnet, label: "snet-${name}-data" }
+
+nodes:
+  ${name}-app: { kind: app-service, label: "${label}", in: "${name}-app-snet" }
+  ${name}-id: { kind: managed-identity, label: "id-${name}", in: "${name}-app-snet" }
+  ${name}-kv-pe: { kind: private-endpoint, label: "pe-kv-${name}", in: "${name}-data-snet" }
+  ${name}-sql-pe: { kind: private-endpoint, label: "pe-sql-${name}", in: "${name}-data-snet" }
+  ${name}-kv: { kind: key-vault, label: "kv-${name}" }
+  ${name}-sql: { kind: sql-database, label: "${label} DB" }
+
+edges:
+  - ${name}-app -> ${name}-id
+  - ${name}-app -> ${name}-kv-pe: { label: secrets, style: private }
+  - ${name}-kv-pe -> ${name}-kv: { style: private }
+  - ${name}-app -> ${name}-sql-pe: { label: SQL, style: private }
+  - ${name}-sql-pe -> ${name}-sql: { style: private }

@@ -1,0 +1,23 @@
+# One zone's slice of a three-tier web app on AWS: load balancer, app tier, database (docs/blocks.md).
+type: cloud
+provider: aws
+title: AWS three-tier slice
+description: An Application Load Balancer in front of an ECS service in a private subnet, with Aurora in an isolated subnet of the same zone
+tags: [web, three-tier, aws]
+params:
+  name: { default: web, label: Service name }
+  zone: { default: eu-west-1a, label: Availability zone }
+
+groups:
+  ${name}-zone: { kind: zone, zone: "${zone}" }
+  ${name}-app-snet: { kind: subnet, tier: private, in: "${name}-zone" }
+  ${name}-data-snet: { kind: subnet, tier: isolated, in: "${name}-zone" }
+
+nodes:
+  ${name}-alb: { kind: alb, label: Load balancer, in: "${name}-zone", tier: public, exposure: public }
+  ${name}-svc: { kind: ecs, label: "${name} service", in: "${name}-app-snet", size: 2 tasks }
+  ${name}-db: { kind: aurora, label: "${name} database", in: "${name}-data-snet" }
+
+edges:
+  - ${name}-alb -> ${name}-svc: { label: HTTPS, style: private }
+  - ${name}-svc -> ${name}-db: { label: SQL, style: private }
