@@ -2128,10 +2128,13 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
+              {/* Decisions belong to a folder: the button shows there, or once one is kept in this browser (⇧D and ⌘K always). */}
+              {(ws || decisionsTool.count > 0 || decisionsTool.open) && (
               <button className={decisionsTool.open ? 'tool active' : 'tool'} onClick={decisionsTool.toggle} title="Architecture decisions (⇧D); ⌥⇧D writes one about the selection" aria-pressed={decisionsTool.open} aria-label={`Decisions, ${decisionsTool.count}`}>
                 <Icon name="scroll-text" />
                 {decisionsTool.count > 0 && <span className="tool-count decisions">{decisionsTool.count}</span>}
               </button>
+              )}
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {!adding && layers.chip}
