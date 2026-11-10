@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import * as fontkit from 'fontkit';
-import { importIcons, readPack } from '../src/packs.ts';
+import { findIcons, iconGuide, importIcons, mapIcon, packSheet, readPack, unmapIcon } from '../src/packs.ts';
 import { readZip, writeZip } from '../src/zip.ts';
 import { renameFamily, ttfFiles } from '../src/fonts.ts';
 import { fontFiles } from '@cartography/theme/node';
@@ -107,6 +107,56 @@ describe('carto icons import', () => {
     const r = importIcons(dir, 'gcp');
     expect(r.pack.icons).toMatchObject(files);
     expect(r.pack.icons.s3).toBeUndefined();
+  });
+});
+
+describe('the guided flow', () => {
+  const put = (dir: string, files: string[]) => {
+    for (const f of files) {
+      fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      fs.writeFileSync(path.join(dir, f), svg('#777'));
+    }
+  };
+
+  it('tells the vendor from the files, maps by hand, and keeps that through a newer release', () => {
+    const v22 = path.join(tmp, 'Azure_Public_Service_Icons_V22');
+    put(v22, ['Icons/security/10245-icon-service-Key-Vaults.svg', 'Icons/ai/10813-icon-service-Search.svg', 'Icons/web/10035-icon-service-App-Services.svg']);
+    const r = importIcons(v22);
+    expect(r.pack.name).toBe('azure');
+    expect(r.coverage.have).toBe(2);
+    expect(r.coverage.missing).toContain('ai-search');
+    expect(findIcons('azure', 'sea').map((h) => h.file)).toEqual(['Icons/ai/10813-icon-service-Search.svg']);
+    expect(mapIcon('azure', 'ai-search', 'search').file).toBe('Icons/ai/10813-icon-service-Search.svg');
+    expect(readPack('azure')!.manual).toEqual({ 'ai-search': 'Icons/ai/10813-icon-service-Search.svg' });
+    expect(() => mapIcon('azure', 'ai-search', 'nothing like it')).toThrow(/No icon in azure/);
+
+    const v23 = path.join(tmp, 'Azure_Public_Service_Icons_V23');
+    put(v23, ['Icons/security/10251-icon-service-Key-Vaults.svg', 'Icons/ai/10820-icon-service-Search.svg']);
+    const again = importIcons(v23);
+    expect(again.kept).toEqual(['ai-search']);
+    expect(again.pack.icons['ai-search']).toBe('Icons/ai/10820-icon-service-Search.svg');
+
+    const sheet = packSheet('azure');
+    expect(sheet.coverage.have).toBe(2);
+    expect(sheet.svg).toContain('2 of ');
+    expect(sheet.svg).toContain('by hand');
+    expect((sheet.svg.match(/<image /g) ?? []).length).toBe(2);
+
+    unmapIcon('azure', 'ai-search');
+    expect(readPack('azure')!.icons['ai-search']).toBeUndefined();
+    expect(readPack('azure')!.manual).toEqual({});
+  });
+
+  it('asks for a name when the files are nobody’s', () => {
+    const dir = path.join(tmp, 'mystery');
+    put(dir, ['a/thing.svg']);
+    expect(() => importIcons(dir)).toThrow(/--pack azure\|aws\|gcp\|kubernetes/);
+  });
+
+  it('prints where to download each set', () => {
+    const g = iconGuide();
+    for (const v of ['learn.microsoft.com', 'aws.amazon.com/architecture/icons', 'cloud.google.com/icons', 'kubernetes/community']) expect(g).toContain(v);
+    expect(g).toContain('Vendors move their pages');
   });
 });
 

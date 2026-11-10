@@ -19,3 +19,4 @@ export function iconNames(): string[] {
   return [...new Set(packs.flatMap((p) => Object.keys(p)))].sort();
 }
 export * from './match.ts';
+export * from './vendors.ts';
