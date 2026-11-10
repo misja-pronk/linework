@@ -1,0 +1,34 @@
+Model serving
+
+Kubernetes diagram: Gateway API in front of GPU and CPU node pools. 10 elements in 3 groups, with 15 connections.
+
+Groups and elements
+- API clients (Users)
+- ml-prod (Cluster)
+  - system pool (Node pool)
+    - public (Gateway · api.acme.ai)
+    - router (Service · :8000)
+    - router (Deployment · ×3 · router:0.9)
+    - rate-limits (StatefulSet · redis:7.4)
+  - gpu pool (L4) (Node pool)
+    - llm (Service · :8080)
+    - embed (Service · :8080)
+    - llm (Deployment · vllm-openai:v0.6.3)
+    - embed (Deployment · ×2 · embed:1.2)
+- Hugging Face (External)
+
+Connections
+- API clients send traffic to public over HTTPS.
+- public sends traffic to router (Service) (/v1).
+- router (Service) sends traffic to router (Deployment).
+- router (Deployment) sends traffic to rate-limits, sends traffic to llm (Service) (chat) and sends traffic to embed (Service) (embeddings).
+- llm (Service) sends traffic to llm (Deployment).
+- embed (Service) sends traffic to embed (Deployment).
+- llm (Deployment) sends traffic to Hugging Face (weights), mounts model-cache · 200Gi, mounts hf-token, is scaled by HPA ×1–8 and connects to from-router-only (Network policy).
+- embed (Deployment) mounts model-cache · 200Gi and connects to from-router-only (Network policy).
+
+Key
+- Solid blue line: Traffic
+- Badge: Mounts badge
+- Green badge: Scales badge
+- Rose badge: Network policy badge

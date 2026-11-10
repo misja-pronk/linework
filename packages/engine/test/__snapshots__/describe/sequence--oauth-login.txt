@@ -1,0 +1,42 @@
+Sign in with OAuth 2.0
+
+Sequence diagram: Authorization code flow with PKCE, and a second factor when the risk check asks for one. 5 participants and 18 messages.
+
+Participants
+- User
+- Web app
+- Entra ID (Identity provider)
+- Authenticator (Mobile app)
+- Orders API
+
+Message flow
+In order, top to bottom.
+- 1. User calls Web app: Sign in.
+- 2. Web app does: Create code verifier and challenge.
+- 3. Web app calls Entra ID: /authorize (client id, challenge, scopes).
+- 4. Entra ID replies to User: Login page.
+- 5. User calls Entra ID: Name and password.
+- 6. Entra ID does: Risk check.
+- Alternative: New device or risky sign-in
+  - 7. Entra ID sends to Authenticator: Push notification.
+  - 8. Authenticator replies to User: Approve sign-in?
+  - 9. User calls Authenticator: Approve with Face ID.
+  - 10. Authenticator sends to Entra ID: Approved.
+- Else: Known device
+  - Note over Entra ID: No second factor within the policy's sign-in frequency
+- 11. Entra ID replies to Web app: Redirect with authorization code.
+- 12. Web app calls Entra ID: /token (code, verifier).
+- 13. Entra ID replies to Web app: Access token, ID token, refresh token.
+- Note right of Web app: Tokens stay in memory; the refresh token is rotated on every use
+- Loop: Every API call
+  - 14. Web app calls Orders API: GET /orders (Bearer token).
+  - 15. Orders API does: Validate JWT signature and audience.
+  - 16. Orders API replies to Web app: 200 Orders.
+- Optional: Access token expired
+  - 17. Web app calls Entra ID: /token (refresh token).
+  - 18. Entra ID replies to Web app: New access token.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

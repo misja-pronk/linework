@@ -1,0 +1,39 @@
+Web shop on AWS, per environment
+
+AWS and Google Cloud diagram: Production, two availability zones. 10 elements in 9 groups, with 11 connections.
+
+Groups and elements
+- Users
+- Storefront (CloudFront · React): Runs Storefront (shop.web): Shows the catalogue and takes orders
+- shop (Account)
+  - eu-west-1 (Region)
+    - Site files (S3 bucket)
+    - vpc-shop (VPC · 10.20.0.0/16)
+      - Load balancer (Application Load Balancer · public)
+      - eu-west-1a (Availability zone)
+        - Private subnet
+          - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
+        - Isolated subnet
+          - Orders DB (RDS database · PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
+      - eu-west-1b (Availability zone)
+        - Private subnet
+          - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
+        - Isolated subnet
+          - Standby (RDS database)
+    - order-events (SQS queue): Runs order-events (shop.bus): One message for every placed order
+    - Mailer (Lambda function · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
+
+Connections
+- Users send traffic to Storefront over HTTPS.
+- Storefront connects to Site files (Private network) and sends traffic to Load balancer (/api).
+- Load balancer connects to Orders API (ECS service) (Private network) and connects to Orders API (ECS service) (Private network).
+- Orders API (ECS service) connects to Orders DB (Reads and writes [SQL]) and connects to order-events (OrderPlaced).
+- Orders API (ECS service) connects to Orders DB (Reads and writes [SQL]) and connects to order-events (OrderPlaced).
+- Orders DB sends data to Standby (replication).
+- order-events connects to Mailer (OrderPlaced).
+
+Key
+- Solid line: Connection
+- Solid sky line with beads: Public traffic
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow

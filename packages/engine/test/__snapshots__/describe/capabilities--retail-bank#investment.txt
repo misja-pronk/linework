@@ -1,0 +1,44 @@
+Retail bank capability map
+
+Capability map, heatmap: Investment: Investment decisions per capability, 2026–2028 plan. 6 areas and 26 capabilities.
+
+Areas and capabilities
+- Channels
+  - Mobile banking (Invest)
+  - Online banking (Maintain)
+  - Branch network (Eliminate)
+  - Contact centre (Migrate)
+  - Partner APIs (Invest)
+- Customer
+  - Onboarding and KYC (Invest)
+  - Customer data (Invest)
+  - Advice (Maintain)
+  - Complaints (Tolerate)
+- Products
+  - Current accounts (Maintain)
+  - Savings (Maintain)
+  - Mortgages (Invest)
+  - Consumer credit (Tolerate)
+  - Cards (Migrate)
+- Payments
+  - Domestic payments (Maintain)
+  - Instant payments (Invest)
+  - Cross-border (Tolerate)
+  - Direct debits (Maintain)
+- Risk and compliance
+  - Credit risk (Invest)
+  - Fraud detection (Invest)
+  - AML monitoring (Invest)
+  - Regulatory reporting (Maintain)
+- Support
+  - Finance and control (Maintain)
+  - HR (Tolerate)
+  - Procurement (Tolerate)
+  - IT operations (Migrate)
+
+Key
+- Block marked Invest: Investment: Invest
+- Block marked Maintain: Maintain
+- Block marked Tolerate: Tolerate
+- Block marked Migrate: Migrate
+- Block marked Eliminate: Eliminate

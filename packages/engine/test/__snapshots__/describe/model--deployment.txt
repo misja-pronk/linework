@@ -1,0 +1,28 @@
+Web shop
+
+Azure infrastructure diagram: Production deployment. 7 elements in 5 groups, with 6 connections.
+
+Groups and elements
+- Production (Subscription)
+  - rg-shop-prod (Resource group)
+    - Storefront (React)
+    - vnet-shop (Virtual network)
+      - snet-apps (Subnet)
+        - Orders API (.NET 9)
+        - Mailer (.NET 9)
+      - snet-data (Subnet)
+        - Orders DB (PostgreSQL)
+    - order-events (Service Bus)
+- Stripe (External system)
+- SendGrid (External system)
+
+Connections
+- Storefront sends traffic to Orders API over HTTPS.
+- Orders API connects to Orders DB (Private network: SQL), connects to order-events (OrderPlaced) and connects to Stripe (Charges cards).
+- order-events connects to Mailer.
+- Mailer connects to SendGrid (Sends receipts).
+
+Key
+- Solid line: Connection
+- Solid sky line with ticks: Public traffic
+- Dashed teal line: Private network

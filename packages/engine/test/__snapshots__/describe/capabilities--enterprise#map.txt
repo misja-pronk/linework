@@ -1,0 +1,42 @@
+Enterprise capability map
+
+Capability map, map: Map. 7 areas and 30 capabilities.
+
+Areas and capabilities
+- Strategy
+  - Strategic planning
+  - Portfolio management: Supported by ServiceNow
+  - Enterprise architecture
+- Customer
+  - Marketing
+    - Campaigns: Supported by Salesforce, Contentful
+    - Segmentation: Supported by Salesforce
+    - Loyalty
+  - Sales
+    - Lead management: Supported by Salesforce
+    - Quoting: Supported by Salesforce, SAP S/4HANA
+  - Customer service
+    - Contact centre: Supported by Salesforce
+    - Self-service: Supported by Contentful
+- Products
+  - Product development: Supported by Centric PLM
+  - Pricing: Supported by SAP S/4HANA
+  - Product data: Supported by Centric PLM, SAP S/4HANA
+- Operations
+  - Order management: Supported by SAP S/4HANA
+  - Fulfilment
+    - Warehousing: Supported by Manhattan WMS
+    - Transport: Supported by Manhattan WMS, SAP S/4HANA
+  - Procurement: Supported by SAP S/4HANA
+- Finance
+  - Accounting: Supported by SAP S/4HANA
+  - Planning and control: Supported by SAP S/4HANA, Power BI
+  - Treasury
+- People
+  - Recruitment: Supported by Workday
+  - Payroll: Supported by Workday
+  - Learning: Supported by Workday
+- Technology
+  - Service management: Supported by ServiceNow
+  - Data and analytics: Supported by Power BI
+  - Security

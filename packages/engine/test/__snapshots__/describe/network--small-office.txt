@@ -1,0 +1,35 @@
+Small office
+
+Network diagram: One site, four VLANs behind an active/passive firewall pair. 10 elements in 6 groups, with 9 connections.
+
+Groups and elements
+- Internet
+  - KPN Fibre (ISP · 203.0.113.1)
+- Utrecht office (10.20.0.0/16)
+  - fw-utr (FortiGate 60F · 10.20.1.1 · HA pair)
+  - Management (VLAN 1 · 10.20.1.0/24)
+    - sw-core (USW Pro 24 PoE · 10.20.1.2)
+    - ap-ground (U6 Pro · 10.20.1.11)
+    - ap-first (U6 Pro · 10.20.1.12)
+  - Staff (VLAN 10 · 10.20.10.0/24)
+    - nas-01 (Synology DS923+ · 10.20.10.5)
+    - print-01 (Printer · 10.20.10.9)
+    - Laptops (Clients)
+  - Voice (VLAN 20 · 10.20.20.0/24)
+    - Desk phones (IP phone)
+  - Guest (VLAN 30 · 10.20.30.0/24)
+    - Guest devices (Clients)
+
+Connections
+- KPN Fibre connects to fw-utr (WAN: PPPoE · 1G).
+- fw-utr connects to sw-core (Trunk: 2×10G · VLAN 1, 10, 20, 30).
+- sw-core is linked with ap-ground (2.5G), is linked with ap-first (2.5G), is linked with nas-01 (10G), is linked with print-01 and is linked with Desk phones.
+- ap-ground connects to Laptops (Wireless: Staff SSID).
+- ap-first connects to Guest devices (Wireless: Guest SSID).
+
+Key
+- Solid line: Ethernet
+- Solid indigo line, double, thick: Trunk
+- Solid sky line with ticks: WAN
+- Dotted sky line: Wireless
+- Solid line, thick: Aggregated link (2× or more)

@@ -1,0 +1,72 @@
+A new developer's first two weeks
+
+Journey map, storyboard: Storyboard. Dana Okafor's journey through 4 phases and 8 steps.
+
+Persona: Dana Okafor
+- Role: Backend developer, joined the Payments team
+- Goal: Ship something real in the first week
+- Says: “I want to be useful, not a tourist in the codebase.”
+
+By phase
+- First day
+  - Gets a laptop and a welcome session (feels welcome, 4 of 5)
+    - Says: “Everyone is friendly. Where do I start?”
+    - Through Laptop and Slack
+    - With People lead
+    - Works well: A buddy is assigned on day one
+  - Requests access to the repositories and the cloud (feels waiting, 2 of 5)
+    - Thinks: “Seven forms, and I do not know half of these names.”
+    - Through Service desk portal and Email
+    - With Service desk
+    - Pain: One request per system
+    - Pain: Approval takes two to three days
+    - Idea: One access bundle per team role
+    - Measured: 7 requests, 3 days
+- First commit
+  - Sets up the local environment (feels lost, 1 of 5)
+    - Thinks: “The wiki says Node 16. The build wants 20.”
+    - Through Wiki and Terminal
+    - Pain: Setup guide is out of date
+    - Pain: Secrets are passed around in chat
+    - Idea: Dev container that works on the first try
+    - Measured: 1.5 days
+  - Opens a first pull request (feels proud, 4 of 5)
+    - Says: “Reviewed within the hour. That felt good.”
+    - Through GitHub and CI pipeline
+    - With Buddy
+    - Works well: Small starter issues are ready
+    - Works well: Fast, kind reviews
+- First deploy
+  - Ships the change through the pipeline (feels unsure, 3 of 5)
+    - Thinks: “Is it live now? Which stage is this?”
+    - Through CI pipeline and Deploy dashboard
+    - Pain: Nobody explains the release stages
+    - Idea: A pipeline view that shows where a change is
+    - Measured: 40 min per run
+  - Sees the change live in production (feels thrilled, 5 of 5)
+    - Says: “My code handles real payments!”
+    - Through Grafana
+    - With Team
+    - Works well: The team celebrates first deploys
+- First incident
+  - Shadows an on-call shift (feels anxious, 2 of 5)
+    - Thinks: “I would not know where to look on my own.”
+    - Through PagerDuty and Runbook
+    - With On-call engineer
+    - Pain: Runbooks assume years of context
+    - Pain: Dashboards have no owner
+    - Idea: Game day in the first month
+  - Fixes a small incident with help (feels capable, 4 of 5)
+    - Says: “Now I see how the pieces fit.”
+    - Through Grafana and Slack
+    - With On-call engineer
+    - Works well: Blameless review within two days
+    - Measured: 35 min to recover
+
+Feeling
+Lowest at “Sets up the local environment” (1 of 5); highest at “Sees the change live in production” (5 of 5).
+
+Metrics
+- Time to first commit: 4 days
+- Time to first deploy: 9 days
+- Access requests: 7

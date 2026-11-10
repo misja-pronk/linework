@@ -1,0 +1,41 @@
+Hybrid cloud
+
+Network diagram: Data centre to an Azure hub and spokes over ExpressRoute, with a VPN as backup. 11 elements in 8 groups, with 11 connections.
+
+Groups and elements
+- Amsterdam DC (10.0.0.0/16)
+  - rtr-ams (Cisco ASR 1001-X · HA pair)
+  - fw-ams (Palo Alto PA-3420 · HA pair)
+  - core-ams (Nexus 93180 · HA vPC)
+  - Servers (VLAN 100 · 10.0.100.0/24)
+    - esx-cluster (6 hosts)
+    - dc-01 (DNS · 10.0.100.10)
+- Azure West Europe (Cloud region)
+  - vnet-hub (10.100.0.0/22)
+    - GatewaySubnet (10.100.0.0/27)
+      - ergw-hub (ExpressRoute ErGw2AZ)
+      - vpngw-hub (VpnGw2AZ)
+    - AzureFirewallSubnet (10.100.1.0/26)
+      - afw-hub (Azure Firewall Premium · 10.100.1.4)
+  - vnet-prod (10.101.0.0/16)
+    - agw-prod (Application Gateway)
+    - vmss-api (Server · 10.101.1.0/24)
+  - vnet-dev (10.102.0.0/16)
+    - vm-dev (Server · 10.102.1.0/24)
+
+Connections
+- rtr-ams connects to ergw-hub (Private circuit: ExpressRoute · 1G), connects to vpngw-hub (VPN tunnel: IPsec backup) and connects to fw-ams (Trunk: 2×10G).
+- ergw-hub is linked with afw-hub.
+- vpngw-hub is linked with afw-hub.
+- fw-ams connects to core-ams (Trunk: 2×25G).
+- afw-hub connects to agw-prod (Peering) and connects to vm-dev (Peering).
+- core-ams is linked with esx-cluster (4×25G) and is linked with dc-01.
+- agw-prod is linked with vmss-api.
+
+Key
+- Solid line: Ethernet
+- Solid indigo line, double, thick: Trunk
+- Solid teal line with beads, thick: Private circuit
+- Dashed teal line: VPN tunnel
+- Dashed blue line with ticks: Peering
+- Solid line, thick: Aggregated link (2× or more)

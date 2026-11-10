@@ -1,0 +1,25 @@
+What a change to Orders touches
+
+Data products diagram. 5 elements in 3 groups, with 4 connections.
+
+Groups and elements
+- Sales (Domain)
+  - Orders (Source-aligned · v2.1.0 · Sales engineering)
+- Customer (Domain)
+  - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
+- Finance (Domain)
+  - Revenue (Consumer-aligned · v1.2.0 · Finance data)
+- Campaign tool (Application)
+- CFO dashboard (Dashboard)
+
+Connections
+- Orders connects to Customer 360 and connects to Revenue.
+- Customer 360 connects to Campaign tool.
+- Revenue connects to CFO dashboard.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Ring: In focus

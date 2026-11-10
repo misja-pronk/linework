@@ -1,0 +1,34 @@
+Orders
+
+Database design. 4 tables, with 3 relations.
+
+Tables
+- customers
+  - id (uuid, primary key)
+  - email (text, unique)
+  - name (text)
+- orders
+  - id (uuid, primary key)
+  - customer_id (uuid, foreign key to customers.id)
+  - placed_at (timestamptz)
+  - total (numeric(10,2))
+- order_lines
+  - order_id (uuid, primary key, foreign key to orders.id)
+  - product_id (uuid, primary key, foreign key to products.id)
+  - quantity (int)
+- products
+  - id (uuid, primary key)
+  - name (text)
+  - price (numeric(10,2))
+
+Relations
+- orders.customer_id → customers.id: each orders row has exactly one customers row; each customers row has zero or many orders rows.
+- order_lines.order_id → orders.id: each order_lines row has exactly one orders row; each orders row has zero or many order_lines rows.
+- order_lines.product_id → products.id: each order_lines row has exactly one products row; each products row has zero or many order_lines rows.
+
+Key
+- Amber key symbol: Primary key
+- Blue link symbol: Foreign key
+- Violet fingerprint symbol: Unique
+- Solid line ending in a bar: Exactly one
+- Solid line ending in a ring and crow's foot: Zero or many

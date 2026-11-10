@@ -1,0 +1,49 @@
+Enterprise capability map
+
+Capability map, heatmap: Maturity: Baseline assessment 2026. 7 areas and 30 capabilities.
+
+Areas and capabilities
+- Strategy
+  - Strategic planning (3)
+  - Portfolio management (2): Supported by ServiceNow
+  - Enterprise architecture (2)
+- Customer
+  - Marketing (3)
+    - Campaigns (3): Supported by Salesforce, Contentful
+    - Segmentation (2): Supported by Salesforce
+    - Loyalty (1)
+  - Sales (4)
+    - Lead management (4): Supported by Salesforce
+    - Quoting (3): Supported by Salesforce, SAP S/4HANA
+  - Customer service (2)
+    - Contact centre (2): Supported by Salesforce
+    - Self-service (1): Supported by Contentful
+- Products
+  - Product development (3): Supported by Centric PLM
+  - Pricing (2): Supported by SAP S/4HANA
+  - Product data (2): Supported by Centric PLM, SAP S/4HANA
+- Operations
+  - Order management (4): Supported by SAP S/4HANA
+  - Fulfilment (3)
+    - Warehousing (4): Supported by Manhattan WMS
+    - Transport (2): Supported by Manhattan WMS, SAP S/4HANA
+  - Procurement (3): Supported by SAP S/4HANA
+- Finance
+  - Accounting (5): Supported by SAP S/4HANA
+  - Planning and control (3): Supported by SAP S/4HANA, Power BI
+  - Treasury (4)
+- People
+  - Recruitment (3): Supported by Workday
+  - Payroll (4): Supported by Workday
+  - Learning (2): Supported by Workday
+- Technology
+  - Service management (3): Supported by ServiceNow
+  - Data and analytics (2): Supported by Power BI
+  - Security (3)
+
+Key
+- Shade 1 of 5 (lightest): Maturity: 1 Initial
+- Shade 2 of 5: 2 Developing
+- Shade 3 of 5: 3 Defined
+- Shade 4 of 5: 4 Managed
+- Shade 5 of 5 (strongest): 5 Optimised

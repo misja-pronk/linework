@@ -27,6 +27,8 @@ YAML on the left, the drawing on the right; both stay in sync and select the sam
 - **Export** SVG, PNG, a 16:9 slide, or copy as PNG for slides and docs; an Office-safe SVG for PowerPoint and Word; draw.io, Excalidraw or Mermaid to carry on in another tool. `?` shows every shortcut.
 - **Animate** a diagram's steps (or its layers) as a GIF, MP4 or WebM: each step held, a short blend to the next, the caption as a lower third (`carto animate walkthrough.yaml -o walkthrough.gif`, or Export → Animation). See [docs/animate.md](docs/animate.md).
 - **Send** one interactive HTML file instead of a PNG (`carto export-html shop.yaml`, a folder, or Export → Interactive HTML): every view and step, zoom, search, drill-down and element details, offline from disk. See [docs/html-export.md](docs/html-export.md).
+- **Describe** every diagram in plain words, from its model: in each exported SVG, PNG, PDF and slide as alt text, in the editor (Export → Describe in words) and as `carto describe`. See [docs/describe.md](docs/describe.md).
+- **Wiki pages** without a plugin: `carto export-md` (GitHub, GitLab, Obsidian), `carto export-confluence` (storage-format pages and attachments), or Export → Copy for Confluence / Notion. See [docs/wiki-export.md](docs/wiki-export.md).
 
 Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side, and [the benchmark](docs/benchmark.md) for the numbers.
 

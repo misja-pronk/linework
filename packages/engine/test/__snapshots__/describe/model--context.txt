@@ -1,0 +1,17 @@
+Web shop
+
+Architecture diagram: System context. 4 elements, with 3 connections.
+
+Elements
+- Customer (User): Buys things in the web shop
+- Web shop (System): Sells products online and handles orders
+- SendGrid (Email)
+- Stripe (Payments)
+
+Connections
+- Customer connects to Web shop (Browses and orders).
+- Web shop connects to SendGrid (Sends receipts) and calls Stripe (Charges cards).
+
+Key
+- Solid line: Connection
+- Solid blue line with ticks: Request

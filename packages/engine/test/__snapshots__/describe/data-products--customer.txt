@@ -1,0 +1,37 @@
+Customer data products
+
+Data products diagram: From operational systems to fit-for-purpose products. 8 elements in 3 groups, with 8 connections.
+
+Groups and elements
+- Sales (Domain · Sales engineering)
+  - Webshop (Source · Application)
+  - orders (Source-aligned)
+- Customer (Domain · CRM team)
+  - Customer 360 (Aggregate)
+  - Salesforce (Source · SaaS)
+  - customers (Source-aligned)
+- Sales dashboard (Dashboard)
+- Marketing (Domain)
+  - Churn risk (Consumer-aligned)
+- Campaign tool (Application)
+
+Connections
+- Webshop connects to orders (CDC).
+- orders connects to Customer 360 and connects to Sales dashboard.
+- Customer 360 connects to Sales dashboard and connects to Churn risk.
+- Churn risk connects to Campaign tool.
+- Salesforce connects to customers (daily).
+- customers connects to Customer 360.
+
+Walkthrough
+1. Four data products between two operational systems and the people who use the data.
+2. Published at the source: Orders and customers come from the teams that run the systems, each under a contract.
+3. One customer, one profile: Customer 360 joins both. Nobody downstream reads the operational systems again.
+4. Where a churn score comes from: Marketing builds on the profile and serves scores to the campaign tool.
+  - Churn risk: Owned by Marketing
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

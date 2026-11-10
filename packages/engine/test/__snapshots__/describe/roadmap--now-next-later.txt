@@ -1,0 +1,18 @@
+Developer platform
+
+Roadmap & timeline: Now, next, later – no dates, just order and dependencies. 9 items and 1 milestone in 3 lanes, Now to Later.
+
+By lane
+- Golden paths
+  - Service templates: Now, in progress
+  - Backstage portal: Next to Later, after Service templates
+  - Scorecards: Later
+- CI/CD
+  - Ephemeral runners: Now, done
+  - OIDC to the cloud: Now, in progress
+  - Preview environments: Next, after OIDC to the cloud
+  - Canary releases: Later, after Preview environments
+- Observability
+  - OpenTelemetry SDKs: Next
+  - SLOs per service: Later, after OpenTelemetry SDKs
+- Platform GA: milestone on Later

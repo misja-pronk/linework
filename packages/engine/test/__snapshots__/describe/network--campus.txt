@@ -1,0 +1,38 @@
+Campus network
+
+Network diagram: Collapsed core, two buildings, distribution and access layers. 12 elements in 4 groups, with 11 connections.
+
+Groups and elements
+- Internet and WAN
+  - Dual ISP
+- Head office campus (10.30.0.0/16)
+  - fw-campus (FortiGate 400F · HA pair)
+  - core-01/02 (Catalyst 9500 · 10.30.0.1 · HA SVL)
+  - Building North
+    - dist-north (Catalyst 9300 · 10.30.1.1 · HA stack)
+    - acc-n1 (Catalyst 9200 · 48 ports)
+    - acc-n2 (Catalyst 9200 · 48 ports)
+    - APs north (12× CW9166)
+    - Desks north (Clients)
+  - Building South
+    - dist-south (Catalyst 9300 · 10.30.2.1 · HA stack)
+    - acc-s1 (Catalyst 9200 · 48 ports)
+    - APs south (8× CW9166)
+    - Lab racks (Server)
+
+Connections
+- Dual ISP connects to fw-campus (WAN: 2×10G).
+- fw-campus connects to core-01/02 (Trunk: 2×40G).
+- core-01/02 connects to dist-north (Fibre: 2×40G) and connects to dist-south (Fibre: 2×40G).
+- dist-north connects to acc-n1 (Fibre: 2×10G) and connects to acc-n2 (Fibre: 2×10G).
+- dist-south connects to acc-s1 (Fibre: 2×10G).
+- acc-n1 is linked with APs north (mGig PoE).
+- acc-n2 is linked with Desks north (1G).
+- acc-s1 is linked with APs south (mGig PoE) and is linked with Lab racks (10G).
+
+Key
+- Solid line with beads: Ethernet
+- Solid orange line: Fibre
+- Solid indigo line, double, thick: Trunk
+- Solid sky line with ticks: WAN
+- Solid line, thick: Aggregated link (2× or more)

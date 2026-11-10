@@ -1,0 +1,48 @@
+Library lending
+
+Class diagram: Domain model, catalogue and lending packages. 7 classes, with 6 relations.
+
+Classes
+- Catalogue (Package)
+  - Item (abstract)
+    - id (ItemId, protected)
+    - title (String, public)
+    - loanPeriod() (Days, public)
+  - Book
+    - isbn (Isbn, public)
+    - loanPeriod() (Days, public)
+  - Dvd
+    - minutes (Int, public)
+    - loanPeriod() (Days, public)
+  - Copy
+    - barcode (Barcode, private)
+    - condition (Condition, private)
+  - Condition (enumeration)
+    - New
+    - Good
+    - Worn
+    - Damaged
+- Lending (Package)
+  - Member
+    - id (MemberId, private)
+    - name (String, public)
+    - MAX_LOANS (Int = 5, public)
+    - canBorrow() (Boolean, public)
+  - Loan
+    - lentOn (Date, private)
+    - dueOn (Date, private)
+    - renew(days: Days) (void, public)
+    - isOverdue() (Boolean, public)
+
+Relations
+- Item (1) is made of Copy (copies 1..*).
+- Member (1) borrows Loan (0..5).
+- Loan (0..*) of Copy.
+- Copy is associated with Condition.
+- Book extends Item.
+- Dvd extends Item.
+
+Key
+- Solid line ending in a hollow triangle: Extends
+- Solid line ending in a filled diamond: Composed of (owns)
+- Solid line ending in an open arrowhead: Association

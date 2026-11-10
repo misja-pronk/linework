@@ -1,0 +1,36 @@
+Web shop data mesh
+
+Data products diagram: Six data products over three domains, read from their ODPS and ODCS files. 11 elements in 3 groups, with 10 connections.
+
+Groups and elements
+- CRM accounts (Outside the mesh)
+- Customer (Domain)
+  - Customers (Source-aligned · v1.4.0 · CRM team)
+  - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
+- Campaign tool (Application)
+- Webshop order events (Outside the mesh)
+- Sales (Domain)
+  - Orders (Source-aligned · v2.1.0 · Sales engineering)
+- Finance (Domain)
+  - Revenue (Consumer-aligned · v1.2.0 · Finance data)
+  - Payments (Source-aligned · v3.2.0 · Finance data)
+- CFO dashboard (Dashboard)
+- Payment provider settlements (Outside the mesh)
+- Exchange rates (Source-aligned · v1.0 · Treasury)
+
+Connections
+- CRM accounts connects to Customers.
+- Customers connects to Customer 360.
+- Customer 360 connects to Campaign tool.
+- Webshop order events connects to Orders.
+- Orders connects to Customer 360 and connects to Revenue.
+- Revenue connects to CFO dashboard.
+- Payment provider settlements connects to Payments.
+- Payments connects to Revenue.
+- Exchange rates connects to Revenue.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

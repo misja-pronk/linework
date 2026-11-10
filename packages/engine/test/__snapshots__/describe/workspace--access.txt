@@ -1,0 +1,19 @@
+Harbour Bank access
+
+Roles, groups and access packages diagram. 6 elements, with 4 connections.
+
+Elements
+- sg-team-digital (Security group)
+- Harbour Online (Application)
+- sg-team-payments (Security group)
+- Payments hub (Application)
+- sg-auditors (Security group)
+- Core ledger (Application)
+
+Connections
+- sg-team-digital connects to Harbour Online (Operator).
+- sg-team-payments connects to Payments hub (Operator).
+- sg-auditors connects to Payments hub (Reader) and connects to Core ledger (Reader).
+
+Key
+- Solid sky line: Role assignment

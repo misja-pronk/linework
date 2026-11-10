@@ -1,0 +1,44 @@
+Onboard a new colleague
+
+Process diagram: HR and IT prepare at the same time and the manager plans once the accounts exist, so day one starts with a laptop and a plan. 11 elements in 3 lanes, with 11 connections.
+
+Lanes and steps
+- HR (lane)
+  - Contract signed (start event)
+  - Prepare (parallel split or join)
+  - Register in HR system
+  - All ready (parallel split or join)
+- IT (lane)
+  - Order laptop
+  - Create accounts (subprocess, mail, VPN and source control)
+- Manager (lane)
+  - First day (timer intermediate event)
+  - Plan the first week
+  - Welcome and hand over laptop
+  - Onboarded (end event)
+  - A buddy from the team is named in the plan (note)
+
+Main path
+1. Contract signed
+2. Prepare
+3. Register in HR system
+4. All ready
+5. First day
+6. Welcome and hand over laptop
+7. Onboarded
+
+Connections
+- Contract signed leads to Prepare.
+- Prepare leads to Register in HR system and leads to Order laptop.
+- Register in HR system leads to All ready.
+- Order laptop leads to Create accounts.
+- All ready leads to First day.
+- Create accounts leads to Plan the first week (accounts ready).
+- First day leads to Welcome and hand over laptop.
+- Plan the first week leads to All ready.
+- Welcome and hand over laptop leads to Onboarded.
+- A buddy from the team is named in the plan is a note on Plan the first week.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

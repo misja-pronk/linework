@@ -1,0 +1,30 @@
+Cloud migration engagement
+
+Org chart: Client and consultancy team, who steers and who answers to whom. 11 people and 1 open role.
+
+Who reports to whom
+Each person, with the people who report to them under them.
+- Marieke Hoekstra, CIO and sponsor (Client)
+  - Joost van Dijk, Programme manager (Client)
+    - Kees Smits, Head of IT operations (Client)
+    - Mila Bakker, Application owner (Client)
+  - Lotte Willems, Enterprise architect (Client)
+- Sven Kramer, Engagement partner (Consultancy)
+  - Noor El Amrani, Engagement lead (Consultancy)
+    - Tim Bos, Lead cloud architect (Consultancy)
+      - Iris Kok, Security architect (Consultancy)
+      - Ravi Patel, Network engineer (Consultancy)
+    - Vacancy: Data migration lead (Consultancy, open role)
+    - Eva Jacobs, Change manager (Consultancy)
+
+Dotted lines
+- Sven Kramer also reports to Marieke Hoekstra.
+- Noor El Amrani also reports to Joost van Dijk.
+- Tim Bos also reports to Lotte Willems.
+
+Key
+- Solid blue line with ticks, thick: Client
+- Solid teal line with beads, thick: Consultancy
+- Solid line: Reports to
+- Dotted line: Dotted-line report
+- Person block: Vacancy

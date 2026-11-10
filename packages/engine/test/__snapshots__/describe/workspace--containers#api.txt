@@ -1,0 +1,32 @@
+Banking API — components
+
+C4 model. 8 elements in 2 groups, with 7 connections.
+
+Groups and elements
+- Harbour Online (Software System): Balances, transfers and cards for retail customers
+  - Web banking (Container: React)
+  - Banking API (Container: Spring Boot): Serves accounts and payments as JSON
+    - Sign-in controller (Component: Spring MVC)
+    - Accounts controller (Component: Spring MVC)
+    - Transfers controller (Component: Spring MVC)
+  - Customer store (Container: PostgreSQL 16)
+  - Mobile app (Container: Swift and Kotlin)
+- Core ledger (Software System): Holds every account and books every transaction
+- Payments hub (Software System): Checks, routes and settles every payment
+
+Connections
+- Web banking connects to Sign-in controller (Signs in) and connects to Accounts controller (Gets accounts).
+- Sign-in controller connects to Customer store (Reads logins [JDBC]).
+- Accounts controller connects to Core ledger (Reads balances).
+- Mobile app connects to Transfers controller (Submits transfers).
+- Transfers controller connects to Payments hub (Submits payments [gRPC]).
+- Payments hub connects to Core ledger (Books).
+
+Key
+- Blue icon: Software system
+- Sky icon: Web app
+- Sky icon: Mobile app
+- Violet icon: Database
+- Teal icon: Component
+- Boundary box: Boundary
+- Solid line: Relationship

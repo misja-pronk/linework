@@ -1,0 +1,21 @@
+GitHub Flow with environments
+
+Git branching diagram: Every pull request gets a preview; every merge to main ships. 4 branches and 9 commits.
+
+Branches
+- main (long-lived, 4 commits)
+- feature/signup (feature, 3 commits)
+- fix/header (feature, 1 commit)
+- feature/export (feature, 1 commit)
+
+History
+Oldest first.
+1. main: Initial commit, deployed to production.
+2. feature/signup: Sign-up form, branches off main.
+3. fix/header: Fix header, branches off main.
+4. feature/signup: Tests, deployed to preview, Open PR.
+5. main: merges fix/header, deployed to production.
+6. feature/signup: Review fixes, PR review.
+7. main: merges feature/signup, tagged v1.1.0, deployed to production.
+8. feature/export: Export CSV, branches off main, deployed to preview, Open PR.
+9. main: merges feature/export, deployed to production.

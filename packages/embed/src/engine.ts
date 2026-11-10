@@ -3,6 +3,7 @@
 import { includesOf, joinPath, parseSource, type LayoutSidecar } from '@cartography/core';
 import { render, themes, type RenderResult } from '@cartography/engine';
 import { bundledFont, type Theme } from '@cartography/theme';
+import { describe } from '@cartography/describe';
 
 export interface DrawRequest {
   text: string;
@@ -30,7 +31,7 @@ const dirOf = (file: string) => file.split('/').slice(0, -1).join('/');
  * are fetched up front, and whatever else a render asks for (theme files, contracts, fonts) is fetched
  * after it and the diagram drawn again; a file that cannot be read is reported by the engine as usual.
  */
-export async function draw(req: DrawRequest): Promise<RenderResult> {
+export async function draw(req: DrawRequest): Promise<RenderResult & { summary?: string }> {
   const texts = new Map<string, string | null>();
   const assets = new Map<string, Uint8Array | null>();
   const fetchText = async (file: string) => void texts.set(file, await req.read(file).catch(() => null));
@@ -78,7 +79,8 @@ export async function draw(req: DrawRequest): Promise<RenderResult> {
         return b ?? undefined;
       },
     });
-    if ((!wantText.size && !wantBytes.size) || pass >= 4) return result;
+    // What it shows in a sentence or two (docs/describe.md): the stage's description for a screen reader.
+    if ((!wantText.size && !wantBytes.size) || pass >= 4) return result.graph ? { ...result, summary: describe({ ...result, name: req.file }).summary } : result;
     await Promise.all([...[...wantText].map(fetchText), ...[...wantBytes].map(fetchBytes)]);
   }
 }

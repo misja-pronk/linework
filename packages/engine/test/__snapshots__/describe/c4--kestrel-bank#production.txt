@@ -1,0 +1,40 @@
+Kestrel Online — production
+
+C4 model: Live environment, eu-west-1 and the Amsterdam data centre. 8 elements in 9 groups, with 8 connections.
+
+Groups and elements
+- Amazon Web Services (Deployment Node: eu-west-1)
+  - Load balancer (Infrastructure Node: ALB)
+  - EKS cluster (Deployment Node: Kubernetes 1.31)
+    - web ([Deployment Node: Docker] ×3)
+      - Web banking (Container: Next.js): Serves online banking to the customer's browser
+    - banking-api ([Deployment Node: Docker] ×4)
+      - Banking API (Container: Spring Boot): Signs customers in and serves accounts and payments as JSON
+    - notifier ([Deployment Node: Docker] ×2)
+      - Notifier (Container: Go): Turns account events into emails and push messages
+  - Amazon RDS (Deployment Node: PostgreSQL 16)
+    - Customer store (Container: PostgreSQL 16): Logins, devices, preferences and sessions
+  - Amazon MSK (Deployment Node: Kafka 3.7)
+    - Account events (Container: Kafka): Payments and sign-ins as they happen
+- Kestrel data centre (Deployment Node: z/OS mainframe)
+  - Core ledger (Software System): Holds every account and books every transaction
+- Customer's phone (Deployment Node: iOS or Android)
+  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards on the phone
+
+Connections
+- Load balancer connects to Web banking (Forwards [HTTPS]) and connects to Banking API (Forwards [HTTPS]).
+- Web banking connects to Banking API (Calls [JSON/HTTPS]).
+- Banking API connects to Customer store (Reads logins [JDBC]), connects to Core ledger (Reads and books [ISO 20022 over MQ]) and sends messages to Account events (Publishes [Kafka]).
+- Account events sends messages to Notifier (Delivers).
+- Mobile app connects to Banking API (Calls [JSON/HTTPS]).
+
+Key
+- Blue icon: Software system
+- Sky icon: Container
+- Sky icon: Web app
+- Sky icon: Mobile app
+- Violet icon: Database
+- Violet icon: Queue
+- Icon: Infrastructure node
+- Solid line: Relationship
+- Dashed line: Asynchronous

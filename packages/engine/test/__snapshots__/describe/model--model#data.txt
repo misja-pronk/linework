@@ -1,0 +1,20 @@
+Where order data goes
+
+Architecture diagram. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Web shop (System): Sells products online and handles orders
+  - Orders API (.NET 9)
+  - Orders DB (PostgreSQL)
+  - order-events (Service Bus)
+  - Mailer (.NET 9)
+- Stripe (Payments)
+
+Connections
+- Orders API sends data to Orders DB (SQL), sends OrderPlaced to order-events and calls Stripe (Charges cards).
+- order-events sends messages to Mailer.
+
+Key
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow

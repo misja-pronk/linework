@@ -1,0 +1,46 @@
+Multi-cloud and hybrid
+
+AWS and Google Cloud diagram: Shop on AWS, analytics on Google Cloud, identity in Azure, ERP on-premises. 13 elements in 7 groups, with 13 connections.
+
+Groups and elements
+- Customers (Users)
+- AWS Cloud
+  - Web shop CDN (CloudFront)
+  - vpc-shop (VPC · eu-west-1 · 10.10.0.0/16)
+    - Web shop (EKS)
+    - Orders (Aurora cluster)
+  - Direct Connect
+- Google Cloud
+  - Analytics (acme-analytics)
+    - analytics-net (VPC network · 10.30.0.0/16)
+      - Change data capture (Datastream)
+    - Warehouse (BigQuery)
+    - Partner Interconnect (Cloud Interconnect)
+    - Dashboards (Looker)
+- Data centre (On-premises · 172.16.0.0/16)
+  - Edge router
+  - ERP (SAP)
+- acme.example (Entra tenant)
+  - Sign-in (Entra ID)
+- Staff (Users)
+
+Connections
+- Customers send traffic to Web shop CDN over HTTPS.
+- Web shop CDN sends traffic to Web shop.
+- Web shop connects to Orders (Private network: SQL) and connects to Direct Connect (Private network: orders).
+- Orders sends data to Change data capture (CDC).
+- Direct Connect connects to Edge router (VPN / interconnect: 1 Gbps).
+- Change data capture sends data to Warehouse.
+- Edge router connects to ERP (Private network) and connects to Partner Interconnect (VPN / interconnect).
+- Warehouse sends data to Dashboards.
+- Partner Interconnect connects to Change data capture (Private network).
+- Dashboards signs in with Sign-in (SSO).
+- Staff connects to Dashboards.
+
+Key
+- Solid line with beads: Connection
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow
+- Dotted amber line: Identity
+- Dashed orange line with beads: VPN / interconnect

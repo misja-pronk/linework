@@ -1,0 +1,44 @@
+Data platform on Google Cloud
+
+AWS and Google Cloud diagram: BigQuery at the centre, one project per stage. 15 elements in 5 groups, with 15 connections.
+
+Groups and elements
+- Sources
+  - SaaS apps (CRM and billing)
+  - Orders database (Cloud SQL)
+  - Web and app events (Client app)
+- data (Folder)
+  - Ingest (acme-data-ingest)
+    - Landing bucket (Cloud Storage bucket)
+    - Load and orchestrate (Cloud Composer)
+    - Change data capture (Datastream)
+    - Events (Pub/Sub topic)
+    - Streaming pipeline (Dataflow)
+  - Warehouse (acme-data-warehouse)
+    - Raw datasets (BigQuery)
+    - Transformations (Dataform)
+    - Data marts (BigQuery)
+    - Catalog and quality (Dataplex)
+  - Serve (acme-data-serve)
+    - Dashboards (Looker)
+    - Forecast models (Vertex AI)
+- Analysts (Users)
+
+Connections
+- SaaS apps sends data to Landing bucket (daily files).
+- Landing bucket sends data to Load and orchestrate.
+- Load and orchestrate sends data to Raw datasets (load) and connects to Transformations (Management: runs).
+- Raw datasets sends data to Transformations.
+- Transformations sends data to Data marts and is linked with Catalog and quality (lineage).
+- Data marts sends data to Dashboards and sends data to Forecast models.
+- Dashboards connects to Analysts.
+- Orders database sends data to Change data capture (CDC).
+- Change data capture sends data to Raw datasets.
+- Web and app events sends data to Events (events).
+- Events sends data to Streaming pipeline.
+- Streaming pipeline sends data to Raw datasets.
+
+Key
+- Solid line: Connection
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

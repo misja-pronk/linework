@@ -1,0 +1,30 @@
+Harbour Online — containers
+
+C4 model. 7 elements in 1 group, with 8 connections.
+
+Groups and elements
+- Retail customer (Person): Banks online and on the phone
+- Harbour Online (Software System): Balances, transfers and cards for retail customers
+  - Web banking (Container: React)
+  - Mobile app (Container: Swift and Kotlin)
+  - Banking API (Container: Spring Boot): Serves accounts and payments as JSON
+  - Customer store (Container: PostgreSQL 16)
+- Core ledger (Software System): Holds every account and books every transaction
+- Payments hub (Software System): Checks, routes and settles every payment
+
+Connections
+- Retail customer connects to Web banking (Banks online [HTTPS]) and connects to Mobile app (Banks on the phone).
+- Web banking connects to Banking API (Calls [JSON/HTTPS]).
+- Mobile app connects to Banking API (Calls [JSON/HTTPS]).
+- Banking API connects to Customer store (Reads logins [JDBC]), connects to Core ledger (Reads balances) and connects to Payments hub (Submits payments [gRPC]).
+- Payments hub connects to Core ledger (Books).
+
+Key
+- Indigo icon: Person
+- Blue icon: Software system
+- Sky icon: Container
+- Sky icon: Web app
+- Sky icon: Mobile app
+- Violet icon: Database
+- Boundary box: Boundary
+- Solid line: Relationship

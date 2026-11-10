@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | notes | decisions | new | import | export | threats | share | icons | themes | types
+// carto render | deck | watch | validate | diff | notes | decisions | new | import | export | threats | share | icons | themes | types | describe | export-md | export-confluence
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -14,6 +14,7 @@ import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, t
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { runLive, type LiveFlags } from './live.ts';
+import { describedPng } from './wiki.ts';
 import { decisionsCommand, withDecisionMarks, workspaceFiles } from './decisions.ts';
 import type { Fetched } from '@cartography/import/node';
 import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
@@ -78,6 +79,16 @@ const helpAll = `carto — architecture diagrams that look good
                                                 diagrams it drills into; a folder gets a contents page.
                                                 --notes: the open review notes too; --decisions: the folder's
                                                 architecture decisions, as a page and in the details. More: docs/html-export.md
+  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
+               [--view name | --all-views]      elements, connections in reading order, steps, layers, threats
+               [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
+                                                The same words are in every SVG, PNG, PDF and slide. docs/describe.md
+  carto export-md <file.yaml|folder> -o dir/    a Markdown page with each view as SVG and PNG, its description
+               [--title "…"] [--no-steps]       under it and steps as sections; a folder gets README.md as its
+                                                index. Links work on GitHub, GitLab and in Obsidian. docs/wiki-export.md
+  carto export-confluence <file.yaml|folder> -o dir/  Confluence storage-format pages with their PNG and SVG
+               [--title "…"] [--no-steps]       attachments, an HTML copy, manifest.json and a README on how to
+                                                import them (REST API or by hand); nothing is sent anywhere
   carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto trace <file.yaml> --from a --to b       a request traced along the relations, as a sequence diagram:
@@ -211,11 +222,14 @@ const groups: [string, [string, string][]][] = [
     ['watch', 'render again on every save'],
     ['embed', 'a web page that carries the drawing'],
     ['export-html', 'one HTML file to send, every view inside'],
+    ['export-md', 'Markdown pages with pictures, for a wiki or a repo'],
+    ['export-confluence', 'Confluence pages with their attachments'],
     ['share', 'a link that opens the diagram in the web app'],
   ]],
   ['Check', [
     ['validate', 'check files and their views'],
     ['diff', 'what changed between two versions'],
+    ['describe', 'the diagram in plain words'],
     ['threats', 'the threat table as markdown'],
     ['trace', 'a request through the architecture, as a sequence diagram'],
     ['notes', 'review notes as markdown'],
@@ -238,7 +252,7 @@ const help = `carto — architecture diagrams that look good
 
 Usage: carto <command> [files…] [options]
 
-${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.padEnd(10)} ${what}`).join('\n')}`).join('\n\n')}
+${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.padEnd(17)} ${what}`).join('\n')}`).join('\n\n')}
 
 carto <command> --help   the options of one command
 carto help all           every command with every option
@@ -740,7 +754,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
       if (!shot.svg) continue;
       const out = stdout ? '-' : outputPath(file, format, view, each || values.step ? shot.step : undefined);
       const data =
-        format === 'png' ? toPng(shot.svg, Number(values.scale) || 2, await ttfFiles(faces))
+        format === 'png' ? await describedPng(shot, file, toPng(shot.svg, Number(values.scale) || 2, await ttfFiles(faces)))
         : safe ? toSafeSvg(shot.svg, { outline })
         : format === 'svg' ? shot.svg
         : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
@@ -1636,6 +1650,46 @@ async function main(): Promise<number> {
       const s = r.stats;
       console.log(`${f} → ${r.file} ${dim(`${s.drawings} drawing${s.drawings === 1 ? '' : 's'}${s.steps ? `, ${s.steps} steps` : ''}, ${s.elements} elements, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
       return r.problems.length ? 1 : 0;
+    }
+    case 'describe': {
+      const [f] = files;
+      if (!f || files.length > 1) return (console.error(helpFor(command)), 1);
+      if (!fs.existsSync(f)) return (console.error(`${f}: no such file`), 1);
+      const ext = values.out && values.out !== '-' ? path.extname(values.out).slice(1).toLowerCase() : '';
+      const asked = values.format === 'markdown' ? 'md' : values.format;
+      const format = asked === 'text' || asked === 'md' || asked === 'html' ? asked : ext === 'md' || ext === 'markdown' ? 'md' : ext === 'html' || ext === 'htm' ? 'html' : 'text';
+      const { describeFile } = await import('./wiki.ts');
+      const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
+      for (const p of r.problems) console.error(`${f}  ${red('error')}  ${p}`);
+      if (!r.ok) return 1;
+      if (!values.out || values.out === '-') process.stdout.write(r.text);
+      else {
+        fs.mkdirSync(path.dirname(path.resolve(values.out)), { recursive: true });
+        fs.writeFileSync(values.out, r.text);
+        console.error(`${f} → ${values.out}`);
+      }
+      return 0;
+    }
+    case 'export-md':
+    case 'export-confluence': {
+      const [f] = files;
+      if (!f || files.length > 1 || !values.out || values.out === '-') return (console.error(helpFor(command)), 1);
+      if (!fs.existsSync(f)) return (console.error(`${f}: no such file or folder`), 1);
+      if (!themeFlag()) return 1;
+      const wiki = await import('./wiki.ts');
+      const flags = {
+        options: (file: string) => optionsFor(file, 'embed'),
+        png: async (svg: string, r: RenderResult) => toPng(svg, Number(values.scale) || 2, await ttfFiles(r.theme?.font.faces ?? [])),
+        steps: !values['no-steps'],
+        title: values.title,
+      };
+      const r = await (command === 'export-md' ? wiki.exportMarkdown : wiki.exportConfluence)(f, values.out, flags);
+      for (const p of r.pages) for (const m of p.problems) console.error(`${path.join(fs.statSync(f).isDirectory() ? f : path.dirname(f), p.file)}  ${red('error')}  ${m}`);
+      const made = r.pages.filter((p) => p.out);
+      const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      if (!made.length) return (console.error(`${f}: nothing to draw`), 1);
+      console.log(`${f} → ${values.out} ${dim(`${plural(made.length, 'page')}, ${plural(made.reduce((n, p) => n + p.drawings, 0), 'drawing')}, ${r.written.length} files`)}`);
+      return made.length === r.pages.length ? 0 : 1;
     }
     case 'threats': {
       const [f] = files;

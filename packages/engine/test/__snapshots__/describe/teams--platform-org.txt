@@ -1,0 +1,35 @@
+Platform organisation
+
+Team topology: How the platform group serves the product teams. 10 teams, with 9 interactions.
+
+Teams
+- Payments (Pay in and pay out, 8 people, stream-aligned team)
+- Lending (Loans from quote to repayment, 7 people, stream-aligned team)
+- Onboarding (New customers and KYC, 6 people, stream-aligned team)
+- Insights (Spending insights in the app, 5 people, stream-aligned team)
+- Developer experience (Golden paths, 3 people, enabling team)
+- Security champions (Threat modelling, 2 people, enabling team)
+- Fraud models (Real-time scoring, 4 people, complicated-subsystem team)
+- Credit engine (Risk rules, 3 people, complicated-subsystem team)
+- Cloud platform (Clusters, pipelines, observability, 9 people, platform team)
+- Data platform (Lakehouse and streaming, 6 people, platform team)
+
+Interactions
+- Developer experience and Payments: facilitating.
+- Developer experience and Lending: facilitating.
+- Security champions and Onboarding: facilitating.
+- Security champions and Insights: facilitating.
+- Payments and Fraud models: collaboration.
+- Lending and Credit engine: X-as-a-Service.
+- Payments and Lending: collaboration.
+- Insights and Cloud platform: X-as-a-Service.
+- Insights and Data platform: X-as-a-Service.
+
+Key
+- Stream block: Stream-aligned team
+- Platform block: Platform team
+- Enabling block: Enabling team
+- Subsystem block: Complicated-subsystem team
+- Collaboration block: Collaboration
+- Service block: X-as-a-Service
+- Facilitating block: Facilitating

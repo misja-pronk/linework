@@ -1,0 +1,21 @@
+Placing an order
+
+Architecture diagram: What a checkout touches. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Customer (User): Buys things in the web shop
+- Web shop (System): Sells products online and handles orders
+  - Storefront (React)
+  - Orders API (.NET 9)
+  - Orders DB (PostgreSQL)
+- Stripe (Payments)
+
+Connections
+- Customer connects to Storefront (Browses and orders).
+- Storefront calls Orders API (REST).
+- Orders API sends data to Orders DB (SQL) and calls Stripe (Charges cards).
+
+Key
+- Solid line with beads: Connection
+- Solid blue line: Request
+- Solid teal line with ticks: Data flow

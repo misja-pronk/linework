@@ -1,0 +1,37 @@
+Retail bank capability map
+
+Capability map, map: Map. 6 areas and 26 capabilities.
+
+Areas and capabilities
+- Channels
+  - Mobile banking
+  - Online banking
+  - Branch network
+  - Contact centre
+  - Partner APIs
+- Customer
+  - Onboarding and KYC
+  - Customer data
+  - Advice
+  - Complaints
+- Products
+  - Current accounts
+  - Savings
+  - Mortgages
+  - Consumer credit
+  - Cards
+- Payments
+  - Domestic payments
+  - Instant payments
+  - Cross-border
+  - Direct debits
+- Risk and compliance
+  - Credit risk
+  - Fraud detection
+  - AML monitoring
+  - Regulatory reporting
+- Support
+  - Finance and control
+  - HR
+  - Procurement
+  - IT operations

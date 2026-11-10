@@ -1,0 +1,47 @@
+Enterprise capability map
+
+Capability map, heatmap: Systems: Heatmap: Systems. 7 areas and 30 capabilities.
+
+Areas and capabilities
+- Strategy
+  - Strategic planning (no value, systems: no system)
+  - Portfolio management (1, systems: ServiceNow): Supported by ServiceNow
+  - Enterprise architecture (no value, systems: no system)
+- Customer
+  - Marketing
+    - Campaigns (2, systems: Salesforce, Contentful): Supported by Salesforce, Contentful
+    - Segmentation (1, systems: Salesforce): Supported by Salesforce
+    - Loyalty (no value, systems: no system)
+  - Sales
+    - Lead management (1, systems: Salesforce): Supported by Salesforce
+    - Quoting (2, systems: Salesforce, SAP S/4HANA): Supported by Salesforce, SAP S/4HANA
+  - Customer service
+    - Contact centre (1, systems: Salesforce): Supported by Salesforce
+    - Self-service (1, systems: Contentful): Supported by Contentful
+- Products
+  - Product development (1, systems: Centric PLM): Supported by Centric PLM
+  - Pricing (1, systems: SAP S/4HANA): Supported by SAP S/4HANA
+  - Product data (2, systems: Centric PLM, SAP S/4HANA): Supported by Centric PLM, SAP S/4HANA
+- Operations
+  - Order management (1, systems: SAP S/4HANA): Supported by SAP S/4HANA
+  - Fulfilment
+    - Warehousing (1, systems: Manhattan WMS): Supported by Manhattan WMS
+    - Transport (2, systems: Manhattan WMS, SAP S/4HANA): Supported by Manhattan WMS, SAP S/4HANA
+  - Procurement (1, systems: SAP S/4HANA): Supported by SAP S/4HANA
+- Finance
+  - Accounting (1, systems: SAP S/4HANA): Supported by SAP S/4HANA
+  - Planning and control (2, systems: SAP S/4HANA, Power BI): Supported by SAP S/4HANA, Power BI
+  - Treasury (no value, systems: no system)
+- People
+  - Recruitment (1, systems: Workday): Supported by Workday
+  - Payroll (1, systems: Workday): Supported by Workday
+  - Learning (1, systems: Workday): Supported by Workday
+- Technology
+  - Service management (1, systems: ServiceNow): Supported by ServiceNow
+  - Data and analytics (1, systems: Power BI): Supported by Power BI
+  - Security (no value, systems: no system)
+
+Key
+- Shade 1 of 2 (lightest): Systems: 1
+- Shade 2 of 2 (strongest): 2
+- Chip block: No value

@@ -424,6 +424,11 @@ function draw(pic: Picture) {
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', data.drawings[here.d]!.title);
   const drawing = data.drawings[here.d]!;
+  // What it shows in words, read after its name; kept out of sight, as the drawing says it to the eye.
+  if (drawing.words) {
+    els.sheet.append(h('p', { id: 'carto-words', class: 'words' }, drawing.words));
+    svg.setAttribute('aria-describedby', 'carto-words');
+  }
   for (const el of svg.querySelectorAll('[data-node], [data-group]')) {
     const shape = shapeKey(el);
     if (shape && drawing.drill[shape] !== undefined) el.classList.add('drills');

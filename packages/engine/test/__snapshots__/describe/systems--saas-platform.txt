@@ -1,0 +1,50 @@
+Booking platform
+
+Architecture diagram: Multi-tenant SaaS on Kubernetes. 15 elements in 6 groups, with 14 connections.
+
+Groups and elements
+- Guests (Users)
+- Guest app (Mobile app)
+- AWS eu-west-1 (Cloud)
+  - Public edge (Zone)
+    - CloudFront (CDN)
+    - ALB (Load balancer)
+  - EKS cluster
+    - Core team
+      - Bookings (Service)
+      - Availability search
+    - Growth team
+      - Billing (Service)
+      - Notifier (Worker)
+  - Data tier (Zone)
+    - Postgres (RDS)
+    - Sessions (ElastiCache)
+    - booking-events (Kafka)
+- Auth0 (Identity provider)
+- Stripe (Payments)
+- SendGrid (Email)
+- Host dashboard (Web app)
+
+Connections
+- Guests connect to Guest app.
+- Guest app calls CloudFront over HTTPS and connects to Auth0 (Supporting: OIDC).
+- CloudFront calls ALB.
+- ALB calls Bookings and calls Availability search.
+- Bookings sends data to Postgres, sends data to Sessions and sends BookingConfirmed to booking-events.
+- booking-events sends messages to Billing and sends messages to Notifier.
+- Billing calls Stripe (charge).
+- Notifier calls SendGrid.
+- Host dashboard calls CloudFront over HTTPS.
+
+Layers
+Ways to look at this drawing by tag.
+- Phase 1: Guests book through the app; one service, one database. (tags phase-1; 8 elements).
+- Phase 2: Search, billing and notifications join, around an event stream. (tags phase-2; 7 elements).
+- Data stores (tags data; 3 elements).
+
+Key
+- Solid line with beads: Connection
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow
+- Dotted line: Supporting

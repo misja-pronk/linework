@@ -1,0 +1,23 @@
+Platform migration — RACI
+
+Matrix: Who does what in the move to the new platform. A table of 7 rows by 6 columns.
+
+By row (Activity by role)
+Columns: Business (Sponsor, Programme manager); IT (Architect, Platform team, App teams); Risk (Security officer).
+- Prepare
+  - Business case: Sponsor: A (Accountable); Programme manager: R (Responsible); Architect: C (Consulted); Security officer: I (Informed)
+  - Migration plan: Sponsor: I (Informed); Programme manager: A (Accountable); Architect: R (Responsible); Platform team: C (Consulted); App teams: C (Consulted); Security officer: C (Consulted)
+- Build
+  - Landing zone: Programme manager: I (Informed); Architect: A (Accountable); Platform team: R (Responsible); Security officer: C (Consulted)
+  - Deployment pipelines: Architect: C (Consulted); Platform team: A (Accountable), R (Responsible); App teams: C (Consulted)
+- Migrate
+  - Move the applications: Programme manager: A (Accountable); Platform team: C (Consulted); App teams: R (Responsible); Security officer: I (Informed)
+  - Acceptance tests: Programme manager: A (Accountable); App teams: R (Responsible); Security officer: C (Consulted)
+- Run
+  - Cut-over and decommission: Sponsor: I (Informed); Programme manager: A (Accountable); Platform team: R (Responsible); App teams: R (Responsible); Security officer: I (Informed)
+
+Key
+- Tag R: Responsible: does the work
+- Tag A: Accountable: signs off, one per activity
+- Tag C: Consulted: asked before
+- Tag I: Informed: told after

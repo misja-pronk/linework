@@ -1,0 +1,34 @@
+E-commerce capabilities
+
+Capability map: Run cost per capability and the systems behind it. 5 areas and 18 capabilities.
+
+Areas and capabilities
+- Attract
+  - Search engine marketing (€220k): Supported by Google Ads
+  - Content (€140k): Supported by Contentful
+  - Personalisation (€310k): Supported by Dynamic Yield
+- Sell
+  - Catalogue
+    - Product information (€180k): Supported by Akeneo
+    - Search and filters (€260k): Supported by Algolia
+  - Checkout
+    - Basket (€90k): Supported by Commerce engine
+    - Payment (€410k): Supported by Adyen
+    - Promotions (€70k): Supported by Commerce engine
+- Deliver
+  - Order management (€520k): Supported by Legacy OMS, SAP
+  - Warehouse (€640k): Supported by WMS
+  - Carrier management (€120k): Supported by Sendcloud
+- Serve
+  - Customer service (€380k): Supported by Zendesk
+  - Returns (€160k): Supported by Legacy OMS
+  - Reviews (€30k): Supported by Trustpilot
+- Run
+  - Finance (€200k): Supported by SAP
+  - Analytics (€290k): Supported by Snowflake, Looker
+
+Key
+- Shade 1 of 4 (lightest): Run cost per year: €0–€200k
+- Shade 2 of 4: €200k–€400k
+- Shade 3 of 4: €400k–€600k
+- Shade 4 of 4 (strongest): €600k–€800k

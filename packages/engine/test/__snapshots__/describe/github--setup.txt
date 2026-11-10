@@ -1,0 +1,32 @@
+GitHub setup
+
+GitHub design: Teams, repositories and deployments. 9 elements in 3 groups, with 7 connections.
+
+Groups and elements
+- acme (Organisation)
+  - Developers (Team)
+  - acme/shop (Repository)
+    - main protected (1 review · status checks)
+    - ci.yml (on pull request)
+    - deploy.yml (on push to main)
+    - staging (Environment)
+    - production (required reviewers)
+  - Platform (Team)
+- ubuntu-latest (GitHub-hosted runner)
+- Azure (Cloud)
+  - Container Apps (Deployment target)
+
+Connections
+- Developers connects to acme/shop (Repository access: write).
+- Platform connects to acme/shop (Repository access: admin).
+- main protected connects to ci.yml (Protects: required check).
+- ci.yml depends on ubuntu-latest (runs on).
+- deploy.yml connects to staging (Deploys) and connects to production (Deploys).
+- production connects to Container Apps (OIDC federation: OIDC).
+
+Key
+- Solid indigo line: Repository access
+- Solid amber line, double: Deploys
+- Dotted line: Uses
+- Dotted violet line with beads: OIDC federation
+- Dashed rose line with ticks: Protects

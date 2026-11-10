@@ -1,0 +1,35 @@
+Strategy pattern
+
+Class diagram: Shipping cost, one calculation per carrier. 6 classes, with 5 relations.
+
+Classes
+- Checkout
+  - strategy (ShippingCost, private)
+  - setStrategy(s: ShippingCost) (void, public)
+  - shippingTotal() (Money, public)
+- ShippingCost (interface)
+  - cost(parcel: Parcel) (Money, public)
+- FlatRate
+  - amount (Money, private)
+  - cost(parcel: Parcel) (Money, public)
+- ByWeight
+  - perKilo (Money, private)
+  - cost(parcel: Parcel) (Money, public)
+- FreeAbove
+  - threshold (Money, private)
+  - cost(parcel: Parcel) (Money, public)
+- Parcel (record)
+  - weight (Kilograms, public)
+  - value (Money, public)
+
+Relations
+- Checkout has ShippingCost (strategy).
+- ShippingCost depends on Parcel "uses".
+- FlatRate implements ShippingCost.
+- ByWeight implements ShippingCost.
+- FreeAbove implements ShippingCost.
+
+Key
+- Dashed line ending in a hollow triangle: Implements
+- Solid line ending in a hollow diamond: Aggregates (shares)
+- Dashed line ending in an open arrowhead: Depends on

@@ -6,6 +6,7 @@ import { drawSvg } from '@cartography/render';
 import { bundledFamily, inThemeFonts, themes, type Theme } from '@cartography/theme';
 import type { Drawing } from './pptx.ts';
 import { pages } from './steps.ts';
+import { altOf } from './alt.ts';
 
 /** Inter as TTF bytes per weight. WOFF2 will not do: fontkit cannot subset it. */
 export type FontBytes = Record<400 | 500 | 600, Uint8Array>;
@@ -91,7 +92,8 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   const date = opts.date ?? new Date();
   const title = opts.title ?? drawings.find((d) => d.graph?.title)?.graph?.title ?? 'Diagram';
   // No default font: the browser build has no standard fonts unless registered, and Inter is all we use.
-  const doc = new PDFDocument({ autoFirstPage: false, margin: 0, compress: opts.compress !== false, font: opts.fonts[400] as unknown as string, info: { Title: title, Creator: 'Cartography', Producer: 'Cartography', CreationDate: date } });
+  // Tagged: each drawing is a Figure with alt text, so a screen reader says what the page shows.
+  const doc = new PDFDocument({ autoFirstPage: false, margin: 0, compress: opts.compress !== false, font: opts.fonts[400] as unknown as string, tagged: true, lang: 'en', displayTitle: true, info: { Title: title, Creator: 'Cartography', Producer: 'Cartography', CreationDate: date } });
   const chunks: Uint8Array[] = [];
   doc.on('data', (c: Uint8Array) => chunks.push(c));
   const done = new Promise<void>((ok, fail) => (doc.on('end', ok), doc.on('error', fail)));
@@ -126,18 +128,25 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
       size = [out.width * scale, out.height * scale + foot];
     }
     doc.addPage({ size, margin: 0 });
-    doc.rect(0, 0, size[0], size[1]).fill(theme.canvas);
     const w = out.width * scale;
     const h = out.height * scale;
     const x = (size[0] - w) / 2;
     const y = m + (size[1] - 2 * m - foot - h) / 2;
-    SVGtoPDF(doc, svg, x, y, {
-      width: w,
-      height: h,
-      preserveAspectRatio: 'xMidYMid meet',
-      fontCallback: (family: string, bold: boolean) => /carto-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'carto-sans-600' : 'carto-sans-400'),
-    });
+    doc.markContent('Artifact', { type: 'Layout' });
+    doc.rect(0, 0, size[0], size[1]).fill(theme.canvas);
+    doc.endMarkedContent();
+    doc.addStructure(
+      doc.struct('Figure', { alt: altOf(d, 2000, view) }, () =>
+        SVGtoPDF(doc, svg, x, y, {
+          width: w,
+          height: h,
+          preserveAspectRatio: 'xMidYMid meet',
+          fontCallback: (family: string, bold: boolean) => /carto-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'carto-sans-600' : 'carto-sans-400'),
+        }),
+      ),
+    );
     if (footer) {
+      doc.markContent('Artifact', { type: 'Pagination' });
       const label = d.graph.title ?? d.name ?? title;
       const day = date.toISOString().slice(0, 10);
       // In line with the drawing's own padding on a fitted page.
@@ -146,6 +155,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
       doc.font('carto-sans-400').fontSize(7.5).fillColor(theme.textFaint);
       doc.text(label, fx, by, { lineBreak: false, width: size[0] / 2 - fx });
       doc.text(day, size[0] / 2, by, { lineBreak: false, width: size[0] / 2 - fx, align: 'right' });
+      doc.endMarkedContent();
     }
   }
   doc.end();

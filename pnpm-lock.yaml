@@ -93,6 +93,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/diff':
         specifier: workspace:*
         version: link:../diff
@@ -151,6 +154,12 @@ importers:
       '@playwright/test':
         specifier: ^1.65.0
         version: 1.65.0
+      '@types/markdown-it':
+        specifier: ^14.2.0
+        version: 14.2.0
+      markdown-it:
+        specifier: ^15.0.3
+        version: 15.0.3
       mermaid:
         specifier: ^12.3.0
         version: 12.3.0
@@ -163,6 +172,12 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  packages/describe:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/diff:
     dependencies:
@@ -229,6 +244,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
@@ -265,6 +283,9 @@ importers:
       '@cartography/data-products':
         specifier: workspace:*
         version: link:../../types/data-products
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/erd':
         specifier: workspace:*
         version: link:../../types/erd
@@ -332,6 +353,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -366,6 +390,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/embed':
         specifier: workspace:*
         version: link:../embed
@@ -612,6 +639,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/diff':
         specifier: workspace:*
         version: link:../diff

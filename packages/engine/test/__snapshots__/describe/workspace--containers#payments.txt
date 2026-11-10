@@ -1,0 +1,29 @@
+Payments hub — containers
+
+C4 model. 7 elements in 1 group, with 8 connections.
+
+Groups and elements
+- Harbour Online (Software System): Balances, transfers and cards for retail customers
+- Core ledger (Software System): Holds every account and books every transaction
+- Payments hub (Software System): Checks, routes and settles every payment
+  - Payment gateway (Container: Go)
+  - Settlement engine (Container: Java 21)
+  - Payment events (Container: Kafka)
+- Data platform (Software System): Reporting and analytics on bank data
+- SWIFT network (Software System, external): Interbank payments
+
+Connections
+- Harbour Online connects to Core ledger (Reads balances) and connects to Payment gateway (Submits payments [gRPC]).
+- Core ledger connects to Data platform (Nightly extract).
+- Payment gateway connects to Settlement engine (Routes).
+- Settlement engine connects to Core ledger (Books), connects to SWIFT network (Sends interbank payments [ISO 20022]) and sends messages to Payment events (Publishes).
+- Payment events sends messages to Data platform (Streams).
+
+Key
+- Blue icon: Software system
+- Icon, greyed: External system
+- Sky icon: Container
+- Violet icon: Queue
+- Boundary box: Boundary
+- Solid line: Relationship
+- Dashed line: Asynchronous

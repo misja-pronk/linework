@@ -1,0 +1,28 @@
+Web shop
+
+Architecture diagram: How an order flows through the system. 8 elements in 2 groups, with 7 connections.
+
+Groups and elements
+- Users
+- Web shop (System)
+  - Storefront (Web app)
+  - API gateway
+  - Private network (Zone)
+    - Orders (Service)
+    - Orders DB (Database)
+    - order-events (Queue)
+    - Mailer (Worker)
+- Stripe (Payments)
+
+Connections
+- Users connect to Storefront over HTTPS.
+- Storefront calls API gateway (REST).
+- API gateway calls Orders.
+- Orders sends data to Orders DB (SQL), sends OrderPlaced to order-events and calls Stripe (charge).
+- order-events sends messages to Mailer.
+
+Key
+- Solid line with beads: Connection
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow

@@ -1,0 +1,47 @@
+Shop database
+
+Database design: Two schemas, explicit relation labels. 5 tables, with 5 relations.
+
+Tables
+- sales (Schema)
+  - customers (People who buy)
+    - id (uuid, primary key)
+    - email (text, unique, personal data)
+    - name (text, personal data)
+    - created_at (timestamptz)
+  - orders
+    - id (uuid, primary key)
+    - customer_id (uuid, foreign key to customers.id)
+    - status (order_status)
+    - placed_at (timestamptz)
+  - order_lines
+    - order_id (uuid, primary key, foreign key to orders.id)
+    - product_id (uuid, primary key, foreign key to products.id)
+    - quantity (int)
+    - price (numeric(10,2))
+- catalog (Schema)
+  - products
+    - id (uuid, primary key)
+    - category_id (uuid?, foreign key to categories.id, optional)
+    - name (text)
+    - price (numeric(10,2))
+  - categories
+    - id (uuid, primary key)
+    - parent_id (uuid?, foreign key to categories.id, optional)
+    - name (text)
+
+Relations
+- orders.customer_id → customers.id: each orders row has exactly one customers row; each customers row has zero or many orders rows.
+- order_lines.order_id → orders.id: each order_lines row has exactly one orders row; each orders row has zero or many order_lines rows.
+- order_lines.product_id → products.id: each order_lines row has exactly one products row; each products row has zero or many order_lines rows (sells).
+- products.category_id → categories.id: each products row has zero or one categories row; each categories row has zero or many products rows.
+- categories.parent_id → categories.id: each categories row has zero or one categories row; each categories row has zero or many categories rows.
+
+Key
+- Amber key symbol: Primary key
+- Blue link symbol: Foreign key
+- Violet fingerprint symbol: Unique
+- Rose eye symbol: Personal data
+- Solid line ending in a bar: Exactly one
+- Solid line ending in a ring and bar: Zero or one
+- Solid line ending in a ring and crow's foot: Zero or many

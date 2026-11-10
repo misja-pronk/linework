@@ -1,0 +1,30 @@
+Harbour Bank — system landscape
+
+C4 model. 8 elements in 1 group, with 9 connections.
+
+Groups and elements
+- Retail customer (Person): Banks online and on the phone
+- Harbour Bank (Enterprise)
+  - Harbour Online (Software System): Balances, transfers and cards for retail customers
+  - Core ledger (Software System): Holds every account and books every transaction
+  - Payments hub (Software System): Checks, routes and settles every payment
+  - Data platform (Software System): Reporting and analytics on bank data
+  - Branch advisor (Person): Helps customers in the branch
+  - Advisor desk (Software System): Customer records and cases for branch staff
+- SWIFT network (Software System, external): Interbank payments
+
+Connections
+- Retail customer connects to Harbour Online (Banks online [HTTPS], Banks on the phone).
+- Harbour Online connects to Core ledger (Reads balances) and connects to Payments hub (Submits payments [gRPC]).
+- Core ledger connects to Data platform (Nightly extract).
+- Payments hub connects to Core ledger (Books), sends messages to Data platform (Streams) and connects to SWIFT network (Sends interbank payments [ISO 20022]).
+- Branch advisor connects to Advisor desk (Looks up customers).
+- Advisor desk connects to Core ledger (Reads accounts).
+
+Key
+- Indigo icon: Person
+- Blue icon: Software system
+- Icon, greyed: External system
+- Boundary box: Boundary
+- Solid line: Relationship
+- Dashed line: Asynchronous

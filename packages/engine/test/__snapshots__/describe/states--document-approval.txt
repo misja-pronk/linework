@@ -1,0 +1,33 @@
+Document approval
+
+States diagram: An architecture decision record from first draft to superseded. 9 states, with 10 transitions.
+
+Elements
+- Start
+- Draft: do / author writes
+- In review: entry / notify the reviewers; do / reviewers comment
+- Withdrawn
+- All agree?
+- End
+- Approved: entry / assign a number; do / announce it
+- Superseded
+- Kept for the record and linked to its successor (note)
+
+Main path
+1. Start
+2. Draft
+3. In review: submitted
+4. All agree?: review closed
+5. Approved: [yes]
+6. Superseded: replaced
+7. End
+
+Transitions
+- Start moves to Draft.
+- Draft moves to In review on submitted and moves to Withdrawn on withdrawn.
+- In review moves to All agree? on review closed.
+- Withdrawn moves to End.
+- All agree? moves to Draft on [changes asked] and moves to Approved on [yes].
+- Approved moves to Superseded on replaced.
+- Superseded moves to End.
+- Kept for the record and linked to its successor is a note on Superseded.

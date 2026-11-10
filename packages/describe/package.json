@@ -1,0 +1,13 @@
+{
+  "name": "@cartography/describe",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "A diagram in plain words, from its model: for screen readers, alt text, handouts and wikis",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*"
+  }
+}

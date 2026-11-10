@@ -6,6 +6,7 @@ import { noteLines, type Decision, type LayoutMemory, type LayoutSidecar, type N
 import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
+import { describe, pngWithText, toText } from '@cartography/describe';
 
 export interface ExportInput {
   text: string;
@@ -87,7 +88,10 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
   g.scale(scale, scale);
   g.drawImage(img, 0, 0, r.width, r.height);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+  const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+  // The PNG carries its title and description, as the CLI's does (docs/describe.md).
+  const said = describe({ ...r, name: input.file });
+  return new Blob([pngWithText(new Uint8Array(await png.arrayBuffer()), { title: said.title, description: toText(said, { title: false }).trim() }) as BlobPart], { type: 'image/png' });
 }
 
 /** The SVG on its page (aspect: in the YAML, a 16:9 slide by default): the canvas grown to the page's shape, the drawing centred. */

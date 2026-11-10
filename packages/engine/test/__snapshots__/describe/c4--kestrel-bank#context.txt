@@ -1,0 +1,20 @@
+Kestrel Online — system context
+
+C4 model: The people and systems it works with. 5 elements, with 4 connections.
+
+Elements
+- Personal customer (Person): Holds current and savings accounts at Kestrel Bank
+- Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
+- Core ledger (Software System): Holds every account and books every transaction
+- Postbird (Software System, external): Sends transactional email
+- Push gateway (Software System, external): Delivers notifications to iOS and Android
+
+Connections
+- Personal customer connects to Kestrel Online (Banks online [HTTPS], Banks on the phone).
+- Kestrel Online connects to Core ledger (Reads and books [ISO 20022 over MQ]), connects to Postbird (Sends email [SMTP]) and connects to Push gateway (Sends pushes [HTTPS]).
+
+Key
+- Indigo icon: Person
+- Blue icon: Software system
+- Icon, greyed: External system
+- Solid line: Relationship

@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { findType, render, schemaOf } from '../src/index.ts';
 
+/** The drawing without its text alternative (title and description, see describe.ts), which tells every step. */
+const drawn = (svg: string | undefined) => svg?.replace(/ role="img" aria-labelledby="[^"]*"( aria-describedby="[^"]*")?/, '').replace(/<title id="[^"]*-title">[^<]*<\/title>(<desc id="[^"]*-desc">[^<]*<\/desc>)?/, '');
+
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
 
 const shop = `type: systems
@@ -203,11 +206,11 @@ describe('steps: drawing', () => {
   });
 
   it('leaves the words out on request, and draws the whole diagram without a step', async () => {
-    const bare = (await render(text, { fonts: 'none', step: 2, stepCaption: false })).svg!;
+    const bare = drawn((await render(text, { fonts: 'none', step: 2, stepCaption: false })).svg)!;
     expect(bare).not.toContain('The API asks Stripe.');
     expect(bare).not.toContain('2 / 3');
     expect(bare).toContain('Card data leaves here');
-    const whole = (await render(text, { fonts: 'none' })).svg!;
+    const whole = drawn((await render(text, { fonts: 'none' })).svg)!;
     expect(whole).toContain('>Stripe<');
     expect(whole).not.toContain('Card data leaves here');
     expect(whole).not.toContain('Everything that is there.');
@@ -312,7 +315,7 @@ describe('steps: without a step', () => {
 
   it('a story that hides nothing is drawn as written', async () => {
     const text = steps(`  - focus: web\n  - path: api -> db\n`);
-    expect((await render(text, { fonts: 'none' })).svg).toBe((await render(shop, { fonts: 'none' })).svg);
+    expect(drawn((await render(text, { fonts: 'none' })).svg)).toBe(drawn((await render(shop, { fonts: 'none' })).svg));
   });
 
   it('the walkthrough example draws the proposal, not today and the proposal at once', async () => {

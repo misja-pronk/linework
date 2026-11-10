@@ -1,0 +1,49 @@
+Enterprise capability map
+
+Capability map, heatmap: Investment: Heatmap: Investment. 7 areas and 30 capabilities.
+
+Areas and capabilities
+- Strategy
+  - Strategic planning (Maintain)
+  - Portfolio management (Invest): Supported by ServiceNow
+  - Enterprise architecture (Invest)
+- Customer
+  - Marketing (Invest)
+    - Campaigns (Invest): Supported by Salesforce, Contentful
+    - Segmentation (Invest): Supported by Salesforce
+    - Loyalty (Invest)
+  - Sales (Maintain)
+    - Lead management (Maintain): Supported by Salesforce
+    - Quoting (Maintain): Supported by Salesforce, SAP S/4HANA
+  - Customer service (Invest)
+    - Contact centre (Invest): Supported by Salesforce
+    - Self-service (Invest): Supported by Contentful
+- Products
+  - Product development (Invest): Supported by Centric PLM
+  - Pricing (Invest): Supported by SAP S/4HANA
+  - Product data (Tolerate): Supported by Centric PLM, SAP S/4HANA
+- Operations
+  - Order management (Maintain): Supported by SAP S/4HANA
+  - Fulfilment (Maintain)
+    - Warehousing (Maintain): Supported by Manhattan WMS
+    - Transport (Migrate): Supported by Manhattan WMS, SAP S/4HANA
+  - Procurement (Tolerate): Supported by SAP S/4HANA
+- Finance
+  - Accounting (Maintain): Supported by SAP S/4HANA
+  - Planning and control (Maintain): Supported by SAP S/4HANA, Power BI
+  - Treasury (Tolerate)
+- People
+  - Recruitment (Maintain): Supported by Workday
+  - Payroll (Divest): Supported by Workday
+  - Learning (Invest): Supported by Workday
+- Technology
+  - Service management (Maintain): Supported by ServiceNow
+  - Data and analytics (Invest): Supported by Power BI
+  - Security (Invest)
+
+Key
+- Block marked Maintain: Investment: Maintain
+- Block marked Invest: Invest
+- Block marked Tolerate: Tolerate
+- Block marked Migrate: Migrate
+- Block marked Divest: Divest

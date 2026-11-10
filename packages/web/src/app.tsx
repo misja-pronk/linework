@@ -54,6 +54,8 @@ import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { useDecisionsTool } from './decisions-panel.tsx';
 import { AnimateDialog } from './animate-dialog.tsx';
+import { DescribeDialog } from './describe-dialog.tsx';
+import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -211,6 +213,7 @@ export function App() {
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const [describing, setDescribing] = useState(false);
   const [more, setMore] = useState(false);
   /** The drawing's tools that fold into ⋯ when the pane is narrow. */
   const [toolsMore, setToolsMore] = useState(false);
@@ -802,6 +805,14 @@ export function App() {
     await navigator.clipboard.writeText(link);
     const away = result?.includes?.length ? ` It does not carry ${result.includes.length === 1 ? 'the included file' : `the ${result.includes.length} included files`}.` : '';
     notify(`Share link copied: it opens read-only, and the diagram travels in the link itself, nothing was uploaded.${away}`);
+  });
+  // The drawing on screen in words (docs/describe.md), and with its picture for a wiki page.
+  const description = () => describeResult(result ?? drawn, docFile);
+  const copyForWiki = attempt('Copy', async () => {
+    const d = description();
+    if (!d) throw new Error('Nothing to copy: fix the problems first');
+    await copyRich(exportInput(), d);
+    notify('Picture and description copied: paste into Confluence, Notion or Google Docs');
   });
   const copyPng = attempt('Copy', async () => {
     // Safari wants the ClipboardItem created right in the click, with the PNG still on its way.
@@ -1718,6 +1729,8 @@ export function App() {
     { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
     ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
+    { id: 'describe', group: 'Export', label: 'Describe in words…', hint: 'what the diagram shows, for a screen reader or a handout; copy as text or Markdown', icon: 'scroll-text', run: () => setTimeout(() => setDescribing(true)) },
+    { id: 'copy-wiki', group: 'Export', label: 'Copy for Confluence / Notion', hint: 'the picture and the description in one paste', icon: 'book-open', run: copyForWiki },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
     { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
     { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
@@ -2018,6 +2031,12 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={() => setAnimating(true)} title="The steps or layers, a short blend between them">
                   <Icon name="circle-play" /> Animation (GIF / MP4)
+                </button>
+                <button role="menuitem" onClick={copyForWiki} title="The picture and the description in one paste, for Confluence, Notion or Google Docs">
+                  <Icon name="book-open" /> Copy for Confluence / Notion
+                </button>
+                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
+                  <Icon name="scroll-text" /> Describe in words…
                 </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
@@ -2590,6 +2609,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
       {trace.dialog}

@@ -1,0 +1,12 @@
+Web shop
+
+Architecture diagram: System context. 3 elements, with 2 connections.
+
+Elements
+- Customer (User)
+- Web shop (Service): Sells things
+- Payments
+
+Connections
+- Customer connects to Web shop (Orders).
+- Web shop connects to Payments (Charges).
