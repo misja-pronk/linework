@@ -268,7 +268,8 @@ export function planStages(graph: Graph, specs: StageSpec[], marks: TimeMark[], 
       for (const [id, list] of removes)
         for (const r of list.filter((x) => x.k === k)) {
           const at = now(id);
-          if (!own.has(at)) {
+          if (c.added.has(id) && !r.at.includes('replace')) report(r.at, `${name(id)} is added and removed in ${title(k)}: it is never there`);
+          else if (!own.has(at)) {
             const later = (adds.get(id) ?? []).find((x) => x.k > k);
             const before = list.find((x) => x.k < k);
             report(r.at, later ? `${name(id)} is removed in ${title(k)} but only added in ${title(later.k)}` : before ? `${name(id)} is already removed in ${title(before.k)}` : `${name(id)} is not there in ${title(k - 1)}: it cannot be removed`);
