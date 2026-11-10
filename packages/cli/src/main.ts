@@ -208,6 +208,7 @@ ${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.pad
 
 carto <command> --help   the options of one command
 carto help all           every command with every option
+- for a file (or -o -) is standard input or output; a drawing with errors is not written
 Example: carto render shop.yaml -o shop.png`;
 
 /** Help for one command, or the short help. */

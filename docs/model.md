@@ -105,7 +105,7 @@ One file can hold dev, test and production. `env:` on a node, group or edge says
 
 - What has no `env:` is in every environment. What sits in a group that is left out goes with it, and so do the lines to it.
 - An environment nothing is tagged for is simply what is left: `dev` without the extras of `prod`. A view with `environment:` in a file where nothing has `env:` at all gets a warning.
-- Without a view the diagram draws everything, every environment at once.
+- Without a view the diagram draws everything, every environment at once. Then what only some environments have carries their names as tags (`prod`, `test · prod` on a card or a zone, `dev` after a line's label), and the key says that what has no tag is in all of them.
 - `carto render aws.yaml --all-views` writes one picture per environment.
 
 ### Complete or not
