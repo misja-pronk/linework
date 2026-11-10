@@ -25,6 +25,10 @@ export interface Drawing {
   stepsImplied?: boolean;
   /** Official icons (BYO packs) by node and group id, as render() returns them: pictures on the slide, as they are. */
   images?: SlideImages;
+  /** Review notes, a line each: added to the speaker notes when an export asks for them. */
+  remarks?: string[];
+  /** Draws on the finished SVG before it goes on the page (review note markers in a PDF). */
+  annotate?(drawn: { svg: string; width: number; height: number; origin: { x: number; y: number } }): { svg: string; width: number; height: number };
 }
 
 /** SVG to PNG bytes at the given pixel size; icons get a PNG for apps that cannot show SVG. */
@@ -158,6 +162,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const about = [graph.title ?? d.name ?? 'Diagram', graph.subtitle ?? ''];
     // What the presenter says at this step leads the speaker notes.
     const notes = view && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
+    if (d.remarks?.length) notes.push('', 'Review notes:', ...d.remarks);
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes });
   }
 
