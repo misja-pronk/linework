@@ -16,7 +16,14 @@
 //   importTerraform(text)  `terraform show -json` of a state or a plan (AWS, Google Cloud) → cloud
 //   importAccess(files)    az role assignments, Graph JSON (groups, directory roles, access packages), AzureHound → access
 //   importGithub(files)    gh api responses (teams, repositories, rulesets, environments, …) → github, or access
-//   importAzure(files)     Azure Resource Graph JSON, ARM templates (az bicep build), terraform show -json (azurerm) → azure
+//   importAzure(files)     Azure Resource Graph JSON, ARM templates (az bicep build), terraform show -json (azurerm) → azure;
+//                          Bicep source (.bicep, .bicepparam) too, compiled here to the template az bicep build writes
+//   importCompose(text)    compose.yaml, docker-compose*.yml → systems (services, stores, networks as zones, published ports)
+//   importHelm(files)      a chart (Chart.yaml, values.yaml, templates/) rendered here, then read as manifests → kubernetes
+//   importOpenApi(text)    OpenAPI 3 / Swagger 2 → systems (the API by tag), and a sequence of an operation's callbacks
+//   importAsyncApi(files)  AsyncAPI 2 / 3 → systems (services and the channels between them)
+//   importWorkflow(text)   a GitHub Actions workflow → process (jobs, needs, matrix, environments as lanes and gates)
+//   scanRepo(files)        a code repository: every one of the above it holds, a diagram each
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
@@ -48,6 +55,12 @@ export { importAccess, isAccessExport, type AccessOptions, type ExportFile, type
 export { GIT_LOG_FORMAT, importGitLog, type GitLogOptions } from './git.ts';
 export { importD2, type ImportedD2 } from './d2.ts';
 export { importPlantUml, type ImportedUml } from './plantuml.ts';
+export { importCompose, isCompose, isComposeName, type ComposeOptions } from './compose.ts';
+export { importHelm, isChart, renderChart, type ChartFile, type HelmOptions } from './helm.ts';
+export { compileBicep, parseBicep } from './bicep.ts';
+export { importAsyncApi, importOpenApi, isAsyncApi, isOpenApi, type ApiOptions } from './openapi.ts';
+export { importWorkflow, isWorkflow, isWorkflowPath, type WorkflowOptions } from './workflows.ts';
+export { isRepo, scanRepo, type RepoDiagram, type RepoFile, type RepoKind, type RepoOptions, type RepoScan } from './repo.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
   const warn = new Warnings();

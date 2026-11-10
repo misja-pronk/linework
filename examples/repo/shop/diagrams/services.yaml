@@ -1,0 +1,41 @@
+type: systems
+title: Shop services
+subtitle: "From the Compose file: what runs and what it uses"
+captions: written
+badges: [dotted]
+
+groups:
+  net-frontend: { kind: zone, label: frontend, tags: [imported] }
+  net-backend: { kind: zone, label: backend (internal), tags: [imported] }
+
+nodes:
+  gateway: { kind: gateway, caption: nginx 1.27, tags: [imported] }
+  web: { kind: client, caption: Node.js 20, in: net-frontend, tags: [imported] }
+  orders: { kind: service, caption: Go 1.22, in: net-backend, tags: [imported] }
+  payments: { kind: service, caption: Python 3.12, in: net-backend, tags: [imported] }
+  worker: { kind: worker, caption: Python 3.12, in: net-backend, tags: [imported] }
+  postgres: { kind: database, caption: PostgreSQL 16, in: net-backend, badges: [pgdata], tags: [imported] }
+  redis: { kind: cache, caption: Redis 7, in: net-backend, tags: [imported] }
+  rabbitmq: { kind: queue, caption: RabbitMQ 3.13, in: net-backend, badges: [mqdata], tags: [imported] }
+  keycloak: { kind: identity, caption: Keycloak 25.0, tags: [imported] }
+  mailpit: { kind: email, caption: Mailpit, in: net-backend, badges: [profile dev], tags: [imported] }
+  otel: { kind: monitoring, caption: OpenTelemetry Collector 0.104, in: net-backend, badges: [profile monitoring], tags: [imported] }
+  outside: { kind: users, label: Outside, caption: published ports, tags: [imported] }
+
+edges:
+  - outside -> gateway: { label: :8080, style: sync }
+  - outside -> keycloak: { label: :8081, style: sync }
+  - outside -> mailpit: { label: :8025, style: sync }
+  - gateway -> web: { style: sync }
+  - gateway -> orders: { style: sync }
+  - web -> orders: { label: HTTP, style: sync }
+  - web -> keycloak: { label: HTTP, style: sync }
+  - orders -> postgres: { label: SQL, style: data }
+  - orders -> rabbitmq: { label: AMQP, style: async }
+  - orders -> redis: { label: Redis, style: data }
+  - orders -> otel: { label: HTTP, style: dotted }
+  - payments -> postgres: { label: SQL, style: data }
+  - payments -> rabbitmq: { style: async }
+  - worker -> rabbitmq: { style: async }
+  - worker -> mailpit: { style: sync }
+  - worker -> otel: { label: HTTP, style: dotted }

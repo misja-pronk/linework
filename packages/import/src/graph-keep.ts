@@ -57,7 +57,8 @@ export function writeDrawn(d: Drawn, opts: { existing?: string; tag?: boolean },
         warn.onceFor(`taken:${id}`, `"${id}" is in the diagram already as something of yours: kept as it is`);
         continue;
       }
-      const tags = tag ? [...new Set([IMPORTED, ...(Array.isArray(old?.tags) ? old.tags.map(String) : []), ...(Array.isArray(value.tags) ? value.tags.map(String) : [])])] : value.tags;
+      // Lanes carry no tags: they are known by their id.
+      const tags = tag && name !== 'lanes' ? [...new Set([IMPORTED, ...(Array.isArray(old?.tags) ? old.tags.map(String) : []), ...(Array.isArray(value.tags) ? value.tags.map(String) : [])])] : value.tags;
       kept.put(name, id, { ...value, tags }, mine);
       ours.add(id);
     }

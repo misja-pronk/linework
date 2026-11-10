@@ -622,7 +622,9 @@ export function compileBicep(path: string, files: Map<string, string>, seen: str
         copy.push({ name: d.name, count: `[length(${(() => { try { return x((d.value as Extract<E, { k: 'for' }>).src, syms); } catch { return '0'; } })()})]`, input: json(d.value.body, loopScope(d.value, d.name, syms)) });
         variables.copy = copy;
       } else variables[d.name] = json(d.value, syms);
-    } else if (d.k === 'output') outputs[d.name] = { type: typeOf(d.type), value: json(d.value, syms) };
+    }
+    // An output made by a loop is only for whoever deploys it: not drawn, so not worth a note.
+    else if (d.k === 'output') outputs[d.name] = { type: typeOf(d.type), value: d.value.k === 'for' ? '{a loop}' : json(d.value, syms) };
     else if (d.k === 'module') {
       const at = resolvePath(path, d.path);
       let body = d.value;
