@@ -286,8 +286,9 @@ export function flowLayout(sized: Sized): Placed {
     }
     const mine = best.map((s, i): Run => ({ ...s, edge: e, first: i === 0, last: i === best.length - 1 }));
     for (const [i, r] of mine.entries()) {
-      const from = mine[i - 1] ?? mine[i + 1];
-      if (from) r.side = (i > 0 ? from.line : mine[i + 1]!.line) < r.line ? -1 : 1;
+      // The side it came from: where the piece before it started, or where the piece after the first ends.
+      const from = mine[i - 1]?.a ?? mine[i + 1]?.b;
+      if (from !== undefined) r.side = from < r.line ? -1 : 1;
     }
     routes.set(e.id, mine);
     runs.push(...mine);

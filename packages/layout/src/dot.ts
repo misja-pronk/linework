@@ -235,8 +235,28 @@ function exitsOf(graph: Graph, kids: Map<string, string>): Map<string, string> {
   for (const [g, first] of kids) {
     const inside = graph.nodes.filter((n) => within(g, n.id)).map((n) => n.id);
     const set = new Set(inside);
-    const on = new Set(graph.edges.filter((e) => e.from.node !== e.to.node && set.has(e.from.node) && set.has(e.to.node)).map((e) => e.from.node));
-    out.set(g, on.size ? (inside.find((n) => !on.has(n)) ?? first) : first);
+    const lines = graph.edges.filter((e) => e.from.node !== e.to.node && set.has(e.from.node) && set.has(e.to.node));
+    const from = new Set(lines.map((e) => e.from.node));
+    let exit = inside.find((n) => !from.has(n));
+    if (!exit && lines.length) {
+      // Every node goes on, so there is a loop: leave out the lines back (a retry) and see whether the flow then ends in one place.
+      const on = new Set<string>();
+      const seen = new Map<string, 'open' | 'done'>();
+      const walk = (n: string) => {
+        seen.set(n, 'open');
+        for (const e of lines) {
+          if (e.from.node !== n || seen.get(e.to.node) === 'open') continue;
+          on.add(n);
+          if (!seen.has(e.to.node)) walk(e.to.node);
+        }
+        seen.set(n, 'done');
+      };
+      const entered = new Set(lines.map((e) => e.to.node));
+      for (const n of [...inside.filter((n) => !entered.has(n)), ...inside]) if (!seen.has(n)) walk(n);
+      const ends = inside.filter((n) => !on.has(n));
+      if (ends.length === 1) exit = ends[0];
+    }
+    out.set(g, lines.length ? (exit ?? first) : first);
   }
   return out;
 }

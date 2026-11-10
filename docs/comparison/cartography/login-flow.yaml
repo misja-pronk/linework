@@ -1,27 +1,11 @@
-type: systems
+type: process
 title: Sign-in flow
-direction: down
 
 nodes:
-  start: { kind: start, label: User opens app }
-  session: { kind: decision, label: "Valid session?" }
-  home: { kind: step, label: Show home screen }
-  login: { kind: step, label: Login page }
-  idp: { kind: step, label: Redirect to identity provider }
-  mfa: { kind: decision, label: "MFA required?" }
-  otp: { kind: step, label: Ask one-time code }
-  token: { kind: step, label: Issue tokens }
-  check: { kind: decision, label: "Code correct?" }
+  User opens app: start
 
-edges:
-  - start -> session
-  - session -> home: "yes"
-  - session -> login: "no"
-  - login -> idp
-  - idp -> mfa
-  - mfa -> otp: "yes"
-  - mfa -> token: "no"
-  - otp -> check
-  - check -> token: "yes"
-  - check -> otp: "no, retry"
-  - token -> home
+flow:
+  - User opens app -> Valid session? -yes-> Show home screen
+  - Valid session? -no-> Login page -> Redirect to identity provider -> MFA required? -yes-> Ask one-time code -> Code correct? -yes-> Issue tokens -> Show home screen
+  - MFA required? -no-> Issue tokens
+  - Code correct? -> Ask one-time code: "no, retry"
