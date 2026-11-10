@@ -280,7 +280,7 @@ pre.code:hover .code-lang { opacity: 0; }
 pre.code:has(+ .result) { margin-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
 .result { position: relative; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 var(--radius) var(--radius); background: var(--canvas); padding: 8px; margin-bottom: 24px; }
 .result-label {
-  position: absolute; top: 8px; left: 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint);
+  padding: 2px 4px 6px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint);
 }
 .result .carto { margin: 0; }
 .prose .carto svg { border-radius: 4px; }
@@ -323,7 +323,8 @@ h3 .chip { height: 20px; font-size: 11px; font-family: var(--mono); font-weight:
 
 .landing { padding: 0; }
 .hero { max-width: 1360px; margin: 0 auto; padding: 72px 40px 72px; }
-.hero-text { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px 64px; align-items: end; margin-bottom: 48px; }
+.hero-text { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px 64px; align-items: center; margin-bottom: 48px; }
+.hero-text .install { margin-top: 20px; }
 .hero-text .eyebrow { grid-column: 1 / -1; margin-bottom: -8px; }
 .hero-text h1 { margin: 0; }
 .hero-text .cta { margin: 24px 0 0; }
@@ -340,8 +341,8 @@ h3 .chip { height: 20px; font-size: 11px; font-family: var(--mono); font-weight:
 }
 .sheet-tabs { display: flex; align-items: center; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--paper-1); font-size: 12px; color: var(--faint); }
 .sheet-tabs::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 10px; }
-.sheet-body { display: grid; grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr); }
-.sheet-code { border-right: 1px solid var(--line); background: var(--code-bg); max-height: 600px; overflow: auto; }
+.sheet-body { display: grid; grid-template-columns: minmax(0, 0.36fr) minmax(0, 1fr); }
+.sheet-code { border-right: 1px solid var(--line); background: var(--code-bg); max-height: 520px; overflow: auto; }
 .sheet-code pre.code { margin: 0; border: 0; border-radius: 0; font-size: 11.5px; line-height: 1.6; padding: 14px; background: transparent; }
 .sheet-code .code-lang { display: none; }
 .sheet-drawing { display: grid; place-items: center; padding: 16px; min-width: 0; }
