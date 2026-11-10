@@ -238,7 +238,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   const edges: GraphEdge[] = [];
   // Styles drawn as lines and as badges, apart: the legend shows a sample of each.
   const usedStyles = new Set<string>();
-  let plainLines = false;
+  // Lines without a style, by how they are drawn (solid, dashed, dotted): each needs a name in the key too.
+  const plainLines = new Set<GraphEdge['line']>();
   const badgeStyles = new Set<string>();
   const badgeList = new Set(src.badges ?? []);
   const nodeIds = new Set(nodeEntries.map(([id]) => id));
@@ -266,15 +267,16 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       if (spec.props.badge === true) ctx.warn(path, 'Only a connection from a node can be a badge; drawn as a line');
       badge = false;
     }
+    const line = spec.props.line ? spec.line : (style?.line ?? spec.line);
     if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
-    else if (!badge && spec.line === 'solid') plainLines = true;
+    else if (!badge) plainLines.add(line);
     const step = typeof spec.props.step === 'number' ? spec.props.step : undefined;
     edges.push({
       id: origin?.edges[i]?.id ?? `e${i}`,
       from: spec.from,
       to: spec.to,
       label: spec.label,
-      line: spec.props.line ? spec.line : (style?.line ?? spec.line),
+      line,
       tone: style?.tone,
       start: spec.start,
       end: spec.end,
@@ -292,10 +294,15 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
 
   const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {}).flatMap(([k, s]) => [
     ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone }] : []),
-    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone }] : []),
+    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone}] : []),
   ]);
-  // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing.
-  if (cfg.plainEdge && plainLines && legend.length) legend.unshift({ label: cfg.plainEdge, line: 'solid' });
+  // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing:
+  // each way a line without a style is drawn gets an entry, once the key explains anything else.
+  if (legend.length || plainLines.size > 1) {
+    const plain = cfg.plainEdge ?? 'Connection';
+    const named = { solid: plain, dashed: `${plain}, dashed`, dotted: `${plain}, dotted` } as const;
+    legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
+  }
 
   const graph: Graph = { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
   if (!cfg.threats) return graph;

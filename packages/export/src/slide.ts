@@ -906,7 +906,7 @@ class SlideDrawing {
     if (item.swatch === 'badge') {
       const arrow = this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) });
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { color: t.surface }, { color: tone.fg, alpha: 0.55, width: this.L(1) }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { color: tone.bg }, null);
-      return [back, arrow];
+      return [back, item.icon ? this.icon(item.icon, x + 4, cy - 6, 12, tone.fg, 1.6) : arrow];
     }
     if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
       // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.

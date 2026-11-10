@@ -137,12 +137,11 @@ export function legendColumn(g: Graph, theme: Theme) {
   return { width, height: items.length * COLUMN_ROW + 32, draw };
 }
 
-/** Legend sample of a badge: a small chip with an arrow, in the style's colour. */
-function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme): string {
-  const box =
-    look(theme).chip === 'outline'
-      ? `<rect x="${x + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="${Math.min(4, theme.radius.chip)}" fill="${theme.surface}" stroke="${tone.fg}" stroke-opacity="0.55"/>`
-      : `<rect x="${x}" y="${cy - 7}" width="20" height="14" rx="${Math.min(4, theme.radius.chip)}" fill="${tone.bg}"/>`;
+/** Legend sample of a badge: the chip as on the cards, with the icon its chips carry (an arrow when they have none). */
+function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme, icon?: string): string {
+  const box = chipBack(theme, x, cy - 8, 20, 16, tone);
+  const mark = glyph(icon, x + 4, cy - 6, 12, tone.fg, 1.6);
+  if (mark) return box + mark;
   return box + `<path d="M${x + 6} ${cy}h8m-3-3l3 3-3 3" fill="none" stroke="${tone.fg}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
@@ -151,7 +150,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   const lk = look(theme);
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
   const label = `<text x="${r1(x0 + SAMPLE + sampleExtra(item))}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
-  if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme) + label;
+  if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme, item.icon) + label;
   if (item.swatch === 'block' && item.block) return drawMarks(blockSample(item.block.form, theme, x0, cy, item.block.heat), theme, '') + label;
   if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
     // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.

@@ -6,6 +6,8 @@ type: azure
 title: Web shop on Azure
 subtitle: Every environment at once
 include: [model.yaml]
+# Key Vault is used by nearly everything: a badge on the card, as in the other Azure examples.
+badges: [identity]
 
 groups:
   sub: { kind: subscription, label: Shop }

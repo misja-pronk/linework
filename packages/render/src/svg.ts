@@ -1,6 +1,6 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, linkHref, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
+import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { arrowBack, arrowHead, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
@@ -48,7 +48,8 @@ export interface SvgResult {
   origin: Point;
 }
 
-export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOptions = {}): SvgResult {
+export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOptions = {}): SvgResult {
+  const graph = withBadgeIcons(source);
   // A framed sheet keeps the title and the drawing clear of its frame.
   const pad = theme.space.pad + sheetPad(theme);
   const id = opts.idPrefix ?? 'carto';

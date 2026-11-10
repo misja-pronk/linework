@@ -27,7 +27,11 @@ describe('systems', () => {
     expect(r.graph!.groups.find((g) => g.id === 'back')).toMatchObject({ parent: 'shop', border: 'dashed', caption: 'Zone' });
     expect(r.graph!.nodes.find((n) => n.id === 'db')!.shape).toMatchObject({ label: 'Orders', caption: 'Database', icon: 'database' });
     expect(r.graph!.nodes.find((n) => n.id === 'web')!.shape).toMatchObject({ label: 'Web app', caption: undefined });
-    expect(r.graph!.legend).toEqual([{ label: 'Data flow', line: 'solid', tone: 'teal' }]);
+    // The dashed line without a style is drawn too, so the key names it.
+    expect(r.graph!.legend).toEqual([
+      { label: 'Connection, dashed', line: 'dashed' },
+      { label: 'Data flow', line: 'solid', tone: 'teal' },
+    ]);
   });
 
   it('draws flow shapes: pill terminals, pointed decisions, plain steps, all without captions', async () => {

@@ -1018,7 +1018,8 @@ class SceneBuilder {
     const some = (...p: (Part | undefined)[]) => p.filter((q): q is Part => !!q);
     if (item.swatch === 'badge') {
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { fill: t.surface, stroke: tone.fg, strokeOpacity: 0.55, strokeWidth: 1 }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { fill: tone.bg });
-      return [back, this.line('Swatch', [{ x: x + 6, y: cy }, { x: x + 14, y: cy }], tone.fg, 1.4, { end: 'arrow' })];
+      const mark = item.icon ? this.picture(item.icon, x + 4, cy - 6, 12, tone.fg, 1.6) : undefined;
+      return some(back, mark ?? this.line('Swatch', [{ x: x + 6, y: cy }, { x: x + 14, y: cy }], tone.fg, 1.4, { end: 'arrow' }));
     }
     if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
       // A kind of element: its own icon, treated as on the cards.
