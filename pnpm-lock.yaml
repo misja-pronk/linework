@@ -111,6 +111,9 @@ importers:
       '@cartography/github':
         specifier: workspace:*
         version: link:../../types/github
+      '@cartography/html-export':
+        specifier: workspace:*
+        version: link:../html-export
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -354,6 +357,34 @@ importers:
       '@types/pdfkit':
         specifier: ^0.17.7
         version: 0.17.7
+
+  packages/html-export:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/embed':
+        specifier: workspace:*
+        version: link:../embed
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
 
   packages/icons:
     dependencies:
