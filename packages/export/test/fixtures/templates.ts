@@ -3,7 +3,7 @@
 // Dutch 4:3 .pptx whose layouts have only names ("Alleen titel", "Titel en object"), no types.
 // Both brands are fictional; a real company's template never goes into the repository.
 import { Resvg } from '@resvg/resvg-js';
-import { strToU8, zipSync } from 'fflate';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
 const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n';
 const NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
@@ -255,4 +255,10 @@ export function dutchTemplate(): Uint8Array {
     ],
     slides: [{ layout: 2, tree: ph(2, 'Titel 1', 'title', undefined, undefined, '<a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="nl-NL"/><a:t>Voorbeelddia</a:t></a:r></a:p>') }],
   });
+}
+
+/** The parts of a deck as text, for tests in packages that do not depend on fflate themselves. */
+export function deckParts(bytes: Uint8Array): { files: Record<string, Uint8Array>; text: (part: string) => string } {
+  const files = unzipSync(bytes);
+  return { files, text: (p) => strFromU8(files[p]!) };
 }
