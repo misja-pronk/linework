@@ -27,7 +27,7 @@ async function save(label) {
   return fs.readFileSync(file);
 }
 
-const pptx = unzipSync(new Uint8Array(await save('PowerPoint slide')));
+const pptx = unzipSync(new Uint8Array(await save('PowerPoint')));
 const slide = pptx['ppt/slides/slide1.xml'] ? strFromU8(pptx['ppt/slides/slide1.xml']) : '';
 if (!slide.includes('<p:cxnSp>') && !slide.includes('<a:custGeom>')) fail('pptx: no lines on the slide');
 if (!slide.includes('prst="roundRect"')) fail('pptx: no card shapes');

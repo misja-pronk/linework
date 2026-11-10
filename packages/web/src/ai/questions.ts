@@ -1,4 +1,4 @@
-// The questions behind "Describe it": a few per diagram type, so the prompt carries what a good
+// The questions behind "Ask Claude" in the start dialog: a few per diagram type, so the prompt carries what a good
 // diagram needs (scope, parts, flows) instead of one vague sentence. Chips come from the type's
 // palette, so a new type gets sensible questions without code here.
 import type { DiagramType } from '@cartography/core';

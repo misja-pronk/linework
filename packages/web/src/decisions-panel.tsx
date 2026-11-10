@@ -27,6 +27,7 @@ import type { Command } from './palette.tsx';
 import type { Workspace } from './files.ts';
 import { Icon } from './icon.tsx';
 import { store } from './store.ts';
+import { keyHint } from './keys.ts';
 import { useDecisions, type Decisions } from './decisions-state.ts';
 import './decisions.css';
 
@@ -203,17 +204,9 @@ export function useDecisionsTool(h: DecisionHost) {
     setWithExports(on);
   };
 
-  const onKey = (e: KeyboardEvent, typing: boolean): boolean => {
-    if (typing || e.metaKey || e.ctrlKey) return false;
-    // ⇧D: the panel; ⌥⇧D: a new decision about the selection (e.code: ⌥ changes the letter on a Mac).
-    if (e.code === 'KeyD' && e.shiftKey && e.altKey) return newAbout(), true;
-    if (e.code === 'KeyD' && e.shiftKey && !e.altKey) return toggle(), true;
-    return false;
-  };
-
   const commands: Command[] = [
-    { id: 'decisions', group: 'Decisions', label: open ? 'Hide the decisions' : 'Show the decisions', hint: `${decisions.list.length} in ${decisions.inFolder ? decisions.dir + '/' : 'this browser'}`, icon: 'scroll-text', shortcut: '⇧D', run: toggle },
-    { id: 'decision-new', group: 'Decisions', label: h.selection.length ? 'New decision about the selection…' : 'New decision…', hint: 'the next number, from the template', icon: 'file-plus', shortcut: '⌥⇧D', run: () => newAbout() },
+    { id: 'decisions', group: 'Decisions', label: open ? 'Hide the decisions' : 'Show the decisions', hint: `${decisions.list.length} in ${decisions.inFolder ? decisions.dir + '/' : 'this browser'}`, icon: 'scroll-text', shortcut: keyHint('decisions'), run: toggle },
+    { id: 'decision-new', group: 'Decisions', label: h.selection.length ? 'New decision about the selection…' : 'New decision…', hint: 'the next number, from the template', icon: 'file-plus', shortcut: keyHint('decision-new'), run: () => newAbout() },
     { id: 'decisions-export', group: 'Decisions', label: withExports ? 'Exports without decisions' : 'Exports with decisions', hint: 'markers, a key and the decisions under the drawing', icon: 'download', run: () => setExports(!withExports) },
     ...decisions.list.map((d) => ({ id: `decision-${d.number}`, group: 'Decisions', label: `${d.number}. ${d.title}`, hint: statusSaid(d), icon: 'scroll-text', run: () => show(d.number) })),
   ];
@@ -290,7 +283,7 @@ export function useDecisionsTool(h: DecisionHost) {
   /** What an export with decisions draws: the decisions, and where this drawing has them. */
   const forExport = withExports && decisions.list.length ? { list: decisions.list, at: (view?: string) => ({ ...at, view, drawnAs: (id: string) => h.index.shows.get(view ? `${h.file}#${view}` : h.file)?.get(id) }) } : undefined;
 
-  return { decisions, open, toggle, close, show, newAbout, onKey, commands, markers, panel, whereSection, forExport, count: decisions.list.length };
+  return { decisions, open, toggle, close, show, newAbout, commands, markers, panel, whereSection, forExport, count: decisions.list.length };
 }
 
 interface PanelProps {

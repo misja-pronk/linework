@@ -26,6 +26,8 @@ const before = await nodes();
 
 async function save(label) {
   await page.click('button:has-text("Export")');
+  // The other tools' formats fold away under the common ones.
+  if (!(await page.locator(`[role=menuitem]:has-text("${label}")`).isVisible())) await page.click('.menu summary:has-text("Other tools")');
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click(`[role=menuitem]:has-text("${label}")`)]);
   const file = `${out}/${download.suggestedFilename()}`;
   await download.saveAs(file);

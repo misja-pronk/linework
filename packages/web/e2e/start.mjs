@@ -69,8 +69,11 @@ await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.waitForSelector('.mode-card');
 await wait(800);
 await page.screenshot({ path: `${out}/2-mode.png` });
+// One name per way of working, the same as the switch in the header and the docs' glossary.
+const modeNames = await page.locator('.mode-card .mode-text strong').allInnerTexts();
+if (modeNames.slice(0, 3).join() !== 'Ask Claude,Builder,YAML') fail(`ways of working are named ${modeNames}`);
 
-// 2. Build visually: shapes panel, no YAML.
+// 2. The builder: shapes panel, no YAML.
 await page.keyboard.press('2');
 await page.waitForSelector('.shapes .add-item');
 await wait(800);
@@ -87,7 +90,7 @@ await page.keyboard.press('Meta+Backslash');
 await wait(400);
 if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show the YAML');
 
-// 3. Describe it: questions, generate (mocked), a repair round, open.
+// 3. Ask Claude: questions, generate (mocked), a repair round, open.
 await page.getByRole('button', { name: 'New' }).click();
 await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
@@ -186,7 +189,9 @@ if (!(await yaml()).includes('title: Payments')) fail('title not renamed in plac
   await p2.keyboard.press('Enter');
   await p2.waitForSelector('.template-card');
   const cards = await p2.locator('.template-card .template-meta').allInnerTexts();
-  if (cards.some((c) => c.includes('web-shop.yaml'))) fail('the Azure template and web-shop.yaml (the same drawing) are both offered: ' + cards.join(' | '));
+  // web-shop.yaml was the Azure template's drawing; since it got layers: (tags and a security, data
+  // and ops layer) it shows something the template does not, so both are offered. No card twice, though.
+  if (new Set(cards).size !== cards.length) fail('a start is offered twice: ' + cards.join(' | '));
   const titles = await p2.locator('.template-card .template-title').allInnerTexts();
   if (new Set(titles).size !== titles.length) fail('two starts with the same name: ' + titles.join(' | '));
   await p2.screenshot({ path: `${out}/start-azure.png` });

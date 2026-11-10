@@ -100,8 +100,10 @@ const download = async (menuItem) => {
   await page.waitForSelector('.compare .cmp-count', { timeout: 15000 });
   await wait(400);
   const c = await counts();
-  // Added: the cache and its line; removed: the VM and its line; changed: nothing else.
-  check('counts in the toolbar', JSON.stringify(c), JSON.stringify({ added: 2, changed: 0, removed: 2 }));
+  // Counted as the list says them: added the cache and its line (two sentences); removed the VM with
+  // its connection (one sentence, so one removed, not two); changed: nothing else.
+  check('counts in the toolbar', JSON.stringify(c), JSON.stringify({ added: 2, changed: 0, removed: 1 }));
+  check('removed as many as the list says', (await page.locator('.cmp-sign').allInnerTexts()).filter((x) => x === '−').length, c.removed);
   const said = await items();
   for (const s of ['Added Redis cache (cache for Redis) in rg-shop', 'Orders API now connects to Redis cache (“TLS”)', 'Removed Legacy VM from rg-shop (and its connection)']) if (!said.includes(s)) fail(`change list lacks "${s}": ${JSON.stringify(said)}`);
   if (!(await page.locator('.cmp-pane[data-pane="overlay"] [data-diff="removed"][data-node="vm"]').count())) fail('no ghost of the removed VM in the overlay');
@@ -110,23 +112,29 @@ const download = async (menuItem) => {
   check('signs in the list', (await page.locator('.cmp-sign').allInnerTexts()).join(''), '++−');
   await page.screenshot({ path: `${out}/c1-overlay.png` });
 
-  // 2. N and P step through the changes: the row and the mark are current, the view moves to it.
+  // 2. ] and [ step through the changes (as they step through steps): the row and the mark are current, the view moves to it.
   const transform = () => page.locator('.cmp-pane[data-pane="overlay"] .cmp-stage').evaluate((e) => e.style.transform);
   const before = await transform();
-  await page.keyboard.press('n');
+  await page.keyboard.press(']');
   await wait(400);
   check('first change current', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
-  if (!(await page.locator('.cmp-stage [data-current][data-node="cache"]').count())) fail('the cache mark is not current after N');
+  if (!(await page.locator('.cmp-stage [data-current][data-node="cache"]').count())) fail('the cache mark is not current after ]');
   if ((await transform()) === before) fail('the view did not move to the change');
-  await page.keyboard.press('n');
-  await page.keyboard.press('n');
+  await page.keyboard.press(']');
+  await page.keyboard.press('j');
   await wait(300);
   check('third change current', await page.locator('.cmp-item.current').getAttribute('data-step'), '2');
   if (!(await page.locator('.cmp-stage [data-current][data-node="vm"]').count())) fail('the ghost of the VM is not current on the third change');
-  await page.keyboard.press('p');
+  await page.keyboard.press('[');
   await wait(300);
-  check('P goes back', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
-  if (await page.locator('.present').count()) fail('P presented instead of stepping back');
+  check('[ goes back', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
+  // N and P are the drawing's (a note, presenting): under the comparison they do nothing.
+  await page.keyboard.press('p');
+  await page.keyboard.press('n');
+  await wait(300);
+  if (await page.locator('.present').count()) fail('P presented while comparing');
+  if (await page.locator('.note-composer').count()) fail('N started a note while comparing');
+  check('P and N leave the change alone', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
   await page.locator('.cmp-item').first().click();
   check('a click picks a change', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
   await wait(400);
@@ -248,7 +256,7 @@ const download = async (menuItem) => {
   await pick('First shop');
   await page.waitForFunction(() => document.querySelector('.cmp-against strong')?.textContent !== 'HEAD');
   await wait(400);
-  check('against the first commit', JSON.stringify(await counts()), JSON.stringify({ added: 3, changed: 0, removed: 2 }));
+  check('against the first commit', JSON.stringify(await counts()), JSON.stringify({ added: 3, changed: 0, removed: 1 }));
   await page.locator('.compare').focus();
   await page.keyboard.press('Escape');
 

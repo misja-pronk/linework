@@ -1,6 +1,7 @@
 // Present: the drawing full screen, told step by step like a slide deck. The views of a file come in
 // order with the steps of each inside it; a linked element drills down and Backspace comes back.
 // Every step is the same drawing in the same place, so stepping reads as one picture building up.
+import { shortcutFor } from './keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { focusReach, type LayoutSidecar, type Link } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
@@ -308,23 +309,25 @@ export function Present(p: PresentProps) {
     else if (e.key === 'Escape' && (typed || ring != null)) (setTyped(''), setRing(undefined));
     else if (e.key === 'Escape') close();
     else if (e.key === 'Enter' && ring != null && links[ring]) follow(links[ring].link);
-    else if (e.key === 'Tab') {
-      if (!links.length) say('Nothing on this slide leads further');
-      else setRing((r) => (r == null ? (e.shiftKey ? links.length - 1 : 0) : (r + (e.shiftKey ? links.length - 1 : 1)) % links.length));
-    } else if (e.key === 'Backspace') back();
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === 'Enter' || (e.key === ' ' && !e.shiftKey)) go(at + 1);
-    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp' || e.key === ' ') go(at - 1);
-    else if (e.key === 'Home') go(0);
-    else if (e.key === 'End') go(count - 1);
-    else if (e.key === '.' || e.key.toLowerCase() === 'b') setBlank(true);
-    else if (e.key.toLowerCase() === 'a' && focusable) setWhole((w) => !w);
-    else if (e.key.toLowerCase() === 'l') throughLayers();
-    else if (e.key.toLowerCase() === 'f') {
-      windowed.current = !!document.fullscreenElement;
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-      else void root.current?.requestFullscreen?.().catch(() => {});
+    else {
+      // The rest by the table in keys.ts, which the "?" sheet shows.
+      const id = shortcutFor(e, ['present']);
+      if (id === 'present-links') {
+        if (!links.length) say('Nothing on this slide leads further');
+        else setRing((r) => (r == null ? (e.shiftKey ? links.length - 1 : 0) : (r + (e.shiftKey ? links.length - 1 : 1)) % links.length));
+      } else if (id === 'present-back') back();
+      else if (id === 'present-next') go(at + 1);
+      else if (id === 'present-previous') go(at - 1);
+      else if (id === 'present-ends') go(e.key === 'Home' ? 0 : count - 1);
+      else if (id === 'present-blank') setBlank(true);
+      else if (id === 'present-whole' && focusable) setWhole((w) => !w);
+      else if (id === 'present-layers') throughLayers();
+      else if (id === 'present-full') {
+        windowed.current = !!document.fullscreenElement;
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+        else void root.current?.requestFullscreen?.().catch(() => {});
+      } else return;
     }
-    else return;
     if (e.key !== 'Enter' && !/^\d$/.test(e.key)) setTyped('');
     e.preventDefault();
   };

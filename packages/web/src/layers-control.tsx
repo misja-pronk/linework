@@ -8,6 +8,7 @@ import type { LayerMode } from '@cartography/core';
 import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import './layers.css';
+import { keyHint, shortcutFor } from './keys.ts';
 
 type Info = NonNullable<RenderResult['layers']>;
 
@@ -140,13 +141,15 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
   const onKeyDown = (e: React.KeyboardEvent) => {
     const items = [...(panel.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     const i = items.indexOf(document.activeElement as HTMLElement);
+    // The panel's keys, from keys.ts (the "?" sheet lists them).
     const n = /^Digit([0-9])$/.exec(e.code)?.[1];
-    if (e.key === 'Escape' || e.key === 'Tab' || (e.key.toLowerCase() === 'l' && !e.metaKey && !e.ctrlKey)) setOpen(false);
+    const id = shortcutFor(e, ['layers-panel']);
+    if (id === 'layers-close' || e.key === 'Tab') setOpen(false);
     else if (e.key === 'ArrowDown') items[(i + 1) % items.length]?.focus();
     else if (e.key === 'ArrowUp') items[(i - 1 + items.length) % items.length]?.focus();
-    else if (n === '0') all();
-    else if (n && list[Number(n) - 1]) (e.altKey ? only : toggle)(list[Number(n) - 1]!.name);
-    else if (e.key.toLowerCase() === 'd' && !e.metaKey && !e.ctrlKey) flipMode();
+    else if (id === 'layers-all') all();
+    else if ((id === 'layer-toggle' || id === 'layer-only') && n && list[Number(n) - 1]) (id === 'layer-only' ? only : toggle)(list[Number(n) - 1]!.name);
+    else if (id === 'layers-mode') flipMode();
     else return;
     if (e.key !== 'Tab') e.preventDefault();
     e.stopPropagation();
@@ -154,7 +157,7 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
   const label = active.length ? `Layers: ${active.length} on` : 'Layers';
   return (
     <div className="menu-anchor layers-control" ref={el}>
-      <button className={active.length ? 'tool active' : 'tool'} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label={label} title="Layers: draw only what is tagged security, data, phase 2… (L)">
+      <button className={active.length ? 'tool active' : 'tool'} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label={label} title={`Layers: draw only what is tagged security, data, phase 2… (${keyHint('layers')})`}>
         <Icon name="tag" /> <span className="tool-label">Layers</span>
         {active.length > 0 && <span className="tool-count">{active.length}</span>}
         <kbd>L</kbd>
