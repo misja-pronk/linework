@@ -1,6 +1,7 @@
 // Azure: what an Azure Well-Architected review asks of a drawing first. Each rule reads only what a
 // drawing shows or says (kinds, nesting, lines and their styles, public:, zones:, sku:, props:), and
 // stays quiet where the drawing does not say: a setting that is not written is not assumed wrong.
+import { t } from '../nl.ts';
 import type { Hit, Rule } from '../types.ts';
 import type { ReviewModel } from '../model.ts';
 
@@ -65,19 +66,19 @@ export const azureRules: Rule[] = [
           if (said.has(id) || m.publicSaid(id) === false) continue;
           said.add(id);
           const direct = l.to === id;
-          hits.push({ on: direct ? { kind: 'edge', id: l.id } : { kind: m.el(id)!.group ? 'group' : 'node', id }, message: `${m.name(id)} is reached from ${m.name(l.from)} without a WAF in front` });
+          hits.push({ on: direct ? { kind: 'edge', id: l.id } : { kind: m.el(id)!.group ? 'group' : 'node', id }, message: t(m.lang, '{name} is reached from {from} without a WAF in front', { name: m.name(id), from: m.name(l.from) }) });
         }
         // An Application Gateway said to be another tier than WAF.
         const k = m.el(l.to)?.kind;
         if (k === 'app-gateway' && !shields(m, l.to) && !said.has(l.to)) {
           said.add(l.to);
-          hits.push({ on: { kind: 'node', id: l.to }, message: `${m.name(l.to)} takes traffic from ${m.name(l.from)} on the ${m.said(l.to, 'sku', 'tier')} tier, without its WAF` });
+          hits.push({ on: { kind: 'node', id: l.to }, message: t(m.lang, '{name} takes traffic from {from} on the {tier} tier, without its WAF', { name: m.name(l.to), from: m.name(l.from), tier: String(m.said(l.to, 'sku', 'tier')) }) });
         }
       }
       for (const e of m.ofKind(...APPS)) {
         if (said.has(e.id) || m.publicSaid(e.id) !== true) continue;
         if (m.in(e.id).some((l) => shields(m, l.from))) continue;
-        hits.push({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: `${e.label} is public, and no Front Door or Application Gateway WAF is in front of it` });
+        hits.push({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: t(m.lang, '{name} is public, and no Front Door or Application Gateway WAF is in front of it', { name: e.label }) });
       }
       return hits;
     },
@@ -104,7 +105,7 @@ export const azureRules: Rule[] = [
           const endpoint = m.neighbours(e.id).some((n) => m.el(n)?.kind === 'private-endpoint') || m.tagged(e.id, 'private-endpoint', 'private-link');
           return !inNet && !endpoint;
         })
-        .map((e) => ({ on: { kind: 'node', id: e.id }, message: m.publicSaid(e.id) ? `${e.label} is public, in a design with a virtual network` : `${e.label} has no private endpoint: it is reached on its public endpoint` }));
+        .map((e) => ({ on: { kind: 'node', id: e.id }, message: m.publicSaid(e.id) ? t(m.lang, '{name} is public, in a design with a virtual network', { name: e.label }) : t(m.lang, '{name} has no private endpoint: it is reached on its public endpoint', { name: e.label }) }));
     },
   },
   {
@@ -127,10 +128,10 @@ export const azureRules: Rule[] = [
         // What it reaches that holds a secret, through a private endpoint if that is drawn between.
         const reached = m.out(app.id).flatMap((l) => (m.el(l.to)?.kind === 'private-endpoint' ? m.out(l.to).map((x) => ({ ...x, style: l.style, label: `${l.label} ${x.label}` })) : [l]));
         const secret = reached.find((l) => WITH_SECRETS.includes(m.el(l.to)?.kind ?? '') && l.style !== 'identity' && !IDENTITY.test(l.label));
-        if (secret) hits.push({ on: { kind: app.group ? 'group' : 'node', id: app.id }, message: `${app.label} connects to ${m.name(secret.to)} and reads no secrets from Key Vault` });
+        if (secret) hits.push({ on: { kind: app.group ? 'group' : 'node', id: app.id }, message: t(m.lang, '{name} connects to {store} and reads no secrets from Key Vault', { name: app.label, store: m.name(secret.to) }) });
       }
       // No Key Vault drawn at all: one finding for the design, naming the apps.
-      if (!vaults && hits.length > 1) return [{ on: { kind: 'diagram' }, message: `No Key Vault is drawn, and ${hits.length} apps connect to stores that need a secret: ${hits.map((h) => (h.on.kind === 'diagram' ? '' : m.name(h.on.id))).join(', ')}`, path: ['title'] }];
+      if (!vaults && hits.length > 1) return [{ on: { kind: 'diagram' }, message: t(m.lang, 'No Key Vault is drawn, and {count} apps connect to stores that need a secret: {names}', { count: hits.length, names: hits.map((h) => (h.on.kind === 'diagram' ? '' : m.name(h.on.id))).join(', ') }), path: ['title'] }];
       return hits;
     },
   },
@@ -151,7 +152,7 @@ export const azureRules: Rule[] = [
         const z = e.props.zones;
         return z === 'redundant' || (typeof z === 'number' && z > 1) || (Array.isArray(z) && z.length > 1) || m.said(e.id, 'zone-redundant') === 'true' || e.tags.includes('zone-redundant');
       });
-      return zoned ? [] : [{ on: { kind: 'diagram' }, message: 'Production is drawn in one region, and nothing in it says it is zone-redundant', path: ['title'] }];
+      return zoned ? [] : [{ on: { kind: 'diagram' }, message: t(m.lang, 'Production is drawn in one region, and nothing in it says it is zone-redundant'), path: ['title'] }];
     },
   },
   {
@@ -167,7 +168,7 @@ export const azureRules: Rule[] = [
     check(m) {
       if (m.ofKind(...APPS, ...STORES).length < 2) return [];
       const seen = m.has(...MONITORING) || m.lines.some((l) => l.style === 'management' || /\b(diagnostics?|logs?|telemetry|monitor(ing)?)\b/i.test(l.label)) || [...m.nodes.values()].some((e) => e.tags.some((t) => /^(monitoring|diagnostics|logging)$/.test(t)));
-      return seen ? [] : [{ on: { kind: 'diagram' }, message: 'Nothing here sends logs or metrics anywhere: no Log Analytics, Application Insights or diagnostics line', path: ['title'] }];
+      return seen ? [] : [{ on: { kind: 'diagram' }, message: t(m.lang, 'Nothing here sends logs or metrics anywhere: no Log Analytics, Application Insights or diagnostics line'), path: ['title'] }];
     },
   },
   {
@@ -184,7 +185,7 @@ export const azureRules: Rule[] = [
       return m
         .ofKind('aks', 'aks-cluster')
         .filter((e) => ['none', 'false', 'off', 'disabled', ''].includes(m.said(e.id, 'network-policy', 'networkPolicy') ?? 'set'))
-        .map((e) => ({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: `${e.label} has no network policy engine` }));
+        .map((e) => ({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: t(m.lang, '{name} has no network policy engine', { name: e.label }) }));
     },
   },
   {
@@ -201,7 +202,7 @@ export const azureRules: Rule[] = [
       return m
         .ofKind('aks', 'aks-cluster')
         .filter((e) => (m.said(e.id, 'private-cluster', 'privateCluster') === 'false' || m.publicSaid(e.id) === true) && !m.said(e.id, 'authorized-ip-ranges'))
-        .map((e) => ({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: `The API server of ${e.label} is public` }));
+        .map((e) => ({ on: { kind: e.group ? 'group' : 'node', id: e.id }, message: t(m.lang, 'The API server of {name} is public', { name: e.label }) }));
     },
   },
   {
@@ -218,7 +219,7 @@ export const azureRules: Rule[] = [
       return m
         .ofKind('storage')
         .filter((e) => m.publicSaid(e.id) === true || ['true', 'blob', 'container', 'enabled'].includes(m.said(e.id, 'allow-blob-public-access', 'blob-public-access', 'anonymous-access') ?? ''))
-        .map((e) => ({ on: { kind: 'node', id: e.id }, message: `${e.label} allows public access` }));
+        .map((e) => ({ on: { kind: 'node', id: e.id }, message: t(m.lang, '{name} allows public access', { name: e.label }) }));
     },
   },
   {
@@ -251,7 +252,7 @@ export const azureRules: Rule[] = [
         const roleName = labelOf('roles', role);
         if (!/\b(owner|contributor|user access administrator)\b/i.test(`${role} ${roleName}`)) continue;
         const edge = m.graph.edges.find((e) => e.path[0] === 'assignments' && e.path[1] === i);
-        hits.push({ on: edge ? { kind: 'edge', id: edge.id } : { kind: 'diagram' }, message: `${labelOf('principals', principal)} is ${roleName} on ${labelOf('resources', scope)} directly`, path: ['assignments', i] });
+        hits.push({ on: edge ? { kind: 'edge', id: edge.id } : { kind: 'diagram' }, message: t(m.lang, '{who} is {role} on {scope} directly', { who: String(labelOf('principals', principal)), role: String(roleName), scope: String(labelOf('resources', scope)) }), path: ['assignments', i] });
       }
       return hits;
     },

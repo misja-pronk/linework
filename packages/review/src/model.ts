@@ -2,6 +2,7 @@
 // labels, badges, tags) joined with what the YAML says about each element (public, zones, sku,
 // props, env, …), so a rule is a few lines over named things rather than a walk over YAML.
 import { nodeLabel, type Graph, type GraphEdge, type Path } from '@cartography/core';
+import type { Lang } from '@cartography/i18n';
 
 export interface El {
   id: string;
@@ -71,6 +72,8 @@ export interface ModelInput {
   type: string;
   /** Reads files the diagram refers to (data contracts), relative to it. */
   load?: (file: string) => string;
+  /** The language findings are said in: the drawing's `lang:`. */
+  lang?: Lang;
 }
 
 export class ReviewModel {
@@ -78,6 +81,7 @@ export class ReviewModel {
   readonly graph: Graph;
   readonly data: Record<string, unknown>;
   readonly load?: (file: string) => string;
+  readonly lang: Lang;
   readonly nodes = new Map<string, El>();
   readonly groups = new Map<string, El>();
   readonly lines: Line[] = [];
@@ -89,6 +93,7 @@ export class ReviewModel {
     this.graph = input.graph;
     this.data = input.data;
     this.load = input.load;
+    this.lang = input.lang ?? 'en';
     const entry = (path: Path) => obj(valueAt(input.data, path));
     for (const g of input.graph.groups) this.groups.set(g.id, { id: g.id, group: true, kind: g.kind, label: g.label, tags: g.tags ?? [], parent: g.parent, props: entry(g.path), path: g.path, muted: false });
     for (const n of input.graph.nodes)

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isDiagramFile, type Box, type Placed } from '@cartography/core';
 import { render, renderGraph, themes, withReview, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { builtInIds, emptyConfig, failing, htmlReport, markdownReport, numbered, packs, readConfig, review, summaryGraph, summaryLine, tally, type ConfigProblem, type Finding, type Report, type ReportDrawing, type ReportFile, type ReviewConfig, type RuleInfo, type Severity } from '@cartography/review';
+import { builtInIds, emptyConfig, failing, htmlReport, markdownReport, numbered, packs, readConfig, reportTitle, review, summaryGraph, summaryLine, tally, type ConfigProblem, type Finding, type Report, type ReportDrawing, type ReportFile, type ReviewConfig, type RuleInfo, type Severity } from '@cartography/review';
 import type { Drawing } from '@cartography/export';
 import type { Theme } from '@cartography/theme';
 import { t } from './i18n.ts';
@@ -180,8 +180,11 @@ export async function reviewCommand(flags: ReviewFlags): Promise<number> {
     }
 
   const ran = [...new Map(reviewed.flatMap((x) => x.rules).map((r) => [r.id, r])).values()];
-  const title = flags.title ?? (reviewed.length === 1 ? `${reviewed[0]!.file.title ?? reviewed[0]!.file.file}: architecture review` : `Architecture review of ${inputs.map((i) => path.basename(path.resolve(i))).join(', ')}`);
-  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date() };
+  // The report's own words in the drawings' language when they all have the same one.
+  const langs = new Set(reviewed.flatMap((x) => x.results.map(({ r }) => r.lang ?? 'en')));
+  const lang = langs.size === 1 && langs.has('nl') ? ('nl' as const) : undefined;
+  const title = flags.title ?? reportTitle(lang, reviewed.length === 1 ? (reviewed[0]!.file.title ?? reviewed[0]!.file.file) : undefined, inputs.map((i) => path.basename(path.resolve(i))));
+  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date(), ...(lang ? { lang } : {}) };
 
   if (flags.json) {
     const json = JSON.stringify({ title, summary: { ...tally(report.files.flatMap((f) => f.findings)), ignored: report.files.flatMap((f) => f.findings).filter((f) => f.ignored).length }, files: report.files.map((f) => ({ file: f.file, type: f.type, problems: f.problems, findings: f.findings.map(({ rule, ...rest }) => ({ ...rest, rule: rule.id, title: rule.title, category: rule.category, fix: rule.fix })) })) }, null, 2);

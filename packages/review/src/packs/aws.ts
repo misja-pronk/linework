@@ -1,4 +1,5 @@
 // AWS: the first questions of an AWS Well-Architected review, on a cloud diagram's AWS kinds.
+import { t } from '../nl.ts';
 import type { Hit, Rule } from '../types.ts';
 import type { ReviewModel } from '../model.ts';
 
@@ -42,7 +43,7 @@ export const awsRules: Rule[] = [
           // Reached only through a CloudFront (or anything else) with a WAF on it: covered there.
           return facing && (outside || !from.length || !from.every((l) => waf(m, l.from)));
         })
-        .map((e) => ({ on: { kind: 'node', id: e.id }, message: `${e.label} is internet-facing and no WAF is on it or in front of it` }));
+        .map((e) => ({ on: { kind: 'node', id: e.id }, message: t(m.lang, '{name} is internet-facing and no WAF is on it or in front of it', { name: e.label }) }));
     },
   },
   {
@@ -71,7 +72,7 @@ export const awsRules: Rule[] = [
           // A replica (a line to another database) in another zone.
           return !m.neighbours(e.id).some((n) => ['rds', 'aurora'].includes(m.el(n)?.kind ?? '') && zoneOf(m, n) !== here);
         })
-        .map((e) => ({ on: { kind: 'node', id: e.id }, message: `${e.label} runs in one availability zone` }));
+        .map((e) => ({ on: { kind: 'node', id: e.id }, message: t(m.lang, '{name} runs in one availability zone', { name: e.label }) }));
     },
   },
   {
@@ -88,7 +89,7 @@ export const awsRules: Rule[] = [
       return m
         .ofKind('s3')
         .filter((e) => m.publicSaid(e.id) === true || m.said(e.id, 'block-public-access') === 'false')
-        .map((e) => ({ on: { kind: 'node', id: e.id }, message: `${e.label} is public` }));
+        .map((e) => ({ on: { kind: 'node', id: e.id }, message: t(m.lang, '{name} is public', { name: e.label }) }));
     },
   },
   {
@@ -104,7 +105,7 @@ export const awsRules: Rule[] = [
     check(m) {
       if (m.ofKind(...AWS).length < 3) return [];
       const seen = m.has('cloudtrail', 'cloudwatch', 'security-hub', 'guardduty', 'config') || [...m.nodes.values(), ...m.groups.values()].some((e) => e.tags.some((t) => /^(monitoring|logging|audit)$/.test(t)));
-      return seen ? [] : [{ on: { kind: 'diagram' }, message: 'No CloudTrail or CloudWatch is drawn', path: ['title'] }];
+      return seen ? [] : [{ on: { kind: 'diagram' }, message: t(m.lang, 'No CloudTrail or CloudWatch is drawn'), path: ['title'] }];
     },
   },
   {
@@ -124,7 +125,7 @@ export const awsRules: Rule[] = [
       const natZones = new Set(nats.map((n) => zoneOf(m, n.id)).filter((z): z is string => !!z));
       if (privateZones.size < 2 || natZones.size >= privateZones.size) return [];
       const hits: Hit[] = [];
-      for (const n of nats) hits.push({ on: { kind: 'node', id: n.id }, message: `${natZones.size === 1 ? 'One NAT gateway' : `${natZones.size} NAT gateways`} serve private subnets in ${privateZones.size} zones` });
+      for (const n of nats) hits.push({ on: { kind: 'node', id: n.id }, message: t(m.lang, 'One NAT gateway serve private subnets in {zones} zones|{count} NAT gateways serve private subnets in {zones} zones', { count: natZones.size, zones: privateZones.size }) });
       return hits.slice(0, 1);
     },
   },

@@ -29,6 +29,9 @@ nodes:
   (`carto describe`, alt-tekst) en de knoppen van de interactieve HTML-viewer.
 - **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
   van sneltoetsen, de inspector en de vragen van de wizards.
+- **In de architectuurreview** (`carto review`, het tabblad Review): de regels met waarom en oplossing,
+  de bevindingen en het rapport (Markdown, HTML, PDF), in de taal van de tekening. Je eigen regels in
+  `rules.yaml` blijven zoals je ze schrijft; meldingen over `rules.yaml` zelf zijn Engels.
 - **In de CLI**: de help en de eigen foutmeldingen.
 
 Niet vertaald: meldingen over de inhoud van een diagram (validatie van de YAML), de namen van

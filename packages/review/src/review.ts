@@ -2,9 +2,11 @@
 // severities, runs each check, sets aside what was ignored (with its reason), numbers the rest R1,
 // R2… worst first, and places each finding on a line of the YAML.
 import { parseSource, type Diagnostic, type Graph, type Path } from '@cartography/core';
+import { readLang, type Lang } from '@cartography/i18n';
 import { ReviewModel } from './model.ts';
 import { emptyConfig, nearest, type IgnoreEntry, type Level, type ReviewConfig } from './config.ts';
 import { categories, severityRank, type Finding, type Rule, type RuleInfo, type Severity, type Target } from './types.ts';
+import { ruleIn, t } from './nl.ts';
 import { azureRules } from './packs/azure.ts';
 import { awsRules } from './packs/aws.ts';
 import { kubernetesRules } from './packs/kubernetes.ts';
@@ -34,6 +36,8 @@ export interface ReviewOptions {
   config?: ReviewConfig;
   /** Reads files the diagram refers to (data contracts). */
   load?: (file: string) => string;
+  /** The language findings and rules are said in; by default the drawing's (what render() gave), else the file's `lang:`. */
+  lang?: Lang;
 }
 
 export interface ReviewResult {
@@ -72,7 +76,7 @@ function names(on: string | undefined, t: Target, m: ReviewModel): boolean {
  * Reviews one drawing. `drawn` is what render() gave for it (graph, type, view); `text` the file's
  * YAML, for what it says about each element and where each finding is written.
  */
-export function review(text: string, drawn: { graph?: Graph; type?: { id: string }; view?: string }, opts: ReviewOptions = {}): ReviewResult {
+export function review(text: string, drawn: { graph?: Graph; type?: { id: string }; view?: string; lang?: Lang }, opts: ReviewOptions = {}): ReviewResult {
   const source = parseSource(text);
   const data = isObj(source.data) ? source.data : {};
   const problems: Diagnostic[] = [];
@@ -82,6 +86,7 @@ export function review(text: string, drawn: { graph?: Graph; type?: { id: string
   const config = opts.config ?? emptyConfig();
   const file = isObj(own) ? own : {};
   const type = drawn.type.id;
+  const lang = opts.lang ?? drawn.lang ?? readLang(data.lang) ?? 'en';
 
   const custom = config.custom;
   const ids = new Set([...builtInIds, ...custom.map((r) => r.id)]);
@@ -101,14 +106,14 @@ export function review(text: string, drawn: { graph?: Graph; type?: { id: string
   const level = (r: Rule): Level => fileLevels[r.id] ?? config.rules[r.id]?.severity ?? r.severity;
   const rules = [...builtInRules, ...custom].filter(pick).filter((r) => level(r) !== 'off');
 
-  const m = new ReviewModel({ graph: drawn.graph, data, type, load: opts.load });
+  const m = new ReviewModel({ graph: drawn.graph, data, type, load: opts.load, lang });
   const found: Finding[] = [];
   for (const rule of rules) {
     let hits;
     try {
       hits = rule.check(m, { ...rule.options, ...config.rules[rule.id]?.options });
     } catch (e) {
-      problems.push({ severity: 'warning', message: `Review rule ${rule.id} could not run: ${e instanceof Error ? e.message : String(e)}` });
+      problems.push({ severity: 'warning', message: t(lang, 'Review rule {id} could not run: {error}', { id: rule.id, error: e instanceof Error ? e.message : String(e) }) });
       continue;
     }
     for (const h of hits) {
@@ -117,7 +122,7 @@ export function review(text: string, drawn: { graph?: Graph; type?: { id: string
       const el = on.kind === 'diagram' ? undefined : (line ?? m.el(on.id));
       const path = h.path ?? el?.path ?? [];
       const at = source.locate(path);
-      const about = on.kind === 'diagram' ? 'the diagram' : line ? m.lineName(line) : m.name(on.id);
+      const about = on.kind === 'diagram' ? t(lang, 'the diagram') : line ? m.lineName(line) : m.name(on.id);
       // Set aside on the element or line itself, in the file's review:, or in rules.yaml.
       const inline = el ? ignores(isObj(el.props.review) ? el.props.review.ignore : undefined).find((x) => x.rule === rule.id) : undefined;
       const inFile = fileIgnores.find((x) => x.rule === rule.id && names(x.on, h.on, m));
@@ -125,7 +130,7 @@ export function review(text: string, drawn: { graph?: Graph; type?: { id: string
       const ignored = inline ? { where: 'element' as const, reason: inline.reason } : inFile ? { where: 'file' as const, reason: inFile.reason } : inConfig ? { where: 'config' as const, reason: inConfig.reason } : undefined;
       found.push({
         id: '',
-        rule: infoOf(rule),
+        rule: ruleIn(lang, infoOf(rule)),
         severity: level(rule) as Severity,
         message: h.message,
         on: h.on,
@@ -140,7 +145,7 @@ export function review(text: string, drawn: { graph?: Graph; type?: { id: string
   }
   // Inline ignores name rules too.
   for (const el of [...m.nodes.values(), ...m.groups.values(), ...m.lines]) for (const [i, e] of ignores(isObj(el.props.review) ? el.props.review.ignore : undefined).entries()) unknown([...el.path, 'review', 'ignore', i], e.rule);
-  return { findings: numbered(found), rules: rules.map(infoOf), problems };
+  return { findings: numbered(found), rules: rules.map((r) => ruleIn(lang, infoOf(r))), problems };
 }
 
 /** Worst first, then by pillar, then in the order of the file; R1, R2… for those not set aside. */
