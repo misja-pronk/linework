@@ -56,6 +56,16 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Review notes',
+    [
+      ['N', 'Add a note on the selection (nothing selected: in the middle of the view)'],
+      ['⇧N', 'Notes panel'],
+      ['⇧R', 'Review mode: only the notes stand out'],
+      ['⌘↩ / Esc', 'In a note: send / cancel'],
+      ['Right-click', 'Add a note on an element, a line or a spot'],
+    ],
+  ],
+  [
     'Steps and presenting',
     [
       ['P / ⌘↩', 'Present full screen'],

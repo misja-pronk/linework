@@ -1,8 +1,8 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And the drawing for other tools: draw.io, Excalidraw, Mermaid, and an SVG that Office takes whole.
-import { render, themes } from '@cartography/engine';
-import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
+import { render, themes, withReviewNotes, type RenderResult } from '@cartography/engine';
+import { noteLines, type LayoutMemory, type LayoutSidecar, type NotesFile } from '@cartography/core';
 import type { FamilyBytes } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
@@ -21,6 +21,24 @@ export interface ExportInput {
   step?: number;
   /** The focus set in the editor: the export is the neighbourhood on screen, and says so under its title. */
   focus?: unknown;
+  /** "With review notes": numbered markers and the notes under the drawing (PowerPoint: in the speaker notes). */
+  notes?: NotesFile;
+}
+
+/** The drawing as an export draws it: with the review notes when asked for, as they are. */
+function noted(r: RenderResult, input: ExportInput): RenderResult {
+  if (!input.notes || !r.svg || !r.graph || !r.placed || !r.width || !r.height) return r;
+  const m = withReviewNotes({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, r.graph, r.placed, input.notes, r.theme ?? themes[input.theme], { view: r.view });
+  return { ...r, svg: m.svg, width: m.width, height: m.height };
+}
+
+/** PowerPoint and PDF: the notes as speaker notes, and as markers drawn onto each page. */
+function notedDrawing(r: RenderResult, input: ExportInput) {
+  const { notes } = input;
+  if (!notes || !r.graph || !r.placed) return {};
+  const { graph, placed } = r;
+  const theme = r.theme ?? themes[input.theme];
+  return { remarks: noteLines(notes, graph, r.view), annotate: (d: { svg: string; width: number; height: number; origin: { x: number; y: number } }) => withReviewNotes(d, graph, placed, notes, theme, { view: r.view }) };
 }
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
@@ -30,13 +48,13 @@ const MAX_PIXELS = 16_000_000;
 const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
-  const r = await render(input.text, options(input));
+  const r = noted(await render(input.text, options(input)), input);
   if (!r.svg) throw new Error('Nothing to export: fix the problems first');
   return r.svg;
 }
 
 export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
-  const r = await render(input.text, options(input));
+  const r = noted(await render(input.text, options(input)), input);
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
@@ -56,7 +74,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
 
 /** A 1920×1080 slide: the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
-  const r = await render(input.text, options(input));
+  const r = noted(await render(input.text, options(input)), input);
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
   const W = 1920;
   const H = 1080;
@@ -84,7 +102,7 @@ export async function exportPptx(input: ExportInput, name?: string): Promise<Blo
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
   const { toPptx } = await import('@cartography/export');
-  const data = await toPptx({ ...r, name }, { theme: r.theme ?? input.theme, rasterize });
+  const data = await toPptx({ ...r, name, ...notedDrawing(r, input) }, { theme: r.theme ?? input.theme, rasterize });
   return new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
 
@@ -101,7 +119,7 @@ export async function exportPdf(input: ExportInput, name?: string): Promise<Blob
   for (const family of pdfFamilies(theme)) {
     families[family] = Object.fromEntries(await Promise.all(Object.entries(bundledFontFiles[family] ?? {}).map(async ([w, u]) => [w, await bytes(u)] as const)));
   }
-  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families });
+  const data = await toPdf({ ...r, name, ...notedDrawing(r, input) }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }
 
@@ -145,7 +163,7 @@ export async function exportMermaid(input: ExportInput): Promise<Handed> {
 
 /** An SVG that PowerPoint, Word and Keynote take whole: no CSS, no effects, system fonts, a group per node. */
 export async function exportSafeSvg(input: ExportInput): Promise<string> {
-  const r = await render(input.text, { ...options(input), fonts: 'none' });
+  const r = noted(await render(input.text, { ...options(input), fonts: 'none' }), input);
   if (!r.svg) throw new Error('Nothing to export: fix the problems first');
   const { toSafeSvg } = await import('@cartography/interop');
   return toSafeSvg(r.svg);
