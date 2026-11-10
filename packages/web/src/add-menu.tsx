@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PaletteItem } from '@cartography/core';
 import { Icon } from './icon.tsx';
 import { score } from './palette.tsx';
-import { t } from './i18n/index.ts';
+import { say, t } from './i18n/index.ts';
 
 export const PALETTE_MIME = 'application/x-cartography-palette';
 
@@ -51,7 +51,7 @@ export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[
         {shown.length === 0 && <div className="palette-empty">{t('Nothing matches “{query}”', { query })}</div>}
         {shown.map(({ item, i }, n) => (
           <div key={i}>
-            {!query && (n === 0 || shown[n - 1]!.item.collection !== item.collection) && <div className="palette-group">{titleCase(item.collection)}</div>}
+            {!query && (n === 0 || shown[n - 1]!.item.collection !== item.collection) && <div className="palette-group">{say(titleCase(item.collection))}</div>}
             <div
               id={`add-${i}`}
               role="option"

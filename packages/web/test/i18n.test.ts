@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { badMessages, sourceText, unusedIds } from '@cartography/i18n/lint';
 import { nl } from '../src/i18n/nl.ts';
+import { nlCollections } from '../src/i18n/nl-shell.ts';
 import { SHORTCUTS } from '../src/keys.ts';
 import { setUiLang, t, withUiLang } from '../src/i18n/index.ts';
 
@@ -20,7 +21,7 @@ describe("the editor's Dutch", () => {
   });
   it('has no message the editor no longer says', () => {
     const source = sourceText(['packages/web/src'], (f) => f.includes('/i18n/'));
-    expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id))).toEqual([]);
+    expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id) || id in nlCollections)).toEqual([]);
   });
   it('switches, and gives a new diagram lang: nl in Dutch', () => {
     setUiLang('nl');
