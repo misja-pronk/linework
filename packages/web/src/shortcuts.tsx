@@ -35,6 +35,15 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Layers',
+    [
+      ['L', 'The layers panel (when the diagram has layers:)'],
+      ['1–9 / ⌥1–⌥9', 'In the panel: switch a layer / show it alone'],
+      ['0 / D', 'In the panel: the whole drawing / only or faded'],
+      ['#tag in ⌘K', 'Elements with that tag'],
+    ],
+  ],
+  [
     'Folder (one model)',
     [
       ['⌘P / ⇧⌘F', 'Search every diagram: elements, views, files (↵ opens in focus, ⌥↵ only selects)'],
@@ -102,6 +111,7 @@ const groups: [string, [string, string][]][] = [
       ['Home / End', 'Presenting: first / last'],
       ['3 ↵', 'Presenting: jump to a number'],
       ['B or .', 'Presenting: blank the screen'],
+      ['L', 'Presenting: a slide per layer after each view, or none'],
       ['A', 'Presenting: everything, or the focus set with F'],
       ['Tab ↵ / ⌘-click', 'Presenting: follow a link, ⌫ comes back'],
       ['Esc', 'Presenting: stop'],

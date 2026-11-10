@@ -111,7 +111,19 @@ export async function drift(text: string, sidecar: LayoutSidecar | undefined, op
     if (r.stale.length) fixed = withViewPins(sidecar, undefined, { version: 1, ...r.kept });
   }
 
+  const layerNames = new Set((first.layers?.list ?? []).map((l) => l.name));
   for (const [name, pins] of Object.entries(sidecar.views ?? {})) {
+    // A layer drawing's own note ("view@security+data"): it goes with its view or its layers.
+    const at = name.indexOf('@');
+    if (at >= 0) {
+      const view = name.slice(0, at);
+      const gone = (view && !names.has(view)) || name.slice(at + 1).split('+').some((l) => !layerNames.has(l));
+      if (gone && !failed(first)) {
+        stale.push({ view: name, path: `views.${name}`, kind: 'view', id: name, message: `the layout note of "${name}" is for a view or layer that does not exist` });
+        fixed = withViewPins(fixed, name, null);
+      }
+      continue;
+    }
     if (!names.has(name)) {
       // Without any view left to compare with and a broken diagram, say nothing rather than guess.
       if (failed(first) && !first.views) return { stale: [], fixed: sidecar, error: 'the diagram has errors, so its layout file cannot be checked' };

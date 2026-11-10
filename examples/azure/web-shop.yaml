@@ -11,20 +11,37 @@ groups:
 
 nodes:
   users: users
-  edge: { kind: front-door, label: Front Door }
-  web: { kind: app-service, label: Web shop, in: apps }
-  api: { kind: container-app, label: Orders API, in: apps }
-  db: { kind: sql-database, label: Orders, in: data }
-  vault: { kind: key-vault, label: Secrets, in: rg }
+  edge: { kind: front-door, label: Front Door, tags: [security, ops] }
+  web: { kind: app-service, label: Web shop, in: apps, tags: [ops] }
+  api: { kind: container-app, label: Orders API, in: apps, tags: [ops] }
+  db: { kind: sql-database, label: Orders, in: data, tags: [data] }
+  vault: { kind: key-vault, label: Secrets, in: rg, tags: [security] }
 
 badges: [identity]
 
 edges:
-  - users -> edge: { label: HTTPS, style: public }
+  - users -> edge: { label: HTTPS, style: public, tags: [security] }
   - edge -> web: { style: public }
   - web -> api: { label: REST, style: private }
-  - api -> db: { label: SQL, style: private }
-  - api -> vault: { label: secrets, style: identity }
+  - api -> db: { label: SQL, style: private, tags: [data] }
+  - api -> vault: { label: secrets, style: identity, tags: [security] }
+
+# One drawing, three ways to look at it: the Layers control in the editor (L), or
+# carto render web-shop.yaml --layer security (--all-layers -o out/ for one picture each)
+layers:
+  security:
+    tags: [security]
+    title: Security
+    caption: Only the front door is public; the API reads its secrets with its own identity.
+  data:
+    tags: [data]
+    title: Data
+    caption: Orders live in SQL on the data subnet, reached only by the API.
+  ops:
+    tags: [ops]
+    title: Operations
+    dim-others: true
+    caption: What takes the traffic and runs our code, from the front door to the Orders API.
 
 # Told in steps: Present in the editor, or carto render web-shop.yaml --all-steps
 steps:

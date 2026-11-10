@@ -21,6 +21,9 @@ export interface ExportInput {
   step?: number;
   /** The focus set in the editor: the export is the neighbourhood on screen, and says so under its title. */
   focus?: unknown;
+  /** The layers switched on in the editor (layers-control.tsx): the export is what is on screen. */
+  layers?: string[];
+  layerMode?: 'only' | 'dim';
   /** "With review notes": numbered markers and the notes under the drawing (PowerPoint: in the speaker notes). */
   notes?: NotesFile;
   /** "With decisions": their markers and, under the drawing, a key and the decisions (PowerPoint: in the speaker notes). */
@@ -60,7 +63,7 @@ function notedDrawing(r: RenderResult, input: ExportInput) {
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), fonts: 'embed' as const });
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), ...(input.layers ? { layers: input.layers, layerMode: input.layerMode } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, options(input)), input);
@@ -123,8 +126,8 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
 }
 
 /**
- * A deck with native, editable shapes: a slide per view (the one on screen first), and one per step
- * where a view has steps; icon PNG fallbacks drawn by the browser's canvas. `small` lists the slides
+ * A deck with native, editable shapes: a slide per view (the one on screen first), one per step
+ * where a view has steps, then one per layer; icon PNG fallbacks drawn by the browser's canvas. `small` lists the slides
  * whose smallest text is under SLIDE_MIN_PT.
  */
 export async function exportPptx(input: ExportInput, name?: string): Promise<{ blob: Blob; small: SlideText[] }> {
@@ -133,7 +136,11 @@ export async function exportPptx(input: ExportInput, name?: string): Promise<{ b
   const others = (r.views ?? []).filter((v) => v.name !== r.view);
   // The other views as they are drawn from scratch (with their own pins): only the one on screen has a drawing before it.
   const rest = await Promise.all(others.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })));
-  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty)].map((x) => ({ ...x, name, ...notedDrawing(x, input) }));
+  // Then a slide per layer of the drawing on screen (its steps are told on the slides before), all but the one on screen.
+  const shown = r.layers?.active.join('+');
+  const layered = await Promise.all((r.layers?.list ?? []).filter((l) => l.name !== shown).map((l) => render(input.text, { ...options(input), layers: [l.name], layerMode: undefined, previous: undefined, step: undefined, fonts: 'none' })));
+  const layerSlides = layered.filter((x) => x.graph && x.placed && !x.empty && x.layers?.kept).map((x) => ({ ...x, steps: undefined }));
+  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name, ...notedDrawing(x, input) }));
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';

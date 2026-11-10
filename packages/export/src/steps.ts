@@ -1,6 +1,6 @@
 // A diagram with steps becomes one slide or page per step: the same drawing in the same place,
 // only what shows and what stands out changes, so clicking through (or Morph) reads as one build-up.
-import { finalState } from '@cartography/core';
+import { fadeState, finalState } from '@cartography/core';
 import type { StepView } from '@cartography/render';
 import type { Drawing } from './pptx.ts';
 
@@ -16,7 +16,17 @@ export interface Page {
  * `all: false` keeps every drawing on one page.
  */
 export function pages(drawings: Drawing[], all?: boolean): Page[] {
-  return drawings.flatMap((drawing): Page[] => {
+  // A faded layer stands back on every page, at every step; what a step hides stays hidden.
+  return drawings.flatMap((drawing) => {
+    const list = stepPages(drawing, all);
+    const faded = drawing.faded;
+    if (!faded) return list;
+    return list.map((p) => ({ ...p, view: p.view ? { ...p.view, states: p.view.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false } }));
+  });
+}
+
+function stepPages(d: Drawing, all?: boolean): Page[] {
+  return [d].flatMap((drawing): Page[] => {
     const states = drawing.steps;
     if (!states?.length) return [{ drawing }];
     if (drawing.step) return [{ drawing, view: { index: Math.min(states.length, Math.max(1, drawing.step)) - 1, states } }];

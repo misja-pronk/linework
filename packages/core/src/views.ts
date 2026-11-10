@@ -301,7 +301,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     }
     return false;
   };
-  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; index: number; exact: boolean }>();
+  const drawn = new Map<string, { labels: string[]; style?: string; tags: string[]; at: Path; index: number; exact: boolean }>();
   for (const r of relations) {
     if (r.model == null || hidden(r)) continue;
     const rel = m.relations[r.model]!;
@@ -313,10 +313,11 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     // A relation written between exactly these two says it best; implied ones only fill in when there is none.
     const exact = r.exact ?? (from === r.from && to === r.to);
     const old = drawn.get(key);
-    const d = old && (old.exact || !exact) ? old : { labels: [], style: rel.style, at: rel.at, index: rel.index, exact };
+    const d = old && (old.exact || !exact) ? old : { labels: [], style: rel.style, tags: [], at: rel.at, index: rel.index, exact };
     if (old?.exact && !exact) continue;
     const label = withTechnology(rel.label, rel.technology);
     if (label && !d.labels.includes(label)) d.labels.push(label);
+    for (const t of rel.tags ?? []) if (!d.tags.includes(t)) d.tags.push(t);
     drawn.set(key, d);
   }
   // A line that ends on an opened boundary says less than the lines into its parts: "Calls the API"
@@ -332,7 +333,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   for (const [key, d] of drawn) {
     const [from, to] = key.split('\0') as [string, string];
     const style = d.style && cfg.edgeStyles?.[d.style] ? { style: d.style } : {};
-    out.edges!.push({ from, to, ...(d.labels.length ? { label: d.labels.join(', ') } : {}), ...style });
+    out.edges!.push({ from, to, ...(d.labels.length ? { label: d.labels.join(', ') } : {}), ...style, ...(d.tags.length ? { tags: d.tags } : {}) });
     // One relation between instances in several places is several lines.
     let id = `r${d.index}`;
     for (let n = 2; edgeIds.has(id); n++) id = `r${d.index}-${n}`;
