@@ -10,7 +10,15 @@ export interface Command {
   icon?: string;
   hint?: string;
   shortcut?: string;
+  /** An element's tags: "#security" (or "tag:security") lists only what carries it. */
+  tags?: string[];
   run(): void;
+}
+
+/** "#sec orders" → the tag asked for ("sec", matched from the start) and the rest of the query. */
+export function tagQuery(query: string): { tag?: string; rest: string } {
+  const m = /^\s*(?:#|tag:)([\w-]*)\s*(.*)$/.exec(query);
+  return m ? { tag: m[1]!.toLowerCase(), rest: m[2]! } : { rest: query };
 }
 
 /** Letters in order, with a bonus for word starts and runs: "exp png" finds "Export PNG". */
@@ -37,8 +45,10 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
   const list = useRef<HTMLDivElement>(null);
   useRestoreFocus();
   const shown = useMemo(() => {
-    const scored = commands.map((c) => ({ c, s: score(query, `${c.group} ${c.label} ${c.hint ?? ''}`) })).filter((x) => x.s > 0);
-    if (query) scored.sort((a, b) => b.s - a.s);
+    const { tag, rest } = tagQuery(query);
+    const pool = tag === undefined ? commands : commands.filter((c) => c.tags?.some((t) => t.toLowerCase().startsWith(tag)));
+    const scored = pool.map((c) => ({ c, s: score(rest, `${c.group} ${c.label} ${c.hint ?? ''}`) })).filter((x) => x.s > 0);
+    if (rest) scored.sort((a, b) => b.s - a.s);
     return scored.slice(0, 60).map((x) => x.c);
   }, [commands, query]);
 

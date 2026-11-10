@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { render, type RenderResult } from '@cartography/engine';
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
-import { pdfFamilies, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
+import { pages, pdfFamilies, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
 import { clean, fitConnector } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
@@ -414,5 +414,22 @@ describe('on the page', () => {
     expect(out.svg).toContain('viewBox="0 -62.5 400 225"');
     expect(out.svg).toContain('<rect x="0" y="-62.5" width="400" height="225" fill="#fff"/>');
     expect(svgOnPage(svg, 400, 225, 16 / 9, '#fff').svg).toBe(svg);
+  });
+});
+
+describe('layers', () => {
+  it('a faded layer stands back on every slide and page, at every step; a layer is drawn as written on its own slide', async () => {
+    const text = example('azure/web-shop.yaml');
+    const ops = await render(text, { fonts: 'none', layers: 'ops' });
+    const list = pages([ops]);
+    expect(list.length).toBe(5);
+    for (const p of list) for (const id of ops.faded!.nodes) expect(['dim', 'hidden']).toContain(p.view!.states[p.view!.index]!.nodes[id]);
+    expect(pages([{ ...ops, steps: undefined }])[0]!.view!.states[0]!.nodes.db).toBe('dim');
+    // The whole drawing and a slide per layer, in one deck.
+    const layers = await Promise.all(['security', 'data', 'ops'].map((l) => render(text, { fonts: 'none', layers: l })));
+    const deck = unzipSync(await toPptx([{ ...ops, faded: undefined, layers: undefined, steps: undefined }, ...layers.map((l) => ({ ...l, steps: undefined }))]));
+    const slides = Object.keys(deck).filter((k) => /^ppt\/slides\/slide\d+\.xml$/.test(k));
+    expect(slides.length).toBe(4);
+    expect(strFromU8(deck['ppt/slides/slide2.xml']!)).toContain('Security layer');
   });
 });

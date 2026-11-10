@@ -280,6 +280,8 @@ export interface GraphEdge {
   loose?: boolean;
   /** Short tags drawn after its label, such as threat numbers (T1). */
   marks?: string[];
+  /** Tags as written, for layers (layers.ts) and rules like "tag:pii". */
+  tags?: string[];
   /** Tags at the ends of the line, drawn on it next to the element: a context map's U and D, ACL, OHS. */
   ends?: { from?: string[]; to?: string[] };
   path: Path;
