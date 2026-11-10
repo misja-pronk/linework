@@ -1,0 +1,57 @@
+type: class
+title: Library lending
+subtitle: Domain model, catalogue and lending packages
+
+packages:
+  catalogue: Catalogue
+  lending: Lending
+
+classes:
+  Item:
+    kind: abstract
+    package: catalogue
+    members:
+      - "#id: ItemId"
+      - +title: String
+      - +{abstract} loanPeriod(): Days
+  Book:
+    package: catalogue
+    extends: Item
+    members:
+      - +isbn: Isbn
+      - +loanPeriod(): Days
+  Dvd:
+    package: catalogue
+    extends: Item
+    members:
+      - +minutes: Int
+      - +loanPeriod(): Days
+  Copy:
+    package: catalogue
+    members:
+      - -barcode: Barcode
+      - -condition: Condition
+  Member:
+    package: lending
+    members:
+      - -id: MemberId
+      - +name: String
+      - +{static} MAX_LOANS: Int = 5
+      - +canBorrow(): Boolean
+  Loan:
+    package: lending
+    members:
+      - -lentOn: Date
+      - -dueOn: Date
+      - "+renew(days: Days): void"
+      - +isOverdue(): Boolean
+  Condition:
+    kind: enum
+    package: catalogue
+    values: [New, Good, Worn, Damaged]
+
+relations:
+  - Item "1" *-- "1..*" Copy: { role: copies }
+  - Member "1" -- "0..5" Loan: borrows
+  - Loan "0..*" --> Copy: of
+  - Copy --> Condition

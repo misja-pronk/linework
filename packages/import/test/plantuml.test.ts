@@ -247,8 +247,6 @@ stop`);
 
 describe('what PlantUML cannot import yet', () => {
   it.each([
-    ['@startuml\nclass Order {\n +id\n}\nOrder <|-- Special\n@enduml', /class diagram type is planned/],
-    ['@startmindmap\n* Root\n** Child\n@endmindmap', /mind map type is planned/],
     ['@startwbs\n* Project\n@endwbs', /tree type is planned/],
     ['@startuml\n(*) --> "First"\n@enduml', /old syntax/],
     ['@startuml\nactor User\nUser --> (Checkout)\n@enduml', /Use case/],

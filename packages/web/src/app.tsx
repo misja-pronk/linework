@@ -109,7 +109,7 @@ function drawnCount(graph: { nodes: GraphNode[]; edges: unknown[] }): string {
   return `${count(graph.nodes.length, 'element')} · ${count(graph.edges.length, 'connection')}`;
 }
 const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' || n.shape.kind === 'block' ? n.shape.label || n.id : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'topic' ? 'brain' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -1325,7 +1325,7 @@ export function App() {
     // Shapes first (not containers), then whatever there is.
     return [...items.filter((i) => i.collection !== 'groups'), ...items.filter((i) => i.collection === 'groups')].slice(0, 4);
   }, [type]);
-  const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/ies$/, 'y').replace(/s$/, '').replace(/-/g, ' ') : '');
+  const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/ies$/, 'y').replace(/(ss)es$/, '$1').replace(/(?<!s)s$/, '').replace(/-/g, ' ') : '');
   const nodeName = (id: string) => {
     const n = result?.graph?.nodes.find((x) => x.id === id);
     return n ? label(n) : id;

@@ -12,7 +12,7 @@ carto export diagram.yaml -o back.mmd  # and back, when a page only renders Merm
 
 In the editor: paste the Mermaid text on the start dialog (*Import from Mermaid…*), or drop a `.mmd` file on the window. The import says what it could not carry; nothing is dropped without a word.
 
-What is read: `flowchart` and `graph`, `architecture-beta`, `stateDiagram`, `erDiagram`, `sequenceDiagram`, `gitGraph`, `gantt`, `timeline` and `journey`.
+What is read: `flowchart` and `graph`, `architecture-beta`, `stateDiagram`, `erDiagram`, `sequenceDiagram`, `classDiagram`, `gitGraph`, `gantt`, `timeline`, `journey` and `mindmap`.
 
 ## What maps to what
 
@@ -28,6 +28,8 @@ What is read: `flowchart` and `graph`, `architecture-beta`, `stateDiagram`, `erD
 | `architecture-beta` `service x(database)[DB] in g` | `x: { kind: database, label: DB, in: g }`, the kind read from the title too |
 | `erDiagram` | `type: erd`: tables, columns, keys; relations follow from the keys |
 | `sequenceDiagram` | `type: sequence`: participants, messages, replies, `alt`/`loop` frames |
+| `classDiagram` | `type: class`: classes with their members (`+String name` becomes `+name: String`), `<<interface>>` and other annotations, generics `~T~`, `namespace` as packages, relations with multiplicities and labels; notes and styles left out. Exported back as a `classDiagram` |
+| `mindmap` | `type: mindmap`: the root as the centre, the indents as levels, node shapes taken off; `::icon()` left out. Exported back as a `mindmap` |
 | `stateDiagram-v2` | `type: states`: states, composite states, start and end, guards |
 | `gantt`, `timeline` | `type: roadmap`: sections become lanes, `after` stays a dependency |
 | `gitGraph` | `type: gitflow`: branches, merges, tags |
@@ -75,7 +77,7 @@ edges:
 
 - **Rendering everywhere.** GitHub, GitLab and many wikis draw Mermaid in place. Cartography needs a build step (the [docs plugins](../embed.md), the [GitHub Action](../ci.md)) or an exported SVG. `carto export -o x.mmd` is the way back when only Mermaid will do.
 - **Per-element styling.** `classDef` and `style` are not read. Cartography styles by kind and theme; colour per box is on purpose not a thing.
-- **Diagram kinds Cartography does not have:** pie, quadrant, mindmap, sankey, XY charts, requirement and C4-in-Mermaid (use `type: c4` instead) are not imported.
+- **Diagram kinds Cartography does not have:** pie, quadrant, sankey, XY charts, requirement and C4-in-Mermaid (use `type: c4` instead) are not imported.
 - **Hand-tuning by edge order.** Mermaid's layout follows the order you write things in, and people learn to nudge it that way. Cartography lays out on its own rules; to fix a position, drag it in the editor and the place is saved next to the file.
 
 ## What you gain

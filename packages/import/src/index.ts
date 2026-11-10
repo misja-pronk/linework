@@ -2,13 +2,13 @@
 //
 //   importMermaid(text)    flowchart/graph and architecture-beta → systems (a flowchart that decides → process),
 //                          erDiagram → erd, sequenceDiagram → sequence, stateDiagram → states, gitGraph → gitflow,
-//                          gantt and timeline → roadmap, journey → journey
+//                          gantt and timeline → roadmap, journey → journey, classDiagram → class, mindmap → mindmap
 //   importGitLog(text)     `git log --format=GIT_LOG_FORMAT` of a real repository → gitflow
 //   importMarkdown(text)   every ```mermaid, ```d2 and ```plantuml block in a Markdown file
 //   importD2(text)         D2 → systems (cloud when the icons say AWS or Google Cloud), its sql_tables → erd,
 //                          each sequence_diagram → sequence; steps, scenarios and layers
 //   importPlantUml(text)   PlantUML sequence → sequence, component and deployment → systems, C4-PlantUML → c4,
-//                          state → states, activity → process, entity → erd
+//                          state → states, activity → process, entity → erd, class → class, @startmindmap → mindmap
 //   importText(text, name) any of these, by the file's ending or what the text looks like
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
@@ -28,6 +28,7 @@ import { importState } from './state.ts';
 import { Warnings } from './text.ts';
 import { importD2 } from './d2.ts';
 import { importPlantUml } from './plantuml.ts';
+import { importMermaidClass, importMermaidMindmap } from './uml.ts';
 
 export interface Imported {
   /** Cartography YAML; empty when nothing could be imported. */
@@ -87,7 +88,9 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   else if (kind === 'gantt') yaml = importGantt(body, title, warn);
   else if (kind === 'timeline') yaml = importTimeline(body, title, warn);
   else if (kind === 'journey') yaml = importJourney(body, title, warn);
-  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, stateDiagram, gitGraph, gantt, timeline and journey can`);
+  else if (/^classDiagram(-v2)?$/.test(kind)) yaml = importMermaidClass(body, title, warn);
+  else if (kind === 'mindmap') yaml = importMermaidMindmap(body, t || front || fallbackTitle ? title : undefined, warn);
+  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, stateDiagram, classDiagram, gitGraph, gantt, timeline, journey and mindmap can`);
   return { yaml, warnings: warn.list };
 }
 

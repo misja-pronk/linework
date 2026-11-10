@@ -1,0 +1,34 @@
+type: mindmap
+title: Platform strategy workshop
+subtitle: Agenda for the day, read clockwise
+
+center:
+  label: Platform strategy
+  note: 14 March, 09:30 to 16:30
+  icon: calendar
+layout: right
+topics:
+  Where we stand:
+    icon: map
+    topics:
+      - Survey results: { note: 30 minutes }
+      - Incidents of the last quarter
+      - What teams build themselves
+  Where we want to be:
+    icon: flag
+    topics:
+      - Golden paths for three stacks
+      - Self-service environments
+      - "Lead time under a day"
+  Choices to make:
+    icon: split
+    topics:
+      - Build or buy the portal
+      - One cluster per team or shared
+      - Who owns the paved road
+  Lunch: { note: 12:30 to 13:15, icon: clock }
+  Commitments:
+    icon: handshake
+    topics:
+      - Owners per choice
+      - Next review in six weeks

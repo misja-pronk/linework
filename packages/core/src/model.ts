@@ -163,7 +163,11 @@ export type FlowForm = 'task' | 'subprocess' | 'event' | 'gateway' | 'state' | '
 /** Header + rows, with a connection point per row: tables, data products in detail. */
 export interface TableShape {
   kind: 'table';
+  /** A UML class box: rows close together without rules between them, an empty section a rule between compartments. */
+  form?: 'class';
   title: string;
+  /** The title set in italics: an abstract class. */
+  italic?: boolean;
   caption?: string;
   icon?: string;
   tone: Tone;
@@ -219,9 +223,10 @@ export interface MatrixCell {
   change?: 'added' | 'removed' | 'changed';
 }
 
+/** A section with an empty label is a rule across the box: the line between a class's attributes and its operations. A row's `sign` stands in the mark column in the monospace face: a member's visibility (+ - # ~). */
 export type TableRow =
   | { kind: 'section'; label: string }
-  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[]; icon?: string; tone?: Tone };
+  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[]; icon?: string; tone?: Tone; sign?: string };
 
 export type RowMark = 'pk' | 'fk' | 'unique' | 'null' | 'pii';
 
@@ -230,10 +235,17 @@ export interface Cell {
   muted?: boolean;
   mono?: boolean;
   strong?: boolean;
+  /** Abstract (UML): in italics. */
+  italic?: boolean;
+  /** Static (UML): underlined. */
+  underline?: boolean;
 }
 
 /** `slash` is a process's default flow: a stroke across the line where it leaves the gateway. */
-export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany' | 'slash';
+export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany' | 'slash' | UmlMarker;
+
+/** UML ends: a hollow triangle (generalization, realization), a hollow or a filled diamond (aggregation, composition), an open arrowhead (navigability, dependency) whatever the theme's arrows look like. */
+export type UmlMarker = 'triangle' | 'diamond' | 'filledDiamond' | 'open';
 
 export interface Endpoint {
   node: string;

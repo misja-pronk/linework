@@ -19,7 +19,9 @@ export type BlockForm =
   | 'collaboration'
   | 'service'
   | 'facilitating'
-  | 'flow';
+  | 'flow'
+  // A mind map: a topic, its `level` from the centre (0) out.
+  | 'topic';
 
 /**
  * Where a block falls on a heatmap. The colour is the theme's (render resolves it); what the value
@@ -58,6 +60,10 @@ export interface BlockShape {
   vacant?: boolean;
   /** Small text in a corner: a team's size. */
   badge?: string;
+  /** A mind map topic: how far from the centre (0 the central topic, 1 a branch, 2 and on its topics). */
+  level?: number;
+  /** An icon before the label (a mind map topic). */
+  icon?: string;
   /** An interaction zone: the two teams it joins. A focus keeps it when both of them stay. */
   between?: [string, string];
 }

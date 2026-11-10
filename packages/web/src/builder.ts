@@ -143,6 +143,16 @@ function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, pare
 function entryMap(doc: Document, type: DiagramType, path: Path): YAMLMap | undefined {
   const node = doc.getIn(path, true);
   if (isMap(node)) return node;
+  if (isSeq(node)) {
+    // An entry written as the list it holds ("Ingest: [a, b]", a mind map's branch): the list goes under the key the type names, as written.
+    const own = type.shorthand?.(String(path[0]), node.toJSON());
+    const key = own && Object.keys(own).find((k) => Array.isArray(own[k]));
+    if (!own || !key) return undefined;
+    const map = new YAMLMap();
+    map.set(key, node);
+    doc.setIn(path, map);
+    return map;
+  }
   if (node != null && !isScalar(node)) return undefined;
   const scalar = isScalar(node) ? node.value : null;
   const collection = String(path[0]);
@@ -443,7 +453,7 @@ export type Field = FieldBase &
     | { kind: 'number'; value: string }
     | { kind: 'select'; value: string; options: string[]; allowEmpty: boolean; labels?: Record<string, string> }
     | { kind: 'toggle'; value: boolean }
-    | { kind: 'list'; value: string[]; options?: string[]; one?: true }
+    | { kind: 'list'; value: string[]; options?: string[]; one?: true; /** Items are lines that may hold commas (a class's members): always apart by semicolons. */ semi?: true }
     | { kind: 'yaml'; summary: string }
   );
 
@@ -531,9 +541,10 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
         }
       fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true, labels });
     } else if (alts.some((a) => a.type === 'boolean')) fields.push({ key, kind: 'toggle', label, value: v === true, hint });
-    else if (alts.some((a) => a.type === 'array') && (v == null || (either && typeof v !== 'object') || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
+    else if (alts.some((a) => a.type === 'array') && (v == null || (either && typeof v !== 'object') || (Array.isArray(v) && v.every((x) => typeof x === 'string' || (lines(alts) && line(x) !== undefined)))))
       // One thing or a list of them ("entry: lock" or "entry: [lock, log]"): one stays written as one.
-      fields.push({ key, kind: 'list', label, value: v == null ? [] : Array.isArray(v) ? (v as string[]) : [String(v)], hint, ...(either && !Array.isArray(v) ? { one: true as const } : {}) });
+      // A list whose items may be one-key maps that are lines in YAML's eyes ("- +id: OrderId", a class's members) reads them as those lines.
+      fields.push({ key, kind: 'list', label, value: v == null ? [] : Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : line(x)!)) : [String(v)], hint, ...(either && !Array.isArray(v) ? { one: true as const } : {}), ...(lines(alts) ? { semi: true as const } : {}) });
     else if (alts.some((a) => a.type === 'object' || a.type === 'array'))
       fields.push({ key, kind: 'yaml', label, summary: summary(v), hint });
     else if (alts.some((a) => a.type === 'integer' || a.type === 'number') && !alts.some((a) => a.type === 'string' || (Array.isArray(a.type) && a.type.includes('string'))))
@@ -541,6 +552,16 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
     else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint, ...(alts.some((a) => Array.isArray(a.type) && a.type.includes('number')) ? { numeric: true } : {}) });
   }
   return ranked(fields);
+}
+
+/** The schema says a list's items may be a line written as a one-key map ("- +id: OrderId"). */
+const lines = (alts: Schema[]) => alts.some((a) => a.type === 'array' && (a.items as Schema | undefined)?.anyOf?.some((i: Schema) => i.type === 'object' && i.maxProperties === 1));
+/** A one-key map with a plain value as the line it was written as. */
+function line(x: unknown): string | undefined {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return undefined;
+  const e = Object.entries(x);
+  if (e.length !== 1 || (e[0]![1] != null && typeof e[0]![1] === 'object')) return undefined;
+  return e[0]![1] == null ? e[0]![0] : `${e[0]![0]}: ${String(e[0]![1])}`;
 }
 
 function summary(v: unknown): string {

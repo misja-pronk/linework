@@ -1,6 +1,6 @@
 // Small text tags drawn on elements and lines: threat numbers (T1, T2) and the ends of a context
 // map's relationships (U, D, ACL, OHS). They say what they mean in text, so colour only helps.
-import type { Box, Point } from '@cartography/core';
+import type { Box, Marker, Point } from '@cartography/core';
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
 
@@ -60,15 +60,17 @@ const END_GAP = 6;
  * Where the tags at one end of a line go: on the line, just clear of the element, centred across it.
  * `tip` is the end of the line, `from` the point before it. Returns the left edge and centre.
  */
-export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & { text?: string })[] = []): { x: number; cy: number } | undefined {
+export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & { text?: string })[] = [], marker: Marker = 'none'): { x: number; cy: number } | undefined {
   const w = tagsWidth(tags);
+  // Past a UML end (a diamond, a triangle), so the tag does not cover it.
+  const gap = END_GAP + markerLength(marker);
   const dx = Math.sign(from.x - tip.x);
   const dy = Math.sign(from.y - tip.y);
   const level = dx !== 0 && Math.abs(from.y - tip.y) < 0.5;
   const along = level ? Math.abs(from.x - tip.x) : Math.abs(from.y - tip.y);
   const hit = (b: Box) => taken.some((t) => b.x < t.x + t.width && t.x < b.x + b.width && b.y < t.y + t.height && t.y < b.y + b.height);
   // Level: the row lies along the line, starting just clear of the element. Upright: across it.
-  const place = (shift: number) => (level ? { x: dx > 0 ? tip.x + END_GAP + shift : tip.x - END_GAP - w - shift, cy: tip.y } : { x: tip.x - w / 2, cy: tip.y + (dy || 1) * (END_GAP + TAG.H / 2 + shift) });
+  const place = (shift: number) => (level ? { x: dx > 0 ? tip.x + gap + shift : tip.x - gap - w - shift, cy: tip.y } : { x: tip.x - w / 2, cy: tip.y + (dy || 1) * (gap + TAG.H / 2 + shift) });
   // Lines that leave on one trunk share their first tags: drawn once.
   const first = place(0);
   if (taken.some((t) => t.text === tags.join(' ') && Math.abs(t.x - first.x) < 1 && Math.abs(t.y + TAG.H / 2 - first.cy) < 1)) return undefined;
@@ -76,7 +78,7 @@ export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & 
   const step = level ? w + TAG.GAP : TAG.H + TAG.GAP;
   // Never past the middle of the line, where the other end's tags and the label are: then the first place it is.
   let at = place(0);
-  for (let shift = 0; shift + END_GAP + (level ? w : TAG.H) <= along / 2; shift += step) {
+  for (let shift = 0; shift + gap + (level ? w : TAG.H) <= along / 2; shift += step) {
     const p = place(shift);
     if (!hit({ x: p.x, y: p.cy - TAG.H / 2, width: w, height: TAG.H })) {
       at = p;
@@ -86,6 +88,9 @@ export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & 
   taken.push({ x: at.x, y: at.cy - TAG.H / 2, width: w, height: TAG.H, text: tags.join(' ') });
   return at;
 }
+
+/** How far a UML end reaches back along its line from the tip. */
+export const markerLength = (m: Marker) => (m === 'triangle' ? 13 : m === 'diamond' || m === 'filledDiamond' ? 16 : m === 'open' ? 10 : 0);
 
 /**
  * Room the tags at a line's ends take on each side of its label: the label box is made this much wider

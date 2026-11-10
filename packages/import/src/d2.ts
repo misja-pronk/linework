@@ -10,6 +10,7 @@
 import { guessGroupKind, guessKind, systemsYaml, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
 import { participantKind, sequenceYaml, type Participant, type Step } from './sequence.ts';
 import { Ids, scalar, slug, Warnings } from './text.ts';
+import { classYaml, type UmlClass } from './uml.ts';
 
 // ---------------------------------------------------------------- syntax
 
@@ -507,6 +508,7 @@ function drawBoard(b: Board, fallbackTitle: string, warn: Warnings, extras?: Ext
 
   const objs = all(b.root);
   const tables = objs.filter((o) => o.shape === 'sql_table');
+  const classes = objs.filter((o) => o.shape === 'class');
   const seqs = objs.filter((o) => isSeq(o) && !objs.some((p) => p !== o && isSeq(p) && inside(o, p)));
   // A database whose children are all tables is one box in the architecture; the tables go to the erd.
   const stores = objs.filter((o) => o.children.size && o.shape !== 'sql_table' && [...o.children.values()].every((c) => c.shape === 'sql_table'));
@@ -514,9 +516,20 @@ function drawBoard(b: Board, fallbackTitle: string, warn: Warnings, extras?: Ext
   const hidden = (o: Obj) => boxes.some((t) => o !== t && inside(o, t)) || seqs.some((s) => inside(o, s));
   const rest = objs.filter((o) => !hidden(o) && o.shape !== 'sql_table');
   const tablesOnly = tables.length > 0 && rest.every((o) => o.children.size > 0 || o.shape === 'text');
+  // Classes with their members are a class diagram; in an architecture beside other boxes they are boxes too.
+  const classesOnly = classes.length > 0 && !tables.length && !seqs.length && rest.every((o) => o.shape === 'class' || o.shape === 'text' || (o.children.size > 0 && [...o.children.values()].every((c) => c.shape === 'class' || c.children.size > 0)));
   const seqOnly = seqs.length > 0 && rest.filter((o) => !seqs.includes(o)).length === 0;
 
+  if (classesOnly) {
+    out.push({ yaml: classOf(b, classes, title), warnings: [] });
+    if (extras?.steps.length) warn.add('Steps are left out: only an architecture drawing builds up step by step');
+    return out;
+  }
   if (!tablesOnly && !seqOnly) out.push({ yaml: systemsOf(b, title, warn, hidden, seqs, extras), warnings: [] });
+  if (classes.length && !tablesOnly && !seqOnly) {
+    out.push({ yaml: classOf(b, classes, `${title}: classes`), warnings: [], name: 'classes' });
+    warn.add(`The ${classes.length > 1 ? `${classes.length} class shapes are` : 'class shape is'} also drawn as a class diagram of ${classes.length > 1 ? 'their' : 'its'} own, with the fields and methods`);
+  }
   if (tables.length && (tablesOnly || tables.some((t) => t.children.size))) {
     out.push({ yaml: erdOf(b, tables, tablesOnly ? title : `${title}: tables`, warn), warnings: [], ...(tablesOnly ? {} : { name: 'tables' }) });
     if (!tablesOnly) warn.add(`The ${tables.length > 1 ? `${tables.length} sql_tables are` : 'sql_table is'} also drawn as an erd diagram of ${tables.length > 1 ? 'their' : 'its'} own, with the columns; in the architecture ${tables.every((t) => stores.includes(t.parent!)) ? 'the database that holds them stands for them' : 'each is a database'}`);
@@ -623,7 +636,6 @@ function systemsOf(b: Board, title: string, warn: Warnings, hidden: (o: Obj) => 
   const dropped = objs.filter((o) => o.shape === 'text' || o.shape === 'code');
   if (dropped.length) warn.add(`Text and code shapes are left out: ${dropped.slice(0, 3).map((o) => o.key).join(', ')}${dropped.length > 3 ? ', …' : ''}`);
   if (drawn.some((o) => o.near)) warn.onceFor('near', 'near: is left out (except a text near the top, which becomes the title): the layout places everything');
-  if (drawn.some((o) => o.shape === 'class')) warn.onceFor('class', 'class shapes come in as boxes: their fields and methods are left out (there is no class diagram type yet)');
   if (drawn.some((o) => o.icon)) warn.onceFor('icon', 'Icons are not fetched: the kind brings its own icon');
 
   // Which cloud: the icons say it best, a group named after the provider too.
@@ -763,6 +775,36 @@ function erdOf(b: Board, tables: Obj[], title: string, warn: Warnings): string {
   }
   if (relations.length) lines.push('', 'relations:', ...relations);
   return lines.join('\n') + '\n';
+}
+
+// ---------------------------------------------------------------- classes
+
+/** D2's class shapes: each key a field or method (visibility in front, "+" when none), its value the type. */
+function classOf(b: Board, classes: Obj[], title: string): string {
+  const ids = new Ids();
+  const containers = new Map<Obj, string>();
+  const list: UmlClass[] = classes.map((o) => {
+    ids.get(o.path, slug(o.key));
+    const pkg = o.parent && o.parent !== b.root ? o.parent : undefined;
+    if (pkg && !containers.has(pkg)) containers.set(pkg, slug(pkg.key).toLowerCase());
+    const members = [...o.children.values()].map((c) => {
+      const key = c.key.replace(/^\\/, '');
+      const vis = /^[+\-#]/.test(key) ? '' : '+';
+      const type = c.label && c.label !== c.key ? plainText(c.label) : undefined;
+      return `${vis}${key}${type ? `: ${type}` : ''}`;
+    });
+    const label = plainText(o.label ?? o.key);
+    return { source: o.path, ...(label !== slug(o.key) ? { label } : {}), kind: 'class', stereotypes: [], members, values: [], ...(pkg ? { package: containers.get(pkg) } : {}) };
+  });
+  const of = (o: Obj) => classes.find((k) => k === o || inside(o, k));
+  const relations = b.edges.flatMap((e) => {
+    const [x, y] = [of(e.from), of(e.to)];
+    if (!x || !y) return [];
+    const line = `${ids.get(x.path)} ${e.op === '--' ? (e.dashed ? '..' : '--') : e.dashed ? '..>' : '-->'} ${ids.get(y.path)}`;
+    return [{ line, ...(e.label ? { label: plainText(e.label) } : {}) }];
+  });
+  const packages = [...containers].map(([o, id]) => ({ id, label: plainText(o.label ?? o.key) }));
+  return classYaml({ title, ...(b.direction === 'right' || b.direction === 'left' ? { direction: 'right' as const } : {}), packages, classes: list, relations }, ids);
 }
 
 // ---------------------------------------------------------------- sequence

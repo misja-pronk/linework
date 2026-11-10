@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowHeight, rowMarks, sectionHeight, STACK, STEP_ROOM, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -502,30 +502,35 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   s += `<line x1="${r1(b.x)}" y1="${r1(yh)}" x2="${r1(b.x + b.width)}" y2="${r1(yh)}" stroke="${rule}" stroke-width="1"/>`;
   const titleY = shape.caption ? b.y + head / 2 - 7 : b.y + head / 2;
   s += img ? image(img, b.x + t.padX - 1, titleY - 9, 18, 18) : drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
-  s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text);
+  s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text, undefined, shape.italic ? ' font-style="italic"' : '');
   // A table as wide as its caption was rounded to whole pixels: half a pixel short is not a reason to cut it.
   if (shape.caption)
     s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX + 1), theme.size.caption, 400, theme.textMuted);
 
   let y = b.y + head;
   const marks = markWidth(shape);
+  const rh = rowHeight(shape, theme);
   for (const [i, row] of shape.rows.entries()) {
     if (row.kind === 'section') {
-      s += textMid(b.x + t.padX, y + t.section / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
-      y += t.section;
+      const sh = sectionHeight(row, theme);
+      if (row.label) s += textMid(b.x + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
+      else s += `<line x1="${r1(b.x)}" y1="${r1(y + sh / 2)}" x2="${r1(b.x + b.width)}" y2="${r1(y + sh / 2)}" stroke="${theme.border}" stroke-width="1"/>`;
+      y += sh;
       continue;
     }
-    const cy = y + t.row / 2;
-    if (i > 0 && shape.rows[i - 1]?.kind === 'row')
+    const cy = y + rh / 2;
+    if (i > 0 && shape.rows[i - 1]?.kind === 'row' && shape.form !== 'class')
       s += `<line x1="${r1(b.x + t.padX)}" y1="${r1(y)}" x2="${r1(b.x + b.width - t.padX)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
     for (const [k, m] of rowMarks(row).entries()) s += drawIcon(m.icon, b.x + t.padX + k * 15, cy - 6.5, 13, theme.tones[m.tone].fg, 1.75);
+    if (row.sign) s += textMid(b.x + t.padX, cy, row.sign, monoCell(theme), 500, theme.textMuted, undefined, monoAttr(theme), 'mono');
     const [name, type] = row.cells;
-    if (name) s += textMid(b.x + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text);
+    const style = (c: { italic?: boolean; underline?: boolean }) => (c.italic ? ' font-style="italic"' : '') + (c.underline ? ' text-decoration="underline"' : '');
+    if (name) s += textMid(b.x + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text, undefined, style(name));
     if (type?.text)
       s += lk.mono.type
         ? textMid(b.x + b.width - t.padX, cy, type.text, monoCell(theme), 400, theme.textMuted, 'end', monoAttr(theme), 'mono')
         : textMid(b.x + b.width - t.padX, cy, type.text, theme.size.cell, 400, theme.textMuted, 'end');
-    y += t.row;
+    y += rh;
   }
   return s;
 }
@@ -555,6 +560,12 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   return s;
 }
 
+/**
+ * Whether a split in a line gets a junction dot: not the branches of a mind map, nor a UML hierarchy,
+ * whose trunks read as one line by convention (one triangle for all the children).
+ */
+export const joinDot = (e: GraphEdge) => e.kind !== 'branch' && e.kind !== 'generalization' && e.kind !== 'realization';
+
 const COUNTED = new Set<Marker>(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
 
 /**
@@ -566,7 +577,7 @@ function junctions(graph: Graph, placed: Placed, theme: Theme): string {
   const edges = graph.edges.filter((e) => (placed.edges.get(e.id)?.points.length ?? 0) > 1);
   for (const [i, a] of edges.entries())
     for (const b of edges.slice(i + 1)) {
-      if (a.line !== b.line || a.tone !== b.tone) continue;
+      if (a.line !== b.line || a.tone !== b.tone || !joinDot(a) || !joinDot(b)) continue;
       const pa = placed.edges.get(a.id)!.points;
       const pb = placed.edges.get(b.id)!.points;
       // Lines into one key row of a table come in as one with no dot: a ring there would read as one more end mark.
@@ -672,9 +683,9 @@ export function besideShortLine(points: Point[], at: Box, placed?: Placed): Box 
 
 function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[]): string {
   let s = '';
-  for (const [tags, tip, from] of [[e.ends?.from, pts[0]!, pts[1]!], [e.ends?.to, pts.at(-1)!, pts.at(-2)!]] as const) {
+  for (const [tags, tip, from, marker] of [[e.ends?.from, pts[0]!, pts[1]!, e.start], [e.ends?.to, pts.at(-1)!, pts.at(-2)!, e.end]] as const) {
     if (!tags?.length) continue;
-    const at = endTagAt(tags, tip, from, taken);
+    const at = endTagAt(tags, tip, from, taken, marker);
     if (at) s += drawTags(theme, tags, at.x, at.cy, endStyle);
   }
   return s;
