@@ -18,7 +18,7 @@ async function traced(file: string, ask: TraceAsk, view?: string, pick = 0) {
   const meta: TraceMeta = { file: path.basename(file), view, mode: r.mode, from: r.from, to: r.to, pick: { n: pick + 1, of: r.options.length } };
   const yaml = sequenceYaml(t.graph, r.options[pick]!, meta);
   const drawn = await render(yaml, { fonts: 'none' });
-  expect(drawn.diagnostics.filter((d) => d.severity !== 'info')).toEqual([]);
+  expect(drawn.diagnostics).toEqual([]);
   return { t, r, yaml, data: parse(yaml) as Record<string, any>, meta, messages: (parse(yaml) as { messages: unknown[] }).messages.map((m) => (typeof m === 'string' ? m : JSON.stringify(m))) };
 }
 
