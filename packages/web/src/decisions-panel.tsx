@@ -32,6 +32,8 @@ import { useDecisions, type Decisions } from './decisions-state.ts';
 import './decisions.css';
 
 type Sel = { kind: 'node' | 'group' | 'edge'; id: string };
+/** A decision being named: what it is about, what it supersedes, and what it starts from (a review finding). */
+type Draft = { concerns: string[]; supersedes?: number; title?: string; context?: string };
 export type DecisionFilter = 'standing' | 'proposed' | 'accepted' | 'history' | 'all';
 const FILTERS: [DecisionFilter, string][] = [
   ['standing', 'Standing'],
@@ -162,7 +164,7 @@ export function useDecisionsTool(h: DecisionHost) {
   const [filter, setFilter] = useState<DecisionFilter>(() => store.get<DecisionFilter>('decision-filter') ?? 'all');
   const [onlySelection, setOnlySelection] = useState(false);
   /** A new decision being named: what it is about, and what it supersedes. */
-  const [draft, setDraft] = useState<{ concerns: string[]; supersedes?: number }>();
+  const [draft, setDraft] = useState<Draft>();
   const [withExports, setWithExports] = useState(() => store.get<boolean>('decisions-in-exports') ?? false);
   useEffect(() => store.set('decision-filter', filter), [filter]);
   const { at, modelId } = useDrawing(h);
@@ -178,6 +180,13 @@ export function useDecisionsTool(h: DecisionHost) {
   const newAbout = (supersedes?: number) => {
     const old = supersedes ? decisions.get(supersedes) : undefined;
     setDraft({ concerns: old ? old.concerns : selectionConcerns(), ...(old ? { supersedes } : {}) });
+    setOpen(true);
+    setActive(undefined);
+  };
+  /** A new decision prefilled from elsewhere (a review finding): its title, what it is about, its context. */
+  const newWith = (title: string, about: Sel | undefined, context?: string) => {
+    const concern = about && graph ? concernFor(graph, about.kind, about.id, modelId) : undefined;
+    setDraft({ concerns: concern ? [concern] : [], title, ...(context ? { context } : {}) });
     setOpen(true);
     setActive(undefined);
   };
@@ -283,7 +292,7 @@ export function useDecisionsTool(h: DecisionHost) {
   /** What an export with decisions draws: the decisions, and where this drawing has them. */
   const forExport = withExports && decisions.list.length ? { list: decisions.list, at: (view?: string) => ({ ...at, view, drawnAs: (id: string) => h.index.shows.get(view ? `${h.file}#${view}` : h.file)?.get(id) }) } : undefined;
 
-  return { decisions, open, toggle, close, show, newAbout, commands, markers, panel, whereSection, forExport, count: decisions.list.length };
+  return { decisions, open, toggle, close, show, newAbout, newWith, commands, markers, panel, whereSection, forExport, count: decisions.list.length };
 }
 
 interface PanelProps {
@@ -297,8 +306,8 @@ interface PanelProps {
   onlySelection: boolean;
   onOnlySelection(on: boolean): void;
   selectionConcerns: string[];
-  draft?: { concerns: string[]; supersedes?: number };
-  onDraft(d: { concerns: string[]; supersedes?: number } | undefined): void;
+  draft?: Draft;
+  onDraft(d: Draft | undefined): void;
   onNew(supersedes?: number): void;
   onGo(concern: string): void;
   withExports: boolean;
@@ -391,14 +400,14 @@ function DecisionsPanel(p: PanelProps) {
   );
 }
 
-function NewDecision(p: PanelProps & { draft: { concerns: string[]; supersedes?: number } }) {
-  const [title, setTitle] = useState('');
+function NewDecision(p: PanelProps & { draft: Draft }) {
+  const [title, setTitle] = useState(p.draft.title ?? '');
   const old = p.draft.supersedes ? p.decisions.get(p.draft.supersedes) : undefined;
   const [busy, setBusy] = useState(false);
   const make = async () => {
     if (!title.trim() || busy) return;
     setBusy(true);
-    const n = await p.decisions.create(title.trim(), p.draft.concerns, p.draft.supersedes);
+    const n = await p.decisions.create(title.trim(), p.draft.concerns, p.draft.supersedes, p.draft.context);
     p.onDraft(undefined);
     p.onActive(n);
     setBusy(false);

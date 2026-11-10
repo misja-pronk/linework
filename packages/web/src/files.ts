@@ -6,7 +6,7 @@ import type { LayoutSidecar } from '@cartography/core';
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
 
-/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md). */
+/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md); review rules (.cartography/rules.yaml). */
 const TEXT = /\.(ya?ml|json|md)$/i;
 const SKIP = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'out']);
 const MAX_FILES = 800;
@@ -45,7 +45,7 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
     for await (const [name, h] of (d as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }).entries()) {
       if (files.size >= MAX_FILES) return;
       if (h.kind === 'directory') {
-        if (depth < 6 && !SKIP.has(name) && !name.startsWith('.')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
+        if (depth < 6 && !SKIP.has(name) && (!name.startsWith('.') || name === '.cartography')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
       } else if (TEXT.test(name) || /^codeowners$/i.test(name) || name === '.adr-dir') {
         const file = await (h as FileSystemFileHandle).getFile();
         if (file.size <= MAX_BYTES) files.set(prefix + name, { handle: h as FileSystemFileHandle, text: await file.text() });

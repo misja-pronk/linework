@@ -28,8 +28,8 @@ export interface Decisions {
   get(n: number): Decision | undefined;
   /** Writes a decision's text as it is given. */
   save(file: string, text: string): Promise<void>;
-  /** A new decision from the template: the next number, about these concerns. Returns its number. */
-  create(title: string, concerns: string[], supersedes?: number): Promise<number>;
+  /** A new decision from the template: the next number, about these concerns; `context` fills its Context. Returns its number. */
+  create(title: string, concerns: string[], supersedes?: number, context?: string): Promise<number>;
   setStatus(n: number, status: DecisionStatus): Promise<void>;
   link(n: number, concern: string): Promise<void>;
   unlink(n: number, concern: string): Promise<void>;
@@ -74,11 +74,12 @@ export function useDecisions(ws: Workspace | undefined, index: WorkspaceIndex, h
       inFolder: !!ws,
       get,
       save,
-      async create(title, concerns, supersedes) {
+      async create(title, concerns, supersedes, context) {
         const number = nextDecisionNumber(list);
         const file = `${dir}/${decisionFileName(number, title)}`;
         const old = supersedes ? get(supersedes) : undefined;
-        await save(file, decisionTemplate({ number, title, concerns, file, ...(old ? { supersedes: old } : {}) }));
+        const text = decisionTemplate({ number, title, concerns, file, ...(old ? { supersedes: old } : {}) });
+        await save(file, context ? text.replace('What is the problem, and what forces are at play (technical, organisational, cost)?', context) : text);
         // The old one is marked superseded by the new one, in its own style.
         if (old) await save(old.file, setDecisionStatus(old.text, old.file, 'superseded', { number, title, file }));
         return number;

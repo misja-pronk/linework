@@ -15,6 +15,7 @@ const GROUPS: [string, string][] = [
   ['Steps', ''],
   ['Review notes', ''],
   ['Decisions', 'architecture decisions of the folder'],
+  ['Architecture review', 'well-architected rules on the drawing'],
   ['Presenting', 'full screen'],
   ['Comparing versions', ''],
   ['Folder (one model)', 'with a folder open'],
