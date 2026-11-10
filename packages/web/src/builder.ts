@@ -429,16 +429,58 @@ function pasteEntriesUnsafe(text: string, type: DiagramType, clip: Clip): Pasted
 
 // ---------------------------------------------------------------- inspector fields
 
-export type Field =
-  | { key: string; kind: 'text'; label: string; value: string; hint?: string; /** A number typed here is written as a number. */ numeric?: boolean }
-  | { key: string; kind: 'number'; label: string; value: string; hint?: string }
-  | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean; labels?: Record<string, string> }
-  | { key: string; kind: 'toggle'; label: string; value: boolean; hint?: string }
-  | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string; one?: true }
-  | { key: string; kind: 'yaml'; label: string; summary: string; hint?: string };
+/** What every field has: `primary` ones lead the form, the rest are under "More"; `note` is a short hint. */
+interface FieldBase {
+  key: string;
+  label: string;
+  hint?: string;
+  note?: string;
+  primary?: boolean;
+}
+export type Field = FieldBase &
+  (
+    | { kind: 'text'; value: string; /** A number typed here is written as a number. */ numeric?: boolean }
+    | { kind: 'number'; value: string }
+    | { kind: 'select'; value: string; options: string[]; allowEmpty: boolean; labels?: Record<string, string> }
+    | { kind: 'toggle'; value: boolean }
+    | { kind: 'list'; value: string[]; options?: string[]; one?: true }
+    | { kind: 'yaml'; summary: string }
+  );
 
 const titleCase = (k: string) => k.charAt(0).toUpperCase() + k.slice(1).replace(/-/g, ' ');
-const ORDER = ['label', 'kind', 'class', 'caption', 'owner', 'in', 'domain', 'schema', 'catalog', 'version'];
+const ORDER = ['label', 'name', 'kind', 'class', 'in', 'style', 'caption', 'owner', 'domain', 'schema', 'catalog', 'version'];
+/** Fields every entry is mostly about: shown first; the rest wait under "More" unless they are set. */
+const PRIMARY = new Set(['label', 'name', 'kind', 'class', 'in', 'style', 'text']);
+/** Short keys read as words in the form. */
+const NAMES: Record<string, string> = {
+  in: 'Inside',
+  both: 'Arrows both ways',
+  badge: 'Show as badge',
+  env: 'Environments',
+  ref: 'Stands for (model)',
+  of: 'Runs (model)',
+  trust: 'Trust boundary',
+  icon: 'Icon',
+  tone: 'Colour',
+  via: 'Through',
+  url: 'Link',
+  line: 'Line pattern',
+  auth: 'Authentication',
+};
+const fieldName = (key: string) => NAMES[key] ?? titleCase(key);
+/** The first clause of a description: short enough to show under a field. */
+const shortHint = (d?: string) => {
+  if (!d) return undefined;
+  const cut = [', e.g.', '; ', ': ', '. '].map((m) => d.indexOf(m)).filter((n) => n > 0);
+  return (cut.length ? d.slice(0, Math.min(...cut)) : d).replace(/\.$/, '');
+};
+/** Field order and which fields lead (generic, by key): see PRIMARY. */
+function ranked(fields: Field[]): Field[] {
+  const set = (f: Field) => (f.kind === 'toggle' ? f.value : f.kind === 'list' ? f.value.length > 0 : f.kind === 'yaml' ? f.summary !== 'Not set' : f.value !== '');
+  return fields
+    .map((f) => ({ ...f, label: fieldName(f.key), note: shortHint(f.hint), primary: PRIMARY.has(f.key) || set(f) }))
+    .sort((a, b) => (ORDER.indexOf(a.key) + 1 || 99) - (ORDER.indexOf(b.key) + 1 || 99));
+}
 
 /** The form for one entry: its current values, typed from the schema. */
 export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] {
@@ -498,7 +540,7 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
       fields.push({ key, kind: 'number', label, value: v == null ? '' : String(v), hint });
     else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint, ...(alts.some((a) => Array.isArray(a.type) && a.type.includes('number')) ? { numeric: true } : {}) });
   }
-  return fields;
+  return ranked(fields);
 }
 
 function summary(v: unknown): string {
@@ -620,7 +662,7 @@ export function edgeFields(text: string, type: DiagramType, path: Path): Field[]
     else if (s.type === 'array') fields.push({ key, kind: 'yaml', label, summary: summary(v), hint: s.description });
     else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint: s.description });
   }
-  return fields;
+  return ranked(fields);
 }
 
 /** Any edge form ("a -> b", "a -> b: x", { "a -> b": {…} }, { from, to }) as its properties. */

@@ -1112,6 +1112,58 @@ kbd {
   font-weight: 550;
   color: var(--text-muted);
 }
+.field-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+/* Fields an element is rarely about, folded away; open or closed as people left it. */
+.inspector-more {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.more-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+/* A switch reads as one line: the box, its name, and what it does under the name. */
+.field.toggle {
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+.field.toggle > span {
+  grid-column: 2;
+  grid-row: 1;
+}
+.field.toggle > input {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.field.toggle > .field-note {
+  grid-column: 2;
+}
+.inspector-more > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 0;
+  border-radius: 4px;
+  list-style-position: inside;
+}
+.inspector-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.inspector-more > summary .count {
+  margin-left: 4px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
 .field input:not([type='checkbox']),
 .field select {
   height: 32px;

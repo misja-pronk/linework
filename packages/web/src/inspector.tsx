@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Field } from './builder.ts';
 import { Icon } from './icon.tsx';
 import { LinkList } from './link-list.tsx';
+import { store } from './store.ts';
 import type { Link } from '@cartography/core';
 
 export interface InspectorProps {
@@ -78,6 +79,69 @@ function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: st
 export function Inspector(p: InspectorProps) {
   const [idError, setIdError] = useState(false);
   useEffect(() => setIdError(false), [p.id]);
+  /** "More" stays as people left it, for every element. */
+  const [more, setMore] = useState(() => store.get<boolean>('inspectorMore') ?? false);
+  const primary = p.fields.filter((f) => f.primary !== false);
+  const rest = p.fields.filter((f) => f.primary === false);
+  /** The id as written: under "More" (a name people read, as in a process, leads instead). */
+  const idField = p.renamable && (
+        <label className={idError ? 'field invalid' : 'field'}>
+          <span>{p.freeName ? 'Name' : 'ID'}</span>
+          <TextInput
+            className={p.freeName ? undefined : 'mono'}
+            value={p.id}
+            spellCheck={false}
+            onCommit={(v) => setIdError(!p.onRename(v.trim()))}
+            aria-invalid={idError}
+          />
+          {idError && <small className="field-error">{p.freeName ? 'Plain words, without : > # or quotes, and not used yet' : 'Letters, digits, - and _ only, and not used yet'}</small>}
+        </label>
+  );
+  const moreCount = rest.length + (p.renamable && !p.freeName ? 1 : 0);
+  const field = (f: Field) => (
+    <label key={f.key} className={f.kind === 'toggle' ? 'field toggle' : 'field'} title={f.hint} data-key={f.key}>
+      <span>{f.label}</span>
+      {f.kind === 'text' || f.kind === 'number' ? (
+        <TextInput
+          value={f.value}
+          inputMode={f.kind === 'number' ? 'numeric' : undefined}
+          placeholder={f.note ?? f.hint}
+          onCommit={(v) => p.onField(f.key, (f.kind === 'number' || f.numeric) && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : v.trim())}
+        />
+      ) : f.kind === 'select' ? (
+        <select value={f.value} onChange={(e) => p.onField(f.key, e.target.value || undefined)}>
+          {f.allowEmpty && <option value="">—</option>}
+          {f.value && !f.options.includes(f.value) && <option value={f.value}>{f.value}</option>}
+          {f.options.map((o) => (
+            <option key={o} value={o}>
+              {optionText(o, f.labels?.[o])}
+            </option>
+          ))}
+        </select>
+      ) : f.kind === 'toggle' ? (
+        <input type="checkbox" role="switch" checked={f.value} onChange={(e) => p.onField(f.key, e.target.checked || undefined)} />
+      ) : f.kind === 'list' ? (
+        <TextInput
+          // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
+          value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
+          placeholder={f.note ? `${f.note} (a, b, c)` : 'a, b, c'}
+          onCommit={(v) => {
+            const items = v
+              .split(v.includes(';') ? ';' : ',')
+              .map((x) => x.trim())
+              .filter(Boolean);
+            p.onField(f.key, f.one && items.length === 1 ? items[0] : items);
+          }}
+        />
+      ) : (
+        <button type="button" className="field-yaml" onClick={p.onReveal}>
+          <span>{f.summary}</span> <Icon name="file-code" size={14} /> Edit in YAML
+        </button>
+      )}
+      {/* Text fields say it as a placeholder; the others under the field. */}
+      {f.note && (f.kind === 'toggle' || f.kind === 'select' || f.kind === 'yaml') && <small className="field-note">{f.note}</small>}
+    </label>
+  );
 
   return (
     <aside
@@ -104,61 +168,27 @@ export function Inspector(p: InspectorProps) {
       </header>
 
       <div className="inspector-body">
-        {p.renamable && (
-          <label className={idError ? 'field invalid' : 'field'}>
-            <span>{p.freeName ? 'Name' : 'ID'}</span>
-            <TextInput
-              className={p.freeName ? undefined : 'mono'}
-              value={p.id}
-              spellCheck={false}
-              onCommit={(v) => setIdError(!p.onRename(v.trim()))}
-              aria-invalid={idError}
-            />
-            {idError && <small className="field-error">{p.freeName ? 'Plain words, without : > # or quotes, and not used yet' : 'Letters, digits, - and _ only, and not used yet'}</small>}
-          </label>
+        {p.freeName && idField}
+        {primary.map(field)}
+        {moreCount > 0 && (
+        <details
+          className="inspector-more"
+          open={more}
+          onToggle={(e) => {
+            const open = (e.currentTarget as HTMLDetailsElement).open;
+            setMore(open);
+            store.set('inspectorMore', open);
+          }}
+        >
+          <summary>
+            More <span className="count">{moreCount}</span>
+          </summary>
+          <div className="more-body">
+            {!p.freeName && idField}
+            {rest.map(field)}
+          </div>
+        </details>
         )}
-        {p.fields.map((f) => (
-          <label key={f.key} className="field" title={f.hint}>
-            <span>{f.label}</span>
-            {f.kind === 'text' || f.kind === 'number' ? (
-              <TextInput
-                value={f.value}
-                inputMode={f.kind === 'number' ? 'numeric' : undefined}
-                placeholder={f.hint}
-                onCommit={(v) => p.onField(f.key, (f.kind === 'number' || f.numeric) && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : v.trim())}
-              />
-            ) : f.kind === 'select' ? (
-              <select value={f.value} onChange={(e) => p.onField(f.key, e.target.value || undefined)}>
-                {f.allowEmpty && <option value="">—</option>}
-                {f.value && !f.options.includes(f.value) && <option value={f.value}>{f.value}</option>}
-                {f.options.map((o) => (
-                  <option key={o} value={o}>
-                    {optionText(o, f.labels?.[o])}
-                  </option>
-                ))}
-              </select>
-            ) : f.kind === 'toggle' ? (
-              <input type="checkbox" role="switch" checked={f.value} onChange={(e) => p.onField(f.key, e.target.checked || undefined)} />
-            ) : f.kind === 'list' ? (
-              <TextInput
-                // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
-                value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
-                placeholder="a, b, c"
-                onCommit={(v) => {
-                  const items = v
-                    .split(v.includes(';') ? ';' : ',')
-                    .map((x) => x.trim())
-                    .filter(Boolean);
-                  p.onField(f.key, f.one && items.length === 1 ? items[0] : items);
-                }}
-              />
-            ) : (
-              <button type="button" className="field-yaml" onClick={p.onReveal}>
-                <span>{f.summary}</span> <Icon name="file-code" size={14} /> Edit in YAML
-              </button>
-            )}
-          </label>
-        ))}
         {p.onFollowLink && <LinkList links={p.links} onFollow={p.onFollowLink} />}
         {p.connections && p.connections.length > 0 && (
           <div className="field">

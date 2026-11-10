@@ -31,6 +31,10 @@ await node.click();
 await wait();
 if (!(await page.locator('.inspector').isVisible())) fail('inspector did not open');
 await page.screenshot({ path: `${out}/1-inspector.png` });
+// The form leads with what the element is about; the id and rarer fields wait under "More".
+const firstFields = await page.locator('.inspector-body > .field > span').allInnerTexts();
+if (firstFields.slice(0, 3).join() !== 'Label,Kind,Inside') fail('inspector does not lead with Label, Kind, Inside: ' + firstFields.join());
+if (await page.locator('.inspector .field:has(> span:text-is("ID")) input').isVisible()) fail('the ID is not under More');
 
 // 2. Change the label in the inspector.
 const labelInput = page.locator('.inspector .field:has(> span:text-is("Label")) input');
@@ -73,7 +77,14 @@ await page.keyboard.press('Meta+Shift+z');
 await wait(300);
 if (!(await yaml()).includes('key-vault:')) fail('redo did not bring the node back');
 
-// 6. Rename through the inspector updates references.
+// 6. Rename through the inspector updates references (the ID is under More, which stays open).
+await page.locator('.drawing [data-node="db"]').click();
+await wait();
+await page.locator('.inspector-more summary').click();
+await wait(150);
+await page.locator('.drawing [data-node="api"]').click();
+await wait();
+if (!(await page.locator('.inspector-more').evaluate((d) => d.open))) fail('More did not stay open for the next element');
 await page.locator('.drawing [data-node="db"]').click();
 await wait();
 const id = page.locator('.inspector .field:has(> span:text-is("ID")) input');

@@ -790,7 +790,7 @@ export function App() {
     if (n || g) {
       setSelected(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id });
       setInspector(true);
-      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.field:nth-child(2) input', true);
+      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.inspector-body > .field input', true);
     }
     setPendingPath(undefined);
   }, [pendingPath, result, current]);
@@ -1135,7 +1135,7 @@ export function App() {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
-    else if (e.key === 'F2' && selected) (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select();
+    else if (e.key === 'F2' && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
     e.preventDefault();
