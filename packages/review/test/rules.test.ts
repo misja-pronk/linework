@@ -428,3 +428,16 @@ describe('built-in rules', () => {
     }
   });
 });
+
+describe('docs/review.md', () => {
+  it('lists every rule with its why and its fix', async () => {
+    const fs = await import('node:fs');
+    const doc = fs.readFileSync(new URL('../../../docs/review.md', import.meta.url), 'utf8');
+    for (const r of builtInRules) {
+      const row = doc.split('\n').find((l) => l.startsWith(`| \`${r.id}\``));
+      expect(row, r.id).toBeDefined();
+      expect(row).toContain(r.why.replace(/\|/g, '\\|'));
+      expect(row).toContain(r.fix.replace(/\|/g, '\\|'));
+    }
+  });
+});

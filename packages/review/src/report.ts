@@ -162,11 +162,11 @@ export function htmlReport(r: Report): string {
         const box = d?.boxes?.[f.id];
         const s = shared.get(di);
         const crop = box && s && d ? (() => {
-          const pad = 40;
-          const x = Math.max(0, box.x - pad);
-          const y = Math.max(0, box.y - pad);
-          const w = Math.min(d.width - x, box.width + 2 * pad);
-          const h = Math.min(d.height - y, box.height + 2 * pad);
+          // Around the element with room for its neighbours, at least 320 × 180, kept inside the drawing.
+          const w = Math.min(d.width, Math.max(320, box.width + 80));
+          const h = Math.min(d.height, Math.max(180, box.height + 80));
+          const x = Math.max(0, Math.min(d.width - w, box.x + box.width / 2 - w / 2));
+          const y = Math.max(0, Math.min(d.height - h, box.y + box.height / 2 - h / 2));
           return `<div class="crop"><svg viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" role="img" aria-label="${esc(`${f.about}, as drawn`)}"><use href="#${s.ref}"/></svg></div>`;
         })() : '';
         body.push(
