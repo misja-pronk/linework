@@ -26,9 +26,10 @@ import { indexWorkspace, isDiagramFile, threatMarkdown } from '@cartography/core
 import { dynamicView, sequenceYaml, traceable, traceAsk, type TraceMeta } from '@cartography/trace';
 import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { looksLikeRepo, repoDiagrams } from './repo.ts';
+import { badLang, explicitLang, helpText, t } from './i18n.ts';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
-const helpAll = `carto — architecture diagrams that look good
+const helpAll = helpText(`carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
@@ -230,7 +231,7 @@ const helpAll = `carto — architecture diagrams that look good
 
 Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
-so the same YAML and layout file always give the same picture. More: docs/ci.md`;
+so the same YAML and layout file always give the same picture. More: docs/ci.md`, { configDir: configDir() });
 
 /** Each command's part of the full help, from the lines that start with "carto <command>". */
 const usage = new Map<string, string>();
@@ -246,54 +247,54 @@ const usage = new Map<string, string>();
 
 /** The commands, grouped, one line each: what `carto --help` shows. */
 const groups: [string, [string, string][]][] = [
-  ['Draw', [
-    ['render', 'a diagram to SVG, PNG, PowerPoint or PDF'],
-    ['deck', 'several diagrams in one deck'],
-    ['animate', 'steps or layers as a GIF, MP4 or WebM'],
-    ['watch', 'render again on every save'],
-    ['embed', 'a web page that carries the drawing'],
-    ['export-html', 'one HTML file to send, every view inside'],
-    ['export-md', 'Markdown pages with pictures, for a wiki or a repo'],
-    ['export-confluence', 'Confluence pages with their attachments'],
-    ['share', 'a link that opens the diagram in the web app'],
+  [t('Draw'), [
+    ['render', t('a diagram to SVG, PNG, PowerPoint or PDF')],
+    ['deck', t('several diagrams in one deck')],
+    ['animate', t('steps or layers as a GIF, MP4 or WebM')],
+    ['watch', t('render again on every save')],
+    ['embed', t('a web page that carries the drawing')],
+    ['export-html', t('one HTML file to send, every view inside')],
+    ['export-md', t('Markdown pages with pictures, for a wiki or a repo')],
+    ['export-confluence', t('Confluence pages with their attachments')],
+    ['share', t('a link that opens the diagram in the web app')],
   ]],
-  ['Check', [
-    ['validate', 'check files and their views'],
-    ['review', 'architecture review rules: findings, fixes, a report'],
-    ['diff', 'what changed between two versions'],
-    ['describe', 'the diagram in plain words'],
-    ['threats', 'the threat table as markdown'],
-    ['trace', 'a request through the architecture, as a sequence diagram'],
-    ['notes', 'review notes as markdown'],
-    ['decisions', 'architecture decisions: log, table, new'],
+  [t('Check'), [
+    ['validate', t('check files and their views')],
+    ['review', t('architecture review rules: findings, fixes, a report')],
+    ['diff', t('what changed between two versions')],
+    ['describe', t('the diagram in plain words')],
+    ['threats', t('the threat table as markdown')],
+    ['trace', t('a request through the architecture, as a sequence diagram')],
+    ['notes', t('review notes as markdown')],
+    ['decisions', t('architecture decisions: log, table, new')],
   ]],
-  ['Start and convert', [
-    ['new', 'start from a template'],
-    ['types', 'which diagram type to pick'],
-    ['import', 'Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML'],
-    ['blocks', 'reusable fragments: list, show, save and insert'],
-    ['export', 'to draw.io, Excalidraw or Mermaid'],
+  [t('Start and convert'), [
+    ['new', t('start from a template')],
+    ['types', t('which diagram type to pick')],
+    ['import', t('Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML')],
+    ['blocks', t('reusable fragments: list, show, save and insert')],
+    ['export', t('to draw.io, Excalidraw or Mermaid')],
   ]],
-  ['Look', [
-    ['themes', 'built-in themes'],
-    ['icons', 'import and list vendor icon packs'],
+  [t('Look'), [
+    ['themes', t('built-in themes')],
+    ['icons', t('import and list vendor icon packs')],
   ]],
 ];
 const commands = groups.flatMap(([, list]) => list.map(([c]) => c));
 
-const help = `carto — architecture diagrams that look good
+const help = `${helpText('carto — architecture diagrams that look good')}
 
-Usage: carto <command> [files…] [options]
+${helpText('Usage: carto <command> [files…] [options] [--lang en|nl]')}
 
 ${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.padEnd(17)} ${what}`).join('\n')}`).join('\n\n')}
 
-carto <command> --help   the options of one command
-carto help all           every command with every option
-- for a file (or -o -) is standard input or output; a drawing with errors is not written
-Example: carto render shop.yaml -o shop.png`;
+${t('carto <command> --help   the options of one command')}
+${t('carto help all           every command with every option')}
+${t('- for a file (or -o -) is standard input or output; a drawing with errors is not written')}
+${t('Example: carto render shop.yaml -o shop.png')}`;
 
 /** Help for one command, or the short help. */
-const helpFor = (cmd?: string) => (cmd && usage.has(cmd) ? `${usage.get(cmd)}\n\nAll commands: carto --help` : help);
+const helpFor = (cmd?: string) => (cmd && usage.has(cmd) ? `${usage.get(cmd)}\n\n${t('All commands: carto --help')}` : help);
 
 /** The command meant by a typo: the nearest by edit distance, when it is close. */
 function nearest(word: string): string | undefined {
@@ -310,6 +311,15 @@ function nearest(word: string): string | undefined {
 
 /** A mistake in how carto was called: said in one line, without a stack. */
 class UsageError extends Error {}
+
+/** Node's word for a wrong option, in the CLI's language. */
+function parseError(m: string): string {
+  const unknown = /^Unknown option '(.+)'$/.exec(m);
+  if (unknown) return t("Unknown option '{option}'", { option: unknown[1]! });
+  const missing = /^Option '(.+)' argument missing$/.exec(m);
+  if (missing) return t("Option '{option}' argument missing", { option: missing[1]! });
+  return m;
+}
 
 const parsed = (() => {
   try {
@@ -415,12 +425,15 @@ const parsed = (() => {
     open: { type: 'boolean' },
     'merge-driver': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
+    lang: { type: 'string' },
   },
     });
   } catch (e) {
     // An unknown or malformed option: one line and how to see the right ones.
-    const cmd = process.argv[2] && !process.argv[2].startsWith('-') ? process.argv[2] : undefined;
-    console.error(`carto: ${(e as Error).message.split('\n')[0]!.replace(/\. To specify a positional.*$/, '')}\n${cmd && usage.has(cmd) ? `Options: carto ${cmd} --help` : 'Commands: carto --help'}`);
+    const args = process.argv.slice(2);
+    const at = args[0] === '--lang' ? 2 : args[0]?.startsWith('--lang=') ? 1 : 0;
+    const cmd = args[at] && !args[at].startsWith('-') ? args[at] : undefined;
+    console.error(`carto: ${parseError((e as Error).message.split('\n')[0]!.replace(/\. To specify a positional.*$/, ''))}\n${cmd && usage.has(cmd) ? t('Options: carto {command} --help', { command: cmd }) : t('Commands: carto --help')}`);
     process.exit(1);
   }
 })();
@@ -435,7 +448,7 @@ const dim = (s: string) => (useColor ? `\x1b[2m${s}\x1b[0m` : s);
 function report(file: string, diagnostics: Diagnostic[]) {
   for (const d of diagnostics) {
     const where = d.line ? `${file}:${d.line}:${d.column}` : file;
-    console.error(`${where}  ${d.severity === 'error' ? red('error') : yellow('warning')}  ${d.message}`);
+    console.error(`${where}  ${d.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${d.message}`);
   }
 }
 
@@ -451,7 +464,7 @@ function notesFor(file: string): NotesFile | undefined {
   const p = notesPath(file);
   if (!fs.existsSync(p)) return undefined;
   const r = parseNotes(fs.readFileSync(p, 'utf8'));
-  for (const m of r.problems) console.error(`${p}  ${yellow('warning')}  ${m}`);
+  for (const m of r.problems) console.error(`${p}  ${yellow(t('warning'))}  ${m}`);
   return r.notes;
 }
 
@@ -473,28 +486,28 @@ function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): 
 async function traceCommand(): Promise<number> {
   const [f] = files;
   if (!f || (!values.from && !values.steps)) return (console.error(helpFor('trace')), 1);
-  const t = await traceable(fs.readFileSync(f, 'utf8'), { load: loaderFor(f), file: path.basename(f), view: values.view });
-  const errors = t.diagnostics.filter((d) => d.severity === 'error');
+  const traced = await traceable(fs.readFileSync(f, 'utf8'), { load: loaderFor(f), file: path.basename(f), view: values.view });
+  const errors = traced.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length) return (report(f, errors), 1);
   const pick = values.pick ? Number(values.pick) : undefined;
-  if (pick !== undefined && !(Number.isInteger(pick) && pick >= 1)) throw new UsageError('--pick takes a route number: 1, 2, …');
-  const r = traceAsk(t, { from: values.from, to: values.to, steps: values.steps, limit: values.all ? 20 : Math.max(5, pick ?? 0) });
+  if (pick !== undefined && !(Number.isInteger(pick) && pick >= 1)) throw new UsageError(t('--pick takes a route number: 1, 2, …'));
+  const r = traceAsk(traced, { from: values.from, to: values.to, steps: values.steps, limit: values.all ? 20 : Math.max(5, pick ?? 0) });
   if (r.error) return (console.error(`${f}: ${r.error}`), 1);
-  if (pick !== undefined && pick > r.options.length) return (console.error(`${f}: there ${r.options.length === 1 ? 'is 1 route' : `are ${r.options.length} routes`}, not ${pick}`), 1);
+  if (pick !== undefined && pick > r.options.length) return (console.error(t('{file}: there is {count} route, not {pick}|{file}: there are {count} routes, not {pick}', { file: f, count: r.options.length, pick })), 1);
   const chosen = values.all ? r.options.map((o, i) => [o, i] as const) : [[r.options[(pick ?? 1) - 1]!, (pick ?? 1) - 1] as const];
   // The sequence names the traced file relative to where it is written.
   const out = values.out && values.out !== '-' ? values.out : undefined;
   const rel = path.relative(out ? path.dirname(path.resolve(out)) : process.cwd(), path.resolve(f)).split(path.sep).join('/');
   const ask = [`carto trace ${f}`, ...(values.view ? [`--view ${values.view}`] : []), ...(values.steps ? ['--steps'] : [`--from ${r.from}`, ...(r.to ? [`--to ${r.to}`] : [])])].join(' ');
   if (r.options.length > 1 && !values.all) {
-    console.error(`${r.options.length} routes${pick ? `, route ${pick}` : ', the first'}:`);
+    console.error(pick ? t('{count} routes, route {pick}:', { count: r.options.length, pick }) : t('{count} routes, the first:', { count: r.options.length }));
     r.options.forEach((o, i) => console.error(`  ${i + 1}. ${o.summary}`));
   }
   const texts = chosen.map(([o, i]) => {
-    const meta: TraceMeta = { file: rel, ...(t.view ? { view: t.view } : {}), mode: r.mode, from: r.from, to: r.to, pick: { n: i + 1, of: r.options.length }, command: `${ask}${r.options.length > 1 ? ` --pick ${i + 1}` : ''}` };
-    if (!values.dynamic) return sequenceYaml(t.graph, o, meta);
-    const d = dynamicView(t.graph, o, meta);
-    if (!d) throw new UsageError(`${f} has no model: a dynamic view needs model elements (elements:, or include: of a model)`);
+    const meta: TraceMeta = { file: rel, ...(traced.view ? { view: traced.view } : {}), mode: r.mode, from: r.from, to: r.to, pick: { n: i + 1, of: r.options.length }, command: `${ask}${r.options.length > 1 ? ` --pick ${i + 1}` : ''}` };
+    if (!values.dynamic) return sequenceYaml(traced.graph, o, meta);
+    const d = dynamicView(traced.graph, o, meta);
+    if (!d) throw new UsageError(t('{file} has no model: a dynamic view needs model elements (elements:, or include: of a model)', { file: f }));
     return d.yaml;
   });
   if (!out) process.stdout.write(texts.join('---\n'));
@@ -513,10 +526,10 @@ async function notesCommand(): Promise<number> {
     const [base, ours, theirs] = files;
     if (!base || !ours || !theirs) return (console.error(helpFor('notes')), 1);
     const read = (f: string) => parseNotes(fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
-    const [b, o, t] = [read(base), read(ours), read(theirs)];
+    const [b, o, th] = [read(base), read(ours), read(theirs)];
     // A side that is not a notes file is not merged by guessing: git keeps the conflict.
-    if ([o, t].some((x) => x.problems.some((p) => p.startsWith('not valid') || p.startsWith('no "threads"')))) return (console.error(`carto notes: ${ours} or ${theirs} is not a notes file`), 1);
-    fs.writeFileSync(ours, printNotes(mergeNotes(b.notes, o.notes, t.notes)) ?? '{\n  "version": 1,\n  "threads": []\n}\n');
+    if ([o, th].some((x) => x.problems.some((p) => p.startsWith('not valid') || p.startsWith('no "threads"')))) return (console.error(t('carto notes: {ours} or {theirs} is not a notes file', { ours, theirs })), 1);
+    fs.writeFileSync(ours, printNotes(mergeNotes(b.notes, o.notes, th.notes)) ?? '{\n  "version": 1,\n  "threads": []\n}\n');
     return 0;
   }
   if (!files.length) return (console.error(helpFor('notes')), 1);
@@ -525,7 +538,7 @@ async function notesCommand(): Promise<number> {
   for (const f of files) {
     const notes = notesFor(f);
     if (!notes) {
-      console.error(`${f}: no review notes (${notesPath(f)} is not there)`);
+      console.error(t('{file}: no review notes ({path} is not there)', { file: f, path: notesPath(f) }));
       continue;
     }
     const { graph, views } = await graphsFor(f, notes);
@@ -544,7 +557,7 @@ async function notesCommand(): Promise<number> {
 /** The drawing of a diagram and of each view its notes were written in: what their anchors are looked up in. */
 async function graphsFor(file: string, notes: NotesFile): Promise<{ graph?: RenderResult['graph']; views: Record<string, NonNullable<RenderResult['graph']>> }> {
   const text = fs.readFileSync(file, 'utf8');
-  const opts = { fonts: 'none' as const, load: loaderFor(file), file: path.basename(file) };
+  const opts = { fonts: 'none' as const, load: loaderFor(file), file: path.basename(file), ...langOption };
   const first = await render(text, opts);
   const views: Record<string, NonNullable<RenderResult['graph']>> = {};
   for (const v of new Set(notes.threads.map((t) => t.view).filter((x): x is string => !!x))) {
@@ -561,14 +574,14 @@ async function checkNotes(file: string): Promise<void> {
   const { graph, views } = await graphsFor(file, notes);
   if (!graph) return;
   const p = notesPath(file);
-  for (const t of notes.threads) {
-    const g = t.view ? views[t.view] : graph;
-    if (t.view && !g) {
-      console.error(`${p}  ${yellow('warning')}  note ${t.id} is in view "${t.view}", which the diagram no longer has`);
+  for (const th of notes.threads) {
+    const g = th.view ? views[th.view] : graph;
+    if (th.view && !g) {
+      console.error(`${p}  ${yellow(t('warning'))}  ${t('note {id} is in view "{view}", which the diagram no longer has', { id: th.id, view: th.view })}`);
       continue;
     }
-    const r = resolveAnchor(t.anchor, g!);
-    if (r.state === 'orphaned') console.error(`${p}  ${yellow('warning')}  note ${t.id} (${t.status}) is about "${r.was}", which is no longer in the diagram${t.view ? ` (view ${t.view})` : ''}`);
+    const r = resolveAnchor(th.anchor, g!);
+    if (r.state === 'orphaned') console.error(`${p}  ${yellow(t('warning'))}  ${th.view ? t('note {id} ({status}) is about "{was}", which is no longer in the diagram (view {view})', { id: th.id, status: th.status, was: r.was, view: th.view }) : t('note {id} ({status}) is about "{was}", which is no longer in the diagram', { id: th.id, status: th.status, was: r.was })}`);
   }
 }
 
@@ -597,7 +610,7 @@ function noteLayout(file: string, results: RenderResult[]) {
   }
   if (sidecar === before) return;
   writeSidecar(file, sidecar);
-  console.log(`${file} → ${sidecarPath(file)} ${dim('layout noted')}`);
+  console.log(`${file} → ${sidecarPath(file)} ${dim(t('layout noted'))}`);
 }
 
 /** validate --drift: what the sidecar still refers to that the diagram no longer has. */
@@ -608,18 +621,18 @@ async function checkDrift(file: string): Promise<boolean> {
   try {
     sidecar = JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar;
   } catch (e) {
-    console.error(`${p}  ${red('error')}  not valid JSON: ${(e as Error).message}`);
+    console.error(`${p}  ${red(t('error'))}  ${t('not valid JSON: {message}', { message: (e as Error).message })}`);
     return false;
   }
   const r = await drift(fs.readFileSync(file, 'utf8'), sidecar, { load: loaderFor(file), file: path.basename(file), packs: values.pack, pack: readPack });
-  if (r.error) return (console.error(`${p}  ${yellow('warning')}  ${r.error}`), true);
+  if (r.error) return (console.error(`${p}  ${yellow(t('warning'))}  ${r.error}`), true);
   if (!r.stale.length) return true;
   const fixing = !!values.fix;
-  for (const s of r.stale) console.error(`${p}  ${fixing ? yellow('fixed') : red('stale')}  ${s.path}: ${s.message}`);
-  const count = `${r.stale.length} stale entr${r.stale.length > 1 ? 'ies' : 'y'}`;
-  if (!fixing) return (console.error(`${p}  ${count}; carto validate --drift --fix ${file} drops ${r.stale.length > 1 ? 'them' : 'it'}`), false);
+  for (const s of r.stale) console.error(`${p}  ${fixing ? yellow(t('fixed')) : red(t('stale'))}  ${s.path}: ${s.message}`);
+  const count = r.stale.length;
+  if (!fixing) return (console.error(`${p}  ${t('{count} stale entry; carto validate --drift --fix {file} drops it|{count} stale entries; carto validate --drift --fix {file} drops them', { count, file })}`), false);
   writeSidecar(file, r.fixed);
-  console.log(r.fixed ? `${p} ${dim(`${count} dropped`)}` : `${p} ${dim(`${count} dropped, nothing left: file removed`)}`);
+  console.log(`${p} ${dim(r.fixed ? t('{count} stale entry dropped|{count} stale entries dropped', { count }) : t('{count} stale entry dropped, nothing left: file removed|{count} stale entries dropped, nothing left: file removed', { count }))}`);
   return true;
 }
 
@@ -634,7 +647,7 @@ function outputPath(file: string, format: string, view?: string, step?: number):
   // A deck holds every layer on a slide of its own: one file.
   const perLayer = values['all-layers'] && format !== 'pptx' && format !== 'pdf';
   if (!folder && (files.length > 1 || values['all-views'] || perLayer))
-    throw new UsageError(`-o ${values.out} names one file, but ${values['all-views'] ? '--all-views writes one per view' : perLayer ? '--all-layers writes one per layer' : 'several diagrams make several files'}: give a folder, e.g. -o ${path.join(path.dirname(values.out), path.basename(values.out, path.extname(values.out)))}/`);
+    throw new UsageError(t('-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/', { out: values.out, why: values['all-views'] ? t('--all-views writes one per view') : perLayer ? t('--all-layers writes one per layer') : t('several diagrams make several files'), folder: path.join(path.dirname(values.out), path.basename(values.out, path.extname(values.out))) }));
   if (!folder) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), nn ? values.out.replace(/(\.\w+)$/, `${nn}$1`) : values.out);
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
@@ -664,10 +677,10 @@ let forced: Theme | undefined;
 function themeFlag(): boolean {
   if (!values.theme) return true;
   if (themes[values.theme]) return ((forced = themes[values.theme]), true);
-  if (!isThemeFile(values.theme)) return (console.error(`Unknown theme "${values.theme}", use one of: ${Object.keys(themes).join(', ')}, or a .theme.yaml file`), false);
+  if (!isThemeFile(values.theme)) return (console.error(t('Unknown theme "{name}", use one of: {themes}, or a .theme.yaml file', { name: values.theme, themes: Object.keys(themes).join(', ') })), false);
   const cwd = path.resolve(values.theme);
   const r = resolveTheme(path.basename(cwd), { load: loaderFor(cwd), assets: assetsFor(cwd) });
-  for (const w of r.warnings) console.error(`${values.theme}  ${yellow('warning')}  ${w.path.length ? w.path.join('.') + ': ' : ''}${w.message}`);
+  for (const w of r.warnings) console.error(`${values.theme}  ${yellow(t('warning'))}  ${w.path.length ? w.path.join('.') + ': ' : ''}${w.message}`);
   forced = r.theme;
   return true;
 }
@@ -688,6 +701,9 @@ function formatFor(): Format {
   return formats.find((f) => f === ext) ?? formats.find((f) => f === values.format) ?? 'svg';
 }
 
+/** --lang or CARTO_LANG: the language of the drawing's own words when a diagram has no lang: (never the machine's locale). */
+const langOption: Pick<RenderOptions, 'lang'> = explicitLang ? { lang: explicitLang } : {};
+
 function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions {
   return {
     themeOverride: forced,
@@ -705,6 +721,7 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     focus: focusFlag(),
     ...(values.layer?.length ? { layers: values.layer.flatMap((l) => l.split(',')).map((l) => l.trim()).filter(Boolean) } : {}),
     ...(values.dim ? { layerMode: 'dim' as const } : {}),
+    ...langOption,
   };
 }
 
@@ -713,7 +730,7 @@ function iconsFlag(): RenderOptions['iconsOverride'] {
   const v = values.icons;
   if (v == null) return undefined;
   if (v === 'official' || v === 'lucide') return v;
-  throw new UsageError(`--icons is official or lucide, not "${v}"`);
+  throw new UsageError(t('--icons is official or lucide, not "{value}"', { value: v }));
 }
 
 /** --all-steps: also steps nobody wrote; --no-steps: one slide per drawing; else a slide per written step. */
@@ -742,10 +759,10 @@ function templateFlags(theme: RenderResult['theme'], diagram?: string): Pick<Ppt
   const fromTheme = !values.template && theme?.pptx;
   const file = values.template ?? (fromTheme && diagram ? path.join(path.dirname(diagram), fromTheme.template) : undefined);
   if (!file) {
-    if (values.layout || values['keep-look'] || values['keep-slides']) console.error(`${yellow('warning')}  --layout, --keep-look and --keep-slides go with --template: ignored`);
+    if (values.layout || values['keep-look'] || values['keep-slides']) console.error(`${yellow(t('warning'))}  ${t('--layout, --keep-look and --keep-slides go with --template: ignored')}`);
     return {};
   }
-  if (!/\.(potx|pptx)$/i.test(file)) throw new UsageError(`--template is a PowerPoint template, .potx or .pptx: ${file}`);
+  if (!/\.(potx|pptx)$/i.test(file)) throw new UsageError(t('--template is a PowerPoint template, .potx or .pptx: {file}', { file }));
   const template = readTemplate(fs.readFileSync(file));
   const layout = values.layout ?? (fromTheme ? fromTheme.layout : undefined);
   return {
@@ -753,7 +770,7 @@ function templateFlags(theme: RenderResult['theme'], diagram?: string): Pick<Ppt
     ...(layout ? { layout } : {}),
     keepLook: !!values['keep-look'] || (!!fromTheme && !!fromTheme.keepLook),
     keepSlides: !!values['keep-slides'],
-    onWarning: (w) => console.error(`${file}  ${yellow('warning')}  ${w}`),
+    onWarning: (w) => console.error(`${file}  ${yellow(t('warning'))}  ${w}`),
   };
 }
 
@@ -763,18 +780,18 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
   // Office reads no embedded font either.
   const safe = !!values['svg-safe'] && format === 'svg';
-  if (values['svg-safe'] && !safe) console.error(`${file}  ${yellow('warning')}  --svg-safe is for SVG: ignored for ${format}`);
-  if (values['outline-text'] && !safe) console.error(`${file}  ${yellow('warning')}  --outline-text goes with --svg-safe: ignored`);
+  if (values['svg-safe'] && !safe) console.error(`${file}  ${yellow(t('warning'))}  ${t('--svg-safe is for SVG: ignored for {format}', { format })}`);
+  if (values['outline-text'] && !safe) console.error(`${file}  ${yellow(t('warning'))}  ${t('--outline-text goes with --svg-safe: ignored')}`);
   const opts = optionsFor(file, values['no-fonts'] || safe || format !== 'svg' ? 'none' : 'embed');
   const first = await render(text, opts);
   // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
   const views = values['all-views'] && first.views?.length ? await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))) : [];
   // A view with nothing in it is no picture: said, not written.
-  for (const v of views) if (v.empty) console.error(`${shown}#${v.view}  ${dim('empty: nothing to draw, not written')}`);
+  for (const v of views) if (v.empty) console.error(`${shown}#${v.view}  ${dim(t('empty: nothing to draw, not written'))}`);
   // --all-layers: the drawing as a whole, then through each of its layers as <file>-<layer>.svg (a slide each in a deck).
-  if (values['all-layers'] && !first.layers?.list.length) console.error(`${shown}  ${yellow('warning')}  --all-layers: this diagram has no layers: (see docs/layers.md)`);
+  if (values['all-layers'] && !first.layers?.list.length) console.error(`${shown}  ${yellow(t('warning'))}  ${t('--all-layers: this diagram has no layers: (see docs/layers.md)')}`);
   const layered = values['all-layers'] ? await Promise.all((first.layers?.list ?? []).map((l) => render(text, { ...opts, layers: l.name }))) : [];
-  for (const [i, l] of layered.entries()) if (l.empty || !l.layers?.kept) console.error(`${shown}@${first.layers!.list[i]!.name}  ${dim('nothing on this layer, not written')}`);
+  for (const [i, l] of layered.entries()) if (l.empty || !l.layers?.kept) console.error(`${shown}@${first.layers!.list[i]!.name}  ${dim(t('nothing on this layer, not written'))}`);
   const runs = [first, ...views.filter((v) => !v.empty), ...layered.filter((l) => !l.empty && l.layers?.kept)];
   /** What a run is called in messages and file names: its view, or its layers. */
   const named = (r: RenderResult, i: number) => (i && layered.includes(r) ? [r.view, r.layers!.active.join('+')].filter(Boolean).join('-') : i ? r.view : values.view);
@@ -787,12 +804,12 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(r !== first && !values['all-steps'] ? { steps: undefined } : {}) })), first.theme, file);
     if (out === '-') process.stdout.write(data);
     else fs.writeFileSync(out, data);
-    console.log(`${shown} → ${out === '-' ? 'standard output' : out} ${dim(`${drawn.length} drawings: the whole and ${drawn.length - 1} ${drawn.length === 2 ? 'layer' : 'layers'}`)}`);
+    console.log(`${shown} → ${out === '-' ? t('standard output') : out} ${dim(t('{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers', { all: drawn.length, count: drawn.length - 1 }))}`);
     if (values.stable) noteLayout(file, runs);
     return drawn.length === runs.length;
   }
   const notes = values.notes ? notesFor(file) : undefined;
-  if (values.notes && !notes) console.error(`${shown}  ${yellow('warning')}  --notes: there is no ${notesPath(file)}`);
+  if (values.notes && !notes) console.error(`${shown}  ${yellow(t('warning'))}  ${t('--notes: there is no {path}', { path: notesPath(file) })}`);
   let ok = true;
   const stdout = values.out === '-' || (shown === 'stdin' && !values.out);
   for (const [i, result] of runs.entries()) {
@@ -802,15 +819,15 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
       ok = false;
       continue;
     }
-    if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
+    if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow(t('warning'))}  ${t('no steps here: drawn as a whole')}`);
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
     const shots = plain.map((r) => (values.decisions ? withDecisionMarks(annotated(r, notes), file) : annotated(r, notes)));
-    if (stdout && runs.length + shots.length > 2) throw new UsageError('-o - writes one picture to standard output: give a folder for --all-views or --all-steps');
+    if (stdout && runs.length + shots.length > 2) throw new UsageError(t('-o - writes one picture to standard output: give a folder for --all-views or --all-steps'));
     // A drawing with errors is not what was asked for: nothing is written, the errors say why.
     if (result.diagnostics.some((d) => d.severity === 'error')) {
-      console.error(`${shown}${view ? `#${view}` : ''}  ${red('error')}  nothing written`);
+      console.error(`${shown}${view ? `#${view}` : ''}  ${red(t('error'))}  ${t('nothing written')}`);
       ok = false;
       continue;
     }
@@ -826,7 +843,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
         : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme, file);
       if (stdout) process.stdout.write(data);
       else fs.writeFileSync(out, data);
-      (stdout ? console.error : console.log)(`${shown}${view ? `${layered.includes(result) ? '@' : '#'}${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${stdout ? 'standard output' : out} ${dim(`${shot.width}×${shot.height}`)}`);
+      (stdout ? console.error : console.log)(`${shown}${view ? `${layered.includes(result) ? '@' : '#'}${view}` : ''}${shot.step ? ` ${t('step {n}', { n: shot.step })}` : ''} → ${stdout ? t('standard output') : out} ${dim(`${shot.width}×${shot.height}`)}`);
     }
   }
   if (values.stable) noteLayout(file, runs);
@@ -839,10 +856,10 @@ async function animateFile(file: string): Promise<boolean> {
   const num = (name: string, v: string | undefined, min: number, max: number) => {
     if (v == null) return undefined;
     const n = Number(v);
-    if (!(n >= min && n <= max)) throw new UsageError(`--${name} is a number from ${min} to ${max}, not "${v}"`);
+    if (!(n >= min && n <= max)) throw new UsageError(t('--{name} is a number from {min} to {max}, not "{value}"', { name, min, max, value: v }));
     return n;
   };
-  const warn = (s: string) => console.error(`${file}  ${yellow('warning')}  ${s}`);
+  const warn = (s: string) => console.error(`${file}  ${yellow(t('warning'))}  ${s}`);
   const opts = optionsFor(file, 'none');
   let width: number | undefined;
   try {
@@ -868,7 +885,7 @@ async function animateFile(file: string): Promise<boolean> {
     {
       info: (s) => console.log(s),
       warn,
-      error: (s) => console.error(`${file}  ${red('error')}  ${s}`),
+      error: (s) => console.error(`${file}  ${red(t('error'))}  ${s}`),
       diagnostics: (r) => report(file, r.diagnostics),
     },
   );
@@ -879,9 +896,9 @@ function validateWorkspace(dir: string): boolean {
   // Diagrams, and the decisions folder with what says where it is (decisions concern elements by id).
   const files = workspaceFiles(dir);
   const ix = indexWorkspace(files);
-  for (const p of ix.problems) console.error(`${path.join(dir, p.file)}${p.line ? `:${p.line}` : ''}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
+  for (const p of ix.problems) console.error(`${path.join(dir, p.file)}${p.line ? `:${p.line}` : ''}  ${p.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${p.message}`);
   const n = ix.files.size;
-  if (!ix.problems.length) console.log(`${dir} ${dim(`workspace ok: ${n} diagram${n === 1 ? '' : 's'}, ${ix.elements.size} element${ix.elements.size === 1 ? '' : 's'}`)}`);
+  if (!ix.problems.length) console.log(`${dir} ${dim(`${t('workspace ok: {count} diagram|workspace ok: {count} diagrams', { count: n })}, ${t('{count} element|{count} elements', { count: ix.elements.size })}`)}`);
   return !ix.problems.some((p) => p.severity === 'error');
 }
 
@@ -920,7 +937,7 @@ function meshOf(inputs: string[], diagram: string, existing: 'merge' | 'if-mesh'
   const r = importDataMesh(list.map((f) => ({ path: path.relative(from, f).split(path.sep).join('/'), text: fs.readFileSync(f, 'utf8') })), { title: values.title, existing: was });
   for (const p of r.problems) {
     const where = p.file ? `${path.join(from, p.file)}${p.line ? `:${p.line}:${p.column}` : ''}` : r.products || !was ? inputs.join(', ') : diagram;
-    console.error(`${where}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
+    console.error(`${where}  ${p.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${p.message}`);
   }
   if (!r.yaml) return undefined;
   const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
@@ -1019,8 +1036,8 @@ function exportOf(inputs: string[], kind: ExportKind, diagram: string | undefine
   const files = list.map((x) => ({ path: path.relative(x.at, x.p).split(path.sep).join('/'), text: fs.readFileSync(x.p, 'utf8') }));
   const r = kind === 'azure' ? importAzure(files, { ...(opts as Parameters<typeof importAzure>[1]), existing: was }) : kind === 'github' ? importGithub(files, { ...opts, existing: was }) : importAccess(files, { ...opts, existing: was });
   const where = inputs.join(', ');
-  for (const p of r.problems) console.error(`${p.file ? path.join(inputs.length === 1 && isFolder(inputs[0]!) ? inputs[0]! : '', p.file) : where}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
-  for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+  for (const p of r.problems) console.error(`${p.file ? path.join(inputs.length === 1 && isFolder(inputs[0]!) ? inputs[0]! : '', p.file) : where}  ${p.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${p.message}`);
+  for (const w of r.warnings) console.error(`${where}  ${yellow(t('warning'))}  ${w}`);
   if (!r.yaml) return undefined;
   return { ...r, summary: `${r.summary}${was && !base ? ', what was added by hand kept' : ''}`, clean: !r.problems.some((p) => p.severity === 'error'), type };
 }
@@ -1092,17 +1109,17 @@ async function diffFiles(): Promise<number> {
   const ref = values.git ?? values.since;
   const snap = values.snapshot;
   if (values.live) {
-    if (files.length !== 1) return (console.error('One saved diagram: carto diff --live <source> <saved.yaml>'), 1);
-    if (!fs.existsSync(files[0]!)) return (console.error(`${files[0]}  ${red('error')}  not found`), 1);
+    if (files.length !== 1) return (console.error(t('One saved diagram: carto diff --live <source> <saved.yaml>')), 1);
+    if (!fs.existsSync(files[0]!)) return (console.error(`${files[0]}  ${red(t('error'))}  ${t('not found')}`), 1);
   } else if (ref || snap ? !files.length : files.length !== 2)
-    return (console.error(ref ? 'Name the diagrams: carto diff --git <ref> <file.yaml…>' : snap ? 'Name the diagrams: carto diff --snapshot <label> <file.yaml…>' : 'Two files: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> or carto diff --snapshot <label> <file.yaml…>'), 1);
+    return (console.error(ref ? t('Name the diagrams: carto diff --git <ref> <file.yaml…>') : snap ? t('Name the diagrams: carto diff --snapshot <label> <file.yaml…>') : t('Two files: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> or carto diff --snapshot <label> <file.yaml…>')), 1);
   if (snap) {
     // A snapshot that is not there: say which there are.
     const missing = files.filter((f) => !fs.existsSync(snapshotPath(f, snap)));
     for (const f of missing) {
       const dir = snapshotDir(f);
       const there = fs.existsSync(dir) ? fs.readdirSync(dir).filter((x) => /\.ya?ml$/i.test(x)).map((x) => x.replace(/\.ya?ml$/i, '')) : [];
-      console.error(`${f}  ${red('error')}  no snapshot "${snap}" (${snapshotPath(f, snap)})${there.length ? `; there are: ${there.join(', ')}` : '; take one in the editor with ⇧⌘S'}`);
+      console.error(`${f}  ${red(t('error'))}  ${there.length ? t('no snapshot "{label}" ({path}); there are: {list}', { label: snap, path: snapshotPath(f, snap), list: there.join(', ') }) : t('no snapshot "{label}" ({path}); take one in the editor with ⇧⌘S', { label: snap, path: snapshotPath(f, snap) })}`);
     }
     if (missing.length) return 1;
   }
@@ -1118,7 +1135,7 @@ async function diffFiles(): Promise<number> {
       root = repoRoot(process.cwd());
       execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: root, stdio: 'ignore' });
     } catch {
-      return (console.error(root ? `"${ref}" is not a commit, branch or tag here` : 'carto diff --git needs a git repository'), 1);
+      return (console.error(root ? t('"{ref}" is not a commit, branch or tag here', { ref }) : t('carto diff --git needs a git repository')), 1);
     }
   }
   // Two folders of exports: each imported, the newer over the older so the same things keep their ids.
@@ -1126,7 +1143,7 @@ async function diffFiles(): Promise<number> {
   const folders = !ref && !values.live && files.every((f) => isFolder(f) || (/\.json$/i.test(f) && fs.existsSync(f) && exportKind([f]) === 'azure'));
   if (folders) {
     const kind = exportKind([files[1]!]) ?? exportKind([files[0]!]);
-    if (!kind) return (console.error(`Neither ${files[0]} nor ${files[1]} holds access exports, gh api responses or Azure resources`), 1);
+    if (!kind) return (console.error(t('Neither {a} nor {b} holds access exports, gh api responses or Azure resources', { a: files[0]!, b: files[1]! })), 1);
     const before = exportOf([files[0]!], kind, undefined, 'fresh');
     const after = exportOf([files[1]!], kind, undefined, 'fresh', before?.yaml);
     if (!before || !after) return 1;
@@ -1163,7 +1180,7 @@ async function diffFiles(): Promise<number> {
   const json: unknown[] = [];
   for (const p of pairs) {
     if (p.before === undefined && p.after === undefined) {
-      console.error(`${p.name}  ${red('error')}  not found${ref ? `, here or in ${ref}` : ''}`);
+      console.error(`${p.name}  ${red(t('error'))}  ${ref ? t('not found, here or in {ref}', { ref }) : t('not found')}`);
       ok = false;
       continue;
     }
@@ -1177,7 +1194,7 @@ async function diffFiles(): Promise<number> {
       const plain = (o: RenderOptions): RenderOptions => (matrix ? { ...o, view: undefined } : o);
       c = await compare(p.before, p.after, { before: plain(p.beforeOptions), after: plain(optionsFor(p.afterFile, fonts)), view: matrix ? undefined : values.view, fresh: values.fresh });
     } catch (e) {
-      console.error(`${p.name}  ${red('error')}  ${(e as Error).message}`);
+      console.error(`${p.name}  ${red(t('error'))}  ${(e as Error).message}`);
       ok = false;
       continue;
     }
@@ -1190,7 +1207,7 @@ async function diffFiles(): Promise<number> {
     else {
       // With -o - the picture or the text is standard output: the summary goes to stderr.
       const say = values.out === '-' ? console.error : console.log;
-      say(`${bold(p.name)}${values.view ? `#${values.view}` : ''} ${dim(`against ${p.against}`)}: ${state ? `${state}, ` : ''}${summary(c.diff)}`);
+      say(`${bold(p.name)}${values.view ? `#${values.view}` : ''} ${dim(t('against {what}', { what: p.against }))}: ${state ? `${state}, ` : ''}${summary(c.diff)}`);
       if (!c.diff.same) say(formatDiff(c.diff));
       if (changes?.length) for (const x of changes) say(`  ${x.kind === 'gained' ? '+' : x.kind === 'lost' ? '-' : '~'} ${x.text}`);
     }
@@ -1225,7 +1242,7 @@ async function diffFiles(): Promise<number> {
 
 function liveFlags(): LiveFlags {
   const timeout = values.timeout === undefined ? undefined : Number(values.timeout);
-  if (timeout !== undefined && !(timeout > 0)) throw new UsageError(`--timeout takes seconds, not "${values.timeout}"`);
+  if (timeout !== undefined && !(timeout > 0)) throw new UsageError(t('--timeout takes seconds, not "{value}"', { value: values.timeout! }));
   return { context: values.context, namespace: values.namespace, allNamespaces: values['all-namespaces'], subscription: values.subscription, rg: values.rg, org: values.org, withAccess: values['with-access'], yes: values.yes, dryRun: values['dry-run'], timeout, keepRaw: values['keep-raw'] };
 }
 
@@ -1234,7 +1251,7 @@ function liveImport(f: Fetched, was: string | undefined): { yaml: string; summar
   const where = `live ${f.kind}`;
   if (f.kind === 'kubernetes') {
     const r = importKubernetes(f.files.map((x) => x.text).join('\n---\n'), values.title ?? f.title ?? 'Kubernetes', { existing: was });
-    for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+    for (const w of r.warnings) console.error(`${where}  ${yellow(t('warning'))}  ${w}`);
     if (!r.yaml) return undefined;
     const n = Object.keys((parseYaml(r.yaml) as { nodes?: object } | null)?.nodes ?? {}).length;
     return { yaml: r.yaml, summary: `${n} cards${was ? ', what was added by hand kept' : ''}`, clean: !r.warnings.some((w) => /not changed$/.test(w)) };
@@ -1242,8 +1259,8 @@ function liveImport(f: Fetched, was: string | undefined): { yaml: string; summar
   const opts = exportOptions();
   if (typeof opts === 'string') return (console.error(opts), undefined);
   const r = f.kind === 'azure' ? importAzure(f.files, { ...(opts as Parameters<typeof importAzure>[1]), existing: was }) : f.kind === 'github' ? importGithub(f.files, { ...opts, existing: was }) : importAccess(f.files, { ...opts, existing: was });
-  for (const p of r.problems) console.error(`${where}${p.file ? ` ${p.file}` : ''}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
-  for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+  for (const p of r.problems) console.error(`${where}${p.file ? ` ${p.file}` : ''}  ${p.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${p.message}`);
+  for (const w of r.warnings) console.error(`${where}  ${yellow(t('warning'))}  ${w}`);
   if (!r.yaml) return undefined;
   return { yaml: r.yaml, summary: `${r.summary}${was ? ', what was added by hand kept' : ''}`, clean: !r.problems.some((p) => p.severity === 'error') };
 }
@@ -1251,12 +1268,12 @@ function liveImport(f: Fetched, was: string | undefined): { yaml: string; summar
 /** carto import --live <source>: the user's own kubectl, az or gh, read-only; --into imports over a diagram, its hand edits kept. */
 async function importLive(): Promise<boolean> {
   const into = values.into;
-  if (into && !fs.existsSync(into)) return (console.error(`${into}  ${red('error')}  not found: leave out --into to start a new diagram`), false);
+  if (into && !fs.existsSync(into)) return (console.error(`${into}  ${red(t('error'))}  ${t('not found: leave out --into to start a new diagram')}`), false);
   const stdout = values.out === '-';
   const name = (f: Fetched) => `${f.kind === 'kubernetes' ? (f.title ?? 'kubernetes').replace(/[^\w.-]+/g, '-') : f.kind === 'github' ? (f.title ?? 'github') : f.kind}.yaml`;
   // Plan the files before anything runs: an existing one is only written over with --into or --force.
   const first = into && !values.out ? into : values.out && !stdout && path.extname(values.out) ? values.out : undefined;
-  if (first && first !== into && fs.existsSync(first) && !values.force) return (console.error(`${first} already exists: --into ${first} imports over it (your edits stay), --force starts it over`), false);
+  if (first && first !== into && fs.existsSync(first) && !values.force) return (console.error(t('{file} already exists: --into {file} imports over it (your edits stay), --force starts it over', { file: first })), false);
   const got = await runLive(values.live!, liveFlags());
   if (!got) return !!values['dry-run'];
   let ok = true;
@@ -1265,7 +1282,7 @@ async function importLive(): Promise<boolean> {
     const main = first ?? path.join(values.out && !stdout ? values.out : '.', name(got[0]!));
     const out = i === 0 ? main : main.replace(/(\.ya?ml)?$/i, (ext) => `-access${ext || '.yaml'}`);
     if (!first && !stdout && fs.existsSync(out) && !values.force) {
-      console.error(`${out} already exists: --into ${out} imports over it (your edits stay), --force starts it over`);
+      console.error(t('{file} already exists: --into {file} imports over it (your edits stay), --force starts it over', { file: out }));
       ok = false;
       continue;
     }
@@ -1293,7 +1310,7 @@ async function importLive(): Promise<boolean> {
 async function deck(): Promise<boolean> {
   const format = values.out?.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pptx';
   if (!values.out || !/\.(pptx|pdf)$/i.test(values.out)) {
-    console.error('carto deck needs -o <file>.pptx or -o <file>.pdf');
+    console.error(t('carto deck needs -o <file>.pptx or -o <file>.pdf'));
     return false;
   }
   const drawings: Drawing[] = [];
@@ -1310,7 +1327,7 @@ async function deck(): Promise<boolean> {
   fs.mkdirSync(path.dirname(values.out), { recursive: true });
   fs.writeFileSync(values.out, await document(format, drawings, theme, files[0]));
   const count = pages(drawings, stepsFlag()).length;
-  console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''}${count > drawings.length ? `, ${count} ${format === 'pdf' ? 'pages' : 'slides'}` : ''} → ${values.out}`);
+  console.log(`${t('{count} diagram|{count} diagrams', { count: drawings.length })}${count > drawings.length ? `, ${format === 'pdf' ? t('{count} page|{count} pages', { count }) : t('{count} slide|{count} slides', { count })}` : ''} → ${values.out}`);
   return ok;
 }
 
@@ -1324,33 +1341,33 @@ const diagramsOf = (repo: string) => (values.diagrams ? path.relative(repo, path
 async function importRepo(repo: string): Promise<boolean> {
   const scan = repoDiagrams(repo, { out: diagramsOf(repo), values: values.values && fs.readFileSync(values.values, 'utf8'), fresh: values.force });
   if (!scan.diagrams.length) {
-    console.error(`${repo}  ${yellow('warning')}  nothing to draw: no Compose file, Helm chart, manifests, Bicep, OpenAPI, AsyncAPI or workflow found`);
+    console.error(`${repo}  ${yellow(t('warning'))}  ${t('nothing to draw: no Compose file, Helm chart, manifests, Bicep, OpenAPI, AsyncAPI or workflow found')}`);
     for (const h of scan.hints) console.error(`  ${dim(h)}`);
     return false;
   }
   let ok = true;
   for (const d of scan.diagrams) {
     const out = path.join(repo, d.file);
-    for (const w of d.warnings) console.error(`${d.sources[0]}  ${yellow('warning')}  ${w}`);
+    for (const w of d.warnings) console.error(`${d.sources[0]}  ${yellow(t('warning'))}  ${w}`);
     const check = await render(d.yaml, { fonts: 'none', load: loaderFor(out) });
     report(`${d.file} (imported)`, check.diagnostics);
     if (check.diagnostics.some((x) => x.severity === 'error')) ok = false;
     if (values['dry-run']) {
-      console.log(`${d.sources.join(', ')} → ${out} ${dim(`${d.summary} (not written: --dry-run)`)}`);
+      console.log(`${d.sources.join(', ')} → ${out} ${dim(`${d.summary} ${t('(not written: --dry-run)')}`)}`);
       continue;
     }
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, d.yaml);
     console.log(`${d.sources.join(', ')} → ${out} ${dim(`${d.summary}${d.kept ? ', what was added by hand kept' : ''}`)}`);
   }
-  for (const h of scan.hints) console.log(dim(`  also: ${h}`));
+  for (const h of scan.hints) console.log(dim(`  ${t('also: {hint}', { hint: h })}`));
   return ok;
 }
 
 /** carto render <repo>: each of its diagrams drawn, as carto import would make them; nothing written but the pictures. */
 async function renderRepo(repo: string): Promise<boolean> {
   const scan = repoDiagrams(repo, { out: diagramsOf(repo), values: values.values && fs.readFileSync(values.values, 'utf8') });
-  if (!scan.diagrams.length) return (console.error(`${repo}  ${yellow('warning')}  nothing to draw`), false);
+  if (!scan.diagrams.length) return (console.error(`${repo}  ${yellow(t('warning'))}  ${t('nothing to draw')}`), false);
   let ok = true;
   for (const d of scan.diagrams) {
     const file = path.join(repo, d.file);
@@ -1367,12 +1384,12 @@ async function importFile(file: string): Promise<boolean> {
   // A Structurizr workspace becomes one C4 file: the model and all its views.
   const dsl = /\.dsl$/i.test(file);
   const blocks = dsl ? [{ ...importStructurizr(text, base), line: 0 }] : importText(text, path.basename(file));
-  if (dsl && !blocks[0]!.yaml) console.error(`${file}  ${yellow('warning')}  no workspace model found`);
-  if (!blocks.length) console.error(`${file}  ${yellow('warning')}  no \`\`\`mermaid, \`\`\`d2 or \`\`\`plantuml blocks found`);
+  if (dsl && !blocks[0]!.yaml) console.error(`${file}  ${yellow(t('warning'))}  ${t('no workspace model found')}`);
+  if (!blocks.length) console.error(`${file}  ${yellow(t('warning'))}  ${t('no ```mermaid, ```d2 or ```plantuml blocks found')}`);
   let ok = blocks.length > 0;
   for (const [i, b] of blocks.entries()) {
     const where = `${b.line ? `${file}:${b.line}` : file}${b.name ? ` (${b.name})` : ''}`;
-    for (const w of b.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+    for (const w of b.warnings) console.error(`${where}  ${yellow(t('warning'))}  ${w}`);
     if (!b.yaml) {
       ok = false;
       continue;
@@ -1388,7 +1405,7 @@ async function importFile(file: string): Promise<boolean> {
     const name = blocks.length > 1 && i > 0 ? `${base}-${part && blocks.filter((x) => x.name === b.name).length === 1 ? part : i + 1}.yaml` : `${base}.yaml`;
     const out = !values.out ? path.join(path.dirname(file), name) : files.length === 1 && blocks.length === 1 && path.extname(values.out) ? values.out : path.join(values.out, name);
     if (fs.existsSync(out) && !values.force) {
-      console.error(`${out} already exists, use --force to overwrite`);
+      console.error(t('{file} already exists, use --force to overwrite', { file: out }));
       ok = false;
       continue;
     }
@@ -1403,14 +1420,14 @@ async function importFile(file: string): Promise<boolean> {
 async function importInventory(file: string, read = importNetwork): Promise<boolean> {
   const base = path.basename(file).replace(/\.(csv|json)$/i, '');
   const r = read(fs.readFileSync(file, 'utf8'), base);
-  for (const w of r.warnings) console.error(`${file}  ${yellow('warning')}  ${w}`);
+  for (const w of r.warnings) console.error(`${file}  ${yellow(t('warning'))}  ${w}`);
   if (!r.yaml) return false;
   const check = await render(r.yaml, { fonts: 'none' });
   report(`${file} (imported)`, check.diagnostics);
   if (values.out === '-') return (process.stdout.write(r.yaml), true);
   const out = values.out ? (path.extname(values.out) ? values.out : path.join(values.out, `${base}.yaml`)) : path.join(path.dirname(file), `${base}.yaml`);
   if (fs.existsSync(out) && !values.force) {
-    console.error(`${out} already exists, use --force to overwrite`);
+    console.error(t('{file} already exists, use --force to overwrite', { file: out }));
     return false;
   }
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -1429,19 +1446,19 @@ async function importGit(repo: string): Promise<boolean> {
   try {
     text = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (e) {
-    console.error(`git log failed in ${repo}: ${String((e as { stderr?: string }).stderr ?? e).trim()}`);
+    console.error(t('git log failed in {repo}: {message}', { repo, message: String((e as { stderr?: string }).stderr ?? e).trim() }));
     return false;
   }
   const name = path.basename(path.resolve(repo));
   const r = importGitLog(text, { title: `${name} history`, ...(branches?.length ? { branches } : {}) });
-  for (const w of r.warnings) console.error(`${repo}  ${yellow('warning')}  ${w}`);
+  for (const w of r.warnings) console.error(`${repo}  ${yellow(t('warning'))}  ${w}`);
   if (!r.yaml) return false;
   const check = await render(r.yaml, { fonts: 'none' });
   report(`${repo} (imported)`, check.diagnostics);
   if (!values.out || values.out === '-') return (process.stdout.write(r.yaml), true);
   const out = path.extname(values.out) ? values.out : path.join(values.out, `${name}-history.yaml`);
   if (fs.existsSync(out) && !values.force) {
-    console.error(`${out} already exists, use --force to overwrite`);
+    console.error(t('{file} already exists, use --force to overwrite', { file: out }));
     return false;
   }
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -1458,14 +1475,14 @@ async function importManifests(list: string[]): Promise<boolean> {
   const text = list.map((f) => fs.readFileSync(f, 'utf8')).join('\n---\n');
   const r = importKubernetes(text, title);
   const where = list.length === 1 ? list[0]! : `${list.length} manifest files`;
-  for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+  for (const w of r.warnings) console.error(`${where}  ${yellow(t('warning'))}  ${w}`);
   if (!r.yaml) return false;
   const check = await render(r.yaml, { fonts: 'none' });
   report(`${where} (imported)`, check.diagnostics);
   if (values.out === '-') return (process.stdout.write(r.yaml), true);
   const out = toFile ?? path.join(path.dirname(list[0]!), `${base}.diagram.yaml`);
   if (fs.existsSync(out) && !values.force) {
-    console.error(`${out} already exists, use --force to overwrite`);
+    console.error(t('{file} already exists, use --force to overwrite', { file: out }));
     return false;
   }
   fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -1483,16 +1500,16 @@ async function importDrawing(file: string): Promise<boolean> {
   try {
     pages = isExcalidraw(text) ? [importExcalidraw(text, opts)] : importDrawio(text, opts);
   } catch (e) {
-    console.error(`${file}  ${red('error')}  ${(e as Error).message}`);
+    console.error(`${file}  ${red(t('error'))}  ${(e as Error).message}`);
     return false;
   }
-  if (!pages.length) console.error(`${file}  ${yellow('warning')}  no pages found`);
+  if (!pages.length) console.error(`${file}  ${yellow(t('warning'))}  ${t('no pages found')}`);
   let ok = pages.length > 0;
   const taken = new Set<string>();
   for (const [i, p] of pages.entries()) {
     const where = pages.length > 1 ? `${file} (${p.name ?? `page ${i + 1}`})` : file;
     if (!p.yaml) {
-      for (const line of p.report) console.error(`${where}  ${yellow('warning')}  ${line}`);
+      for (const line of p.report) console.error(`${where}  ${yellow(t('warning'))}  ${line}`);
       // An empty page among others is no failure; a file with nothing in it is.
       if (pages.length === 1) ok = false;
       continue;
@@ -1515,7 +1532,7 @@ async function importDrawing(file: string): Promise<boolean> {
     }
     const out = !values.out ? path.join(path.dirname(file), `${name}.yaml`) : files.length === 1 && pages.length === 1 && path.extname(values.out) ? values.out : path.join(values.out, `${name}.yaml`);
     if (fs.existsSync(out) && !values.force) {
-      console.error(`${out} already exists, use --force to overwrite`);
+      console.error(t('{file} already exists, use --force to overwrite', { file: out }));
       ok = false;
       continue;
     }
@@ -1539,14 +1556,14 @@ const put = (out: string, data: string | Uint8Array) => (out === '-' ? process.s
 async function exportFile(file: string): Promise<boolean> {
   const ext = values.out && files.length === 1 ? path.extname(values.out).slice(1).toLowerCase() : '';
   const format: Interop | undefined = interopExt[ext] ?? (['drawio', 'excalidraw', 'mermaid', 'md'] as const).find((f) => f === values.format);
-  if (!format) return (console.error('Say which format: -o out.drawio, .excalidraw, .mmd or .md, or --format drawio|excalidraw|mermaid'), false);
+  if (!format) return (console.error(t('Say which format: -o out.drawio, .excalidraw, .mmd or .md, or --format {formats}', { formats: 'drawio|excalidraw|mermaid' })), false);
   const text = fs.readFileSync(file, 'utf8');
   const opts = optionsFor(file, 'none');
   const first = await render(text, opts);
   report(file, first.diagnostics);
   if (!first.graph || !first.svg) return false;
   const warn = (view: string | undefined, lines: string[]) => {
-    for (const w of new Set(lines)) console.error(`${file}${view ? `#${view}` : ''}  ${yellow('warning')}  ${w}`);
+    for (const w of new Set(lines)) console.error(`${file}${view ? `#${view}` : ''}  ${yellow(t('warning'))}  ${w}`);
   };
   const outExt = format === 'mermaid' ? 'mmd' : format;
   const target = (view?: string) => {
@@ -1560,7 +1577,7 @@ async function exportFile(file: string): Promise<boolean> {
   // draw.io has pages: every view goes into the one file. The others hold one drawing: the view asked
   // for, or with --all-views a file per view.
   const each = !values.view && first.views?.length && (format === 'drawio' || values['all-views']) ? first.views.map((v) => v.name) : undefined;
-  if (values.out === '-' && each && format !== 'drawio') throw new UsageError('-o - writes one drawing to standard output: give a folder for --all-views');
+  if (values.out === '-' && each && format !== 'drawio') throw new UsageError(t('-o - writes one drawing to standard output: give a folder for --all-views'));
   const drawn: RenderResult[] = each ? (await Promise.all(each.map((v) => render(text, { ...opts, view: v })))).filter((r) => !r.empty) : [first];
   let ok = !first.diagnostics.some((d) => d.severity === 'error');
   if (format === 'drawio') {
@@ -1578,7 +1595,7 @@ async function exportFile(file: string): Promise<boolean> {
     if (!scenes.length) return false;
     const out = target();
     put(out, toDrawio(scenes));
-    (out === '-' ? console.error : console.log)(`${file} → ${out} ${dim(scenes.length > 1 ? `${scenes.length} pages` : `${scenes[0]!.elements.length} shapes, ${scenes[0]!.connectors.length} connectors`)}`);
+    (out === '-' ? console.error : console.log)(`${file} → ${out} ${dim(scenes.length > 1 ? t('{count} page|{count} pages', { count: scenes.length }) : t('{shapes} shapes, {lines} connectors', { shapes: scenes[0]!.elements.length, lines: scenes[0]!.connectors.length }))}`);
     return ok;
   }
   for (const r of drawn) {
@@ -1593,7 +1610,7 @@ async function exportFile(file: string): Promise<boolean> {
       const scene = toScene(r);
       warn(view, scene.warnings);
       put(out, toExcalidraw(scene));
-      (out === '-' ? console.error : console.log)(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${scene.elements.length} shapes, ${scene.connectors.length} arrows`)}`);
+      (out === '-' ? console.error : console.log)(`${file}${view ? `#${view}` : ''} → ${out} ${dim(t('{shapes} shapes, {lines} arrows', { shapes: scene.elements.length, lines: scene.connectors.length }))}`);
     } else {
       const m = toMermaid(r);
       warn(view, m.warnings);
@@ -1610,18 +1627,19 @@ const bold = (s: string) => (process.stdout.isTTY ? `\x1b[1m${s}\x1b[0m` : s);
 function typeGuide(query = '') {
   const ranked = matchTypes(query, types);
   const shown = query && ranked[0]!.score > 0 ? ranked.filter((r) => r.score > 0) : ranked;
-  if (query && !ranked[0]!.score) console.log(dim(`Nothing matches "${query}"; architecture (systems) is the usual start.\n`));
+  if (query && !ranked[0]!.score) console.log(dim(`${t('Nothing matches "{query}"; architecture (systems) is the usual start.', { query })}\n`));
   const name = (id: string) => findType(id)?.name ?? id;
-  for (const { type: t } of shown) {
-    console.log(`${bold(t.id.padEnd(14))} ${t.name}${t.tagline ? dim(' — ' + t.tagline) : ''}`);
-    for (const u of t.useWhen ?? []) console.log(`${' '.repeat(15)}+ ${u}`);
-    for (const n of t.notFor ?? []) console.log(dim(`${' '.repeat(15)}- not for: ${n.text}${n.use ? ` → ${n.use} (${name(n.use)})` : ''}`));
+  for (const { type: ty } of shown) {
+    console.log(`${bold(ty.id.padEnd(14))} ${ty.name}${ty.tagline ? dim(' — ' + ty.tagline) : ''}`);
+    for (const u of ty.useWhen ?? []) console.log(`${' '.repeat(15)}+ ${u}`);
+    for (const n of ty.notFor ?? []) console.log(dim(`${' '.repeat(15)}- ${t('not for:')} ${n.text}${n.use ? ` → ${n.use} (${name(n.use)})` : ''}`));
     console.log();
   }
-  console.log(dim('Start one: carto new <type> [file.yaml]. Guide: docs/types.md'));
+  console.log(dim(t('Start one: carto new <type> [file.yaml]. Guide: docs/types.md')));
 }
 
 async function main(): Promise<number> {
+  if (badLang !== undefined) throw new UsageError(t('--lang is en or nl, not "{value}"', { value: badLang }));
   if (command === 'help') {
     const [what] = files;
     if (what === 'all') console.log(helpAll);
@@ -1642,19 +1660,19 @@ async function main(): Promise<number> {
       return 0;
     case 'themes':
       for (const t of themeCatalog) console.log(`${t.name.padEnd(14)} ${dim('— ' + t.description)}`);
-      console.log(`${'light, dark'.padEnd(14)} ${dim('— other names for survey and survey-dark')}`);
-      console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md and docs/style.md)'));
+      console.log(`${'light, dark'.padEnd(14)} ${dim(`— ${t('other names for survey and survey-dark')}`)}`);
+      console.log(dim(t('Or a file: theme: ./client.theme.yaml (see docs/themes.md and docs/style.md)')));
       return 0;
     case 'icons': {
       const [sub, a, ...more] = files;
-      const fail = (e: unknown) => (console.error(`${red('error')}  ${(e as Error).message}`), 1);
+      const fail = (e: unknown) => (console.error(`${red(t('error'))}  ${(e as Error).message}`), 1);
       if (!sub || isVendor(sub)) return (console.log(iconGuide(sub)), 0);
       if (sub === 'list') {
         const packs = listPacks();
-        if (!packs.length) console.log(`No icon packs yet. Where to get them: carto icons`);
+        if (!packs.length) console.log(t('No icon packs yet. Where to get them: carto icons'));
         for (const p of packs) {
           const cov = coverage(p, coverageKinds(p.name));
-          console.log(`${p.name.padEnd(12)} ${cov.have} of ${cov.of} kinds${p.manual && Object.keys(p.manual).length ? `, ${Object.keys(p.manual).length} by hand` : ''} ${dim(`imported ${p.imported ?? '?'} ← ${p.source ?? '?'}`)}`);
+          console.log(`${p.name.padEnd(12)} ${t('{have} of {count} kinds', { have: cov.have, count: cov.of })}${p.manual && Object.keys(p.manual).length ? `, ${t('{count} by hand', { count: Object.keys(p.manual).length })}` : ''} ${dim(t('imported {when} ← {source}', { when: p.imported ?? '?', source: p.source ?? '?' }))}`);
         }
         return 0;
       }
@@ -1663,9 +1681,9 @@ async function main(): Promise<number> {
         try {
           const r = importIcons(a, values.pack?.[0]);
           const name = r.pack.name;
-          console.log(`${a} → ${r.dir}\n  ${r.files} SVG files; ${r.coverage.have} of ${r.coverage.of} ${name} kinds have an icon${r.kept.length ? ` (${r.kept.length} mapped by hand before, kept)` : ''}`);
-          if (r.coverage.missing.length) console.log(dim(`  no icon yet: ${r.coverage.missing.join(', ')}\n  give one by hand: carto icons map ${name} <kind> <words>; see all: carto icons show ${name} -o ${name}.png`));
-          console.log(dim(`  use it: icons: official in the diagram, or carto render diagram.yaml --icons official`));
+          console.log(`${a} → ${r.dir}\n  ${t('{files} SVG files; {have} of {count} {pack} kinds have an icon', { files: r.files, have: r.coverage.have, count: r.coverage.of, pack: name })}${r.kept.length ? ` ${t('({count} mapped by hand before, kept)', { count: r.kept.length })}` : ''}`);
+          if (r.coverage.missing.length) console.log(dim(`  ${t('no icon yet: {kinds}', { kinds: r.coverage.missing.join(', ') })}\n  ${t('give one by hand: carto icons map {pack} <kind> <words>; see all: carto icons show {pack} -o {pack}.png', { pack: name })}`));
+          console.log(dim(`  ${t('use it: icons: official in the diagram, or carto render diagram.yaml --icons official')}`));
           return 0;
         } catch (e) {
           return fail(e);
@@ -1678,18 +1696,18 @@ async function main(): Promise<number> {
           if (values.out === '-') process.stdout.write(svg);
           else if (values.out) {
             fs.writeFileSync(values.out, /\.png$/i.test(values.out) ? toPng(svg, 2) : svg);
-            console.log(`${a}: ${cov.have} of ${cov.of} kinds → ${values.out}`);
+            console.log(`${a}: ${t('{have} of {count} kinds', { have: cov.have, count: cov.of })} → ${values.out}`);
           } else {
             const pack = readPack(a)!;
-            for (const k of coverageKinds(a)) console.log(`${k.kind.padEnd(24)} ${pack.icons[k.kind] ? pack.icons[k.kind] + (pack.manual?.[k.kind] ? dim('  (by hand)') : '') : dim('—')}`);
-            console.log(`\n${cov.have} of ${cov.of} kinds have an icon`);
+            for (const k of coverageKinds(a)) console.log(`${k.kind.padEnd(24)} ${pack.icons[k.kind] ? pack.icons[k.kind] + (pack.manual?.[k.kind] ? dim(`  (${t('by hand')})`) : '') : dim('—')}`);
+            console.log(`\n${t('{have} of {count} kinds have an icon', { have: cov.have, count: cov.of })}`);
           }
           return 0;
         }
         if (sub === 'find') {
           const hits = findIcons(a, more.join(' '));
           for (const h of hits.slice(0, 30)) console.log(`${h.name.padEnd(40)} ${dim(h.file)}`);
-          if (!hits.length) console.log(`Nothing in ${a} called "${more.join(' ')}"`);
+          if (!hits.length) console.log(t('Nothing in {pack} called "{words}"', { pack: a, words: more.join(' ') }));
           return hits.length ? 0 : 1;
         }
         if (sub === 'map') {
@@ -1703,7 +1721,7 @@ async function main(): Promise<number> {
           const [kind] = more;
           if (!kind) return (console.error(helpFor(command)), 1);
           unmapIcon(a, kind);
-          console.log(`${a}: ${kind} draws its line icon again`);
+          console.log(`${a}: ${t('{kind} draws its line icon again', { kind })}`);
           return 0;
         }
       } catch (e) {
@@ -1721,7 +1739,7 @@ async function main(): Promise<number> {
       if (!id) return (typeGuide(), 0);
       const type = findType(id);
       if (!type) {
-        console.error(`Unknown type "${id ?? ''}". Types: ${types.map((t) => t.id).join(', ')}`);
+        console.error(t('Unknown type "{name}". Types: {types}', { name: id ?? '', types: types.map((x) => x.id).join(', ') }));
         return 1;
       }
       // `-` is standard output, as everywhere a file is named.
@@ -1730,11 +1748,11 @@ async function main(): Promise<number> {
         return 0;
       }
       if (fs.existsSync(target)) {
-        console.error(`${target} already exists`);
+        console.error(t('{file} already exists', { file: target }));
         return 1;
       }
       fs.writeFileSync(target, type.template);
-      console.log(`Created ${target}`);
+      console.log(t('Created {file}', { file: target }));
       return 0;
     }
     case 'embed': {
@@ -1742,7 +1760,7 @@ async function main(): Promise<number> {
       if (values.css) return (process.stdout.write(embedCss()), 0);
       const [f] = files;
       if (!f) return (console.error(helpFor(command)), 1);
-      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static, icons: iconsFlag() });
+      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static, icons: iconsFlag(), ...langOption });
       report(f === '-' ? 'stdin' : f, r.problems);
       // A fragment, or a page made from standard input, goes to standard output unless -o says where.
       // With errors a fragment is still written: it is the message a reader of the page should see.
@@ -1755,26 +1773,26 @@ async function main(): Promise<number> {
     case 'export-html': {
       const [f] = files;
       if (!f || files.length > 1) return (console.error(helpFor(command)), 1);
-      if (!fs.existsSync(f)) return (console.error(`${f}: no such file or folder`), 1);
+      if (!fs.existsSync(f)) return (console.error(t('{file}: no such file or folder', { file: f })), 1);
       if (!themeFlag()) return 1;
       const { exportHtmlFile } = await import('./html-export.ts');
-      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, decisions: values.decisions, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale } });
-      for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red('error')}  ${p.message}`);
-      if (!r.stats.drawings) return (console.error(`${f}: nothing to draw`), 1);
+      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, decisions: values.decisions, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale, ...langOption } });
+      for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red(t('error'))}  ${p.message}`);
+      if (!r.stats.drawings) return (console.error(t('{file}: nothing to draw', { file: f })), 1);
       const s = r.stats;
-      console.log(`${f} → ${r.file} ${dim(`${s.drawings} drawing${s.drawings === 1 ? '' : 's'}${s.steps ? `, ${s.steps} steps` : ''}, ${s.elements} elements, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
+      console.log(`${f} → ${r.file} ${dim(`${t('{count} drawing|{count} drawings', { count: s.drawings })}${s.steps ? `, ${t('{count} step|{count} steps', { count: s.steps })}` : ''}, ${t('{count} element|{count} elements', { count: s.elements })}, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
       return r.problems.length ? 1 : 0;
     }
     case 'describe': {
       const [f] = files;
       if (!f || files.length > 1) return (console.error(helpFor(command)), 1);
-      if (!fs.existsSync(f)) return (console.error(`${f}: no such file`), 1);
+      if (!fs.existsSync(f)) return (console.error(t('{file}: no such file', { file: f })), 1);
       const ext = values.out && values.out !== '-' ? path.extname(values.out).slice(1).toLowerCase() : '';
       const asked = values.format === 'markdown' ? 'md' : values.format;
       const format = asked === 'text' || asked === 'md' || asked === 'html' ? asked : ext === 'md' || ext === 'markdown' ? 'md' : ext === 'html' || ext === 'htm' ? 'html' : 'text';
       const { describeFile } = await import('./wiki.ts');
       const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
-      for (const p of r.problems) console.error(`${f}  ${red('error')}  ${p}`);
+      for (const p of r.problems) console.error(`${f}  ${red(t('error'))}  ${p}`);
       if (!r.ok) return 1;
       if (!values.out || values.out === '-') process.stdout.write(r.text);
       else {
@@ -1788,7 +1806,7 @@ async function main(): Promise<number> {
     case 'export-confluence': {
       const [f] = files;
       if (!f || files.length > 1 || !values.out || values.out === '-') return (console.error(helpFor(command)), 1);
-      if (!fs.existsSync(f)) return (console.error(`${f}: no such file or folder`), 1);
+      if (!fs.existsSync(f)) return (console.error(t('{file}: no such file or folder', { file: f })), 1);
       if (!themeFlag()) return 1;
       const wiki = await import('./wiki.ts');
       const flags = {
@@ -1798,28 +1816,27 @@ async function main(): Promise<number> {
         title: values.title,
       };
       const r = await (command === 'export-md' ? wiki.exportMarkdown : wiki.exportConfluence)(f, values.out, flags);
-      for (const p of r.pages) for (const m of p.problems) console.error(`${path.join(fs.statSync(f).isDirectory() ? f : path.dirname(f), p.file)}  ${red('error')}  ${m}`);
+      for (const p of r.pages) for (const m of p.problems) console.error(`${path.join(fs.statSync(f).isDirectory() ? f : path.dirname(f), p.file)}  ${red(t('error'))}  ${m}`);
       const made = r.pages.filter((p) => p.out);
-      const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
-      if (!made.length) return (console.error(`${f}: nothing to draw`), 1);
-      console.log(`${f} → ${values.out} ${dim(`${plural(made.length, 'page')}, ${plural(made.reduce((n, p) => n + p.drawings, 0), 'drawing')}, ${r.written.length} files`)}`);
+            if (!made.length) return (console.error(t('{file}: nothing to draw', { file: f })), 1);
+      console.log(`${f} → ${values.out} ${dim(`${t('{count} page|{count} pages', { count: made.length })}, ${t('{count} drawing|{count} drawings', { count: made.reduce((n, p) => n + p.drawings, 0) })}, ${t('{count} file|{count} files', { count: r.written.length })}`)}`);
       return made.length === r.pages.length ? 0 : 1;
     }
     case 'threats': {
       const [f] = files;
       if (!f) return (console.error(helpFor(command)), 1);
-      const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
+      const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view, ...langOption });
       report(f, r.diagnostics);
       if (!r.graph) return 1;
       if (!r.graph.threats) {
-        console.error(`${f}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)`);
+        console.error(t('{file}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)', { file: f }));
         return 1;
       }
       const md = threatMarkdown(r.graph);
       if (!values.out || values.out === '-') process.stdout.write(md);
       else {
         fs.writeFileSync(values.out, md);
-        console.error(`${f} → ${values.out}  ${dim(`${r.graph.threats.length} threats`)}`);
+        console.error(`${f} → ${values.out}  ${dim(t('{count} threat|{count} threats', { count: r.graph.threats.length }))}`);
       }
       return r.diagnostics.some((d) => d.severity === 'error') ? 1 : 0;
     }
@@ -1831,7 +1848,7 @@ async function main(): Promise<number> {
       const { shareLink, SHARE_LIMIT } = await import('@cartography/core');
       const link = await shareLink({ yaml: fs.readFileSync(f, 'utf8'), name: path.basename(f), layout: sidecarFor(f) }, values.base ?? 'http://localhost:5178/');
       if (link.length > SHARE_LIMIT) {
-        console.error(`${f}: the link would be ${Math.ceil(link.length / 1000)} kB, over the ${SHARE_LIMIT / 1000} kB a link can safely carry. Share the file itself instead.`);
+        console.error(t('{file}: the link would be {size} kB, over the {limit} kB a link can safely carry. Share the file itself instead.', { file: f, size: Math.ceil(link.length / 1000), limit: SHARE_LIMIT / 1000 }));
         return 1;
       }
       console.log(link);
@@ -1843,7 +1860,7 @@ async function main(): Promise<number> {
       const folders = files.filter(isFolder);
       for (const f of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
         const text = fs.readFileSync(f, 'utf8');
-        const opts = { fonts: 'none' as const, load: loaderFor(f), file: path.basename(f) };
+        const opts = { fonts: 'none' as const, load: loaderFor(f), file: path.basename(f), ...langOption };
         const r = await render(text, { ...opts, view: values.view });
         // Without --view every view is checked too: what a view says about itself (complete: true for
         // an environment) is only known when that view is drawn. The same problem is printed once.
@@ -1860,7 +1877,7 @@ async function main(): Promise<number> {
         await checkNotes(f);
         const drifted = values.drift && !(await checkDrift(f));
         if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
-        else console.log(`${f} ${dim('ok')}`);
+        else console.log(`${f} ${dim(t('ok'))}`);
       }
       for (const dir of folders) ok = validateWorkspace(dir) && ok;
       return ok ? 0 : 1;
@@ -1895,7 +1912,7 @@ async function main(): Promise<number> {
         into: values.into,
         title: values.title,
         status: values.status,
-        render: { themeOverride: forced, fontScale, fonts: values.out?.endsWith('.svg') ? 'embed' : 'none' },
+        render: { themeOverride: forced, fontScale, fonts: values.out?.endsWith('.svg') ? 'embed' : 'none', ...langOption },
         write: async (r, out) => {
           const format = formatFor();
           const data = format === 'png' ? toPng(r.svg!, Number(values.scale) || 2, await ttfFiles(r.theme?.font.faces ?? [])) : format === 'svg' ? r.svg! : await document(format, [{ ...r, name: 'decisions' } as Drawing], r.theme);
@@ -1907,7 +1924,7 @@ async function main(): Promise<number> {
       return diffFiles();
     case 'import': {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
-      if (values.live) return files.length ? (console.error('carto import --live reads from the tool, not from files: --into <diagram.yaml> imports over one'), 1) : (await importLive()) ? 0 : 1;
+      if (values.live) return files.length ? (console.error(t('carto import --live reads from the tool, not from files: --into <diagram.yaml> imports over one')), 1) : (await importLive()) ? 0 : 1;
       if (!files.length) return (console.error(helpFor(command)), 1);
       // A code repository: a diagram of each Compose file, chart, Bicep, API description and workflow in it.
       const repos = files.filter(isRepoFolder);
@@ -1945,7 +1962,7 @@ async function main(): Promise<number> {
       if (!files.length) return (console.error(helpFor(command)), 1);
       if (!themeFlag()) return 1;
       let ok = true;
-      if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
+      if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error(t('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml')), 1);
       for (const f of files) {
         const kind = isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? exportKind([f]) : /\.json$/i.test(f) && exportKind([f]) === 'azure' ? 'azure' : undefined;
         // `-` reads the diagram from standard input; the picture then goes to standard output unless -o says where.
@@ -1966,7 +1983,7 @@ async function main(): Promise<number> {
       if (!files.length) return (console.error(helpFor(command)), 1);
       return (await deck()) ? 0 : 1;
     case 'animate':
-      if (files.length !== 1 || !values.out) return (console.error(files.length > 1 ? 'carto animate takes one diagram' : helpFor(command)), 1);
+      if (files.length !== 1 || !values.out) return (console.error(files.length > 1 ? t('carto animate takes one diagram') : helpFor(command)), 1);
       if (!themeFlag()) return 1;
       return (await animateFile(files[0]!)) ? 0 : 1;
     case 'watch': {
@@ -1992,7 +2009,7 @@ async function main(): Promise<number> {
           if (name && f.endsWith(name.replace(/\.(layout|notes)\.json$/, path.extname(f)))) again();
         });
       }
-      console.log(dim('watching… Ctrl+C to stop'));
+      console.log(dim(t('watching… Ctrl+C to stop')));
       return new Promise(() => {});
     }
     default:
@@ -2002,7 +2019,7 @@ async function main(): Promise<number> {
 
 function unknown(cmd: string): number {
   const guess = nearest(cmd);
-  console.error(`carto: unknown command "${cmd}"${guess ? `. Did you mean "carto ${guess}"?` : ''}\nCommands: ${commands.join(', ')}\nMore: carto --help`);
+  console.error(`carto: ${guess ? t('unknown command "{name}". Did you mean "carto {guess}"?', { name: cmd, guess }) : t('unknown command "{name}"', { name: cmd })}\n${t('Commands: {list}', { list: commands.join(', ') })}\n${t('More: carto --help')}`);
   return 1;
 }
 
@@ -2010,10 +2027,10 @@ function unknown(cmd: string): number {
 function friendly(e: unknown): string {
   const err = e as NodeJS.ErrnoException;
   const where = err.path ? path.relative(process.cwd(), err.path) || err.path : undefined;
-  if (err.code === 'ENOENT') return `${where ?? 'file'}: no such file or folder`;
-  if (err.code === 'EISDIR') return `${where ?? 'that'} is a folder; give a file`;
-  if (err.code === 'ENOTDIR') return `${where ?? 'that'}: a file is in the way where a folder is needed`;
-  if (err.code === 'EACCES' || err.code === 'EPERM') return `${where ?? 'file'}: not allowed to read or write it`;
+  if (err.code === 'ENOENT') return t('{file}: no such file or folder', { file: where ?? t('file') });
+  if (err.code === 'EISDIR') return t('{file} is a folder; give a file', { file: where ?? t('that') });
+  if (err.code === 'ENOTDIR') return t('{file}: a file is in the way where a folder is needed', { file: where ?? t('that') });
+  if (err.code === 'EACCES' || err.code === 'EPERM') return t('{file}: not allowed to read or write it', { file: where ?? t('file') });
   return err.message ?? String(e);
 }
 
