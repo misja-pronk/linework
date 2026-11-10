@@ -48,6 +48,7 @@ import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
+import { useDecisionsTool } from './decisions-panel.tsx';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -279,6 +280,7 @@ export function App() {
   // ------------------------------------------------------------ review notes
 
   const [notesOpen, setNotesOpen] = useState(false);
+  const [decisionsOpen, setDecisionsOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
   const [noteMine, setNoteMine] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
@@ -685,7 +687,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, notes: notesInExports ? review.notes : undefined });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -730,7 +732,7 @@ export function App() {
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const saveHtml = (folder?: boolean) =>
     attempt('Export', async () => {
-      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, folder });
+      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport?.list, folder });
       download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
     })();
   const copySvg = attempt('Copy', async () => {
@@ -1292,6 +1294,7 @@ export function App() {
     else if (e.key === 'n' && !mod(e) && !e.altKey) addNote();
     else if (e.key === 'N' && !mod(e) && !e.altKey) toggleNotes();
     else if (e.key === 'R' && !mod(e) && !e.altKey) toggleReview();
+    else if (decisionsTool.onKey(e.nativeEvent, false)) return void e.preventDefault();
     else if (e.key === 'F2' && !e.shiftKey && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
@@ -1455,7 +1458,7 @@ export function App() {
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
   // The Ask panel takes the right side while it is open: the inspector and notes would squeeze the drawing between the two.
-  const showInspector = !asking && (notesOpen || !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
+  const showInspector = !asking && (notesOpen || decisionsOpen || !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1480,6 +1483,8 @@ export function App() {
 
   // ------------------------------------------------------------ the folder as one model (workspace/)
 
+  /** The decisions tool, for where-used (made after the workspace tools, which it reads). */
+  const decisionsRef = useRef<ReturnType<typeof useDecisionsTool>>(undefined);
   const wsTools = useWorkspaceTools({
     ws,
     file: ws && doc.path ? doc.path : docId,
@@ -1513,7 +1518,38 @@ export function App() {
       for (const [id, kind] of ids) if (node(id) !== id) review.rename(kind, id, node(id));
     },
     notify,
+    whereExtra: (el) => decisionsRef.current?.whereSection(el),
+    openDecision: (file) => {
+      const d = wsTools.index.decisions.find((x) => x.file === file);
+      if (d) decisionsTool.show(d.number);
+      return !!d;
+    },
   });
+
+  // Architecture decisions (decisions-panel.tsx): the panel, the markers, their keys and commands.
+  const decisionsTool = useDecisionsTool({
+    ws,
+    index: wsTools.index,
+    file: ws && doc.path ? doc.path : docId,
+    drawn,
+    selected,
+    selection,
+    select: (s) => select(s),
+    zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    focusDrawing,
+    refresh: (w) => setWs({ ...w }),
+    notify,
+    open: decisionsOpen,
+    setOpen: setDecisionsOpen,
+  });
+  decisionsRef.current = decisionsTool;
+  // One panel on the right at a time: notes and decisions take turns.
+  useEffect(() => {
+    if (notesOpen && decisionsTool.open) decisionsTool.close();
+  }, [notesOpen]);
+  useEffect(() => {
+    if (decisionsTool.open && notesOpen) toggleNotes();
+  }, [decisionsTool.open]);
 
   // ------------------------------------------------------------ commands
 
@@ -1590,6 +1626,7 @@ export function App() {
     { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: '⇧R', run: toggleReview },
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
+    ...decisionsTool.commands,
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
@@ -2018,7 +2055,12 @@ export function App() {
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
-            overlay={(scale) => <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />}
+            overlay={(scale) => (
+              <>
+                <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
+                {decisionsTool.markers(scale)}
+              </>
+            )}
             onContextMenu={(s, at, client) => {
               if (s) select(s, false);
               setNoteMenu({ x: client.x, y: client.y, s, at });
@@ -2077,6 +2119,10 @@ export function App() {
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
+              </button>
+              <button className={decisionsTool.open ? 'tool active' : 'tool'} onClick={decisionsTool.toggle} title="Architecture decisions (⇧D); ⌥⇧D writes one about the selection" aria-pressed={decisionsTool.open} aria-label={`Decisions, ${decisionsTool.count}`}>
+                <Icon name="scroll-text" />
+                {decisionsTool.count > 0 && <span className="tool-count decisions">{decisionsTool.count}</span>}
               </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
@@ -2172,6 +2218,7 @@ export function App() {
             />
           )}
         </section>
+        {decisionsTool.open && !asking && !notesOpen && decisionsTool.panel}
         {notesOpen && !asking && (
           <NotesPanel
             review={review}
@@ -2201,7 +2248,7 @@ export function App() {
             onClose={toggleNotes}
           />
         )}
-            {showInspector && !notesOpen && selected && type && (selNode || selGroup || selEdge) && (
+            {showInspector && !notesOpen && !decisionsTool.open && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
@@ -2262,7 +2309,7 @@ export function App() {
             onClose={() => setInspector(false)}
           />
         )}
-        {showInspector && !notesOpen && selection.length > 1 && (
+        {showInspector && !notesOpen && !decisionsTool.open && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">

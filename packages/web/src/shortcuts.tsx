@@ -82,6 +82,14 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Decisions',
+    [
+      ['⇧D', 'Decisions panel (with a selection: its decisions first); markers on the drawing while it is open'],
+      ['⌥⇧D', 'New decision about the selection: the next number, from the template'],
+      ['⌘S / Esc', 'In a decision’s Markdown: save / cancel'],
+    ],
+  ],
+  [
     'Steps and presenting',
     [
       ['P / ⌘↩', 'Present full screen'],

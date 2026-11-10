@@ -60,9 +60,175 @@ const browser = await chromium.launch();
 }
 
 // ---------------------------------------------------------------- the editor
-if (!process.env.CARTO_NO_EDITOR) {
-  const { editor } = await import('./decisions-editor.mjs');
-  await editor({ browser, url: URL, out, root, check, fail });
+// The browser's private file system stands in for a picked folder, as in workspace.mjs.
+{
+  const ws = path.join(root, 'examples/workspace');
+  const files = Object.fromEntries(fs.readdirSync(ws).filter((f) => f.endsWith('.yaml')).map((f) => [f, fs.readFileSync(path.join(ws, f), 'utf8')]));
+  for (const f of fs.readdirSync(path.join(ws, 'decisions'))) files[`decisions/${f}`] = fs.readFileSync(path.join(ws, 'decisions', f), 'utf8');
+  const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
+  page.setDefaultTimeout(8000);
+  page.on('pageerror', (e) => fail(`editor: ${e.message}`));
+  const step = async (name, fn) => {
+    try {
+      await fn();
+    } catch (e) {
+      fail(`${name}: ${e.message.split('\n').slice(0, 8).join(' | ')}`);
+    }
+  };
+  const disk = (name) =>
+    page.evaluate(async (name) => {
+      let d = await (await navigator.storage.getDirectory()).getDirectoryHandle('harbour');
+      const parts = name.split('/');
+      for (const p of parts.slice(0, -1)) d = await d.getDirectoryHandle(p);
+      try {
+        return await (await (await d.getFileHandle(parts.at(-1))).getFile()).text();
+      } catch {
+        return undefined;
+      }
+    }, name);
+  const settle = () => page.waitForTimeout(500);
+  const selectedId = () => page.locator('.statusbar .status-selected').last().innerText();
+  const canvasKey = async (key) => {
+    await page.focus('.preview');
+    await page.keyboard.press(key);
+  };
+
+  await page.goto(URL);
+  await page.evaluate(async (files) => {
+    localStorage.clear();
+    localStorage.setItem('cartography:started', 'true');
+    localStorage.setItem('cartography:hinted', 'true');
+    const opfs = await navigator.storage.getDirectory();
+    for await (const [name] of opfs.entries()) await opfs.removeEntry(name, { recursive: true });
+    const root = await opfs.getDirectoryHandle('harbour', { create: true });
+    for (const [p, text] of Object.entries(files)) {
+      let d = root;
+      const parts = p.split('/');
+      for (const seg of parts.slice(0, -1)) d = await d.getDirectoryHandle(seg, { create: true });
+      const w = await (await d.getFileHandle(parts.at(-1), { create: true })).createWritable();
+      await w.write(text);
+      await w.close();
+    }
+  }, files);
+  await page.reload();
+  await page.evaluate(() => {
+    window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('harbour');
+  });
+  await page.click('button:has-text("Open folder")');
+  await page.waitForSelector('.files .file');
+  await settle();
+
+  await step('open the payments view with the engine selected', async () => {
+    await page.keyboard.press('Meta+p');
+    await page.waitForSelector('.ws-search');
+    await page.keyboard.type('settlement engine');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Alt+Enter');
+    await page.waitForFunction(() => document.querySelector('.files .file.active')?.textContent?.trim() === 'containers.yaml');
+    await settle();
+    check((await selectedId()) === 'payments.engine', `editor: the engine is selected (${await selectedId()})`);
+  });
+
+  await step('where used lists the decisions about it', async () => {
+    await page.waitForSelector('.where-used');
+    const rows = await page.locator('.where-used .where-row').allInnerTexts();
+    check(rows.some((r) => r.includes('The gateway calls the settlement engine synchronously')), `editor: where used names decision 2 (${rows.join(' / ')})`);
+  });
+
+  await step('the panel, opened on the selection', async () => {
+    await canvasKey('Shift+D');
+    await page.waitForSelector('.decisions-panel');
+    check(await page.locator('.decisions-panel .chip.active:has-text("About")').isVisible(), 'editor: opened with the selection, it shows the decisions about it');
+    const rows = await page.locator('.decision-row').count();
+    check(rows === 2, `editor: two decisions about the engine, one on a line it is an end of (got ${rows})`);
+    const markers = await page.locator('.decision-marker').count();
+    check(markers >= 4, `editor: markers on the drawing while the panel is open (got ${markers})`);
+    await page.screenshot({ path: path.join(out, 'editor-1-panel.png') });
+    await page.click('.decisions-panel .chip:has-text("About")');
+    check((await page.locator('.decision-row').count()) === 4, 'editor: all four without the selection filter');
+    await page.click('.decisions-panel [role="radio"]:has-text("History")');
+    check((await page.locator('.decision-row').count()) === 1, 'editor: History lists the superseded one');
+    await page.click('.decisions-panel [role="radio"]:has-text("All")');
+  });
+
+  await step('a marker opens its decision; a concern selects what it is about', async () => {
+    // The first of its markers may sit under the minimap: the marker's own click, as a reader's tap.
+    await page.locator('.decision-marker[data-decision="3"]').first().dispatchEvent('click');
+    await page.waitForSelector('[data-decision-open="3"]');
+    check((await page.locator('.decision-title').innerText()).includes('Payment events on Kafka'), 'editor: marker 3 opens decision 3');
+    check((await page.locator('.decision-open .adr-text h3').count()) >= 3, 'editor: the preview has its sections');
+    await page.screenshot({ path: path.join(out, 'editor-2-decision.png') });
+    await page.click('.decision-concern button:has-text("Payment events")');
+    await settle();
+    check((await selectedId()) === 'payments.events', `editor: the concern selects the element (${await selectedId()})`);
+  });
+
+  await step('status, written to the file', async () => {
+    await page.click('.decision-back');
+    await page.click('.decision-row:has-text("read replica")');
+    await page.selectOption('.decision-status select', 'accepted');
+    await settle();
+    check((await disk('decisions/0004-read-balances-from-a-ledger-replica.md'))?.includes('status: accepted'), 'editor: the status is written to the file');
+  });
+
+  await step('new decision about the selection', async () => {
+    await page.click('.drawing [data-node="payments.engine"]');
+    await canvasKey('Alt+Shift+D');
+    await page.waitForSelector('#decision-title');
+    check((await page.locator('.decision-new .decision-concern').allInnerTexts()).join() === 'Settlement engine', 'editor: the new decision is about the selection');
+    await page.keyboard.type('Run the settlement engine on AKS');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-decision-open="5"]');
+    const text = await disk('decisions/0005-run-the-settlement-engine-on-aks.md');
+    check(text?.includes('concerns: [payments.engine]') && text.includes('status: proposed') && text.includes('## Consequences'), 'editor: 0005 written from the template, about the engine');
+  });
+
+  await step('edit the markdown', async () => {
+    await page.click('.decision-mode [role="radio"]:has-text("Markdown")');
+    await page.waitForSelector('.decision-source');
+    await page.locator('.decision-source').evaluate((t) => (t.focus(), t.setSelectionRange(t.value.length, t.value.length)));
+    await page.keyboard.type('\n- One more cluster to run.\n');
+    await page.screenshot({ path: path.join(out, 'editor-3-markdown.png') });
+    await page.keyboard.press('Meta+s');
+    await settle();
+    const saved = await disk('decisions/0005-run-the-settlement-engine-on-aks.md');
+    check(saved?.startsWith('---\nstatus: proposed') && saved.trimEnd().endsWith('- One more cluster to run.'), `editor: ⌘S writes the markdown (${JSON.stringify(saved?.slice(0, 40))} … ${JSON.stringify(saved?.slice(-60))})`);
+  });
+
+  await step('supersede', async () => {
+    await page.click('.decision-back');
+    await page.click('.decision-row:has-text("Payment events on Kafka")');
+    await page.click('.decision-open .note-actions button:has-text("Supersede…")');
+    await page.waitForSelector('#decision-title');
+    await page.keyboard.type('Payment events on Azure Service Bus');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-decision-open="6"]');
+    const neu = await disk('decisions/0006-payment-events-on-azure-service-bus.md');
+    check(neu?.includes('supersedes: 3') && neu.includes('payments.events'), 'editor: the new one supersedes 3, about what 3 was about');
+    const old = await disk('decisions/0003-kafka-for-payment-events.md');
+    check(old?.includes('status: superseded') && old.includes('superseded-by: 6'), 'editor: 3 is marked superseded by 6');
+    // Unlink one of its concerns.
+    const before = await page.locator('.decision-open .decision-concern').count();
+    await page.locator('.decision-open .decision-unlink').first().click();
+    await settle();
+    check((await page.locator('.decision-open .decision-concern').count()) === before - 1, 'editor: unlink removes a concern');
+    check(!(await disk('decisions/0006-payment-events-on-azure-service-bus.md'))?.includes('concerns: [payments.events,'), 'editor: the unlink is written');
+    await page.screenshot({ path: path.join(out, 'editor-4-superseded.png') });
+  });
+
+  await step('search finds decisions', async () => {
+    await canvasKey('Escape');
+    await page.keyboard.press('Meta+p');
+    await page.waitForSelector('.ws-search');
+    await page.keyboard.type('read replica');
+    await page.waitForTimeout(150);
+    const first = await page.locator('.ws-hit').first().innerText();
+    check(first.includes('4. Read balances from a read replica'), `editor: search finds decision 4 (${first.split('\n')[0]})`);
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('[data-decision-open="4"]');
+  });
+
+  await page.close();
 }
 
 await browser.close();

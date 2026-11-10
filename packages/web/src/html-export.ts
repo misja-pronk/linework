@@ -1,6 +1,6 @@
 // Export → Interactive HTML: the diagram (and what it drills into in the open folder), or the whole
 // folder, as one page to send. Drawn here in the browser, the same as `carto export-html` writes.
-import { parseNotes, type LayoutSidecar, type NotesFile } from '@cartography/core';
+import { parseNotes, type Decision, type LayoutSidecar, type NotesFile } from '@cartography/core';
 import { brand } from './brand.ts';
 import { iconOptions } from './icon-packs.ts';
 import { diagrams, type Workspace } from './files.ts';
@@ -14,6 +14,8 @@ export interface PageInput {
   load?: (rel: string) => string;
   pins?: LayoutSidecar;
   notes?: NotesFile;
+  /** The architecture decisions to carry: a page, markers, and in the details. */
+  decisions?: Decision[];
   /** The whole folder, with a contents page. */
   folder?: boolean;
 }
@@ -50,6 +52,7 @@ export async function exportPage(input: PageInput): Promise<string> {
       const t = inFolder(p.replace(/\.ya?ml$/i, '') + '.notes.json');
       return t ? parseNotes(t).notes : undefined;
     },
+    ...(input.decisions?.length ? { decisions: input.decisions } : {}),
     render: { themeOverride: brand().theme, ...iconOptions() },
   });
   if (!r.stats.drawings) throw new Error(r.problems[0]?.message ?? 'nothing to draw');
