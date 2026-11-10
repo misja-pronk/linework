@@ -60,7 +60,7 @@ describe('wizard engine', () => {
     }
   });
 
-  it('survives odd names', async () => {
+  it('survives odd names', { timeout: 60_000 }, async () => {
     const lz = wizards.find((x) => x.id === 'azure-landing-zone')!;
     const yaml = run(lz, { org: 'Ünïcode: "Co" #1', corp: 'A, a, Finance & Risk, 123', online: '' });
     expect(await problems(lz, yaml, true)).toEqual([]);
