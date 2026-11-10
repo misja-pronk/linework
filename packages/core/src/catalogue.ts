@@ -19,6 +19,7 @@
 import { edgeItemSchema, parseEdge } from './edges.ts';
 import { idPattern } from './diagram-type.ts';
 import { stepItemSchemas } from './steps.ts';
+import { focusSchema } from './focus.ts';
 import { tones, type Direction, type Link, type Path, type Tone } from './model.ts';
 
 export interface ModelElement {
@@ -89,6 +90,8 @@ export interface ViewSpec {
   exclude?: string[];
   /** Elements drawn as a boundary with their children inside, instead of one card. */
   expand?: string[];
+  /** Only an element and its neighbourhood, as written (see focus.ts). */
+  focus?: unknown;
   /** A deployment view of one environment: entries with another `env:` are left out. */
   environment?: string;
   /** The view claims to deploy everything: true for every part of every system, or the elements it is about. */
@@ -225,6 +228,7 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         include: list('include'),
         exclude: list('exclude'),
         expand: list('expand'),
+        ...(o.focus != null ? { focus: o.focus } : {}),
         ...(typeof o.environment === 'string' ? { environment: o.environment } : {}),
         ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
         at: at(['views', name]),
@@ -334,6 +338,7 @@ const viewSchema = {
     include: { ...selectors, description: 'What the view shows (default: everything at the top)' },
     exclude: { ...selectors, description: 'Left out of what include picked' },
     expand: { type: 'array', items: { type: 'string' }, description: 'Elements drawn as a boundary with their parts inside' },
+    focus: focusSchema,
     kind: { enum: viewKinds, description: 'A C4 view that picks its elements itself: landscape, context/container/component of an element, dynamic (steps) or deployment (nodes)' },
     of: { type: 'string', description: 'The element the view is about, e.g. shop or shop.api' },
     enterprise: { type: 'string', description: 'Draw what is not external inside an enterprise boundary with this name' },

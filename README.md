@@ -34,6 +34,10 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 **What runs where, per environment**: a node in an Azure, AWS, Google Cloud or Kubernetes diagram says which part of the model it runs (`api: { of: shop.api, kind: ecs-service, env: prod }`); a view per environment draws production, test and dev from one file, and `complete: true` warns about parts that run nowhere. `carto import plan.json` reads Terraform state or plan JSON. See [docs/model.md](docs/model.md), [examples/deployment](examples/deployment) and [examples/cloud](examples/cloud).
 
+**A data mesh from the files you have**: `carto render mesh/ -o mesh.svg` draws a folder of data product and data contract files (ODPS, ODCS) as one map: products per domain, their ports, what reads what, and the keys between contracts (ODCS 3.1 `relationships`). Running it again keeps what you changed by hand. **Focus** cuts any drawing of boxes and lines down to one thing and what is around it: `focus: { on: revenue, hops: all, direction: upstream }`, `carto render --focus revenue --hops 2`, or `F` in the editor. See [docs/data-products.md](docs/data-products.md).
+
+![A folder of ODPS and ODCS files as one map](docs/data-products/mesh.png)
+
 **Steps and presenting**: `steps:` tells a drawing in parts (`- customer -> web -> api: The order comes in`), with what is shown, what stands out and the sentence you say. Press `P` to present it full screen, or export it: one slide per step in PowerPoint, one page per step in PDF, with every shape in the same place. See [docs/steps.md](docs/steps.md).
 
 CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.

@@ -1,0 +1,24 @@
+# Open Data Product Standard v1 — https://bitol-io.github.io/open-data-product-standard/
+apiVersion: v1.0.0
+kind: DataProduct
+id: c4f0e3b7-customer-360
+name: Customer 360
+version: 0.9.0
+status: draft
+domain: Customer
+description:
+  purpose: What we know about a customer in one place, account and buying behaviour together.
+inputPorts:
+  - name: orders
+    version: 2.1.0
+    contractId: 5c1e9f20-orders
+  - name: customers
+    version: 1.4.0
+    contractId: 0d2b7e11-customers
+outputPorts:
+  - name: profiles
+    type: tables
+    version: 0.9.0
+    contractId: a81f5c3d-customer-profiles
+team:
+  name: CRM team

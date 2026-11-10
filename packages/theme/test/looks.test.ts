@@ -36,9 +36,8 @@ describe('built-in themes', () => {
     }
   });
 
-  // Faint text carries captions and the imprint. The looks added with Survey hold it to AA on every
-  // ground; classic and the brand examples keep the values they shipped with.
-  it.each(Object.keys(builtinLooks).filter((n) => !n.startsWith('classic')))('%s: faint text is AA on the deepest tint', (name) => {
+  // Faint text carries captions and the imprint, so every built-in holds it to AA on every ground.
+  it.each(names)('%s: faint text is AA on the deepest tint', (name) => {
     const t = themes[name]!;
     for (const bg of grounds(t)) expect(contrast(t.textFaint, bg), `faint on ${bg}`).toBeGreaterThanOrEqual(AA);
   });
