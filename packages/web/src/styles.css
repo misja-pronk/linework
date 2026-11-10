@@ -3264,3 +3264,43 @@ button.type-pill:hover {
   text-align: center;
   padding: 16px;
 }
+
+/* The page the drawing is for: a thin frame around it, its name and text size above its corner. */
+.page-frame {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.page-frame.small {
+  border-color: color-mix(in srgb, var(--warning) 70%, transparent);
+}
+.page-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+  padding: 0 0 4px;
+  font: 500 11px/1.2 var(--font);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.page-frame.small .page-label {
+  color: var(--warning);
+}
+/* Where text would still be readable on the page; what lies outside it is outlined. */
+.page-readable {
+  position: absolute;
+  border: 1px dashed color-mix(in srgb, var(--warning) 60%, transparent);
+  pointer-events: none;
+}
+.page-overflow {
+  position: absolute;
+  border: 1.5px solid color-mix(in srgb, var(--warning) 75%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
+  pointer-events: none;
+}
+.pin-badge {
+  color: var(--accent);
+}

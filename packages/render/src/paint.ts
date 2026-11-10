@@ -250,5 +250,23 @@ export function endMarker(kind: Marker, tip: Point, from: Point, color: string, 
     case 'slash':
       // A default flow: a short stroke across the line, just past where it leaves.
       return `<path d="M${P(at(12, -5))}L${P(at(6, 5))}" stroke="${color}" stroke-width="${r1(theme.stroke.edge * 1.2)}" stroke-linecap="round" fill="none"/>`;
+    default: {
+      // UML ends: filled with the card colour so the line under them does not show through.
+      const u = umlEnd(kind);
+      const pts = u.points.map(([back, side]) => P(at(back, side)));
+      const fill = u.filled ? color : u.closed ? theme.surface : 'none';
+      return `<path d="M${pts.join('L')}${u.closed ? 'Z' : ''}" fill="${fill}" stroke="${color}" stroke-width="${r1(theme.stroke.edge)}" stroke-linejoin="${u.closed ? 'miter' : 'round'}" stroke-linecap="round"/>`;
+    }
   }
+}
+
+/**
+ * The outline of a UML end as [back from the tip, aside] pairs: a hollow triangle (generalization),
+ * a diamond (hollow: aggregation, filled: composition), an open arrowhead (navigability). Shared by
+ * the SVG and the slide writer, so both draw the same marks.
+ */
+export function umlEnd(kind: 'triangle' | 'diamond' | 'filledDiamond' | 'open'): { points: [number, number][]; closed: boolean; filled: boolean } {
+  if (kind === 'triangle') return { points: [[0, 0], [13, -7.5], [13, 7.5]], closed: true, filled: false };
+  if (kind === 'open') return { points: [[10, -6], [0, 0], [10, 6]], closed: false, filled: false };
+  return { points: [[0, 0], [8, -5.5], [16, 0], [8, 5.5]], closed: true, filled: kind === 'filledDiamond' };
 }

@@ -49,6 +49,10 @@ const ER: Partial<Record<Marker, string>> = { one: 'ERmandOne', zeroOrOne: 'ERze
 function markerStyle(side: 'start' | 'end', m: Marker, arrow: ArrowStyle): Style {
   if (m === 'none') return { [`${side}Arrow`]: 'none' };
   if (m === 'arrow') return { [`${side}Arrow`]: ARROW[arrow], [`${side}Fill`]: arrow === 'open' ? 0 : 1, [`${side}Size`]: arrow === 'open' ? 7 : 6 };
+  // UML ends: draw.io's own block (hollow: generalization), diamonds and open arrow.
+  if (m === 'triangle') return { [`${side}Arrow`]: 'block', [`${side}Fill`]: 0, [`${side}Size`]: 12 };
+  if (m === 'diamond' || m === 'filledDiamond') return { [`${side}Arrow`]: 'diamond', [`${side}Fill`]: m === 'filledDiamond' ? 1 : 0, [`${side}Size`]: 14 };
+  if (m === 'open') return { [`${side}Arrow`]: 'open', [`${side}Fill`]: 0, [`${side}Size`]: 8 };
   return { [`${side}Arrow`]: ER[m] ?? 'none', [`${side}Fill`]: 0, [`${side}Size`]: 10 };
 }
 

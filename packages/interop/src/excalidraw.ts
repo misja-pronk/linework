@@ -39,8 +39,8 @@ function hash(s: string): string {
 }
 
 const HEAD: Record<ArrowStyle, string> = { filled: 'triangle', slim: 'triangle', open: 'arrow' };
-/** Excalidraw's crow's feet know one, many and one-or-many; the "zero or" ring is lost. */
-const FOOT: Partial<Record<Marker, string>> = { one: 'crowfoot_one', zeroOrOne: 'crowfoot_one', many: 'crowfoot_many', zeroOrMany: 'crowfoot_many', oneOrMany: 'crowfoot_one_or_many', slash: 'bar' };
+/** Excalidraw's crow's feet know one, many and one-or-many; the "zero or" ring is lost. UML ends have heads of their own. */
+const FOOT: Partial<Record<Marker, string>> = { one: 'crowfoot_one', zeroOrOne: 'crowfoot_one', many: 'crowfoot_many', zeroOrMany: 'crowfoot_many', oneOrMany: 'crowfoot_one_or_many', slash: 'bar', triangle: 'triangle_outline', diamond: 'diamond_outline', filledDiamond: 'diamond', open: 'arrow' };
 const head = (m: Marker, arrow: ArrowStyle): string | null => (m === 'none' ? null : m === 'arrow' ? HEAD[arrow] : (FOOT[m] ?? null));
 
 const sameLook = (a: Run, b: Run) => a.size === b.size && a.color === b.color && !!a.mono === !!b.mono;

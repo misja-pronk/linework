@@ -20,11 +20,22 @@ export function rowMarks(row: Extract<TableRow, { kind: 'row' }>): { icon: strin
   return icons.filter(([m]) => row.marks?.includes(m)).map(([, icon, tone]) => ({ icon, tone }));
 }
 
-/** Width of the mark column: room for the row with the most marks. */
+/** Width of the mark column: room for the row with the most marks. A class keeps it only for visibility signs. */
 export function markWidth(shape: TableShape): number {
   const most = Math.max(1, ...shape.rows.map((r) => (r.kind === 'row' ? rowMarks(r).length : 0)));
+  if (shape.form === 'class' && !shape.rows.some((r) => r.kind === 'row' && (r.sign || rowMarks(r).length))) return 0;
+  if (shape.form === 'class' && most <= 1) return SIGN_WIDTH;
   return MARK_WIDTH + (most - 1) * MARK_STEP;
 }
+
+const SIGN_WIDTH = 14;
+
+/** Height of a table's row: a class's members stand closer together than a table's columns. */
+export const rowHeight = (shape: TableShape, theme: Theme) => (shape.form === 'class' ? Math.round(theme.space.table.row * 0.8) : theme.space.table.row);
+
+/** Height of a section: its label in small capitals, or, without one, a rule between compartments. */
+export const sectionHeight = (row: { label: string }, theme: Theme) => (row.label ? theme.space.table.section : DIVIDER);
+const DIVIDER = 9;
 const CELL_GAP = 24;
 
 export function size(graph: Graph, theme: Theme): Sized {
@@ -216,7 +227,7 @@ export function tableColumns(shape: TableShape, theme: Theme) {
 function tableSize(shape: TableShape, theme: Theme): NodeSize {
   const t = theme.space.table;
   const cols = tableColumns(shape, theme);
-  const titleWidth = 16 + 8 + measureText(shape.title, theme.size.label, 600);
+  const titleWidth = 16 + 8 + measureText(shape.title, theme.size.label, 600) + (shape.italic ? 4 : 0);
   const captionWidth = shape.caption ? measureText(shape.caption, theme.size.caption, 400) : 0;
   const rowWidth = markWidth(shape) + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
   const width = 2 * t.padX + Math.max(titleWidth, captionWidth, rowWidth);
@@ -224,7 +235,7 @@ function tableSize(shape: TableShape, theme: Theme): NodeSize {
   const rowY: Record<string, number> = {};
   let y = tableHeader(shape, theme);
   for (const r of shape.rows) {
-    const h = r.kind === 'row' ? t.row : t.section;
+    const h = r.kind === 'row' ? rowHeight(shape, theme) : sectionHeight(r, theme);
     if (r.kind === 'row') rowY[r.id] = y + h / 2;
     y += h;
   }

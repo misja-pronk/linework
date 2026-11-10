@@ -28,31 +28,32 @@ export function arrangeKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boo
   return ARRANGE.find((a) => a.code === e.code && !!a.shift === e.shiftKey)?.op;
 }
 
-/** ⇧⌘L locks, ⇧G snaps to the grid, ⇧M shows the minimap. */
-export function craftKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; code: string }): 'lock' | 'grid' | 'minimap' | undefined {
+/** ⇧⌘L locks, ⇧G snaps to the grid, ⇧M shows the minimap, ⇧P the page. */
+export function craftKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; code: string }): 'lock' | 'grid' | 'minimap' | 'page' | undefined {
   const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
   if (!e.shiftKey || e.altKey) return undefined;
   if (mod && e.code === 'KeyL') return 'lock';
   if (mod || e.metaKey || e.ctrlKey) return undefined;
-  return e.code === 'KeyG' ? 'grid' : e.code === 'KeyM' ? 'minimap' : undefined;
+  return e.code === 'KeyG' ? 'grid' : e.code === 'KeyM' ? 'minimap' : e.code === 'KeyP' ? 'page' : undefined;
 }
 
 export function arrangeCommands(run: (op: ArrangeOp) => void): Command[] {
   return ARRANGE.map((a) => ({ id: `arrange:${a.op}`, group: 'Arrange', label: a.label, hint: 'selected shapes', icon: a.icon, shortcut: keyName(a), run: () => run(a.op) }));
 }
 
-/** Snapping to the grid and the minimap, kept per browser. */
+/** Snapping to the grid, the minimap and the page frame, kept per browser. */
 export function useCraftPrefs() {
   const [grid, setGrid] = useState(() => store.get<boolean>('grid') ?? false);
   const [minimap, setMinimap] = useState(() => store.get<boolean>('minimap') ?? true);
-  const toggle = useCallback((what: 'grid' | 'minimap') => {
-    const [set, key] = what === 'grid' ? [setGrid, 'grid'] : [setMinimap, 'minimap'];
+  const [page, setPage] = useState(() => store.get<boolean>('page') ?? true);
+  const toggle = useCallback((what: 'grid' | 'minimap' | 'page') => {
+    const set = what === 'grid' ? setGrid : what === 'minimap' ? setMinimap : setPage;
     set((v) => {
-      store.set(key, !v);
+      store.set(what, !v);
       return !v;
     });
   }, []);
-  return { grid, minimap, toggle };
+  return { grid, minimap, page, toggle };
 }
 
 /** The align and distribute buttons of the multi-selection panel. */

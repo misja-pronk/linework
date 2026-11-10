@@ -3,7 +3,7 @@
 import type { Box, Graph, LayoutSidecar } from '@cartography/core';
 import type { Placement } from './dot.ts';
 
-export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | undefined, header: number, pad: number, gap = 24): Placement {
+export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | undefined, header: number, pad: number, gap = 24): Placement & { nudged?: string[] } {
   const pins = Object.entries(sidecar?.nodes ?? {}).filter(([id]) => p.nodes.has(id));
   const groupPins = Object.entries(sidecar?.groups ?? {}).filter(([id]) => p.groups.has(id));
   if (!pins.length && !groupPins.length) return p;
@@ -33,7 +33,84 @@ export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | u
     fixed.add(id);
   }
   makeRoom(nodes, fixed, graph.direction === 'down', gap);
-  return { ...p, nodes, groups: growGroups(graph, nodes, groups, header, pad, new Set(pins.map(([id]) => id))) };
+  growGroups(graph, nodes, groups, header, pad, new Set(pins.map(([id]) => id)));
+  // Newest last: an object keeps its keys in the order they were first set.
+  const order = [...pins.map(([id]) => id), ...groupPins.map(([id]) => id)];
+  const nudged = clearOverlaps(graph, nodes, groups, fixed, new Set(groupPins.map(([id]) => id)), order, header, pad, gap);
+  return { ...p, nodes, groups, ...(nudged.length ? { nudged } : {}) };
+}
+
+/** Whole grid steps, rounded away from zero: a move out of the way is never short of it. */
+const away = (n: number) => (n < 0 ? Math.floor(n / 8) : Math.ceil(n / 8)) * 8;
+
+/** Air kept between a group and what it does not hold, once something had to move out of its way. */
+const CLEAR = 16;
+
+/**
+ * Nothing lies on anything it is not in. A group that grew around a pinned node (or was moved by
+ * hand) can come to lie over a node or group beside it: what is not pinned moves out of its way, the
+ * shortest way out, carrying what it holds, and the groups around it grow to keep holding it. When
+ * a pinned group runs over something pinned, the newer pin gives way and is named in the result, so
+ * the editor can say so.
+ */
+export function clearOverlaps(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, fixed: Set<string>, pinnedGroups: Set<string>, order: string[], header: number, pad: number, gap: number): string[] {
+  const parent = new Map<string, string | undefined>([...graph.groups.map((g) => [g.id, g.parent] as const), ...graph.nodes.map((n) => [n.id, n.parent] as const)]);
+  const isGroup = (id: string) => groups.has(id);
+  const box = (id: string) => (nodes.get(id) ?? groups.get(id))!;
+  const within = (id: string, g: string) => {
+    for (let x = parent.get(id); x; x = parent.get(x)) if (x === g) return true;
+    return false;
+  };
+  const subtree = (id: string) => [id, ...[...nodes.keys(), ...groups.keys()].filter((x) => within(x, id))];
+  const movable = (id: string) => subtree(id).every((x) => !fixed.has(x) && !pinnedGroups.has(x));
+  const ids = [...groups.keys(), ...nodes.keys()];
+  const overlap = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const nudged = new Set<string>();
+  for (let round = 0; round < 60; round++) {
+    let pair: [string, string] | undefined;
+    for (const g of ids) {
+      for (const x of ids) {
+        if (x === g || within(x, g) || within(g, x)) continue;
+        // Two nodes are makeRoom's (and the layout's) to keep apart, and two pinned ones lie where they
+        // were put (aligned onto one line before they are spread out, say): a group is in this pair.
+        if (!isGroup(g) && !isGroup(x)) continue;
+        if (overlap(box(g), box(x))) {
+          pair = [g, x];
+          break;
+        }
+      }
+      if (pair) break;
+    }
+    if (!pair) break;
+    const [g, x] = pair;
+    // What gives way: the one that may move; the one that did not grow (x); else the newer pin.
+    let mover = movable(x) ? x : movable(g) ? g : undefined;
+    let still = mover === x ? g : x;
+    if (!mover) {
+      const age = (id: string) => Math.max(...subtree(id).map((y) => order.indexOf(y)));
+      [mover, still] = age(x) >= age(g) ? [x, g] : [g, x];
+      nudged.add(mover);
+    }
+    const m = box(mover);
+    const s = box(still);
+    const air = isGroup(mover) || isGroup(still) ? CLEAR : gap;
+    // The four ways out, the shortest wins.
+    const ways = [
+      { dx: s.x - air - (m.x + m.width), dy: 0 },
+      { dx: s.x + s.width + air - m.x, dy: 0 },
+      { dx: 0, dy: s.y - air - (m.y + m.height) },
+      { dx: 0, dy: s.y + s.height + air - m.y },
+    ].map((w) => ({ dx: away(w.dx), dy: away(w.dy) }));
+    const way = ways.sort((a, b) => Math.abs(a.dx) + Math.abs(a.dy) - (Math.abs(b.dx) + Math.abs(b.dy)))[0]!;
+    for (const id of subtree(mover)) {
+      const map = nodes.has(id) ? nodes : groups;
+      const b = map.get(id)!;
+      map.set(id, { ...b, x: b.x + way.dx, y: b.y + way.dy });
+    }
+    // The groups around what moved grow to keep holding it.
+    growGroups(graph, nodes, groups, header, pad);
+  }
+  return [...nudged];
 }
 
 /**
