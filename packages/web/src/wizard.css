@@ -218,3 +218,7 @@
   max-width: none;
   max-height: none;
 }
+
+.wizard-early {
+  align-self: flex-end;
+}

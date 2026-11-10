@@ -1,6 +1,7 @@
 // The whole pipeline in one call, shared by the CLI and the web app:
 // YAML → validate → type.build → measure → layout → pins → SVG.
 import {
+  readKindAliases,
   compose,
   filterGraph,
   focusGraph,
@@ -278,8 +279,11 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // such a type defines itself (an ERD's relations) stays the type's.
   // Theme and icons are about the look, shared by every type: they never reach the type's schema.
   // So is the shape the drawing aims for (aspect: 16:9, 4:3, 1.5 or auto).
+  // "user" where the type says person (and the like): read as the type's kind, with a hint to write it so.
+  const aliased = readKindAliases(data, type.palette);
+  for (const a of aliased.read) diagnostics.push(source.at(a.path, `"${a.from}" is read as ${a.to}, the kind this diagram type has: write ${a.to}`, 'warning'));
   // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, ...asWritten } = data;
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, ...asWritten } = aliased.data;
   // Stages are about time, shared by every type of elements and lines: `stages:` and the elements'
   // from: and until: never reach the type's schema.
   const props0 = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};

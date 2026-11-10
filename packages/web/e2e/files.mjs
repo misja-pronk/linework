@@ -63,6 +63,8 @@ const sidecar = await page.evaluate(async () => {
 if (!sidecar.includes('"cfo"')) fail('sidecar not written: ' + sidecar);
 
 // Switching files saves edits first.
+// Next to the side panel in a folder the YAML may be folded for room: its rail opens it.
+if (await page.locator('button.yaml-rail').count()) await page.click('button.yaml-rail');
 await page.click('.cm-content');
 await page.keyboard.press('Meta+End');
 await page.keyboard.type('\n# edited');

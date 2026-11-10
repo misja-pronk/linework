@@ -136,9 +136,9 @@ function definedIds(data: unknown): string[] {
 function hint(d: Diagnostic, data: unknown, type: DiagramType | undefined): string | undefined {
   const m = d.message;
   let r: RegExpExecArray | null;
-  if ((r = /must be one of: (.+)$/.exec(m))) {
+  if (d.choices || (r = /must be one of: ([^(]+?)(?: \(did you mean .*\))?$/.exec(m))) {
     const value = at(data, d.path);
-    const near = typeof value === 'string' ? closest(value, r[1]!.split(', ')) : undefined;
+    const near = typeof value === 'string' ? closest(value, d.choices ?? r![1]!.split(', ')) : undefined;
     return near ? `Use "${near}" instead of "${String(value)}".` : 'Use one of the listed values exactly; get_schema lists them all.';
   }
   if ((r = /^Unknown field "(.+)"$/.exec(m))) {
@@ -167,7 +167,7 @@ function dropAnyOfNoise(ds: Diagnostic[], data: unknown): Diagnostic[] {
   const noise = (d: Diagnostic) =>
     /^"\d+" needs "(from|to)"$/.test(d.message) ||
     /^Unknown field "[^"]*(->|-->|\.\.>|<->|--)[^"]*"$/.test(d.message) ||
-    (/must be one of/.test(d.message) && typeof at(data, d.path) === 'object' && ds.some((o) => inside(o, d)));
+    ((/must be one of/.test(d.message) || !!d.choices) && typeof at(data, d.path) === 'object' && ds.some((o) => inside(o, d)));
   return ds.filter((d) => !noise(d) || !ds.some((o) => o !== d && !noise(o) && (o.line === d.line || inside(o, d))));
 }
 

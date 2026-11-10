@@ -328,8 +328,11 @@ export const erd: DiagramType<ErdSource> = {
     return out;
   },
   connect(src, from, to) {
-    const target = src.tables?.[to];
-    if (!src.tables?.[from] || !target) return 'Connect one table to another';
+    // A table written without columns yet ("orders:") is a table too: its first column is the key.
+    const has = (id: string) => !!src.tables && Object.hasOwn(src.tables, id);
+    if (!has(from)) return `Lines start at a table: "${from}" is not one`;
+    if (!has(to)) return `Lines end at a table: "${to}" is not one`;
+    const target = src.tables![to] ?? {};
     const pk = Object.entries(target.columns ?? {}).find(([, c]) => parseColumn(c).pk);
     const key = `${to.replace(/s$/, '')}_${pk?.[0] ?? 'id'}`;
     const type = pk ? parseColumn(pk[1]).type : undefined;

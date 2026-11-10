@@ -421,7 +421,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                   </div>
                 )}
                 <span className="type-count">
-                  {typeCount(t.id)} {typeCount(t.id) === 1 ? 'start' : 'starts'}
+                  {typeCount(t.id)} {typeCount(t.id) === 1 ? 'template' : 'templates'}
                 </span>
               </div>
             </div>
