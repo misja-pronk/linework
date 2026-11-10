@@ -4,7 +4,7 @@
 import type { Graph, LegendItem } from '@cartography/core';
 import { baselineOffset, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
 import { dashAttr, esc, glyph, iconTile, monoAttr, r1 } from './paint.ts';
-import { drawTags } from './tags.ts';
+import { drawTags, endStyle, tagsWidth } from './tags.ts';
 
 /** Sample, gap, label, then the gap to the next item. */
 const SAMPLE = 28;
@@ -16,7 +16,9 @@ const KEY = 44;
 const WRAP = 640;
 const COLUMN_ROW = 26;
 
-const labelWidth = (item: LegendItem, theme: Theme) => measureText(item.label, theme.size.caption, 500);
+/** A tag sample wider than the usual sample (OHS, ACL) pushes its label along. */
+export const sampleExtra = (item: LegendItem) => (item.swatch === 'mark' ? Math.max(0, tagsWidth([item.tag ?? 'T1']) + 6 - SAMPLE) : 0);
+const labelWidth = (item: LegendItem, theme: Theme) => sampleExtra(item) + measureText(item.label, theme.size.caption, 500);
 
 /** Positions of the items in one unwrapped row (the classic legend). */
 export function legendItems(g: Pick<Graph, 'legend'>, theme: Theme) {
@@ -146,7 +148,7 @@ function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme): stri
 export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: number): string {
   const lk = look(theme);
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
-  const label = `<text x="${r1(x0 + SAMPLE)}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
+  const label = `<text x="${r1(x0 + SAMPLE + sampleExtra(item))}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
   if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme) + label;
   if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
     // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.
@@ -167,7 +169,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
     return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="4" fill="none" stroke="${theme.textFaint}" stroke-width="1.2" stroke-dasharray="3 2.5"/>` + label;
   }
   if (item.swatch === 'trust') return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${theme.tones.rose.fg}" stroke-width="1.8" stroke-dasharray="5 3"/>` + label;
-  if (item.swatch === 'mark') return drawTags(theme, ['T1'], x0, cy) + label;
+  if (item.swatch === 'mark') return drawTags(theme, [item.tag ?? 'T1'], x0, cy, item.tag ? endStyle(item.tag) : 'threat') + label;
   if (item.swatch === 'fill') return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="${Math.min(7, theme.radius.chip + 3)}" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
   if (item.swatch === 'check' || item.swatch === 'check-outline') {
     // The same filled or dashed check circle as the matrix cells.

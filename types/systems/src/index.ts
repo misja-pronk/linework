@@ -144,3 +144,4 @@ edges:
 };
 
 export { c4, c4Config } from './c4.ts';
+export { contextMap, contextMapConfig } from './context-map.ts';

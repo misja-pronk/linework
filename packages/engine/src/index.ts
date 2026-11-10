@@ -34,7 +34,7 @@ import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconPackFile } from './icons.ts';
-import { c4, systems } from '@cartography/systems';
+import { c4, contextMap, systems } from '@cartography/systems';
 import { azure } from '@cartography/azure';
 import { cloud } from '@cartography/cloud';
 import { kubernetes } from '@cartography/kubernetes';
@@ -51,7 +51,7 @@ import { process } from '@cartography/process';
 import { states } from '@cartography/states';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

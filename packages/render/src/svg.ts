@@ -15,7 +15,7 @@ import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
 import { drawJourney } from './journey.ts';
 import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.ts';
-import { drawTags, endTagAt, tagsWidth, TAG, type TagStyle } from './tags.ts';
+import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 
 export { legendItems, legendWidth } from './legend.ts';
@@ -181,16 +181,19 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     if (badged.has(e.id) || em === 'hidden') continue;
     const pe = placed.edges.get(e.id);
     if (!(e.label || e.step || e.marks?.length) || !pe?.label) continue;
-    const box = besideShortLine(pe.points, pe.label, placed);
+    // The room kept for a context map's end tags is not the label's.
+    const room = endsRoom(e.ends);
+    const box = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
     const lt = lineTheme(e);
     out.push(drawEdgeLabel(e.label ?? '', box, lt, ground.under(box), edgeColor(e, lt), e.step, e.icon, e.tone, e.marks));
   }
   // The ends of a context map's relationships: U and D, and the patterns on each side.
+  const taken: Box[] = [];
   for (const e of graph.edges) {
     const pe = placed.edges.get(e.id);
     if (!e.ends || badged.has(e.id) || state?.edges[e.id] === 'hidden' || !pe || pe.points.length < 2) continue;
     const pts = toOutline(pe.points, graph, placed, e.from.node, e.to.node);
-    out.push(drawEnds(e, pts, lineTheme(e)));
+    out.push(drawEnds(e, pts, lineTheme(e), taken));
   }
   if (state) for (const n of placeNotes(state, placed)) out.push(drawNote(n, theme));
   out.push('</g>');
@@ -692,15 +695,12 @@ export function besideShortLine(points: Point[], at: Box, placed?: Placed): Box 
   return free.find((m) => !others.some((o) => hit(m, o))) ?? free[0] ?? b;
 }
 
-/** End tags of a line: in ink for the side (U, D), outlined for a pattern (ACL, OHS). */
-export const endStyle = (tag: string): TagStyle => (tag === 'U' || tag === 'D' ? 'end' : 'pattern');
-
-function drawEnds(e: GraphEdge, pts: Point[], theme: Theme): string {
+function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[]): string {
   let s = '';
   for (const [tags, tip, from] of [[e.ends?.from, pts[0]!, pts[1]!], [e.ends?.to, pts.at(-1)!, pts.at(-2)!]] as const) {
     if (!tags?.length) continue;
-    const at = endTagAt(tags, tip, from);
-    s += drawTags(theme, tags, at.x, at.cy, endStyle);
+    const at = endTagAt(tags, tip, from, taken);
+    if (at) s += drawTags(theme, tags, at.x, at.cy, endStyle);
   }
   return s;
 }

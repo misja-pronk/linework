@@ -18,6 +18,7 @@ const crossingBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'azure/microservices.yaml': 7,
   'azure/web-shop.yaml': 0,
+  'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
   'c4/kestrel-bank.yaml#context': 0,

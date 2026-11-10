@@ -1,6 +1,6 @@
 // Small text tags drawn on elements and lines: threat numbers (T1, T2) and the ends of a context
 // map's relationships (U, D, ACL, OHS). They say what they mean in text, so colour only helps.
-import type { Point } from '@cartography/core';
+import type { Box, Point } from '@cartography/core';
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
 
@@ -26,6 +26,9 @@ export function tagColors(theme: Theme, style: TagStyle) {
   if (style === 'end') return { fill: theme.text, stroke: theme.text, ink: theme.surface };
   return { fill: theme.surface, stroke: theme.text, ink: theme.text };
 }
+
+/** End tags of a line: in ink for the side (U, D), outlined for a pattern (ACL, OHS). */
+export const endStyle = (tag: string): TagStyle => (tag === 'U' || tag === 'D' ? 'end' : 'pattern');
 
 /** Tags in a row starting at x, centred on cy. */
 export function drawTags(theme: Theme, tags: string[], x: number, cy: number, style: TagStyle | ((tag: string) => TagStyle) = 'threat'): string {
@@ -57,16 +60,38 @@ const END_GAP = 6;
  * Where the tags at one end of a line go: on the line, just clear of the element, centred across it.
  * `tip` is the end of the line, `from` the point before it. Returns the left edge and centre.
  */
-export function endTagAt(tags: string[], tip: Point, from: Point): { x: number; cy: number } {
+export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & { text?: string })[] = []): { x: number; cy: number } | undefined {
   const w = tagsWidth(tags);
   const dx = Math.sign(from.x - tip.x);
   const dy = Math.sign(from.y - tip.y);
-  if (dx !== 0 && Math.abs(from.y - tip.y) < 0.5) {
-    // Level: the row lies along the line, starting just clear of the element.
-    const x = dx > 0 ? tip.x + END_GAP : tip.x - END_GAP - w;
-    return { x, cy: tip.y };
+  const level = dx !== 0 && Math.abs(from.y - tip.y) < 0.5;
+  const along = level ? Math.abs(from.x - tip.x) : Math.abs(from.y - tip.y);
+  const hit = (b: Box) => taken.some((t) => b.x < t.x + t.width && t.x < b.x + b.width && b.y < t.y + t.height && t.y < b.y + b.height);
+  // Level: the row lies along the line, starting just clear of the element. Upright: across it.
+  const place = (shift: number) => (level ? { x: dx > 0 ? tip.x + END_GAP + shift : tip.x - END_GAP - w - shift, cy: tip.y } : { x: tip.x - w / 2, cy: tip.y + (dy || 1) * (END_GAP + TAG.H / 2 + shift) });
+  // Lines that leave on one trunk share their first tags: drawn once.
+  const first = place(0);
+  if (taken.some((t) => t.text === tags.join(' ') && Math.abs(t.x - first.x) < 1 && Math.abs(t.y + TAG.H / 2 - first.cy) < 1)) return undefined;
+  // Lines that meet an element side by side: a row that would cover another's slides further along its own line.
+  const step = level ? w + TAG.GAP : TAG.H + TAG.GAP;
+  // Never past the middle of the line, where the other end's tags and the label are: then the first place it is.
+  let at = place(0);
+  for (let shift = 0; shift + END_GAP + (level ? w : TAG.H) <= along / 2; shift += step) {
+    const p = place(shift);
+    if (!hit({ x: p.x, y: p.cy - TAG.H / 2, width: w, height: TAG.H })) {
+      at = p;
+      break;
+    }
   }
-  // Upright: the row lies across the line, a little in from the element.
-  const cy = tip.y + (dy || 1) * (END_GAP + TAG.H / 2);
-  return { x: tip.x - w / 2, cy };
+  taken.push({ x: at.x, y: at.cy - TAG.H / 2, width: w, height: TAG.H, text: tags.join(' ') });
+  return at;
+}
+
+/**
+ * Room the tags at a line's ends take on each side of its label: the label box is made this much wider
+ * on both sides, so the layout leaves the line long enough for both ends and the label between them.
+ */
+export function endsRoom(ends: { from?: string[]; to?: string[] } | undefined): number {
+  if (!ends) return 0;
+  return Math.max(ends.from?.length ? tagsWidth(ends.from) : 0, ends.to?.length ? tagsWidth(ends.to) : 0) + 2 * END_GAP + 8;
 }

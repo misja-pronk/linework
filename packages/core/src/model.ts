@@ -277,6 +277,8 @@ export interface LegendItem {
   icon?: string;
   /** A greyed sample: external elements. */
   muted?: boolean;
+  /** The text of a tag sample ('mark'): T1, U, ACL. */
+  tag?: string;
 }
 
 // Geometry, filled in by layout.
