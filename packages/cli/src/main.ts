@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | new | import | export | threats | share | icons | themes | types
+// carto render | deck | watch | validate | diff | notes | new | import | export | threats | share | icons | themes | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -8,7 +8,7 @@ import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, coverageKinds, findIcons, iconGuide, importIcons, isVendor, listPacks, mapIcon, packSheet, readPack, unmapIcon } from './packs.ts';
 import { coverage } from '@cartography/icons';
-import { drift, findType, render, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drift, findType, render, withReviewNotes, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
@@ -21,6 +21,7 @@ import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
 import { threatMarkdown } from '@cartography/core';
+import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const helpAll = `carto — architecture diagrams that look good
@@ -39,6 +40,8 @@ const helpAll = `carto — architecture diagrams that look good
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
                [--focus orders] [--hops 2]      only that element (an id, a group, tag:x, kind:x) and what is within
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
+               [--notes]                        with the open review notes of <file>.notes.json: numbered markers
+                                                and the notes under the drawing (pptx: in the speaker notes)
   carto render <folder> [-o mesh.svg]           a folder of data product and data contract files (ODPS, ODCS) as one
                [--write mesh.yaml]              data mesh map; --write keeps the diagram, and updates it the next time
   carto render <folder> [-o access.svg]         a folder of saved az / Graph / AzureHound JSON as who reaches what,
@@ -60,7 +63,8 @@ const helpAll = `carto — architecture diagrams that look good
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
-  carto validate <file.yaml…>                   check files and each of their views, print problems
+  carto validate <file.yaml…>                   check files and each of their views, print problems (and review
+                                                notes in <file>.notes.json whose element is gone)
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
@@ -80,6 +84,11 @@ const helpAll = `carto — architecture diagrams that look good
   carto diff --live <k8s|azure|access|github> <saved.yaml>   drift: what changed in the cluster, the estate or
                [the --live options of carto import] [-o drift.png] [--exit-code]   the organisation since the
                                                 diagram was saved (read live, as carto import --live does)
+  carto notes <file.yaml…> [-o notes.md]       the review notes of <file>.notes.json as markdown, open ones
+               [--open | --all]                 (default), or resolved ones too
+  carto notes --merge-driver <base> <ours> <theirs>
+                                                git's merge driver for notes files: merges two people's notes by
+                                                thread; set up once, see docs/notes.md
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
                [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
@@ -172,6 +181,7 @@ const groups: [string, [string, string][]][] = [
     ['validate', 'check files and their views'],
     ['diff', 'what changed between two versions'],
     ['threats', 'the threat table as markdown'],
+    ['notes', 'review notes as markdown'],
   ]],
   ['Start and convert', [
     ['new', 'start from a template'],
@@ -283,6 +293,9 @@ const parsed = (() => {
     'keep-raw': { type: 'string' },
     wizard: { type: 'string' },
     answers: { type: 'string' },
+    notes: { type: 'boolean' },
+    open: { type: 'boolean' },
+    'merge-driver': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
     });
@@ -313,6 +326,90 @@ const sidecarPath = (file: string) => file.replace(/\.ya?ml$/, '') + '.layout.js
 function sidecarFor(file: string): LayoutSidecar | undefined {
   const p = sidecarPath(file);
   return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar) : undefined;
+}
+
+/** The review notes next to a diagram; what cannot be read in them is said once. */
+function notesFor(file: string): NotesFile | undefined {
+  const p = notesPath(file);
+  if (!fs.existsSync(p)) return undefined;
+  const r = parseNotes(fs.readFileSync(p, 'utf8'));
+  for (const m of r.problems) console.error(`${p}  ${yellow('warning')}  ${m}`);
+  return r.notes;
+}
+
+/** A drawing with its review notes: markers and an appendix in SVG, PNG and PDF; speaker notes in PowerPoint. */
+function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): T & Pick<Drawing, 'remarks' | 'annotate'> {
+  if (!notes || !r.graph || !r.placed) return r;
+  const { graph, placed } = r;
+  const theme = r.theme ?? themes.light;
+  const decorate = (d: { svg: string; width: number; height: number; origin?: { x: number; y: number } }) => withReviewNotes(d, graph, placed, notes, theme, { view: r.view });
+  const marked = r.svg && r.width && r.height ? decorate({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }) : undefined;
+  return { ...r, ...(marked ? { svg: marked.svg, width: marked.width, height: marked.height } : {}), remarks: noteLines(notes, graph, r.view), annotate: decorate };
+}
+
+/** carto notes: the threads as markdown; --merge-driver: git's three-way merge of a notes file. */
+async function notesCommand(): Promise<number> {
+  if (values['merge-driver']) {
+    const [base, ours, theirs] = files;
+    if (!base || !ours || !theirs) return (console.error(helpFor('notes')), 1);
+    const read = (f: string) => parseNotes(fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
+    const [b, o, t] = [read(base), read(ours), read(theirs)];
+    // A side that is not a notes file is not merged by guessing: git keeps the conflict.
+    if ([o, t].some((x) => x.problems.some((p) => p.startsWith('not valid') || p.startsWith('no "threads"')))) return (console.error(`carto notes: ${ours} or ${theirs} is not a notes file`), 1);
+    fs.writeFileSync(ours, printNotes(mergeNotes(b.notes, o.notes, t.notes)) ?? '{\n  "version": 1,\n  "threads": []\n}\n');
+    return 0;
+  }
+  if (!files.length) return (console.error(helpFor('notes')), 1);
+  const parts: string[] = [];
+  let ok = true;
+  for (const f of files) {
+    const notes = notesFor(f);
+    if (!notes) {
+      console.error(`${f}: no review notes (${notesPath(f)} is not there)`);
+      continue;
+    }
+    const { graph, views } = await graphsFor(f, notes);
+    if (!graph) ok = false;
+    parts.push(notesMarkdown(notes, { graph, views, title: graph?.title ?? path.basename(f), all: !!values.all && !values.open }));
+  }
+  const md = parts.join('\n');
+  if (!values.out) process.stdout.write(md);
+  else if (md) {
+    fs.writeFileSync(values.out, md);
+    console.error(`${files.join(', ')} → ${values.out}`);
+  }
+  return ok ? 0 : 1;
+}
+
+/** The drawing of a diagram and of each view its notes were written in: what their anchors are looked up in. */
+async function graphsFor(file: string, notes: NotesFile): Promise<{ graph?: RenderResult['graph']; views: Record<string, NonNullable<RenderResult['graph']>> }> {
+  const text = fs.readFileSync(file, 'utf8');
+  const opts = { fonts: 'none' as const, load: loaderFor(file), file: path.basename(file) };
+  const first = await render(text, opts);
+  const views: Record<string, NonNullable<RenderResult['graph']>> = {};
+  for (const v of new Set(notes.threads.map((t) => t.view).filter((x): x is string => !!x))) {
+    const r = await render(text, { ...opts, view: v });
+    if (r.graph && r.view === v) views[v] = r.graph;
+  }
+  return { graph: first.graph, views };
+}
+
+/** carto validate: notes whose element is gone, said as a warning each (they are kept, with what they were about). */
+async function checkNotes(file: string): Promise<void> {
+  const notes = notesFor(file);
+  if (!notes?.threads.length) return;
+  const { graph, views } = await graphsFor(file, notes);
+  if (!graph) return;
+  const p = notesPath(file);
+  for (const t of notes.threads) {
+    const g = t.view ? views[t.view] : graph;
+    if (t.view && !g) {
+      console.error(`${p}  ${yellow('warning')}  note ${t.id} is in view "${t.view}", which the diagram no longer has`);
+      continue;
+    }
+    const r = resolveAnchor(t.anchor, g!);
+    if (r.state === 'orphaned') console.error(`${p}  ${yellow('warning')}  note ${t.id} (${t.status}) is about "${r.was}", which is no longer in the diagram${t.view ? ` (view ${t.view})` : ''}`);
+  }
 }
 
 /** Writes the sidecar the way the editor does; with nothing left in it the file goes. */
@@ -483,6 +580,8 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   const first = await render(text, opts);
   // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
   const runs = values['all-views'] && first.views?.length ? [first, ...(await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))))] : [first];
+  const notes = values.notes ? notesFor(file) : undefined;
+  if (values.notes && !notes) console.error(`${shown}  ${yellow('warning')}  --notes: there is no ${notesPath(file)}`);
   let ok = true;
   for (const [i, result] of runs.entries()) {
     const view = i ? result.view : values.view;
@@ -494,7 +593,8 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
-    const shots = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
+    const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
+    const shots = plain.map((r) => annotated(r, notes));
     const faces = result.theme?.font.faces ?? [];
     const outline = safe && values['outline-text'] ? await (await import('./outline.ts')).outliner(result.theme) : undefined;
     for (const shot of shots) {
@@ -1353,12 +1453,15 @@ async function main(): Promise<number> {
             diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${x.page?.name ?? '16:9 slide'} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
         }
         report(f, diagnostics);
+        await checkNotes(f);
         const drifted = values.drift && !(await checkDrift(f));
         if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
       return ok ? 0 : 1;
     }
+    case 'notes':
+      return notesCommand();
     case 'diff':
       if (!themeFlag()) return 1;
       return diffFiles();
@@ -1433,7 +1536,7 @@ async function main(): Promise<number> {
         await renderFile(f);
         follow();
         fs.watch(path.dirname(f), (_, name) => {
-          if (name && f.endsWith(name.replace(/\.layout\.json$/, path.extname(f)))) again();
+          if (name && f.endsWith(name.replace(/\.(layout|notes)\.json$/, path.extname(f)))) again();
         });
       }
       console.log(dim('watching… Ctrl+C to stop'));

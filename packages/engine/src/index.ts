@@ -439,3 +439,5 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 export { themes };
 export { drift, type DriftItem, type DriftResult } from './drift.ts';
 export type { IconPackFile, IconMode };
+/** Review notes drawn on an export ("with review notes"); see packages/core/src/notes.ts. */
+export { noteMarker, noteSpots, withReviewNotes, type NoteSpot } from '@cartography/render';
