@@ -255,12 +255,32 @@ export function Preview(p: Props) {
     const top = Math.max(pad, tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0);
     const w = f.clientWidth - 2 * pad;
     const h = f.clientHeight - top - BAR;
-    const scale = clamp(Math.min(w / result.width, h / result.height, 1.25));
-    const next = { scale, x: (f.clientWidth - result.width * scale) / 2, y: top + Math.max(0, (h - result.height * scale) / 2) };
+    // With the page shown, the page (and its label) is what fits and is centred: it is wider or taller
+    // than the drawing. Where it stands is read off the screen and taken back into drawing units with
+    // the stage's transform at this very moment (a glide may be under way).
+    const fr = p.page ? f.querySelector<HTMLElement>('.page-frame') : null;
+    const stageEl = f.querySelector<HTMLElement>('.stage');
+    let [x0, y0, x1, y1] = [0, 0, result.width, result.height];
+    if (fr?.offsetWidth && stageEl) {
+      const m = new DOMMatrix(getComputedStyle(stageEl).transform);
+      const pr = f.getBoundingClientRect();
+      const r = fr.getBoundingClientRect();
+      const svg = f.querySelector('.drawing svg')?.getBoundingClientRect();
+      // The drawing's top left on screen is the origin of drawing units.
+      const ox = svg ? svg.left : pr.left + m.e;
+      const oy = svg ? svg.top : pr.top + m.f;
+      const k = m.a || 1;
+      const fx = (r.left - ox) / k;
+      const fy = (r.top - oy) / k;
+      [x0, y0, x1, y1] = [Math.min(x0, fx), Math.min(y0, fy), Math.max(x1, fx + r.width / k), Math.max(y1, fy + r.height / k)];
+    }
+    const label = fr?.offsetWidth ? 22 : 0;
+    const scale = clamp(Math.min(w / (x1 - x0), (h - label) / (y1 - y0), 1.25));
+    const next = { scale, x: (f.clientWidth - (x1 - x0) * scale) / 2 - x0 * scale, y: top + Math.max(0, (h - label - (y1 - y0) * scale) / 2) - y0 * scale };
     fittedView.current = next;
     setEasing(ease);
     setView(next);
-  }, [result?.width, result?.height]);
+  }, [result?.width, result?.height, p.page]);
   /** A view change that keeps a fitted view fitted (it follows the drawing or the pane, not people). */
   const carry = (v: View, next: View) => {
     if (v === fittedView.current) fittedView.current = next;

@@ -65,7 +65,8 @@ async function run(width, height, theme) {
   }
   await page.waitForTimeout(900);
   await page.click('.drawing [data-node="online.api"]');
-  await page.waitForTimeout(600);
+  // The drawing glides to fit the narrower pane once the pointer has been still a moment.
+  await page.waitForTimeout(1400);
   await page.screenshot({ path: `${out}/panes-${tag}-1-folder-selected.png` });
 
   await step('the drawing keeps its room', async () => {
@@ -78,6 +79,10 @@ async function run(width, height, theme) {
     else if (overlap(tools, side)) fail(`${tag}: the toolbar runs under the side panel`);
     const crumbs = await box('.crumbs');
     if (crumbs && overlap(crumbs, tools)) fail(`${tag}: crumbs over the toolbar`);
+    // The page is fitted and centred in the drawing's pane, never under the side panel.
+    const frame = (await page.locator('.page-frame').count()) ? await box('.page-frame') : null;
+    if (frame && (frame.x < c.x - 1 || frame.x + frame.width > c.x + c.width + 1)) fail(`${tag}: the page runs out of the drawing's pane (${Math.round(frame.x)}–${Math.round(frame.x + frame.width)} in ${Math.round(c.x)}–${Math.round(c.x + c.width)})`);
+    if (frame && Math.abs(frame.x - c.x - (c.x + c.width - frame.x - frame.width)) > 24) fail(`${tag}: the page is not centred in the pane`);
     const mini = (await page.locator('.minimap').count()) ? await box('.minimap') : null;
     if (mini && mini.width * mini.height > c.width * c.height * 0.08) fail(`${tag}: the minimap takes ${Math.round((100 * mini.width * mini.height) / (c.width * c.height))}% of the drawing`);
   });

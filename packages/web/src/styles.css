@@ -3864,6 +3864,7 @@ button.type-pill:hover {
   align-items: center;
   gap: 7px;
   cursor: pointer;
+}
 
 /* The page the drawing is for: a thin frame around it, its name and text size above its corner. */
 .page-frame {
