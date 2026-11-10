@@ -53,6 +53,9 @@ export const dataProductRules: Rule[] = [
           hits.push({ on: productAt(m, id), message: `${m.name(id)}: output port ${label} is read by others and has no data contract`, path: ['products', id, 'outputs', port] });
         }
       }
+      // No contract anywhere yet: one finding for the mesh, not one per port.
+      const any = Object.values(products).some((p) => Object.values(obj(obj(p).outputs)).some((o) => typeof obj(o).contract === 'string'));
+      if (!any && hits.length > 2) return [{ on: { kind: 'diagram' }, message: `No output port has a data contract yet, and ${hits.length} are read by others`, path: ['products'] }];
       return hits;
     },
   },

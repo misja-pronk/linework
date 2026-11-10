@@ -108,7 +108,7 @@ export const systemsRules: Rule[] = [
     category: 'reliability',
     appliesTo: generic,
     options: { 'min-dependents': 3 },
-    fix: 'Run it at least twice (count: 2, or a stack), in different zones; or say so with zones: or tags: [ha]',
+    fix: 'Run it at least twice, in different zones, and say so: props: { count: 2 } (count: on a deployment node), zones: 3 or tags: [ha]',
     check(m, o) {
       const min = o['min-dependents'] ?? 3;
       // Instances only mean something where the drawing counts them somewhere.

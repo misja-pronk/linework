@@ -13,6 +13,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@cartography/engine": "workspace:*"
+    "@cartography/engine": "workspace:*",
+    "@cartography/wizards": "workspace:*"
   }
 }

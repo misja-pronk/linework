@@ -135,6 +135,7 @@ export function reviewSpots(marks: ReviewMark[], placed: Placed, size?: { width:
 }
 
 const said: Record<FindingSeverity, string> = { error: 'Error', warn: 'Warning', info: 'Info' };
+const pillar: Record<string, string> = { security: 'Security', reliability: 'Reliability', operations: 'Operational excellence', performance: 'Performance efficiency', cost: 'Cost optimisation' };
 
 /** A finding's one-line tooltip: "R3 Warning: Orders has no private endpoint (Data stores … private endpoint)". */
 export const reviewTitle = (m: ReviewMark) => `${m.id} ${said[m.severity]}: ${m.message}${m.rule ? ` (${m.rule.title})` : ''}`;
@@ -188,7 +189,7 @@ export function withReview(
     rows.push(text(m.rule?.title ?? m.message, x, 12, 600, theme.text));
     y += 15;
     const about = m.about ?? (m.on.kind === 'diagram' ? 'the diagram' : m.on.kind === 'edge' ? (m.ends ? `${name(m.ends.from)} → ${name(m.ends.to)}` : m.on.id) : name(m.on.id));
-    rows.push(text([said[m.severity], m.rule?.category, `about ${about}`, m.rule?.id].filter(Boolean).join(' · '), x, 10.5, 400, theme.textFaint));
+    rows.push(text([said[m.severity], m.rule?.category && (pillar[m.rule.category] ?? m.rule.category), `about ${about}`, m.rule?.id].filter(Boolean).join(' · '), x, 10.5, 400, theme.textFaint));
     for (const line of wrapText(m.message, 11.5, 400, textWidth, 2)) {
       y += 16;
       rows.push(text(line, x, 11.5, 400, theme.textMuted));
