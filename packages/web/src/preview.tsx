@@ -209,10 +209,13 @@ export function Preview(p: Props) {
     if (!f || !result?.width || !result.height) return;
     paneSize.current = { w: f.clientWidth, h: f.clientHeight };
     const pad = 32;
+    // Never under what floats over the top of the pane: the tools and the focus chip.
+    const tools = f.querySelector('.canvas-top');
+    const top = Math.max(pad, tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0);
     const w = f.clientWidth - 2 * pad;
-    const h = f.clientHeight - pad - BAR;
+    const h = f.clientHeight - top - BAR;
     const scale = clamp(Math.min(w / result.width, h / result.height, 1.25));
-    setView({ scale, x: (f.clientWidth - result.width * scale) / 2, y: pad + Math.max(0, (h - result.height * scale) / 2) });
+    setView({ scale, x: (f.clientWidth - result.width * scale) / 2, y: top + Math.max(0, (h - result.height * scale) / 2) });
   }, [result?.width, result?.height]);
 
   // Fit once per document; afterwards keep what is on screen still. When the layout's origin moves

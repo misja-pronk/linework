@@ -1735,6 +1735,7 @@ export function App() {
               return true;
             }}
           >
+            <div className="canvas-top">
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
               <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
                 <Icon name="plus" /> Add <kbd>A</kbd>
@@ -1764,6 +1765,7 @@ export function App() {
               </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
+            </div>
             {hint && !adding && !modal && (
               <div className="hint" role="note">
                 <span>

@@ -96,7 +96,21 @@ await wait(400);
   if (!c.includes('Focused on Orders API') || !c.includes('4 of 7') || !c.includes('1 hop') || !c.includes('Both ways') || !c.includes('Esc')) fail('the chip should say what is in focus, how far and the way back: ' + c);
   if (!(await page.locator('.drawing svg').innerHTML()).includes('Focus on Orders API')) fail('the drawing should say under its title what it is cut down to');
   check('the YAML stays as it is', await yaml(), text);
+  // With the inspector open the chip goes under the toolbar, and the drawing (its title too) is fitted below both.
+  await wait(400);
+  const box = (q) => page.locator(q).boundingBox();
+  const title = await page.locator('.drawing svg > text').first().boundingBox();
+  let [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
+  if (tag.y < bar.y + bar.height && tag.x < bar.x + bar.width) fail(`the chip overlaps the toolbar: ${JSON.stringify([bar, tag])}`);
+  if (title.y < tag.y + tag.height + 8) fail(`the title is crowded under the chip: chip bottom ${tag.y + tag.height}, title top ${title.y}`);
   await page.screenshot({ path: `${out}/f1-focus.png` });
+  // Without the inspector there is room beside the toolbar: the chip sits there.
+  await page.keyboard.press('Escape');
+  await wait(400);
+  [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
+  if (Math.abs(bar.y - tag.y) > 2 || tag.x < bar.x + bar.width) fail(`the chip should sit beside the toolbar: ${JSON.stringify([bar, tag])}`);
+  await page.screenshot({ path: `${out}/f1b-focus-wide.png` });
+  await select('api');
 }
 
 // 3. + and − reach further and less far; 0 hops is the element alone.

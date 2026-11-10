@@ -870,10 +870,23 @@ kbd {
   pointer-events: none;
 }
 
-.canvas-tools {
+/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
+.canvas-top {
   position: absolute;
   left: 16px;
+  right: 16px;
   top: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.canvas-top > * {
+  pointer-events: auto;
+}
+.canvas-tools {
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -913,13 +926,11 @@ kbd {
 
 /* Under the tools: what the drawing is cut down to, and the way back. */
 .focus-chip {
-  position: absolute;
-  left: 16px;
-  top: 60px;
   display: flex;
   align-items: center;
   gap: 2px;
-  max-width: calc(100% - 32px);
+  min-width: 0;
+  max-width: 100%;
   padding: 3px 3px 3px 10px;
   background: var(--surface);
   border: 1px solid var(--accent);
