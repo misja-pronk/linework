@@ -38,6 +38,7 @@ export interface Host {
   select(s: Sel): void;
   focus(node: string, view?: string): void;
   zoomToSelection(): void;
+  fit(): void;
   reveal(from: number, to: number): void;
   /** One undo step in the editor: the text and (when given) all the pins. */
   replace(text: string, pins?: LayoutSidecar | null): void;
@@ -87,7 +88,9 @@ export function useWorkspaceTools(h: Host) {
     if (!kind) return;
     h.select({ kind, id: p.node });
     if (p.focus) h.focus(p.node, p.view);
-    requestAnimationFrame(() => requestAnimationFrame(() => hostRef.current.zoomToSelection()));
+    // A focus is the neighbourhood already: it is shown whole. Only selected, the drawing goes to it.
+    const focus = p.focus;
+    requestAnimationFrame(() => requestAnimationFrame(() => (focus ? hostRef.current.fit() : hostRef.current.zoomToSelection())));
   }, [h.drawn, h.file, h.current, arrivals]);
 
   const history = useHistory(here, (p) => void go(p), h.current && !!h.drawn);

@@ -1426,6 +1426,7 @@ export function App() {
     select: (s) => select(s),
     focus: (node, name) => setLens({ doc: docId, view: name, focus: { on: [node], hops: 1, direction: 'both' } }),
     zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    fit: () => previewControl.current?.fit(),
     reveal: (from, to) => editor.current?.reveal(from, to),
     replace: (next, nextPins) => editor.current?.replace(next, { pins: nextPins }),
     refresh: (w) => setWs({ ...w }),
