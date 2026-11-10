@@ -3,7 +3,7 @@ import { unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, t
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
-import { alignPorts } from './align.ts';
+import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
 import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
@@ -78,9 +78,9 @@ interface VariantKey {
 }
 
 function parseKey(key: string | undefined): VariantKey | undefined {
-  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d)(c?)(l?)(?:@(.+))?)?$/.exec(key ?? '');
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d)(c?)(l?)(f?)(t?)(?:@(.+))?)?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
-  const wrapOpts: WrapOptions = { ...(m?.[7] ? { chains: true } : {}), ...(m?.[8] ? { loose: true } : {}), ...(m?.[9] ? { scope: m[9] } : {}) };
+  const wrapOpts: WrapOptions = { ...(m?.[7] ? { chains: true } : {}), ...(m?.[8] ? { loose: true } : {}), ...(m?.[9] ? { flip: true } : {}), ...(m?.[10] ? { transpose: true } : {}), ...(m?.[11] ? { scope: m[11] } : {}) };
   return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0), wrapOpts } : undefined;
 }
 
@@ -241,6 +241,29 @@ export function pageScale(p: Pick<Placed, 'width' | 'height'>, graph: Graph, tar
   return Math.min((720 * target) / width, 720 / height);
 }
 
+/**
+ * The page scale at which the words on a slide are comfortably read (about 8 pt for the small
+ * labels on lines). Below it every doubling counts twice: a drawing whose text is too small to read
+ * gains more from larger text than it loses to a crossing or a line back.
+ */
+export const READABLE_SCALE = 0.95;
+/** How much more each doubling below READABLE_SCALE counts (1: twice). */
+export const SMALL_COST = 1;
+/**
+ * A picture outside the band of slide shapes (1.1:1 to 2.4:1 for 16:9, in proportion for another
+ * target) leaves most of a slide empty and reads as a strip: weighed with small text, each unit of
+ * log ratio past the band costs this much.
+ */
+const SHAPE_COST = 2;
+const BAND: [number, number] = [1.1 / SLIDE, 2.4 / SLIDE];
+
+/** How far (log ratio) a picture's shape lies outside the band of slide shapes; 0 inside it. */
+function outOfBand(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
+  const width = p.width + 80;
+  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
+  const r = width / height / target;
+  return Math.max(0, Math.log(BAND[0] / r), Math.log(r / BAND[1]));
+}
 /** What one crossing costs in readability, in doublings of the page scale: one crossing is worth 19% larger text. */
 export const CROSSING_COST = 0.25;
 /** And one line running back against the flow (the line down to the next row of a wrapped chain). */
@@ -257,10 +280,14 @@ const WRAP_GAIN = 0.15;
  * (log2 of the page scale) less what its crossings, its lines against the flow and its empty room cost. Wrapping
  * trades one for the other: rows make the text larger but may cost a crossing or a line back.
  */
-export function slideReadability(scale: number, crossings: number, backward: number, voids = 0): number {
-  return Math.log2(scale) - CROSSING_COST * crossings - BACKWARD_COST * backward - VOID_COST * voids;
+export function slideReadability(scale: number, crossings: number, backward: number, voids = 0, small = SMALL_COST): number {
+  return Math.log2(scale) - small * Math.max(0, -Math.log2(scale / READABLE_SCALE)) - CROSSING_COST * crossings - BACKWARD_COST * backward - VOID_COST * voids;
 }
 
+/** A wrapped drawing comes out at least this much larger on the page (its text a fifth larger). */
+const LARGER = 1.2;
+/** Or comes out about as large (text at most 3% smaller) and nearer a slide's shape. */
+const AS_LARGE = 0.97;
 /** Up to this many nodes every way of wrapping is tried (inside groups, chains, loose cuts, four parts). */
 const WRAP_ALL = 30;
 /** Further than this from the target shape (log ratio), wrapping into rows or columns is tried. */
@@ -268,6 +295,8 @@ const WRAP_OFF = Math.log(1.3);
 
 type Flaw = 'edgeThroughNode' | 'labelOverlaps' | 'overlaps' | 'headerHits' | 'borderHits' | 'jogs' | 'labelOnBend';
 const FLAWS: Flaw[] = ['edgeThroughNode', 'labelOverlaps', 'overlaps', 'headerHits', 'borderHits', 'jogs', 'labelOnBend'];
+/** Weighed with text too small counting double, steps aside and labels on a bend only cost (readsAs). */
+const HARD_FLAWS: Flaw[] = FLAWS.filter((k) => k !== 'jogs' && k !== 'labelOnBend');
 
 /** Each drawing's metrics, measured once: the wrap search weighs one drawing against many. */
 const measured = new WeakMap<Placed, LayoutMetrics>();
@@ -295,25 +324,47 @@ function faultsOf(c: Choice): number {
   return n;
 }
 
-/** How a drawing reads on the page, flaws or not. */
-function readsAs(c: Choice, target: number): number {
+/**
+ * How a drawing reads on the page, flaws or not. Weighed with text too small counting double
+ * (`small`), steps aside and labels on a bend count as misleading lines too (with it they are no veto).
+ */
+function readsAs(c: Choice, target: number, small = SMALL_COST): number {
   const m = metricsOf(c);
-  return slideReadability(pageScale(c.placed, c.sized.graph, target), m.crossings, m.backward, m.voids) - FAULT_COST * faultsOf(c);
+  const shape = small ? SHAPE_COST * outOfBand(c.placed, c.sized.graph, target) : 0;
+  return slideReadability(pageScale(c.placed, c.sized.graph, target), m.crossings, m.backward, m.voids, small) - FAULT_COST * (faultsOf(c) + (small ? m.jogs + m.labelOnBend : 0)) - shape;
 }
 
 /** How a drawing reads on the page (slideReadability), or undefined when it has a flaw (FLAWS, touching labels) the other is free of. */
-function readability(c: Choice, than: Choice, target: number): number | undefined {
+function readability(c: Choice, than: Choice, target: number, small = SMALL_COST): number | undefined {
   const m = metricsOf(c);
   const m0 = metricsOf(than);
-  if (FLAWS.some((k) => m[k] > m0[k])) return undefined;
+  if ((small ? HARD_FLAWS : FLAWS).some((k) => m[k] > m0[k])) return undefined;
   if (touchingOf(c) > touchingOf(than)) return undefined;
-  return readsAs(c, target);
+  return readsAs(c, target, small);
 }
 
+/**
+ * Whether `a` reads clearly better on the page than `b`: weighed as it is, or, when it comes out
+ * clearly larger (LARGER), with text too small to read weighed double (SMALL_COST). A drawing whose
+ * text is small gives up a crossing or a line back for text a fifth larger; one already readable does not.
+ */
 function readsBetter(a: Choice, b: Choice, target: number): boolean {
-  const ra = readability(a, b, target);
-  return ra != null && ra > readsAs(b, target) + WRAP_GAIN + 1e-9;
+  // Never further outside the band of slide shapes than the drawing it would replace.
+  if (outOfBand(a.placed, a.sized.graph, target) > Math.max(1e-9, outOfBand(b.placed, b.sized.graph, target))) return false;
+  if (beats(readability(a, b, target, 0), readsAs(b, target, 0))) return true;
+  // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
+  const crossed = metricsOf(b).crossings;
+  const tiny = pageScale(b.placed, b.sized.graph, target) < READABLE_SCALE / 2;
+  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0)) return false;
+  // Weighed with small text double, for text too small to read: only for text clearly larger, or for a
+  // slide's shape at text as large.
+  const [sa, sb] = [pageScale(a.placed, a.sized.graph, target), pageScale(b.placed, b.sized.graph, target)];
+  const shaped = outOfBand(a.placed, a.sized.graph, target) < outOfBand(b.placed, b.sized.graph, target) - NEARER && sa >= AS_LARGE * sb;
+  return sb < READABLE_SCALE && (sa >= LARGER * sb || shaped) && beats(readability(a, b, target), readsAs(b, target));
 }
+/** For larger text a drawing may take on this many more crossings (half as many again as it has when its text is tiny), no more: past that it is a tangle, however large. */
+const SMALL_CROSSINGS = 2;
+const beats = (r: number | undefined, than: number) => r != null && r > than + WRAP_GAIN + 1e-9;
 
 /** Lines that run back against the flow whatever their route: the box they go to lies wholly before the one they leave. */
 function surelyBack(graph: Graph, p: Placement): number {
@@ -344,17 +395,30 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   const s = best.sized;
   let found: Choice | undefined;
   const m0 = metricsOf(best);
-  let bar = Math.max(readsAs(best, target), than ? readsAs(than, target) : -Infinity) + WRAP_GAIN;
+  // A cut must read better than the drawing and the other one (readsBetter); of those that do, the one
+  // that reads best with text too small weighed double wins. One whose boxes alone cannot come out above
+  // the bar (either way of weighing) is not routed.
+  const beat = than ? [best, than] : [best];
+  // Each way of weighing has its own bar (readsBetter): a cut is routed when its boxes could clear either.
+  const bars = (k: number) => Math.max(...beat.map((b) => readsAs(b, target, k))) + WRAP_GAIN;
+  const [plainBar, smallBar] = [bars(0), bars(SMALL_COST)];
+  const could = (c: { bound: number; reach: number }) => c.bound > plainBar - 1e-9 || c.reach > smallBar - 1e-9;
   // A bigger diagram tries the plain cuts only.
   const small = s.graph.nodes.length <= WRAP_ALL;
   const scopes: (string | undefined)[] = [undefined, ...(small ? wrapScopes(best.p, s.graph) : [])];
-  const modes = small ? [[false, false], [true, false], [true, true]] : [[false, false]];
-  const cuts: { q: Placement; parts: number; opts: WrapOptions; bound: number; i: number }[] = [];
+  const modes = small ? [[false, false, false], [true, false, false], [true, true, false], [false, false, true], [true, true, true]] : [[false, false, false]];
+  // A drawing too long along its flow is cut along it (rows of a left-to-right drawing); one too
+  // thick across it (stacked domains), across it (wrap.ts transpose).
+  const along = best.sized.graph.direction === 'down' ? best.placed.height / best.placed.width : best.placed.width / best.placed.height;
+  const transpose = along < (best.sized.graph.direction === 'down' ? 1 / target : target);
+  const cuts: { q: Placement; parts: number; opts: WrapOptions; bound: number; reach: number; i: number }[] = [];
   const seen = new Set<string>();
   for (const scope of scopes)
-    for (const [chains, loose] of modes)
+    for (const [chains, loose, flip] of modes)
       for (const parts of small ? [2, 3, 4] : [2, 3]) {
-        const opts: WrapOptions = { scope, chains, loose };
+        // Rows turned over only at the top: inside a group they would stand against the order written.
+        if (flip && scope) continue;
+        const opts: WrapOptions = { scope, chains, loose, ...(flip ? { flip } : {}), ...(transpose ? { transpose } : {}) };
         const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
         if (!q) continue;
         const sig = boxesKey(q);
@@ -362,20 +426,26 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
         seen.add(sig);
         // Boxes on each other are a flaw no routing mends.
         if (boxOverlaps(s.graph, q).length > m0.overlaps) continue;
-        cuts.push({ q, parts, opts, bound: Math.log2(pageScale(q, s.graph, target)) - BACKWARD_COST * surelyBack(s.graph, q) - VOID_COST * voidShare(q), i: cuts.length });
+        const sq = pageScale(q, s.graph, target);
+        const [plain, smallText] = [0, SMALL_COST].map((k) => slideReadability(sq, 0, surelyBack(s.graph, q), voidShare(q), k)) as [number, number];
+        // Weighed with small text double only where readsBetter would (text too small, and clearly larger or nearer a slide's shape).
+        const weighed = beat.some((b) => {
+          const sb = pageScale(b.placed, s.graph, target);
+          return sb < READABLE_SCALE && (sq >= LARGER * sb || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
+        });
+        cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, i: cuts.length });
       }
   // The most promising first, so the bar rises early and the rest need not be routed; on a tie the
   // one tried first in the order above wins, as it always did.
   cuts.sort((a, b) => b.bound - a.bound || a.i - b.i);
-  let at = Infinity;
   let routed = 0;
   for (const c of cuts) {
-    if (c.bound < bar - 1e-9 || routed >= WRAP_ROUTED) break;
+    if (routed >= WRAP_ROUTED) break;
+    if (!could(c) || (found && Math.max(c.bound, c.reach) < readsAs(found, target) - 1e-9)) continue;
     routed++;
     const choice = rewrapped(best, spacing, c.q, c.parts, c.opts);
-    const r = readability(choice, best, target);
-    if (r == null) continue;
-    if (r > bar + 1e-9 || (found && Math.abs(r - bar) <= 1e-9 && c.i < at)) [found, bar, at] = [choice, r, c.i];
+    const ok = beat.every((b) => readsBetter(choice, b, target));
+    if (ok && (!found || readsAs(choice, target) > readsAs(found, target) + 1e-9)) found = choice;
   }
   return found;
 }
@@ -388,11 +458,13 @@ function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions
 }
 
 /** A wrapped placement (wrap.ts) routed, its key saying how it was cut. */
-function rewrapped(best: Choice, spacing: Spacing, q: Placement, parts: number, opts: WrapOptions): Choice {
+function rewrapped(best: Choice, spacing: Spacing, wrappedQ: Placement, parts: number, opts: WrapOptions): Choice {
   const s = best.sized;
+  // What stood outside everything, joined to one card, follows that card to its row.
+  const q = alignLoners(wrappedQ, s.graph, spacing.layerGap);
   const placed = normalise({ ...q, edges: route(s, q) });
   const sc = score(metricsOf({ placed, sized: s }));
-  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
 }
 
 /** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */
@@ -521,7 +593,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
     const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     const opened = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
-    const start = tuning.tidy === false ? opened : evenGroups(opened, graph, spacing.groupPad);
+    const start = tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap);
     // A label that cannot sit clear of a group border gets room: space is opened just before that
     // border and the lines are drawn again.
     type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };

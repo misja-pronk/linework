@@ -42,6 +42,6 @@ Areas and capabilities
   - Security (no value, systems: no system)
 
 Key
-- Shade 1 of 2 (lightest): Systems: 1
-- Shade 2 of 2 (strongest): 2
-- Chip block: No value
+- Shade 1 of 2 (lightest): 1 system
+- Shade 2 of 2 (strongest): 2 systems
+- Chip block: none

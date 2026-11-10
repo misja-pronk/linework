@@ -51,8 +51,9 @@ describe('brand themes in diagrams', () => {
 
   it('measures with the brand font width, so wider fonts get wider cards', async () => {
     const text = fs.readFileSync(path.join(acmeDir, 'platform.yaml'), 'utf8');
-    const narrow = await render(text, { ...acme, fonts: 'none', fontScale: () => 1 });
-    const wide = await render(text, { ...acme, fonts: 'none', fontScale: () => 1.25 });
+    // Not wrapped for a slide: the wider drawing may otherwise be cut into rows and come out narrower.
+    const narrow = await render(text, { ...acme, fonts: 'none', fontScale: () => 1, tuning: { wrap: false } });
+    const wide = await render(text, { ...acme, fonts: 'none', fontScale: () => 1.25, tuning: { wrap: false } });
     expect(wide.width!).toBeGreaterThan(narrow.width!);
   });
 });

@@ -20,11 +20,11 @@ const crossingBudget: Record<string, number> = {
   'class/strategy.yaml': 0,
   'mindmap/capability-brainstorm.yaml': 0,
   'mindmap/workshop-agenda.yaml': 0,
-  'access/engineering.yaml': 0,
+  'access/engineering.yaml': 2, // wrapped into columns for a slide (0.71:1 at 4 pt -> 1.73:1 at 5.1 pt): the grants to production pass the package lines
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
-  'azure/data-platform.yaml': 0,
+  'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
   'azure/web-shop.yaml': 0,
@@ -38,7 +38,7 @@ const crossingBudget: Record<string, number> = {
   'c4/kestrel-bank.yaml#components': 1,
   'c4/kestrel-bank.yaml#payment': 0,
   'c4/kestrel-bank.yaml#production': 0,
-  'cloud/aws-data-lake.yaml': 0,
+  'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 2.32:1 at 4.8 pt): the stream's line down to the raw zone passes the change data capture's
   'cloud/aws-landing-zone.yaml': 0,
   'cloud/aws-three-tier.yaml': 0,
   'cloud/gcp-data-platform.yaml': 0,
@@ -69,7 +69,7 @@ const crossingBudget: Record<string, number> = {
   'model/model.yaml': 0,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
-  'workspace/containers.yaml#payments': 0,
+  'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
   'workspace/containers.yaml#api': 1, // the payments call leaves the API past the accounts controller's line to the ledger
   'workspace/context.yaml': 0,
   'workspace/data-products.yaml': 0,
@@ -103,13 +103,13 @@ const crossingBudget: Record<string, number> = {
   'sequence/checkout.yaml': 0,
   'sequence/oauth-login.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
-  'states/device-connection.yaml': 0,
-  'states/document-approval.yaml': 0,
-  'states/order-lifecycle.yaml': 0,
+  'states/device-connection.yaml': 1, // wrapped into two rows for a slide (2.94:1 at 6.6 pt -> 1.70:1 at 8.4 pt)
+  'states/document-approval.yaml': 2, // wrapped into rows for a slide (3.89:1 at 6.7 pt -> 1.23:1 at 8.5 pt): the review's lines back pass Draft's
+  'states/order-lifecycle.yaml': 1, // wrapped into three rows for a slide (text 5.4 → 8.2 pt): the line on to Shipped passes Cancelled's line to the end
   'states/pull-request.yaml': 0,
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 1, // Orders' confirmation line passes its own OrderPlaced line
-  'systems/saas-platform.yaml': 0,
+  'systems/saas-platform.yaml': 1, // wrapped into two columns for a slide (text 3.5 → 4.5 pt): the two ways in pass each other above the edge zone
   'systems/threat-model.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
@@ -138,6 +138,7 @@ const jogBudget: Record<string, number> = {
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
+  'access/engineering.yaml': 2, // wrapped for a slide: the package lines into the security group step aside
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   // A mind map's branches leave the centre on curves, drawn as short pieces that each read as a step: no kinks a reader sees.
@@ -145,9 +146,10 @@ const jogBudget: Record<string, number> = {
   'mindmap/workshop-agenda.yaml': 72,
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
   'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
-  'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
+  'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
   'states/pull-request.yaml': 3, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
+  'systems/saas-platform.yaml': 1, // wrapped for a slide: the host dashboard's way in steps aside past the guest app's
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -177,6 +179,7 @@ const orderBudget: Record<string, number> = {
 // Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
 const joinBudget: Record<string, number> = {
   'erd/saas.yaml': 3, // a nullable key comes into users.id beside the required ones: ends are fixed on their row
+  'states/document-approval.yaml': 1, // wrapped for a slide: the review's line back runs on in the line out of Draft
 };
 
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
@@ -200,9 +203,9 @@ const returns: Record<string, number> = {
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
   'process/release-with-gate.yaml': 1,
-  'states/device-connection.yaml': 5,
-  'states/document-approval.yaml': 1,
-  'states/order-lifecycle.yaml': 1,
+  'states/device-connection.yaml': 6, // and one more: wrapped into two rows for a slide
+  'states/document-approval.yaml': 2, // and one more: wrapped into rows for a slide
+  'states/order-lifecycle.yaml': 3, // wrapped into three rows for a slide: the lines on to the next row run back
   'states/pull-request.yaml': 4,
   'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
@@ -216,6 +219,13 @@ const returns: Record<string, number> = {
   'systems/threat-model.yaml': 2,
   'c4/kestrel-bank.yaml#payment': 2,
   'deployment/model.yaml#containers': 2,
+  'systems/saas-platform.yaml': 2,
+  'access/engineering.yaml': 3,
+  'data-products/customer.yaml': 3,
+  'c4/kestrel-bank.yaml#containers': 3,
+  'cloud/aws-data-lake.yaml': 1,
+  'workspace/containers.yaml#payments': 3,
+  'azure/data-platform.yaml': 2, // wrapped into two rows for a slide (3.95:1 at 4.4 pt -> 1.67:1 at 5.2 pt): the lines down to the lake and the serving group run back
 };
 
 describe('layout quality', () => {
@@ -302,7 +312,8 @@ describe('layout quality', () => {
     expect(new Set(['users', 'edge', 'web'].map(middle)).size).toBe(1);
   });
   it('starts the cards of one row on one line, top-down', async () => {
-    const r = await render(c4, { fonts: 'none', view: 'containers' });
+    // As placed, not wrapped for a slide: wrapped, each column moves on its own grid.
+    const r = await render(c4, { fonts: 'none', view: 'containers', tuning: { wrap: false } });
     expect(r.placed!.memory!.variant).toMatch(/^down\//);
     const tops = new Map<number, Set<number>>();
     for (const [id, b] of r.placed!.nodes) {
@@ -526,7 +537,8 @@ describe('group titles', () => {
     expect(crosses(out.get('e')!.points)).toBe(false);
   });
   it('take the lane under them: a fan-out into the next row comes in from the top', async () => {
-    const r = await render(fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8'), { fonts: 'none' });
+    // Drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
+    const r = await render(fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { wrap: false } });
     for (const id of ['lb', 'events']) {
       const lines = r.graph!.edges.filter((e) => e.from.node === id);
       for (const e of lines) {
