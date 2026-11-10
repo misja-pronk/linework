@@ -123,6 +123,7 @@ const jogBudget: Record<string, number> = {
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
   'workspace/data-products.yaml': 2,
+  'systems/invoice-walkthrough.yaml': 1, // three lines out of Orders' side: confirmation steps a lane down past the SQL line
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
@@ -140,9 +141,9 @@ const jogBudget: Record<string, number> = {
   'mindmap/capability-brainstorm.yaml': 86,
   'mindmap/workshop-agenda.yaml': 72,
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
-  'states/device-connection.yaml': 1, // returns to Idle share its side
+  'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
   'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
-  'states/pull-request.yaml': 2, // the returns into In review and Closed
+  'states/pull-request.yaml': 3, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
 };
 
@@ -182,7 +183,7 @@ const touchBudget: Record<string, number> = {
   'kubernetes/inference.yaml': 1,
   'states/device-connection.yaml': 1,
   'states/pull-request.yaml': 2, // closed without merging, between the line out and the line back
-  'systems/invoice-walkthrough.yaml': 2,
+  'systems/invoice-walkthrough.yaml': 1,
   'systems/web-shop.yaml': 1,
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
@@ -205,6 +206,7 @@ const returns: Record<string, number> = {
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
   'deployment/azure.yaml#prod': 1,
+  'deployment/aws.yaml#prod': 1, // wrapped the way the first environment is
   'model/containers.yaml': 2,
   'network/campus.yaml': 2,
   'systems/threat-model.yaml': 2,
@@ -252,7 +254,8 @@ describe('layout quality', () => {
   });
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
-    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev' });
+    // Drawn on its own (not the way the first environment was), as it would be without the others.
+    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev', previous: null });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });

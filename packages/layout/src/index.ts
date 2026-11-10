@@ -159,8 +159,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       else if (!was && target != null && readsBetter(alt, best, target)) best = alt;
       // A shape is no reason to keep a drawing with labels on cards or lines through them that the other is free of.
       else if (errors(best) > errors(alt) && alt.cost < best.cost) best = alt;
-      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins.
-      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
+      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins;
+      // nor, on a first drawing of a few cards (too few to wrap), a worse shape that comes out clearly smaller on the page.
+      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
     if (!was && tuning.wrap !== false && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > WRAP_OFF) {
@@ -208,6 +209,8 @@ function shapeOf(graph: Graph, open: boolean, target: number | undefined): strin
   return (h >>> 0).toString(36);
 }
 
+/** A drawing of this many cards or fewer fits a page side by side: it is not a long chain to turn. */
+const FEW = 5;
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
 /** The shape a drawing aims for unless the source says otherwise: a slide. */

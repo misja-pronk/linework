@@ -160,7 +160,7 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     (1 - m.aligned) * 12 +
     m.tightPairs * 6 +
     m.uneven * 4 +
-    m.labelTouching * 12 +
+    m.labelTouching * 8 +
     m.labelStruck * 0 +
     m.borderHits * 25 +
     m.headerHits * 10 +

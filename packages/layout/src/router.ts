@@ -327,10 +327,18 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     }
   const grid = buildGrid(input, points);
   const across = input.direction === 'right' ? ['N', 'S'] : ['E', 'W'];
+  // Per node side, how many lines chosen so far come in there (ins) and go out there (outs).
+  const ins = new Map<string, number>();
+  const outs = new Map<string, number>();
+  const add = (e: RouteRequest, [f, t]: [Side, Side]) => {
+    ins.set(`${e.to.node}:${t}`, (ins.get(`${e.to.node}:${t}`) ?? 0) + 1);
+    outs.set(`${e.from.node}:${f}`, (outs.get(`${e.from.node}:${f}`) ?? 0) + 1);
+  };
   for (const e of input.edges) {
     const list = options.get(e.id)!;
     if (list.length === 1 || e.from.node === e.to.node) {
       out.set(e.id, list[0]!);
+      add(e, list[0]!);
       continue;
     }
     let best = list[0]!;
@@ -345,8 +353,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     const crosswise = !later && (input.direction === 'right' ? Math.abs(cb.y - ca.y) > 2 * Math.abs(cb.x - ca.x) : Math.abs(cb.x - ca.x) > 2 * Math.abs(cb.y - ca.y));
     // A line out of the side another line comes in at (or into the side another leaves from) starts
     // right beside that one's end: the two read as one line running on through the card.
-    const meets = (pair: [Side, Side]) =>
-      input.edges.filter((o) => out.has(o.id) && ((o.to.node === e.from.node && out.get(o.id)![1] === pair[0]) || (o.from.node === e.to.node && out.get(o.id)![0] === pair[1]))).length;
+    const meets = (pair: [Side, Side]) => (ins.get(`${e.from.node}:${pair[0]}`) ?? 0) + (outs.get(`${e.to.node}:${pair[1]}`) ?? 0);
     for (const pair of list) {
       const sideways = meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
       // Only a way cheaper than the best so far is worth finding.
@@ -356,6 +363,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
       if (cost < bestCost) [best, bestCost] = [pair, cost];
     }
     out.set(e.id, best);
+    add(e, best);
   }
   return out;
 }
@@ -1133,19 +1141,24 @@ export function simplify(pts: Point[]): Point[] {
 function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): number {
   let bad = 0;
   const taken: Box[] = [...input.obstacles.values()].map((b) => ({ x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8 }));
-  taken.push(...input.soft, ...(input.labelZones ?? []));
+  // Group borders and headers: a label there is moved off by opening room (layout's labelOnBorder),
+  // so where nothing is clear it may go there rather than over two other lines.
+  const zones: Box[] = [...input.soft, ...(input.labelZones ?? [])];
   // Every line, tagged with its edge: a label may sit on its own line but not on another.
   const lines: { edge: string; box: Box }[] = [];
   // With a little air: a label right beside another line seems to belong to that one.
   for (const [id, r] of routes) for (let i = 1; i < r.points.length; i++) lines.push({ edge: id, box: grow(segmentBox(r.points[i - 1]!, r.points[i]!), LABEL_AIR) });
   const overlap = (r: Box, t: Box) => r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height;
   let own = new Set<string>();
-  // How much a spot covers: nothing (0), or a box, header or label (each counts 25) and other lines (each 1),
+  // How much a spot covers: nothing (0), or a box or label (each counts 25), a group border or header (1.5) and other lines (each 1),
   // so where no spot is clear the label goes where it covers least.
   const hits = (r: Box) => {
     let n = 0;
     for (const t of taken) if (overlap(r, t)) n += 25;
-    for (const id of new Set(lines.filter((l) => !own.has(l.edge) && overlap(r, l.box)).map((l) => l.edge))) n += 1;
+    if (zones.some((t) => overlap(r, t))) n += 1.5;
+    let crossed: Set<string> | undefined;
+    for (const l of lines) if (!own.has(l.edge) && overlap(r, l.box)) (crossed ??= new Set()).add(l.edge);
+    n += crossed?.size ?? 0;
     return n ? 1000 + 40 * n : 0;
   };
   for (const e of input.edges) {
@@ -1169,7 +1182,7 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
       const half = e.label![size] / 2;
       const [c0, c1] = [a[across] - e.label![thick] / 2, a[across] + e.label![thick] / 2];
       const [lo, hi] = [Math.min(a[along], b[along]) + half + 8, Math.max(a[along], b[along]) - half - 8];
-      const shut = [...taken, ...lines.filter((l) => !own.has(l.edge)).map((l) => l.box)]
+      const shut = [...taken, ...zones, ...lines.filter((l) => !own.has(l.edge)).map((l) => l.box)]
         .filter((t) => t[across] < c1 && t[across] + t[thick] > c0)
         .map((t) => [t[along] - half, t[along] + t[size] + half] as const)
         .sort((p, q) => p[0] - q[0]);

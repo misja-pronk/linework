@@ -303,8 +303,31 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
+  // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
+  // before it, nothing pinned) that shows mostly what the first view shows is drawn the way that one
+  // was (direction, columns, rows), as if it were the drawing before it.
+  const firstView = model?.views.size ? [...model.views.keys()][0] : ownViews?.length ? ownViews[0]!.name : undefined;
+  const thisView = model?.view?.name ?? ownView ?? (model ? undefined : firstView);
+  const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
+  let seed: LayoutMemory | undefined;
+  // A table (an access matrix) is not laid out: nothing to share.
+  const table = (name: string | undefined) => !!ownViews?.find((v) => v.name === name)?.table;
+  if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
+    if (!seeds.has(seedKey)) {
+      const first = await render(text, { ...opts, view: firstView, fonts: 'none', step: undefined, focus: undefined });
+      seeds.set(seedKey, { variant: first.placed?.memory?.variant, nodes: new Set(first.graph?.nodes.map((n) => n.id)) });
+    }
+    const s = seeds.get(seedKey)!;
+    const shared = graph.nodes.filter((n) => s.nodes.has(n.id)).length;
+    if (s.variant && shared >= SAME_VIEW * Math.max(graph.nodes.length, s.nodes.size)) seed = { variant: s.variant };
+  }
+  const previous = opts.previous !== undefined ? opts.previous : seed;
   // A type that places things itself gets the drawing before this one as well, to keep what it can.
-  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus) {
+    if (seeds.size > 64) seeds.clear();
+    seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });
+  }
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Two things pinned on top of each other: the newer one was moved clear, and that is said.
@@ -344,6 +367,18 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
     ...(focusOwn != null ? { focusWritten: true } : {}),
   };
+}
+
+/** The way each model's first view was drawn (LayoutMemory.variant), by source: the other views start from it. */
+const seeds = new Map<string, { variant?: string; nodes: Set<string> }>();
+/** A view that shares this share of its cards with the first view (of the two, the larger) is drawn its way. */
+const SAME_VIEW = 0.6;
+
+/** FNV-1a over a source text, 32 bits. */
+function hashText(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36) + text.length;
 }
 
 /** A 16:9 slide, 13.33 by 7.5 inches, in CSS pixels (96 to the inch). */
