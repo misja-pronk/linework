@@ -37,12 +37,8 @@ export function drawStage(at: StageAt, plan: StagePlan, union: Graph, placed: Pl
 }
 
 /** The timeline under the drawing: every stage, the one drawn marked, and what it says. */
-export function stageStrip(plan: StagePlan, at: StageAt, span?: [number, number]): StageStrip {
+export function stageStrip(plan: StagePlan, at: StageAt): StageStrip {
   const stops = plan.stages.map((s, k) => ({ title: s.title, ...(s.when ? { when: s.when } : {}), ...(k && stageNote(s) ? { note: stageNote(s) } : {}), ...(s.description ? { description: s.description } : {}) }));
-  if (span) {
-    const [a, b] = [plan.stages[span[0]]!, plan.stages[span[1]]!];
-    return { stops, span, heading: `From ${a.title} to ${b.title}`, caption: 'What changes: + added, ~ changed, − removed, and what replaces what.' };
-  }
   if (typeof at !== 'number') {
     const first = plan.stages[0]!.title;
     const last = plan.stages.at(-1)!.title;

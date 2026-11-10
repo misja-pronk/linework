@@ -16,11 +16,9 @@ export interface StageStrip {
   stops: StageStop[];
   /** The stage drawn, from 0; undefined is the overview of all of them. */
   at?: number;
-  /** Heading and sentence of the overview (or of a transition), instead of the stage's own. */
+  /** Heading and sentence of the overview, instead of the stage's own. */
   heading?: string;
   caption?: string;
-  /** A transition between two stages: both stops are marked, and the stretch between them. */
-  span?: [number, number];
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -48,14 +46,10 @@ export function stageBlock(strip: StageStrip, theme: Theme, width: number) {
     const cx = (i: number) => x + step * (i + 0.5);
     const cy = y + CAPTION.gap + 8;
     const ink = theme.text;
-    const lo = strip.span?.[0] ?? strip.at;
-    const hi = strip.span?.[1] ?? strip.at;
     let out = `<g data-stages="">`;
     out += `<line x1="${r1(cx(0))}" x2="${r1(cx(n - 1))}" y1="${r1(cy)}" y2="${r1(cy)}" stroke="${theme.border}" stroke-width="2"/>`;
-    // The stretch a transition covers, heavier: it reads without colour.
-    if (lo != null && hi != null && hi > lo) out += `<line x1="${r1(cx(lo))}" x2="${r1(cx(hi))}" y1="${r1(cy)}" y2="${r1(cy)}" stroke="${ink}" stroke-width="3.5"/>`;
     for (const [i, s] of strip.stops.entries()) {
-      const on = i === strip.at || (strip.span != null && (i === strip.span[0] || i === strip.span[1]));
+      const on = i === strip.at;
       const past = strip.at != null && i < strip.at;
       out += on
         ? `<circle cx="${r1(cx(i))}" cy="${r1(cy)}" r="${LINE.dot + 1.5}" fill="${ink}" stroke="${theme.canvas}" stroke-width="2"/>`
