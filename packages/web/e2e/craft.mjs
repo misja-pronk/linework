@@ -60,7 +60,9 @@ await page.screenshot({ path: `${out}/c0-start.png` });
   await drag(centre(b), target, 10, { shot: 'c1-guides.png' });
   const guides = await page.evaluate(() => document.querySelectorAll('.guides line').length);
   const b1 = await rect('b');
-  if (Math.abs(b1.y - a.y) > 0.6) fail(`snap: b top ${b1.y} not level with d top ${a.y}`);
+  // Level with d as it stands now: a fitted view may fit again once the drawing has grown.
+  const a1 = await rect('d');
+  if (Math.abs(b1.y - a1.y) > 0.6) fail(`snap: b top ${b1.y} not level with d top ${a1.y}`);
   if (!Object.keys((await pins()).nodes ?? {}).includes('b')) fail('snap: drag did not pin b');
   // Guides showed during the drag (screenshot) and are gone afterwards.
   if (guides) fail('guides stayed after the drag');

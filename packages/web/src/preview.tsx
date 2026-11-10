@@ -374,12 +374,20 @@ export function Preview(p: Props) {
     if (!f || !result?.width || !result.height) return false;
     return view.x >= -1 && view.y >= -1 && view.x + result.width * view.scale <= f.clientWidth + 1 && view.y + result.height * view.scale <= f.clientHeight - BAR / 2 + 1;
   };
+  /** How far (px) the drawing runs past the pane's edges, at the most. */
+  const outOfView = () => {
+    const f = frame.current;
+    if (!f || !result?.width || !result.height) return 0;
+    return Math.max(0, -view.x, -view.y, view.x + result.width * view.scale - f.clientWidth, view.y + result.height * view.scale - (f.clientHeight - BAR / 2));
+  };
   const refit = useRef<{ always: boolean; was: boolean } | null>(null);
   useEffect(() => {
     const r = refit.current;
     if (!r || !result?.svg) return;
     refit.current = null;
-    if (r.always || (r.was && !wholly())) requestAnimationFrame(() => fit(true));
+    // A drag that took a real part of it out of sight (not a few pixels past the edge: that would
+    // make the drawing jump under a careful placement).
+    if (r.always || (r.was && outOfView() > 48)) requestAnimationFrame(() => fit(true));
   }, [result]);
   useImperativeHandle(p.control, () => ({
     fit,
