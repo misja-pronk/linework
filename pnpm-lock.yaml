@@ -547,6 +547,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
@@ -562,6 +565,9 @@ importers:
       '@cartography/interop':
         specifier: workspace:*
         version: link:../interop
+      '@cartography/layout':
+        specifier: workspace:*
+        version: link:../layout
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme

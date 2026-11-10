@@ -8,6 +8,7 @@ const groups: [string, [string, string][]][] = [
     'Anywhere',
     [
       ['⌘K', 'Commands, elements, templates'],
+      ['⌘J', 'Ask Claude: a change or a question (⏎ accepts a change, Esc rejects it)'],
       ['⌘S', 'Save'],
       ['⌘O', 'Open a file'],
       ['⌘E / ⇧⌘E', 'Export SVG / PNG'],
