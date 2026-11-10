@@ -549,6 +549,8 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   return s;
 }
 
+const COUNTED = new Set<Marker>(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
+
 /**
  * A dot where a shared trunk splits: lines drawn alike that start (or end) at the same point and
  * run on top of each other, then part. Without it a branch looks like a line that just bends.
@@ -561,6 +563,8 @@ function junctions(graph: Graph, placed: Placed, theme: Theme): string {
       if (a.line !== b.line || a.tone !== b.tone) continue;
       const pa = placed.edges.get(a.id)!.points;
       const pb = placed.edges.get(b.id)!.points;
+      // Lines into one key row of a table come in as one with no dot: a ring there would read as one more end mark.
+      if (a.to.node === b.to.node && a.to.row && COUNTED.has(a.end)) continue;
       const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;
       if (at) dots.set(`${r1(at.x)},${r1(at.y)}`, junctionMark(at, edgeColor(a, theme), theme));
     }

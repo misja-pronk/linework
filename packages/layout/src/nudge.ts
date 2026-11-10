@@ -40,6 +40,8 @@ const WIDEST = 24;
 const BUNDLE = 30;
 /** Clearance from boxes: the router's margin. */
 const MARGIN = 14;
+/** Two lines on one track with less than this between their ends read as one line. */
+const GAP_END = 2 * IDEAL;
 /** Keep line ends this far from a node's corners. */
 const CORNER = 10;
 
@@ -164,10 +166,15 @@ function pass(input: NudgeInput, routes: Point[][], vertical: boolean) {
       const p = us[i]!;
       const q = us[j]!;
       const overlap = Math.min(p.hi, q.hi) - Math.max(p.lo, q.lo);
-      if (overlap < -0.5) continue;
+      if (overlap < -GAP_END) continue;
       if (Math.max(p.min, q.min) > Math.min(p.max, q.max) && q.at - p.at > IDEAL) continue;
-      cons.push([i, j, overlap > 1 ? IDEAL : 0]);
-      if (overlap > 1 && q.at - p.at < BUNDLE) near[i]!.push(j), near[j]!.push(i);
+      // Two lines that meet end to end on one track read as one line between their far ends: they
+      // keep apart like lines side by side. Lines of one trunk may meet; that is what a trunk is.
+      const t = input.edges[p.segs[0]![0]]!.trunk;
+      const meet = overlap <= 1 && Math.abs(q.at - p.at) < 0.5 && !(t && t === input.edges[q.segs[0]![0]]!.trunk) && !sharedEnd(routes[p.segs[0]![0]]!, routes[q.segs[0]![0]]!);
+      if (overlap < -0.5 && !meet) continue;
+      cons.push([i, j, overlap > 1 || meet ? IDEAL : 0]);
+      if ((overlap > 1 || meet) && q.at - p.at < BUNDLE) near[i]!.push(j), near[j]!.push(i);
     }
 
   // Desired positions: lone pieces stay; bundles spread evenly around where they are.
@@ -220,6 +227,12 @@ function pass(input: NudgeInput, routes: Point[][], vertical: boolean) {
       pts[k + 1]![A] = v;
     }
   }
+}
+
+/** Two lines from (or into) one spot: they meet there anyway. */
+function sharedEnd(a: Point[], b: Point[]): boolean {
+  const same = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
+  return same(a[0]!, b[0]!) || same(a[a.length - 1]!, b[b.length - 1]!);
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));

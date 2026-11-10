@@ -138,7 +138,7 @@ export interface RenderResult {
 }
 
 /** Keys that are not something drawn, to tell a diagram that only has views. */
-const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges']);
+const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspect']);
 /** Model keys checked for types whose schema does not list them (ERD, access, …). */
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
@@ -164,7 +164,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Types that do not list the model keys are checked without them, and the keys on their own. A key
   // such a type defines itself (an ERD's relations) stays the type's.
   // Theme and icons are about the look, shared by every type: they never reach the type's schema.
-  const { theme: themeRef, icons: iconsRef, ...rest } = data;
+  // So is the shape the drawing aims for (aspect: 16:9, 4:3, 1.5 or auto).
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, ...rest } = data;
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
   // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
   const stepsRef = 'steps' in props ? undefined : rest.steps;
@@ -261,8 +262,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
+  const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // A type that places things itself gets the drawing before this one as well, to keep what it can.
-  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout))) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout))) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
@@ -297,6 +299,17 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
     ...(focusOwn != null ? { focusWritten: true } : {}),
   };
+}
+
+/** `aspect:` as written: "16:9", "4:3", a number (width / height) or "auto". */
+export function readAspect(v: unknown, warn: (message: string) => void): number | 'auto' | undefined {
+  if (v == null) return undefined;
+  if (v === 'auto') return 'auto';
+  const m = typeof v === 'string' ? /^\s*(\d+(?:\.\d+)?)\s*[:/x]\s*(\d+(?:\.\d+)?)\s*$/.exec(v) : undefined;
+  const n = typeof v === 'number' ? v : m ? Number(m[1]) / Number(m[2]) : NaN;
+  if (Number.isFinite(n) && n >= 0.2 && n <= 5) return n;
+  warn('aspect is the shape to aim for: 16:9, 4:3, a number such as 1.5 (width / height), or auto');
+  return undefined;
 }
 
 function named(t: string | Theme | undefined): Theme | undefined {

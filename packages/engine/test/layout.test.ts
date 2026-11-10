@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, measure, routeEdges, throughVia } from '@cartography/layout';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, throughVia, type RouteRequest } from '@cartography/layout';
 import { render } from '../src/index.ts';
 import { big, timed } from './perf.ts';
 
@@ -21,15 +21,15 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
   'azure/data-platform.yaml': 0,
-  'azure/hub-spoke.yaml': 1,
-  'azure/microservices.yaml': 7,
+  'azure/hub-spoke.yaml': 0,
+  'azure/microservices.yaml': 4,
   'azure/web-shop.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
   'c4/kestrel-bank.yaml#context': 0,
   'c4/kestrel-bank.yaml#containers': 0,
-  'c4/kestrel-bank.yaml#components': 2,
+  'c4/kestrel-bank.yaml#components': 1,
   'c4/kestrel-bank.yaml#payment': 0,
   'c4/kestrel-bank.yaml#production': 0,
   'cloud/aws-data-lake.yaml': 0,
@@ -43,8 +43,8 @@ const crossingBudget: Record<string, number> = {
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
   'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
-  'deployment/aws.yaml': 1,
-  'deployment/aws.yaml#prod': 1,
+  'deployment/aws.yaml': 2, // the OrderPlaced lines into the queue each run on their own: lines with a label never share a trunk
+  'deployment/aws.yaml#prod': 2, // the same
   'deployment/aws.yaml#test': 0,
   'deployment/aws.yaml#dev': 0,
   'deployment/azure.yaml': 0,
@@ -55,7 +55,7 @@ const crossingBudget: Record<string, number> = {
   'deployment/model.yaml#context': 0,
   'deployment/model.yaml#containers': 0,
   'erd/orders.yaml': 0,
-  'erd/saas.yaml': 6,
+  'erd/saas.yaml': 2,
   'erd/shop-schemas.yaml': 0,
   'model/containers.yaml': 0,
   'model/context.yaml': 0,
@@ -89,39 +89,38 @@ const crossingBudget: Record<string, number> = {
   'sequence/checkout.yaml': 0,
   'sequence/oauth-login.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
-  'states/device-connection.yaml': 2,
+  'states/device-connection.yaml': 0,
   'states/document-approval.yaml': 0,
   'states/order-lifecycle.yaml': 0,
-  'states/pull-request.yaml': 1, // review [needs work] passes the shared line back from Approved and Changes requested: one label for both
+  'states/pull-request.yaml': 0,
   'systems/data-pipeline.yaml': 0,
-  'systems/invoice-walkthrough.yaml': 2, // Orders' confirmation line passes its own OrderPlaced line: the lower drawing with one crossing scores a hair worse
-  'systems/saas-platform.yaml': 2,
+  'systems/invoice-walkthrough.yaml': 1, // Orders' confirmation line passes its own OrderPlaced line
+  'systems/saas-platform.yaml': 0,
   'systems/threat-model.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
-const headerBudget: Record<string, number> = {
-  'cloud/aws-landing-zone.yaml': 1,
-  'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way // the dev VPC's line steps aside beside Infrastructure's title: the transit gateway has no spot in line clear of it
-  'states/device-connection.yaml': 1, // link lost leaves Connected through its bottom border, under the header of nothing but its own
-};
+const headerBudget: Record<string, number> = {};
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
-  'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way // the same step aside as over the header
-  'data-products/customer-detailed.yaml': 1, // the same
+  'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
+  'c4/kestrel-bank.yaml#components': 2, // two labelled lines into one side each keep their own path now, and one end steps aside
+  'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
+  'data-products/customer-detailed.yaml': 1, // the same as customer.yaml
   'data-products/customer-focus.yaml': 2, // the same, twice
+  'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
-  'erd/saas.yaml': 5, // ends are fixed on their rows
+  'erd/saas.yaml': 4, // ends are fixed on their rows
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
   'states/device-connection.yaml': 1, // returns to Idle share its side
   'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
-  'states/pull-request.yaml': 3, // the returns into In review and Closed
+  'states/pull-request.yaml': 2, // the returns into In review and Closed
   'systems/data-pipeline.yaml': 1, // two lines into one side
 };
 
@@ -129,7 +128,8 @@ const jogBudget: Record<string, number> = {
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
   'states/device-connection.yaml': 1, // update verified, between two returns
-  'states/pull-request.yaml': 1, // review [needs work], beside the line back
+  'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
+  'c4/kestrel-bank.yaml#production': 1, // the same
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -145,6 +145,19 @@ const orderBudget: Record<string, number> = {
   'network/small-office.yaml': 1,
 };
 
+// Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
+const joinBudget: Record<string, number> = {
+  'erd/saas.yaml': 3, // a nullable key comes into users.id beside the required ones: ends are fixed on their row
+};
+
+// Labels with another line running through or right beside them: none, but for the ones named here.
+const touchBudget: Record<string, number> = {
+  'c4/kestrel-bank.yaml#context': 1,
+  'deployment/model.yaml#containers': 1,
+  'states/pull-request.yaml': 1, // closed without merging, between the line out and the line back
+  'systems/invoice-walkthrough.yaml': 1,
+};
+
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
 const returns: Record<string, number> = {
   'process/incident-handling.yaml': 1,
@@ -154,6 +167,7 @@ const returns: Record<string, number> = {
   'states/document-approval.yaml': 1,
   'states/order-lifecycle.yaml': 1,
   'states/pull-request.yaml': 4,
+  'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
 };
 
 describe('layout quality', () => {
@@ -174,6 +188,11 @@ describe('layout quality', () => {
       expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
       expect(m.labelOnBend).toBeLessThanOrEqual(bendBudget[key] ?? 0);
       expect(m.jogs).toBeLessThanOrEqual(jogBudget[key] ?? 0);
+      // No line seems to run between two cards it does not join, and every label sits on its own line, clear of the others.
+      expect(falseJoins(r.graph!, r.placed!).length).toBeLessThanOrEqual(joinBudget[key] ?? 0);
+      const labels = labelMetrics(r.graph!, r.placed!);
+      expect(labels.labelFar).toBe(0);
+      expect(labels.labelTouching).toBeLessThanOrEqual(touchBudget[key] ?? 0);
       expect(disorder({ ...r.graph!, direction: r.placed!.direction ?? r.graph!.direction }, r.placed!.groups)).toBeLessThanOrEqual(orderBudget[key] ?? 0);
     });
 
@@ -195,12 +214,13 @@ describe('layout quality', () => {
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb-a')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
-  it('writes one label where lines that say the same run into one target', async () => {
+  it('writes each label on its own line where lines that say the same run into one target', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
     const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'prod' });
     const said = r.graph!.edges.filter((e) => e.label === 'OrderPlaced' && e.to.node === 'queue');
     expect(said.length).toBeGreaterThan(1);
-    expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(1);
+    // On a shared trunk one label would leave the reader to guess which line it names.
+    expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(said.length);
   });
   it('draws groups that stand side by side in the order they are written', async () => {
     const text = fs.readFileSync(path.join(examples, 'cloud/aws-three-tier.yaml'), 'utf8');
@@ -411,5 +431,69 @@ describe('group titles', () => {
         expect(a.x === b.x && a.y < b.y).toBe(true);
       }
     }
+  });
+});
+
+describe('shared trunks', () => {
+  const end = (node: string, x: number, y: number) => ({ node, box: { x, y, width: 120, height: 50 }, stub: 18 });
+  const fan = (a: Partial<RouteRequest>, b: Partial<RouteRequest>) =>
+    routeEdges({
+      obstacles: new Map([['s', end('s', 0, 100).box], ['a', end('a', 300, 0).box], ['b', end('b', 300, 200).box]]),
+      soft: [],
+      direction: 'right',
+      edges: [
+        { id: 'x', from: end('s', 0, 100), to: end('a', 300, 0), style: 'solid', ...a },
+        { id: 'y', from: end('s', 0, 100), to: end('b', 300, 200), style: 'solid', ...b },
+      ],
+    });
+  const start = (r: Map<string, { points: { x: number; y: number }[] }>, id: string) => JSON.stringify(r.get(id)!.points[0]);
+  it('join lines drawn alike that say nothing', () => {
+    const r = fan({}, {});
+    expect(start(r, 'x')).toBe(start(r, 'y'));
+  });
+  it('never join lines with a label, or lines drawn differently', () => {
+    const label = { width: 60, height: 20 };
+    for (const [a, b] of [[{ label }, { label }], [{}, { style: 'dashed' }], [{ style: undefined }, { style: undefined }]] as Partial<RouteRequest>[][]) {
+      const r = fan(a!, b!);
+      expect(start(r, 'x')).not.toBe(start(r, 'y'));
+    }
+  });
+  it('never draw a link the source does not have: a context map keeps every relation on its own line', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'context-map/e-commerce.yaml'), 'utf8'), { fonts: 'none' });
+    expect(falseJoins(r.graph!, r.placed!)).toEqual([]);
+    // Ordering's two Customer/Supplier lines leave from their own spots, each with its own U.
+    const ordering = r.graph!.edges.filter((e) => e.from.node === 'ordering');
+    expect(new Set(ordering.map((e) => JSON.stringify(r.placed!.edges.get(e.id)!.points[0]))).size).toBe(ordering.length);
+  });
+  it('count lines that meet end to end on one track as a false join', () => {
+    const graph = { direction: 'right', groups: [], nodes: [], edges: [
+      { id: 'p', from: { node: 'a' }, to: { node: 'b' }, line: 'solid', start: 'none', end: 'arrow', path: [] },
+      { id: 'q', from: { node: 'c' }, to: { node: 'd' }, line: 'solid', start: 'none', end: 'arrow', path: [] },
+    ] } as unknown as Parameters<typeof falseJoins>[0];
+    const edges = new Map([['p', { points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] }], ['q', { points: [{ x: 104, y: 0 }, { x: 200, y: 0 }] }]]);
+    expect(falseJoins(graph, { edges })).toEqual(['p+q']);
+    edges.set('q', { points: [{ x: 104, y: 30 }, { x: 200, y: 30 }] });
+    expect(falseJoins(graph, { edges })).toEqual([]);
+  });
+});
+
+describe('slide shape', () => {
+  const pipeline = fs.readFileSync(path.join(examples, 'systems/data-pipeline.yaml'), 'utf8');
+  const shape = (r: Awaited<ReturnType<typeof render>>) => r.width! / r.height!;
+  it('wraps a long left-to-right chain into rows nearer 16:9', async () => {
+    const r = await render(pipeline, { fonts: 'none' });
+    expect(shape(r)).toBeLessThan(2.4);
+    expect(measure(r.graph!, r.placed!).crossings).toBe(0);
+  });
+  it('takes the drawing as it comes with aspect: auto', async () => {
+    const r = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    expect(shape(r)).toBeGreaterThan(3);
+  });
+  it('aims for the shape the source asks for', async () => {
+    const wide = await render(pipeline.replace('direction: right', 'direction: right\naspect: 4:1'), { fonts: 'none' });
+    expect(shape(wide)).toBeGreaterThan(3);
+    const bad = await render(pipeline.replace('direction: right', 'direction: right\naspect: square'), { fonts: 'none' });
+    expect(bad.diagnostics.map((d) => d.message).join()).toMatch(/aspect/);
   });
 });
