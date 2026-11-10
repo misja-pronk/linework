@@ -291,6 +291,18 @@ describe('the layout', () => {
     expect(mid(at('Approve')).y).toBe(mid(at('end')).y);
   });
 
+  it('lets the branches of a split set off towards where they go, two from one point when it must', async () => {
+    const { r, at } = await boxes(example('onboarding'));
+    const fork = at('Prepare');
+    for (const to of ['Order laptop', 'Plan the first week']) {
+      const e = r.graph!.edges.find((x) => x.from.node === 'Prepare' && x.to.node === to)!;
+      const points = r.placed!.edges.get(e.id)!.points;
+      expect(mid(at(to)).y, to).toBeGreaterThan(mid(fork).y);
+      // Never over the top of the gateway and around.
+      expect(Math.min(...points.map((p) => p.y)), to).toBeGreaterThanOrEqual(mid(fork).y - 1);
+    }
+  });
+
   it('runs top to bottom when asked', async () => {
     const { r, at } = await boxes(leave.replace('title: Leave', 'title: Leave\ndirection: down'));
     const walk = r.graph!.walk!.map((b) => b.nodes[0]!);

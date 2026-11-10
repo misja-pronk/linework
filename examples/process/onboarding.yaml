@@ -1,0 +1,30 @@
+type: process
+title: Onboard a new colleague
+subtitle: HR, IT and the manager prepare at the same time, so day one starts with a laptop and a plan
+
+lanes:
+  hr: HR
+  it: IT
+  manager: Manager
+
+nodes:
+  Contract signed: { kind: message, in: hr }
+  # Two gateways without a name: the work splits here and comes together there.
+  Prepare: { kind: parallel, in: hr, label: "" }
+  All ready: { kind: parallel, in: hr, label: "" }
+  Register in HR system: { in: hr, kind: service }
+  Order laptop: { in: it, kind: user }
+  Create accounts: { in: it, kind: subprocess, caption: "mail, VPN and source control" }
+  Plan the first week: { in: manager, kind: user }
+  First day: { kind: timer, in: manager }
+  Welcome and hand over laptop: { in: manager, kind: manual }
+  Onboarded: { kind: end, in: manager }
+  Buddy: { kind: note, label: A buddy from the team is named in the plan }
+
+flow:
+  - Contract signed -> Prepare -> Register in HR system -> All ready -> First day -> Welcome and hand over laptop -> Onboarded
+  - Prepare -> Order laptop -> Create accounts -> All ready
+  - Prepare -> Plan the first week -> All ready
+  # A message: it tells the manager, it does not hand the work on.
+  - Create accounts --> Plan the first week: accounts ready
+  - Buddy -> Plan the first week

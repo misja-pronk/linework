@@ -250,7 +250,7 @@ export function flowLayout(sized: Sized): Placed {
         if (r.hor === seg.hor) {
           if (r.line !== seg.line || Math.max(lo, rlo) >= Math.min(hi, rhi)) continue;
           // Lines that leave one node together or arrive at one together may share their way; others may not lie on each other.
-          const shared = (i === 0 && !gate(s) && r.first && r.edge.from.node === s && r.a === seg.a && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a)) || (i === segs.length - 1 && r.last && r.edge.to.node === t && r.b === seg.b && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a));
+          const shared = (i === 0 && (!gate(s) || !(e.label || r.edge.label)) && r.first && r.edge.from.node === s && r.a === seg.a && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a)) || (i === segs.length - 1 && r.last && r.edge.to.node === t && r.b === seg.b && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a));
           c += channel ? 2 : shared ? -3 : 1000;
         } else if (lo < r.line && r.line < hi && rlo < seg.line && seg.line < rhi) c += 16;
       }
@@ -264,6 +264,8 @@ export function flowLayout(sized: Sized): Placed {
     else if (last.b < last.a) c += 14;
     // Each way out of a gateway has its own point, while there are points left.
     if (splits(s) && runs.some((r) => r.first && r.edge.from.node === s && r.hor === first.hor && Math.sign(r.b - r.a) === Math.sign(first.b - first.a))) c += gate(s) ? 60 : 6;
+    // A way out to another row does not set off away from it: rather two lines from one point than one over the top and around.
+    if (gate(s) && !e.label && !loop && !first.hor && yOf(s) !== yOf(t) && Math.sign(first.b - first.a) !== Math.sign(yOf(t) - yOf(s))) c += 80;
     // A loop goes back along the outside: over the main line, under a branch below it.
     if (loop && segs.length === 3 && !first.hor && yOf(s) === yOf(t)) c += (track.get(s)! > 0 ? first.b > first.a : first.b < first.a) ? -2 : 0;
     return c;

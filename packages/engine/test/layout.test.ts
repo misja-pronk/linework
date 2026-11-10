@@ -64,6 +64,7 @@ const crossingBudget: Record<string, number> = {
   'process/access-request.yaml': 1, // the approver's "no" passes the line down to IT: drawn with a gap
   'process/build-buy-reuse.yaml': 0,
   'process/incident-handling.yaml': 0,
+  'process/onboarding.yaml': 1, // the manager's branch passes IT's line on its way down
   'process/order-to-cash.yaml': 0,
   'process/release-with-gate.yaml': 0,
   'roadmap/migration-waves.yaml': 0,
