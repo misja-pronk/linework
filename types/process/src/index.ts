@@ -532,7 +532,7 @@ flow:
   refKeys: { in: ['lanes'] },
   freeNames: true,
   lines,
-  layout: async (sized) => flowLayout(sized),
+  layout: async (sized, _sidecar, _previous, options) => flowLayout(sized, options),
 };
 
 export { flowLayout } from './layout.ts';

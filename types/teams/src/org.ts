@@ -1,14 +1,14 @@
-// The org chart placed: people on a tidy tree (packages/tree), every card as tall as the tallest so
-// the rows line up, the dotted-line reports routed around the cards.
-import type { Box, Placed, PlacedEdge, Sized } from '@cartography/core';
+// The org chart placed: people on a tidy tree (packages/tree), every card in a row (or a list) as tall
+// as the tallest in it so the rows line up, the dotted-line reports routed around the cards. Given the
+// drawing before, the tree keeps to it: one more person moves the cards beside them, not the chart.
+import type { Box, LayoutMemory, Placed, PlacedEdge, Sized } from '@cartography/core';
 import { route, tidy, type TidyNode } from '@cartography/tree';
 
-export function orgLayout(sized: Sized, previous?: string): Placed {
+export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
   const g = sized.graph;
   const people = g.nodes.filter((n) => n.shape.kind === 'block' && n.shape.form === 'person');
-  const height = Math.max(0, ...people.map((n) => sized.nodes.get(n.id)?.height ?? 0));
   const width = Math.max(0, ...people.map((n) => sized.nodes.get(n.id)?.width ?? 0));
-  const items = new Map<string, TidyNode>(people.map((n) => [n.id, { id: n.id, width, height, children: [] }]));
+  const items = new Map<string, TidyNode>(people.map((n) => [n.id, { id: n.id, width, height: sized.nodes.get(n.id)?.height ?? 0, children: [] }]));
   const solid = g.edges.filter((e) => e.line === 'solid' && items.has(e.from.node) && items.has(e.to.node));
   const managed = new Set<string>();
   for (const e of solid) {
@@ -19,7 +19,7 @@ export function orgLayout(sized: Sized, previous?: string): Placed {
   const roots = people.filter((n) => !managed.has(n.id)).map((n) => items.get(n.id)!);
   // Title above and a key below: the page around the chart on a slide.
   const frame = { width: 80, height: (g.title ? 64 : 0) + (g.legend?.length ? 60 : 0) + 80 };
-  const t = tidy(roots, { frame, previous, gapX: 18, gapY: 46 });
+  const t = tidy(roots, { frame, previous: previous?.variant, before: previous?.nodes, even: true, gapX: 18, gapY: 46 });
 
   const edges = new Map<string, PlacedEdge>();
   for (const e of solid) {

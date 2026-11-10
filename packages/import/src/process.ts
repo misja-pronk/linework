@@ -21,6 +21,8 @@ export interface FlowLink {
 
 export interface FlowDiagram {
   title?: string;
+  /** Which way the source runs; written when given, so the drawing keeps it. */
+  direction?: 'right' | 'down';
   lanes: { id: string; label: string }[];
   nodes: FlowNode[];
   links: FlowLink[];
@@ -53,6 +55,7 @@ export function processYaml(d: FlowDiagram): string {
 
   const out: string[] = ['type: process'];
   if (d.title) out.push(`title: ${scalar(d.title)}`);
+  if (d.direction) out.push(`direction: ${d.direction}`);
   if (d.lanes.length) {
     out.push('', 'lanes:');
     for (const l of d.lanes) out.push(`  ${l.id}: ${scalar(l.label)}`);

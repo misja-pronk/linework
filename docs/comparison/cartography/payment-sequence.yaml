@@ -8,11 +8,11 @@ boxes:
 
 participants:
   C: { kind: person, label: Customer }
-  W: { kind: client, label: Web shop, box: shop-system }
-  O: { kind: service, label: Order Service, box: shop-system }
-  DB: { kind: database, label: Orders DB, box: shop-system }
-  S: { kind: payments, label: Stripe }
-  Q: { kind: queue, label: order-events queue }
+  W: { kind: client, label: Web shop, caption: "", box: shop-system }
+  O: { kind: service, label: Order Service, caption: "", box: shop-system }
+  DB: { kind: database, label: Orders DB, caption: "", box: shop-system }
+  S: { kind: payments, label: Stripe, caption: "" }
+  Q: { kind: queue, label: order-events queue, caption: "" }
 
 messages:
   - C -> W: Pay for order

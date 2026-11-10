@@ -58,6 +58,8 @@ CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) 
 
 **In CI and pull requests**: `carto validate` checks diagrams (`--drift` finds saved positions for things that are gone), `carto diff` shows what changed between two versions as a list and as a marked-up picture, and a GitHub Action puts that picture in one comment on the pull request. An edit keeps the rest of the drawing where it was (`carto render --stable`). See [docs/ci.md](docs/ci.md).
 
+In VS Code: an extension (`packages/vscode`, installed from a `.vsix`, not on the Marketplace) previews a diagram beside its YAML as you type, shows the engine's problems with quick fixes, completes from each type's schema, exports SVG, PNG and PowerPoint, imports Mermaid, D2, PlantUML, draw.io, Excalidraw and Structurizr, and draws ```` ```cartography ```` blocks in the Markdown preview. See [docs/vscode.md](docs/vscode.md).
+
 AI assistants: an MCP server (`cartography-mcp`) and an agent skill let Claude Code, Claude Desktop and other MCP clients write diagrams that are checked against the schema and scored for layout quality before you see them. See [docs/mcp.md](docs/mcp.md).
 
 ## In your docs
