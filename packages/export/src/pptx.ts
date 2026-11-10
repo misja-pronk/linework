@@ -152,7 +152,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     }
     // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
     const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, (W - 2 * MARGIN) / PX - 80).map((text) => ({ text, title: false })) : [])];
-    const below = view ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
+    const told = !!view && view.caption !== false;
+    const below = told ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
     let smallest = Infinity;
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
     const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top - below };
@@ -163,8 +164,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)) };
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
-    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(view ? { step: view.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
-    if (view && state) {
+    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
+    if (told && state) {
       const y = H - MARGIN - below + 0.18 * INCH;
       tree += shape({ id: next(), name: 'Step rule', frame: { x: MARGIN, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
       const paras = said(state).map((l) => ({ runs: [{ text: l.text, size: l.title ? CAPTION.title : CAPTION.text, bold: l.title, color: l.title || !state.title ? theme.text : theme.textMuted }] }));
@@ -175,7 +176,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const nodes = graph.nodes.filter((n) => !n.folded).length;
     const about = [graph.title ?? d.name ?? 'Diagram', graph.subtitle ?? ''];
     // What the presenter says at this step leads the speaker notes.
-    const notes = view && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
     if (d.remarks?.length) notes.push('', 'Review notes:', ...d.remarks);
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes });
   }

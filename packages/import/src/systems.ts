@@ -24,6 +24,8 @@ export interface SysEdge {
   op: '->' | '<->' | '--';
   label?: string;
   style?: 'sync' | 'async' | 'data' | 'dotted';
+  /** Dashed where no style says so (a cloud diagram has no async style). */
+  line?: 'dashed';
 }
 
 export interface SysDiagram {
@@ -102,29 +104,32 @@ export function guessGroupKind(text: string): string {
 const kindLabels = Object.fromEntries(Object.entries(config.nodeKinds).map(([k, v]) => [k, v.label]));
 const groupLabels = Object.fromEntries(Object.entries(config.groupKinds).map(([k, v]) => [k, v.label]));
 
-export function systemsYaml(d: SysDiagram): string {
+/** `kinds`: the type's kinds the YAML is for (systems, or cloud when the importer writes that). */
+export function systemsYaml(d: SysDiagram, kinds: Pick<typeof config, 'nodeKinds' | 'groupKinds'> = config): string {
   const out: string[] = ['type: systems'];
   if (d.title) out.push(`title: ${scalar(d.title)}`);
   if (d.direction === 'down' || d.explicit) out.push(`direction: ${d.direction}`);
   // The kind is a guess from the words: it gives the icon, but its name is not put under a label the source wrote.
-  const entry = (id: string, kind: string, label: string | undefined, parent: string | undefined, known: Record<string, string>, table: typeof config.nodeKinds) => {
-    const l = label === known[kind] || label === undefined ? undefined : label;
-    const caption = l !== undefined && kindCaption(l, table[kind]) ? '' : undefined;
-    return l === undefined && parent === undefined ? `  ${id}: ${kind}` : `  ${id}: ${flow([['kind', kind], ['label', l], ['caption', caption], ['in', parent]])}`;
+  const own = (label: string | undefined, kind: string, known: Record<string, string>) => (label === known[kind] || label === undefined ? undefined : label);
+  const invents = [...d.groups.map((g) => [own(g.label, g.kind, groupLabels), kinds.groupKinds[g.kind]] as const), ...d.nodes.map((n) => [own(n.label, n.kind, kindLabels), kinds.nodeKinds[n.kind]] as const)].some(([l, k]) => l !== undefined && !!kindCaption(l, k));
+  if (invents) out.push('captions: written');
+  const entry = (id: string, kind: string, label: string | undefined, parent: string | undefined, known: Record<string, string>) => {
+    const l = own(label, kind, known);
+    return l === undefined && parent === undefined ? `  ${id}: ${kind}` : `  ${id}: ${flow([['kind', kind], ['label', l], ['in', parent]])}`;
   };
   if (d.groups.length) {
     out.push('', 'groups:');
-    for (const g of d.groups) out.push(entry(g.id, g.kind, g.label, g.parent, groupLabels, config.groupKinds));
+    for (const g of d.groups) out.push(entry(g.id, g.kind, g.label, g.parent, groupLabels));
   }
   if (d.nodes.length) {
     out.push('', 'nodes:');
-    for (const n of d.nodes) out.push(entry(n.id, n.kind, n.label, n.parent, kindLabels, config.nodeKinds));
+    for (const n of d.nodes) out.push(entry(n.id, n.kind, n.label, n.parent, kindLabels));
   }
   if (d.edges.length) {
     out.push('', 'edges:');
     for (const e of d.edges) {
       const arrow = `${e.from} ${e.op} ${e.to}`;
-      if (e.style) out.push(`  - ${arrow}: ${flow([['label', e.label], ['style', e.style]])}`);
+      if (e.style || e.line) out.push(`  - ${arrow}: ${flow([['label', e.label], ['style', e.style], ['line', e.line]])}`);
       else if (e.label) out.push(`  - ${arrow}: ${scalar(e.label)}`);
       else out.push(`  - ${arrow}`);
     }

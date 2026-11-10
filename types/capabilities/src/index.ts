@@ -255,6 +255,7 @@ const heatEntry = {
         values: { type: 'object', additionalProperties: { anyOf: [tone, { type: 'object', properties: { tone, label: { type: 'string' }, pattern: { enum: ['hatch', 'dots'] } }, additionalProperties: false }] }, description: 'Tones for words: { invest: green, divest: { tone: rose, pattern: hatch } }' },
         tone: { ...tone, description: 'The hue of a sequential scale' },
         reverse: { type: 'boolean', description: 'Higher is worse' },
+        unit: { type: 'string', description: 'What the numbers are in, for the key: €, $, %, FTE; read from the values (€220k) when left out' },
       },
       additionalProperties: false,
     },
@@ -352,7 +353,8 @@ capabilities:
   freeNames: true,
   refKeys: { parent: ['capabilities'] },
   views(src) {
-    const out = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h) => ({ name: h.by, title: `Heatmap: ${h.title ?? h.by}` }))];
+    // The first heat is what the file draws by default.
+    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: `Heatmap: ${heatScale(h, []).title}`, ...(i ? {} : { default: true }) }))];
     const any = (map: Record<string, Entry> | undefined): boolean => JSON.stringify(map ?? {}).includes('"systems"');
     if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: 'Supporting systems' });
     return out.length > 1 ? out : [];

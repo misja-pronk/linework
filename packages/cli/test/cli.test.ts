@@ -353,4 +353,40 @@ describe('carto errors and help', () => {
     expect(carto('render', 'views.yaml', '-o', 'one.svg').code).toBe(0);
     expect(fs.statSync(path.join(tmp, 'one.svg')).isFile()).toBe(true);
   }, 120_000);
+
+  it('writes nothing when the drawing has errors', () => {
+    write('views.yaml', shop);
+    const r = carto('render', 'views.yaml', '--view', 'nope', '-o', 'nope.png');
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('There is no view "nope"');
+    expect(r.err).toContain('nothing written');
+    expect(exists('nope.png')).toBe(false);
+  }, 120_000);
+
+  it('takes - as standard output (and input) wherever a file is named', () => {
+    const made = carto('new', 'mindmap', '-');
+    expect(made.code).toBe(0);
+    expect(made.out).toMatch(/^type: mindmap/);
+    expect(exists('-')).toBe(false);
+    write('views.yaml', shop);
+    const svg = carto('render', 'views.yaml', '-o', '-');
+    expect(svg.code).toBe(0);
+    expect(svg.out).toMatch(/^<svg /);
+    expect(svg.err).toContain('→ standard output');
+    expect(exists('-')).toBe(false);
+    const piped = spawnSync(path.join(root, 'node_modules/.bin/tsx'), [path.join(root, 'packages/cli/src/main.ts'), 'render', '-'], { cwd: tmp, encoding: 'utf8', input: shop });
+    expect(piped.status).toBe(0);
+    expect(piped.stdout).toMatch(/^<svg /);
+    const mmd = carto('export', 'views.yaml', '--format', 'mermaid', '-o', '-');
+    expect(mmd.code).toBe(0);
+    expect(mmd.out).toMatch(/^flowchart/);
+    expect(carto('render', 'views.yaml', '--all-views', '-o', '-').err).toContain('-o - writes one picture');
+  }, 120_000);
+
+  it('leaves empty views out of --all-views', () => {
+    write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
+    const r = carto('render', 'access.yaml', '--all-views', '-o', 'acc/');
+    expect(r.code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'acc')).sort()).toEqual(['access-access.svg', 'access-graph.svg', 'access-roles.svg', 'access.svg']);
+  }, 120_000);
 });

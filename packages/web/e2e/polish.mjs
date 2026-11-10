@@ -16,7 +16,7 @@ await page.reload();
 await page.waitForSelector('.drawing svg');
 // The detailed customer example: many connections for the inspector.
 await page.keyboard.press('Meta+k');
-await page.keyboard.type('customer data products in detail');
+await page.keyboard.type('customer data products and their contracts');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
 // Overlays never cover each other: the "Opened … Undo" toast stands clear of the hint and its close button.

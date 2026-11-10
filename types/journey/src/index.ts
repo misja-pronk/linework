@@ -387,7 +387,7 @@ export function buildJourney(src: JourneySource, ctx: BuildContext): Graph {
 }
 
 /** The ways this journey can be drawn: a blueprint needs stage rows, a comparison a future journey. */
-export function journeyViewsOf(src: JourneySource): { name: JourneyView; title: string }[] {
+export function journeyViewsOf(src: JourneySource): { name: JourneyView; title: string; default?: boolean }[] {
   const steps = Object.values(src.steps ?? {});
   const staged = steps.some((s) => s && typeof s === 'object' && (s.frontstage != null || s.backstage != null || s.support != null));
   const future = !!src.future?.steps && Object.keys(src.future.steps).length > 0;
@@ -395,7 +395,7 @@ export function journeyViewsOf(src: JourneySource): { name: JourneyView; title: 
     { name: 'map' as const, title: 'Journey map' },
     { name: 'storyboard' as const, title: 'Storyboard' },
     ...(staged ? [{ name: 'blueprint' as const, title: 'Service blueprint' }] : []),
-    ...(future ? [{ name: 'compare' as const, title: 'Today and future' }] : []),
+    ...(future ? [{ name: 'compare' as const, title: 'Today and future', default: true }] : []),
   ];
 }
 

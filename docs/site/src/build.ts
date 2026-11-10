@@ -43,10 +43,10 @@ const NAV: { title: string; items: [string, string?][] }[] = [
   { title: 'Import and export', items: [['azure-import.md', 'Azure import'], ['access-import.md', 'Access import'], ['interop.md', 'draw.io, Excalidraw, Office']] },
   { title: 'Docs, CI and AI', items: [['embed.md', 'In a docs site'], ['ci.md', 'In CI'], ['mcp.md', 'MCP and agents']] },
   { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes'], ['icons.md', 'Official icons']] },
-  { title: 'Compare', items: [['benchmark.md', 'Layout benchmark'], ['comparison/README.md', 'Side by side']] },
+  { title: 'Compare', items: [['benchmark.md', 'Layout benchmark'], ['comparison/README.md', 'Side by side'], ['requirements.md', 'Requirements']] },
 ];
 /** Pages that are written for the repository's own work, not for users. */
-const SKIP = [/^research\//, /^requirements\.md$/, /^site\//, /^benchmark\//];
+const SKIP = [/^research\//, /^site\//, /^benchmark\//];
 
 const sitePath = (fromDocs: string) => fromDocs.replace(/(^|\/)README\.md$/, '$1index.html').replace(/\.md$/, '.html');
 const docFiles = (dir = docs): string[] =>
@@ -101,6 +101,8 @@ const resolver = (pagePath: string) => ({
       if (r.endsWith('.md') && files.includes(r)) return rel(pagePath, sitePath(r)) + fragment;
       if (fs.existsSync(abs) && fs.statSync(abs).isDirectory() && files.includes(`${r}/README.md`)) return rel(pagePath, sitePath(`${r}/README.md`)) + fragment;
     }
+    // The examples folder is the gallery on the site, and the folder itself on GitHub.
+    if (path.resolve(abs) === path.resolve(examplesDir)) return rel(pagePath, 'gallery/index.html') + fragment;
     if (inside(abs, examplesDir)) {
       const [dir, file] = posix(path.relative(examplesDir, abs)).split('/');
       const type = dir ? exampleType.get(dir) : undefined;

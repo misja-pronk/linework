@@ -1,6 +1,6 @@
 type: access
-title: Engineering access — roles
-subtitle: Entra ID access packages and Azure roles
+title: Engineering access
+subtitle: What each Azure role may do, its own permissions and the ones it includes
 view: roles
 
 principals:

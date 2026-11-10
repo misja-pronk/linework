@@ -27,6 +27,12 @@ export function tagColors(theme: Theme, style: TagStyle) {
   return { fill: theme.surface, stroke: theme.text, ink: theme.text };
 }
 
+/** Marks on elements and lines: an environment's name outlined in ink, anything else (a threat) in the threat colour. */
+export const markStyle =
+  (environments?: string[]) =>
+  (tag: string): TagStyle =>
+    environments?.includes(tag) ? 'pattern' : 'threat';
+
 /** End tags of a line: in ink for the side (U, D), outlined for a pattern (ACL, OHS). */
 export const endStyle = (tag: string): TagStyle => (tag === 'U' || tag === 'D' ? 'end' : 'pattern');
 
