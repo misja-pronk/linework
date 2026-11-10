@@ -10,10 +10,14 @@ interface Segment {
   a: Point;
   b: Point;
   edge: GraphEdge;
+  /** The line's own ends this piece has (first or last piece): a gap cut near one reads as a broken arrow. */
+  ends: Point[];
 }
 
 /** Crossings stay clear of bends and line ends by this much, so a bridge never lands on a corner. */
 const CLEAR = 7;
+/** A gap is never cut this near a line's end (its arrowhead or mark): the other line takes the gap, or none does. */
+const END = 28;
 
 /** `step`: in one step of a presentation the line that matters more goes over, as heavy as that step draws it. */
 export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Ground, color: (e: GraphEdge) => string, skip: Set<string> = new Set(), step?: { rank: (e: GraphEdge) => number; scale: (e: GraphEdge) => number }): string {
@@ -27,8 +31,9 @@ export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Grou
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1]!;
       const b = pts[i]!;
-      if (Math.abs(a.y - b.y) < 0.5) level.push({ a, b, edge });
-      else if (Math.abs(a.x - b.x) < 0.5) upright.push({ a, b, edge });
+      const ends = [...(i === 1 ? [a] : []), ...(i === pts.length - 1 ? [b] : [])];
+      if (Math.abs(a.y - b.y) < 0.5) level.push({ a, b, edge, ends });
+      else if (Math.abs(a.x - b.x) < 0.5) upright.push({ a, b, edge, ends });
     }
   }
   const within = (v: number, p: number, q: number) => v > Math.min(p, q) + CLEAR && v < Math.max(p, q) - CLEAR;
@@ -43,7 +48,14 @@ export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Grou
       // The upright line goes over, unless it is dashed and the level one is solid: a gap in a dashed
       // line is just another dash. Two dashed lines cross as they are.
       const first = step ? step.rank(h.edge) - step.rank(v.edge) : 0;
-      const over = first > 0 || (!first && v.edge.line !== 'solid' && h.edge.line === 'solid') ? h : v;
+      let over = first > 0 || (!first && v.edge.line !== 'solid' && h.edge.line === 'solid') ? h : v;
+      // Not a gap right before an arrowhead: the other line takes it, or (both near their ends) none does.
+      const near = (g: Segment) => g.ends.some((e) => Math.abs(e.x - x) + Math.abs(e.y - y) < END);
+      const other = over === v ? h : v;
+      if (near(other)) {
+        if (near(over) || over.edge.line === 'solid' && other.edge.line !== 'solid') continue;
+        over = other;
+      }
       if (over.edge.line !== 'solid') continue;
       const key = `${r1(x)},${r1(y)}`;
       if (seen.has(key)) continue;
