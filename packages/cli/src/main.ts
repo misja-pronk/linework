@@ -20,7 +20,7 @@ import { accessChanges, type AccessChange, type AccessSource } from '@cartograph
 import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
-import { threatMarkdown } from '@cartography/core';
+import { indexWorkspace, isDiagramFile, threatMarkdown } from '@cartography/core';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const helpAll = `carto — architecture diagrams that look good
@@ -60,7 +60,9 @@ const helpAll = `carto — architecture diagrams that look good
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
-  carto validate <file.yaml…>                   check files and each of their views, print problems
+  carto validate <file.yaml…|folder>            check files and each of their views, print problems; a folder
+                                                also across files: dangling ref:/of:, one id with two kinds,
+                                                elements that no diagram or view shows
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
@@ -507,6 +509,16 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   }
   if (values.stable) noteLayout(file, runs);
   return ok;
+}
+
+/** carto validate <folder>: what only shows across files (a ref: to nothing, one id two kinds, elements no view shows). */
+function validateWorkspace(dir: string): boolean {
+  const files = dataFiles(dir).map((f) => [path.relative(dir, f).split(path.sep).join('/'), fs.readFileSync(f, 'utf8')] as [string, string]);
+  const ix = indexWorkspace(files);
+  for (const p of ix.problems) console.error(`${path.join(dir, p.file)}${p.line ? `:${p.line}` : ''}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
+  const n = ix.files.size;
+  if (!ix.problems.length) console.log(`${dir} ${dim(`workspace ok: ${n} diagram${n === 1 ? '' : 's'}, ${ix.elements.size} element${ix.elements.size === 1 ? '' : 's'}`)}`);
+  return !ix.problems.some((p) => p.severity === 'error');
 }
 
 const isFolder = (f: string) => fs.existsSync(f) && fs.statSync(f).isDirectory();
@@ -1328,7 +1340,9 @@ async function main(): Promise<number> {
     }
     case 'validate': {
       let ok = true;
-      for (const f of files) {
+      // A folder is a workspace: each diagram in it, and then how they fit together.
+      const folders = files.filter(isFolder);
+      for (const f of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
         const text = fs.readFileSync(f, 'utf8');
         const opts = { fonts: 'none' as const, load: loaderFor(f), file: path.basename(f) };
         const r = await render(text, { ...opts, view: values.view });
@@ -1348,6 +1362,7 @@ async function main(): Promise<number> {
         if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
         else console.log(`${f} ${dim('ok')}`);
       }
+      for (const dir of folders) ok = validateWorkspace(dir) && ok;
       return ok ? 0 : 1;
     }
     case 'diff':

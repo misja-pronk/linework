@@ -13,7 +13,7 @@ import { viewKinds, type ViewKind } from './catalogue.ts';
 import type { Path } from './model.ts';
 
 /** How a file names an element. */
-export type WsHow = 'ref' | 'of' | 'instance' | 'same-id' | 'relation' | 'view' | 'selector' | 'step' | 'edge';
+export type WsHow = 'ref' | 'of' | 'instance' | 'same-id' | 'relation' | 'view' | 'selector' | 'step' | 'edge' | 'name';
 
 /** A place in the YAML that holds ids: what rename rewrites and where-used lists. */
 export interface WsSite {
@@ -134,6 +134,11 @@ const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : v == null ? [] :
 
 /** Keys that are not collections of entries. */
 const NOT_ENTRIES = new Set(['type', 'title', 'subtitle', 'direction', 'include', 'elements', 'relations', 'views', 'focus', 'steps', 'theme', 'icons', 'aspect', 'badges', 'view', 'provider', 'edges']);
+
+/** Types that resolve the model into their nodes and groups (ref:, of:, views). */
+export const GRAPH_TYPES = new Set(['model', 'c4', 'systems', 'azure', 'cloud', 'kubernetes', 'network']);
+/** Fields that hold words, not ids. */
+const PROSE = new Set(['label', 'title', 'subtitle', 'caption', 'description', 'note', 'notes', 'technology', 'owner', 'kind', 'class', 'version', 'icon', 'tone', 'file', 'links']);
 
 /** Diagram files of a folder: YAML with a top-level type:, not a data contract or a layout. */
 export const isDiagramFile = (path: string, text: string) => /\.ya?ml$/i.test(path) && !/\.odcs\.ya?ml$/i.test(path) && /^type:\s*[\w-]+/m.test(text);
@@ -277,6 +282,16 @@ export function sitesOf(data: Record<string, unknown>): WsSite[] {
   };
 
   edges(data.relations, ['relations'], 'relation');
+  // Types that do not draw the model themselves name its elements in fields of their own (a capability's
+  // `systems: [crm]`, a data product's `inputs: [ledger]`): any value that is an element's id is one.
+  if (!GRAPH_TYPES.has(String(data.type))) {
+    const walk = (v: unknown, path: Path) => {
+      if (typeof v === 'string') return /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(v) && out.push({ path, form: 'id', how: 'name', text: v });
+      if (Array.isArray(v)) return v.forEach((x, i) => walk(x, [...path, i]));
+      if (isMap(v)) for (const [k, x] of Object.entries(v)) if (!PROSE.has(k)) walk(x, [...path, k]);
+    };
+    for (const [k, v] of Object.entries(data)) if (!NOT_ENTRIES.has(k)) walk(v, [k]);
+  }
   if (isMap(data.views))
     for (const [name, raw] of Object.entries(data.views)) {
       if (!isMap(raw)) continue;
@@ -417,8 +432,21 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
 
     // Sites: where-used, and the dangling ones.
     const localIds = new Set(f.entries.map((e) => e.id));
+    const deployed = new Map<string, Set<string>>();
+    for (const v of f.views) {
+      const keys = new Set<string>();
+      const walk = (nodes: unknown) => isMap(nodes) && Object.entries(nodes).forEach(([k, raw]) => (keys.add(k), isMap(raw) && walk(raw.nodes)));
+      walk(v.raw.nodes);
+      deployed.set(v.name, keys);
+    }
+    const named = new Set<string>();
     for (const s of f.sites) {
       for (const id of siteIds(s)) {
+        if (s.how === 'name') {
+          if (els.has(id)) (named.add(id), use(id, { file: f.file, how: 'name', line: s.line }));
+          continue;
+        }
+        if (s.view && deployed.get(s.view)?.has(id.split('.')[0]!)) continue;
         if (els.has(id)) {
           use(id, { file: f.file, view: s.view, how: s.how, line: s.line });
           continue;
@@ -447,6 +475,7 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
     const asWritten = new Set<string>();
     for (const [el] of local) asWritten.add(el);
     for (const [el] of runs) asWritten.add(el);
+    for (const el of named) asWritten.add(el);
     const ownViews = f.views;
     const drawsItself = graphish || f.entries.length > 0;
     // A model (or a C4 file) without views draws its top level; with only views, the first view is the drawing.
@@ -465,12 +494,14 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
     }
   }
 
-  // The same id in two models, saying different things.
+  // The same id in two models that meet (one folder, or a diagram that includes both), saying different things.
+  const together = (a: string, b: string) => dirOf(a) === dirOf(b) || [...scope.values()].some((s) => s.includes(a) && s.includes(b));
   for (const [id, defs] of elements) {
-    const kinds = [...new Set(defs.map((d) => d.kind ?? '(none)'))];
-    if (defs.length > 1 && kinds.length > 1)
-      for (const d of defs)
-        problems.push({ file: d.file, line: d.line, path: d.path, element: id, severity: 'warning', message: `"${id}" is a ${d.kind ?? 'element without kind'} here, but ${defs.filter((x) => x !== d).map((x) => `a ${x.kind ?? 'element without kind'} in ${x.file}`).join(', ')}` });
+    for (const d of defs) {
+      const other = defs.filter((x) => x !== d && x.file !== d.file && together(x.file, d.file) && sameKind(x.kind) !== sameKind(d.kind));
+      if (other.length)
+        problems.push({ file: d.file, line: d.line, path: d.path, element: id, severity: 'warning', message: `"${id}" is ${a(d.kind)} here, but ${other.map((x) => `${a(x.kind)} in ${x.file}`).join(', ')}` });
+    }
   }
   // Elements no drawing shows.
   for (const [id, defs] of elements) {
@@ -482,6 +513,11 @@ function link(files: Map<string, WsFile>): WorkspaceIndex {
   problems.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
   return { files, elements, relations, views, uses, scope, shows, problems };
 }
+
+/** Words for the same kind of thing. */
+const SAME: Record<string, string> = { system: 'software-system', 'software-system': 'software-system', user: 'person', person: 'person', db: 'database', database: 'database' };
+const sameKind = (k: string | undefined) => (k ? (SAME[k] ?? k) : '');
+const a = (kind: string | undefined) => (!kind ? 'an element without kind' : /^[aeiou]/i.test(kind) ? `an ${kind}` : `a ${kind}`);
 
 interface ViewWorld {
   els: Map<string, WsElement>;
