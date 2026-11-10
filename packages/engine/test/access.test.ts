@@ -172,6 +172,14 @@ describe('gained and lost access', () => {
     expect(r.views!.map((v) => v.name)).toEqual(['graph', 'access', 'packages', 'roles']);
   });
 
+  it('another view than the one the file is written for is subtitled by its own name', async () => {
+    const text = fs.readFileSync(new URL('../../../examples/access/engineering-access.yaml', import.meta.url), 'utf8');
+    expect((await render(text, { fonts: 'none' })).graph!.subtitle).toBe('Who reaches where, through Entra ID access packages and Azure roles');
+    expect((await render(text, { fonts: 'none', view: 'access' })).graph!.subtitle).toBe('Who reaches where, through Entra ID access packages and Azure roles');
+    expect((await render(text, { fonts: 'none', view: 'roles' })).graph!.subtitle).toBe('Roles × permissions');
+    expect((await render(text, { fonts: 'none', view: 'roles' })).graph!.title).toBe('Engineering access');
+  });
+
   it('offers no view with nothing to show: no packages, no packages table', async () => {
     const r = await render(fs.readFileSync(new URL('../../../examples/workspace/access.yaml', import.meta.url), 'utf8'), {
       fonts: 'none',

@@ -270,6 +270,11 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     model,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  // Another of the type's own views than the one the file is written for: its subtitle is about that
+  // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
+  const written = typeof rest.view === 'string' ? rest.view : ownViews?.[0]?.name;
+  const viewTitle = ownView && ownView !== written ? ownViews!.find((v) => v.name === ownView)?.title : undefined;
+  if (viewTitle && graph.title) graph = { ...graph, subtitle: viewTitle };
   // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
   const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
   const focusOwn = model?.view ? model.view.focus : focusRef;
