@@ -7,6 +7,13 @@ import { gunzipSync, strFromU8 } from 'fflate';
 import { safeAttribute, safeHref, SVG_ELEMENTS } from '@cartography/embed/shared';
 import type { Inline } from '@cartography/core';
 import type { Payload, PDecision, PDrawing, PElement, Picture } from '../payload.ts';
+import { readLang, translator, type Params } from '@cartography/i18n';
+import { nl } from './nl.ts';
+
+// The page's own words in the language it was exported in (<html lang>: the diagram's `lang:`).
+const LANG = readLang(typeof document === 'undefined' ? '' : document.documentElement.lang) ?? 'en';
+const say = translator(nl);
+const t = (id: keyof typeof nl, params?: Params) => say(LANG, id, params);
 
 // ---------------------------------------------------------------- small helpers
 
@@ -62,7 +69,7 @@ function icon(name: string): SVGSVGElement {
 }
 
 const button = (cls: string, label: string, ...children: Child[]) => h('button', { type: 'button', class: cls, 'aria-label': label, title: label }, ...children);
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) => t(`{count} ${one}|{count} ${many}` as keyof typeof nl, { count: n });
 
 const store = {
   get(k: string): string | null {
@@ -151,20 +158,20 @@ let panelFor: 'element' | 'notes' | undefined;
 const els = {
   app: h('div', { class: 'app', id: 'app' }),
   top: h('header', { class: 'top' }),
-  side: h('nav', { class: 'side', 'aria-label': 'Contents' }),
+  side: h('nav', { class: 'side', 'aria-label': t('Contents') }),
   main: h('main', { class: 'main' }),
-  stage: h('div', { class: 'stage', tabindex: 0, role: 'application', 'aria-roledescription': 'diagram', 'aria-label': 'Diagram' }),
+  stage: h('div', { class: 'stage', tabindex: 0, role: 'application', 'aria-roledescription': 'diagram', 'aria-label': t('Diagram') }),
   sheet: h('div', { class: 'sheet' }),
   home: h('section', { class: 'home', hidden: true }),
   /** The Decisions page, and one decision. */
   adr: h('section', { class: 'home adr', hidden: true }),
-  panel: h('aside', { class: 'panel', 'aria-label': 'Details' }),
+  panel: h('aside', { class: 'panel', 'aria-label': t('Details') }),
   panelIn: h('div', { class: 'in' }),
-  steps: h('div', { class: 'steps', hidden: true, role: 'group', 'aria-label': 'Steps' }),
+  steps: h('div', { class: 'steps', hidden: true, role: 'group', 'aria-label': t('Steps') }),
   crumbs: h('div', { class: 'crumbs' }),
-  pct: button('pct', 'Fit to the window (0)'),
+  pct: button('pct', t('Fit to the window (0)')),
   counter: h('div', { class: 'counter', 'aria-live': 'polite' }),
-  notesBtn: button('btn', 'Review notes'),
+  notesBtn: button('btn', t('Review notes')),
   search: h('div', { class: 'overlay', hidden: true }),
   keys: h('div', { class: 'overlay', hidden: true }),
   print: h('div', { class: 'print', 'aria-hidden': 'true' }),
@@ -173,36 +180,36 @@ const els = {
 
 function frame() {
   const titleLink = h('a', { class: 'title', href: '#' }, h('b', {}, data.title));
-  const menu = button('btn menu', 'Contents', icon('menu'));
+  const menu = button('btn menu', t('Contents'), icon('menu'));
   menu.addEventListener('click', () => els.app.classList.toggle(window.innerWidth <= 880 ? 'side-open' : 'no-side'));
-  const searchBtn = h('button', { type: 'button', class: 'btn search', title: 'Search (/)' }, icon('search'), h('span', {}, 'Search elements and views'), h('kbd', {}, '/'));
+  const searchBtn = h('button', { type: 'button', class: 'btn search', title: t('Search (/)') }, icon('search'), h('span', {}, t('Search elements and views')), h('kbd', {}, '/'));
   searchBtn.addEventListener('click', openSearch);
-  const present = button('btn', 'Present full screen (P)', icon('play'), h('span', {}, 'Present'));
+  const present = button('btn', t('Present full screen (P)'), icon('play'), h('span', {}, t('Present')));
   present.addEventListener('click', () => startPresenting());
-  const dark = button('btn', 'Light or dark (D)', icon('contrast'));
+  const dark = button('btn', t('Light or dark (D)'), icon('contrast'));
   dark.addEventListener('click', toggleLook);
-  const print = button('btn printer', 'Print, a page per view', icon('printer'));
+  const print = button('btn printer', t('Print, a page per view'), icon('printer'));
   print.addEventListener('click', () => {
     buildPrint();
     window.print();
   });
-  const help = button('btn', 'Keys (?)', icon('help'));
+  const help = button('btn', t('Keys (?)'), icon('help'));
   help.addEventListener('click', () => showKeys(true));
   els.notesBtn.append(icon('note'), h('span', {}));
   els.notesBtn.hidden = true;
   els.notesBtn.addEventListener('click', () => (panelFor === 'notes' ? closePanel() : showNotes()));
   els.top.append(menu, titleLink, els.crumbs, h('div', { class: 'spacer' }), searchBtn, els.notesBtn, present, print, dark, help);
 
-  const zoom = h('div', { class: 'zoom', role: 'group', 'aria-label': 'Zoom' });
-  const zin = button('', 'Zoom in (+)', icon('plus'));
-  const zout = button('', 'Zoom out (−)', icon('minus'));
-  const zfit = button('', 'Fit (0)', icon('fit'));
+  const zoom = h('div', { class: 'zoom', role: 'group', 'aria-label': t('Zoom') });
+  const zin = button('', t('Zoom in (+)'), icon('plus'));
+  const zout = button('', t('Zoom out (−)'), icon('minus'));
+  const zfit = button('', t('Fit (0)'), icon('fit'));
   zin.addEventListener('click', () => zoomBy(1.25));
   zout.addEventListener('click', () => zoomBy(0.8));
   zfit.addEventListener('click', () => fit());
   els.pct.addEventListener('click', () => (fitted ? zoomTo(1) : fit()));
   zoom.append(zout, els.pct, zin, zfit);
-  const leave = h('button', { type: 'button', class: 'btn leave', title: 'Stop presenting (Esc)' }, icon('x'), h('span', {}, 'Esc'));
+  const leave = h('button', { type: 'button', class: 'btn leave', title: t('Stop presenting (Esc)') }, icon('x'), h('span', {}, 'Esc'));
   leave.addEventListener('click', stopPresenting);
   els.stage.append(els.sheet);
   els.main.append(els.stage, els.home, els.adr, els.steps, zoom, els.counter, leave);
@@ -218,9 +225,9 @@ const hrefOf = (d: number, step = 0, shape?: string) => `#${encodeURIComponent(d
 
 function sidebar() {
   const items: Node[] = [];
-  if (data.site) items.push(h('a', { href: '#contents', class: 'home-link', 'data-home': true }, icon('grid'), 'Contents'));
-  if (data.decisions?.length) items.push(h('a', { href: '#decisions', class: 'home-link', 'data-adr': true }, icon('note'), 'Decisions', h('span', { class: 'n' }, String(data.decisions.length))));
-  items.push(h('h2', {}, data.site ? 'Diagrams' : 'Views'));
+  if (data.site) items.push(h('a', { href: '#contents', class: 'home-link', 'data-home': true }, icon('grid'), t('Contents')));
+  if (data.decisions?.length) items.push(h('a', { href: '#decisions', class: 'home-link', 'data-adr': true }, icon('note'), t('Decisions'), h('span', { class: 'n' }, String(data.decisions.length))));
+  items.push(h('h2', {}, data.site ? t('Diagrams') : t('Views')));
   for (const f of data.files) {
     const [first] = f.drawings;
     if (first === undefined) continue;
@@ -251,7 +258,7 @@ function longTitle(i: number): string {
 function shortTitle(d: PDrawing, file: string): string {
   if (d.view) return d.title === file ? d.view : d.title;
   const siblings = data.files.find((f) => f.path === d.file)?.drawings.map((i) => data.drawings[i]!) ?? [];
-  return siblings.some((x) => x !== d && /^overview$/i.test(x.title)) ? 'Whole diagram' : 'Overview';
+  return siblings.some((x) => x !== d && /^overview$/i.test(x.title)) ? t('Whole diagram') : t('Overview');
 }
 
 function markSidebar() {
@@ -271,11 +278,11 @@ function homePage() {
   const facts = h(
     'div',
     { class: 'facts' },
-    h('div', {}, h('b', {}, String(data.files.length)), data.files.length === 1 ? 'diagram' : 'diagrams'),
-    h('div', {}, h('b', {}, String(data.drawings.length)), data.drawings.length === 1 ? 'drawing' : 'drawings'),
-    steps ? h('div', {}, h('b', {}, String(steps)), 'steps') : null,
-    h('div', {}, h('b', {}, String(shown.length)), 'elements'),
-    h('div', {}, h('b', {}, data.made), 'made'),
+    h('div', {}, h('b', {}, String(data.files.length)), data.files.length === 1 ? t('diagram') : t('diagrams')),
+    h('div', {}, h('b', {}, String(data.drawings.length)), data.drawings.length === 1 ? t('drawing') : t('drawings')),
+    steps ? h('div', {}, h('b', {}, String(steps)), t('steps')) : null,
+    h('div', {}, h('b', {}, String(shown.length)), t('elements')),
+    h('div', {}, h('b', {}, data.made), t('made')),
   );
   const cards = h('div', { class: 'cards' });
   for (const f of data.files) {
@@ -283,7 +290,7 @@ function homePage() {
     if (first === undefined) continue;
     const thumb = h('div', { class: 'thumb', 'data-thumb': first });
     const views = f.drawings.length > 1 ? h('ul', {}, ...f.drawings.map((d) => h('li', {}, shortTitle(data.drawings[d]!, f.title)))) : null;
-    cards.append(h('a', { class: 'card', href: hrefOf(first) }, thumb, h('div', { class: 'txt' }, h('span', { class: 'caps' }, f.type || 'diagram'), h('b', {}, f.title), views)));
+    cards.append(h('a', { class: 'card', href: hrefOf(first) }, thumb, h('div', { class: 'txt' }, h('span', { class: 'caps' }, f.type || t('diagram')), h('b', {}, f.title), views)));
   }
   const rows = shown
     .slice()
@@ -301,10 +308,10 @@ function homePage() {
       );
     });
   const index = shown.length
-    ? [h('h2', { class: 'caps' }, 'Elements'), h('table', { class: 'index' }, h('thead', {}, h('tr', {}, h('th', {}, 'Name'), h('th', {}, 'Kind'), h('th', {}, 'Technology · owner'), h('th', {}, 'Appears in'))), h('tbody', {}, ...rows))]
+    ? [h('h2', { class: 'caps' }, t('Elements')), h('table', { class: 'index' }, h('thead', {}, h('tr', {}, h('th', {}, t('Name')), h('th', {}, t('Kind')), h('th', {}, t('Technology · owner')), h('th', {}, t('Appears in')))), h('tbody', {}, ...rows))]
     : [];
   els.home.replaceChildren(
-    h('div', { class: 'wrap' }, h('span', { class: 'caps' }, 'Architecture'), h('h1', {}, data.title), data.subtitle ? h('p', { class: 'lede' }, data.subtitle) : null, facts, h('h2', { class: 'caps' }, 'Diagrams'), cards, ...index),
+    h('div', { class: 'wrap' }, h('span', { class: 'caps' }, t('Architecture')), h('h1', {}, data.title), data.subtitle ? h('p', { class: 'lede' }, data.subtitle) : null, facts, h('h2', { class: 'caps' }, t('Diagrams')), cards, ...index),
   );
   thumbs();
 }
@@ -404,7 +411,7 @@ function show(d: number, step: number, shape?: string) {
   stepBar(drawing, step);
   els.notesBtn.hidden = !drawing.notes?.length;
   const label = els.notesBtn.querySelector('span');
-  if (label) label.textContent = drawing.notes?.length ? `Notes ${drawing.notes.length}` : '';
+  if (label) label.textContent = drawing.notes?.length ? t('Notes {count}', { count: drawing.notes.length }) : '';
   if (panelFor === 'notes') drawing.notes?.length ? showNotes() : closePanel();
   document.title = `${longTitle(d)} · ${data.title}`;
   markSidebar();
@@ -419,7 +426,7 @@ function draw(pic: Picture) {
   const svg = svgOf(pic, look());
   size = { w: pic.w, h: pic.h };
   sheetSvg = svg;
-  els.sheet.replaceChildren(...(svg ? [svg] : [h('p', { class: 'loading' }, 'This drawing could not be shown.')]));
+  els.sheet.replaceChildren(...(svg ? [svg] : [h('p', { class: 'loading' }, t('This drawing could not be shown.'))]));
   if (!svg || !here) return;
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', data.drawings[here.d]!.title);
@@ -453,7 +460,7 @@ function shapeEl(shape: string): SVGGraphicsElement | undefined {
 function crumbs(drawing: PDrawing) {
   const parts: Node[] = [];
   const sep = () => h('span', { class: 'sep', 'aria-hidden': 'true' }, '/');
-  if (data.site) parts.push(sep(), h('a', { href: '#contents' }, 'Contents'));
+  if (data.site) parts.push(sep(), h('a', { href: '#contents' }, t('Contents')));
   const file = data.files.find((f) => f.path === drawing.file);
   if (drawing.trail?.length) {
     for (const c of drawing.trail.slice(0, -1)) parts.push(sep(), c.to !== undefined ? h('a', { href: hrefOf(c.to) }, c.label) : h('span', {}, c.label));
@@ -473,8 +480,8 @@ function stepBar(drawing: PDrawing, step: number) {
   }
   els.steps.hidden = false;
   const s = step ? steps[step - 1] : undefined;
-  const prev = button('nav', 'Back (←)', icon('left'));
-  const next = button('nav', 'Next (→)', icon('right'));
+  const prev = button('nav', t('Back (←)'), icon('left'));
+  const next = button('nav', t('Next (→)'), icon('right'));
   const all = sequence();
   const i = indexIn(all);
   prev.disabled = i <= 0;
@@ -484,8 +491,8 @@ function stepBar(drawing: PDrawing, step: number) {
   const say = h(
     'div',
     { class: 'say' },
-    h('span', { class: 'caps' }, steps.length ? (step ? `Step ${step} of ${steps.length}` : `${plural(steps.length, 'step')}, all shown`) : drawing.kind),
-    h('b', {}, s?.title ?? (step ? `Step ${step}` : drawing.title)),
+    h('span', { class: 'caps' }, steps.length ? (step ? t('Step {n} of {count}', { n: step, count: steps.length }) : t('{steps}, all shown', { steps: plural(steps.length, 'step') })) : drawing.kind),
+    h('b', {}, s?.title ?? (step ? t('Step {n}', { n: step }) : drawing.title)),
     s?.caption ? h('p', {}, s.caption) : null,
   );
   const dots = steps.length
@@ -493,7 +500,7 @@ function stepBar(drawing: PDrawing, step: number) {
         'div',
         { class: 'dots' },
         ...[...(presenting ? [] : [0]), ...steps.map((_, n) => n + 1)].map((n) => {
-          const b = button(n ? '' : 'all', n ? `Step ${n}${steps[n - 1]!.title ? `: ${steps[n - 1]!.title}` : ''}` : 'The whole drawing');
+          const b = button(n ? '' : 'all', n ? `${t('Step {n}', { n })}${steps[n - 1]!.title ? `: ${steps[n - 1]!.title}` : ''}` : t('The whole drawing'));
           if (n === step) b.setAttribute('aria-current', 'step');
           b.addEventListener('click', () => go(here!.d, n));
           return b;
@@ -583,7 +590,7 @@ function apply() {
     sheetSvg.setAttribute('height', String(Math.max(1, size.h * at.k)));
   }
   els.pct.textContent = `${Math.round(at.k * 100)}%`;
-  els.pct.title = fitted ? 'Actual size (1)' : 'Fit to the window (0)';
+  els.pct.title = fitted ? t('Actual size (1)') : t('Fit to the window (0)');
 }
 
 function fit() {
@@ -833,7 +840,7 @@ function closePanel() {
 
 function details(el: PElement, drawing: PDrawing, shape: string) {
   panelFor = 'element';
-  const close = button('btn x', 'Close (Esc)', icon('x'));
+  const close = button('btn x', t('Close (Esc)'), icon('x'));
   close.addEventListener('click', clearSelection);
   const drill = drawing.drill[shape];
   const facts: [string, string][] = [['id', el.id]];
@@ -847,23 +854,23 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
     el.technology ? h('span', { class: 'kind' }, el.technology) : null,
     el.owner ? h('span', { class: 'kind' }, `owner ${el.owner}`) : null,
     el.description ? h('p', { class: 'desc' }, el.description) : null,
-    drill !== undefined ? h('a', { class: 'btn primary open-btn', href: hrefOf(drill) }, icon('down'), `Open ${longTitle(drill)}`) : null,
+    drill !== undefined ? h('a', { class: 'btn primary open-btn', href: hrefOf(drill) }, icon('down'), t('Open {name}', { name: longTitle(drill) })) : null,
     el.tags?.length ? h('div', { class: 'tags' }, ...el.tags.map((t) => h('span', {}, t))) : null,
-    h('section', {}, h('span', { class: 'caps' }, 'Properties'), h('dl', {}, ...facts.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]))),
+    h('section', {}, h('span', { class: 'caps' }, t('Properties')), h('dl', {}, ...facts.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]))),
     parent
-      ? h('section', {}, h('span', { class: 'caps' }, 'Part of'), h('ul', {}, h('li', {}, parent.where[0] ? h('a', { href: hrefOf(parent.where[0][0], 0, parent.where[0][1]) }, parent.label, h('small', {}, parent.kind ?? '')) : h('span', { class: 'na' }, parent.label, h('small', {}, parent.kind ?? '')))))
+      ? h('section', {}, h('span', { class: 'caps' }, t('Part of')), h('ul', {}, h('li', {}, parent.where[0] ? h('a', { href: hrefOf(parent.where[0][0], 0, parent.where[0][1]) }, parent.label, h('small', {}, parent.kind ?? '')) : h('span', { class: 'na' }, parent.label, h('small', {}, parent.kind ?? '')))))
       : null,
     el.links?.length
       ? h(
           'section',
           {},
-          h('span', { class: 'caps' }, 'Links'),
+          h('span', { class: 'caps' }, t('Links')),
           h(
             'ul',
             {},
             ...el.links.map((l) => {
               const href = l.href ? safeHref(l.href) : undefined;
-              return h('li', {}, href && /^(https?|mailto):/i.test(href) ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, l.label, icon('out')) : h('span', { class: 'na' }, l.label, h('small', {}, 'not in this file')));
+              return h('li', {}, href && /^(https?|mailto):/i.test(href) ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, l.label, icon('out')) : h('span', { class: 'na' }, l.label, h('small', {}, t('not in this file'))));
             }),
           ),
         )
@@ -871,7 +878,7 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
     h(
       'section',
       {},
-      h('span', { class: 'caps' }, `Appears in ${plural(where.length, 'drawing')}`),
+      h('span', { class: 'caps' }, t('Appears in {drawings}', { drawings: plural(where.length, 'drawing') })),
       h(
         'ul',
         {},
@@ -882,8 +889,8 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
         }),
       ),
     ),
-    notes.length ? h('section', {}, h('span', { class: 'caps' }, 'Review notes'), ...notes.map(noteEl)) : null,
-    decided.length ? h('section', {}, h('span', { class: 'caps' }, 'Decisions'), h('ul', {}, ...decided.map((d) => h('li', {}, h('a', { href: `#decision-${d.n}` }, `${d.n}. ${d.title}`, h('small', {}, d.said)))))) : null,
+    notes.length ? h('section', {}, h('span', { class: 'caps' }, t('Review notes')), ...notes.map(noteEl)) : null,
+    decided.length ? h('section', {}, h('span', { class: 'caps' }, t('Decisions')), h('ul', {}, ...decided.map((d) => h('li', {}, h('a', { href: `#decision-${d.n}` }, `${d.n}. ${d.title}`, h('small', {}, d.said)))))) : null,
   );
 }
 
@@ -936,24 +943,24 @@ function showDecisions(n: number) {
       h(
         'div',
         { class: 'wrap' },
-        h('a', { href: '#decisions', class: 'caps' }, '← Decisions'),
+        h('a', { href: '#decisions', class: 'caps' }, t('← Decisions')),
         h('h1', {}, `${one.n}. ${one.title}`),
-        h('p', { class: 'lede' }, statusEl(one), one.date ? ` ${one.date}` : '', one.about.length ? ` · about ${one.about.join(', ')}` : ''),
-        places.length ? h('p', { class: 'adr-where' }, 'On ', ...places.flatMap(([d, s], i) => [i ? ', ' : '', h('a', { href: hrefOf(d, 0, s) }, longTitle(d))])) : null,
+        h('p', { class: 'lede' }, statusEl(one), one.date ? ` ${one.date}` : '', one.about.length ? ` · ${t('about {names}', { names: one.about.join(', ') })}` : ''),
+        places.length ? h('p', { class: 'adr-where' }, t('On '), ...places.flatMap(([d, s], i) => [i ? ', ' : '', h('a', { href: hrefOf(d, 0, s) }, longTitle(d))])) : null,
         h('article', { class: 'adr-text' }, ...blocksEl(one.blocks)),
       ),
     );
   } else {
-    document.title = `Decisions · ${data.title}`;
+    document.title = `${t('Decisions')} · ${data.title}`;
     const rows = list.map((d) => h('tr', {}, h('td', { class: 'mono' }, String(d.n)), h('td', {}, h('a', { href: `#decision-${d.n}` }, d.title)), h('td', {}, statusEl(d)), h('td', { class: 'mono' }, d.date ?? ''), h('td', {}, d.about.join(', '))));
     els.adr.replaceChildren(
       h(
         'div',
         { class: 'wrap' },
-        h('span', { class: 'caps' }, 'Architecture'),
-        h('h1', {}, 'Decisions'),
-        h('p', { class: 'lede' }, plural(list.length, 'decision'), ' recorded. On the drawings a page marker with its number says what each is about.'),
-        h('table', { class: 'index' }, h('thead', {}, h('tr', {}, h('th', {}, '#'), h('th', {}, 'Decision'), h('th', {}, 'Status'), h('th', {}, 'Date'), h('th', {}, 'Concerns'))), h('tbody', {}, ...rows)),
+        h('span', { class: 'caps' }, t('Architecture')),
+        h('h1', {}, t('Decisions')),
+        h('p', { class: 'lede' }, t('{decisions} recorded. On the drawings a page marker with its number says what each is about.', { decisions: plural(list.length, 'decision') })),
+        h('table', { class: 'index' }, h('thead', {}, h('tr', {}, h('th', {}, '#'), h('th', {}, t('Decision')), h('th', {}, t('Status')), h('th', {}, t('Date')), h('th', {}, t('Concerns')))), h('tbody', {}, ...rows)),
       ),
     );
   }
@@ -974,7 +981,7 @@ function showNotes() {
   if (!here) return;
   const notes = data.drawings[here.d]!.notes ?? [];
   panelFor = 'notes';
-  const close = button('btn x', 'Close (Esc)', icon('x'));
+  const close = button('btn x', t('Close (Esc)'), icon('x'));
   close.addEventListener('click', closePanel);
   const list = notes.map((n) => {
     const el = noteEl(n);
@@ -990,7 +997,7 @@ function showNotes() {
     }
     return el;
   });
-  openPanel(h('div', { class: 'head' }, h('div', {}, h('span', { class: 'caps' }, 'Review'), h('h3', {}, plural(notes.length, 'open note'))), close), h('section', {}, ...list));
+  openPanel(h('div', { class: 'head' }, h('div', {}, h('span', { class: 'caps' }, t('Review')), h('h3', {}, plural(notes.length, 'open note'))), close), h('section', {}, ...list));
 }
 
 // ---------------------------------------------------------------- search
@@ -1045,12 +1052,12 @@ function find(query: string): Hit[] {
   return (dws[0]?.score ?? 0) > (els[0]?.score ?? 0) + 10 ? [...dws, ...els] : [...els, ...dws];
 }
 
-const searchInput = h('input', { type: 'text', placeholder: 'Find an element or a view…', 'aria-label': 'Search', autocomplete: 'off', spellcheck: 'false' });
+const searchInput = h('input', { type: 'text', placeholder: t('Find an element or a view…'), 'aria-label': t('Search'), autocomplete: 'off', spellcheck: 'false' });
 const searchResults = h('div', { class: 'results', role: 'listbox', id: 'carto-results' });
 let hitIndex = 0;
 
 function searchBox() {
-  const dialog = h('div', { class: 'dialog', role: 'dialog', 'aria-label': 'Search' }, searchInput, searchResults, h('div', { class: 'foot' }, h('span', {}, h('kbd', {}, '↑'), ' ', h('kbd', {}, '↓'), ' to move'), h('span', {}, h('kbd', {}, '↵'), ' to open'), h('span', {}, h('kbd', {}, 'esc'), ' to close')));
+  const dialog = h('div', { class: 'dialog', role: 'dialog', 'aria-label': t('Search') }, searchInput, searchResults, h('div', { class: 'foot' }, h('span', {}, h('kbd', {}, '↑'), ' ', h('kbd', {}, '↓'), t(' to move')), h('span', {}, h('kbd', {}, '↵'), t(' to open')), h('span', {}, h('kbd', {}, 'esc'), t(' to close'))));
   searchInput.setAttribute('aria-controls', 'carto-results');
   els.search.append(dialog);
   els.search.addEventListener('pointerdown', (e) => e.target === els.search && closeSearch());
@@ -1079,12 +1086,12 @@ function listHits() {
   const nodes: Node[] = [];
   let group = '';
   for (const hit of hits) {
-    if (hit.group !== group) nodes.push(h('div', { class: 'grp caps' }, (group = hit.group)));
+    if (hit.group !== group) nodes.push(h('div', { class: 'grp caps' }, t((group = hit.group))));
     const a = h('a', { href: hit.href, role: 'option' }, h('span', {}, hit.title), h('small', {}, hit.detail));
     a.addEventListener('click', closeSearch);
     nodes.push(a);
   }
-  if (!hits.length) nodes.push(h('div', { class: 'none' }, searchInput.value.trim() ? 'Nothing by that name.' : `${plural(data.elements.filter((e) => e.where.length).length, 'element')} and ${plural(data.drawings.length, 'drawing')} to search.`));
+  if (!hits.length) nodes.push(h('div', { class: 'none' }, searchInput.value.trim() ? t('Nothing by that name.') : t('{elements} and {drawings} to search.', { elements: plural(data.elements.filter((e) => e.where.length).length, 'element'), drawings: plural(data.drawings.length, 'drawing') })));
   searchResults.replaceChildren(...nodes);
   markHit([...searchResults.querySelectorAll('a')]);
 }
@@ -1131,10 +1138,10 @@ const POINTER: [string, string][] = [
 ];
 
 function keysBox() {
-  const close = button('btn x', 'Close (Esc)', icon('x'));
+  const close = button('btn x', t('Close (Esc)'), icon('x'));
   close.addEventListener('click', () => showKeys(false));
-  const list = (rows: [string, string][], keys: boolean) => h('dl', {}, ...rows.flatMap(([k, what]) => [h('dt', {}, ...(keys ? k.split(' ').map((x) => h('kbd', {}, x)) : [k])), h('dd', {}, what)]));
-  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-label': 'Keys' }, h('div', { class: 'head' }, h('h3', {}, 'Keys'), close), list(KEYS, true), h('h3', { class: 'sub' }, 'Trackpad and mouse'), list(POINTER, false)));
+  const list = (rows: [string, string][], keys: boolean) => h('dl', {}, ...rows.flatMap(([k, what]) => [h('dt', {}, ...(keys ? k.split(' ').map((x) => h('kbd', {}, x)) : [t(k as keyof typeof nl)])), h('dd', {}, t(what as keyof typeof nl))]));
+  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-label': t('Keys') }, h('div', { class: 'head' }, h('h3', {}, t('Keys')), close), list(KEYS, true), h('h3', { class: 'sub' }, t('Trackpad and mouse')), list(POINTER, false)));
   els.keys.addEventListener('pointerdown', (e) => e.target === els.keys && showKeys(false));
 }
 
@@ -1250,7 +1257,7 @@ function buildPrint() {
       h(
         'section',
         { class: 'page cover' },
-        h('span', { class: 'caps' }, 'Architecture'),
+        h('span', { class: 'caps' }, t('Architecture')),
         h('h1', {}, data.title),
         h('div', { class: 'caps' }, data.made),
         h('ol', {}, ...data.files.flatMap((f) => f.drawings.map((d) => h('li', {}, longTitle(d))))),
@@ -1275,7 +1282,7 @@ function start() {
   try {
     data = load();
   } catch {
-    document.body.append(h('p', { class: 'loading' }, 'This file is damaged: its diagrams could not be read.'));
+    document.body.append(h('p', { class: 'loading' }, t('This file is damaged: its diagrams could not be read.')));
     return;
   }
   data.drawings.forEach((d, i) => byKey.set(d.key, i));

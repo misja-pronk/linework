@@ -9,6 +9,8 @@ import type { Theme } from '@cartography/theme';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
 import { describe as inWords, toText } from '@cartography/describe';
 import type { PDecision, PDrawing, PElement, PFile, PNote, PStep, Picture } from './payload.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 export interface HtmlExportInput {
   /** The diagrams to export, by path (forward slashes, relative to one root). */
@@ -30,7 +32,7 @@ export interface HtmlExportInput {
   sidecarFor?: (path: string) => LayoutSidecar | undefined;
   assetsFor?: (path: string) => RenderOptions['assets'];
   /** What every render gets as well: a theme picked, icon packs, official icons. */
-  render?: Pick<RenderOptions, 'themeOverride' | 'packs' | 'pack' | 'iconsOverride' | 'icons' | 'iconPacks' | 'fontScale'>;
+  render?: Pick<RenderOptions, 'themeOverride' | 'packs' | 'pack' | 'iconsOverride' | 'icons' | 'iconPacks' | 'fontScale' | 'lang'>;
   /** Also steps nobody wrote (a dynamic view's numbered lines, a sequence's messages). */
   allSteps?: boolean;
 }
@@ -52,6 +54,8 @@ export interface Collected {
   themes: Theme[];
   problems: Problem[];
   decisions?: PDecision[];
+  /** The language the page speaks: the first diagram's `lang:` (or the one asked for). */
+  lang?: Lang;
 }
 
 const dirOf = (p: string) => p.split('/').slice(0, -1).join('/');
@@ -100,6 +104,7 @@ function propsOf(raw: unknown): [string, string][] {
 
 export async function collect(input: HtmlExportInput): Promise<Collected> {
   const problems: Problem[] = [];
+  let lang: Lang | undefined = input.render?.lang;
   const texts = new Map<string, string>();
   const read = (p: string) => {
     if (!texts.has(p)) {
@@ -231,6 +236,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     const first = await render(text, { ...common, theme: 'light', idPrefix: `${prefix}v0` });
     for (const d of first.diagnostics) if (d.severity === 'error') problems.push({ file, line: d.line, message: d.message });
     if (!first.svg) continue;
+    lang ??= first.lang;
     const notes = input.notes ? input.notesFor?.(file) : undefined;
     const pfile: PFile = { path: file, title: ix.files.get(file)?.title ?? first.graph?.title ?? baseOf(file), type: ix.files.get(file)?.type ?? first.type?.id ?? '', drawings: [] };
     files.push(pfile);
@@ -254,7 +260,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? first.views?.find((v) => v.name === viewName)?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
       const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
-      const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? `${wsView.kind} view` : viewName ? `view of ${typeName}` : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
+      const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? tr(first.lang, '{kind} view', { kind: wsView.kind }) : viewName ? tr(first.lang, 'view of {type}', { type: typeName }) : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
       const index = n++;
       drawings.push(drawing);
       pfile.drawings.push(index);
@@ -372,8 +378,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   const site = input.site ?? files.length > 1;
   const model = [...ix.files.values()].find((f) => f.type === 'model' && f.title);
   const title = input.title ?? (site ? (model?.title ?? files[0]?.title) : files[0]?.title) ?? 'Diagrams';
-  const decisions = input.decisions?.length ? input.decisions.map((d) => decisionOf(d, ix)) : undefined;
-  return { title, site, files, drawings, elements, themes, problems, ...(decisions ? { decisions } : {}) };
+  const decisions = input.decisions?.length ? input.decisions.map((d) => decisionOf(d, ix, lang)) : undefined;
+  return { title, site, files, drawings, elements, themes, problems, ...(decisions ? { decisions } : {}), ...(lang && lang !== 'en' ? { lang } : {}) };
 }
 
 /** The decision markers on a drawing (the decisions themselves are a page of their own). */
@@ -385,7 +391,7 @@ function withDecisionMarks(r: RenderResult, decisions: Decision[] | undefined, i
 }
 
 /** A decision as the page shows it: its text as blocks, what it is about by name. */
-function decisionOf(d: Decision, ix: WorkspaceIndex): PDecision {
+function decisionOf(d: Decision, ix: WorkspaceIndex, lang?: Lang): PDecision {
   const name = (id: string) => ix.elements.get(id)?.[0]?.label ?? id;
   const about = d.concerns.map((s) => {
     const c = readConcern(s);
@@ -393,7 +399,7 @@ function decisionOf(d: Decision, ix: WorkspaceIndex): PDecision {
   });
   // The title is the page's heading: the text starts under it.
   const blocks = markdownBlocks(d.body.replace(/^\s*#[ \t]+.*\n/, ''));
-  return { n: d.number, title: d.title, status: d.status, said: statusSaid(d), ...(d.date ? { date: d.date } : {}), about, blocks };
+  return { n: d.number, title: d.title, status: d.status, said: statusSaid(d, lang), ...(d.date ? { date: d.date } : {}), about, blocks };
 }
 
 /** The open review notes as markers on the drawing (the list goes into the page). */

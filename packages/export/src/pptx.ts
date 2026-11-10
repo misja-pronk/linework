@@ -15,10 +15,14 @@ import { chooseLayout, readTemplate, type PptxTemplate } from './template/read.t
 import { filled, footer, planSlide } from './template/place.ts';
 import { pageColor, templateTheme } from './template/theme.ts';
 import { writeTemplateDeck } from './template/write.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 /** What render() returns, or anything else carrying a built graph and its layout. */
 export interface Drawing {
   graph?: Graph;
+  /** The language of the words the export adds (speaker notes, alt text): render()'s, the diagram's `lang:`. */
+  lang?: Lang;
   placed?: Placed;
   /** File name, mentioned in the speaker notes. */
   name?: string;
@@ -240,11 +244,13 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     for (const f of plan?.footers ?? []) tree += footer(next(), f);
 
     const nodes = graph.nodes.filter((n) => !n.folded).length;
-    const about = [graph.title ?? d.name ?? 'Diagram', graph.subtitle ?? ''];
+    const lang = d.lang;
+    const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
+    const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
-    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
-    if (d.remarks?.length) notes.push('', 'Review notes:', ...d.remarks);
-    if (d.decisions?.length) notes.push('', 'Decisions:', ...d.decisions);
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
+    if (d.remarks?.length) notes.push('', tr(lang, 'Review notes:'), ...d.remarks);
+    if (d.decisions?.length) notes.push('', tr(lang, 'Decisions:'), ...d.decisions);
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 
