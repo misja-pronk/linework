@@ -274,6 +274,42 @@ describe('carto import and diff of access and GitHub exports', () => {
   }, 60_000);
 });
 
+describe('carto render --layer and --all-layers', () => {
+  const layered = `type: azure
+title: Shop
+groups:
+  rg: resource-group
+nodes:
+  web: { kind: app-service, in: rg }
+  db: { kind: sql-database, in: rg, tags: [data] }
+  kv: { kind: key-vault, tags: [security] }
+edges:
+  - web -> db: { tags: [data] }
+  - web -> kv
+layers:
+  data: [data]
+  security: { tags: [security], dim-others: true }
+`;
+  it('draws one layer, or the whole and a file per layer; a deck holds them all', () => {
+    write('layered.yaml', layered);
+    const one = carto('render', 'layered.yaml', '--layer', 'data', '-o', 'one.svg');
+    expect(one.code).toBe(0);
+    expect(read('one.svg')).toContain('data layer');
+    expect(read('one.svg')).not.toContain('Key Vault');
+    const all = carto('render', 'layered.yaml', '--all-layers', '-o', 'layers/');
+    expect(all.code).toBe(0);
+    expect(['layered.svg', 'layered-data.svg', 'layered-security.svg'].every((f) => exists(`layers/${f}`))).toBe(true);
+    expect(all.out).toContain('layered.yaml@security →');
+    expect(carto('render', 'layered.yaml', '--all-layers', '-o', 'x.png').err).toContain('--all-layers writes one per layer');
+    const deck = carto('render', 'layered.yaml', '--all-layers', '-o', 'layers.pptx');
+    expect(deck.code).toBe(0);
+    expect(deck.out).toContain('3 drawings: the whole and 2 layers');
+    const bad = carto('render', 'layered.yaml', '--layer', 'nope');
+    expect(bad.code).not.toBe(0);
+    expect(bad.err).toContain('There is no layer "nope"');
+  });
+});
+
 describe('threats and share', () => {
   const model = fs.readFileSync(path.join(root, 'examples/systems/threat-model.yaml'), 'utf8');
   it('writes the threat table as markdown, and says when there is no threat model', () => {
