@@ -3,7 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { boxOverlaps, measure, routeEdges, throughVia } from '@cartography/layout';
+import type { LayoutMemory } from '@cartography/core';
+import { boxOverlaps, disorder, measure, routeEdges, throughVia } from '@cartography/layout';
 import { render } from '../src/index.ts';
 import { big, timed } from './perf.ts';
 
@@ -83,6 +84,18 @@ const headerBudget: Record<string, number> = {
   'deployment/aws.yaml#dev': 1,
 };
 
+// Pairs of groups standing side by side against the order they are written in: none, but for these,
+// where the lines between the groups say otherwise.
+const orderBudget: Record<string, number> = {
+  'azure/hub-spoke.yaml': 1,
+  'c4/kestrel-bank.yaml#production': 3,
+  'cloud/aws-landing-zone.yaml': 1,
+  'cloud/multi-cloud.yaml': 1,
+  'kubernetes/platform.yaml': 1,
+  'model/deployment.yaml': 1,
+  'network/small-office.yaml': 1,
+};
+
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
   // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
@@ -99,6 +112,7 @@ describe('layout quality', () => {
       expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward, overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
       expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
+      expect(disorder({ ...r.graph!, direction: r.placed!.direction ?? r.graph!.direction }, r.placed!.groups)).toBeLessThanOrEqual(orderBudget[key] ?? 0);
     });
 
   const c4 = fs.readFileSync(path.join(examples, 'c4/kestrel-bank.yaml'), 'utf8');
@@ -119,6 +133,23 @@ describe('layout quality', () => {
     const said = r.graph!.edges.filter((e) => e.label === 'OrderPlaced' && e.to.node === 'queue');
     expect(said.length).toBeGreaterThan(1);
     expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(1);
+  });
+  it('draws groups that stand side by side in the order they are written', async () => {
+    const text = fs.readFileSync(path.join(examples, 'cloud/aws-three-tier.yaml'), 'utf8');
+    const zones = async (source: string, previous?: LayoutMemory) => {
+      const r = await render(source, { fonts: 'none', previous });
+      const ids = ['az-a', 'az-b', 'az-c'].sort((a, b) => r.placed!.groups.get(a)!.x - r.placed!.groups.get(b)!.x);
+      return { ids, memory: r.placed!.memory };
+    };
+    const first = await zones(text);
+    expect(first.ids).toEqual(['az-a', 'az-b', 'az-c']);
+    // Written the other way round they are drawn the other way round, also with the first drawing remembered.
+    const lines = text.split('\n');
+    const [a, c] = [lines.findIndex((l) => l.startsWith('  az-a:')), lines.findIndex((l) => l.startsWith('  az-c:'))];
+    expect(a).toBeGreaterThan(-1);
+    expect(c).toBeGreaterThan(a);
+    [lines[a], lines[c]] = [lines[c]!, lines[a]!];
+    expect((await zones(lines.join('\n'), first.memory)).ids).toEqual(['az-c', 'az-b', 'az-a']);
   });
   it('keeps what one card names in a badge by that card', async () => {
     const r = await render(fs.readFileSync(path.join(examples, 'azure/web-shop.yaml'), 'utf8'), { fonts: 'none' });

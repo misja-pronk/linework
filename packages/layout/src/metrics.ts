@@ -52,6 +52,8 @@ export interface LayoutMetrics {
   labelOnBend: number;
   /** How ragged sibling groups of one kind are: per pair lying side by side, how far their starts and ends are apart. */
   siblingSpread: number;
+  /** Pairs of groups in one parent standing side by side against the order they are written in. */
+  disorder: number;
 }
 
 /** Lines closer than this read as one smudge. */
@@ -154,8 +156,26 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     m.borderHits * 25 +
     m.headerHits * 10 +
     m.foreign * 6 +
+    m.disorder * 6 +
     m.portCrowding * 8
   );
+}
+
+/**
+ * Groups of one parent that stand side by side (across the flow) read in the order they are
+ * written: the first one left (or on top, in a left-to-right drawing). Counts the pairs that do not.
+ */
+export function disorder(graph: Graph, groups: Map<string, Box>): number {
+  const down = graph.direction === 'down';
+  let n = 0;
+  for (const [i, first] of graph.groups.entries())
+    for (const second of graph.groups.slice(i + 1)) {
+      const [a, b] = [groups.get(first.id), groups.get(second.id)];
+      if (!a || !b || first.parent !== second.parent) continue;
+      const beside = down ? a.y < b.y + b.height && b.y < a.y + a.height : a.x < b.x + b.width && b.x < a.x + a.width;
+      if (beside && (down ? b.x + b.width <= a.x + 1 : b.y + b.height <= a.y + 1)) n++;
+    }
+  return n;
 }
 
 /**
@@ -408,6 +428,7 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     jogs,
     labelOnBend,
     siblingSpread: r2(siblingSpread),
+    disorder: disorder(graph, placed.groups),
     detour: counted ? r2(ratioSum / counted) : 1,
     detourExcess: r2(detourExcess),
     groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,

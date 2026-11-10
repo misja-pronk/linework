@@ -1,12 +1,12 @@
 // Layout: dot places nodes and groups, pins from the sidecar move nodes, our router draws the lines.
-import { unpackLayout, type Box, type EdgeOverride, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
+import { unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { measure, score } from './metrics.ts';
+import { disorder, measure, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 
@@ -21,6 +21,8 @@ export interface Tuning {
   direction?: 'right' | 'down';
   /** Move things across the flow where there is room (see compact.ts). */
   compact?: boolean;
+  /** Draw the mirror image (across the flow) when that puts groups in the order they are written; tried both ways unless set. */
+  mirror?: boolean;
   /** Straighten almost-straight lines (see align.ts): forced on or off; tried both ways when unset. */
   align?: boolean;
   /** Grid, rows and snug groups (see tidy.ts); on unless false. */
@@ -63,12 +65,13 @@ interface VariantKey {
   dot: DotVariant;
   compact: boolean;
   align: boolean;
+  mirror: boolean;
 }
 
 function parseKey(key: string | undefined): VariantKey | undefined {
-  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)-?$/.exec(key ?? '');
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
-  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4] } : undefined;
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5] } : undefined;
 }
 
 /** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
@@ -92,8 +95,11 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   // Nothing to place yet (a new, empty diagram): an empty drawing, not an error.
   if (!graph.nodes.length && !graph.groups.length) return { nodes: new Map(), groups: new Map(), edges: new Map(), width: 0, height: 0, shift: { x: 0, y: 0 } };
   const pinned = Object.keys(sidecar?.nodes ?? {}).length + Object.keys(sidecar?.groups ?? {}).length > 0;
-  const prev = tuning.previous === null ? undefined : (tuning.previous ?? unpackLayout(sidecar?.layout));
-  const was = parseKey(prev?.variant);
+  const before = tuning.previous === null ? undefined : (tuning.previous ?? unpackLayout(sidecar?.layout));
+  const was = parseKey(before?.variant);
+  // Groups put in another order in the source since the drawing before: that asks for them to move,
+  // so nothing is held where it was.
+  const prev = before?.disorder != null && before.groups && disorder(graph, before.groups) > before.disorder ? undefined : before;
   const open = !!tuning.autoDirection && !tuning.direction;
   const turned = (d: 'right' | 'down'): Sized => (d === graph.direction ? sized : { ...sized, graph: { ...graph, direction: d } });
   // The previous drawing is kept in the direction it had (when the source leaves the direction open).
@@ -104,7 +110,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // Pins were set on one placement: the one the sidecar names is drawn again, whatever the others
     // would score now. Moving a pin never redraws the rest.
     const d = open ? was.direction : graph.direction;
-    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align }, prev, d === stayIn);
+    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn);
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
     // A long chain drawn left to right can end up many times wider than tall: unreadable on a slide
@@ -122,6 +128,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   const memory: LayoutMemory = {
     variant: best.key,
     ...(best.held ? { held: true } : {}),
+    disorder: disorder(s.graph, best.p.groups),
     nodes: new Map([...best.p.nodes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }])),
     groups: new Map(best.p.groups),
   };
@@ -155,7 +162,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   // or not) and no other: every candidate is routed in full, which is most of the time a layout takes,
   // and next to the previous drawing kept as it was the other three rarely win.
   const was = big ? parseKey(prev?.variant) : undefined;
-  if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align };
+  if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror };
   let best: Choice | undefined;
   for (const [name, variant] of ways) {
     const c = await candidates(sized, spacing, tuning, name, variant, prev);
@@ -179,7 +186,7 @@ function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
   return share > 0 ? MOVE_BASE + MOVE_EACH * share : 0;
 }
 
-/** The best drawing from one dot placement: compacted or not, straightened or not. */
+/** The best drawing from one way of asking dot: as placed or in a mirror, compacted or not, straightened or not. */
 async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice> {
   const { graph } = sized;
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
@@ -187,7 +194,22 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   const widest = Math.max(0, ...[...sized.edgeLabels.values()].map((l) => l.width));
   const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
   const fit = tuning.labelRoom === 'fit' && graph.direction === 'right' && sized.edgeLabels.size > 0;
-  const asked = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  const dot = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  // Seen in a mirror a placement can have its groups in the order they are written. Which of the two
+  // draws better only shows when drawn, so a small diagram draws both; a big one takes the mirror.
+  const turned = tuning.mirror === false ? undefined : inOrder(dot, graph, sized.groupHeader - spacing.groupPad);
+  const sides: [boolean, Placement][] = !turned ? [[false, dot]] : tuning.mirror || graph.nodes.length > VARIANT_LIMIT ? [[true, turned]] : [[false, dot], [true, turned]];
+  let best: Choice | undefined;
+  for (const [mirror, asked] of sides) {
+    const c = drawings(sized, spacing, tuning, `${graph.direction}/${name}/`, mirror, asked, fit, prev);
+    if (!best || c.cost < best.cost - 1e-9) best = c;
+  }
+  return best!;
+}
+
+/** The best drawing of one placement: compacted or not, straightened or not. */
+function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, mirror: boolean, asked: Placement, fit: boolean, prev: LayoutMemory | undefined): Choice {
+  const { graph } = sized;
   // dot's gap is one size for all layers, the widest label's: each gap is closed to what its own lines need.
   const squeezed = fit && tuning.squeeze !== false;
   const placed = squeezed ? squeeze(asked, sized, spacing) : asked;
@@ -225,7 +247,7 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   for (const [c, base] of bases)
     for (const a of aligns) {
       let drawn = finish(base, a);
-      const key = `${graph.direction}/${name}/${c ? 'c' : ''}${a ? 'a' : ''}${c || a ? '' : '-'}`;
+      const key = `${name}${c ? 'c' : ''}${a ? 'a' : ''}${mirror ? 'm' : ''}${c || a || mirror ? '' : '-'}`;
       let m = measure(graph, drawn.placed, sized.groupHeader, sized.groupMinWidth);
       // Closing the gaps can leave two labels of one fan without room beside each other: then the
       // same drawing with dot's own gaps is the better one.
@@ -235,11 +257,30 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
         if (score(wm) < score(m)) [drawn, m] = [wide, wm];
       }
       const sc = score(m);
-      // Close to the previous drawing counts; with only its variant known, being that variant does.
-      const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && prev.variant !== key ? SWITCH : 0);
+      // Close to the previous drawing counts; with only its variant known, being that variant does
+      // (in a mirror or not: that follows the order in the source, which may have changed).
+      const way = (k: string) => k.replace(/m?-?$/, '');
+      const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && way(prev.variant) !== way(key) ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }
   return best!;
+}
+
+/**
+ * dot has no word for which of two groups comes first, and asked in reverse it hands them back in
+ * reverse. A placement is as good seen in a mirror (across the flow): this is the mirror image,
+ * when that has more groups in the order they are written.
+ */
+function inOrder(p: Placement, graph: Graph, head: number): Placement | undefined {
+  const down = graph.direction === 'down';
+  // Upside down a group has its header at the bottom: what it holds moves down by what the header
+  // is taller than the padding, once for each group around it.
+  const parent = new Map<string, string | undefined>([...graph.groups, ...graph.nodes].map((x) => [x.id, x.parent]));
+  const depth = (id: string | undefined): number => (parent.get(id!) ? 1 + depth(parent.get(id!)) : 0);
+  const flip = (id: string, b: Box): Box => (down ? { ...b, x: p.width - b.x - b.width } : { ...b, y: p.height - b.y - b.height + head * depth(id) });
+  const turn = (m: Map<string, Box>) => new Map([...m].map(([id, b]) => [id, flip(id, b)]));
+  const groups = turn(p.groups);
+  return disorder(graph, groups) < disorder(graph, p.groups) ? { ...p, nodes: turn(p.nodes), groups } : undefined;
 }
 
 /** Above this many nodes dot is asked once: the other variants would cost more time than they win. */
