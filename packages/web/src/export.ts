@@ -159,8 +159,8 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   // In a PowerPoint template: the one chosen in the menu, else the one the diagram's theme names (pptx:).
   const named = r.theme?.pptx;
   const bytes = template?.bytes ?? (named && template?.read ? await template.read(named.template) : undefined);
-  if (named && !template?.bytes && !bytes) throw new Error(`The theme makes decks in ${named.template}, which is not in the open folder`);
   const warnings: string[] = [];
+  if (named && !bytes) warnings.push(`the theme makes decks in ${named.template}, which is not in the open folder: made without it`);
   const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}), onWarning: (w: string) => warnings.push(w) } : {};
   const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), ...inTemplate });
   return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings };
