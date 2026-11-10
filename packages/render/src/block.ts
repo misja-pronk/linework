@@ -9,6 +9,7 @@ import type { BlockForm, BlockHeat, BlockShape, Box, NodeSize, Tone } from '@car
 import { contrast, groupLabel, groupLine, measureText, mix, paperTint, type Theme } from '@cartography/theme';
 import type { JourneyMark, JourneySeg } from './journey.ts';
 import { wrapText } from './size.ts';
+import { term } from '@cartography/i18n/drawing';
 
 export const BLOCK = {
   area: { max: 260, padX: 12, top: 11, bottom: 9, line: 14 },
@@ -417,7 +418,7 @@ function zoneMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
     m.push(...patternMarks(b.x, b.y, b.width, b.height, s.form === 'collaboration' ? 'cross' : 'dots', mix(fg, fill, s.form === 'collaboration' ? 0.4 : 0.6), 3));
   }
   // The mode in words where it fits along the zone, on a plate so the pattern does not cut it.
-  const words = (s.label || ZONE_NAMES[s.form as keyof typeof ZONE_NAMES]).toUpperCase();
+  const words = (s.label || term(theme.lang, ZONE_NAMES[s.form as keyof typeof ZONE_NAMES])).toUpperCase();
   const tw = measureText(words, 8.5, 600, 'mono', 0.6) + 10;
   if (across && b.width >= tw + 16 && b.height >= 13) {
     const h = 13;

@@ -2,6 +2,7 @@
 // place, save next to them. Text files in the folder are cached so the engine's synchronous loader can
 // read contracts relative to the diagram, as the CLI does. Other browsers fall back to upload/download.
 import type { LayoutSidecar } from '@cartography/core';
+import { t } from './i18n/index.ts';
 
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
@@ -70,7 +71,7 @@ export function folderLoader(ws: Workspace, diagram: string): (file: string) => 
       else if (seg && seg !== '.') parts.push(seg);
     }
     const hit = ws.files.get(parts.join('/'));
-    if (!hit) throw new Error(`No file ${file}`);
+    if (!hit) throw new Error(t('No file {file}', { file }));
     return hit.text;
   };
 }
@@ -110,7 +111,7 @@ async function write(handle: FileSystemFileHandle, text: string) {
 /** Writes one text file of the folder as it is given (a diagram or a sidecar changed by a rename elsewhere). */
 export async function writeInFolder(ws: Workspace, path: string, text: string) {
   const h = await handleFor(ws, path, true);
-  if (!h) throw new Error(`Cannot write ${path}`);
+  if (!h) throw new Error(t('Cannot write {path}', { path }));
   await write(h, text);
   ws.files.set(path, { handle: h, text });
 }
@@ -118,14 +119,14 @@ export async function writeInFolder(ws: Workspace, path: string, text: string) {
 /** Saves a diagram and its pins (or removes a stale sidecar when there are none). */
 export async function saveInFolder(ws: Workspace, path: string, text: string, pins: LayoutSidecar | undefined) {
   const h = await handleFor(ws, path, true);
-  if (!h) throw new Error(`Cannot write ${path}`);
+  if (!h) throw new Error(t('Cannot write {path}', { path }));
   await write(h, text);
   ws.files.set(path, { handle: h, text });
   const side = sidecarPath(path);
   if (['nodes', 'groups', 'edges', 'locked', 'views', 'layout'].some((k) => Object.keys(pins?.[k as 'nodes'] ?? {}).length)) {
     const json = JSON.stringify(pins, null, 2) + '\n';
     const sh = await handleFor(ws, side, true);
-    if (!sh) throw new Error(`Cannot write ${side}`);
+    if (!sh) throw new Error(t('Cannot write {path}', { path: side }));
     await write(sh, json);
     ws.files.set(side, { handle: sh, text: json });
   } else if (ws.files.has(side) && isSidecar(ws.files.get(side)!.text)) {
@@ -155,7 +156,7 @@ function isSidecar(text: string): boolean {
 export async function saveNotesInFolder(ws: Workspace, notesFile: string, text: string | undefined) {
   if (text) {
     const h = await handleFor(ws, notesFile, true);
-    if (!h) throw new Error(`Cannot write ${notesFile}`);
+    if (!h) throw new Error(t('Cannot write {path}', { path: notesFile }));
     await write(h, text);
     ws.files.set(notesFile, { handle: h, text });
   } else if (ws.files.has(notesFile)) {
@@ -188,7 +189,7 @@ export async function saveAs(name: string, text: string, startIn?: FileSystemDir
     const handle = await (window as unknown as { showSaveFilePicker(o: object): Promise<FileSystemFileHandle> }).showSaveFilePicker({
       suggestedName: name,
       ...(startIn ? { startIn } : {}),
-      types: [{ description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+      types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
     });
     await write(handle, text);
     return { handle, name: handle.name };

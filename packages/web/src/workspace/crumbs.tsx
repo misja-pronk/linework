@@ -3,6 +3,7 @@
 import { trail, viewAbout, type WorkspaceIndex } from '@cartography/core';
 import { Icon } from '../icon.tsx';
 import type { Place } from './use-workspace.ts';
+import { t } from '../i18n/index.ts';
 
 export interface Crumb {
   label: string;
@@ -13,7 +14,7 @@ export interface Crumb {
 /** The crumbs for a drawing: the folder, then each element above the one the view is about. */
 export function crumbsOf(index: WorkspaceIndex, scope: string, here: Place, viewTitle?: string): Crumb[] {
   const top = viewAbout(index, undefined, here.file);
-  const out: Crumb[] = [{ label: scope, title: top ? `The landscape (${top.file.replace(/\.ya?ml$/i, '')} › ${top.view})` : scope, to: top && !(top.file === here.file && top.view === here.view) ? top : undefined }];
+  const out: Crumb[] = [{ label: scope, title: top ? t('The landscape ({place})', { place: `${top.file.replace(/\.ya?ml$/i, '')} › ${top.view}` }) : scope, to: top && !(top.file === here.file && top.view === here.view) ? top : undefined }];
   const ids = trail(index, here.file, here.view);
   if (!ids.length) return [...out, { label: here.view ? `${here.file.replace(/\.ya?ml$/i, '')} › ${viewTitle ?? here.view}` : here.file }];
   for (const [i, id] of ids.entries()) {
@@ -35,11 +36,11 @@ export function Crumbs({ crumbs, back, forward, onGo }: { crumbs: Crumb[]; back?
   return (
     // A row of its own, so the tools and the focus chip keep theirs below it.
     <div className="crumbs-row">
-    <nav className="crumbs" aria-label="Where this drawing is" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-      <button className="tool" onClick={back} disabled={!back} title="Back (⌘[)" aria-label="Back">
+    <nav className="crumbs" aria-label={t('Where this drawing is')} onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+      <button className="tool" onClick={back} disabled={!back} title={t('Back (⌘[)')} aria-label={t('Back')}>
         <Icon name="arrow-left" />
       </button>
-      <button className="tool" onClick={forward} disabled={!forward} title="Forward (⌘])" aria-label="Forward">
+      <button className="tool" onClick={forward} disabled={!forward} title={t('Forward (⌘])')} aria-label={t('Forward')}>
         <Icon name="arrow-right" />
       </button>
       <ol>

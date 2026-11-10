@@ -4,6 +4,8 @@
 // An anchor follows a rename (renameNoteAnchors, called where the builder renames), and when its
 // element is gone it stays as "orphaned" with the label it last had.
 import type { Graph, GraphGroup, GraphNode, Point } from './model.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 export type NoteAnchor =
   | { kind: 'node' | 'group'; id: string; label?: string }
@@ -142,8 +144,8 @@ export function nodeLabel(n: GraphNode): string {
 }
 
 /** What an anchor is about, as a reader says it: "Orders", "Web → Orders", "a point". */
-export function anchorLabel(a: NoteAnchor, graph?: Graph): string {
-  if (a.kind === 'point') return 'a point on the canvas';
+export function anchorLabel(a: NoteAnchor, graph?: Graph, lang?: Lang): string {
+  if (a.kind === 'point') return tr(lang, 'a point on the canvas');
   const name = (id: string) => {
     const n = graph?.nodes.find((x) => x.id === id);
     return n ? nodeLabel(n) : id;
@@ -319,36 +321,37 @@ export function notePlain(text: string): string[] {
 const day = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
 /** The threads as markdown: what `carto notes` prints and what a pull request can carry. */
-export function notesMarkdown(notes: NotesFile, opts: { graph?: Graph; views?: Record<string, Graph>; title?: string; all?: boolean } = {}): string {
+export function notesMarkdown(notes: NotesFile, opts: { graph?: Graph; views?: Record<string, Graph>; title?: string; all?: boolean; lang?: Lang } = {}): string {
+  const lang = opts.lang;
   const numbers = noteNumbers(notes);
   const list = [...notes.threads].filter((t) => opts.all || t.status === 'open').sort((a, b) => numbers.get(a.id)! - numbers.get(b.id)!);
-  const out = [`# Review notes${opts.title ? `: ${opts.title}` : ''}`, ''];
+  const out = [`# ${tr(lang, 'Review notes')}${opts.title ? `: ${opts.title}` : ''}`, ''];
   const open = notes.threads.filter((t) => t.status === 'open').length;
-  out.push(`${open} open, ${notes.threads.length - open} resolved${opts.all ? '' : ' (not listed; --all lists them)'}.`, '');
-  if (!list.length) out.push(opts.all ? 'No notes.' : 'No open notes.', '');
+  out.push(`${tr(lang, '{open} open, {resolved} resolved', { open, resolved: notes.threads.length - open })}${opts.all ? '' : ` ${tr(lang, '(not listed; --all lists them)')}`}.`, '');
+  if (!list.length) out.push(opts.all ? tr(lang, 'No notes.') : tr(lang, 'No open notes.'), '');
   for (const t of list) {
     const graph = (t.view && opts.views?.[t.view]) || opts.graph;
     const r = graph ? resolveAnchor(t.anchor, graph) : undefined;
-    const about = r?.state === 'orphaned' ? `${r.was} (orphaned: no longer in the diagram)` : anchorLabel(r?.state === 'attached' ? r.anchor : t.anchor, graph);
-    out.push(`## ${numbers.get(t.id)}. ${about}${t.status === 'resolved' ? ' — resolved' : ''}`, '');
-    out.push(`*${t.author || 'someone'}, ${day(t.created)}${t.view ? `, view ${t.view}` : ''}${t.edited ? ', edited' : ''}*`, '', t.text.trim(), '');
+    const about = r?.state === 'orphaned' ? `${r.was} (${tr(lang, 'orphaned: no longer in the diagram')})` : anchorLabel(r?.state === 'attached' ? r.anchor : t.anchor, graph, lang);
+    out.push(`## ${numbers.get(t.id)}. ${about}${t.status === 'resolved' ? ` — ${tr(lang, 'resolved')}` : ''}`, '');
+    out.push(`*${t.author || tr(lang, 'someone')}, ${day(t.created)}${t.view ? `, ${tr(lang, 'view {name}', { name: t.view })}` : ''}${t.edited ? `, ${tr(lang, 'edited')}` : ''}*`, '', t.text.trim(), '');
     for (const reply of [...(t.replies ?? [])].sort(byTime)) {
-      out.push(`> **${reply.author || 'someone'}**, ${day(reply.created)}${reply.edited ? ', edited' : ''}`, ...reply.text.trim().split('\n').map((l) => `> ${l}`), '');
+      out.push(`> **${reply.author || tr(lang, 'someone')}**, ${day(reply.created)}${reply.edited ? `, ${tr(lang, 'edited')}` : ''}`, ...reply.text.trim().split('\n').map((l) => `> ${l}`), '');
     }
   }
   return out.join('\n').replace(/\n+$/, '\n');
 }
 
 /** The threads a view shows, as plain lines ("3. Orders — Ann: text", replies indented): PowerPoint's speaker notes. */
-export function noteLines(notes: NotesFile, graph: Graph, view: string | undefined, resolved = false): string[] {
+export function noteLines(notes: NotesFile, graph: Graph, view: string | undefined, resolved = false, lang?: Lang): string[] {
   const numbers = noteNumbers(notes);
   const out: string[] = [];
   for (const t of notesInView(notes, view).filter((x) => resolved || x.status === 'open').sort((a, b) => numbers.get(a.id)! - numbers.get(b.id)!)) {
     const r = resolveAnchor(t.anchor, graph);
-    const about = r.state === 'orphaned' ? `${r.was} (no longer in the diagram)` : anchorLabel(r.state === 'attached' ? r.anchor : t.anchor, graph);
+    const about = r.state === 'orphaned' ? `${r.was} (${tr(lang, 'no longer in the diagram')})` : anchorLabel(r.state === 'attached' ? r.anchor : t.anchor, graph, lang);
     const [first = '', ...rest] = notePlain(t.text);
-    out.push(`${numbers.get(t.id)}. ${about}${t.status === 'resolved' ? ' (resolved)' : ''} — ${t.author || 'someone'}: ${first}`, ...rest.map((l) => `   ${l}`));
-    for (const reply of [...(t.replies ?? [])].sort(byTime)) out.push(...notePlain(reply.text).map((l, i) => (i ? `      ${l}` : `   ↳ ${reply.author || 'someone'}: ${l}`)));
+    out.push(`${numbers.get(t.id)}. ${about}${t.status === 'resolved' ? ` (${tr(lang, 'resolved')})` : ''} — ${t.author || tr(lang, 'someone')}: ${first}`, ...rest.map((l) => `   ${l}`));
+    for (const reply of [...(t.replies ?? [])].sort(byTime)) out.push(...notePlain(reply.text).map((l, i) => (i ? `      ${l}` : `   ↳ ${reply.author || tr(lang, 'someone')}: ${l}`)));
   }
   return out;
 }

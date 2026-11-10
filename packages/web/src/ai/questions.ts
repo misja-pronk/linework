@@ -2,6 +2,7 @@
 // diagram needs (scope, parts, flows) instead of one vague sentence. Chips come from the type's
 // palette, so a new type gets sensible questions without code here.
 import type { DiagramType } from '@cartography/core';
+import { say } from '../i18n/index.ts';
 
 export interface Question {
   id: string;
@@ -159,5 +160,15 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
 
 export function questionsFor(type: DiagramType): Question[] {
   const own = specific[type.id]?.(type) ?? [about, parts(type, 'What should appear?')];
-  return [...own, audience, detail, extra];
+  return [...own, audience, detail, extra].map(local);
 }
+
+/** In the editor's language: what is shown, and so the answers Claude gets (palette labels stay as the type has them). */
+const local = (q: Question): Question => ({
+  ...q,
+  label: say(q.label),
+  ...(q.help ? { help: say(q.help) } : {}),
+  ...(q.placeholder ? { placeholder: say(q.placeholder) } : {}),
+  ...(q.options && !q.groups ? { options: q.options.map((o) => say(o)) } : {}),
+  ...(q.initial !== undefined ? { initial: Array.isArray(q.initial) ? q.initial.map((o) => say(o)) : say(q.initial) } : {}),
+});

@@ -1,6 +1,7 @@
 // The plugin contract: a diagram type turns its own YAML into the shared Graph.
 import type { CardForm, Graph, LayoutMemory, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
 import type { ModelContext } from './catalogue.ts';
+import type { Lang } from '@cartography/i18n';
 
 export interface DiagramType<Source = any> {
   /** The value of `type:` in the YAML. */
@@ -118,6 +119,8 @@ export interface BuildContext {
    * filters other types' graphs by id afterwards.
    */
   model?: ModelContext;
+  /** The diagram's `lang:`: the words the type adds itself (a key label it puts together) in that language. */
+  lang?: Lang;
 }
 
 export interface PaletteItem {

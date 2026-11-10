@@ -8,6 +8,7 @@ import type { Diagnostic, DiagramType, Graph, LayoutSidecar, Placed } from '@car
 import { compare, summary as diffSummary, type Comparison } from '@cartography/diff';
 import { Icon } from '../icon.tsx';
 import { store } from '../store.ts';
+import { say, t as tr } from '../i18n/index.ts';
 import { failure, MODELS, type ModelId } from './claude.ts';
 import { ask, newConversation, type AskProgress, type Conversation, type Proposal } from './ask.ts';
 import { contextMessage, followUpMessage, includedFiles, isReview, layoutReport, sentList, type AskContext } from './ask-prompt.ts';
@@ -140,7 +141,7 @@ export function AskPanel(p: AskPanelProps) {
         requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('.proposal')?.focus());
       }
     } catch (e) {
-      if (abort.current?.signal.aborted) setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: 'Stopped. Nothing was changed.' }]);
+      if (abort.current?.signal.aborted) setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: tr('Stopped. Nothing was changed.') }]);
       else {
         setTurns((t) => [...t, { who: 'claude', kind: 'failed', message: failure(e) }]);
         if (e instanceof Anthropic.AuthenticationError) setAskingKey(true);
@@ -203,29 +204,29 @@ export function AskPanel(p: AskPanelProps) {
 
   const what = ctx(question);
   return (
-    <aside className="ask-panel" ref={panel} aria-label="Ask Claude" hidden={p.hidden} onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
+    <aside className="ask-panel" ref={panel} aria-label={tr('Ask Claude')} hidden={p.hidden} onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
       <header>
         <Icon name="sparkles" size={16} />
-        <strong>Ask Claude</strong>
-        <span className="ask-scope">{p.selection.length ? `about ${p.selection.length === 1 ? (labelIn(p.graph, p.selection[0]!) ?? p.selection[0]!.id) : `${p.selection.length} selected`}` : 'about the whole diagram'}</span>
-        <button className="icon-button" onClick={() => setAskingKey((v) => !v)} title="API key and model" aria-label="API key and model" aria-expanded={askingKey}>
+        <strong>{tr('Ask Claude')}</strong>
+        <span className="ask-scope">{p.selection.length ? (p.selection.length === 1 ? tr('about {name}', { name: labelIn(p.graph, p.selection[0]!) ?? p.selection[0]!.id }) : tr('about {count} selected', { count: p.selection.length })) : tr('about the whole diagram')}</span>
+        <button className="icon-button" onClick={() => setAskingKey((v) => !v)} title={tr('API key and model')} aria-label={tr('API key and model')} aria-expanded={askingKey}>
           <Icon name="key-round" />
         </button>
-        <button className="icon-button" onClick={p.onClose} title="Close (⌘J)" aria-label="Close">
+        <button className="icon-button" onClick={p.onClose} title={tr('Close (⌘J)')} aria-label={tr('Close')}>
           <Icon name="x" />
         </button>
       </header>
       {askingKey && (
         <div className="ask-key">
           <label className="ask-field">
-            <span className="ask-label">Anthropic API key</span>
+            <span className="ask-label">{tr('Anthropic API key')}</span>
             <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" autoComplete="off" spellCheck={false} />
           </label>
           <div className="ask-key-row">
             <label className="check">
-              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember in this browser
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> {tr('Remember in this browser')}
             </label>
-            <select value={model} onChange={(e) => setModel(e.target.value as ModelId)} aria-label="Model">
+            <select value={model} onChange={(e) => setModel(e.target.value as ModelId)} aria-label={tr('Model')}>
               {MODELS.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.label}
@@ -235,9 +236,9 @@ export function AskPanel(p: AskPanelProps) {
           </div>
           {!hasKey && (
             <p className="fine">
-              Claude runs on your own key; its costs are yours.{' '}
+              {tr('Claude runs on your own key; its costs are yours.')}{' '}
               <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-                Get a key ↗
+                {tr('Get a key ↗')}
               </a>
             </p>
           )}
@@ -246,11 +247,11 @@ export function AskPanel(p: AskPanelProps) {
       <div className="ask-log" ref={log} aria-live="polite">
         {!turns.length && !busy && (
           <div className="ask-empty">
-            <p>Ask for a change (“add a DR region in West Europe”, “split the API into three services”) or a question. Changes come back as a diff to accept or reject.</p>
+            <p>{tr('Ask for a change (“add a DR region in West Europe”, “split the API into three services”) or a question. Changes come back as a diff to accept or reject.')}</p>
             <div className="chips inline">
               {QUICK.map((q) => (
-                <button key={q.label} type="button" className="chip" onClick={() => void send(q.ask)} disabled={!p.type}>
-                  {q.label}
+                <button key={q.label} type="button" className="chip" onClick={() => void send(say(q.ask))} disabled={!p.type}>
+                  {say(q.label)}
                 </button>
               ))}
             </div>
@@ -269,8 +270,8 @@ export function AskPanel(p: AskPanelProps) {
             <div key={i} className={`turn claude proposal-turn ${t.state}`}>
               {t.note && <Answer text={t.note} graph={p.graph} onRef={p.onRef} />}
               <p className="proposal-summary">
-                <Icon name={t.state === 'accepted' ? 'check' : t.state === 'open' ? 'git-pull-request' : 'x'} size={14} /> {t.summary || 'A change'}
-                {t.state !== 'open' && <em> · {t.state === 'accepted' ? 'accepted' : t.state === 'rejected' ? 'rejected' : 'replaced by the next answer'}</em>}
+                <Icon name={t.state === 'accepted' ? 'check' : t.state === 'open' ? 'git-pull-request' : 'x'} size={14} /> {t.summary || tr('A change')}
+                {t.state !== 'open' && <em> · {t.state === 'accepted' ? tr('accepted') : t.state === 'rejected' ? tr('rejected') : tr('replaced by the next answer')}</em>}
               </p>
             </div>
           ) : t.kind === 'refused' ? (
@@ -279,9 +280,9 @@ export function AskPanel(p: AskPanelProps) {
               <p className="callout error" role="alert">
                 <Icon name="circle-exclamation-point" size={14} />
                 <span>
-                  Claude’s change did not validate after two fixes, so it is not offered. Nothing was changed. Try asking for a smaller step.
+                  {tr('Claude’s change did not validate after two fixes, so it is not offered. Nothing was changed. Try asking for a smaller step.')}
                   <details>
-                    <summary>What was wrong</summary>
+                    <summary>{tr('What was wrong')}</summary>
                     <small className="ask-errors">{t.errors.map((e) => (e.length > 240 ? `${e.slice(0, 240)}…` : e)).join('\n')}</small>
                   </details>
                 </span>
@@ -300,9 +301,9 @@ export function AskPanel(p: AskPanelProps) {
             {progress.text && <Answer text={progress.text} graph={p.graph} onRef={p.onRef} />}
             <p className="ask-status">
               <span className="pulse" />{' '}
-              {progress.attempt > 1 ? 'Fixing the change: it did not validate…' : progress.writing ? `Writing the change… ${progress.writing} characters` : progress.text ? 'Answering…' : 'Thinking…'}
+              {progress.attempt > 1 ? tr('Fixing the change: it did not validate…') : progress.writing ? tr('Writing the change… {count} characters', { count: progress.writing }) : progress.text ? tr('Answering…') : tr('Thinking…')}
               <button className="button ghost small" onClick={cancel}>
-                Stop <kbd>Esc</kbd>
+                {tr('Stop')} <kbd>Esc</kbd>
               </button>
             </p>
           </div>
@@ -323,8 +324,8 @@ export function AskPanel(p: AskPanelProps) {
           rows={2}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder={proposal ? 'Ask for something different…' : p.selection.length ? 'Ask about the selection, or for a change to it…' : 'Ask about the diagram, or for a change…'}
-          aria-label="Question for Claude"
+          placeholder={proposal ? tr('Ask for something different…') : p.selection.length ? tr('Ask about the selection, or for a change to it…') : tr('Ask about the diagram, or for a change…')}
+          aria-label={tr('Question for Claude')}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -337,16 +338,16 @@ export function AskPanel(p: AskPanelProps) {
           }}
           disabled={!p.type}
         />
-        <button className="button primary" type="submit" disabled={busy || !question.trim() || !p.type} title={hasKey ? 'Ask (⏎)' : 'Enter an API key first'}>
-          <Icon name="send" /> Ask
+        <button className="button primary" type="submit" disabled={busy || !question.trim() || !p.type} title={hasKey ? tr('Ask (⏎)') : tr('Enter an API key first')}>
+          <Icon name="send" /> {tr('Ask')}
         </button>
       </form>
       <footer className="ask-sent">
         <span>
-          Sent to api.anthropic.com when you ask: {what ? sentList(what) : 'the diagram'}. Nothing else; costs go to your key.
+          {tr('Sent to api.anthropic.com when you ask: {what}. Nothing else; costs go to your key.', { what: what ? sentList(what) : tr('the diagram') })}
         </span>
         <button type="button" className="link" onClick={() => setShowSent((v) => !v)} aria-expanded={showSent}>
-          {showSent ? 'Hide' : 'Show exactly'}
+          {showSent ? tr('Hide') : tr('Show exactly')}
         </button>
         {showSent && <pre className="ask-sent-text">{preview}</pre>}
       </footer>
@@ -387,26 +388,26 @@ function ProposalView(p: { before: string; after: string; stale: boolean; sideca
   }, [p.before, p.after, p.theme, p.sidecar, p.load]);
   const lines = useMemo(() => lineDiff(p.before, p.after), [p.before, p.after]);
   return (
-    <div className="proposal" tabIndex={-1} aria-label="Proposed change">
+    <div className="proposal" tabIndex={-1} aria-label={tr('Proposed change')}>
       <div className="proposal-head">
         <div className="segmented" role="tablist">
           <button role="tab" className={tab === 'drawing' ? 'active' : undefined} aria-selected={tab === 'drawing'} onClick={() => setTab('drawing')}>
-            Drawing
+            {tr('Drawing')}
           </button>
           <button role="tab" className={tab === 'yaml' ? 'active' : undefined} aria-selected={tab === 'yaml'} onClick={() => setTab('yaml')}>
             YAML
           </button>
         </div>
-        <span className="proposal-count">{cmp ? (cmp.c.diff.same ? 'Nothing drawn differently' : diffSummary(cmp.c.diff)) : 'Drawing the change…'}</span>
+        <span className="proposal-count">{cmp ? (cmp.c.diff.same ? tr('Nothing drawn differently') : diffSummary(cmp.c.diff)) : tr('Drawing the change…')}</span>
       </div>
       {tab === 'drawing' ? (
         <div className="proposal-drawing">{cmp?.svg ? <div className="proposal-svg" dangerouslySetInnerHTML={{ __html: cmp.svg }} /> : <span className="pulse" />}</div>
       ) : (
-        <pre className="proposal-yaml" aria-label="YAML diff">
+        <pre className="proposal-yaml" aria-label={tr('YAML diff')}>
           {lines.map((l, i) =>
             l.kind === 'fold' ? (
               <span key={i} className="fold">
-                ⋯ {l.count} unchanged line{l.count > 1 ? 's' : ''}
+                {tr('⋯ {count} unchanged line|⋯ {count} unchanged lines', { count: l.count })}
                 {'\n'}
               </span>
             ) : (
@@ -419,15 +420,15 @@ function ProposalView(p: { before: string; after: string; stale: boolean; sideca
           )}
         </pre>
       )}
-      {p.stale && <p className="callout error">The YAML changed since Claude made this, and the change no longer fits it. Ask again to get it for the new text.</p>}
+      {p.stale && <p className="callout error">{tr('The YAML changed since Claude made this, and the change no longer fits it. Ask again to get it for the new text.')}</p>}
       <div className="proposal-actions">
         <button className="button primary" onClick={p.onAccept} disabled={p.stale}>
-          <Icon name="check" /> Accept <kbd>⏎</kbd>
+          <Icon name="check" /> {tr('Accept')} <kbd>⏎</kbd>
         </button>
         <button className="button ghost" onClick={p.onReject}>
-          <Icon name="x" /> Reject <kbd>Esc</kbd>
+          <Icon name="x" /> {tr('Reject')} <kbd>Esc</kbd>
         </button>
-        <span className="fine">Accept is one undo step. Pins stay.</span>
+        <span className="fine">{tr('Accept is one undo step. Pins stay.')}</span>
       </div>
     </div>
   );

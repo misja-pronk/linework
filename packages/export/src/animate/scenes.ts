@@ -5,6 +5,8 @@
 import { fadeState, finalState, selectorsOf, type Box, type Faded, type Graph, type Placed, type Point, type StepState } from '@cartography/core';
 import { drawSvg, wrap, type StepView } from '@cartography/render';
 import { themeTextFonts, withTextFonts, type Theme } from '@cartography/theme';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 /** One beat of the story: how the drawing looks, and what is said under it. */
 export interface Beat {
@@ -37,9 +39,9 @@ export function stepBeats(steps: StepState[], faded?: Faded): Beat[] {
  * Walking the layers: the drawing as the story leaves it, then each layer in turn standing out with
  * the rest faded in place (never laid out anew, so nothing moves between beats).
  */
-export function layerBeats(steps: StepState[] | undefined, layers: { name: string; title?: string; caption?: string; faded: Faded }[], whole?: string): Beat[] {
+export function layerBeats(steps: StepState[] | undefined, layers: { name: string; title?: string; caption?: string; faded: Faded }[], whole?: string, lang?: Lang): Beat[] {
   const end = steps?.length ? (finalState(steps) ?? EMPTY()) : EMPTY();
-  return [{ state: end, title: whole ?? 'The whole drawing' }, ...layers.map((l) => ({ state: fadeState(end, l.faded), title: l.title ?? l.name, ...(l.caption ? { caption: l.caption } : {}) }))];
+  return [{ state: end, title: whole ?? tr(lang, 'The whole drawing') }, ...layers.map((l) => ({ state: fadeState(end, l.faded), title: l.title ?? l.name, ...(l.caption ? { caption: l.caption } : {}) }))];
 }
 
 /**

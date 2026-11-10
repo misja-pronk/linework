@@ -5,6 +5,7 @@
 // parts that go with it. A connector is a line bound to the elements it joins.
 import { chips, type BlockShape, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
 import { icon } from '@cartography/icons';
+import { tr } from '@cartography/i18n/drawing';
 import { kinds as sequenceKinds } from '@cartography/sequence';
 import { besideShortLine, blockMarks, joinDot, rowHeight, sectionHeight, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
@@ -999,7 +1000,7 @@ class SceneBuilder {
     };
     if (where === 'right') {
       const x = this.origin.x + placed.width + 40;
-      parts.push(this.text('Legend', x, this.origin.y + 10, key ? 'KEY' : 'Legend', key ? 9.5 : t.size.caption, 600, t.textFaint, 'start', key ? { tracking: 1.2 } : {}));
+      parts.push(this.text('Legend', x, this.origin.y + 10, tr(t.lang, key ? 'KEY' : 'Legend'), key ? 9.5 : t.size.caption, 600, t.textFaint, 'start', key ? { tracking: 1.2 } : {}));
       for (const [i, item] of items.entries()) sample(item, x, this.origin.y + 36 + i * 26);
     } else {
       const room = this.width - 2 * pad;
@@ -1010,7 +1011,7 @@ class SceneBuilder {
       const first = key ? (where === 'top' ? y0 + 8 : y0 + 40) : where === 'top' ? y0 + 6 : y0 + 26;
       if (key) {
         if (where === 'bottom') parts.push(this.line('Rule', [{ x: pad, y: y0 + 16 }, { x: pad + room, y: y0 + 16 }], t.border, 1));
-        parts.push(this.text('Legend', pad, first, 'KEY', 9.5, 600, t.textFaint, 'start', { tracking: 1.2 }));
+        parts.push(this.text('Legend', pad, first, tr(t.lang, 'KEY'), 9.5, 600, t.textFaint, 'start', { tracking: 1.2 }));
       }
       for (const [i, row] of rows.entries()) for (const { item, x } of row) sample(item, pad + x, first + i * LEGEND.ROW);
     }

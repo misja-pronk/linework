@@ -23,6 +23,8 @@
 import { parseSource, type Diagnostic, type Path } from '@cartography/core';
 import type { El, ReviewModel } from './model.ts';
 import { categories, type Category, type Hit, type Rule, type Severity } from './types.ts';
+import { t } from './nl.ts';
+import type { Lang } from '@cartography/i18n';
 
 export type Level = Severity | 'off';
 
@@ -116,9 +118,9 @@ export function matches(m: ReviewModel, e: El, sel: Selector): boolean {
 }
 
 /** Says in words what a selector means, for a finding: "kind sql-database", "in dmz". */
-function said(sel: Selector): string {
+function said(sel: Selector, lang: Lang): string {
   return Object.entries(sel)
-    .map(([k, v]) => (k === 'not' ? `not ${said(isObj(v) ? v : {})}` : k === 'prop' && isObj(v) ? Object.entries(v).map(([p, x]) => `${p} ${String(x)}`).join(', ') : isObj(v) ? `${k} ${said(v)}` : `${k} ${list(v).join(' or ') || String(v)}`))
+    .map(([k, v]) => (k === 'not' ? t(lang, 'not {what}', { what: said(isObj(v) ? v : {}, lang) }) : k === 'prop' && isObj(v) ? Object.entries(v).map(([p, x]) => `${p} ${String(x)}`).join(', ') : isObj(v) ? `${k} ${said(v, lang)}` : `${k} ${list(v).join(t(lang, ' or ')) || String(v)}`))
     .join(', ');
 }
 
@@ -146,8 +148,8 @@ function customRule(o: Obj): Rule {
       const at = (e: El) => ({ kind: e.group ? 'group' : 'node', id: e.id }) as const;
       if (every)
         for (const e of all.filter((x) => matches(m, x, every))) {
-          if (must && !matches(m, e, must)) hits.push({ on: at(e), message: `${e.label} should have ${said(must)}` });
-          else if (mustNot && matches(m, e, mustNot)) hits.push({ on: at(e), message: `${e.label} should not have ${said(mustNot)}` });
+          if (must && !matches(m, e, must)) hits.push({ on: at(e), message: t(m.lang, '{name} should have {what}', { name: e.label, what: said(must, m.lang) }) });
+          else if (mustNot && matches(m, e, mustNot)) hits.push({ on: at(e), message: t(m.lang, '{name} should not have {what}', { name: e.label, what: said(mustNot, m.lang) }) });
         }
       if (noEdge) {
         const from = isObj(noEdge.from) ? noEdge.from : {};
@@ -156,10 +158,10 @@ function customRule(o: Obj): Rule {
         for (const l of m.lines) {
           const a = m.el(l.from);
           const b = m.el(l.to);
-          if (a && b && matches(m, a, from) && matches(m, b, to) && (!style.length || style.includes(l.style))) hits.push({ on: { kind: 'edge', id: l.id }, message: `${m.lineName(l)}: no line should go from ${said(from)} to ${said(to)}` });
+          if (a && b && matches(m, a, from) && matches(m, b, to) && (!style.length || style.includes(l.style))) hits.push({ on: { kind: 'edge', id: l.id }, message: t(m.lang, '{line}: no line should go from {from} to {to}', { line: m.lineName(l), from: said(from, m.lang), to: said(to, m.lang) }) });
         }
       }
-      if (exists && !all.some((e) => matches(m, e, exists))) hits.push({ on: { kind: 'diagram' }, message: `Nothing here has ${said(exists)}`, path: ['title'] });
+      if (exists && !all.some((e) => matches(m, e, exists))) hits.push({ on: { kind: 'diagram' }, message: t(m.lang, 'Nothing here has {what}', { what: said(exists, m.lang) }), path: ['title'] });
       return hits;
     },
   };

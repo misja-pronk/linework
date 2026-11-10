@@ -18,6 +18,7 @@
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/html-export": "workspace:*",
+    "@cartography/i18n": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/interop": "workspace:*",

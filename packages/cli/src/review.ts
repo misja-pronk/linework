@@ -6,9 +6,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isDiagramFile, type Box, type Placed } from '@cartography/core';
 import { render, renderGraph, themes, withReview, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { builtInIds, emptyConfig, failing, htmlReport, markdownReport, numbered, packs, readConfig, review, summaryGraph, summaryLine, tally, type ConfigProblem, type Finding, type Report, type ReportDrawing, type ReportFile, type ReviewConfig, type RuleInfo, type Severity } from '@cartography/review';
+import { builtInIds, emptyConfig, failing, htmlReport, markdownReport, numbered, packs, readConfig, reportTitle, review, summaryGraph, summaryLine, tally, type ConfigProblem, type Finding, type Report, type ReportDrawing, type ReportFile, type ReviewConfig, type RuleInfo, type Severity } from '@cartography/review';
 import type { Drawing } from '@cartography/export';
 import type { Theme } from '@cartography/theme';
+import { t } from './i18n.ts';
 
 export interface ReviewFlags {
   inputs: string[];
@@ -149,17 +150,17 @@ async function reviewFile(file: string, flags: ReviewFlags): Promise<Reviewed> {
 export async function reviewCommand(flags: ReviewFlags): Promise<number> {
   const { red, yellow, dim } = flags.say;
   const failOn = (flags.failOn ?? 'error') as Severity | 'never';
-  if (!['error', 'warn', 'info', 'never'].includes(failOn)) return (console.error(`--fail-on is error, warn, info or never, not "${flags.failOn}"`), 2);
+  if (!['error', 'warn', 'info', 'never'].includes(failOn)) return (console.error(t('--fail-on is error, warn, info or never, not "{value}"', { value: String(flags.failOn) })), 2);
   const known = packs.map((p) => p.id);
-  for (const p of flags.packs ?? []) if (!known.includes(p)) return (console.error(`There is no rule pack "${p}": ${known.join(', ')}`), 2);
+  for (const p of flags.packs ?? []) if (!known.includes(p)) return (console.error(t('There is no rule pack "{name}": {packs}', { name: p, packs: known.join(', ') })), 2);
   const inputs = flags.inputs.length ? flags.inputs : [];
   if (!inputs.length) return 2;
   const list: string[] = [];
   for (const i of inputs) {
-    if (!fs.existsSync(i)) return (console.error(`${i}: no such file or folder`), 2);
+    if (!fs.existsSync(i)) return (console.error(t('{file}: no such file or folder', { file: i })), 2);
     list.push(...(isFolder(i) ? diagramsIn(i) : [i]));
   }
-  if (!list.length) return (console.error(`${inputs.join(', ')}: no diagrams here`), 2);
+  if (!list.length) return (console.error(t('{file}: no diagrams here', { file: inputs.join(', ') })), 2);
 
   const reviewed: Reviewed[] = [];
   const shownConfig = new Set<string>();
@@ -175,17 +176,20 @@ export async function reviewCommand(flags: ReviewFlags): Promise<number> {
   const word: Record<Severity, string> = { error: red('error'), warn: yellow('warn'), info: dim('info') };
   if (!flags.json && (!flags.out || flags.out === '-'))
     for (const x of reviewed) {
-      for (const p of x.file.problems) console.error(`${p}  ${red('cannot review')}`);
+      for (const p of x.file.problems) console.error(`${p}  ${red(t('cannot review'))}`);
       for (const f of x.file.findings.filter((y) => !y.ignored)) console.log(`${x.file.file}${f.line ? `:${f.line}:${f.column}` : ''}  ${word[f.severity]}  ${f.id} ${f.message}  ${dim(`${f.rule.id} · ${f.rule.category}${f.view ? ` · view ${f.view}` : ''}`)}`);
       const aside = x.file.findings.filter((y) => y.ignored).length;
-      if (x.file.off) console.log(`${x.file.file} ${dim('review: off')}`);
-      else if (!x.failed && !x.file.findings.some((y) => !y.ignored)) console.log(`${x.file.file} ${dim(`no findings${aside ? `, ${aside} set aside` : ''}`)}`);
-      else if (aside) console.log(`${x.file.file} ${dim(`${aside} set aside`)}`);
+      if (x.file.off) console.log(`${x.file.file} ${dim(t('review: off'))}`);
+      else if (!x.failed && !x.file.findings.some((y) => !y.ignored)) console.log(`${x.file.file} ${dim(aside ? t('no findings, {count} set aside', { count: aside }) : t('no findings'))}`);
+      else if (aside) console.log(`${x.file.file} ${dim(t('{count} set aside', { count: aside }))}`);
     }
 
   const ran = [...new Map(reviewed.flatMap((x) => x.rules).map((r) => [r.id, r])).values()];
-  const title = flags.title ?? (reviewed.length === 1 ? `${reviewed[0]!.file.title ?? reviewed[0]!.file.file}: architecture review` : `Architecture review of ${inputs.map((i) => path.basename(path.resolve(i))).join(', ')}`);
-  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date() };
+  // The report's own words in the drawings' language when they all have the same one.
+  const langs = new Set(reviewed.flatMap((x) => x.results.map(({ r }) => r.lang ?? 'en')));
+  const lang = langs.size === 1 && langs.has('nl') ? ('nl' as const) : undefined;
+  const title = flags.title ?? reportTitle(lang, reviewed.length === 1 ? (reviewed[0]!.file.title ?? reviewed[0]!.file.file) : undefined, inputs.map((i) => path.basename(path.resolve(i))));
+  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date(), ...(lang ? { lang } : {}) };
 
   if (flags.json) {
     const json = JSON.stringify({ title, summary: { ...tally(report.files.flatMap((f) => f.findings)), ignored: report.files.flatMap((f) => f.findings).filter((f) => f.ignored).length }, files: report.files.map((f) => ({ file: f.file, type: f.type, problems: f.problems, findings: f.findings.map(({ rule, ...rest }) => ({ ...rest, rule: rule.id, title: rule.title, category: rule.category, fix: rule.fix })) })) }, null, 2);
@@ -231,7 +235,7 @@ export async function reviewCommand(flags: ReviewFlags): Promise<number> {
           pages.push({ ...r, name: x.file.file, annotate: (d) => withReview(d, graph, placed, findings, r.theme ?? themes.light) } as Drawing);
         }
       fs.writeFileSync(flags.out, await flags.pdf(pages, theme, title));
-    } else return (console.error(`-o ${flags.out}: a review report is .md, .html, .pdf or (with --json) .json`), 2);
+    } else return (console.error(t('-o {out}: a review report is .md, .html, .pdf or (with --json) .json', { out: flags.out })), 2);
     console.error(`${inputs.join(', ')} → ${flags.out}  ${dim(summaryLine(report))}`);
   }
   if (!flags.json && (!flags.out || flags.out === '-')) console.error(dim(summaryLine(report)));

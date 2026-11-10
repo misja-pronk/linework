@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@cartography/core": "workspace:*",
+    "@cartography/i18n": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/lanes": "workspace:*"

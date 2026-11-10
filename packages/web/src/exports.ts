@@ -3,6 +3,7 @@
 // in the open folder, become one access, GitHub or Azure diagram, as
 // `carto import <folder>` makes it. Nothing leaves the browser, and nothing is fetched.
 import { importAccess, importAzure, importGithub, isAccessExport, isAzureContainers, isAzureExport, isGithubExport, type ExportFile, type ImportedExport } from '@cartography/import';
+import { t } from './i18n/index.ts';
 
 export type ExportKind = 'access' | 'github' | 'azure';
 
@@ -40,11 +41,11 @@ export function exportFrom(files: ExportFile[], options: { existing?: string; ti
 export const exportNotes = (r: ImportedExport): string[] => [
   ...r.problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message)),
   ...r.warnings,
-  ...r.skipped.filter((k) => !r.problems.some((p) => p.file === k.file)).map((k) => `${k.file}: left out, ${k.why}`),
+  ...r.skipped.filter((k) => !r.problems.some((p) => p.file === k.file)).map((k) => t('{file}: left out, {why}', { file: k.file, why: k.why })),
 ];
 
 /** The first thing worth saying of an import besides what it holds: a problem, else a warning, else a file left out. */
 export const exportRemark = (r: ImportedExport): string => {
   const [first, ...more] = exportNotes(r);
-  return first ? `. ${first}${more.length ? ` (and ${more.length} more)` : ''}` : '';
+  return first ? `. ${first}${more.length ? t(' (and {count} more)', { count: more.length }) : ''}` : '';
 };

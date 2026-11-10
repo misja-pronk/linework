@@ -9,6 +9,7 @@ import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import './layers.css';
 import { keyHint, shortcutFor } from './keys.ts';
+import { t } from './i18n/index.ts';
 
 type Info = NonNullable<RenderResult['layers']>;
 
@@ -80,16 +81,16 @@ function layersUi({ doc, view, drawn, comparing, mine, setAsked, open, setOpen, 
     : [
         ...list.map((l, i) => ({
           id: `layer-${l.name}`,
-          group: 'Layers',
-          label: active.includes(l.name) ? `Hide layer ${title(l)}` : `Show layer ${title(l)}`,
-          hint: `tagged ${l.tags.join(', ')}; ⌥ in the panel shows it alone`,
+          group: t('Layers'),
+          label: active.includes(l.name) ? t('Hide layer {name}', { name: title(l) }) : t('Show layer {name}', { name: title(l) }),
+          hint: t('tagged {tags}; ⌥ in the panel shows it alone', { tags: l.tags.join(', ') }),
           icon: 'tag',
           ...(i < 9 ? { shortcut: `L ${i + 1}` } : {}),
           run: () => toggle(l.name),
         })),
-        ...list.map((l) => ({ id: `layer-only-${l.name}`, group: 'Layers', label: `Only layer ${title(l)}`, hint: 'and no other', icon: 'tag', run: () => only(l.name) })),
-        { id: 'layers-all', group: 'Layers', label: 'All layers', hint: 'the whole drawing', icon: 'tag', shortcut: 'L 0', run: all },
-        { id: 'layers-mode', group: 'Layers', label: mode === 'only' ? 'Layers: fade the rest in place' : 'Layers: only what is on them', hint: 'keeps or changes the layout', icon: 'tag', shortcut: 'L D', run: flipMode },
+        ...list.map((l) => ({ id: `layer-only-${l.name}`, group: t('Layers'), label: t('Only layer {name}', { name: title(l) }), hint: t('and no other'), icon: 'tag', run: () => only(l.name) })),
+        { id: 'layers-all', group: t('Layers'), label: t('All layers'), hint: t('the whole drawing'), icon: 'tag', shortcut: 'L 0', run: all },
+        { id: 'layers-mode', group: t('Layers'), label: mode === 'only' ? t('Layers: fade the rest in place') : t('Layers: only what is on them'), hint: t('keeps or changes the layout'), icon: 'tag', shortcut: 'L D', run: flipMode },
       ];
 
   const button = list.length ? (
@@ -154,16 +155,16 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
     if (e.key !== 'Tab') e.preventDefault();
     e.stopPropagation();
   };
-  const label = active.length ? `Layers: ${active.length} on` : 'Layers';
+  const label = active.length ? t('Layers: {count} on', { count: active.length }) : t('Layers');
   return (
     <div className="menu-anchor layers-control" ref={el}>
-      <button className={active.length ? 'tool active' : 'tool'} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label={label} title={`Layers: draw only what is tagged security, data, phase 2… (${keyHint('layers')})`}>
-        <Icon name="tag" /> <span className="tool-label">Layers</span>
+      <button className={active.length ? 'tool active' : 'tool'} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label={label} title={t('Layers: draw only what is tagged security, data, phase 2… ({key})', { key: keyHint('layers') })}>
+        <Icon name="tag" /> <span className="tool-label">{t('Layers')}</span>
         {active.length > 0 && <span className="tool-count">{active.length}</span>}
         <kbd>L</kbd>
       </button>
       {open && (
-        <div className="menu layers-panel" role="menu" aria-label="Layers" ref={panel} onKeyDown={onKeyDown}>
+        <div className="menu layers-panel" role="menu" aria-label={t('Layers')} ref={panel} onKeyDown={onKeyDown}>
           {list.map((l, i) => {
             const on = active.includes(l.name);
             return (
@@ -173,34 +174,34 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
                 aria-checked={on}
                 className={on ? 'layer-toggle on' : 'layer-toggle'}
                 onClick={(e) => (e.altKey ? only : toggle)(l.name)}
-                title={`${l.count} ${l.count === 1 ? 'element' : 'elements'} tagged ${l.tags.join(', ')}${l.caption ? `: ${l.caption}` : ''} (⌥-click: only this one)`}
+                title={l.caption ? t('{count} element tagged {tags}: {caption} (⌥-click: only this one)|{count} elements tagged {tags}: {caption} (⌥-click: only this one)', { count: l.count, tags: l.tags.join(', '), caption: l.caption }) : t('{count} element tagged {tags} (⌥-click: only this one)|{count} elements tagged {tags} (⌥-click: only this one)', { count: l.count, tags: l.tags.join(', ') })}
               >
                 <span className="layer-switch" aria-hidden="true" />
                 <span className="layer-name">{title(l)}</span>
                 <span className="layer-tag">{l.name}</span>
                 {l.count === 0 && (
-                  <span className="layer-count" title="Nothing drawn here carries its tags">
-                    empty
+                  <span className="layer-count" title={t('Nothing drawn here carries its tags')}>
+                    {t('empty')}
                   </span>
                 )}
                 {i < 9 && <kbd>{i + 1}</kbd>}
               </button>
             );
           })}
-          <div className="layers-mode" role="group" aria-label="The rest of the drawing">
-            <button role="menuitemradio" aria-checked={mode === 'only'} className={mode === 'only' ? 'on' : ''} onClick={() => mode !== 'only' && flipMode()} title="Only the layers, laid out on their own (D)">
-              Only
+          <div className="layers-mode" role="group" aria-label={t('The rest of the drawing')}>
+            <button role="menuitemradio" aria-checked={mode === 'only'} className={mode === 'only' ? 'on' : ''} onClick={() => mode !== 'only' && flipMode()} title={t('Only the layers, laid out on their own (D)')}>
+              {t('Only')}
             </button>
-            <button role="menuitemradio" aria-checked={mode === 'dim'} className={mode === 'dim' ? 'on' : ''} onClick={() => mode !== 'dim' && flipMode()} title="Everything in its place, the rest faded (D)">
-              Fade the rest
+            <button role="menuitemradio" aria-checked={mode === 'dim'} className={mode === 'dim' ? 'on' : ''} onClick={() => mode !== 'dim' && flipMode()} title={t('Everything in its place, the rest faded (D)')}>
+              {t('Fade the rest')}
             </button>
           </div>
           <button role="menuitem" className="layers-all" onClick={() => (all(), setOpen(false))}>
-            <Icon name="eye" size={14} /> Whole drawing <kbd>0</kbd>
+            <Icon name="eye" size={14} /> {t('Whole drawing')} <kbd>0</kbd>
           </button>
           {reset && (
-            <button role="menuitem" className="layers-all" onClick={() => (reset(), setOpen(false))} title="The layers as the YAML says (the view's own, or none)">
-              As written
+            <button role="menuitem" className="layers-all" onClick={() => (reset(), setOpen(false))} title={t("The layers as the YAML says (the view's own, or none)")}>
+              {t('As written')}
             </button>
           )}
         </div>
@@ -226,24 +227,24 @@ function LayersChip({ list, active, mode, info, why, onMode, onLeave, onOpen }: 
   return (
     <div className={why ? 'focus-chip layers-chip waiting' : 'focus-chip layers-chip'} role="status" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
       <Icon name="tag" size={14} />
-      <button className="layers-chip-name" onClick={onOpen} title="Change the layers (L)">
-        {names.length === 1 ? 'Layer' : 'Layers'} <strong>{names.join(', ')}</strong>
+      <button className="layers-chip-name" onClick={onOpen} title={t('Change the layers (L)')}>
+        {names.length === 1 ? t('Layer') : t('Layers')} <strong>{names.join(', ')}</strong>
       </button>
       {why ? (
-        <span className="layers-chip-wait">{why === 'comparing' ? 'wait while comparing' : 'wait: the focus wins (Esc leaves it)'}</span>
+        <span className="layers-chip-wait">{why === 'comparing' ? t('wait while comparing') : t('wait: the focus wins (Esc leaves it)')}</span>
       ) : (
         <>
           {mode === 'only' && (
-            <span className="focus-chip-count" title={`${info.kept} of ${info.total} elements are drawn`}>
-              {info.kept} of {info.total}
+            <span className="focus-chip-count" title={t('{kept} of {total} elements are drawn', { kept: info.kept, total: info.total })}>
+              {t('{kept} of {total}', { kept: info.kept, total: info.total })}
             </span>
           )}
-          <button className="tool" onClick={onMode} title={mode === 'only' ? 'Keep everything in its place and fade the rest (D in the panel)' : 'Draw only the layers, laid out on their own (D in the panel)'}>
-            {mode === 'only' ? 'Only' : 'Faded rest'}
+          <button className="tool" onClick={onMode} title={mode === 'only' ? t('Keep everything in its place and fade the rest (D in the panel)') : t('Draw only the layers, laid out on their own (D in the panel)')}>
+            {mode === 'only' ? t('Only') : t('Faded rest')}
           </button>
         </>
       )}
-      <button className="tool" onClick={onLeave} title="The whole drawing" aria-label="The whole drawing">
+      <button className="tool" onClick={onLeave} title={t('The whole drawing')} aria-label={t('The whole drawing')}>
         <Icon name="x" size={14} />
       </button>
     </div>

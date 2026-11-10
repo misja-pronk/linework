@@ -1,5 +1,6 @@
 // The diagram's views, in the canvas tools: one drawing per view of the same file (context, containers…).
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 
 export interface ViewPickerProps {
   views?: { name: string; title?: string }[];
@@ -13,10 +14,10 @@ export interface ViewPickerProps {
 export function ViewPicker({ views, value, asWritten, onChange }: ViewPickerProps) {
   if (!views?.length) return null;
   return (
-    <label className="tool view-picker" title="Views of this diagram (V: next view; pins are kept per view)">
+    <label className="tool view-picker" title={t('Views of this diagram (V: next view; pins are kept per view)')}>
       <Icon name="layers" />
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} aria-label="View">
-        {asWritten && <option value="">As written</option>}
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} aria-label={t('View')}>
+        {asWritten && <option value="">{t('As written')}</option>}
         {views.map((v) => (
           <option key={v.name} value={v.name}>
             {v.title ? `${v.title} (${v.name})` : v.name}

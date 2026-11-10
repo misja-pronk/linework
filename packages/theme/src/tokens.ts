@@ -1,5 +1,6 @@
 // One set of design tokens for every diagram type (requirement V2). Change the look here.
 import type { Tone } from '@cartography/core';
+import type { Lang } from '@cartography/i18n';
 
 export interface ToneColors {
   /** Icons, strong accents, coloured lines. */
@@ -123,6 +124,8 @@ export interface Theme {
   name: string;
   /** Whether the theme is light or dark: the editor chrome follows it. */
   mode: 'light' | 'dark';
+  /** The language of the words the drawing adds itself (KEY, step counters): the diagram's `lang:`. Not part of a theme file. */
+  lang?: Lang;
   canvas: string;
   surface: string;
   border: string;

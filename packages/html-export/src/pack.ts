@@ -103,7 +103,7 @@ export async function toPage(c: Collected, opts: { notes?: boolean; date?: Date 
   ].join('; ');
   const title = escapeHtml(c.title);
   const html = `<!doctype html>
-<html lang="en">
+<html lang="${c.lang ?? 'en'}">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">

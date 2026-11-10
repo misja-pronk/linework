@@ -136,6 +136,9 @@ importers:
       '@cartography/html-export':
         specifier: workspace:*
         version: link:../html-export
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -188,6 +191,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
@@ -200,6 +206,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
 
   packages/diff:
     dependencies:
@@ -320,6 +329,9 @@ importers:
       '@cartography/github':
         specifier: workspace:*
         version: link:../../types/github
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -381,6 +393,9 @@ importers:
       '@cartography/describe':
         specifier: workspace:*
         version: link:../describe
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -424,6 +439,9 @@ importers:
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/render':
         specifier: workspace:*
         version: link:../render
@@ -440,6 +458,8 @@ importers:
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
+
+  packages/i18n: {}
 
   packages/icons:
     dependencies:
@@ -492,6 +512,9 @@ importers:
       '@cartography/github':
         specifier: workspace:*
         version: link:../../types/github
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -564,6 +587,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -582,6 +608,9 @@ importers:
       '@cartography/data-products':
         specifier: workspace:*
         version: link:../../types/data-products
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -598,6 +627,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -701,6 +733,9 @@ importers:
       '@cartography/html-export':
         specifier: workspace:*
         version: link:../html-export
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -782,6 +817,10 @@ importers:
         version: 8.3.7(@types/node@26.6.6)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
 
   packages/wizards:
+    dependencies:
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../i18n
     devDependencies:
       '@cartography/engine':
         specifier: workspace:*
@@ -898,6 +937,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
     devDependencies:
       '@cartography/engine':
         specifier: workspace:*

@@ -15,6 +15,8 @@
 import { parse as parseYaml } from 'yaml';
 import { inlineMarkdown, type Inline } from './notes.ts';
 import type { Graph, MatrixCell, MatrixHeader, GraphNode } from './model.ts';
+import type { Lang } from '@cartography/i18n';
+import { term, tr } from '@cartography/i18n/drawing';
 
 export type DecisionStatus = 'proposed' | 'accepted' | 'rejected' | 'deprecated' | 'superseded';
 export const decisionStatuses: DecisionStatus[] = ['proposed', 'accepted', 'rejected', 'deprecated', 'superseded'];
@@ -492,7 +494,7 @@ export function checkDecisions(decisions: Decision[], known: { element(id: strin
 export const statusLabel: Record<DecisionStatus, string> = { proposed: 'Proposed', accepted: 'Accepted', rejected: 'Rejected', deprecated: 'Deprecated', superseded: 'Superseded' };
 
 /** "Superseded by 5", "Accepted". */
-export const statusSaid = (d: Decision) => (d.status === 'superseded' && d.supersededBy ? `Superseded by ${d.supersededBy}` : statusLabel[d.status]);
+export const statusSaid = (d: Decision, lang?: Lang) => (d.status === 'superseded' && d.supersededBy ? tr(lang, 'Superseded by {n}', { n: d.supersededBy }) : term(lang, statusLabel[d.status]));
 
 /** Whether a decision still holds: accepted (or proposed, still to hold); the others are history. */
 export const decisionStands = (d: Decision) => d.status === 'accepted' || d.status === 'proposed';
@@ -514,14 +516,14 @@ export function decisionSummary(d: Pick<Decision, 'body'>, max = 160): string {
 const cell = (s: string | undefined) => (s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ') || '–';
 
 /** The decision log as markdown: a table of every decision, then each one's decision in a line. */
-export function decisionLog(decisions: Decision[], o: { title?: string; dir?: string; describe?(concern: string): string } = {}): string {
-  const out = [`# ${o.title ?? 'Decision log'}`, ''];
-  if (!decisions.length) return [...out, 'No decisions are recorded yet.', ''].join('\n');
+export function decisionLog(decisions: Decision[], o: { title?: string; dir?: string; describe?(concern: string): string; lang?: Lang } = {}): string {
+  const out = [`# ${o.title ?? tr(o.lang, 'Decision log')}`, ''];
+  if (!decisions.length) return [...out, tr(o.lang, 'No decisions are recorded yet.'), ''].join('\n');
   const tally = decisionStatuses.map((s) => [s, decisions.filter((d) => d.status === s).length] as const).filter(([, n]) => n);
-  out.push(tally.map(([s, n]) => `${n} ${s}`).join(', ') + '.', '');
-  out.push('| # | Decision | Status | Date | Concerns |', '| --- | --- | --- | --- | --- |');
+  out.push(tally.map(([s, n]) => `${n} ${term(o.lang, statusLabel[s]).toLowerCase()}`).join(', ') + '.', '');
+  out.push(`| # | ${tr(o.lang, 'Decision')} | ${tr(o.lang, 'Status')} | ${tr(o.lang, 'Date')} | ${tr(o.lang, 'Concerns')} |`, '| --- | --- | --- | --- | --- |');
   const link = (d: Decision) => (o.dir !== undefined ? relativeTo(o.dir ? `${o.dir}/x` : 'x', d.file) : d.file);
-  for (const d of decisions) out.push(`| ${d.number} | [${cell(d.title)}](${link(d)}) | ${statusSaid(d)} | ${cell(d.date)} | ${cell(d.concerns.map((c) => o.describe?.(c) ?? c).join(', '))} |`);
+  for (const d of decisions) out.push(`| ${d.number} | [${cell(d.title)}](${link(d)}) | ${statusSaid(d, o.lang)} | ${cell(d.date)} | ${cell(d.concerns.map((c) => o.describe?.(c) ?? c).join(', '))} |`);
   out.push('');
   for (const d of decisions) {
     const s = decisionSummary(d, 400);
@@ -533,11 +535,11 @@ export function decisionLog(decisions: Decision[], o: { title?: string; dir?: st
 const statusTone = { proposed: 'amber', accepted: 'green', rejected: 'slate', deprecated: 'slate', superseded: 'slate' } as const;
 
 /** The Decisions view: one row per decision (number, title, status, date, concerns), for a deck or a page. */
-export function decisionTable(decisions: Decision[], o: { title?: string; describe?(concern: string): string } = {}): Graph {
-  const columns: MatrixHeader[] = [{ label: 'Decision' }, { label: 'Status' }, { label: 'Date' }, { label: 'Concerns' }];
+export function decisionTable(decisions: Decision[], o: { title?: string; describe?(concern: string): string; lang?: Lang } = {}): Graph {
+  const columns: MatrixHeader[] = [{ label: tr(o.lang, 'Decision') }, { label: tr(o.lang, 'Status') }, { label: tr(o.lang, 'Date') }, { label: tr(o.lang, 'Concerns') }];
   const cells: (MatrixCell | undefined)[][] = decisions.map((d) => [
     { text: d.title, strong: true },
-    { text: statusSaid(d), tone: statusTone[d.status] },
+    { text: statusSaid(d, o.lang), tone: statusTone[d.status] },
     { text: d.date ?? '–' },
     { text: d.concerns.map((c) => o.describe?.(c) ?? c).join(', ') || '–' },
   ]);

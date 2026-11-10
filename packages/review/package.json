@@ -10,7 +10,8 @@
   "dependencies": {
     "@cartography/core": "workspace:*",
     "@cartography/data-products": "workspace:*",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@cartography/i18n": "workspace:*"
   },
   "devDependencies": {
     "@cartography/engine": "workspace:*",

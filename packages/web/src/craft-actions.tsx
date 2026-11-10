@@ -6,6 +6,7 @@ import type { Command } from './palette.tsx';
 import { Icon } from './icon.tsx';
 import { store } from './store.ts';
 import { keyHint } from './keys.ts';
+import { t, say } from './i18n/index.ts';
 
 
 /** The six aligns and two distributes, with Figma's keys (⌥ and a letter, ⇧⌥ to distribute). */
@@ -29,7 +30,7 @@ export function arrangeKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boo
 }
 
 export function arrangeCommands(run: (op: ArrangeOp) => void): Command[] {
-  return ARRANGE.map((a) => ({ id: `arrange:${a.op}`, group: 'Arrange', label: a.label, hint: 'selected shapes', icon: a.icon, shortcut: keyName(a), run: () => run(a.op) }));
+  return ARRANGE.map((a) => ({ id: `arrange:${a.op}`, group: t('Arrange'), label: say(a.label), hint: t('selected shapes'), icon: a.icon, shortcut: keyName(a), run: () => run(a.op) }));
 }
 
 /** Snapping to the grid, the minimap and the page frame, kept per browser. */
@@ -51,8 +52,8 @@ export function useCraftPrefs() {
 export function ArrangeBar({ shapes, onArrange }: { shapes: number; onArrange(op: ArrangeOp): void }) {
   return (
     <div className="field">
-      <span>Arrange</span>
-      <div className="arrange-bar" role="toolbar" aria-label="Align and distribute">
+      <span>{t('Arrange')}</span>
+      <div className="arrange-bar" role="toolbar" aria-label={t('Align and distribute')}>
         {ARRANGE.map((a) => (
           <button
             key={a.op}
@@ -60,8 +61,8 @@ export function ArrangeBar({ shapes, onArrange }: { shapes: number; onArrange(op
             className="icon-button"
             onClick={() => onArrange(a.op)}
             disabled={shapes < (a.op.startsWith('distribute') ? 3 : 2)}
-            title={`${a.label} (${keyName(a)})`}
-            aria-label={a.label}
+            title={`${say(a.label)} (${keyName(a)})`}
+            aria-label={say(a.label)}
           >
             <Icon name={a.icon} />
           </button>

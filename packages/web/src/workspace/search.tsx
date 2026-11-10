@@ -6,6 +6,7 @@ import { searchWorkspace, type WorkspaceIndex, type WsHit } from '@cartography/c
 import { Icon } from '../icon.tsx';
 import { useRestoreFocus } from '../menu.tsx';
 import type { Place } from './use-workspace.ts';
+import { t } from '../i18n/index.ts';
 
 const ICON: Record<WsHit['kind'], string> = { element: 'box', view: 'layers', file: 'file-code', entry: 'map-pin', decision: 'scroll-text' };
 
@@ -40,13 +41,13 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette ws-search" role="dialog" aria-label="Search the folder" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette ws-search" role="dialog" aria-label={t('Search the folder')} onMouseDown={(e) => e.stopPropagation()}>
         <div className="palette-input">
           <Icon name="search" />
           <input
             autoFocus
             value={query}
-            placeholder={`Search ${scope}: elements, views, files, technology, owners…`}
+            placeholder={t('Search {scope}: elements, views, files, technology, owners…', { scope })}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               const h = hits[at];
@@ -70,12 +71,12 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
         <div className="palette-list" id="ws-search-list" role="listbox" ref={list}>
           {!query && (
             <div className="palette-empty">
-              {counts.elements} element{counts.elements === 1 ? '' : 's'} in {counts.files} diagram{counts.files === 1 ? '' : 's'}. Type a name, an id, a technology or an owner.
+              {t('{elements} in {diagrams}. Type a name, an id, a technology or an owner.', { elements: t('{count} element|{count} elements', { count: counts.elements }), diagrams: t('{count} diagram|{count} diagrams', { count: counts.files }) })}
               <br />
-              <kbd>↵</kbd> opens it in focus, <kbd>⌥↵</kbd> only selects it, <kbd>←</kbd> <kbd>→</kbd> pick where.
+              <kbd>↵</kbd> {t('opens it in focus,')} <kbd>⌥↵</kbd> {t('only selects it,')} <kbd>←</kbd> <kbd>→</kbd> {t('pick where.')}
             </div>
           )}
-          {query && !hits.length && <div className="palette-empty">Nothing in {scope} matches “{query}”</div>}
+          {query && !hits.length && <div className="palette-empty">{t('Nothing in {scope} matches “{query}”', { scope, query })}</div>}
           {hits.map((h, i) => (
             <div
               key={`${h.kind}:${h.file}:${h.id}`}
@@ -99,7 +100,7 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
                         key={`${w.file}#${w.view ?? ''}`}
                         className={i === at && j === where ? 'ws-chip active' : 'ws-chip'}
                         tabIndex={-1}
-                        title={`Open ${placeName(w)}`}
+                        title={t('Open {file}', { file: placeName(w) })}
                         onClick={(e) => {
                           e.stopPropagation();
                           open(h, j, !e.altKey);
@@ -111,7 +112,7 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
                     {h.where.length > 6 && <span className="ws-more">+{h.where.length - 6}</span>}
                   </div>
                 )}
-                {h.kind === 'element' && !h.where?.length && <div className="ws-where ws-none">in no drawing yet: opens where it is written</div>}
+                {h.kind === 'element' && !h.where?.length && <div className="ws-where ws-none">{t('in no drawing yet: opens where it is written')}</div>}
               </div>
             </div>
           ))}

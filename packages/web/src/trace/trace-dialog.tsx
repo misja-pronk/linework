@@ -6,6 +6,7 @@ import { render } from '@cartography/engine';
 import { dynamicView, sequenceYaml, traceAsk, type DynamicView, type TraceAsk, type Traceable, type Traced, type TraceMeta } from '@cartography/trace';
 import { Icon } from '../icon.tsx';
 import { useRestoreFocus } from '../menu.tsx';
+import { t as tr } from '../i18n/index.ts';
 
 let ids = 0;
 
@@ -53,8 +54,8 @@ export function TraceDialog({
 
   // "from Web shop to Orders DB · 3 routes": what is traced, in words (review 3: it read "Trace a request  routes").
   const nameOf = (id?: string) => (id ? (t.graph.elements.get(id)?.label ?? id) : '');
-  const routes = `${r.options.length} ${r.options.length === 1 ? 'route' : 'routes'}`;
-  const what = r.mode === 'between' ? `from ${nameOf(r.from)} to ${nameOf(r.to)} · ${routes}` : r.mode === 'until' ? `from ${nameOf(r.from)} until it ends` : 'along the steps';
+  const routes = tr('{count} route|{count} routes', { count: r.options.length });
+  const what = r.mode === 'between' ? tr('from {from} to {to} · {routes}', { from: nameOf(r.from), to: nameOf(r.to), routes }) : r.mode === 'until' ? tr('from {from} until it ends', { from: nameOf(r.from) }) : tr('along the steps');
   const keys = (e: React.KeyboardEvent) => {
     const go = (i: number) => (e.preventDefault(), setN(Math.max(0, Math.min(r.options.length - 1, i))));
     if (e.key === 'Escape') (e.preventDefault(), onClose());
@@ -73,21 +74,21 @@ export function TraceDialog({
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette trace-dialog" role="dialog" aria-label="Trace a request" tabIndex={-1} ref={box} onKeyDown={keys} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette trace-dialog" role="dialog" aria-label={tr('Trace a request')} tabIndex={-1} ref={box} onKeyDown={keys} onMouseDown={(e) => e.stopPropagation()}>
         <header className="trace-head">
           <Icon name="arrow-left-right" />
-          <strong>Trace a request</strong>
+          <strong>{tr('Trace a request')}</strong>
           <span className="trace-what">{what}</span>
           <kbd>esc</kbd>
         </header>
         <div className="trace-body">
-          <ol className="trace-routes" role="listbox" aria-label="Routes">
+          <ol className="trace-routes" role="listbox" aria-label={tr('Routes')}>
             {r.options.map((o, i) => (
               <li key={i} role="option" aria-selected={i === n} className={i === n ? 'active' : ''} onClick={() => setN(i)} onDoubleClick={() => onOpen(sequenceYaml(t.graph, o, meta(r, i)), r)}>
                 <span className="trace-n">{i + 1}</span>
                 <span className="trace-summary">{o.summary}</span>
                 <span className="trace-count">
-                  {o.calls.length} call{o.calls.length === 1 ? '' : 's'}
+                  {tr('{count} call|{count} calls', { count: o.calls.length })}
                 </span>
               </li>
             ))}
@@ -99,23 +100,23 @@ export function TraceDialog({
           </ol>
           <div
             className={actual ? 'trace-preview actual' : 'trace-preview'}
-            aria-label={`Preview of the sequence diagram, ${actual ? 'at its own size' : 'fitted'}: click or Z to switch`}
-            title={actual ? 'Fit the preview (Z)' : 'At its own size (Z)'}
+            aria-label={actual ? tr('Preview of the sequence diagram, at its own size: click or Z to switch') : tr('Preview of the sequence diagram, fitted: click or Z to switch')}
+            title={actual ? tr('Fit the preview (Z)') : tr('At its own size (Z)')}
             onClick={() => setActual((a) => !a)}
             dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}
           />
         </div>
         <footer className="trace-actions">
           <button className="button ghost" onClick={copy}>
-            <Icon name="copy" size={14} /> {copied ? 'Copied' : 'Copy YAML'}
+            <Icon name="copy" size={14} /> {copied ? tr('Copied') : tr('Copy YAML')}
           </button>
           {onAddView && (
-            <button className="button ghost" disabled={!dynamic} onClick={() => dynamic && onAddView(dynamic)} title="Add these calls to the model's views: as a C4 dynamic view">
-              Add as a dynamic view <kbd>⌥↵</kbd>
+            <button className="button ghost" disabled={!dynamic} onClick={() => dynamic && onAddView(dynamic)} title={tr("Add these calls to the model's views: as a C4 dynamic view")}>
+              {tr('Add as a dynamic view')} <kbd>⌥↵</kbd>
             </button>
           )}
           <button className="button primary" disabled={!option} onClick={() => onOpen(yaml, r)}>
-            Open as a new diagram <kbd>↵</kbd>
+            {tr('Open as a new diagram')} <kbd>↵</kbd>
           </button>
         </footer>
       </div>

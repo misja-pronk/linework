@@ -6,6 +6,7 @@ import { Icon } from './icon.tsx';
 import { LinkList } from './link-list.tsx';
 import { TagChips } from './tag-chips.tsx';
 import { store } from './store.ts';
+import { say, t } from './i18n/index.ts';
 import type { Link } from '@cartography/core';
 
 export interface InspectorProps {
@@ -93,7 +94,7 @@ export function Inspector(p: InspectorProps) {
   /** The id as written: under "More" (a name people read, as in a process, leads instead). */
   const idField = p.renamable && (
         <label className={idError ? 'field invalid' : 'field'}>
-          <span>{p.freeName ? 'Name' : 'ID'}</span>
+          <span>{p.freeName ? t('Name') : t('ID')}</span>
           <TextInput
             className={p.freeName ? undefined : 'mono'}
             value={p.id}
@@ -101,13 +102,13 @@ export function Inspector(p: InspectorProps) {
             onCommit={(v) => setIdError(!p.onRename(v.trim()))}
             aria-invalid={idError}
           />
-          {idError && <small className="field-error">{p.freeName ? 'Plain words, without : > # or quotes, and not used yet' : 'Letters, digits, - and _ only, and not used yet'}</small>}
+          {idError && <small className="field-error">{p.freeName ? t('Plain words, without : > # or quotes, and not used yet') : t('Letters, digits, - and _ only, and not used yet')}</small>}
         </label>
   );
   const moreCount = rest.length + (p.renamable && !p.freeName ? 1 : 0);
   const field = (f: Field) => (
-    <label key={f.key} className={f.kind === 'toggle' ? 'field toggle' : 'field'} title={`${f.key}: in the YAML${f.hint ? ` · ${f.hint}` : ''}`} data-key={f.key}>
-      <span>{f.label}</span>
+    <label key={f.key} className={f.kind === 'toggle' ? 'field toggle' : 'field'} title={`${t('{key}: in the YAML', { key: f.key })}${f.hint ? ` · ${f.hint}` : ''}`} data-key={f.key}>
+      <span>{say(f.label)}</span>
       {f.kind === 'text' || f.kind === 'number' ? (
         <TextInput
           value={f.value}
@@ -144,7 +145,7 @@ export function Inspector(p: InspectorProps) {
         />
       ) : (
         <button type="button" className="field-yaml" onClick={p.onReveal}>
-          <span>{f.summary}</span> <Icon name="file-code" size={14} /> Edit in YAML
+          <span>{f.summary}</span> <Icon name="file-code" size={14} /> {t('Edit in YAML')}
         </button>
       )}
       {/* Text fields say it as a placeholder; the others under the field. */}
@@ -156,7 +157,7 @@ export function Inspector(p: InspectorProps) {
     <aside
       className="inspector"
       data-selection={p.selection}
-      aria-label="Properties"
+      aria-label={t('Properties')}
       onKeyDown={(e) => {
         // Esc anywhere in the panel (selects, buttons) also returns to the drawing. Other keys pass on,
         // so ⌘K, ⌘S and F6 work from here too; drawing shortcuts only listen on the drawing itself.
@@ -171,7 +172,7 @@ export function Inspector(p: InspectorProps) {
           <strong>{p.title}</strong>
           <span>{p.kindLabel}</span>
         </div>
-        <button className="icon-button" onClick={p.onClose} aria-label="Close properties" title="Close (Esc)">
+        <button className="icon-button" onClick={p.onClose} aria-label={t('Close properties')} title={t('Close (Esc)')}>
           <Icon name="x" />
         </button>
       </header>
@@ -181,11 +182,11 @@ export function Inspector(p: InspectorProps) {
           <p className="defined-in">
             <Icon name="file-code" size={14} />
             <span>
-              Defined in <strong>{p.definedIn.file}</strong>
-              {p.definedIn.line ? `, line ${p.definedIn.line}` : ''}: change it there.
+              {t('Defined in')} <strong>{p.definedIn.file}</strong>
+              {p.definedIn.line ? t(', line {line}', { line: p.definedIn.line }) : ''}{t(': change it there.')}
             </span>
             <button type="button" className="link" onClick={p.definedIn.open}>
-              Open {p.definedIn.file}
+              {t('Open {file}', { file: p.definedIn.file })}
             </button>
           </p>
         )}
@@ -202,7 +203,7 @@ export function Inspector(p: InspectorProps) {
           }}
         >
           <summary>
-            More <span className="count">{moreCount}</span>
+            {t('More')} <span className="count">{moreCount}</span>
           </summary>
           <div className="more-body">
             {!p.freeName && idField}
@@ -213,16 +214,16 @@ export function Inspector(p: InspectorProps) {
         {p.onFollowLink && <LinkList links={p.links} onFollow={p.onFollowLink} />}
         {p.connections && p.connections.length > 0 && (
           <div className="field">
-            <span>Connections</span>
+            <span>{t('Connections')}</span>
             <ul className="connections">
               {p.connections.map((c) => (
                 <li key={c.id}>
-                  <button type="button" className="connection" onClick={() => p.onSelectEdge?.(c.id)} title="Select this line">
+                  <button type="button" className="connection" onClick={() => p.onSelectEdge?.(c.id)} title={t('Select this line')}>
                     <Icon name={c.out ? 'arrow-right-from-line' : 'arrow-right-to-line'} size={14} />
                     <span>{c.other}</span>
                     {c.label && <em>{c.label}</em>}
                   </button>
-                  <button type="button" className="icon-button small" onClick={() => p.onDeleteEdge?.(c.id)} aria-label={`Remove line to ${c.other}`} title="Remove this line">
+                  <button type="button" className="icon-button small" onClick={() => p.onDeleteEdge?.(c.id)} aria-label={t('Remove line to {other}', { other: c.other })} title={t('Remove this line')}>
                     <Icon name="x" size={14} />
                   </button>
                 </li>
@@ -235,38 +236,38 @@ export function Inspector(p: InspectorProps) {
 
       <footer>
         {p.onResetLine && (
-          <button className="button ghost" onClick={p.onResetLine} title="Route this line automatically again">
-            <Icon name="route" /> Reset line
+          <button className="button ghost" onClick={p.onResetLine} title={t('Route this line automatically again')}>
+            <Icon name="route" /> {t('Reset line')}
           </button>
         )}
         {p.locked != null && p.onLock && (
-          <button className="button ghost" onClick={p.onLock} title={`${p.locked ? 'Unlock' : 'Lock it where it is, so it cannot be dragged by accident'} (⇧⌘L)`} aria-pressed={p.locked}>
-            <Icon name={p.locked ? 'lock-open' : 'lock'} /> {p.locked ? 'Unlock' : 'Lock'}
+          <button className="button ghost" onClick={p.onLock} title={`${p.locked ? t('Unlock') : t('Lock it where it is, so it cannot be dragged by accident')} (⇧⌘L)`} aria-pressed={p.locked}>
+            <Icon name={p.locked ? 'lock-open' : 'lock'} /> {p.locked ? t('Unlock') : t('Lock')}
           </button>
         )}
         {p.pinned && !p.locked && (
-          <button className="button ghost" onClick={p.onUnpin} title="Let the layout place it again">
-            <Icon name="pin-off" /> Unpin
+          <button className="button ghost" onClick={p.onUnpin} title={t('Let the layout place it again')}>
+            <Icon name="pin-off" /> {t('Unpin')}
           </button>
         )}
         {p.onMove && (
           <>
-            <button className="button ghost" onClick={p.onMove.earlier} disabled={!p.onMove.earlier} title="Move one place earlier">
-              <Icon name="arrow-left" /> Earlier
+            <button className="button ghost" onClick={p.onMove.earlier} disabled={!p.onMove.earlier} title={t('Move one place earlier')}>
+              <Icon name="arrow-left" /> {t('Earlier')}
             </button>
-            <button className="button ghost" onClick={p.onMove.later} disabled={!p.onMove.later} title="Move one place later">
-              <Icon name="arrow-right" /> Later
+            <button className="button ghost" onClick={p.onMove.later} disabled={!p.onMove.later} title={t('Move one place later')}>
+              <Icon name="arrow-right" /> {t('Later')}
             </button>
           </>
         )}
         {p.onDuplicate && (
-          <button className="button ghost" onClick={p.onDuplicate} title="Duplicate (⌘D)">
-            <Icon name="copy" /> Duplicate
+          <button className="button ghost" onClick={p.onDuplicate} title={t('Duplicate (⌘D)')}>
+            <Icon name="copy" /> {t('Duplicate')}
           </button>
         )}
         {!p.definedIn && (
-          <button className="button ghost danger" onClick={p.onDelete} title="Delete (⌫)">
-            <Icon name="trash" /> Delete
+          <button className="button ghost danger" onClick={p.onDelete} title={t('Delete (⌫)')}>
+            <Icon name="trash" /> {t('Delete')}
           </button>
         )}
       </footer>

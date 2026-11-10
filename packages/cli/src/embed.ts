@@ -17,6 +17,8 @@ export interface EmbedFlags {
   static?: boolean;
   /** official or lucide, over the diagram's icons:. */
   icons?: 'official' | 'lucide';
+  /** The language of the drawing's own words when the diagram has no lang: (--lang, CARTO_LANG). */
+  lang?: CartographyOptions['lang'];
 }
 
 export interface Embedded {
@@ -30,7 +32,7 @@ export interface Embedded {
 export async function embed(file: string, flags: EmbedFlags): Promise<Embedded> {
   const stdin = file === '-';
   const abs = path.resolve(file);
-  const options: CartographyOptions = { theme: flags.theme ?? 'auto', view: flags.view, interactive: !flags.static, description: true, strict: false, root: path.parse(abs).root, iconPack: readPack, icons: flags.icons };
+  const options: CartographyOptions = { theme: flags.theme ?? 'auto', view: flags.view, interactive: !flags.static, description: true, strict: false, root: path.parse(abs).root, iconPack: readPack, icons: flags.icons, lang: flags.lang };
   const built = await build(
     stdin
       ? { text: fs.readFileSync(0, 'utf8'), dir: process.cwd(), title: flags.title, options: { ...options, root: path.parse(process.cwd()).root } }

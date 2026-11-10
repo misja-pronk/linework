@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { Graph } from '@cartography/core';
 import { resolveRef, splitRefs } from './ask-prompt.ts';
+import { t } from '../i18n/index.ts';
 
 export type Ref = { kind: 'node' | 'group' | 'edge'; id: string };
 
@@ -12,7 +13,7 @@ function inline(text: string, graph: Graph | undefined, onRef: (r: Ref) => void,
       const r = resolveRef(p.ref, graph);
       return r
         ? [
-            <button key={`${key}r${i}`} type="button" className="ref" onClick={() => onRef(r)} title={`Select ${r.label} in the drawing`}>
+            <button key={`${key}r${i}`} type="button" className="ref" onClick={() => onRef(r)} title={t('Select {label} in the drawing', { label: r.label })}>
               {p.label ?? r.label}
             </button>,
           ]

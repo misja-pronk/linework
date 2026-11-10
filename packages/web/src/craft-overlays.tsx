@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import type { Box, Placed, Point } from '@cartography/core';
 import type { Snap } from './craft.ts';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 
 /** Alignment lines and equal-gap marks; `at` maps pin space to the stage. */
 export function Guides({ snap, at, scale }: { snap: Snap; at(p: Point): Point; scale: number }) {
@@ -54,7 +55,7 @@ export function BendHandles({ points, scale, bent }: { points: Point[]; scale: n
             key={i}
             className={bent ? 'bend-handle bent' : 'bend-handle'}
             data-bend={i}
-            title="Drag to move this part of the line (⌥ for no snapping)"
+            title={t('Drag to move this part of the line (⌥ for no snapping)')}
             style={{ left: (a.x + b.x) / 2, top: (a.y + b.y) / 2, transform: `translate(-50%, -50%) scale(${1 / scale})`, cursor: h ? 'ns-resize' : 'ew-resize' }}
             data-horizontal={h || undefined}
           />
@@ -98,7 +99,7 @@ export function PageFrame(p: { width: number; height: number; page: { name: stri
     <>
       <div className={small ? 'page-frame small' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
         <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
-          Page: {p.page.name} · {p.pt.toFixed(1)} pt{small ? `, under ${p.minPt} pt` : ''}
+          {small ? t('Page: {name} · {pt} pt, under {min} pt', { name: p.page.name, pt: p.pt.toFixed(1), min: p.minPt }) : t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
         </span>
       </div>
       {r && <div className="page-readable" style={{ left: r.x, top: r.y, width: r.width, height: r.height, borderWidth: line }} aria-hidden="true" />}
@@ -151,7 +152,7 @@ export function Minimap(p: { placed: Placed; origin: Point; width: number; heigh
         width={w}
         height={h}
         role="img"
-        aria-label="Overview of the drawing: click to look there"
+        aria-label={t('Overview of the drawing: click to look there')}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           centre(e);

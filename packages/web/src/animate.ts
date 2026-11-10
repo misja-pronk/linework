@@ -4,6 +4,7 @@
 import { render, type RenderResult } from '@cartography/engine';
 import type { Animated, Chunk, Raster, SceneRaster } from '@cartography/export';
 import { options, type ExportInput } from './export.ts';
+import { t } from './i18n/index.ts';
 
 export type AnimationFormat = 'gif' | 'mp4' | 'webm';
 
@@ -74,30 +75,30 @@ export async function exportAnimation(input: ExportInput, choice: AnimationChoic
   // Layers are walked over the whole drawing, whatever is switched on in the editor.
   const base: ExportInput = choice.story === 'layers' ? { ...input, layers: undefined, layerMode: undefined } : input;
   const r = await render(base.text, { ...options(base), step: undefined });
-  if (!r.graph || !r.placed || !r.theme || r.diagnostics.some((d) => d.severity === 'error')) throw new Error('Nothing to export: fix the problems first');
+  if (!r.graph || !r.placed || !r.theme || r.diagnostics.some((d) => d.severity === 'error')) throw new Error(t('Nothing to export: fix the problems first'));
   const beats = choice.story === 'layers' ? await layerBeats(base, r, ex.layerBeats) : r.steps?.length ? ex.stepBeats(r.steps, r.faded) : undefined;
-  if (!beats?.length) throw new Error(choice.story === 'layers' ? 'This diagram has no layers' : 'This diagram has no steps to animate');
+  if (!beats?.length) throw new Error(choice.story === 'layers' ? t('This diagram has no layers') : t('This diagram has no steps to animate'));
   const anim: Animated = { graph: r.graph, placed: r.placed, theme: r.theme, beats, ...(r.images ? { images: r.images } : {}) };
   let drawn = 0;
   const total = beats.length + (choice.drawLines ? beats.length - 1 : 0);
   const list: SceneRaster[] = await ex.sceneRasters(
     anim,
     async (svg, w, h) => {
-      progress('Drawing the steps', Math.min(1, drawn++ / total));
+      progress(t('Drawing the steps'), Math.min(1, drawn++ / total));
       return rasterize(svg, w, h);
     },
     { fonts: 'embed', width: choice.width, drawLines: choice.drawLines },
   );
   const timing = { hold: choice.hold, transition: choice.transitions ? 0.5 : 0 };
   if (choice.format === 'gif') {
-    progress('Making the GIF', 0);
+    progress(t('Making the GIF'), 0);
     // Give the progress a frame to show before the encoder holds the thread.
     await new Promise((ok) => setTimeout(ok, 30));
     return new Blob([ex.gifOf(list, timing) as BlobPart], { type: 'image/gif' });
   }
   const { width, height } = list[0]!.full;
   const config = await codecFor(choice.format, width, height);
-  if (!config) throw new Error(`This browser cannot encode ${choice.format === 'mp4' ? 'H.264 (MP4)' : 'VP9 (WebM)'} video: pick ${choice.format === 'mp4' ? 'WebM' : 'MP4'} or GIF`);
+  if (!config) throw new Error(choice.format === 'mp4' ? t('This browser cannot encode H.264 (MP4) video: pick WebM or GIF') : t('This browser cannot encode VP9 (WebM) video: pick MP4 or GIF'));
   const fps = 30;
   const chunks: Chunk[] = [];
   let description: Uint8Array | undefined;
@@ -127,7 +128,7 @@ export async function exportAnimation(input: ExportInput, choice: AnimationChoic
       encoder.encode(frame, { keyFrame: n % (fps * 2) === 0 });
       frame.close();
       while (encoder.encodeQueueSize > 4) await new Promise((ok) => setTimeout(ok, 2));
-      if (n % 15 === 0) progress('Encoding the video', Math.min(1, (n * 1000) / fps / all));
+      if (n % 15 === 0) progress(t('Encoding the video'), Math.min(1, (n * 1000) / fps / all));
     }
   }
   await encoder.flush();

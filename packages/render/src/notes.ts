@@ -5,6 +5,7 @@ import { anchorLabel, noteNumbers, notePlain, notesInView, resolveAnchor, type G
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
 import { wrapText } from './size.ts';
+import { tr } from '@cartography/i18n/drawing';
 
 /** Where a thread's marker points, in layout coordinates (add the drawing's origin for SVG ones). */
 export interface NoteSpot {
@@ -113,7 +114,7 @@ export function withReviewNotes(
     .sort((a, b) => numbers.get(a.id)! - numbers.get(b.id)!);
   if (!listed.length) return { ...drawn, count: 0 };
   const o = drawn.origin ?? { x: 0, y: 0 };
-  const marks = spots.map((s) => noteMarker(theme, s.at.x + o.x, s.at.y + o.y, s.n, s.thread.status === 'resolved', `${s.n}. ${s.about} — ${s.thread.author || 'someone'}: ${s.thread.text}`)).join('');
+  const marks = spots.map((s) => noteMarker(theme, s.at.x + o.x, s.at.y + o.y, s.n, s.thread.status === 'resolved', `${s.n}. ${s.about} — ${s.thread.author || tr(theme.lang, 'someone')}: ${s.thread.text}`)).join('');
   if (opts.appendix === false) return { svg: drawn.svg.replace(/<\/svg>\s*$/, `<g data-notes="">${marks}</g></svg>`), width: drawn.width, height: drawn.height, count: spots.length };
   // The appendix: under the drawing, as wide as it (at least a readable column).
   const pad = 32;
@@ -123,7 +124,7 @@ export function withReviewNotes(
   let y = drawn.height + 8;
   rows.push(`<line x1="${pad}" x2="${r1(width - pad)}" y1="${r1(y)}" y2="${r1(y)}" stroke="${theme.border}" stroke-width="1"/>`);
   y += 30;
-  rows.push(`<text x="${pad}" y="${r1(y)}" font-size="14" font-weight="600" fill="${theme.text}">Review notes</text>`);
+  rows.push(`<text x="${pad}" y="${r1(y)}" font-size="14" font-weight="600" fill="${theme.text}">${esc(tr(theme.lang, 'Review notes'))}</text>`);
   y += 14;
   const text = (s: string, x: number, size: number, weight: 400 | 500 | 600, fill: string) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${size}" font-weight="${weight}" fill="${fill}">${esc(s)}</text>`;
   const spotOf = new Map(spots.map((s) => [s.thread.id, s]));
@@ -131,11 +132,11 @@ export function withReviewNotes(
     y += 18;
     const n = numbers.get(t.id)!;
     const r = resolveAnchor(t.anchor, graph);
-    const about = spotOf.get(t.id)?.about ?? (r.state === 'orphaned' ? `${r.was} (no longer in the diagram)` : anchorLabel(t.anchor, graph));
+    const about = spotOf.get(t.id)?.about ?? (r.state === 'orphaned' ? `${r.was} (${tr(theme.lang, 'no longer in the diagram')})` : anchorLabel(t.anchor, graph, theme.lang));
     rows.push(noteMarker(theme, pad + 3, y + 4, n, t.status === 'resolved'));
-    rows.push(text(`${about}${t.status === 'resolved' ? ' (resolved)' : ''}`, pad + 30, 12, 600, theme.text));
+    rows.push(text(`${about}${t.status === 'resolved' ? ` (${tr(theme.lang, 'resolved')})` : ''}`, pad + 30, 12, 600, theme.text));
     y += 15;
-    rows.push(text(`${t.author || 'someone'} · ${day(t.created)}`, pad + 30, 10.5, 400, theme.textFaint));
+    rows.push(text(`${t.author || tr(theme.lang, 'someone')} · ${day(t.created)}`, pad + 30, 10.5, 400, theme.textFaint));
     const say = (body: string, indent: number) => {
       for (const para of notePlain(body))
         for (const line of wrapText(para, 11.5, 400, textWidth - indent, 12)) {
@@ -146,7 +147,7 @@ export function withReviewNotes(
     say(t.text, 0);
     for (const reply of t.replies ?? []) {
       y += 18;
-      rows.push(text(`${reply.author || 'someone'} · ${day(reply.created)}`, pad + 44, 10.5, 400, theme.textFaint));
+      rows.push(text(`${reply.author || tr(theme.lang, 'someone')} · ${day(reply.created)}`, pad + 44, 10.5, 400, theme.textFaint));
       say(reply.text, 14);
     }
     y += 6;

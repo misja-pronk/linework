@@ -3,6 +3,7 @@
 // takes the last one off, ↓ ↑ walk the suggestions; each change is one undo step.
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 import './layers.css';
 
 export interface TagChipsProps {
@@ -28,8 +29,8 @@ export function TagChips({ value, known, onChange }: TagChipsProps) {
   }, [value.join(',')]);
   const q = draft.trim().toLowerCase();
   const suggestions = known.filter((t) => !value.includes(t) && (!q || t.toLowerCase().includes(q))).slice(0, 8);
-  const add = (t: string) => {
-    const tag = clean(t);
+  const add = (tg: string) => {
+    const tag = clean(tg);
     setDraft('');
     setAt(0);
     if (tag && !value.includes(tag)) ((typing = document.activeElement === input.current), onChange([...value, tag]));
@@ -37,10 +38,10 @@ export function TagChips({ value, known, onChange }: TagChipsProps) {
   const remove = (t: string) => onChange(value.filter((x) => x !== t));
   return (
     <div className="tag-chips" onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}>
-      {value.map((t) => (
-        <span key={t} className="tag-chip">
-          {t}
-          <button type="button" onClick={() => remove(t)} aria-label={`Remove tag ${t}`} title={`Remove ${t}`}>
+      {value.map((x) => (
+        <span key={x} className="tag-chip">
+          {x}
+          <button type="button" onClick={() => remove(x)} aria-label={t('Remove tag {tag}', { tag: x })} title={t('Remove {tag}', { tag: x })}>
             <Icon name="x" size={12} />
           </button>
         </span>
@@ -48,8 +49,8 @@ export function TagChips({ value, known, onChange }: TagChipsProps) {
       <input
         ref={input}
         value={draft}
-        placeholder={value.length ? '' : known.length ? `e.g. ${known.slice(0, 2).join(', ')}` : 'security, data, phase-2'}
-        aria-label="Add a tag"
+        placeholder={value.length ? '' : known.length ? t('e.g. {tags}', { tags: known.slice(0, 2).join(', ') }) : 'security, data, phase-2'}
+        aria-label={t('Add a tag')}
         aria-autocomplete="list"
         aria-controls={list}
         aria-activedescendant={draft && suggestions[at] ? `${list}-${at}` : undefined}
@@ -69,7 +70,7 @@ export function TagChips({ value, known, onChange }: TagChipsProps) {
         }}
       />
       {suggestions.length > 0 && (
-        <ul className="tag-suggestions" id={list} role="listbox" aria-label="Tags in this file">
+        <ul className="tag-suggestions" id={list} role="listbox" aria-label={t('Tags in this file')}>
           {suggestions.map((t, i) => (
             <li key={t} id={`${list}-${i}`} role="option" aria-selected={!!q && i === at}>
               <button type="button" tabIndex={-1} onMouseDown={(e) => e.preventDefault()} onClick={() => add(t)}>

@@ -6,6 +6,7 @@ import { namesIn, placeRefsTo, placeSites, type DiagramType, type PaletteItem, t
 import { printPreserving } from './yaml-print.ts';
 import { iconNames } from '@cartography/icons';
 import { schemasAt } from './complete.ts';
+import { t } from './i18n/index.ts';
 
 type Schema = Record<string, any>;
 type Path = (string | number)[];
@@ -585,7 +586,7 @@ const shortHint = (d?: string) => {
 };
 /** Field order and which fields lead (generic, by key): see PRIMARY. */
 function ranked(fields: Field[]): Field[] {
-  const set = (f: Field) => (f.kind === 'toggle' ? f.value : f.kind === 'list' ? f.value.length > 0 : f.kind === 'yaml' ? f.summary !== 'Not set' : f.value !== '');
+  const set = (f: Field) => (f.kind === 'toggle' ? f.value : f.kind === 'list' ? f.value.length > 0 : f.kind === 'yaml' ? f.summary !== t('Not set') : f.value !== '');
   return fields
     .map((f) => ({ ...f, label: fieldName(f.key), note: shortHint(f.hint), primary: PRIMARY.has(f.key) || set(f) }))
     .sort((a, b) => (ORDER.indexOf(a.key) + 1 || 99) - (ORDER.indexOf(b.key) + 1 || 99));
@@ -664,11 +665,11 @@ function line(x: unknown): string | undefined {
 }
 
 function summary(v: unknown): string {
-  if (v == null) return 'Not set';
-  if (Array.isArray(v)) return `${v.length} item${v.length === 1 ? '' : 's'}`;
+  if (v == null) return t('Not set');
+  if (Array.isArray(v)) return t('{count} item|{count} items', { count: v.length });
   if (typeof v === 'object') {
     const keys = Object.keys(v as object);
-    return keys.length ? keys.slice(0, 4).join(', ') + (keys.length > 4 ? ` +${keys.length - 4}` : '') : 'Empty';
+    return keys.length ? keys.slice(0, 4).join(', ') + (keys.length > 4 ? ` +${keys.length - 4}` : '') : t('Empty');
   }
   return String(v);
 }
@@ -678,16 +679,16 @@ function summary(v: unknown): string {
 /** Connects two drawn elements the way their type says, or explains why not. */
 function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to: string): { text: string } | { error: string } {
   const doc = parse(text);
-  if (!doc) return { error: 'Fix the problems in the YAML first' };
+  if (!doc) return { error: t('Fix the problems in the YAML first') };
   const data = doc.toJS() as Record<string, unknown>;
   // Types decide about self links (an ERD table can point at itself); plain edges cannot.
   const plan = type.connect
     ? type.connect(data, from, to)
     : from === to
-      ? 'Pick another element to connect to'
+      ? t('Pick another element to connect to')
       : hasEdges(type)
         ? { path: ['edges'], value: `${from} -> ${to}` }
-        : 'This diagram type has no connections';
+        : t('This diagram type has no connections');
   if (typeof plan === 'string') return { error: plan };
 
   // The entry that holds the list may still be shorthand ("alice: user").
@@ -696,8 +697,8 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
   if (plan.key != null) {
     if (at == null) doc.setIn(plan.path, doc.createNode({}));
     const map = doc.getIn(plan.path, true);
-    if (!isMap(map)) return { error: 'Cannot add it there: that part of the YAML is not a map' };
-    if (map.has(plan.key)) return { error: `"${plan.key}" is already there` };
+    if (!isMap(map)) return { error: t('Cannot add it there: that part of the YAML is not a map') };
+    if (map.has(plan.key)) return { error: t('"{key}" is already there', { key: plan.key }) };
     map.set(plan.key, plan.value);
     return { text: str(doc) };
   }
@@ -707,13 +708,13 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
   }
   if (isScalar(at)) {
     // "member-of: sg-dev" becomes a list.
-    if (at.value === plan.value) return { error: 'They are already connected' };
+    if (at.value === plan.value) return { error: t('They are already connected') };
     doc.setIn(plan.path, doc.createNode([at.value, plan.value], { flow: true }));
     return { text: str(doc) };
   }
-  if (!isSeq(at)) return { error: 'Cannot add it there: that part of the YAML is not a list' };
+  if (!isSeq(at)) return { error: t('Cannot add it there: that part of the YAML is not a list') };
   const want = connectionKey(plan.value);
-  if (at.items.some((i) => connectionKey((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === want)) return { error: 'They are already connected' };
+  if (at.items.some((i) => connectionKey((i as Node & { toJSON?(): unknown }).toJSON?.() ?? i) === want)) return { error: t('They are already connected') };
   at.add(lineItem(doc, plan.value));
   return { text: str(doc) };
 }

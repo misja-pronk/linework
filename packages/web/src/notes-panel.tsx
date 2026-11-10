@@ -6,6 +6,7 @@ import { anchorLabel, noteBlocks, noteNumbers, notesInView, resolveAnchor, type 
 import { noteSpots, type NoteSpot, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import type { Review } from './notes-state.ts';
+import { t as tr } from './i18n/index.ts';
 
 export type NoteFilter = 'open' | 'resolved' | 'all';
 
@@ -15,7 +16,7 @@ export function aboutOf(t: NoteThread, graph: Graph | undefined, view?: string):
   const r = resolveAnchor(t.anchor, graph);
   // In a view, an element that is not drawn may well be in the diagram: only the view leaves it out.
   if (r.state === 'orphaned') return { text: r.was, orphaned: true, elsewhere: !!view && !t.view };
-  if (r.state === 'point') return { text: 'A point on the canvas', orphaned: false };
+  if (r.state === 'point') return { text: tr('A point on the canvas'), orphaned: false };
   return { text: anchorLabel(r.anchor, graph), orphaned: false, target: { kind: r.kind, id: r.id } };
 }
 
@@ -53,9 +54,9 @@ const when = (iso: string) => {
   const d = new Date(iso);
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
   if (Number.isNaN(mins)) return '';
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  if (mins < 60 * 24) return `${Math.round(mins / 60)} h ago`;
+  if (mins < 1) return tr('just now');
+  if (mins < 60) return tr('{count} min ago', { count: mins });
+  if (mins < 60 * 24) return tr('{count} h ago', { count: Math.round(mins / 60) });
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
 };
 
@@ -90,9 +91,9 @@ function Composer(p: { label: string; initial?: string; placeholder: string; sen
         {p.askName ? (
           <input
             className="note-composer-name"
-            aria-label="Your name, shown on your notes"
-            placeholder="Your name"
-            title="Your name, shown on your notes; asked once"
+            aria-label={tr('Your name, shown on your notes')}
+            placeholder={tr('Your name')}
+            title={tr('Your name, shown on your notes; asked once')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -102,11 +103,11 @@ function Composer(p: { label: string; initial?: string; placeholder: string; sen
             }}
           />
         ) : (
-          <span className="fine">**bold**, *italic*, `code`, - lists</span>
+          <span className="fine">{tr('**bold**, *italic*, `code`, - lists')}</span>
         )}
         {p.onCancel && (
           <button className="button ghost small" onClick={p.onCancel}>
-            Cancel
+            {tr('Cancel')}
           </button>
         )}
         <button className="button primary small" onClick={go} disabled={!ready} title={p.askName && !name.trim() ? 'Your name first: it is shown on your notes' : `${p.send} (⌘↩)`}>
@@ -160,35 +161,35 @@ export function NotesPanel(p: NotesPanelProps) {
   }, [p.active]);
 
   return (
-    <aside className="inspector notes-panel" aria-label="Notes">
+    <aside className="inspector notes-panel" aria-label={tr('Notes')}>
       <header>
         <span className="inspector-icon">
           <Icon name="message-square" />
         </span>
         <div className="inspector-title">
-          <strong>Notes</strong>
+          <strong>{tr('Notes')}</strong>
           <span>
-            {open} open{inView.length - open ? `, ${inView.length - open} resolved` : ''}
-            {unread ? `, ${unread} unread` : ''}
+            {tr('{count} open', { count: open })}{inView.length - open ? tr(', {count} resolved', { count: inView.length - open }) : ''}
+            {unread ? tr(', {count} unread', { count: unread }) : ''}
           </span>
         </div>
-        <button className="icon-button" onClick={p.onClose} aria-label="Close notes" title="Close (⇧N)">
+        <button className="icon-button" onClick={p.onClose} aria-label={tr('Close notes')} title={tr('Close (⇧N)')}>
           <Icon name="x" />
         </button>
       </header>
       <div className="notes-tools">
-        <div className="segmented" role="radiogroup" aria-label="Show">
+        <div className="segmented" role="radiogroup" aria-label={tr('Show')}>
           {(['open', 'resolved', 'all'] as const).map((f) => (
             <button key={f} role="radio" aria-checked={p.filter === f} className={p.filter === f ? 'active' : ''} onClick={() => p.onFilter(f)}>
-              {f === 'open' ? 'Open' : f === 'resolved' ? 'Resolved' : 'All'}
+              {f === 'open' ? tr('Open@state') : f === 'resolved' ? tr('Resolved') : tr('All')}
             </button>
           ))}
         </div>
-        <button className={p.mine ? 'chip active' : 'chip'} aria-pressed={p.mine} onClick={() => p.onMine(!p.mine)} title="Only threads I wrote or replied to">
-          <Icon name="user" size={13} /> Mine
+        <button className={p.mine ? 'chip active' : 'chip'} aria-pressed={p.mine} onClick={() => p.onMine(!p.mine)} title={tr('Only threads I wrote or replied to')}>
+          <Icon name="user" size={13} /> {tr('Mine')}
         </button>
-        <button className={p.reviewMode ? 'chip active' : 'chip'} aria-pressed={p.reviewMode} onClick={() => p.onReviewMode(!p.reviewMode)} title="Review mode: only the notes stand out (⇧R)">
-          <Icon name="eye" size={13} /> Review
+        <button className={p.reviewMode ? 'chip active' : 'chip'} aria-pressed={p.reviewMode} onClick={() => p.onReviewMode(!p.reviewMode)} title={tr('Review mode: only the notes stand out (⇧R)')}>
+          <Icon name="eye" size={13} /> {tr('Review')}
         </button>
       </div>
       <div className="notes-body" ref={list}>
@@ -200,11 +201,11 @@ export function NotesPanel(p: NotesPanelProps) {
               if (name.trim()) review.setAuthor(name);
             }}
           >
-            <label htmlFor="note-author">Your name, shown on your notes</label>
+            <label htmlFor="note-author">{tr('Your name, shown on your notes')}</label>
             <div>
-              <input id="note-author" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="e.g. Misja" />
+              <input id="note-author" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder={tr('e.g. Misja')} />
               <button className="button primary small" disabled={!name.trim()}>
-                Set
+                {tr('Set')}
               </button>
             </div>
           </form>
@@ -215,9 +216,9 @@ export function NotesPanel(p: NotesPanelProps) {
               <Icon name="map-pin" size={13} /> {p.draft.about}
             </div>
             <Composer
-              label={`Note on ${p.draft.about}`}
-              placeholder="Write a note…"
-              send="Add note"
+              label={tr('Note on {about}', { about: p.draft.about })}
+              placeholder={tr('Write a note…')}
+              send={tr('Add note')}
               autoFocus
               askName={!review.author}
               onSend={(text, name) => {
@@ -232,7 +233,7 @@ export function NotesPanel(p: NotesPanelProps) {
         )}
         {!shown.length && !p.draft && (
           <p className="notes-empty">
-            {inView.length ? 'Nothing here with this filter.' : 'No notes yet. Select an element or a line and press N, or right-click the drawing.'}
+            {inView.length ? tr('Nothing here with this filter.') : tr('No notes yet. Select an element or a line and press N, or right-click the drawing.')}
           </p>
         )}
         {shown.map((t) => (
@@ -241,7 +242,7 @@ export function NotesPanel(p: NotesPanelProps) {
       </div>
       <footer className="notes-footer">
         <label>
-          <input type="checkbox" checked={p.withExports} onChange={(e) => p.onWithExports(e.target.checked)} /> Exports include review notes
+          <input type="checkbox" checked={p.withExports} onChange={(e) => p.onWithExports(e.target.checked)} /> {tr('Exports include review notes')}
         </label>
       </footer>
     </aside>
@@ -268,7 +269,7 @@ function Thread(p: NotesPanelProps & { t: NoteThread; n: number }) {
     <article
       className={`note-thread${p.active === t.id ? ' active' : ''}${t.status === 'resolved' ? ' resolved' : ''}${unread ? ' unread' : ''}`}
       data-thread={t.id}
-      aria-label={`Note ${p.n}${unread ? ', unread' : ''}${t.status === 'resolved' ? ', resolved' : ''}, on ${about.text}`}
+      aria-label={tr('Note {n}{state}, on {about}', { n: p.n, state: `${unread ? tr(', unread') : ''}${t.status === 'resolved' ? tr(', resolved') : ''}`, about: about.text })}
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('button, a, textarea, input')) go();
       }}
@@ -277,24 +278,24 @@ function Thread(p: NotesPanelProps & { t: NoteThread; n: number }) {
         <span className={`note-bubble${t.status === 'resolved' ? ' hollow' : ''}`} aria-hidden="true">
           {p.n}
         </span>
-        <button className="note-go" onClick={go} title={about.elsewhere ? 'Not drawn in this view' : about.orphaned ? 'No longer in the diagram' : 'Select it in the drawing'} disabled={about.orphaned}>
+        <button className="note-go" onClick={go} title={about.elsewhere ? tr('Not drawn in this view') : about.orphaned ? tr('No longer in the diagram') : tr('Select it in the drawing')} disabled={about.orphaned}>
           {about.text}
         </button>
-        {about.orphaned && <span className="note-tag">{about.elsewhere ? 'not in this view' : 'gone'}</span>}
-        {t.status === 'resolved' && <span className="note-tag">resolved</span>}
-        {unread && <span className="note-unread" title="New since you last opened it" aria-label="unread" />}
+        {about.orphaned && <span className="note-tag">{about.elsewhere ? tr('not in this view') : tr('gone')}</span>}
+        {t.status === 'resolved' && <span className="note-tag">{tr('resolved')}</span>}
+        {unread && <span className="note-unread" title={tr('New since you last opened it')} aria-label={tr('unread')} />}
       </div>
       {[t, ...(t.replies ?? [])].map((c, i) => (
         <div className={i ? 'note-entry reply' : 'note-entry'} key={c.id}>
           <div className="note-meta">
-            <strong>{c.author || 'someone'}</strong> <span title={c.created}>{when(c.created)}</span>
-            {c.edited && <span> · edited</span>}
+            <strong>{c.author || tr('someone')}</strong> <span title={c.created}>{when(c.created)}</span>
+            {c.edited && <span> · {tr('edited')}</span>}
             {mine(c.author) && editing !== (i ? c.id : true) && (
               <span className="note-own">
-                <button onClick={() => setEditing(i ? c.id : true)}>Edit</button>
+                <button onClick={() => setEditing(i ? c.id : true)}>{tr('Edit')}</button>
                 {(i || !t.replies?.length) && (
-                  <button onClick={() => (i ? review.remove(t.id, c.id) : window.confirm('Delete this note?') && review.remove(t.id))} aria-label={i ? 'Delete reply' : 'Delete note'}>
-                    Delete
+                  <button onClick={() => (i ? review.remove(t.id, c.id) : window.confirm(tr('Delete this note?')) && review.remove(t.id))} aria-label={i ? tr('Delete reply') : tr('Delete note')}>
+                    {tr('Delete')}
                   </button>
                 )}
               </span>
@@ -302,10 +303,10 @@ function Thread(p: NotesPanelProps & { t: NoteThread; n: number }) {
           </div>
           {editing === (i ? c.id : true) ? (
             <Composer
-              label="Edit note"
+              label={tr('Edit note')}
               placeholder=""
               initial={c.text}
-              send="Save"
+              send={tr('Save')}
               autoFocus
               onSend={(text) => {
                 review.edit(t.id, text, i ? c.id : undefined);
@@ -320,9 +321,9 @@ function Thread(p: NotesPanelProps & { t: NoteThread; n: number }) {
       ))}
       {replying && review.author ? (
         <Composer
-          label={`Reply to note ${p.n}`}
-          placeholder="Reply…"
-          send="Reply"
+          label={tr('Reply to note {n}', { n: p.n })}
+          placeholder={tr('Reply…')}
+          send={tr('Reply')}
           autoFocus
           onSend={(text) => {
             review.reply(t.id, text);
@@ -333,21 +334,21 @@ function Thread(p: NotesPanelProps & { t: NoteThread; n: number }) {
         />
       ) : (
         <div className="note-actions">
-          <button className="button ghost small" onClick={() => (open(), setReplying(true))} disabled={!review.author} title={review.author ? undefined : 'Set your name first'}>
-            Reply
+          <button className="button ghost small" onClick={() => (open(), setReplying(true))} disabled={!review.author} title={review.author ? undefined : tr('Set your name first')}>
+            {tr('Reply')}
           </button>
           {t.status === 'open' ? (
             <button className="button ghost small" onClick={() => (review.setStatus(t.id, 'resolved'), review.seen([t.id]))}>
-              <Icon name="check" size={14} /> Resolve
+              <Icon name="check" size={14} /> {tr('Resolve')}
             </button>
           ) : (
             <button className="button ghost small" onClick={() => review.setStatus(t.id, 'open')}>
-              <Icon name="undo-2" size={14} /> Reopen
+              <Icon name="undo-2" size={14} /> {tr('Reopen')}
             </button>
           )}
           {about.orphaned && !about.elsewhere && p.selectionAnchor && (
-            <button className="button ghost small" onClick={() => review.reattach(t.id, p.selectionAnchor!.anchor)} title={`Hang it on ${p.selectionAnchor.about}`}>
-              <Icon name="map-pin" size={14} /> Attach to {p.selectionAnchor.about}
+            <button className="button ghost small" onClick={() => review.reattach(t.id, p.selectionAnchor!.anchor)} title={tr('Hang it on {about}', { about: p.selectionAnchor.about })}>
+              <Icon name="map-pin" size={14} /> {tr('Attach to {about}', { about: p.selectionAnchor.about })}
             </button>
           )}
         </div>
@@ -373,7 +374,7 @@ export function NoteMarkers(p: { result?: RenderResult; review: Review; filter: 
             className={`note-marker${resolved ? ' hollow' : ''}${unread ? ' unread' : ''}${p.active === s.thread.id ? ' active' : ''}`}
             data-note={s.n}
             style={{ left: s.at.x + o.x, top: s.at.y + o.y, transform: `scale(${1 / p.scale})` }}
-            aria-label={`Note ${s.n} on ${s.about}${unread ? ', unread' : ''}${resolved ? ', resolved' : ''}`}
+            aria-label={tr('Note {n} on {about}{state}', { n: s.n, about: s.about, state: `${unread ? tr(', unread') : ''}${resolved ? tr(', resolved') : ''}` })}
             title={`${s.n}. ${s.about}: ${s.thread.text.slice(0, 80)}`}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}

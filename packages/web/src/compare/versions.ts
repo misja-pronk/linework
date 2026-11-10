@@ -4,6 +4,7 @@
 import type { LayoutSidecar } from '@cartography/core';
 import { render } from '@cartography/engine';
 import type { Repo } from './git.ts';
+import { t } from '../i18n/index.ts';
 
 export type BaselineKind = 'saved' | 'snapshot' | 'file' | 'git' | 'stage';
 
@@ -86,10 +87,9 @@ export async function gitBaseline(repo: Repo, commit: string, path: string, name
 /** "3 days ago", "just now": for a commit or a snapshot in a list. */
 export function ago(ms: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ms) / 1000));
-  const unit = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'} ago`;
-  if (s < 60) return 'just now';
-  if (s < 3600) return unit(Math.round(s / 60), 'minute');
-  if (s < 86400) return unit(Math.round(s / 3600), 'hour');
-  if (s < 86400 * 45) return unit(Math.round(s / 86400), 'day');
+  if (s < 60) return t('just now');
+  if (s < 3600) return t('{count} minute ago|{count} minutes ago', { count: Math.round(s / 60) });
+  if (s < 86400) return t('{count} hour ago|{count} hours ago', { count: Math.round(s / 3600) });
+  if (s < 86400 * 45) return t('{count} day ago|{count} days ago', { count: Math.round(s / 86400) });
   return new Date(ms).toISOString().slice(0, 10);
 }

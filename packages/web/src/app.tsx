@@ -25,9 +25,9 @@ import { RepoDialog, type RepoOffer } from './repo-dialog.tsx';
 
 /** The command palette's entry for the exports in the open folder, by what they are. */
 const EXPORT_ENTRY = {
-  access: { label: (name: string) => `Who reaches what in ${name}`, hint: 'its az, Graph or AzureHound exports in access.yaml', icon: 'shield-user' },
-  github: { label: (name: string) => `GitHub organisation of ${name}`, hint: 'its gh api responses in github.yaml', icon: 'folder-git-2' },
-  azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
+  access: { label: (name: string) => t('Who reaches what in {name}', { name }), hint: 'its az, Graph or AzureHound exports in access.yaml', icon: 'shield-user' },
+  github: { label: (name: string) => t('GitHub organisation of {name}', { name }), hint: 'its gh api responses in github.yaml', icon: 'folder-git-2' },
+  azure: { label: (name: string) => t('Azure resources in {name}', { name }), hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
@@ -64,6 +64,7 @@ import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
+import { t, say, useUiLang, withUiLang, type Message } from './i18n/index.ts';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, writeInFolder, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
@@ -148,22 +149,23 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
-const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
+const count = (n: number, what: Message) => t(what, { count: n });
 /** What the status bar counts: what the type draws. One shape drawn whole (a sequence, a roadmap) is
  * counted by its parts; everything else by its elements and connections. */
 function drawnCount(graph: { nodes: GraphNode[]; edges: unknown[] }): string {
   const s = graph.nodes.length === 1 ? graph.nodes[0]!.shape : undefined;
-  if (s?.kind === 'sequence') return `${count(s.participants.length, 'participant')} · ${count(s.events.filter((e) => e.kind === 'message').length, 'message')}`;
-  if (s?.kind === 'gitflow') return `${count(s.branches.length, 'branch')} · ${count(s.commits.length, 'commit')}`.replace('branchs', 'branches');
-  if (s?.kind === 'roadmap') return `${count(s.lanes.length, 'lane')} · ${count(s.items.length, 'item')}`;
-  if (s?.kind === 'journey') return `${count(s.phases.length, 'phase')} · ${count(s.steps.length, 'step')}`;
-  if (s?.kind === 'matrix') return `${count(s.rows.length, 'row')} · ${count(s.columns.length, 'column')}`;
-  return `${count(graph.nodes.length, 'element')} · ${count(graph.edges.length, 'connection')}`;
+  if (s?.kind === 'sequence') return `${count(s.participants.length, '{count} participant|{count} participants')} · ${count(s.events.filter((e) => e.kind === 'message').length, '{count} message|{count} messages')}`;
+  if (s?.kind === 'gitflow') return `${count(s.branches.length, '{count} branch|{count} branches')} · ${count(s.commits.length, '{count} commit|{count} commits')}`;
+  if (s?.kind === 'roadmap') return `${count(s.lanes.length, '{count} lane|{count} lanes')} · ${count(s.items.length, '{count} item|{count} items')}`;
+  if (s?.kind === 'journey') return `${count(s.phases.length, '{count} phase|{count} phases')} · ${count(s.steps.length, '{count} step|{count} steps')}`;
+  if (s?.kind === 'matrix') return `${count(s.rows.length, '{count} row|{count} rows')} · ${count(s.columns.length, '{count} column|{count} columns')}`;
+  return `${count(graph.nodes.length, '{count} element|{count} elements')} · ${count(graph.edges.length, '{count} connection|{count} connections')}`;
 }
 const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' || n.shape.kind === 'block' ? n.shape.label || n.id : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'topic' ? 'brain' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
 export function App() {
+  const lang = useUiLang();
   const saved = useMemo(() => store.get<Saved>('doc'), []);
   const [text, setText] = useState(saved?.text ?? firstStarter.text);
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
@@ -433,7 +435,7 @@ export function App() {
   /** Keeps what an import or export said about a document; with more than one thing, the toast offers them all. */
   const remember = (name: string, title: string, items: string[]) => {
     setNotes(items.length ? { doc: name, title, items } : undefined);
-    return items.length > 1 ? { more: { label: `Show all ${items.length}`, run: () => setModal('problems') } } : {};
+    return items.length > 1 ? { more: { label: t('Show all {count}', { count: items.length }), run: () => setModal('problems') } } : {};
   };
   useEffect(() => {
     if (!toast) return;
@@ -462,8 +464,8 @@ export function App() {
             editor.current?.load(disk, readSidecar(next, d.path!));
             setSavedText(disk);
             setDocKey((k) => k + 1);
-            notify(`${d.path} changed on disk: reloaded`);
-          } else notify(`${d.path} changed on disk. Saving will ask before it overwrites that.`, { tone: 'error' });
+            notify(t('{path} changed on disk: reloaded', { path: d.path! }));
+          } else notify(t('{path} changed on disk. Saving will ask before it overwrites that.', { path: d.path! }), { tone: 'error' });
         })
         .catch(() => undefined);
     };
@@ -476,7 +478,7 @@ export function App() {
     // The "undo open" offer ends with the first edit: it would throw that edit away.
     if (openedText.current != null && next !== openedText.current) {
       openedText.current = null;
-      setToast((t) => (t?.action?.label === 'Undo' ? undefined : t));
+      setToast((ts) => (ts?.action?.label === t('Undo') ? undefined : ts));
     }
   };
 
@@ -493,10 +495,10 @@ export function App() {
       const more = remember(nextDoc.name, told?.title ?? '', told?.items ?? []);
       // Within a folder, files are saved before switching: nothing to undo. A blank start says nothing either.
       if (nextDoc.path || quiet) return;
-      notify(said ?? `Opened ${nextDoc.name}`, {
+      notify(said ?? t('Opened {name}', { name: nextDoc.name }), {
         ...more,
         action: {
-          label: 'Undo',
+          label: t('Undo'),
           run: () => {
             editor.current?.load(before.text, before.pins);
             setDoc(before.doc);
@@ -522,10 +524,10 @@ export function App() {
     openShared.current = true;
     history.replaceState(null, '', location.pathname + location.search);
     void decodeShare(m[1]!).then((d) => {
-      if (!d) notify('That link does not hold a diagram: it may have been cut short', { tone: 'error' });
+      if (!d) notify(t('That link does not hold a diagram: it may have been cut short'), { tone: 'error' });
       else {
         setModal(undefined);
-        open(d.yaml, { name: d.name ?? 'shared.yaml' }, d.layout, false, `Opened the shared diagram as ${d.name ?? 'shared.yaml'}`);
+        open(d.yaml, { name: d.name ?? 'shared.yaml' }, d.layout, false, t('Opened the shared diagram as {name}', { name: d.name ?? 'shared.yaml' }));
       }
     });
   }, [open, notify]);
@@ -534,7 +536,7 @@ export function App() {
   const leave = async (): Promise<boolean> => {
     if (!dirty) return true;
     if ((ws && doc.path) || fileHandle.current) return save();
-    return confirmer.ask({ title: 'Discard the unsaved changes?', text: `${doc.name} has changes that are not saved in a file.`, ok: 'Discard', cancel: 'Keep editing' });
+    return confirmer.ask({ title: t('Discard the unsaved changes?'), text: t('{name} has changes that are not saved in a file.', { name: doc.name }), ok: t('Discard'), cancel: t('Keep editing') });
   };
 
   const focusDrawing = () => requestAnimationFrame(() => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true }));
@@ -544,7 +546,7 @@ export function App() {
     setModal(undefined);
     if (!(await leave())) return;
     fileHandle.current = undefined;
-    open(s.text, { name: s.file, starter: s.id });
+    open(withUiLang(s.text), { name: s.file, starter: s.id });
     focusDrawing();
   };
 
@@ -554,7 +556,7 @@ export function App() {
     if (!(await leave())) return;
     fileHandle.current = undefined;
     setView(o.view);
-    open(o.text, { name: o.name, starter: o.starter }, o.pins, o.blank);
+    open(withUiLang(o.text), { name: o.name, starter: o.starter }, o.pins, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -569,7 +571,7 @@ export function App() {
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
         const disk = await diskText(ws, doc.path);
-        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await confirmer.ask({ title: `Overwrite ${doc.path}?`, text: `${doc.path} was changed outside Cartography since it was opened.`, ok: 'Overwrite', cancel: 'Keep the file' }))) return false;
+        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await confirmer.ask({ title: t('Overwrite {path}?', { path: doc.path! }), text: t('{path} was changed outside Cartography since it was opened.', { path: doc.path! }), ok: t('Overwrite'), cancel: t('Keep the file') }))) return false;
         await saveInFolder(ws, doc.path, now, pinsToSave);
         await review.saveTo(ws, doc.path, drawn?.view ? undefined : drawn?.graph);
       }
@@ -593,10 +595,10 @@ export function App() {
       } else download(yamlName(doc.name), now, 'text/yaml');
       setSavedText(now);
       setSavedPins(JSON.stringify(pins ?? null));
-      notify(`Saved ${doc.path ?? doc.name}`);
+      notify(t('Saved {name}', { name: doc.path ?? doc.name }));
       return true;
     } catch (e) {
-      notify(`Saving failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+      notify(t('Saving failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
       return false;
     }
   };
@@ -618,9 +620,9 @@ export function App() {
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
       else if (meshInFolder(next) || repoInFolder(next) || exportInFolder(next)) return;
-      else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
+      else notify(t('No diagrams in {name} yet: start from a template and save it there', { name: next.name }));
     } catch (e) {
-      notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+      notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
     }
   };
 
@@ -643,15 +645,15 @@ export function App() {
   const meshInFolder = (w: Workspace): boolean => {
     const path = 'data-mesh.yaml';
     const was = w.files.get(path)?.text;
-    if (was != null && !/^type:\s*data-products\s*$/m.test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    if (was != null && !/^type:\s*data-products\s*$/m.test(was)) return (notify(t('{path} in {folder} is another kind of diagram: rename it first', { path, folder: w.name }), { tone: 'error' }), true);
     const mesh = meshFrom([...w.files].filter(([p]) => p !== path).map(([p, f]) => ({ path: p, text: f.text })), was != null ? { existing: was } : {});
     if (!mesh?.yaml) return false;
     fileHandle.current = undefined;
     open(mesh.yaml, { name: path, path }, readSidecar(w, path));
     // Not on disk yet, or not like this: ⌘S writes it into the folder.
     setSavedText(was ?? null);
-    const more = remember(path, 'From the data products and contracts', meshNotes(mesh.problems));
-    notify(`${mesh.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${meshRemarks(mesh.problems)}`, { ...more, ...(mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
+    const more = remember(path, t('From the data products and contracts'), meshNotes(mesh.problems));
+    notify(`${t('{summary} in {folder} → {path}', { summary: mesh.summary, folder: w.name, path })}${was != null ? t(', what you added by hand is kept') : ''}${meshRemarks(mesh.problems)}`, { ...more, ...(mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
     focusDrawing();
     return true;
   };
@@ -662,14 +664,14 @@ export function App() {
     if (!kind) return false;
     const path = `${kind}.yaml`;
     const was = w.files.get(path)?.text;
-    if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(t('{path} in {folder} is another kind of diagram: rename it first', { path, folder: w.name }), { tone: 'error' }), true);
     const r = exportFrom(files.filter((f) => f.path !== path), was != null ? { existing: was } : {});
-    if (!r?.yaml) return (notify(`Nothing to draw in ${w.name}${r ? exportRemark(r) : ''}`, { tone: 'error', ...(r ? remember(doc.name, 'From the exports (nothing drawn)', exportNotes(r)) : {}) }), true);
+    if (!r?.yaml) return (notify(`${t('Nothing to draw in {folder}', { folder: w.name })}${r ? exportRemark(r) : ''}`, { tone: 'error', ...(r ? remember(doc.name, t('From the exports (nothing drawn)'), exportNotes(r)) : {}) }), true);
     fileHandle.current = undefined;
     open(r.yaml, { name: path, path }, readSidecar(w, path));
     setSavedText(was ?? null);
-    const more = remember(path, 'From the exports', exportNotes(r));
-    notify(`${r.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${exportRemark(r)}`, { ...more, ...(r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
+    const more = remember(path, t('From the exports'), exportNotes(r));
+    notify(`${t('{summary} in {folder} → {path}', { summary: r.summary, folder: w.name, path })}${was != null ? t(', what you added by hand is kept') : ''}${exportRemark(r)}`, { ...more, ...(r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
     focusDrawing();
     return true;
   };
@@ -690,7 +692,7 @@ export function App() {
     try {
       for (const d of chosen) await writeInFolder(w, d.file, d.yaml);
     } catch (e) {
-      return notify(`Writing the diagrams failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+      return notify(t('Writing the diagrams failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
     }
     const first = chosen[0]!;
     fileHandle.current = undefined;
@@ -698,7 +700,7 @@ export function App() {
     setSavedText(first.yaml);
     const kept = chosen.filter((d) => d.kept).length;
     const notes = chosen.flatMap((d) => d.warnings.map((x) => `${d.file}: ${x}`));
-    notify(`${chosen.length} diagram${chosen.length === 1 ? '' : 's'} from the code in ${w.name} → ${first.file.includes('/') ? first.file.slice(0, first.file.lastIndexOf('/') + 1) : w.name}${kept ? `, what you added by hand is kept in ${kept}` : ''}`, remember(first.file, 'From the code', notes));
+    notify(`${t('{count} diagram from the code in {folder} → {dir}|{count} diagrams from the code in {folder} → {dir}', { count: chosen.length, folder: w.name, dir: first.file.includes('/') ? first.file.slice(0, first.file.lastIndexOf('/') + 1) : w.name })}${kept ? t(', what you added by hand is kept in {file}', { file: kept }) : ''}`, remember(first.file, t('From the code'), notes));
     focusDrawing();
   };
   const openRepoDiagram = async (d: RepoDiagram) => {
@@ -710,7 +712,7 @@ export function App() {
     if (offer?.write && ws) {
       open(d.yaml, { name: d.file.split('/').pop()!, path: d.file }, readSidecar(ws, d.file));
       setSavedText(ws.files.get(d.file)?.text ?? null);
-    } else open(d.yaml, { name: d.file.split('/').pop()! }, undefined, false, `${d.summary}, from ${d.sources.join(', ')}`, { title: 'From the code', items: d.warnings });
+    } else open(d.yaml, { name: d.file.split('/').pop()! }, undefined, false, t('{summary}, from {sources}', { summary: d.summary, sources: d.sources.join(', ') }), { title: t('From the code'), items: d.warnings });
     focusDrawing();
   };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
@@ -731,26 +733,26 @@ export function App() {
     if (mesh?.yaml) {
       if (!(await leave())) return;
       fileHandle.current = undefined;
-      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`, { title: 'From the data products and contracts', items: meshNotes(mesh.problems) });
+      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${t('{summary} as one map', { summary: mesh.summary })}${meshRemarks(mesh.problems)}`, { title: t('From the data products and contracts'), items: meshNotes(mesh.problems) });
       return focusDrawing();
     }
-    if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error', ...remember(doc.name, 'From the data products and contracts (nothing drawn)', meshNotes(mesh.problems)) });
+    if (mesh) return notify(`${t('Nothing to draw')}${meshRemarks(mesh.problems) || t(': no data product or contract could be read')}`, { tone: 'error', ...remember(doc.name, t('From the data products and contracts (nothing drawn)'), meshNotes(mesh.problems)) });
     // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
     const exported = exportFrom(files);
     if (exported?.yaml) {
       if (!(await leave())) return;
       fileHandle.current = undefined;
-      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`, { title: 'From the exports', items: exportNotes(exported) });
+      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`, { title: t('From the exports'), items: exportNotes(exported) });
       return focusDrawing();
     }
-    if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, 'From the exports (nothing drawn)', exportNotes(exported)) });
+    if (exported) return notify(`${t('Nothing to draw')}${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, t('From the exports (nothing drawn)'), exportNotes(exported)) });
     // A code repository dropped: its diagrams offered, one to open.
     if (isRepo(files)) {
       const scan = scanRepo(files, { name: folder });
       if (scan.diagrams.length) return setRepoOffer({ scan, name: folder ?? 'the drop', write: false });
     }
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
-    if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
+    if (!diagram) return notify(t('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)'), { tone: 'error' });
     if (!(await leave())) return;
     fileHandle.current = files.length === 1 ? handle : undefined;
     open(diagram.text, { name: diagram.path.split('/').pop()! });
@@ -772,7 +774,7 @@ export function App() {
     setDropping(false);
     void dropped(e.dataTransfer)
       .then((files) => openTexts(files))
-      .catch((err: unknown) => notify(`Opening failed: ${err instanceof Error ? err.message : String(err)}`, { tone: 'error' }));
+      .catch((err: unknown) => notify(t('Opening failed: {error}', { error: err instanceof Error ? err.message : String(err) }), { tone: 'error' }));
   };
 
   const openFile = () => {
@@ -782,14 +784,14 @@ export function App() {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
             types: [
-              { description: 'Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
+              { description: t('Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)'), accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
               { description: 'draw.io, Excalidraw, Mermaid, D2 or PlantUML, to import', accept: OTHER },
             ],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
           await openTexts(files, hs[0]);
         } catch (e) {
-          if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
+          if ((e as Error).name !== 'AbortError') notify(t('Opening failed: {error}', { error: (e as Error).message }), { tone: 'error' });
         }
       })();
       return;
@@ -809,83 +811,83 @@ export function App() {
 
   const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
   const attempt = (what: string, run: () => Promise<void>) => () =>
-    void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
+    void run().catch((e: unknown) => notify(t('{what} failed: {error}', { what, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
   const saveYaml = () => void save();
   const downloadYaml = () => download(yamlName(doc.name), editor.current?.text() ?? text, 'text/yaml');
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
   // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
   const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
-  const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
+  const saveSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
   /** Another tool's file is there; what it could not hold is said, not hidden. */
   const handed = (what: string, h: Handed) =>
-    h.warnings.length ? notify(`${what}. ${h.warnings[0]}${h.warnings.length > 1 ? `, and ${h.warnings.length - 1} more left out` : ''}`, { action: { label: 'OK', run: () => {} }, ...remember(doc.name, `${what}: left out`, h.warnings) }) : notify(what);
-  const saveDrawio = attempt('Export', async () => {
+    h.warnings.length ? notify(h.warnings.length > 1 ? t('{what}. {warning}, and {count} more left out', { what, warning: h.warnings[0]!, count: h.warnings.length - 1 }) : t('{what}. {warning}', { what, warning: h.warnings[0]! }), { action: { label: 'OK', run: () => {} }, ...remember(doc.name, t('{what}: left out', { what }), h.warnings) }) : notify(what);
+  const saveDrawio = attempt(t('Export'), async () => {
     const h = await exportDrawio(exportInput());
     download(`${baseName(doc.name)}.drawio`, h.data, 'application/xml');
-    handed('Saved for draw.io', h);
+    handed(t('Saved for draw.io'), h);
   });
-  const saveExcalidraw = attempt('Export', async () => {
+  const saveExcalidraw = attempt(t('Export'), async () => {
     const h = await exportExcalidraw(exportInput());
     download(`${baseName(doc.name)}.excalidraw`, h.data, 'application/json');
-    handed('Saved for Excalidraw', h);
+    handed(t('Saved for Excalidraw'), h);
   });
-  const saveMermaid = attempt('Export', async () => {
+  const saveMermaid = attempt(t('Export'), async () => {
     const h = await exportMermaid(exportInput());
     download(`${baseName(doc.name)}.mmd`, h.data, 'text/plain');
-    handed('Saved as Mermaid', h);
+    handed(t('Saved as Mermaid'), h);
   });
-  const copyMermaid = attempt('Copy', async () => {
+  const copyMermaid = attempt(t('Copy'), async () => {
     const h = await exportMermaid(exportInput());
     await navigator.clipboard.writeText('```mermaid\n' + h.data + '```\n');
-    handed('Mermaid copied, paste it into a README', h);
+    handed(t('Mermaid copied, paste it into a README'), h);
   });
-  const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
-  const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
+  const savePng = attempt(t('Export'), async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
+  const saveSlide = attempt(t('Export'), async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const pptxTemplate = useTemplateChoice(ws, (m) => notify(m, { tone: 'error' }));
-  const savePptx = attempt('Export', async () => {
+  const savePptx = attempt(t('Export'), async () => {
     // In the template chosen in the menu, or the one the theme names (read from the open folder, next to the diagram).
     const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
     const { blob, small, warnings } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read });
     download(`${baseName(doc.name)}.pptx`, blob);
-    if (warnings.length && !small.length) notify(`In the template: ${warnings[0]}${warnings.length > 1 ? ` (and ${warnings.length - 1} more)` : ''}`);
+    if (warnings.length && !small.length) notify(warnings.length > 1 ? t('In the template: {warning} (and {count} more)', { warning: warnings[0]!, count: warnings.length - 1 }) : t('In the template: {warning}', { warning: warnings[0]! }));
     // Every slide is checked for text too small to read from the back of a room.
-    if (small.length) notify(`${count(small.length, 'slide')} with text under ${SLIDE_MIN_PT} pt (${small.map((t) => `slide ${t.slide}: ${t.smallestPt} pt`).join(', ')}): split into views, or Tidy for the page`, { tone: 'error' });
+    if (small.length) notify(t('{count} slide with text under {min} pt ({list}): split into views, or Tidy for the page|{count} slides with text under {min} pt ({list}): split into views, or Tidy for the page', { count: small.length, min: SLIDE_MIN_PT, list: small.map((x) => t('slide {n}: {pt} pt', { n: x.slide, pt: x.smallestPt })).join(', ') }), { tone: 'error' });
   });
-  const pageName = (result?.page ?? drawn?.page)?.name ?? '16:9 slide';
-  const savePageSvg = attempt('Export', async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
-  const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
+  const pageName = (result?.page ?? drawn?.page)?.name ?? t('16:9 slide');
+  const savePageSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
+  const savePdf = attempt(t('Export'), async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const saveHtml = (folder?: boolean) =>
-    attempt('Export', async () => {
+    attempt(t('Export'), async () => {
       const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport?.list, folder });
       download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
     })();
-  const copySvg = attempt('Copy', async () => {
+  const copySvg = attempt(t('Copy'), async () => {
     await navigator.clipboard.writeText(await svgNow());
-    notify('SVG copied');
+    notify(t('SVG copied'));
   });
   // A share link carries the diagram in its #fragment, which never reaches a server.
-  const copyShare = attempt('Share', async () => {
+  const copyShare = attempt(t('Share'), async () => {
     const link = await shareLink({ yaml: editor.current?.text() ?? text, name: doc.name, layout: pins, ...(brand().choice && themes[brand().choice] ? { theme: brand().choice } : {}) }, location.origin + location.pathname);
     if (link.length > SHARE_LIMIT) {
-      notify(`Too large for a link: ${Math.ceil(link.length / 1000)} kB where ${SHARE_LIMIT / 1000} kB is the most links safely carry. Share the YAML file instead.`, { tone: 'error' });
+      notify(t('Too large for a link: {size} kB where {limit} kB is the most links safely carry. Share the YAML file instead.', { size: Math.ceil(link.length / 1000), limit: SHARE_LIMIT / 1000 }), { tone: 'error' });
       return;
     }
     await navigator.clipboard.writeText(link);
-    const away = result?.includes?.length ? ` It does not carry ${result.includes.length === 1 ? 'the included file' : `the ${result.includes.length} included files`}.` : '';
-    notify(`Share link copied: it opens read-only, and the diagram travels in the link itself, nothing was uploaded.${away}`);
+    const away = result?.includes?.length ? (result.includes.length === 1 ? t(' It does not carry the included file.') : t(' It does not carry the {count} included files.', { count: result.includes.length })) : '';
+    notify(`${t('Share link copied: it opens read-only, and the diagram travels in the link itself, nothing was uploaded.')}${away}`);
   });
   // The drawing on screen in words (docs/describe.md), and with its picture for a wiki page.
   const description = () => describeResult(result ?? drawn, docFile);
-  const copyForWiki = attempt('Copy', async () => {
+  const copyForWiki = attempt(t('Copy'), async () => {
     const d = description();
-    if (!d) throw new Error('Nothing to copy: fix the problems first');
+    if (!d) throw new Error(t('Nothing to copy: fix the problems first'));
     await copyRich(exportInput(), d);
-    notify('Picture and description copied: paste into Confluence, Notion or Google Docs');
+    notify(t('Picture and description copied: paste into Confluence, Notion or Google Docs'));
   });
-  const copyPng = attempt('Copy', async () => {
+  const copyPng = attempt(t('Copy'), async () => {
     // Safari wants the ClipboardItem created right in the click, with the PNG still on its way.
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPng(exportInput(), 2) })]);
-    notify('PNG copied, paste it into slides or docs');
+    notify(t('PNG copied, paste it into slides or docs'));
   });
 
   // ------------------------------------------------------------ selection
@@ -926,7 +928,7 @@ export function App() {
 
   /** Applies a text edit (and optionally new pins) as one undo step. */
   const apply = (next: string | undefined, nextPins?: LayoutSidecar | null) => {
-    if (next == null) return notify('That change did not work on this YAML: fix the problems in the editor, or make it there', { tone: 'error' });
+    if (next == null) return notify(t('That change did not work on this YAML: fix the problems in the editor, or make it there'), { tone: 'error' });
     editor.current?.replace(next, { pins: nextPins === undefined ? undefined : (withViewPins(pins, drawn?.view, nextPins) ?? null) });
     acted();
   };
@@ -972,13 +974,13 @@ export function App() {
     if (!vpins) return void acted();
     const { layout: _, ...kept } = vpins;
     pinTo(kept.nodes || kept.groups || kept.edges ? kept : tracked ? { version: 1, layout: { at: '' } } : null);
-    notify(pinCount ? `Tidied: ${count(pinCount, 'pinned element')} stayed, the rest is laid out afresh (⌘Z undoes it)` : 'Tidied: laid out afresh');
+    notify(pinCount ? count(pinCount, 'Tidied: {count} pinned element stayed, the rest is laid out afresh (⌘Z undoes it)|Tidied: {count} pinned elements stayed, the rest is laid out afresh (⌘Z undoes it)') : t('Tidied: laid out afresh'));
   };
   /** Tidy all: unpins everything and lays it out afresh, as one undo step. */
   const tidyAll = () => {
     previewControl.current?.fitNext();
     resetLayout();
-    if (vpins) notify(pinCount ? `Unpinned ${count(pinCount, 'element')} and laid it all out afresh` : 'Laid it all out afresh', { action: { label: 'Undo', run: () => editor.current?.undo() } });
+    if (vpins) notify(pinCount ? count(pinCount, 'Unpinned {count} element and laid it all out afresh|Unpinned {count} elements and laid it all out afresh') : t('Laid it all out afresh'), { action: { label: t('Undo'), run: () => editor.current?.undo() } });
   };
   /** Pins the selected nodes and groups where they are, or unpins them when all are pinned: the layout places them again. */
   const togglePin = () => {
@@ -987,13 +989,13 @@ export function App() {
     if (!items.length || !current) return;
     const isPinned = (s: Selection) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id]);
     const unpin = items.every(isPinned);
-    if (unpin && items.some((s) => locked.has(s.id))) return notify('Locked: unlock it first (⇧⌘L)');
+    if (unpin && items.some((s) => locked.has(s.id))) return notify(t('Locked: unlock it first (⇧⌘L)'));
     const at = (s: Selection) => {
       const b = (s.kind === 'node' ? result!.placed!.nodes : result!.placed!.groups).get(s.id)!;
       return unpin ? undefined : { x: Math.round(b.x + shift.x), y: Math.round(b.y + shift.y) };
     };
     pinTo(withPins(Object.fromEntries(items.filter((s) => s.kind === 'node').map((s) => [s.id, at(s)])), Object.fromEntries(items.filter((s) => s.kind === 'group').map((s) => [s.id, at(s)]))));
-    notify(unpin ? `Unpinned ${count(items.length, 'element')}: the layout places it` : `Pinned ${count(items.length, 'element')}: it stays where it is`);
+    notify(unpin ? count(items.length, 'Unpinned {count} element: the layout places it|Unpinned {count} elements: the layout places it') : count(items.length, 'Pinned {count} element: it stays where it is|Pinned {count} elements: it stays where it is'));
   };
   /** Pins with one line's bends set (or reset with undefined). */
   const withEdge = (id: string, via: Point[] | undefined): LayoutSidecar | null => {
@@ -1029,7 +1031,7 @@ export function App() {
   /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
   const ready = () => {
     if (result?.graph && current) return true;
-    notify(result?.graph ? 'One moment: the drawing is catching up with the text' : 'Fix the problems in the YAML first', { tone: 'error' });
+    notify(result?.graph ? t('One moment: the drawing is catching up with the text') : t('Fix the problems in the YAML first'), { tone: 'error' });
     return false;
   };
   /** Put the cursor in a field of the inspector once it shows this selection: on a busy machine that is more than one frame away. */
@@ -1110,7 +1112,7 @@ export function App() {
     // A line that stands for part of something bigger (a policy, a list) is changed in the YAML.
     const deletable = isEntryPath(path) || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
     if (!deletable) {
-      notify('This one is part of a larger entry: change it in the YAML', { tone: 'error' });
+      notify(t('This one is part of a larger entry: change it in the YAML'), { tone: 'error' });
       const e = entries.find((x) => x.kind === sel.kind && x.id === sel.id);
       if (e) editor.current?.reveal(e.from, e.to);
       return;
@@ -1137,18 +1139,18 @@ export function App() {
   const removeAll = () => {
     if (!type || !ready()) return;
     if (stages.onRemove(selection)) return;
-    const t = textNow();
-    const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(t, type, s.id));
+    const tx = textNow();
+    const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(tx, type, s.id));
     const rest = selection.filter((s) => !chain.includes(s));
-    const paths = rest.map(pathOf).filter((p): p is Path => !!p && (isEntryPath(p) || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
-    if (!paths.length && !chain.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
+    const paths = rest.map(pathOf).filter((p): p is Path => !!p && (isEntryPath(p) || typeof p.at(-1) === 'number' || isScalarAt(tx, p)));
+    if (!paths.length && !chain.length) return notify(t('These are parts of larger entries: change them in the YAML'), { tone: 'error' });
     // Arrows of chains and whole list items go together, last written first, so the places of the
     // others stay right; an arrow in an item that goes anyway is left alone.
     const place = (p: Path | undefined) => (typeof p?.at(-1) === 'number' ? (p.at(-1) as number) : -1);
     const items = paths.filter((p) => place(p) >= 0);
     const ops = [...items.map((p) => ({ at: place(p), path: p, id: '' })), ...chain.map((s) => ({ at: place(pathOf(s)), path: undefined, id: s.id }))];
     ops.sort((a, b) => b.at - a.at || Number(!!b.path) - Number(!!a.path) || b.id.localeCompare(a.id, undefined, { numeric: true }));
-    let next: string | undefined = t;
+    let next: string | undefined = tx;
     for (const op of ops) {
       if (next == null) break;
       if (op.path) next = deleteEntry(next, type, op.path);
@@ -1162,7 +1164,7 @@ export function App() {
     apply(stages.tidy(next), nextPins);
     if (next != null) {
       setSelection([]);
-      if (paths.length < rest.length) notify(`Deleted ${paths.length + chain.length}; ${rest.length - paths.length} that are part of larger entries stayed`);
+      if (paths.length < rest.length) notify(t('Deleted {count}; {kept} that are part of larger entries stayed', { count: paths.length + chain.length, kept: rest.length - paths.length }));
     }
   };
 
@@ -1171,18 +1173,18 @@ export function App() {
     if (!type || !ready()) return undefined;
     const clip = copyEntries(textNow(), type, selection.map(pathOf).filter((p): p is Path => !!p));
     if (!clip) {
-      if (announce) notify('Nothing to copy: select shapes or groups', { tone: 'error' });
+      if (announce) notify(t('Nothing to copy: select shapes or groups'), { tone: 'error' });
       return undefined;
     }
     clipboard = clip;
-    if (announce) notify(`Copied ${clip.entries.length} ${clip.entries.length === 1 ? 'element' : 'elements'}`);
+    if (announce) notify(count(clip.entries.length, 'Copied {count} element|Copied {count} elements'));
     return clip;
   };
   /** Pastes under new ids, selected afterwards, as one undo step. The copies are not pinned: the layout gives
    * them a free spot, where a fixed offset would put them over the originals or inside a group they are not in. */
   const paste = (clip: Clip | undefined = clipboard) => {
     if (!clip || !type || !ready()) return;
-    if (clip.type !== type.id) return notify(`That was copied from another kind of diagram (${typeName(clip.type)})`, { tone: 'error' });
+    if (clip.type !== type.id) return notify(t('That was copied from another kind of diagram ({type})', { type: typeName(clip.type) }), { tone: 'error' });
     const r = pasteEntries(textNow(), type, clip);
     if (!r) return apply(undefined);
     apply(r.text);
@@ -1295,7 +1297,7 @@ export function App() {
     const key = parentKey(type, String(path[0]), String((g ?? was)?.path[0] ?? ''));
     if (!key || (g && g.path.length !== 2)) return undefined;
     const text = setField(textNow(), type, path, key, g ? String(g.path[1]) : undefined);
-    return text == null ? undefined : { text, message: g ? `Moved into ${g.label}` : 'Moved out of its group' };
+    return text == null ? undefined : { text, message: g ? t('Moved into {group}', { group: g.label }) : t('Moved out of its group') };
   };
 
   const connect = (from: string, to: string) => {
@@ -1303,7 +1305,7 @@ export function App() {
     const r = connectEntries(textNow(), type, from, to);
     if ('error' in r) return notify(r.error, { tone: 'error' });
     apply(r.text);
-    notify(`Connected ${nodeName(from)} to ${nodeName(to)}`);
+    notify(t('Connected {from} to {to}', { from: nodeName(from), to: nodeName(to) }));
     // The new line is selected once drawn, with its label ready to type.
     setPendingEdge({ from, to, count: result?.graph?.edges.length ?? 0 });
   };
@@ -1330,7 +1332,7 @@ export function App() {
       for (const [id, at] of Object.entries(next.groups ?? {})) if (!groups[id] && Object.keys(groups).some((g) => inside(id, g))) next.groups![id] = { x: at.x + dx, y: at.y + dy };
     }
     if (next !== undefined) pinTo(next);
-    else if (selection.some((s) => locked.has(s.id))) notify('Locked: unlock it first (⇧⌘L)');
+    else if (selection.some((s) => locked.has(s.id))) notify(t('Locked: unlock it first (⇧⌘L)'));
   };
 
   /** Aligns or distributes the selected shapes (locked ones stay put and others line up with them), as one undo step. */
@@ -1342,7 +1344,7 @@ export function App() {
       return b ? [[s.id, { ...b, x: b.x + shift.x, y: b.y + shift.y }] as [string, typeof b]] : [];
     });
     const need = op.startsWith('distribute') ? 3 : 2;
-    if (boxes.length < need) return notify(`Select ${need} or more shapes first`, { tone: 'error' });
+    if (boxes.length < need) return notify(t('Select {count} or more shapes first', { count: need }), { tone: 'error' });
     const moved = Object.fromEntries(Object.entries(arrange(boxes, op)).filter(([id]) => !locked.has(id)));
     if (!Object.keys(moved).length) return;
     // The ones already in line are pinned too: unpinned, the layout would push them out of the others' way.
@@ -1370,7 +1372,7 @@ export function App() {
     const out: LayoutSidecar = { ...(next ?? { version: 1 }), locked: list };
     if (!list.length) delete out.locked;
     pinTo(noted(out));
-    notify(unlock ? `Unlocked ${count(items.length, 'element')}` : `Locked ${count(items.length, 'element')}: it stays where it is`);
+    notify(unlock ? count(items.length, 'Unlocked {count} element|Unlocked {count} elements') : count(items.length, 'Locked {count} element: it stays where it is|Locked {count} elements: it stays where it is'));
   };
 
   /** ⌥ arrows: the selection moves to the nearest element in that direction. */
@@ -1461,18 +1463,18 @@ export function App() {
 
   /** Follows a link: a URL in a new tab, another view here, or another diagram (and view) next to this one. */
   const follow = (link: Link) => {
-    const t = linkTarget(link, here);
-    if (t.kind === 'url') return void window.open(t.url, '_blank', 'noopener');
-    if (t.kind === 'none') return notify(t.why, { tone: 'error' });
-    if (t.kind === 'view') return setPicked({ doc: docId, name: t.view });
+    const to = linkTarget(link, here);
+    if (to.kind === 'url') return void window.open(to.url, '_blank', 'noopener');
+    if (to.kind === 'none') return notify(to.why, { tone: 'error' });
+    if (to.kind === 'view') return setPicked({ doc: docId, name: to.view });
     if (ws && doc.path) {
-      if (!ws.files.has(t.path)) return notify(`There is no ${t.path} in ${ws.name}`, { tone: 'error' });
-      setPicked({ doc: t.path, name: t.view });
-      return void openInFolder(ws, t.path);
+      if (!ws.files.has(to.path)) return notify(t('There is no {path} in {folder}', { path: to.path, folder: ws.name }), { tone: 'error' });
+      setPicked({ doc: to.path, name: to.view });
+      return void openInFolder(ws, to.path);
     }
-    const s = starters.find((x) => x.id === `example:${t.path}`);
-    if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
-    setPicked({ doc: s.id, name: t.view });
+    const s = starters.find((x) => x.id === `example:${to.path}`);
+    if (!s) return notify(t('There is no example {path}', { path: to.path }), { tone: 'error' });
+    setPicked({ doc: s.id, name: to.view });
     void pick(s);
   };
 
@@ -1480,10 +1482,10 @@ export function App() {
 
   /** The views to pick from, in the picker's order: as written first where there is such a drawing. */
   const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
-  const viewTitle = (name?: string) => (name === undefined ? 'as written' : (drawn?.views?.find((v) => v.name === name)?.title ?? name));
+  const viewTitle = (name?: string) => (name === undefined ? t('as written') : (drawn?.views?.find((v) => v.name === name)?.title ?? name));
   const showView = (name: string | undefined) => {
     setPicked({ doc: docId, name });
-    notify(`View: ${viewTitle(name)}`);
+    notify(t('View: {view}', { view: viewTitle(name) }));
   };
   /**
    * V: the next view of the diagram; the YAML stays as it is. Views the type draws itself (data products
@@ -1495,7 +1497,7 @@ export function App() {
   const viewNow = () => viewName ?? (ownViews ? (drawn!.views!.find((v) => v.name === /^view:[ \t]*([\w-]+)/m.exec(textNow())?.[1]) ?? drawn!.views![0]!).name : undefined);
   const nextView = () => {
     const list = ownViews ? viewList().slice(1) : viewList();
-    if (list.length < 2) return notify('This diagram has one view');
+    if (list.length < 2) return notify(t('This diagram has one view'));
     const now = viewNow();
     showView(list[(list.indexOf(now) + 1) % list.length]);
   };
@@ -1518,7 +1520,7 @@ export function App() {
   const focusOnSelection = () => {
     const g = drawn?.graph;
     if (!g) return;
-    if (!selection.length) return focusOn ? leaveFocus() : notify('Select what to focus on, then press F');
+    if (!selection.length) return focusOn ? leaveFocus() : notify(t('Select what to focus on, then press F'));
     const ends = (id: string) => g.edges.filter((e) => e.id === id).flatMap((e) => [e.from.node, e.to.node]);
     const on = [...new Set(selection.flatMap((x) => (x.kind === 'edge' ? ends(x.id) : [x.id])))];
     if (!on.length) return;
@@ -1527,7 +1529,7 @@ export function App() {
   };
   const refocus = (change: (now: Focus) => Partial<Pick<Focus, 'hops' | 'direction'>>) => {
     const now = drawn?.focus;
-    if (!now) return notify('No focus yet: select something and press F');
+    if (!now) return notify(t('No focus yet: select something and press F'));
     const next = { hops: now.hops, direction: now.direction, ...change(now) };
     setFocus({ on: now.on, hops: next.hops === Infinity ? 'all' : next.hops, direction: next.direction });
   };
@@ -1538,7 +1540,7 @@ export function App() {
     if (!focusAsked || !result?.svg || result.focus || rendered?.text !== text) return;
     const why = result.diagnostics.find((d) => d.message.startsWith('Focus'));
     setLens(undefined);
-    notify(why ? why.message.replace(/^Focus: /, '') : 'Nothing to focus on there');
+    notify(why ? why.message.replace(/^Focus: /, '') : t('Nothing to focus on there'));
   }, [result]);
 
   // ------------------------------------------------------------ steps and presenting
@@ -1549,12 +1551,12 @@ export function App() {
   const pickStep = (n: number | undefined) => setStepAt(n ? { doc: docId, view: viewName, n } : undefined);
   /** [ and ]: through the steps, and past the last one back to the whole drawing. */
   const stepBy = (dir: 1 | -1) => {
-    if (!stepList.length) return notify('No steps yet: select what a step is about and press S');
+    if (!stepList.length) return notify(t('No steps yet: select what a step is about and press S'));
     pickStep(((drawn?.step ?? 0) + dir + stepList.length + 1) % (stepList.length + 1) || undefined);
   };
   /** A step edit as one undo step; without text the YAML could not take it. */
   const editSteps = (next: string | undefined, show?: number) => {
-    if (next == null) return notify(drawn?.view ? `The steps of ${drawn.view} are not written in this file, or its YAML has problems: change them there` : 'That change did not work on these steps: make it in the YAML', { tone: 'error' });
+    if (next == null) return notify(drawn?.view ? t('The steps of {view} are not written in this file, or its YAML has problems: change them there', { view: drawn.view }) : t('That change did not work on these steps: make it in the YAML'), { tone: 'error' });
     apply(next);
     if (show) pickStep(show);
   };
@@ -1562,7 +1564,7 @@ export function App() {
   const addStepFromSelection = () => {
     const g = drawn?.graph;
     if (!ready() || !g) return;
-    if (drawn?.stepsImplied) return notify(g.steps?.length ? 'This view is told by its numbered lines already' : 'A sequence diagram is told message by message already');
+    if (drawn?.stepsImplied) return notify(g.steps?.length ? t('This view is told by its numbered lines already') : t('A sequence diagram is told message by message already'));
     const edgeOf = (id: string) => g.edges.find((e) => e.id === id);
     const focus = selection.flatMap((x) => (x.kind !== 'edge' ? [x.id] : edgeOf(x.id) ? [`${edgeOf(x.id)!.from.node} -> ${edgeOf(x.id)!.to.node}`] : []));
     const names = selection.map((x) => (x.kind === 'node' ? nodeName(x.id) : x.kind === 'group' ? (g.groups.find((y) => y.id === x.id)?.label ?? x.id) : edgeOf(x.id) ? `${nodeName(edgeOf(x.id)!.from.node)} to ${nodeName(edgeOf(x.id)!.to.node)}` : x.id));
@@ -1571,11 +1573,11 @@ export function App() {
     editSteps(next, n);
     if (next) {
       setNaming(n);
-      notify(`Step ${n} added: ${names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : `${names.length} elements stand out`}`, { action: { label: 'Undo', run: () => editor.current?.undo() } });
+      notify(t('Step {n} added: {what}', { n, what: names.length === 1 ? names[0]! : names.length === 2 ? t('{a} and {b}', { a: names[0]!, b: names[1]! }) : t('{count} elements stand out', { count: names.length }) }), { action: { label: t('Undo'), run: () => editor.current?.undo() } });
     }
   };
   const present = () => {
-    if (!drawn?.svg) return notify('Nothing to present yet: fix the problems in the YAML first', { tone: 'error' });
+    if (!drawn?.svg) return notify(t('Nothing to present yet: fix the problems in the YAML first'), { tone: 'error' });
     setModal(undefined);
     setPresenting(true);
   };
@@ -1645,9 +1647,9 @@ export function App() {
   const describe = (s: Selection) => {
     const g = result?.graph;
     const e = s.kind === 'edge' ? g?.edges.find((x) => x.id === s.id) : undefined;
-    const name = s.kind === 'node' ? nodeName(s.id) : s.kind === 'group' ? (g?.groups.find((x) => x.id === s.id)?.label ?? s.id) : e ? `Line from ${nodeName(e.from.node)} to ${nodeName(e.to.node)}${e.label ? `, ${e.label}` : ''}` : s.id;
+    const name = s.kind === 'node' ? nodeName(s.id) : s.kind === 'group' ? (g?.groups.find((x) => x.id === s.id)?.label ?? s.id) : e ? `${t('Line from {from} to {to}', { from: nodeName(e.from.node), to: nodeName(e.to.node) })}${e.label ? `, ${e.label}` : ''}` : s.id;
     const kind = s.kind === 'edge' ? '' : `, ${kindLabel(pathOf(s)) || s.kind}`;
-    const state = locked.has(s.id) ? ', locked' : (s.kind === 'node' ? vpins?.nodes?.[s.id] : s.kind === 'group' ? vpins?.groups?.[s.id] : bent.has(s.id)) ? (s.kind === 'edge' ? ', bent by hand' : ', pinned') : '';
+    const state = locked.has(s.id) ? t(', locked') : (s.kind === 'node' ? vpins?.nodes?.[s.id] : s.kind === 'group' ? vpins?.groups?.[s.id] : bent.has(s.id)) ? (s.kind === 'edge' ? t(', bent by hand') : t(', pinned')) : '';
     return `${name}${kind}${state}`;
   };
 
@@ -1755,8 +1757,8 @@ export function App() {
       void (path ? leave() : Promise.resolve(true)).then((ok) => {
         if (!ok) return;
         fileHandle.current = undefined;
-        open(next, path ? { name, path } : { name }, undefined, false, `Traced into ${name}: ⌘S keeps it`);
-        if (path) notify(`Traced into ${path}: ⌘S writes it into the folder`);
+        open(next, path ? { name, path } : { name }, undefined, false, t('Traced into {name}: ⌘S keeps it', { name }));
+        if (path) notify(t('Traced into {path}: ⌘S writes it into the folder', { path }));
         setSavedText(null);
         focusDrawing();
       }),
@@ -1823,123 +1825,123 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? 'Close Ask Claude' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
-    { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
-    { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
+    { id: 'ask', group: 'Claude', label: asking ? t('Close Ask Claude') : t('Ask Claude…'), hint: t('a change or a question about the diagram, with your API key'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
+    { id: 'ask-explain', group: 'Claude', label: t('Explain this diagram'), icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
+    { id: 'ask-review', group: 'Claude', label: t('Review for threats, single points of failure, missing monitoring'), icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
     ...trace.commands,
     ...blocks.commands,
-    { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
+    { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('template, then AI, builder or YAML'), icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
-      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
-      : { id: 'view-visual', group: 'View', label: 'Builder (hide the YAML)', icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
-    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: keyHint('save'), run: saveYaml },
-    { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
-    ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
-    ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
-    ...(ws && repoInWs ? [{ id: 'repo', group: 'File', label: `Diagrams from the code in ${ws.name}`, hint: 'Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows → diagrams/', icon: 'folder-git-2', run: () => void leave().then((ok) => ok && repoInFolder(ws)) }] : []),
-    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
-    ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
-    ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
-    { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: keyHint('export-svg'), run: saveSvg },
-    { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: keyHint('export-png'), run: savePng },
-    { id: 'slide', group: 'Export', label: `PNG on the page (${pageName})`, icon: 'monitor', run: saveSlide },
-    { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
-    { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
-    { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
-    { id: 'animate', group: 'Export', label: 'Animation (GIF / MP4)…', hint: 'the steps or layers, a short blend between them', icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
-    { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
-    ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
-    { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
-    { id: 'describe', group: 'Export', label: 'Describe in words…', hint: 'what the diagram shows, for a screen reader or a handout; copy as text or Markdown', icon: 'scroll-text', run: () => setTimeout(() => setDescribing(true)) },
-    { id: 'copy-wiki', group: 'Export', label: 'Copy for Confluence / Notion', hint: 'the picture and the description in one paste', icon: 'book-open', run: copyForWiki },
-    { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
-    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (SVG for PowerPoint / Word off)' : 'SVG for PowerPoint / Word on', hint: 'an SVG that PowerPoint, Word and Keynote take whole', icon: 'monitor', run: toggleSafeSvg },
-    { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
-    { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
-    { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
-    { id: 'share', group: 'Export', label: 'Copy share link', hint: 'read-only, the diagram travels in the link', icon: 'link', run: copyShare },
-    { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
-    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: keyHint('present'), run: present },
+      ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
+      : { id: 'view-visual', group: t('View'), label: t('Builder (hide the YAML)'), icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
+    { id: 'open', group: t('File'), label: t('Open file…'), hint: t('a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import'), icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
+    { id: 'save', group: t('File'), label: ws && doc.path ? t('Save {path}', { path: doc.path }) : t('Save'), icon: 'save', shortcut: keyHint('save'), run: saveYaml },
+    { id: 'download', group: t('File'), label: t('Download YAML'), icon: 'download', run: downloadYaml },
+    ...(canUseFolders ? [{ id: 'folder', group: t('File'), label: t('Open folder…'), icon: 'folder-open', run: () => void openFolder() }] : []),
+    ...(ws && meshInWs ? [{ id: 'mesh', group: t('File'), label: t('Data mesh map of {folder}', { folder: ws.name }), hint: t('its data products and contracts (ODPS, ODCS) in data-mesh.yaml'), icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
+    ...(ws && repoInWs ? [{ id: 'repo', group: t('File'), label: t('Diagrams from the code in {folder}', { folder: ws.name }), hint: t('Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows → diagrams/'), icon: 'folder-git-2', run: () => void leave().then((ok) => ok && repoInFolder(ws)) }] : []),
+    ...(ws && exportInWs ? [{ id: 'export', group: t('File'), label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: say(EXPORT_ENTRY[exportInWs].hint), icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
+    ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: t('Files in {folder}', { folder: ws.name }), label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
+    ...(pins ? [{ id: 'save-layout', group: t('File'), label: t('Save layout (.layout.json)'), icon: 'save', run: saveLayout }] : []),
+    { id: 'svg', group: t('Export'), label: t('Export SVG'), icon: 'download', shortcut: keyHint('export-svg'), run: saveSvg },
+    { id: 'png', group: t('Export'), label: t('Export PNG (2×)'), icon: 'image', shortcut: keyHint('export-png'), run: savePng },
+    { id: 'slide', group: t('Export'), label: t('PNG on the page ({page})', { page: pageName }), icon: 'monitor', run: saveSlide },
+    { id: 'page-svg', group: t('Export'), label: t('SVG on the page ({page})', { page: pageName }), icon: 'monitor', run: savePageSvg },
+    { id: 'pptx', group: t('Export'), label: written ? t('PowerPoint slides, one per step (.pptx)') : t('PowerPoint slide (.pptx)'), icon: 'layout-template', run: savePptx },
+    { id: 'pdf', group: t('Export'), label: written ? t('Export PDF, a page per step') : t('Export PDF'), icon: 'file-text', run: savePdf },
+    { id: 'animate', group: t('Export'), label: t('Animation (GIF / MP4)…'), hint: t('the steps or layers, a short blend between them'), icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
+    { id: 'html', group: t('Export'), label: t('Interactive HTML (.html)'), hint: t('one file to send: every view and step, zoom, search, drill-down'), icon: 'globe', run: () => saveHtml() },
+    ...(ws ? [{ id: 'html-folder', group: t('Export'), label: t('Interactive HTML of {folder}', { folder: ws.name }), hint: t('every diagram in the folder, with a contents page'), icon: 'globe', run: () => saveHtml(true) }] : []),
+    { id: 'copy-png', group: t('Export'), label: t('Copy as PNG'), icon: 'copy', run: copyPng },
+    { id: 'describe', group: t('Export'), label: t('Describe in words…'), hint: t('what the diagram shows, for a screen reader or a handout; copy as text or Markdown'), icon: 'scroll-text', run: () => setTimeout(() => setDescribing(true)) },
+    { id: 'copy-wiki', group: t('Export'), label: t('Copy for Confluence / Notion'), hint: t('the picture and the description in one paste'), icon: 'book-open', run: copyForWiki },
+    { id: 'copy-svg', group: t('Export'), label: t('Copy as SVG'), icon: 'copy', run: copySvg },
+    { id: 'svg-safe', group: t('Export'), label: safeSvg ? t('SVG as drawn (SVG for PowerPoint / Word off)') : t('SVG for PowerPoint / Word on'), hint: t('an SVG that PowerPoint, Word and Keynote take whole'), icon: 'monitor', run: toggleSafeSvg },
+    { id: 'drawio', group: t('Export'), label: t('Export for draw.io (.drawio)'), hint: t('editable shapes, every view a page'), icon: 'workflow', run: saveDrawio },
+    { id: 'excalidraw', group: t('Export'), label: t('Export for Excalidraw (.excalidraw)'), icon: 'square-dashed', run: saveExcalidraw },
+    { id: 'mermaid', group: t('Export'), label: t('Export Mermaid (.mmd)'), icon: 'file-code', run: saveMermaid },
+    { id: 'share', group: t('Export'), label: t('Copy share link'), hint: t('read-only, the diagram travels in the link'), icon: 'link', run: copyShare },
+    { id: 'copy-mermaid', group: t('Export'), label: t('Copy as Mermaid'), hint: t('a fenced block for a README'), icon: 'copy', run: copyMermaid },
+    { id: 'present', group: t('Present'), label: t('Present full screen'), hint: stepList.length ? count(stepList.length, '{count} step|{count} steps') : drawn?.views?.length ? t('its views in order') : t('step by step'), icon: 'play', shortcut: keyHint('present'), run: present },
     ...(type && !drawn?.stepsImplied
-      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: keyHint('step'), run: addStepFromSelection }]
+      ? [{ id: 'step-add', group: t('Present'), label: selection.length ? t('Add a step from the selection') : t('Add a step'), hint: t('what is selected stands out in it'), icon: 'plus', shortcut: keyHint('step'), run: addStepFromSelection }]
       : []),
     ...(stepList.length
       ? [
-          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: keyHint('step-by'), run: () => stepBy(1) },
-          { id: 'step-previous', group: 'Present', label: 'Previous step', icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
-          ...(drawn?.step ? [{ id: 'step-none', group: 'Present', label: 'Show the whole drawing', hint: 'no step', icon: 'layers', run: () => pickStep(undefined) }] : []),
-          ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
+          { id: 'step-next', group: t('Present'), label: t('Next step'), icon: 'layers', shortcut: keyHint('step-by'), run: () => stepBy(1) },
+          { id: 'step-previous', group: t('Present'), label: t('Previous step'), icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
+          ...(drawn?.step ? [{ id: 'step-none', group: t('Present'), label: t('Show the whole drawing'), hint: t('no step'), icon: 'layers', run: () => pickStep(undefined) }] : []),
+          ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: t('Steps'), label: `${i + 1}. ${x.title ?? x.caption ?? t('Step')}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
         ]
       : []),
     ...comparing.commands,
     ...layers.commands,
     ...stages.commands,
-    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
-    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
-    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
-    { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
-    ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
+    { id: 'note-add', group: t('Notes'), label: selected ? t('Add a note on the selection') : t('Add a note'), icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
+    { id: 'notes', group: t('Notes'), label: notesOpen ? t('Hide the notes') : t('Show the notes'), hint: t('{count} open', { count: openNotes.length }), icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
+    { id: 'review-mode', group: t('Notes'), label: reviewMode ? t('Leave review mode') : t('Review mode'), hint: t('only the notes stand out'), icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
+    { id: 'notes-export', group: t('Notes'), label: notesInExports ? t('Exports without review notes') : t('Exports with review notes'), hint: t('numbered markers and the notes under the drawing'), icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
+    ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: t('Notes'), label: t('Download review notes (.notes.json)'), hint: t('kept in this browser until then'), icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
     ...decisionsTool.commands,
     ...reviewTool.commands,
-    ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
-    { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
-    { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
-    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'layout-grid', shortcut: keyHint('tidy'), run: tidyLayout },
-    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'unpin everything and lay it all out afresh; Undo in the message', icon: 'pin-off', run: tidyAll }] : []),
-    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: keyHint('pin'), run: togglePin },
+    ...openNotes.map((n) => ({ id: `note:${n.id}`, group: t('Open notes'), label: n.text.split('\n')[0]!, hint: n.author, icon: 'message-square', run: () => openNote(n.id) })),
+    { id: 'undo', group: t('Edit'), label: t('Undo'), icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
+    { id: 'redo', group: t('Edit'), label: t('Redo'), icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
+    { id: 'tidy', group: t('Arrange'), label: t('Tidy'), hint: t('lay out again what is not pinned; pins stay'), icon: 'layout-grid', shortcut: keyHint('tidy'), run: tidyLayout },
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: t('Arrange'), label: t('Tidy all (unpin everything)'), hint: t('unpin everything and lay it all out afresh; Undo in the message'), icon: 'pin-off', run: tidyAll }] : []),
+    { id: 'pin', group: t('Arrange'), label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? t('Unpin the selection') : t('Pin the selection where it is'), icon: 'pin', shortcut: keyHint('pin'), run: togglePin },
     ...arrangeCommands(arrangeSelection),
-    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: keyHint('lock'), run: toggleLock },
-    ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
-    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: keyHint('fit'), run: () => previewControl.current?.fit() },
+    { id: 'lock', group: t('Arrange'), label: selection.length && selection.every((s) => locked.has(s.id)) ? t('Unlock the selection') : t('Lock the selection in place'), icon: 'lock', shortcut: keyHint('lock'), run: toggleLock },
+    ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: t('Arrange'), label: t('Reset line (route it automatically)'), icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
+    { id: 'zoom-fit', group: t('View'), label: t('Zoom to fit'), icon: 'maximize', shortcut: keyHint('fit'), run: () => previewControl.current?.fit() },
     ...viewList()
       .filter((v) => v !== viewName)
-      .map((v) => ({ id: `view-${v ?? 'as-written'}`, group: 'View', label: v === undefined ? 'Show the diagram as written' : `Show the ${viewTitle(v)} view`, hint: 'the YAML stays as it is', icon: 'layers', run: () => showView(v) })),
-    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: keyHint('next-view'), run: nextView }] : []),
-    ...(ownView ? [{ id: 'view-keep', group: 'View', label: `Write view: ${viewName} into the YAML`, hint: 'so it opens like this', icon: 'save', run: keepView }] : []),
-    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: keyHint('zoom-selection'), run: () => previewControl.current?.zoomToSelection() },
-    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: keyHint('focus'), run: focusOnSelection },
+      .map((v) => ({ id: `view-${v ?? 'as-written'}`, group: t('View'), label: v === undefined ? t('Show the diagram as written') : t('Show the {view} view', { view: viewTitle(v) }), hint: t('the YAML stays as it is'), icon: 'layers', run: () => showView(v) })),
+    ...(viewList().length > 1 ? [{ id: 'view-next', group: t('View'), label: t('Next view'), hint: t('now {what}', { what: viewTitle(viewName) }), icon: 'layers', shortcut: keyHint('next-view'), run: nextView }] : []),
+    ...(ownView ? [{ id: 'view-keep', group: t('View'), label: t('Write view: {view} into the YAML', { view: viewName! }), hint: t('so it opens like this'), icon: 'save', run: keepView }] : []),
+    { id: 'zoom-selection', group: t('View'), label: t('Zoom to selection'), icon: 'focus', shortcut: keyHint('zoom-selection'), run: () => previewControl.current?.zoomToSelection() },
+    { id: 'focus', group: t('Focus'), label: selection.length === 1 && selected && selected.kind !== 'edge' ? t('Focus on {name}', { name: selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id) }) : t('Focus on the selection'), hint: t('only it and what is around it'), icon: 'focus', shortcut: keyHint('focus'), run: focusOnSelection },
     ...(drawn?.focus
       ? [
-          { id: 'focus-more', group: 'Focus', label: 'Focus: one hop more', hint: drawn.focus.hops === Infinity ? 'everything connected is shown' : `now ${drawn.focus.hops}`, icon: 'plus', shortcut: '+', run: () => focusHops(1) },
-          { id: 'focus-fewer', group: 'Focus', label: 'Focus: one hop fewer', icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
-          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: keyHint('focus-direction'), run: focusDirection },
+          { id: 'focus-more', group: t('Focus'), label: t('Focus: one hop more'), hint: drawn.focus.hops === Infinity ? t('everything connected is shown') : t('now {what}', { what: drawn.focus.hops }), icon: 'plus', shortcut: '+', run: () => focusHops(1) },
+          { id: 'focus-fewer', group: t('Focus'), label: t('Focus: one hop fewer'), icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
+          { id: 'focus-direction', group: t('Focus'), label: t('Focus: both ways, upstream or downstream'), hint: t('now {what}', { what: say(drawn.focus.direction) }), icon: 'arrow-left-right', shortcut: keyHint('focus-direction'), run: focusDirection },
         ]
       : []),
-    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: keyHint('escape'), run: leaveFocus }] : []),
-    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: keyHint('grid'), run: () => craft.toggle('grid') },
-    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: keyHint('minimap'), run: () => craft.toggle('minimap') },
-    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: keyHint('page'), run: () => craft.toggle('page') },
-    { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
-    { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
-    { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
-    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: keyHint('sheet'), run: () => setTimeout(() => setModal('shortcuts')) },
-    { id: 'problems', group: 'View', label: 'Show problems', hint: shownNotes ? `and ${shownNotes.items.length} from the import` : undefined, icon: 'circle-exclamation-point', run: () => setModal('problems') },
-    ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
+    ...(focusOn ? [{ id: 'focus-leave', group: t('Focus'), label: drawn?.focus ? (drawn.focus.written ? t('Show everything (the YAML has a focus)') : t('Leave the focus')) : t('Back to the focus of the YAML'), icon: drawn?.focus ? 'x' : 'focus', shortcut: keyHint('escape'), run: leaveFocus }] : []),
+    { id: 'grid', group: t('View'), label: craft.grid ? t('Stop snapping to the grid') : t('Snap to the 8px grid'), icon: 'grid-3x3', shortcut: keyHint('grid'), run: () => craft.toggle('grid') },
+    { id: 'minimap', group: t('View'), label: craft.minimap ? t('Hide the minimap') : t('Show the minimap'), icon: 'map', shortcut: keyHint('minimap'), run: () => craft.toggle('minimap') },
+    { id: 'page', group: t('View'), label: craft.page ? t('Hide the page') : t('Show the page ({page})', { page: pageName }), hint: t('and text too small on it'), icon: 'monitor', shortcut: keyHint('page'), run: () => craft.toggle('page') },
+    { id: 'theme-light', group: t('View'), label: t('Light theme'), icon: 'sun', run: () => setPref('light') },
+    { id: 'theme-dark', group: t('View'), label: t('Dark theme'), icon: 'moon', run: () => setPref('dark') },
+    { id: 'theme-system', group: t('View'), label: t('Theme follows system'), icon: 'monitor', run: () => setPref('system') },
+    { id: 'shortcuts', group: t('View'), label: t('Keyboard shortcuts'), icon: 'keyboard', shortcut: keyHint('sheet'), run: () => setTimeout(() => setModal('shortcuts')) },
+    { id: 'problems', group: t('View'), label: t('Show problems'), hint: shownNotes ? t('and {count} from the import', { count: shownNotes.items.length }) : undefined, icon: 'circle-exclamation-point', run: () => setModal('problems') },
+    ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: t('Add'), label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
     ...(selected?.kind === 'node'
-      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => setModal('connect')) }]
+      ? [{ id: 'connect', group: t('Edit'), label: t('Connect {name} to…', { name: nodeName(selected.id) }), icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => setModal('connect')) }]
       : []),
-    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => select({ kind: 'group', id: g.id }) })),
-    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => select({ kind: 'node', id: n.id }) })),
+    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: t('Go to'), label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => select({ kind: 'group', id: g.id }) })),
+    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: t('Go to'), label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => select({ kind: 'node', id: n.id }) })),
     ...starters.map((s) => ({
       id: `starter:${s.id}`,
-      group: 'Start from',
+      group: t('Start from'),
       label: s.title,
-      hint: `${s.kind === 'template' ? 'Template' : 'Example'} · ${typeName(s.type)}`,
+      hint: `${s.kind === 'template' ? t('Template') : t('Example')} · ${typeName(s.type)}`,
       icon: 'layout-template',
       run: () => void pick(s),
     })),
-    ...[...new Set(starters.map((s) => s.type))].map((t) => ({
-      id: `blank:${t}`,
-      group: 'Start from',
-      label: `Blank ${typeName(t).toLowerCase()}`,
-      hint: 'empty diagram',
+    ...[...new Set(starters.map((s) => s.type))].map((ty) => ({
+      id: `blank:${ty}`,
+      group: t('Start from'),
+      label: t('Blank {type}', { type: typeName(ty).toLowerCase() }),
+      hint: t('empty diagram'),
       icon: 'file-plus',
       run: () => {
         setModal(undefined);
         fileHandle.current = undefined;
-        open(blankText(t), { name: `${t}.yaml` }, undefined, true);
+        open(withUiLang(blankText(ty)), { name: `${ty}.yaml` }, undefined, true);
         focusDrawing();
       },
     })),
@@ -2021,10 +2023,10 @@ export function App() {
         <div className="doc-name">
           <Icon name="file-code" />
           <span>{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
-          {dirty && <span className="dirty" title="Unsaved changes (⌘S saves)" aria-label="Unsaved changes" />}
+          {dirty && <span className="dirty" title={t('Unsaved changes (⌘S saves)')} aria-label={t('Unsaved changes')} />}
           {type && (
             <div className="menu-anchor type-anchor">
-              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${type.name}, written type: ${type.id}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
+              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${t('{name}, written type: {id}', { name: type.name, id: type.id })}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
                 {type.name}
               </button>
               {typeCard && (
@@ -2033,13 +2035,13 @@ export function App() {
                     <strong>
                       <Icon name={type.icon ?? 'layout-template'} size={15} /> {type.name}
                     </strong>
-                    <code className="type-yaml" title="What the YAML says">type: {type.id}</code>
+                    <code className="type-yaml" title={t('What the YAML says')}>type: {type.id}</code>
                     {type.tagline && <p>{type.tagline}</p>}
                   </div>
                   <button role="menuitem" onClick={() => (setTypeCard(false), setGuiding(true), setModal('templates'))}>
-                    <Icon name="circle-question-mark" /> Which type do I need?
+                    <Icon name="circle-question-mark" /> {t('Which type do I need?')}
                   </button>
-                  <p className="type-card-fine">Also in docs/types.md and <code>carto types</code></p>
+                  <p className="type-card-fine">{t('Also in docs/types.md and')} <code>carto types</code></p>
                 </Menu>
               )}
             </div>
@@ -2047,49 +2049,49 @@ export function App() {
         </div>
         <div className="actions">
           {canUseFolders && !ws && remembered && (
-            <button className="button ghost wide-only" onClick={() => void openFolder(remembered)} title="Open the last folder again">
+            <button className="button ghost wide-only" onClick={() => void openFolder(remembered)} title={t('Open the last folder again')}>
               <Icon name="folder-open" /> {remembered.name}
             </button>
           )}
           {canUseFolders && (
-            <button className="button ghost wide-only" onClick={() => void openFolder()} title="Open a folder with diagrams">
-              <Icon name="folder-open" /> {ws ? 'Folder' : 'Open folder'}
+            <button className="button ghost wide-only" onClick={() => void openFolder()} title={t('Open a folder with diagrams')}>
+              <Icon name="folder-open" /> {ws ? t('Folder') : t('Open folder')}
             </button>
           )}
-          <div className="segmented view-switch" role="radiogroup" aria-label="Way of working">
-            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Builder: the drawing and the shapes to drag onto it (⌘\\)">
+          <div className="segmented view-switch" role="radiogroup" aria-label={t('Way of working')}>
+            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title={`${t('Builder: the drawing and the shapes to drag onto it')} (⌘\\\\)`}>
               <Icon name="mouse-pointer-2" /> Builder
             </button>
-            <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => setView('code')} title="YAML and drawing side by side (⌘\\)">
+            <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => setView('code')} title={`${t('YAML and drawing side by side')} (⌘\\\\)`}>
               <Icon name="code" /> YAML
             </button>
           </div>
-          <button className="button ghost wide-only" onClick={() => setModal('templates')} title="A new diagram: from a template, a wizard, an example or an import">
-            <Icon name="file-plus" /> New
+          <button className="button ghost wide-only" onClick={() => setModal('templates')} title={t('A new diagram: from a template, a wizard, an example or an import')}>
+            <Icon name="file-plus" /> {t('New')}
           </button>
-          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Commands, elements and templates (⌘K)">
-            <Icon name="search" /> Commands <kbd>⌘K</kbd>
+          <button className="button ghost wide-only" onClick={() => setModal('palette')} title={t('Commands, elements and templates (⌘K)')}>
+            <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
           </button>
           {/* On a phone the actions above fold into one menu. */}
           <div className="menu-anchor narrow-only">
-            <button className="icon-button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="menu" aria-label="More actions">
+            <button className="icon-button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="menu" aria-label={t('More actions')}>
               <span className="more-dots" aria-hidden="true">⋯</span>
             </button>
             {more && (
               <Menu onClose={() => setMore(false)}>
                 <button role="menuitem" onClick={() => (setMore(false), setModal('templates'))}>
-                  <Icon name="file-plus" /> New diagram
+                  <Icon name="file-plus" /> {t('New diagram')}
                 </button>
                 <button role="menuitem" onClick={() => (setMore(false), setModal('palette'))}>
-                  <Icon name="search" /> Commands
+                  <Icon name="search" /> {t('Commands')}
                 </button>
                 {canUseFolders && (
                   <button role="menuitem" onClick={() => (setMore(false), void openFolder())}>
-                    <Icon name="folder-open" /> Open folder
+                    <Icon name="folder-open" /> {t('Open folder')}
                   </button>
                 )}
                 <button role="menuitem" onClick={() => (setMore(false), setPref(theme === 'dark' ? 'light' : 'dark'))}>
-                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} /> {theme === 'dark' ? 'Light' : 'Dark'} theme
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} /> {theme === 'dark' ? t('Light theme') : t('Dark theme')}
                 </button>
               </Menu>
             )}
@@ -2098,77 +2100,77 @@ export function App() {
           <button
             className="icon-button wide-only"
             onClick={() => setPref(theme === 'dark' ? 'light' : 'dark')}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-            aria-label="Toggle theme"
+            title={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
+            aria-label={t('Toggle theme')}
           >
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
           </button>
           <div className="menu-anchor">
             {pptxTemplate.picker}
             <button className="button primary" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-haspopup="menu">
-              <Icon name="download" /> Export <Icon name="chevron-down" size={14} />
+              <Icon name="download" /> {t('Export')} <Icon name="chevron-down" size={14} />
             </button>
             {menu && (
               <Menu onClose={() => setMenu(false)}>
-                <div className="menu-heading">Image</div>
+                <div className="menu-heading">{t('Image')}</div>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> {safeSvg ? 'SVG for PowerPoint / Word' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
+                  <Icon name="download" /> {safeSvg ? t('SVG for PowerPoint / Word') : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
                 </button>
                 <button role="menuitem" onClick={copyPng}>
-                  <Icon name="copy" /> Copy as PNG
+                  <Icon name="copy" /> {t('Copy as PNG')}
                 </button>
                 <button role="menuitem" onClick={copySvg}>
-                  <Icon name="copy" /> Copy as SVG
+                  <Icon name="copy" /> {t('Copy as SVG')}
                 </button>
                 <button
                   role="menuitemcheckbox"
                   aria-checked={safeSvg}
-                  title="SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node"
+                  title={t('SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node')}
                   onClick={(e) => {
                     // A switch: the menu stays open, the SVG rows above follow it.
                     e.stopPropagation();
                     toggleSafeSvg();
                   }}
                 >
-                  <Icon name={safeSvg ? 'check' : 'square'} /> SVG for PowerPoint / Word
+                  <Icon name={safeSvg ? 'check' : 'square'} /> {t('SVG for PowerPoint / Word')}
                 </button>
-                <div className="menu-heading">Document, on the page ({pageName})</div>
+                <div className="menu-heading">{t('Document, on the page ({page})', { page: pageName })}</div>
                 <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> {pptxTemplate.chosen ? `PowerPoint in ${pptxTemplate.chosen.name.split('/').pop()}${written ? ', a slide per step' : ''}` : written ? 'PowerPoint, a slide per step (.pptx)' : 'PowerPoint (.pptx)'}
+                  <Icon name="layout-template" /> {pptxTemplate.chosen ? `${t('PowerPoint in {template}', { template: pptxTemplate.chosen.name.split('/').pop()! })}${written ? t(', a slide per step') : ''}` : written ? t('PowerPoint, a slide per step (.pptx)') : 'PowerPoint (.pptx)'}
                 </button>
                 <TemplateItems t={pptxTemplate} />
                 <button role="menuitem" onClick={savePdf}>
-                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
+                  <Icon name="file-text" /> {written ? t('PDF, a page per step') : 'PDF'}
                 </button>
                 <button role="menuitem" onClick={saveSlide}>
-                  <Icon name="monitor" /> PNG of the page
+                  <Icon name="monitor" /> {t('PNG of the page')}
                 </button>
                 <button role="menuitem" onClick={savePageSvg}>
-                  <Icon name="monitor" /> SVG of the page
+                  <Icon name="monitor" /> {t('SVG of the page')}
                 </button>
-                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
-                  <Icon name="scroll-text" /> Describe in words…
+                <button role="menuitem" onClick={() => setDescribing(true)} title={t('What the diagram shows, in words: for a screen reader, a handout or a wiki')}>
+                  <Icon name="scroll-text" /> {t('Describe in words…')}
                 </button>
-                <div className="menu-heading">Share</div>
-                <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
-                  <Icon name="link" /> Copy share link
+                <div className="menu-heading">{t('Share')}</div>
+                <button role="menuitem" onClick={copyShare} title={t('The diagram goes in the link itself: nothing is uploaded')}>
+                  <Icon name="link" /> {t('Copy share link')}
                 </button>
-                <button role="menuitem" onClick={() => saveHtml()} title="One file to send: every view and step, zoom, search, drill-down">
-                  <Icon name="globe" /> Interactive HTML (.html)
+                <button role="menuitem" onClick={() => saveHtml()} title={t('One file to send: every view and step, zoom, search, drill-down')}>
+                  <Icon name="globe" /> {t('Interactive HTML (.html)')}
                 </button>
-                <button role="menuitem" onClick={() => setAnimating(true)} title="The steps or layers, a short blend between them">
-                  <Icon name="circle-play" /> Animation (GIF / MP4)
+                <button role="menuitem" onClick={() => setAnimating(true)} title={t('The steps or layers, a short blend between them')}>
+                  <Icon name="circle-play" /> {t('Animation (GIF / MP4)')}
                 </button>
-                <button role="menuitem" onClick={copyForWiki} title="The picture and the description in one paste, for Confluence, Notion or Google Docs">
-                  <Icon name="book-open" /> Copy for Confluence / Notion
+                <button role="menuitem" onClick={copyForWiki} title={t('The picture and the description in one paste, for Confluence, Notion or Google Docs')}>
+                  <Icon name="book-open" /> {t('Copy for Confluence / Notion')}
                 </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
                   <summary onClick={(e) => e.stopPropagation()}>
-                    <Icon name="workflow" /> Other tools: draw.io, Excalidraw, Mermaid <Icon name="chevron-down" size={14} />
+                    <Icon name="workflow" /> {t('Other tools: draw.io, Excalidraw, Mermaid')} <Icon name="chevron-down" size={14} />
                   </summary>
                   <button role="menuitem" onClick={saveDrawio}>
                     <Icon name="workflow" /> draw.io (.drawio)
@@ -2180,19 +2182,19 @@ export function App() {
                     <Icon name="file-code" /> Mermaid (.mmd)
                   </button>
                   <button role="menuitem" onClick={copyMermaid}>
-                    <Icon name="copy" /> Copy as Mermaid
+                    <Icon name="copy" /> {t('Copy as Mermaid')}
                   </button>
                 </details>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
-                  <Icon name="save" /> Save <kbd>{keyHint('save')}</kbd>
+                  <Icon name="save" /> {t('Save')} <kbd>{keyHint('save')}</kbd>
                 </button>
                 <button role="menuitem" onClick={downloadYaml}>
-                  <Icon name="download" /> Download YAML
+                  <Icon name="download" /> {t('Download YAML')}
                 </button>
                 {pins && (
                   <button role="menuitem" onClick={saveLayout}>
-                    <Icon name="pin" /> Save layout
+                    <Icon name="pin" /> {t('Save layout')}
                   </button>
                 )}
               </Menu>
@@ -2201,12 +2203,12 @@ export function App() {
         </div>
       </header>
 
-      <nav className="pane-tabs" role="tablist" aria-label="Show">
+      <nav className="pane-tabs" role="tablist" aria-label={t('Show')}>
         <button role="tab" aria-selected={pane === 'yaml'} onClick={() => setPane('yaml')}>
           <Icon name="file-code" /> YAML
         </button>
         <button role="tab" aria-selected={pane === 'drawing'} onClick={() => setPane('drawing')}>
-          <Icon name="image" /> Drawing
+          <Icon name="image" /> {t('Drawing')}
         </button>
       </nav>
       <main
@@ -2214,13 +2216,13 @@ export function App() {
         style={{ ['--cols' as string]: paneColumns(panes, sideOpen) }}
       >
         {ws && panes.filesMode === 'rail' && (
-          <nav className="rail files-rail" aria-label={`Diagrams in ${ws.name}`}>
+          <nav className="rail files-rail" aria-label={t('Diagrams in {folder}', { folder: ws.name })}>
             <button
               className="rail-button"
               onClick={() => (paneLayout({ width: windowWidth, folder: true, files: 'list', view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen }).filesMode === 'list' ? setFilesPref('list') : setFilesOver((o) => !o))}
               aria-expanded={filesOver}
-              title={`The diagrams in ${ws.name}`}
-              aria-label={`Files: ${diagrams(ws).length} diagrams in ${ws.name}`}
+              title={t('The diagrams in {folder}', { folder: ws.name })}
+              aria-label={t('Files: {count} diagrams in {folder}', { count: diagrams(ws).length, folder: ws.name })}
             >
               <Icon name="file-code" size={16} />
               <span className="rail-label">Files · {diagrams(ws).length}</span>
@@ -2228,10 +2230,10 @@ export function App() {
           </nav>
         )}
         {ws && (panes.filesMode === 'list' || filesOver) && (
-          <nav className={panes.filesMode === 'list' ? 'files' : 'files over'} aria-label={`Diagrams in ${ws.name}`} onKeyDown={(e) => e.key === 'Escape' && filesOver && (setFilesOver(false), e.stopPropagation())}>
+          <nav className={panes.filesMode === 'list' ? 'files' : 'files over'} aria-label={t('Diagrams in {folder}', { folder: ws.name })} onKeyDown={(e) => e.key === 'Escape' && filesOver && (setFilesOver(false), e.stopPropagation())}>
             <header>
               <Icon name="folder-open" size={14} /> <span className="files-name">{ws.name}</span>
-              <button className="icon-button small" onClick={() => (filesOver ? setFilesOver(false) : setFilesPref('rail'))} title={filesOver ? 'Close the file list' : 'Fold the file list to the side'} aria-label="Fold the file list">
+              <button className="icon-button small" onClick={() => (filesOver ? setFilesOver(false) : setFilesPref('rail'))} title={filesOver ? t('Close the file list') : t('Fold the file list to the side')} aria-label={t('Fold the file list')}>
                 <Icon name="panel-left-close" size={14} />
               </button>
             </header>
@@ -2242,11 +2244,11 @@ export function App() {
                 {doc.path === p && dirty && <span className="dirty" />}
               </button>
             ))}
-            {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
+            {diagrams(ws).length === 0 && <p className="files-empty">{t('No diagrams yet. Start from a template, then save.')}</p>}
           </nav>
         )}
         {view === 'visual' && type && (
-          <aside className="shapes" aria-label="Shapes">
+          <aside className="shapes" aria-label={t('Shapes')}>
             <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
             {blocks.panel}
           </aside>
@@ -2255,8 +2257,8 @@ export function App() {
           <button
             className="rail rail-button yaml-rail"
             onClick={() => (panes.editorSqueezed ? setForceYaml(true) : (setYamlFolded(false), setForceYaml(true)))}
-            title={panes.editorSqueezed ? 'Show the YAML (the window is narrow: the drawing gets less room)' : 'Show the YAML'}
-            aria-label="Show the YAML"
+            title={panes.editorSqueezed ? t('Show the YAML (the window is narrow: the drawing gets less room)') : t('Show the YAML')}
+            aria-label={t('Show the YAML')}
           >
             <Icon name="code" size={16} />
             <span className="rail-label">YAML</span>
@@ -2264,7 +2266,7 @@ export function App() {
         )}
         <section className="pane editor-pane" aria-label="YAML" hidden={panes.editorMode === 'rail'}>
           {view === 'code' && (
-            <button className="icon-button small fold-yaml" onClick={() => setYamlFolded(true)} title="Fold the YAML to the side: more room for the drawing" aria-label="Fold the YAML">
+            <button className="icon-button small fold-yaml" onClick={() => setYamlFolded(true)} title={t('Fold the YAML to the side: more room for the drawing')} aria-label={t('Fold the YAML')}>
               <Icon name="panel-left-close" size={14} />
             </button>
           )}
@@ -2282,7 +2284,7 @@ export function App() {
               // A move also ends the "undo open" offer: undoing the open would lose it.
               if (openedText.current != null) {
                 openedText.current = null;
-                setToast((t) => (t?.action?.label === 'Undo' ? undefined : t));
+                setToast((ts) => (ts?.action?.label === t('Undo') ? undefined : ts));
               }
             }}
           />
@@ -2294,7 +2296,7 @@ export function App() {
           role="separator"
           tabIndex={0}
           aria-orientation="vertical"
-          aria-label="Resize editor"
+          aria-label={t('Resize editor')}
           aria-valuemin={20}
           aria-valuemax={70}
           aria-valuenow={Math.round(split * 100)}
@@ -2303,7 +2305,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className={`pane canvas-pane${stepList.length || stages.active ? ' with-steps' : ''}${reviewMode ? ' review-mode' : ''}`} aria-label="Drawing">
+        <section className={`pane canvas-pane${stepList.length || stages.active ? ' with-steps' : ''}${reviewMode ? ' review-mode' : ''}`} aria-label={t('Drawing')}>
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -2337,7 +2339,7 @@ export function App() {
               const item = type?.palette[i];
               if (!item) return;
               add(item, group, at);
-              if (refused) notify(`${item.label} cannot go in ${result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused}: placed outside it`);
+              if (refused) notify(t('{item} cannot go in {group}: placed outside it', { item: item.label, group: result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused }));
             }}
             onBlockDrop={blocks.onDrop}
             onKeyDown={onCanvasKey}
@@ -2380,40 +2382,40 @@ export function App() {
             <div className="canvas-top">
             {wsTools.crumbBar}
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-label="Add a shape" aria-expanded={adding} disabled={!type}>
-                <Icon name="plus" /> <span className="tool-label">Add</span> <kbd>A</kbd>
+              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title={t('Add a shape (A)')} aria-label={t('Add a shape')} aria-expanded={adding} disabled={!type}>
+                <Icon name="plus" /> <span className="tool-label">{t('Add')}</span> <kbd>A</kbd>
               </button>
-              <button className="tool" onClick={() => editor.current?.undo()} title="Undo (⌘Z)" aria-label="Undo">
+              <button className="tool" onClick={() => editor.current?.undo()} title={t('Undo (⌘Z)')} aria-label={t('Undo')}>
                 <Icon name="undo-2" />
               </button>
-              <button className="tool" onClick={() => editor.current?.redo()} title="Redo (⇧⌘Z)" aria-label="Redo">
+              <button className="tool" onClick={() => editor.current?.redo()} title={t('Redo (⇧⌘Z)')} aria-label={t('Redo')}>
                 <Icon name="redo-2" />
               </button>
-              <button className="tool" onClick={tidyLayout} title="Tidy: lay out again what is not pinned, pins stay (T)" aria-label="Tidy">
+              <button className="tool" onClick={tidyLayout} title={t('Tidy: lay out again what is not pinned, pins stay (T)')} aria-label={t('Tidy')}>
                 <Icon name="layout-grid" />
               </button>
               {(vpins || drawnLayout?.held) && (
-                <button className="tool tool-more" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⌘Z undoes it)" aria-label="Tidy all">
+                <button className="tool tool-more" onClick={tidyAll} title={t('Tidy all: unpin everything and lay it out afresh (⌘Z undoes it)')} aria-label={t('Tidy all')}>
                   <Icon name="pin-off" />
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
               {layers.button}
-              <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" aria-label="Focus" disabled={!selection.length && !focusOn}>
-                <Icon name="focus" /> <span className="tool-label">Focus</span> <kbd>F</kbd>
+              <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={focusOnSelection} title={t('Focus: only what is selected and what is around it (F)')} aria-label={t('Focus')} disabled={!selection.length && !focusOn}>
+                <Icon name="focus" /> <span className="tool-label">{t('Focus')}</span> <kbd>F</kbd>
               </button>
               {!stepList.length && (
-                <button className="tool tool-more" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" aria-label="Add a step" disabled={!type}>
-                  <Icon name="layers" /> <span className="tool-label">Step</span> <kbd>S</kbd>
+                <button className="tool tool-more" onClick={addStepFromSelection} title={t('A step to present: what is selected stands out in it (S)')} aria-label={t('Add a step')} disabled={!type}>
+                  <Icon name="layers" /> <span className="tool-label">{t('Step')}</span> <kbd>S</kbd>
                 </button>
               )}
-              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" aria-label="Present" disabled={!drawn?.svg}>
-                <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
+              <button className="tool" onClick={present} title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
+                <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>P</kbd>
               </button>
-              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={`Ask Claude for a change or about the diagram (${keyHint('ask')})`} aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> <span className="tool-label">Ask</span> <kbd>{keyHint('ask')}</kbd>
+              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={t('Ask Claude for a change or about the diagram ({key})', { key: keyHint('ask') })} aria-label={t('Ask Claude')} aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> <span className="tool-label">{t('Ask')}</span> <kbd>{keyHint('ask')}</kbd>
               </button>
-              <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
+              <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title={t('Review notes (⇧N); N adds one on the selection')} aria-pressed={notesOpen} aria-label={unreadNotes ? t('Notes, {count} open, {unread} unread', { count: openNotes.length, unread: unreadNotes }) : t('Notes, {count} open', { count: openNotes.length })}>
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
@@ -2426,31 +2428,31 @@ export function App() {
               )}
               {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
-                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: compare with an earlier version, zoom to the selection, grid, minimap">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label={t('More tools')} title={t('More: compare with an earlier version, zoom to the selection, grid, minimap')}>
                   <span className="more-dots" aria-hidden="true">⋯</span>
                 </button>
                 {toolsMore && (
                   <Menu onClose={() => setToolsMore(false)}>
                     {(vpins || drawnLayout?.held) && (
                       <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), tidyAll())}>
-                        <Icon name="pin-off" /> Tidy all
+                        <Icon name="pin-off" /> {t('Tidy all')}
                       </button>
                     )}
                     <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), focusOnSelection())} disabled={!selection.length && !focusOn}>
-                      <Icon name="focus" /> Focus <kbd>F</kbd>
+                      <Icon name="focus" /> {t('Focus')} <kbd>F</kbd>
                     </button>
                     {!stepList.length && (
                       <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
-                        <Icon name="layers" /> Add a step <kbd>S</kbd>
+                        <Icon name="layers" /> {t('Add a step')} <kbd>S</kbd>
                       </button>
                     )}
                     {!(decisionsTool.count > 0 || decisionsOpen) && (
                       <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
-                        <Icon name="scroll-text" /> Decisions <kbd>{keyHint('decisions')}</kbd>
+                        <Icon name="scroll-text" /> {t('Decisions')} <kbd>{keyHint('decisions')}</kbd>
                       </button>
                     )}
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
-                      <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'} <kbd>{keyHint('compare')}</kbd>
+                      <Icon name="clock" /> {comparing.active ? t('Stop comparing') : t('Compare with an earlier version')} <kbd>{keyHint('compare')}</kbd>
                     </button>
                     <hr />
                     <button role="menuitem" onClick={() => (setToolsMore(false), previewControl.current?.zoomToSelection())} disabled={!selection.length}>
@@ -2472,7 +2474,7 @@ export function App() {
             {!!rendered && !!drawn?.svg && drawn !== result && (
               <div className="canvas-note">
                 <div className="stale-note" role="status">
-                  <Icon name="circle-exclamation-point" size={14} /> Showing the last version that worked: fix the problems in the editor
+                  <Icon name="circle-exclamation-point" size={14} /> {t('Showing the last version that worked: fix the problems in the editor')}
                 </div>
               </div>
             )}
@@ -2482,15 +2484,15 @@ export function App() {
                 <span>
                   {view === 'visual' ? (
                     <>
-                      Drag shapes onto the drawing or into a group, drag the dot on a shape to connect it, double-click to rename. <kbd>?</kbd> shows all keys.
+                      {t('Drag shapes onto the drawing or into a group, drag the dot on a shape to connect it, double-click to rename.')} <kbd>?</kbd> {t('shows all keys.')}
                     </>
                   ) : (
                     <>
-                      Edit the YAML (<kbd>Tab</kbd> indents two spaces; <kbd>Esc</kbd> <kbd>Tab</kbd> or <kbd>F6</kbd> leaves it), or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>?</kbd> shows all keys.
+                      {t('Edit the YAML (')}<kbd>Tab</kbd> {t('indents two spaces;')} <kbd>Esc</kbd> <kbd>Tab</kbd> {t('or')} <kbd>F6</kbd> {t('leaves it), or build here:')} <kbd>A</kbd> {t('adds a shape, drag the dot on a shape to connect it,')} <kbd>?</kbd> {t('shows all keys.')}
                     </>
                   )}
                 </span>
-                <button className="icon-button small" onClick={dismissHint} aria-label="Dismiss hint">
+                <button className="icon-button small" onClick={dismissHint} aria-label={t('Dismiss hint')}>
                   <Icon name="x" size={14} />
                 </button>
               </div>
@@ -2498,7 +2500,7 @@ export function App() {
             {empty && type && !adding && (
               <div className="canvas-empty">
                 <p>
-                  <strong>Drag a shape here</strong> or press <kbd>A</kbd>
+                  <strong>{t('Drag a shape here')}</strong> {t('or press')} <kbd>A</kbd>
                 </p>
                 <div className="chips inline">
                   {quick.map((item) => (
@@ -2507,7 +2509,7 @@ export function App() {
                     </button>
                   ))}
                 </div>
-                <p className="fine">Double-click the title to name the diagram.</p>
+                <p className="fine">{t('Double-click the title to name the diagram.')}</p>
               </div>
             )}
             {adding && type && (
@@ -2540,22 +2542,22 @@ export function App() {
           )}
         </section>
         {sideOpen && (
-          <div className="side" role="region" aria-label="Side panel">
-            <div className="side-tabs" role="tablist" aria-label="Side panel">
-              <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
-                <Icon name="file-sliders" size={14} /> <span className="tab-label">Properties</span>
+          <div className="side" role="region" aria-label={t('Side panel')}>
+            <div className="side-tabs" role="tablist" aria-label={t('Side panel')}>
+              <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? t('What is selected') : t('Select something to see its properties')}>
+                <Icon name="file-sliders" size={14} /> <span className="tab-label">{t('Properties')}</span>
               </button>
-              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
-                <Icon name="message-square" size={14} /> <span className="tab-label">Notes</span>{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
+              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={t('Review notes ({key})', { key: keyHint('notes') })}>
+                <Icon name="message-square" size={14} /> <span className="tab-label">{t('Notes')}</span>{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={`Architecture decisions (${keyHint('decisions')})`}>
-                <Icon name="scroll-text" size={14} /> <span className="tab-label">Decisions</span>{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
+              <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={t('Architecture decisions ({key})', { key: keyHint('decisions') })}>
+                <Icon name="scroll-text" size={14} /> <span className="tab-label">{t('Decisions')}</span>{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'review'} onClick={() => showSide('review')} disabled={!type} title={`Architecture review (${keyHint('arch-review')})`}>
-                <Icon name="shield-check" size={14} /> <span className="tab-label">Review</span>{reviewTool.count > 0 && <span className="tab-count">{reviewTool.count}</span>}
+              <button role="tab" aria-selected={sideTab === 'review'} onClick={() => showSide('review')} disabled={!type} title={t('Architecture review ({key})', { key: keyHint('arch-review') })}>
+                <Icon name="shield-check" size={14} /> <span className="tab-label">{t('Review')}</span>{reviewTool.count > 0 && <span className="tab-count">{reviewTool.count}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
-                <Icon name="sparkles" size={14} /> <span className="tab-label">Ask Claude</span>
+              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={t('Ask Claude ({key})', { key: keyHint('ask') })}>
+                <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Ask Claude')}</span>
               </button>
             </div>
           {askKept && (
@@ -2620,7 +2622,7 @@ export function App() {
             id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : wsTools.definedElsewhere ? (wsTools.definedElsewhere.kind ?? 'element').replace(/-/g, ' ') : kindLabel(selectedPath)}
+            kindLabel={selEdge ? (selEdge.label ? t('Line · {label}', { label: selEdge.label }) : t('Line')) : wsTools.definedElsewhere ? (wsTools.definedElsewhere.kind ?? t('element')).replace(/-/g, ' ') : say(kindLabel(selectedPath))}
             fields={fields}
             renamable={isEntry}
             freeName={!!type.freeNames}
@@ -2679,38 +2681,38 @@ export function App() {
           </Inspector>
         )}
         {showInspector && selection.length > 1 && (
-          <aside className="inspector" aria-label="Selection">
+          <aside className="inspector" aria-label={t('Selection')}>
             <header>
               <span className="inspector-icon">
                 <Icon name="mouse-pointer-2" />
               </span>
               <div className="inspector-title">
-                <strong>{selection.length} selected</strong>
+                <strong>{t('{count} selected', { count: selection.length })}</strong>
                 <span>{(['node', 'group', 'edge'] as const)
-                    .map((k) => [selection.filter((s) => s.kind === k).length, { node: 'shape', group: 'group', edge: 'line' }[k]] as const)
+                    .map((k) => [selection.filter((s) => s.kind === k).length, { node: '{count} shape|{count} shapes', group: '{count} group|{count} groups', edge: '{count} line|{count} lines' }[k]] as const)
                     .filter(([n]) => n)
-                    .map(([n, what]) => count(n, what))
+                    .map(([n, what]) => count(n, what as Message))
                     .join(', ')}</span>
               </div>
-              <button className="icon-button" onClick={() => setSelection([])} aria-label="Clear the selection" title="Clear (Esc)">
+              <button className="icon-button" onClick={() => setSelection([])} aria-label={t('Clear the selection')} title={t('Clear (Esc)')}>
                 <Icon name="x" />
               </button>
             </header>
             <div className="inspector-body">
               <ArrangeBar shapes={selection.filter((s) => s.kind === 'node').length} onArrange={arrangeSelection} />
               <p className="fine">
-                Drag one to move them all, arrows nudge them, <kbd>⌘C</kbd> <kbd>⌘V</kbd> copies and pastes. Shift-click adds or removes one.
+                {t('Drag one to move them all, arrows nudge them,')} <kbd>⌘C</kbd> <kbd>⌘V</kbd> {t('copies and pastes. Shift-click adds or removes one.')}
               </p>
             </div>
             <footer>
-              <button className="button ghost" onClick={duplicate} title="Duplicate (⌘D)">
-                <Icon name="copy" /> Duplicate
+              <button className="button ghost" onClick={duplicate} title={t('Duplicate (⌘D)')}>
+                <Icon name="copy" /> {t('Duplicate')}
               </button>
-              <button className="button ghost" onClick={toggleLock} title="Lock or unlock (⇧⌘L)">
-                <Icon name={selection.every((s) => locked.has(s.id)) ? 'lock-open' : 'lock'} /> {selection.every((s) => locked.has(s.id)) ? 'Unlock' : 'Lock'}
+              <button className="button ghost" onClick={toggleLock} title={t('Lock or unlock (⇧⌘L)')}>
+                <Icon name={selection.every((s) => locked.has(s.id)) ? 'lock-open' : 'lock'} /> {selection.every((s) => locked.has(s.id)) ? t('Unlock') : t('Lock')}
               </button>
-              <button className="button ghost danger" onClick={removeAll} title="Delete (⌫)">
-                <Icon name="trash" /> Delete
+              <button className="button ghost danger" onClick={removeAll} title={t('Delete (⌫)')}>
+                <Icon name="trash" /> {t('Delete')}
               </button>
             </footer>
           </aside>
@@ -2722,29 +2724,29 @@ export function App() {
       <footer className="statusbar">
         <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={() => setModal('problems')} title={rendered ? `Drawn in ${rendered.ms} ms` : undefined}>
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
-          {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
+          {errors || warnings ? `${t('{count} error|{count} errors', { count: errors })}${warnings ? `, ${t('{count} warning|{count} warnings', { count: warnings })}` : ''}` : t('No problems')}
         </button>
         {ws && wsTools.folderProblems.length > 0 && (
-          <button className="status-problems status-folder has-warnings" onClick={() => setModal('problems')} title={`Problems across the files of ${ws.name}`}>
-            <Icon name="folder-open" size={14} /> {wsTools.folderProblems.length} across {ws.name}
+          <button className="status-problems status-folder has-warnings" onClick={() => setModal('problems')} title={t('Problems across the files of {folder}', { folder: ws.name })}>
+            <Icon name="folder-open" size={14} /> {t('{count} across {folder}', { count: wsTools.folderProblems.length, folder: ws.name })}
           </button>
         )}
         {result?.graph && <span>{drawnCount(result.graph)}</span>}
         {pinCount > 0 && (
           <span className="status-selected">
-            <Icon name="pin" size={13} /> {pinCount} pinned
+            <Icon name="pin" size={13} /> {t('{count} pinned', { count: pinCount })}
           </span>
         )}
         {selection.length > 0 && (
           <span className="status-selected">
-            <Icon name="mouse-pointer-2" size={13} /> {selected ? selected.id : `${selection.length} selected`}
+            <Icon name="mouse-pointer-2" size={13} /> {selected ? selected.id : t('{count} selected', { count: selection.length })}
           </span>
         )}
         <span className="spacer" />
-        <button className="status-link" onClick={() => setModal('shortcuts')} title="Keyboard shortcuts">
+        <button className="status-link" onClick={() => setModal('shortcuts')} title={t('Keyboard shortcuts')}>
           <Icon name="keyboard" size={13} /> ?
         </button>
-        <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
+        <span>{theme === 'dark' ? t('Dark') : t('Light')}</span>
       </footer>
 
       {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} layers={layering.options} open={presentOther} onClose={() => setPresenting(false)} />}
@@ -2753,14 +2755,14 @@ export function App() {
       {confirmer.dialog}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
-          placeholder={`Connect ${nodeName(selected.id)} to…`}
+          placeholder={t('Connect {name} to…', { name: nodeName(selected.id) })}
           onClose={() => {
             closeModal();
             focusDrawing();
           }}
           commands={(result?.graph?.nodes ?? [])
             .filter((n) => n.id !== selected.id)
-            .map((n) => ({ id: `to:${n.id}`, group: `Connect ${nodeName(selected.id)} to`, label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => connect(selected.id, n.id) }))}
+            .map((n) => ({ id: `to:${n.id}`, group: t('Connect {name} to', { name: nodeName(selected.id) }), label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => connect(selected.id, n.id) }))}
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
@@ -2775,14 +2777,14 @@ export function App() {
           <Menu onClose={() => setNoteMenu(undefined)}>
             {anchorOf(noteMenu.s) && (
               <button role="menuitem" onClick={() => addNote(anchorOf(noteMenu.s))}>
-                <Icon name="message-square" /> Add a note on {anchorOf(noteMenu.s)!.about}
+                <Icon name="message-square" /> {t('Add a note on {what}', { what: anchorOf(noteMenu.s)!.about })}
               </button>
             )}
             <button role="menuitem" onClick={() => addNote(pointAnchor(noteMenu.at))}>
-              <Icon name="map-pin" /> Add a note here
+              <Icon name="map-pin" /> {t('Add a note here')}
             </button>
             <button role="menuitem" onClick={() => setNotesOpen(true)}>
-              <Icon name="message-square" /> Show the notes
+              <Icon name="message-square" /> {t('Show the notes')}
             </button>
             {trace.menuItems(() => setNoteMenu(undefined))}
             {blocks.menuItems(() => setNoteMenu(undefined))}
@@ -2792,13 +2794,13 @@ export function App() {
       {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
-          placeholder={diagnostics.length || shownNotes || wsTools.folderProblems.length ? 'Filter problems…' : 'No problems: everything draws'}
+          placeholder={diagnostics.length || shownNotes || wsTools.folderProblems.length ? t('Filter problems…') : t('No problems: everything draws')}
           onClose={closeModal}
           commands={[...diagnostics.map((d, i) => ({
             id: `p${i}`,
-            group: d.severity === 'error' ? 'Errors' : 'Warnings',
+            group: d.severity === 'error' ? t('Errors') : t('Warnings'),
             label: d.message,
-            hint: d.line ? `line ${d.line}` : undefined,
+            hint: d.line ? t('line {line}', { line: d.line }) : undefined,
             icon: 'circle-exclamation-point',
             run: () => {
               if (d.from != null && current) editor.current?.reveal(d.from, d.to ?? d.from);
@@ -2811,8 +2813,8 @@ export function App() {
         <div className="drop-here" aria-hidden="true">
           <div>
             <Icon name="folder-open" size={22} />
-            <strong>Drop to open</strong>
-            <span>A diagram; data products and contracts (ODPS, ODCS); or a folder of az, Graph, AzureHound or gh api JSON: it becomes one diagram</span>
+            <strong>{t('Drop to open')}</strong>
+            <span>{t('A diagram; data products and contracts (ODPS, ODCS); or a folder of az, Graph, AzureHound or gh api JSON: it becomes one diagram')}</span>
           </div>
         </div>
       )}

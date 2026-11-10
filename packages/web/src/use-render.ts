@@ -6,6 +6,7 @@ import { useBrand } from './brand.ts';
 import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';
 import { store } from './store.ts';
+import { t } from './i18n/index.ts';
 import type { LayersOptions } from './layers-control.tsx';
 
 export interface Rendered {
@@ -38,7 +39,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   const hasDrawn = useRef<number>(-1);
   useEffect(() => {
     const n = ++seq.current;
-    const t = performance.now();
+    const t0 = performance.now();
     const m = memory.current;
     if (m.doc !== docKey) {
       m.doc = docKey;
@@ -74,13 +75,13 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
           if (n !== seq.current) return;
           if (!fallback?.svg) fallback = undefined;
         }
-        setOut((prev) => ({ result, drawn: result.svg ? result : same && prev?.drawn ? prev.drawn : fallback, ms: Math.round(performance.now() - t), text, docKey }));
+        setOut((prev) => ({ result, drawn: result.svg ? result : same && prev?.drawn ? prev.drawn : fallback, ms: Math.round(performance.now() - t0), text, docKey }));
       })
       .catch((e: unknown) => {
         console.error('render failed', e);
         if (n === seq.current)
           setOut((prev) => ({
-            result: { diagnostics: [{ severity: 'error', message: `Render failed: ${e instanceof Error ? e.message : String(e)}` }] },
+            result: { diagnostics: [{ severity: 'error', message: t('Render failed: {error}', { error: e instanceof Error ? e.message : String(e) }) }] },
             drawn: prev?.drawn,
             ms: 0,
             text,

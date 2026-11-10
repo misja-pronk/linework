@@ -15,6 +15,7 @@ import { WhereUsed } from './where-used.tsx';
 import { keyHint, shortcutFor } from '../keys.ts';
 import { Crumbs, crumbsOf, upFrom } from './crumbs.tsx';
 import { RenameEverywhere } from './rename.tsx';
+import { t, useUiLang } from '../i18n/index.ts';
 import './workspace.css';
 
 type Sel = { kind: 'node' | 'group' | 'edge'; id: string };
@@ -59,6 +60,7 @@ const references = (type: string, data: unknown) => findType(type)?.references?.
 const C4 = new Set(['landscape', 'context', 'container', 'component', 'dynamic', 'deployment']);
 
 export function useWorkspaceTools(h: Host) {
+  const lang = useUiLang();
   const index: WorkspaceIndex = useWorkspaceIndex(h.ws, { path: h.inFolder ? h.file : undefined, name: h.file, text: h.text });
   const scope = h.ws?.name ?? h.file;
   const [dialog, setDialog] = useState<'search' | { rename: string }>();
@@ -77,7 +79,7 @@ export function useWorkspaceTools(h: Host) {
     if (/\.md$/i.test(p.file) && host.openDecision?.(p.file)) return;
     pending.current = { ...p, focus };
     if (p.file !== host.file) {
-      if (!host.ws) return host.notify(`${p.file} is not open here: open its folder`, { tone: 'error' });
+      if (!host.ws) return host.notify(t('{file} is not open here: open its folder', { file: p.file }), { tone: 'error' });
       await host.open(p.file, p.view);
     } else if (p.view !== undefined ? p.view !== (host.drawn?.view ?? host.view) : p.node !== undefined && host.view !== undefined) host.showView(p.view);
     setArrivals((n) => n + 1);
@@ -142,7 +144,7 @@ export function useWorkspaceTools(h: Host) {
       return void go(back.from);
     }
     const to = upFrom(index, scope, here);
-    if (!to) return h.notify('This is the top: there is no view above it');
+    if (!to) return h.notify(t('This is the top: there is no view above it'));
     void go(to);
   };
 
@@ -169,12 +171,12 @@ export function useWorkspaceTools(h: Host) {
     const mine = plan.files.find((f) => f.file === host.file);
     const drawnHere = plan.drawnIn.find((f) => f.file === host.file);
     const others = plan.files.filter((f) => f !== mine);
-    if ((others.length || plan.drawnIn.some((f) => f.file !== host.file)) && !ws) return host.notify('Renaming in other files needs their folder open', { tone: 'error' });
-    if (mine && host.textNow() !== mine.before) return host.notify(`${host.file} changed while the preview was open: rename again`, { tone: 'error' });
+    if ((others.length || plan.drawnIn.some((f) => f.file !== host.file)) && !ws) return host.notify(t('Renaming in other files needs their folder open'), { tone: 'error' });
+    if (mine && host.textNow() !== mine.before) return host.notify(t('{file} changed while the preview was open: rename again', { file: host.file }), { tone: 'error' });
     // Nothing is written when any file changed on disk since it was read.
     for (const f of others) {
       const disk = await diskText(ws!, f.file);
-      if (disk != null && disk !== f.before) return host.notify(`${f.file} changed outside Cartography: nothing was renamed. Look at it, then rename again`, { tone: 'error' });
+      if (disk != null && disk !== f.before) return host.notify(t('{file} changed outside Cartography: nothing was renamed. Look at it, then rename again', { file: f.file }), { tone: 'error' });
     }
     const writes: { path: string; before: string; after: string }[] = [];
     for (const f of [...others, ...plan.drawnIn.filter((x) => x.file !== host.file)]) {
@@ -192,7 +194,7 @@ export function useWorkspaceTools(h: Host) {
     } catch (e) {
       // Put back what was written, so the folder is never half renamed.
       for (const w of writes) await writeInFolder(ws!, w.path, w.before).catch(() => undefined);
-      return host.notify(`Renaming failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+      return host.notify(t('Renaming failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
     }
     const pinsBefore = host.pins;
     const open = mine ?? drawnHere;
@@ -207,25 +209,25 @@ export function useWorkspaceTools(h: Host) {
       const now = hostRef.current;
       for (const w of writes) {
         const disk = await diskText(now.ws!, w.path);
-        if (disk != null && disk !== w.after && !window.confirm(`${w.path} changed after the rename. Put it back as it was before the rename anyway?`)) continue;
+        if (disk != null && disk !== w.after && !window.confirm(t('{path} changed after the rename. Put it back as it was before the rename anyway?', { path: w.path }))) continue;
         await writeInFolder(now.ws!, w.path, w.before);
       }
       if (open && now.file === open.file) now.renameNotes((id) => (renamedId(id, plan.to, plan.from) !== id && open.node(renamedId(id, plan.to, plan.from)) === id ? renamedId(id, plan.to, plan.from) : id));
       if (pinsHere && !mine && now.file === open!.file) now.replace(now.textNow(), pinsBefore ?? null);
       if (mine) {
         if (now.file === mine.file && now.textNow() === mine.after) now.replace(mine.before, pinsBefore ?? null);
-        else if (now.file === mine.file) now.notify(`${mine.file} changed since the rename: ⌘Z there undoes it step by step`, { tone: 'error' });
+        else if (now.file === mine.file) now.notify(t('{file} changed since the rename: ⌘Z there undoes it step by step', { file: mine.file }), { tone: 'error' });
       }
       if (now.ws) now.refresh(now.ws);
       undoRename.current = undefined;
-      now.notify(`Rename undone: ${plan.to} is ${plan.from} again`);
+      now.notify(t('Rename undone: {to} is {from} again', { to: plan.to, from: plan.from }));
     };
     const n = plan.files.length;
-    host.notify(`Renamed ${plan.from} → ${plan.to}${plan.label ? `, "${plan.label.to}"` : ''} in ${n} file${n === 1 ? '' : 's'}${mine ? ' (⌘Z undoes it in this one)' : ''}`, { action: { label: 'Undo rename', run: () => void undoRename.current?.() } });
+    host.notify(t('Renamed {from} → {to}{label} in {files}{here}', { from: plan.from, to: plan.to, label: plan.label ? `, "${plan.label.to}"` : '', files: t('{count} file|{count} files', { count: n }), here: mine ? t(' (⌘Z undoes it in this one)') : '' }), { action: { label: t('Undo rename'), run: () => void undoRename.current?.() } });
   };
 
   const rename = (el = selectedElement) => {
-    if (!el) return h.notify('Select an element of the model first, then rename it everywhere');
+    if (!el) return h.notify(t('Select an element of the model first, then rename it everywhere'));
     setDialog({ rename: el });
   };
 
@@ -238,9 +240,9 @@ export function useWorkspaceTools(h: Host) {
     if (!h.ws) return id === 'search' && e.shiftKey ? (setDialog('search'), true) : false;
     if (id === 'search') return setDialog('search'), true;
     if (id === 'rename-everywhere') return rename(), true;
-    if (id === 'back') return history.back() || h.notify('Nothing to go back to'), true;
-    if (id === 'forward') return history.forward() || h.notify('Nothing to go forward to'), true;
-    if (id === 'drill' && here.node) return drill(here.node) || h.notify('Nothing below this one'), true;
+    if (id === 'back') return history.back() || h.notify(t('Nothing to go back to')), true;
+    if (id === 'forward') return history.forward() || h.notify(t('Nothing to go forward to')), true;
+    if (id === 'drill' && here.node) return drill(here.node) || h.notify(t('Nothing below this one')), true;
     if (id === 'up') return up(), true;
     return false;
   };
@@ -248,7 +250,7 @@ export function useWorkspaceTools(h: Host) {
   const folderProblems = index.problems;
   const problemCommands: Command[] = folderProblems.map((p, i) => ({
     id: `ws-problem-${i}`,
-    group: `Across ${scope}`,
+    group: t('Across {scope}', { scope }),
     label: p.message,
     hint: `${p.file}${p.line ? `:${p.line}` : ''}`,
     icon: p.severity === 'error' ? 'circle-exclamation-point' : 'triangle-exclamation-point',
@@ -256,16 +258,16 @@ export function useWorkspaceTools(h: Host) {
   }));
 
   const commands: Command[] = [
-    { id: 'ws-search', group: 'Workspace', label: `Search ${scope}…`, hint: 'elements, views, files, technology, owners', icon: 'search', shortcut: h.ws ? keyHint('search') : '⇧⌘F', run: () => setDialog('search') },
-    ...(selectedElement ? [{ id: 'ws-rename', group: 'Workspace', label: `Rename ${selectedElement} everywhere…`, hint: 'every file that names it, previewed first', icon: 'tag', shortcut: keyHint('rename-everywhere'), run: () => rename() }] : []),
-    ...(selectedElement ? [{ id: 'ws-drill', group: 'Workspace', label: 'Go down into the selection', hint: 'its containers, its components, or where it is modelled', icon: 'layers', shortcut: keyHint('drill'), run: () => void (drill(here.node) || h.notify('Nothing below this one')) }] : []),
-    { id: 'ws-up', group: 'Workspace', label: 'Go up a level', icon: 'layers', shortcut: keyHint('up'), run: up },
-    ...(history.canBack ? [{ id: 'ws-back', group: 'Workspace', label: 'Back', hint: history.previous && placeName(history.previous), icon: 'arrow-left', shortcut: keyHint('back'), run: () => void history.back() }] : []),
-    ...(history.canForward ? [{ id: 'ws-forward', group: 'Workspace', label: 'Forward', hint: history.next && placeName(history.next), icon: 'arrow-right', shortcut: keyHint('forward'), run: () => void history.forward() }] : []),
-    ...(undoRename.current ? [{ id: 'ws-undo-rename', group: 'Workspace', label: 'Undo rename', hint: 'every file it changed', icon: 'undo-2', run: () => void undoRename.current?.() }] : []),
+    { id: 'ws-search', group: t('Workspace'), label: t('Search {scope}…', { scope }), hint: t('elements, views, files, technology, owners'), icon: 'search', shortcut: h.ws ? keyHint('search') : '⇧⌘F', run: () => setDialog('search') },
+    ...(selectedElement ? [{ id: 'ws-rename', group: t('Workspace'), label: t('Rename {id} everywhere…', { id: selectedElement }), hint: t('every file that names it, previewed first'), icon: 'tag', shortcut: keyHint('rename-everywhere'), run: () => rename() }] : []),
+    ...(selectedElement ? [{ id: 'ws-drill', group: t('Workspace'), label: t('Go down into the selection'), hint: t('its containers, its components, or where it is modelled'), icon: 'layers', shortcut: keyHint('drill'), run: () => void (drill(here.node) || h.notify(t('Nothing below this one'))) }] : []),
+    { id: 'ws-up', group: t('Workspace'), label: t('Go up a level'), icon: 'layers', shortcut: keyHint('up'), run: up },
+    ...(history.canBack ? [{ id: 'ws-back', group: t('Workspace'), label: t('Back'), hint: history.previous && placeName(history.previous), icon: 'arrow-left', shortcut: keyHint('back'), run: () => void history.back() }] : []),
+    ...(history.canForward ? [{ id: 'ws-forward', group: t('Workspace'), label: t('Forward'), hint: history.next && placeName(history.next), icon: 'arrow-right', shortcut: keyHint('forward'), run: () => void history.forward() }] : []),
+    ...(undoRename.current ? [{ id: 'ws-undo-rename', group: t('Workspace'), label: t('Undo rename'), hint: t('every file it changed'), icon: 'undo-2', run: () => void undoRename.current?.() }] : []),
   ];
 
-  const crumbs = useMemo(() => crumbsOf(index, scope, here, h.drawn?.views?.find((v) => v.name === here.view)?.title), [index, scope, here.file, here.view, h.drawn?.views]);
+  const crumbs = useMemo(() => crumbsOf(index, scope, here, h.drawn?.views?.find((v) => v.name === here.view)?.title), [index, scope, here.file, here.view, h.drawn?.views, lang]);
   const crumbBar: ReactNode = (h.ws || index.views.length > 1) && (
     <Crumbs crumbs={crumbs} back={history.canBack ? () => void history.back() : undefined} forward={history.canForward ? () => void history.forward() : undefined} onGo={(p) => void go(p)} />
   );

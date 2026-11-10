@@ -10,6 +10,8 @@ import { decisionsOnDrawing, decisionSummary, nodeLabel, statusSaid, type Concer
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
 import { wrapText } from './size.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 export interface DecisionSpot {
   decision: Decision;
@@ -34,11 +36,13 @@ export interface DrawingAt {
   view?: string;
   /** A model id → the id it is drawn under in this drawing (a workspace's mapping). */
   drawnAs?: (id: string) => string | undefined;
+  /** The language of the words around the decisions (the drawing's `lang:`). */
+  lang?: Lang;
 }
 
 /** What a target is called in this drawing. */
-export function targetName(t: ConcernTarget, graph: Graph): string {
-  if (t.kind === 'view') return 'this view';
+export function targetName(t: ConcernTarget, graph: Graph, lang?: Lang): string {
+  if (t.kind === 'view') return tr(lang, 'this view');
   const name = (id: string) => {
     const n = graph.nodes.find((x) => x.id === id);
     return n ? nodeLabel(n) : (graph.groups.find((g) => g.id === id)?.label ?? id);
@@ -76,7 +80,7 @@ export function decisionSpots(decisions: Decision[], graph: Graph, placed: Place
       const b = target.kind === 'node' ? placed.nodes.get(target.id) : placed.groups.get(target.id);
       if (b) p = { x: b.x + b.width - 8 - i * STEP, y: b.y + b.height + 7 };
     }
-    if (p) out.push({ decision, at: p, target, about: targetName(target, graph) });
+    if (p) out.push({ decision, at: p, target, about: targetName(target, graph, at.lang) });
   }
   return out;
 }
@@ -145,11 +149,12 @@ export function withDecisions(
   /** `appendix: false`: the markers only (a live preview, where the decisions are listed elsewhere). */
   opts: DrawingAt & { appendix?: boolean } = {},
 ): { svg: string; width: number; height: number; count: number; spots: DecisionSpot[] } {
-  const spots = decisionSpots(decisions, graph, placed, opts, drawn);
+  const lang = opts.lang ?? theme.lang;
+  const spots = decisionSpots(decisions, graph, placed, { ...opts, lang }, drawn);
   if (!spots.length) return { ...drawn, count: 0, spots };
   const o = drawn.origin ?? { x: 0, y: 0 };
   const shift = (s: DecisionSpot) => (s.target.kind === 'view' ? s.at : { x: s.at.x + o.x, y: s.at.y + o.y });
-  const marks = spots.map((s) => decisionMarker(theme, shift(s).x, shift(s).y, s.decision.number, s.decision.status, `${s.decision.number}. ${s.decision.title} (${statusSaid(s.decision)}) — about ${s.about}`)).join('');
+  const marks = spots.map((s) => decisionMarker(theme, shift(s).x, shift(s).y, s.decision.number, s.decision.status, tr(lang, '{n}. {title} ({status}) — about {about}', { n: s.decision.number, title: s.decision.title, status: statusSaid(s.decision, lang), about: s.about }))).join('');
   const shown = [...new Map(spots.map((s) => [s.decision.number, s.decision])).values()].sort((a, b) => a.number - b.number);
   if (opts.appendix === false) return { svg: drawn.svg.replace(/<\/svg>\s*$/, `<g data-decisions="">${marks}</g></svg>`), width: drawn.width, height: drawn.height, count: shown.length, spots };
 
@@ -161,14 +166,15 @@ export function withDecisions(
   const text = (s: string, x: number, size: number, weight: 400 | 500 | 600, fill: string) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${size}" font-weight="${weight}" fill="${fill}">${esc(s)}</text>`;
   rows.push(`<line x1="${pad}" x2="${r1(width - pad)}" y1="${r1(y)}" y2="${r1(y)}" stroke="${theme.border}" stroke-width="1"/>`);
   y += 30;
-  rows.push(text('Decisions', pad, 14, 600, theme.text));
+  rows.push(text(tr(lang, 'Decisions'), pad, 14, 600, theme.text));
   // The key: what each marker says, in shape and outline.
-  let kx = pad + measureText('Decisions', 14, 600) + 28;
-  for (const [status, label] of [
+  let kx = pad + measureText(tr(lang, 'Decisions'), 14, 600) + 28;
+  for (const [status, said] of [
     ['accepted', 'Accepted'],
     ['proposed', 'Proposed'],
     ['superseded', 'Superseded, deprecated or rejected'],
   ] as const) {
+    const label = tr(lang, said);
     // A blank page: the key is about the outline, not a number.
     rows.push(decisionMarker(theme, kx + 17, y + 5, '', status));
     rows.push(text(label, kx + 24, 11, 500, theme.textMuted));
@@ -182,7 +188,7 @@ export function withDecisions(
     rows.push(decisionMarker(theme, pad + 18, y + 5, d.number, d.status));
     rows.push(text(`${d.number}. ${d.title}`, pad + 32, 12, 600, theme.text));
     y += 15;
-    rows.push(text([statusSaid(d), day(d.date), `about ${about.get(d.number)!.join(', ')}`].filter(Boolean).join(' · '), pad + 32, 10.5, 400, theme.textFaint));
+    rows.push(text([statusSaid(d, lang), day(d.date), tr(lang, 'about {about}', { about: about.get(d.number)!.join(', ') })].filter(Boolean).join(' · '), pad + 32, 10.5, 400, theme.textFaint));
     const summary = decisionSummary(d, 280);
     if (summary)
       for (const line of wrapText(summary, 11.5, 400, textWidth, 3)) {
@@ -202,12 +208,12 @@ export function withDecisions(
 }
 
 /** The decisions a drawing shows, as plain lines ("3. Title (Accepted) — about Orders"): PowerPoint's speaker notes. */
-export function decisionLines(spots: DecisionSpot[]): string[] {
+export function decisionLines(spots: DecisionSpot[], lang?: Lang): string[] {
   const by = new Map<number, { d: Decision; about: string[] }>();
   for (const s of spots) {
     const e = by.get(s.decision.number) ?? { d: s.decision, about: [] };
     e.about.push(s.about);
     by.set(s.decision.number, e);
   }
-  return [...by.values()].sort((a, b) => a.d.number - b.d.number).map(({ d, about }) => `Decision ${d.number}. ${d.title} (${statusSaid(d)}) — about ${about.join(', ')}${decisionSummary(d) ? `: ${decisionSummary(d)}` : ''}`);
+  return [...by.values()].sort((a, b) => a.d.number - b.d.number).map(({ d, about }) => `${tr(lang, 'Decision {n}. {title} ({status}) — about {about}', { n: d.number, title: d.title, status: statusSaid(d, lang), about: about.join(', ') })}${decisionSummary(d) ? `: ${decisionSummary(d)}` : ''}`);
 }

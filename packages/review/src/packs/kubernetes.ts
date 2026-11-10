@@ -1,4 +1,5 @@
 // Kubernetes: what a cluster review asks of a drawing of namespaces and workloads.
+import { t } from '../nl.ts';
 import type { Rule } from '../types.ts';
 
 const pack = 'kubernetes';
@@ -22,7 +23,7 @@ export const kubernetesRules: Rule[] = [
       // Only once limits are written for some: a drawing that never says is not assumed wrong.
       const said = (id: string) => m.said(id, 'limits', 'resources');
       if (!workloads.some((w) => said(w.id) !== undefined)) return [];
-      return workloads.filter((w) => [undefined, 'none', 'false', ''].includes(said(w.id))).map((w) => ({ on: { kind: 'node', id: w.id }, message: `${w.label} has no resource limits` }));
+      return workloads.filter((w) => [undefined, 'none', 'false', ''].includes(said(w.id))).map((w) => ({ on: { kind: 'node', id: w.id }, message: t(m.lang, '{name} has no resource limits', { name: w.label }) }));
     },
   },
   {
@@ -45,7 +46,7 @@ export const kubernetesRules: Rule[] = [
           if ([...next, ...next.flatMap((n) => m.out(n).map((l) => l.to))].some((n) => ['ingress', 'gateway', 'httproute'].includes(m.el(n)?.kind ?? ''))) return false;
           return m.said(s.id, 'serviceType', 'type') === 'loadbalancer' || m.in(s.id).some((l) => m.outsider(l.from));
         })
-        .map((s) => ({ on: { kind: 'node', id: s.id }, message: `${s.label} is exposed to the outside as a load balancer, not through an ingress` }));
+        .map((s) => ({ on: { kind: 'node', id: s.id }, message: t(m.lang, '{name} is exposed to the outside as a load balancer, not through an ingress', { name: s.label }) }));
     },
   },
   {
@@ -66,8 +67,8 @@ export const kubernetesRules: Rule[] = [
       // None at all: one finding for the cluster, not one per namespace.
       const cluster = m.ofKind('cluster');
       if (bare.length > 1 && !m.has('networkpolicy') && cluster.length === 1)
-        return [{ on: { kind: 'group', id: cluster[0]!.id }, message: `No namespace of ${cluster[0]!.label} has a NetworkPolicy: ${bare.map((ns) => ns.label).join(', ')}` }];
-      return bare.map((ns) => ({ on: { kind: 'group', id: ns.id }, message: `Namespace ${ns.label} has no NetworkPolicy` }));
+        return [{ on: { kind: 'group', id: cluster[0]!.id }, message: t(m.lang, 'No namespace of {cluster} has a NetworkPolicy: {names}', { cluster: cluster[0]!.label, names: bare.map((ns) => ns.label).join(', ') }) }];
+      return bare.map((ns) => ({ on: { kind: 'group', id: ns.id }, message: t(m.lang, 'Namespace {name} has no NetworkPolicy', { name: ns.label }) }));
     },
   },
   {
@@ -83,7 +84,7 @@ export const kubernetesRules: Rule[] = [
     check(m) {
       return m.lines
         .filter((l) => WORKLOADS.includes(m.el(l.from)?.kind ?? '') && m.el(l.to)?.kind === 'secret' && (ENV.test(l.label) || ENV.test(String(l.props.as ?? ''))))
-        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: `${m.name(l.from)} reads ${m.name(l.to)} as environment variables` }));
+        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: t(m.lang, '{name} reads {secret} as environment variables', { name: m.name(l.from), secret: m.name(l.to) }) }));
     },
   },
 ];

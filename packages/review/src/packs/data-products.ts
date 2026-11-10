@@ -1,6 +1,7 @@
 // Data products: what a data governance review asks of a mesh, from the products as written.
 import { parseSource } from '@cartography/core';
 import { parseField, readOdcs } from '@cartography/data-products';
+import { t } from '../nl.ts';
 import type { Hit, Rule, Target } from '../types.ts';
 import type { ReviewModel } from '../model.ts';
 
@@ -50,12 +51,12 @@ export const dataProductRules: Rule[] = [
           // A reference without a port reads the product's only port.
           if (!used.has(`${id}.${port}`) && !(outputs.length === 1 && used.has(`${id}.*`))) continue;
           const label = (obj(o).label as string | undefined) ?? port;
-          hits.push({ on: productAt(m, id), message: `${m.name(id)}: output port ${label} is read by others and has no data contract`, path: ['products', id, 'outputs', port] });
+          hits.push({ on: productAt(m, id), message: t(m.lang, '{product}: output port {port} is read by others and has no data contract', { product: m.name(id), port: label }), path: ['products', id, 'outputs', port] });
         }
       }
       // No contract anywhere yet: one finding for the mesh, not one per port.
       const any = Object.values(products).some((p) => Object.values(obj(obj(p).outputs)).some((o) => typeof obj(o).contract === 'string'));
-      if (!any && hits.length > 2) return [{ on: { kind: 'diagram' }, message: `No output port has a data contract yet, and ${hits.length} are read by others`, path: ['products'] }];
+      if (!any && hits.length > 2) return [{ on: { kind: 'diagram' }, message: t(m.lang, 'No output port has a data contract yet, and {count} are read by others', { count: hits.length }), path: ['products'] }];
       return hits;
     },
   },
@@ -89,7 +90,7 @@ export const dataProductRules: Rule[] = [
         if (!pii || classification) continue;
         const user = Object.entries(obj(m.data.products)).find(([, p]) => Object.values(obj(obj(p).outputs)).some((o) => obj(o).contract === id));
         const on: Target = m.nodes.has(`contract:${id}`) ? { kind: 'node', id: `contract:${id}` } : user ? productAt(m, user[0]) : { kind: 'diagram' };
-        hits.push({ on, message: `Contract ${(c.label as string | undefined) ?? id} has personal data and no classification`, path: ['contracts', id] });
+        hits.push({ on, message: t(m.lang, 'Contract {name} has personal data and no classification', { name: (c.label as string | undefined) ?? id }), path: ['contracts', id] });
       }
       return hits;
     },

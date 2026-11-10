@@ -18,6 +18,8 @@
 import type { Graph, GraphEdge, GraphNode, LegendItem, Path } from './model.ts';
 import type { Emphasis, StepState } from './steps.ts';
 import { pruneLegend } from './focus.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 export type LayerMode = 'only' | 'dim';
 
@@ -178,9 +180,10 @@ export function layerGraph(graph: Graph, tags: string[], mode: LayerMode): Layer
 }
 
 /** The key's entry for a layer: its name as an outlined tag, the way environment tags are drawn. */
-export function layerLegend(layer: LayerSpec, mode: LayerMode): LegendItem {
-  const what = layer.tags.length === 1 && layer.tags[0] === layer.name ? `tagged ${layer.name}` : `tagged ${layer.tags.join(' or ')}`;
-  return { label: `${layer.title ?? 'Layer'}: what is ${what}${mode === 'dim' ? '; the rest faded' : ''}`, swatch: 'mark', tag: layer.name };
+export function layerLegend(layer: LayerSpec, mode: LayerMode, lang?: Lang): LegendItem {
+  const tags = layer.tags.length === 1 && layer.tags[0] === layer.name ? layer.name : layer.tags.join(tr(lang, ' or '));
+  const label = tr(lang, mode === 'dim' ? '{layer}: what is tagged {tags}; the rest faded' : '{layer}: what is tagged {tags}', { layer: layer.title ?? tr(lang, 'Layer'), tags });
+  return { label, swatch: 'mark', tag: layer.name };
 }
 
 /** A step (or no step) with what a dim layer leaves out drawn quietly; what the step hides stays hidden. */

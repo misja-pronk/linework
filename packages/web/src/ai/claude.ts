@@ -3,6 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { render } from '@cartography/engine';
 import { extractYaml, repairPrompt, type Prompt } from './prompt.ts';
+import { t } from '../i18n/index.ts';
 
 export const MODELS = [
   { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', note: 'best results' },
@@ -52,7 +53,7 @@ export async function generate(prompt: Prompt, opts: { apiKey: string; model: Mo
       opts.onProgress({ text, attempt });
     });
     const message = await stream.finalMessage();
-    if (message.stop_reason === 'refusal') throw new Error('Claude declined this request. Try describing it differently.');
+    if (message.stop_reason === 'refusal') throw new Error(t('Claude declined this request. Try describing it differently.'));
     yaml = extractYaml(text);
     errors = await problems(yaml, opts.load);
     if (!errors.length) break;
@@ -63,10 +64,10 @@ export async function generate(prompt: Prompt, opts: { apiKey: string; model: Mo
 
 /** A readable message for the ways a call fails. */
 export function failure(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return 'Anthropic did not accept this API key. Check that you pasted all of it (it starts with sk-ant-).';
-  if (e instanceof Anthropic.PermissionDeniedError) return 'This API key may not use that model. Pick the other model, or check the key’s workspace settings.';
-  if (e instanceof Anthropic.RateLimitError) return 'Too many requests for this key right now. Wait a minute and try again.';
-  if (e instanceof Anthropic.APIConnectionError) return 'Could not reach api.anthropic.com. Check your internet connection, or copy the prompt instead.';
-  if (e instanceof Anthropic.APIError) return `Claude could not finish (error ${e.status ?? 'unknown'}). Try again in a moment, or copy the prompt instead. Details: ${e.message}`;
+  if (e instanceof Anthropic.AuthenticationError) return t('Anthropic did not accept this API key. Check that you pasted all of it (it starts with sk-ant-).');
+  if (e instanceof Anthropic.PermissionDeniedError) return t('This API key may not use that model. Pick the other model, or check the key’s workspace settings.');
+  if (e instanceof Anthropic.RateLimitError) return t('Too many requests for this key right now. Wait a minute and try again.');
+  if (e instanceof Anthropic.APIConnectionError) return t('Could not reach api.anthropic.com. Check your internet connection, or copy the prompt instead.');
+  if (e instanceof Anthropic.APIError) return t('Claude could not finish (error {status}). Try again in a moment, or copy the prompt instead. Details: {details}', { status: e.status ?? t('unknown'), details: e.message });
   return e instanceof Error ? e.message : String(e);
 }

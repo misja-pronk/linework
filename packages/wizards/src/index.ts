@@ -9,6 +9,7 @@ import { c4Starter } from './wizards/c4.ts';
 import { gitStrategy, teamTopologies } from './wizards/team-flow.ts';
 
 export * from './engine.ts';
+export { translateWizard, wizardWords } from './lang.ts';
 
 export const wizards: Wizard[] = [azureLandingZone, aksBaseline, hubSpoke, awsThreeTier, awsLandingZone, dataMesh, c4Starter, gitStrategy, teamTopologies];
 

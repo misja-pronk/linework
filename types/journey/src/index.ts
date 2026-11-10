@@ -21,6 +21,7 @@
 //       frontstage: …  backstage: …  support: …    the rows of a service blueprint
 //   view: map                                      map | storyboard | blueprint | compare
 //   future: { label: With self-service, steps: … } a second journey through the same phases
+import { term } from '@cartography/i18n/drawing';
 import {
   journeyAvatars,
   journeyRows,
@@ -363,7 +364,7 @@ export function buildJourney(src: JourneySource, ctx: BuildContext): Graph {
     rows,
     ...(Object.keys(rowLabels).length ? { rowLabels } : {}),
     metrics: metricsOf(src.metrics),
-    label: src.current ?? 'Today',
+    label: src.current ?? term(ctx.lang, 'Today'),
     ...(futureSteps ? { future: { label: src.future?.label ?? 'Future', steps: byPhase(futureSteps), metrics: metricsOf(src.future?.metrics) } } : {}),
   };
 

@@ -9,6 +9,7 @@ import { Palette, type Command } from '../palette.tsx';
 import { Icon } from '../icon.tsx';
 import { useRestoreFocus } from '../menu.tsx';
 import { store } from '../store.ts';
+import { say, t } from '../i18n/index.ts';
 import { diagrams, diskText, readSidecar, saveInFolder, type Workspace } from '../files.ts';
 import { CompareView, type CompareActions, type CompareMode } from './compare-view.tsx';
 import { gitFilesIn, Repo } from './git.ts';
@@ -49,7 +50,7 @@ const stamp = () => {
 async function pickYaml(): Promise<{ name: string; text: string } | undefined> {
   if ('showOpenFilePicker' in window) {
     try {
-      const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({ types: [{ description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } }] });
+      const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({ types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }] });
       const f = await h!.getFile();
       return { name: f.name, text: await f.text() };
     } catch {
@@ -87,7 +88,7 @@ export function useCompare(ctx: CompareContext) {
   const repo = useRef<{ dir?: FileSystemDirectoryHandle; repo?: Repo; why?: string }>({});
   const gitRepo = async (): Promise<{ repo?: Repo; why?: string }> => {
     const ws = latest.current.ws;
-    if (!ws) return { why: 'Open the folder of a git repository to compare with commits' };
+    if (!ws) return { why: t('Open the folder of a git repository to compare with commits') };
     if (repo.current.dir !== ws.dir) {
       const { files, why } = await gitFilesIn(ws.dir);
       repo.current = { dir: ws.dir, why };
@@ -111,7 +112,7 @@ export function useCompare(ctx: CompareContext) {
     setChoosing(undefined);
     setBaseline(b);
   };
-  const failed = (what: string) => (e: unknown) => latest.current.notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+  const failed = (what: string) => (e: unknown) => latest.current.notify(t('{what} failed: {error}', { what: say(what), error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
 
   /** The versions to choose from, gathered now: snapshots and commits may have changed since last time. */
   const choose = async () => {
@@ -121,15 +122,15 @@ export function useCompare(ctx: CompareContext) {
       const inFolder = !!(c.ws && c.path);
       list.push({
         id: 'saved',
-        group: 'Compare with',
-        label: inFolder ? 'Last saved (the file on disk)' : 'As opened or last saved',
-        hint: c.savedText === c.textNow() ? 'no unsaved changes' : 'your unsaved changes',
+        group: t('Compare with'),
+        label: inFolder ? t('Last saved (the file on disk)') : t('As opened or last saved'),
+        hint: c.savedText === c.textNow() ? t('no unsaved changes') : t('your unsaved changes'),
         icon: 'save',
         run: () =>
           void (async () => {
             const text = inFolder ? ((await diskText(c.ws!, c.path!)) ?? c.savedText!) : c.savedText!;
             const sidecar = inFolder ? readSidecar(c.ws!, c.path!) : (JSON.parse(c.savedPins) as LayoutSidecar | null) ?? undefined;
-            start({ id: 'saved', kind: 'saved', name: 'last saved', text, ...(sidecar ? { sidecar } : {}) });
+            start({ id: 'saved', kind: 'saved', name: t('last saved'), text, ...(sidecar ? { sidecar } : {}) });
           })().catch(failed('Reading the file')),
       });
     }
@@ -137,13 +138,13 @@ export function useCompare(ctx: CompareContext) {
     for (const s of snaps)
       list.push({
         id: `snapshot:${s.label}`,
-        group: 'Snapshots',
+        group: t('Snapshots'),
         label: s.label,
-        hint: [s.at ? ago(s.at) : '', s.path ? `in the folder: ${s.path}` : 'in this browser'].filter(Boolean).join(' · '),
+        hint: [s.at ? ago(s.at) : '', s.path ? t('in the folder: {path}', { path: s.path }) : t('in this browser')].filter(Boolean).join(' · '),
         icon: 'clock',
         run: () => start({ id: `snapshot:${s.label}`, kind: 'snapshot', name: `snapshot ${s.label}`, text: s.text, ...(s.pins ? { sidecar: s.pins } : {}) }),
       });
-    list.push({ id: 'snapshot-take', group: 'Snapshots', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: keyHint('snapshot'), run: () => (setChoosing(undefined), setNaming(true)) });
+    list.push({ id: 'snapshot-take', group: t('Snapshots'), label: t('Take snapshot…'), hint: t('keep the diagram as it is now, to compare with later'), icon: 'plus', shortcut: keyHint('snapshot'), run: () => (setChoosing(undefined), setNaming(true)) });
     if (c.ws && c.path) {
       const { repo: r, why } = await gitRepo();
       if (r) {
@@ -156,32 +157,32 @@ export function useCompare(ctx: CompareContext) {
               id: 'git:HEAD',
               group: 'Git',
               label: `HEAD${branch ? ` (${branch})` : ''}`,
-              hint: headBlob ? `the last commit: ${history[0] ? `${history[0].commit.message.split('\n')[0]}, ${ago(history[0].commit.time * 1000)}` : ''}` : 'not committed yet: everything is new',
+              hint: headBlob ? t('the last commit: {commit}', { commit: history[0] ? `${history[0].commit.message.split('\n')[0]}, ${ago(history[0].commit.time * 1000)}` : '' }) : t('not committed yet: everything is new'),
               icon: 'git-branch',
               run: at(head, 'HEAD'),
             });
           for (const v of history.slice(headBlob ? 1 : 0))
             list.push({
               id: `git:${v.commit.oid}`,
-              group: 'Git: earlier versions of this file',
+              group: t('Git: earlier versions of this file'),
               label: `${v.commit.oid.slice(0, 7)} ${v.commit.message.split('\n')[0]}`,
               hint: `${v.commit.author}, ${ago(v.commit.time * 1000)}`,
               icon: 'git-commit-horizontal',
               run: at(v.commit.oid, v.commit.oid.slice(0, 7)),
             });
         } catch (e) {
-          list.push({ id: 'git-failed', group: 'Git', label: 'The repository could not be read', hint: e instanceof Error ? e.message : String(e), icon: 'circle-exclamation-point', run: () => {} });
+          list.push({ id: 'git-failed', group: 'Git', label: t('The repository could not be read'), hint: e instanceof Error ? e.message : String(e), icon: 'circle-exclamation-point', run: () => {} });
         }
-      } else list.push({ id: 'git-none', group: 'Git', label: 'No commits to compare with', hint: why, icon: 'git-branch', run: () => {} });
+      } else list.push({ id: 'git-none', group: 'Git', label: t('No commits to compare with'), hint: why, icon: 'git-branch', run: () => {} });
     }
     if (c.ws)
       for (const p of diagrams(c.ws).filter((p) => p !== c.path))
-        list.push({ id: `file:${p}`, group: `Another file in ${c.ws.name}`, label: p, icon: 'file-code', run: () => start({ id: `file:${p}`, kind: 'file', name: p, text: c.ws!.files.get(p)!.text, ...((s) => (s ? { sidecar: s } : {}))(readSidecar(c.ws!, p)) }) });
+        list.push({ id: `file:${p}`, group: t('Another file in {folder}', { folder: c.ws.name }), label: p, icon: 'file-code', run: () => start({ id: `file:${p}`, kind: 'file', name: p, text: c.ws!.files.get(p)!.text, ...((s) => (s ? { sidecar: s } : {}))(readSidecar(c.ws!, p)) }) });
     list.push({
       id: 'file-pick',
-      group: 'Another file',
-      label: 'Pick a file…',
-      hint: 'e.g. last quarter’s copy',
+      group: t('Another file'),
+      label: t('Pick a file…'),
+      hint: t('e.g. last quarter’s copy'),
       icon: 'folder-open',
       run: () => {
         setChoosing(undefined);
@@ -189,7 +190,7 @@ export function useCompare(ctx: CompareContext) {
       },
     });
     for (const s of snaps.filter((s) => !s.path))
-      list.push({ id: `snapshot-drop:${s.label}`, group: 'Delete a snapshot', label: `Delete snapshot ${s.label}`, hint: 'from this browser', icon: 'trash', run: () => void dropSnapshot(backend, c.docKey, s.label).then(() => (setChoosing(undefined), c.notify(`Deleted snapshot ${s.label}`))) });
+      list.push({ id: `snapshot-drop:${s.label}`, group: t('Delete a snapshot'), label: t('Delete snapshot {label}', { label: s.label }), hint: t('from this browser'), icon: 'trash', run: () => void dropSnapshot(backend, c.docKey, s.label).then(() => (setChoosing(undefined), c.notify(t('Deleted snapshot {label}', { label: s.label })))) });
     setChoosing(list);
   };
 
@@ -198,13 +199,13 @@ export function useCompare(ctx: CompareContext) {
     const text = c.textNow();
     const snap: Snapshot = { label, text, ...(c.pins ? { pins: c.pins } : {}), at: Date.now() };
     await takeSnapshot(backend, c.docKey, snap);
-    let where = 'in this browser';
+    let where = t('in this browser');
     if (toFolder && c.ws && c.path) {
       const p = snapshotPath(c.path, label);
       await saveInFolder(c.ws, p, text, c.pins);
-      where = `in ${p}`;
+      where = t('in {path}', { path: p });
     }
-    c.notify(`Snapshot “${label}” taken, ${where}. ${keyHint('compare')} compares with it (with the drawing in focus).`);
+    c.notify(t('Snapshot “{label}” taken, {where}. {key} compares with it (with the drawing in focus).', { label, where, key: keyHint('compare') }));
   };
 
   useEffect(() => {
@@ -222,25 +223,25 @@ export function useCompare(ctx: CompareContext) {
   });
 
   const commands: Command[] = [
-    { id: 'compare', group: 'Compare', label: 'Compare with…', hint: 'last saved, a snapshot, another file or a commit', icon: 'clock', shortcut: keyHint('compare'), run: () => setTimeout(() => void choose()) },
-    { id: 'snapshot', group: 'Compare', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: keyHint('snapshot'), run: () => setTimeout(() => setNaming(true)) },
+    { id: 'compare', group: t('Compare'), label: t('Compare with…'), hint: t('last saved, a snapshot, another file or a commit'), icon: 'clock', shortcut: keyHint('compare'), run: () => setTimeout(() => void choose()) },
+    { id: 'snapshot', group: t('Compare'), label: t('Take snapshot…'), hint: t('keep the diagram as it is now, to compare with later'), icon: 'plus', shortcut: keyHint('snapshot'), run: () => setTimeout(() => setNaming(true)) },
     ...(baseline
       ? [
-          { id: 'compare-mode', group: 'Compare', label: mode === 'overlay' ? 'Compare side by side' : 'Compare as an overlay', icon: 'split', shortcut: 'M', run: () => setMode(mode === 'overlay' ? 'side' : 'overlay') },
-          { id: 'compare-next', group: 'Compare', label: 'Next change', icon: 'arrow-right', shortcut: 'N', run: () => actions.current?.next() },
-          { id: 'compare-previous', group: 'Compare', label: 'Previous change', icon: 'arrow-left', shortcut: 'P', run: () => actions.current?.previous() },
-          { id: 'compare-copy', group: 'Compare', label: 'Copy the summary of changes (Markdown)', hint: 'for a change advisory board', icon: 'copy', run: () => void actions.current?.copySummary() },
-          { id: 'compare-pptx', group: 'Compare', label: 'Before and after as slides (.pptx)', icon: 'layout-template', run: () => void actions.current?.savePptx() },
-          { id: 'compare-png', group: 'Compare', label: 'Export the comparison as PNG', icon: 'image', run: () => void actions.current?.savePng() },
-          { id: 'compare-svg', group: 'Compare', label: 'Export the comparison as SVG', icon: 'download', run: () => void actions.current?.saveSvg() },
-          { id: 'compare-stop', group: 'Compare', label: 'Stop comparing', icon: 'x', shortcut: 'Esc', run: () => setBaseline(undefined) },
+          { id: 'compare-mode', group: t('Compare'), label: mode === 'overlay' ? t('Compare side by side') : t('Compare as an overlay'), icon: 'split', shortcut: 'M', run: () => setMode(mode === 'overlay' ? 'side' : 'overlay') },
+          { id: 'compare-next', group: t('Compare'), label: t('Next change'), icon: 'arrow-right', shortcut: 'N', run: () => actions.current?.next() },
+          { id: 'compare-previous', group: t('Compare'), label: t('Previous change'), icon: 'arrow-left', shortcut: 'P', run: () => actions.current?.previous() },
+          { id: 'compare-copy', group: t('Compare'), label: t('Copy the summary of changes (Markdown)'), hint: t('for a change advisory board'), icon: 'copy', run: () => void actions.current?.copySummary() },
+          { id: 'compare-pptx', group: t('Compare'), label: t('Before and after as slides (.pptx)'), icon: 'layout-template', run: () => void actions.current?.savePptx() },
+          { id: 'compare-png', group: t('Compare'), label: t('Export the comparison as PNG'), icon: 'image', run: () => void actions.current?.savePng() },
+          { id: 'compare-svg', group: t('Compare'), label: t('Export the comparison as SVG'), icon: 'download', run: () => void actions.current?.saveSvg() },
+          { id: 'compare-stop', group: t('Compare'), label: t('Stop comparing'), icon: 'x', shortcut: 'Esc', run: () => setBaseline(undefined) },
         ]
       : []),
   ];
 
   const edit = (item: ItemDiff) => {
     setBaseline(undefined);
-    if (item.status === 'removed') return latest.current.notify(`${item.label ?? item.id} is not in the diagram any more`);
+    if (item.status === 'removed') return latest.current.notify(t('{name} is not in the diagram any more', { name: item.label ?? item.id }));
     const id = item.kind === 'edge' ? item.edge?.after : item.id;
     if (id) requestAnimationFrame(() => latest.current.onSelect({ kind: item.kind, id }));
   };
@@ -270,7 +271,7 @@ export function useCompare(ctx: CompareContext) {
 
   const dialogs = (
     <>
-      {choosing && <Palette commands={choosing} placeholder={baseline ? `Comparing with ${baseline.name}: another version…` : 'Compare with…'} onClose={() => setChoosing(undefined)} />}
+      {choosing && <Palette commands={choosing} placeholder={baseline ? t('Comparing with {name}: another version…', { name: baseline.name }) : t('Compare with…')} onClose={() => setChoosing(undefined)} />}
       {naming && (
         <SnapshotDialog
           suggested={stamp()}
@@ -287,7 +288,7 @@ export function useCompare(ctx: CompareContext) {
   );
 
   const button = (
-    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title={`Compare with an earlier version (${keyHint('compare')})`} aria-label="Compare with an earlier version" aria-pressed={!!baseline}>
+    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title={t('Compare with an earlier version ({key})', { key: keyHint('compare') })} aria-label={t('Compare with an earlier version')} aria-pressed={!!baseline}>
       <Icon name="clock" />
     </button>
   );
@@ -309,7 +310,7 @@ function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Pro
   const final = label.trim() || p.suggested;
   const replaces = taken.some((s) => s.label.toLowerCase() === final.toLowerCase());
   return (
-    <div className="snap-dialog" role="dialog" aria-modal="true" aria-label="Take a snapshot" onPointerDown={(e) => e.target === e.currentTarget && p.onCancel()}>
+    <div className="snap-dialog" role="dialog" aria-modal="true" aria-label={t('Take a snapshot')} onPointerDown={(e) => e.target === e.currentTarget && p.onCancel()}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -318,23 +319,23 @@ function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Pro
         }}
         onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), p.onCancel())}
       >
-        <h2>Take a snapshot</h2>
-        <input autoFocus onFocus={(e) => e.currentTarget.select()} type="text" value={label} onChange={(e) => setLabel(e.target.value)} aria-label="Name of the snapshot" placeholder="before the review" />
-        {replaces && <span className="cmp-keys">A snapshot with this name is replaced. Another name: {freeLabel(taken, final)}</span>}
+        <h2>{t('Take a snapshot')}</h2>
+        <input autoFocus onFocus={(e) => e.currentTarget.select()} type="text" value={label} onChange={(e) => setLabel(e.target.value)} aria-label={t('Name of the snapshot')} placeholder={t('before the review')} />
+        {replaces && <span className="cmp-keys">{t('A snapshot with this name is replaced. Another name: {name}', { name: freeLabel(taken, final) })}</span>}
         {p.folderPath && (
           <label className="check">
             <input type="checkbox" checked={toFolder} onChange={(e) => setToFolder(e.target.checked)} />
             <span>
-              Also in the folder, as <code>{snapshotPath(p.folderPath, final)}</code>: a plain file git can keep, and <code>carto diff --snapshot</code> reads
+              {t('Also in the folder, as')} <code>{snapshotPath(p.folderPath, final)}</code>{t(': a plain file git can keep, and')} <code>carto diff --snapshot</code> {t('reads')}
             </span>
           </label>
         )}
         <div className="row">
           <button type="button" className="button ghost" onClick={p.onCancel}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button type="submit" className="button primary">
-            Take snapshot <kbd>↵</kbd>
+            {t('Take snapshot')} <kbd>↵</kbd>
           </button>
         </div>
       </form>

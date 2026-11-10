@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
+import { t } from './i18n/index.ts';
 
 export interface Command {
   id: string;
@@ -39,7 +40,7 @@ export function score(query: string, text: string): number {
   return s - t.length * 0.01;
 }
 
-export function Palette({ commands, onClose, placeholder = 'Type a command or an element…' }: { commands: Command[]; onClose(): void; placeholder?: string }) {
+export function Palette({ commands, onClose, placeholder = t('Type a command or an element…') }: { commands: Command[]; onClose(): void; placeholder?: string }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -65,7 +66,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette" role="dialog" aria-label="Command palette" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette" role="dialog" aria-label={t('Command palette')} onMouseDown={(e) => e.stopPropagation()}>
         <div className="palette-input">
           <Icon name="search" />
           <input
@@ -89,7 +90,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
           <kbd>esc</kbd>
         </div>
         <div className="palette-list" id="palette-list" role="listbox" ref={list}>
-          {shown.length === 0 && <div className="palette-empty">{query ? `Nothing matches “${query}”` : commands.length ? 'Nothing here' : placeholder}</div>}
+          {shown.length === 0 && <div className="palette-empty">{query ? t('Nothing matches “{query}”', { query }) : commands.length ? t('Nothing here') : placeholder}</div>}
           {shown.map((c, i) => (
             <div key={c.id}>
               {(i === 0 || shown[i - 1]!.group !== c.group) && !query && <div className="palette-group">{c.group}</div>}

@@ -61,6 +61,9 @@ import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
 import { drawStage, pickStage, stageStates, stageStrip, stageTitle, type StageAt } from './stages.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
 import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
+import { diagramLang, translateGraph } from './lang.ts';
 
 const typesOfVendor = (vendor: string) => (iconVendors as Record<string, { types: string[] }>)[vendor]?.types ?? [];
 import { c4, contextMap, systems } from '@cartography/systems';
@@ -118,11 +121,16 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema, stages: stagesSchema };
+  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema, stages: stagesSchema, lang: langSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
+/** `lang:`, the language of the words the drawing adds itself (the key, step counters, kind names). */
+const langSchema = { enum: ['en', 'nl'], description: 'The language of the words Cartography adds to the drawing itself (the key, kind names, step counters): en or nl. Your own labels stay as written.' };
+
 export interface RenderOptions extends SvgOptions {
+  /** The language of the drawing's own words when the diagram has no `lang:` (--lang, CARTO_LANG). */
+  lang?: Lang;
   /** Used when the diagram names no `theme:` of its own: light, dark, a built-in brand theme, or a Theme. */
   theme?: string | Theme;
   /** Wins over the diagram's `theme:` (a --theme flag, the editor's theme picker). */
@@ -224,6 +232,8 @@ export interface RenderResult {
   stepsImplied?: boolean;
   /** The theme it was drawn with (PNG export needs its font files). */
   theme?: Theme;
+  /** The language of the drawing's own words: the diagram's `lang:`, else the one asked for, else English. Exports write theirs in it. */
+  lang?: Lang;
   /** Official icons drawn (BYO packs), as data URIs by node and group id: exports that draw for themselves (slides) use them. */
   images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
   /** The focus drawn: what it is about (as labelled), how far it reaches, and how much of the diagram that left. */
@@ -247,7 +257,7 @@ export interface RenderResult {
 export const isEmpty = (graph: Graph) => !graph.groups.length && graph.nodes.every((n) => n.shape.kind === 'matrix' && !n.shape.rows.length);
 
 /** Keys that are not something drawn, to tell a diagram that only has views. */
-const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspect']);
+const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspect', 'lang']);
 /** Model keys checked for types whose schema does not list them (ERD, access, …). */
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
@@ -283,7 +293,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const aliased = readKindAliases(data, type.palette);
   for (const a of aliased.read) diagnostics.push(source.at(a.path, `"${a.from}" is read as ${a.to}, the kind this diagram type has: write ${a.to}`, 'warning'));
   // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, ...asWritten } = aliased.data;
+  // So is the language of the drawing's own words (`lang: nl`).
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...asWritten } = aliased.data;
+  const lang = diagramLang(langRef) ?? opts.lang ?? 'en';
+  if (langRef != null && !diagramLang(langRef)) diagnostics.push(source.at(['lang'], 'lang is the language of the words the drawing adds itself: en or nl', 'warning'));
   // Stages are about time, shared by every type of elements and lines: `stages:` and the elements'
   // from: and until: never reach the type's schema.
   const props0 = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
@@ -355,8 +368,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     warn: (path, message) => report(...where(path, message), 'warning'),
     load: opts.load,
     model,
+    lang,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  graph = translateGraph(graph, lang, built);
   // Stages are resolved on everything there is; a view only checks what it draws of them.
   const staged = stagesRef !== undefined ? planStages(graph, readStages(stagesRef, model?.view ? () => {} : report), timed!.marks, model?.view ? () => {} : report) : undefined;
   if (staged) graph = staged.graph;
@@ -375,10 +390,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (focused) {
     graph = focused.graph;
     // Asked for from outside, the picture itself says it is a part: nobody takes an export for the whole landscape.
-    if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}${graph.tree ? ' and their branch' : `, ${focusReach(focusSpec!)}`}`].filter(Boolean).join(' · ');
+    if (asked && graph.title) graph.subtitle = [graph.subtitle, graph.tree ? tr(lang, 'Focus on {names} and their branch', { names: focused.names.join(', ') }) : tr(lang, 'Focus on {names}, {reach}', { names: focused.names.join(', '), reach: focusReach(focusSpec!, lang) })].filter(Boolean).join(' · ');
   }
   // Layers after the focus: a view of the drawing by tag, laid out on its own or faded in place.
-  const lens = applyLayers(graph, layersRef, built, model, opts, !!focused, report);
+  const lens = applyLayers(graph, layersRef, built, model, opts, !!focused, report, lang);
   // Steps are written for the whole drawing: a layer that leaves some of it out does not make them wrong.
   const whole = graph;
   graph = lens.graph;
@@ -386,7 +401,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   graph = withBadgeIcons(graph);
   graph = apartInMoreThanColour(graph);
   // A ring in the accent colour is a mark like any other: the key says what it means.
-  if (graph.nodes.some((n) => n.focused) || graph.groups.some((g) => g.focused)) graph = { ...graph, legend: [...(graph.legend ?? []), { label: 'In focus', swatch: 'focus' }] };
+  if (graph.nodes.some((n) => n.focused) || graph.groups.some((g) => g.focused)) graph = { ...graph, legend: [...(graph.legend ?? []), { label: tr(lang, 'In focus'), swatch: 'focus' }] };
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
     // (['include', 0, 'model.yaml']), never a path it could take for one of this file's entries.
@@ -399,7 +414,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph.edges.forEach(fix);
   }
 
-  const theme = pickTheme(opts, themeRef, source, diagnostics);
+  const picked = pickTheme(opts, themeRef, source, diagnostics);
+  const theme = lang === 'en' ? picked : { ...picked, lang };
   // Text is measured in the theme's own faces: a bundled family by its advance widths, a brand font as Inter times its width.
   const brandFaces = theme.font.faces?.filter((f) => !f.mono);
   const fonts = themeTextFonts(theme, brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined);
@@ -473,9 +489,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
-    const said = describe({ graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
+    const said = describe({ lang, graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
-    const title = at ? `${said.title}, step ${step} of ${steps.length}${at.title ? `: ${at.title}` : ''}` : staged && stageAt != null ? `${said.title}, ${stageTitle(staged.plan, stageAt)}` : said.title;
+    const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : staged && stageAt != null ? `${said.title}, ${stageTitle(staged.plan, stageAt)}` : said.title;
     const desc = toText(said, { title: false }).trim();
     out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}` });
   }
@@ -493,6 +509,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph,
     placed,
     theme,
+    lang,
     ...(images ? { images } : {}),
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
@@ -523,6 +540,7 @@ function applyLayers(
   opts: RenderOptions,
   focused: boolean,
   report: (path: Path, message: string, severity?: Diagnostic['severity']) => void,
+  lang: Lang,
 ): { graph: Graph; info?: LayersInfo; faded?: Faded } {
   const defined = readLayers(raw, report);
   const view = model?.view;
@@ -548,9 +566,9 @@ function applyLayers(
   }
   const cut = layerGraph(graph, [...new Set(picked.flatMap((l) => l.tags))], mode);
   if (!cut.kept) report(asked ? [] : ['views', view?.name ?? '', 'layers'], `Nothing drawn here is on ${picked.length === 1 ? `layer ${picked[0]!.name}` : `layers ${picked.map((l) => l.name).join(', ')}`}`, 'warning');
-  const out: Graph = { ...cut.graph, legend: [...(cut.graph.legend ?? []), ...picked.map((l) => layerLegend(l, mode))] };
+  const out: Graph = { ...cut.graph, legend: [...(cut.graph.legend ?? []), ...picked.map((l) => layerLegend(l, mode, lang))] };
   // Asked for from outside, the picture says it is a part, as a focus does.
-  if (asked && out.title) out.subtitle = [out.subtitle, `${layerNames(picked)} ${picked.length === 1 ? 'layer' : 'layers'}`].filter(Boolean).join(' · ');
+  if (asked && out.title) out.subtitle = [out.subtitle, tr(lang, '{names} layer|{names} layers', { names: layerNames(picked), count: picked.length })].filter(Boolean).join(' · ');
   return { graph: out, info: { ...base, active: picked.map((l) => l.name), mode, kept: cut.kept }, ...(cut.faded ? { faded: cut.faded } : {}) };
 }
 
