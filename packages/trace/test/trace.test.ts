@@ -186,6 +186,30 @@ describe('along steps', () => {
     ]);
   });
 
+  it('a step that goes on from the router where the one before ended forwards the incoming label', async () => {
+    const text = `type: systems
+nodes:
+  web: client
+  gateway: gateway
+  orders: service
+  db: database
+edges:
+  - web -> gateway: REST
+  - gateway -> orders
+  - orders -> db: SQL
+steps:
+  - web -> gateway: In
+  - gateway -> orders -> db: On
+  - web -> db: Skipping a line
+`;
+    const t = await traceable(text);
+    const r = traceAsk(t, { steps: true });
+    const seq = parse(sequenceYaml(t.graph, r.options[0]!, { mode: 'steps' }));
+    const calls = (seq.messages as unknown[]).filter((m) => typeof m === 'object' && m && !('divider' in m)).map((m) => JSON.stringify(m));
+    // Both the second step and the route found through the gateway (no line web -> db) say REST.
+    expect(calls.filter((m) => m.startsWith('{"gateway -> orders"'))).toEqual(['{"gateway -> orders":"REST"}', '{"gateway -> orders":"REST"}']);
+  });
+
   it('draws one step to several places at once as a par frame', async () => {
     const text = `type: systems
 nodes:
