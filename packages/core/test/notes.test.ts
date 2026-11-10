@@ -31,7 +31,7 @@ const graph = (nodes: [string, string][], edges: [string, string, string?][] = [
   direction: 'right',
   nodes: nodes.map(([id, l]) => card(id, l)),
   groups: groups.map(([id, label]) => ({ id, label, tone: 'slate', border: 'solid', path: ['groups', id] })),
-  edges: edges.map(([from, to, label], i) => ({ id: `e${i}`, from: { node: from }, to: { node: to }, ...(label ? { label } : {}), line: 'solid', start: 'none', end: 'arrow' })),
+  edges: edges.map(([from, to, label], i) => ({ id: `e${i}`, from: { node: from }, to: { node: to }, ...(label ? { label } : {}), line: 'solid', start: 'none', end: 'arrow', path: ['edges', i] })),
 });
 
 const thread = (id: string, over: Partial<NoteThread> = {}): NoteThread => ({
