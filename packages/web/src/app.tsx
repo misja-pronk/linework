@@ -84,8 +84,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' || n.shape.kind === 'block' ? n.shape.label || n.id : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -679,7 +679,10 @@ export function App() {
     if (!type) return;
     const g = (parentGroup === undefined ? (selected?.kind === 'group' ? selected.id : undefined) : parentGroup) ?? undefined;
     const gp = g ? result?.graph?.groups.find((x) => x.id === g)?.path : undefined;
-    const parent = gp && gp.length === 2 && parentKey(type, item.collection, String(gp[0])) ? { collection: String(gp[0]), id: String(gp[1]) } : undefined;
+    // A selected element that can hold the new one (a capability, a manager) takes it in the same way as a group.
+    const np = parentGroup === undefined && selected?.kind === 'node' ? result?.graph?.nodes.find((x) => x.id === selected.id)?.path : undefined;
+    const holder = np && isEntryPath(np) && parentKey(type, item.collection, String(np[0])) ? { collection: String(np[0]), id: String(np.at(-1)) } : undefined;
+    const parent = gp && gp.length === 2 && parentKey(type, item.collection, String(gp[0])) ? { collection: String(gp[0]), id: String(gp[1]) } : holder;
     const r = addEntry(textNow(), type, item, parent);
     if (!r) return apply(undefined);
     apply(r.text, at ? withPin(r.id, at) : undefined);
@@ -1136,7 +1139,7 @@ export function App() {
     // Shapes first (not containers), then whatever there is.
     return [...items.filter((i) => i.collection !== 'groups'), ...items.filter((i) => i.collection === 'groups')].slice(0, 4);
   }, [type]);
-  const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/s$/, '').replace(/-/g, ' ') : '');
+  const kindLabel = (path: Path | undefined) => (path ? String(path[0]).replace(/ies$/, 'y').replace(/s$/, '').replace(/-/g, ' ') : '');
   const nodeName = (id: string) => {
     const n = result?.graph?.nodes.find((x) => x.id === id);
     return n ? label(n) : id;

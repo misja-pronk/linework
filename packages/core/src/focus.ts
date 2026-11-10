@@ -133,8 +133,12 @@ export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: stri
   // The legend explains what is drawn: a line or a colour that only occurred outside the neighbourhood goes with it.
   const sample = (l: LegendItem) => (e: GraphEdge) => (e.line ?? 'solid') === (l.line ?? 'solid') && e.tone === l.tone;
   const tone = (n: GraphNode) => ('tone' in n.shape ? n.shape.tone : undefined);
+  // A block sample stands for a team type, an interaction mode or a vacancy: it goes when none of those is left.
+  const like = (l: LegendItem) => (n: GraphNode) => n.shape.kind === 'block' && (l.block!.form === 'person' ? !!n.shape.vacant : n.shape.form === l.block!.form);
   const gone = (l: LegendItem) =>
-    l.swatch === 'fill' ? graph.nodes.some((n) => tone(n) === l.tone) && !nodes.some((n) => tone(n) === l.tone) : !l.swatch && graph.edges.some(sample(l)) && !edges.some(sample(l));
+    l.swatch === 'block' && l.block && !l.block.heat
+      ? graph.nodes.some(like(l)) && !nodes.some(like(l))
+      : l.swatch === 'fill' ? graph.nodes.some((n) => tone(n) === l.tone) && !nodes.some((n) => tone(n) === l.tone) : !l.swatch && graph.edges.some(sample(l)) && !edges.some(sample(l));
   const legend = graph.legend?.filter((l) => !gone(l));
   return {
     graph: { ...graph, groups: graph.groups.filter((g) => keep.has(g.id)).map(mark), nodes: nodes.map(mark), edges, ...(legend ? { legend } : {}), ...(steps ? { steps } : {}) },

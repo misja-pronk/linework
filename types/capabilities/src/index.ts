@@ -274,6 +274,12 @@ const capability = {
     link: linkSchema,
     links: { type: 'array', items: { anyOf: [linkSchema, { type: 'object' }] } },
     capabilities: { anyOf: [{ type: 'array' }, { type: 'object' }], description: 'The capabilities inside it' },
+    // The values heatmaps usually colour by, so the editor offers them; any other property works too.
+    maturity: { type: 'number', description: 'How mature it is, 1 (initial) to 5 (optimised)' },
+    investment: { type: 'string', description: 'invest, maintain, tolerate, migrate, divest or eliminate' },
+    fit: { type: ['number', 'string'], description: 'How well it is supported: 1–5, or good, fair, poor' },
+    cost: { type: ['number', 'string'], description: 'What it costs to run: 1200000, €1.2M, 800k' },
+    risk: { type: ['number', 'string'], description: '1–5, or high, medium, low' },
   },
   // Anything else is a value to colour by: maturity: 3, investment: invest, cost: €1.2M.
   additionalProperties: { type: ['number', 'string', 'boolean', 'null'] },
