@@ -38,7 +38,7 @@ export interface DiagramType<Source = any> {
   /** Layout hints for the shared graph layout, e.g. room for long labels. */
   tuning?: { labelRoom?: 'fit'; autoDirection?: false };
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
-  layout?(sized: Sized, sidecar?: LayoutSidecar, previous?: LayoutMemory): Promise<Placed>;
+  layout?(sized: Sized, sidecar?: LayoutSidecar, previous?: LayoutMemory, options?: { aspect?: number | 'auto' }): Promise<Placed>;
   /**
    * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
    * and the editor's view picker choose one; build gets it as the source's `view`. `table`: the view is
