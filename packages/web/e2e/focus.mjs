@@ -356,6 +356,8 @@ await wait(400);
   const stop = discarding();
   await palette('open folder');
   await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the data products of the folder were not drawn'));
+  // The open folder may ask once more (its first file over the dropped map): still discarded.
+  await page.waitForTimeout(800);
   stop();
   const said = await page.locator('.toast').innerText().catch(() => '');
   if (!said.includes('6 data products, 4 contracts in mesh')) fail('opening the folder should say what it made: ' + said);
@@ -367,7 +369,9 @@ await wait(400);
   if (!/^type: data-products/m.test(first)) fail('⌘S did not write data-mesh.yaml into the folder');
   // Again, with something added by hand: it stays. Next to the side panel in a folder the YAML may be
   // folded for room: its rail opens it.
-  if (await page.locator('button.yaml-rail').count()) await page.click('button.yaml-rail');
+  if (!(await page.locator('.cm-content').isVisible()) && (await page.locator('button.yaml-rail').count())) await page.click('button.yaml-rail');
+  if (!(await page.locator('.cm-content').isVisible())) await page.click('.view-switch button:has-text("YAML")');
+  await page.waitForTimeout(300);
   await page.click('.cm-content');
   await page.keyboard.press('Meta+End');
   await page.keyboard.type('\n# reviewed by the data office');

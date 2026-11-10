@@ -2399,11 +2399,13 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* Decisions in one click, with its count, like Notes (review 3: it hid in ⋯). */}
+              {/* Decisions in one click, with its count, like Notes, once there are any (review 3: they hid in ⋯); the first one is written from ⋯. */}
+              {(decisionsTool.count > 0 || decisionsOpen) && (
               <button className={decisionsOpen ? 'tool active' : 'tool'} onClick={() => decisionsTool.toggle()} title={`Architecture decisions (${keyHint('decisions')})`} aria-pressed={decisionsOpen} aria-label={`Decisions${decisionsTool.count ? `, ${decisionsTool.count}` : ''}`}>
                 <Icon name="scroll-text" />
                 {decisionsTool.count > 0 && <span className="tool-count">{decisionsTool.count}</span>}
               </button>
+              )}
               {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
                 <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: compare with an earlier version, zoom to the selection, grid, minimap">
@@ -2422,6 +2424,11 @@ export function App() {
                     {!stepList.length && (
                       <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
+                      </button>
+                    )}
+                    {!(decisionsTool.count > 0 || decisionsOpen) && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
+                        <Icon name="scroll-text" /> Decisions <kbd>{keyHint('decisions')}</kbd>
                       </button>
                     )}
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
