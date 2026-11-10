@@ -34,6 +34,8 @@ await page.addInitScript(() => {
   if (!next) return;
   sessionStorage.removeItem('seed');
   localStorage.clear();
+  // The inspector with "More" open: threats, trust and encryption are rarer fields.
+  localStorage.setItem('cartography:inspectorMore', 'true');
   const { text, name } = JSON.parse(next);
   for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
 });
@@ -100,7 +102,7 @@ await wait(500);
   await page.keyboard.press('Escape');
   await page.locator('.drawing [data-group="app"]').click({ position: { x: 30, y: 12 } });
   await wait();
-  const trust = page.locator('.inspector .field:has(> span:text-is("Trust")) input');
+  const trust = page.locator('.inspector .field:has(> span:text-is("Trust boundary")) input');
   if (!(await trust.count())) fail('the group inspector has no Trust switch');
   else if (!(await trust.isChecked())) fail('the Trust switch is off for a trust boundary');
 }

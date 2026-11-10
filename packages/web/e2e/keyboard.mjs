@@ -61,5 +61,41 @@ await written('app-service -> sql-database: SQL');
 const y2 = await yaml();
 if (!/app-service -> sql-database: SQL/.test(y2)) problems.push('connect + label by keyboard failed:\n' + y2);
 await page.screenshot({ path: `${out}/k-done.png` });
+
+// YAML by hand: typed with its own indentation, typed leaning on Enter's, and Tab, all stay valid YAML.
+{
+  const lines = () => page.evaluate(() => [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Meta+a');
+  await page.keyboard.press('Delete');
+  const want = 'type: sequence\ntitle: Login\nmessages:\n  - user -> web: Sign in\n  - web --> user: Welcome\n  - alt: ok\n    messages:\n      - web -> user: Hi';
+  await page.keyboard.type(want);
+  if ((await lines()) !== want) problems.push('YAML typed with its own indentation came out indented twice:\n' + (await lines()));
+  // Enter's indentation: after a key one level deeper, after a plain list item the next item lines up.
+  await page.keyboard.press('Meta+a');
+  await page.keyboard.press('Delete');
+  for (const l of ['messages:', '- a -> b: one', '- b --> a: two']) {
+    await page.keyboard.type(l);
+    await page.keyboard.press('Enter');
+  }
+  if (!(await lines()).startsWith('messages:\n  - a -> b: one\n  - b --> a: two')) problems.push('Enter after a list item did not line the next one up:\n' + (await lines()));
+  // Tab in the middle of a line puts spaces there; the line keeps its place. Never a tab character.
+  await page.keyboard.press('Meta+a');
+  await page.keyboard.press('Delete');
+  await page.keyboard.type('title:');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Login');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('x');
+  const t = await lines();
+  if (!t.startsWith('title:  Login\n  x') || t.includes('\t')) problems.push('Tab did not indent with spaces where the cursor is: ' + JSON.stringify(t));
+  // Esc, then Tab leaves the editor (the first Esc closes the suggestions, if any are open).
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Tab');
+  if (await page.evaluate(() => !!document.activeElement?.closest('.cm-editor'))) problems.push('Esc, then Tab did not leave the YAML');
+  await page.keyboard.press('Meta+z');
+}
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'keyboard journey ok');
 await browser.close();

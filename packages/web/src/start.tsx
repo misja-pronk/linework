@@ -11,7 +11,7 @@ import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
 import { failure, generate, MODELS, type ModelId } from './ai/claude.ts';
-import { importMarkdown, importMermaid } from '@cartography/import';
+import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 
 export type View = 'visual' | 'code';
@@ -146,7 +146,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
                   ? 'All templates and examples'
                   : `${typeName(typeId)}: pick a start`
                 : step === 'import'
-                  ? 'Import from Mermaid, draw.io or Excalidraw'
+                  ? 'Import from Mermaid, D2, PlantUML, draw.io or Excalidraw'
                   : step === 'mode'
                     ? `${starter!.title}`
                     : `Describe it · ${typeName(starter!.type)}`}
@@ -222,7 +222,24 @@ function useThumbs(list: Starter[], theme: 'light' | 'dark') {
       stop = true;
     };
   }, [ids, theme]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (s: Starter) => thumbs.get(`${theme}:${s.id}`);
+  return (s: Starter, box?: { w: number; h: number }) => filled(thumbs.get(`${theme}:${s.id}`), box);
+}
+
+/**
+ * A thumbnail big enough to read: a drawing that would shrink below a third of its size shows its middle
+ * at that size instead of the whole of it, filling the card (`box`: the card's thumbnail area in px).
+ */
+function filled(svg: string | undefined, box = { w: 240, h: 130 }): string | undefined {
+  const m = svg && /^<svg[^>]*\sviewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  if (!svg || !m) return svg;
+  const [w, h] = [Number(m[1]), Number(m[2])];
+  const fit = Math.min(box.w / w, box.h / h);
+  const scale = Math.max(fit, 0.3);
+  if (scale <= fit * 1.05) return svg;
+  const vw = Math.min(w, box.w / scale);
+  const vh = Math.min(h, box.h / scale);
+  const view = `${((w - vw) / 2).toFixed(1)} ${((h - vh) / 2).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`;
+  return svg.replace(/viewBox="[^"]*"/, `viewBox="${view}" preserveAspectRatio="xMidYMid slice"`);
 }
 
 /** Arrow keys through a grid of cards; columns from the layout (cards on the first row share its top). Returns the new index. */
@@ -304,8 +321,8 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
         <button className="chip import-chip" onClick={() => onChoose('all')} title="Every template and example, of every type">
           <Icon name="layout-grid" size={13} /> All templates
         </button>
-        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
-          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, draw.io or Excalidraw
+        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid, D2 or PlantUML diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
+          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, D2, PlantUML, draw.io or Excalidraw
         </button>
       </div>
       <p className="type-hint" role="status">
@@ -324,7 +341,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
       <div className="type-grid" ref={grid} onKeyDown={onGridKey}>
         {ranked.map(({ type: t, score }, i) => {
           const s = typeTemplates.find((x) => x.type === t.id);
-          const svg = s && thumb(s);
+          const svg = s && thumb(s, { w: 222, h: 80 });
           const notFor = t.notFor ?? [];
           const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === t.id && 'flash', t.id === current && 'current'];
           return (
@@ -340,11 +357,14 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                   <span className="type-name">{t.name}</span>
                   {matched && i === 0 ? <span className="type-badge">Best match</span> : t.id === current ? <span className="type-badge quiet">This diagram</span> : null}
                 </span>
-                {t.tagline && <span className="type-tagline">{t.tagline}</span>}
+                <span className="type-tagline">
+                  <code className="type-yaml" title="What the YAML says">type: {t.id}</code>
+                  {t.tagline && <> · {t.tagline}</>}
+                </span>
                 {!!t.useWhen?.length && (
-                  <span className="type-use">
+                  <span className="type-use" title={t.useWhen.length > 2 ? t.useWhen.join('\n') : undefined}>
                     <span className="type-label">Use when</span>
-                    {t.useWhen.map((u) => (
+                    {t.useWhen.slice(0, 2).map((u) => (
                       <span key={u} className="type-bullet">
                         {u}
                       </span>
@@ -353,22 +373,22 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                 )}
               </button>
               <div className="type-foot">
-                {notFor.length > 0 && (
+                {/* Where to go instead, as links; what each is for is in its tooltip. Compact, so more types fit. */}
+                {notFor.some((n) => pointsTo(n.use)) && (
                   <div className="type-not">
-                    <span className="type-label">Not for</span>
-                    {notFor.map((n) => {
-                      const use = pointsTo(n.use);
-                      return (
-                        <span key={n.text} className="type-not-item">
-                          {n.text}
-                          {use && (
-                            <button className="link" onClick={() => jump(use)} title={`Show ${typeName(use)}`}>
+                    <span className="type-label">Not for this? Try</span>
+                    <span className="type-not-links">
+                      {notFor.map((n) => {
+                        const use = pointsTo(n.use);
+                        return (
+                          use && (
+                            <button key={n.text} className="link" onClick={() => jump(use)} title={`${n.text}: ${typeName(use)}`}>
                               → {typeName(use)}
                             </button>
-                          )}
-                        </span>
-                      );
-                    })}
+                          )
+                        );
+                      })}
+                    </span>
                   </div>
                 )}
                 <span className="type-count">
@@ -455,13 +475,18 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
       <div className="template-grid" ref={grid} onKeyDown={onGridKey}>
         {shown.map((s, i) => {
           const svg = thumb(s);
+          // Two of the same title (a web shop as a system and as its deployment): the subtitle tells them apart.
+          const twin = s.subtitle && shown.some((o) => o !== s && o.title === s.title);
           return (
             <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={i === 0} tabIndex={i === active ? 0 : -1} onFocus={() => setActive(i)}>
               <div className="thumb" aria-hidden="true">
                 {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}
               </div>
               <div className="template-meta">
-                <span className="template-title">{s.title}</span>
+                <span className="template-title">
+                  {s.title}
+                  {twin && <span className="template-twin"> · {s.subtitle}</span>}
+                </span>
                 <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
                   {s.kind === 'template' ? 'Template' : 'Example'}
                   {type ? (s.kind === 'template' ? ': the smallest start' : ` · ${s.file}`) : ` · ${typeName(s.type)}`}
@@ -841,7 +866,8 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
         const pages = drawing === 'Excalidraw' ? [importExcalidraw(text, opts)] : importDrawio(text, opts);
         return pages.map((p) => ({ yaml: p.yaml, warnings: p.report, name: p.name, pins: p.sidecar }));
       }
-      return /```mermaid/.test(text) ? importMarkdown(text) : [importMermaid(text)];
+      // Mermaid, D2, PlantUML or Markdown with their blocks: by the file's ending, or by how the text looks.
+      return importText(text, file);
     } catch (e) {
       return [{ yaml: '', warnings: [e instanceof Error ? e.message : String(e)] }];
     }
@@ -852,7 +878,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
   const choose = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.drawio,.dio,.xml,.excalidraw,.json,.mmd,.mermaid,.md';
+    input.accept = '.drawio,.dio,.xml,.excalidraw,.json,.mmd,.mermaid,.d2,.puml,.plantuml,.md';
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return;
@@ -866,7 +892,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey, or a draw.io or Excalidraw file
+          <Icon name="clipboard-paste" size={14} /> Paste Mermaid, D2 or PlantUML, or open a draw.io or Excalidraw file
         </div>
         <textarea
           className="paste mono"
@@ -880,7 +906,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
           spellCheck={false}
         />
         <div style={{ display: 'flex', gap: 8, margin: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd or .md file from your computer; it is read here, in the browser">
+          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd, .d2, .puml or .md file from your computer; it is read here, in the browser">
             <Icon name="folder-open" /> Choose a file…
           </button>
           {!text && (
@@ -897,7 +923,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
       </div>
       <div className="ask-preview">
         {blocks.length > 1 && (
-          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Mermaid block'}>
+          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Diagram'}>
             {blocks.map((b, i) => (
               <button key={i} role="radio" aria-checked={i === block} className={i === block ? 'active' : ''} onClick={() => setBlock(i)}>
                 {b.name ?? `${drawing ? 'Page' : 'Block'} ${i + 1}`}

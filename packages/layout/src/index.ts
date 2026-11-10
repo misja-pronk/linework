@@ -6,9 +6,10 @@ import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { disorder, measure, score } from './metrics.ts';
+import { disorder, measure, plainLine, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
+import { wrap } from './wrap.ts';
 
 export * from './dot.ts';
 export * from './pins.ts';
@@ -29,8 +30,10 @@ export interface Tuning {
   tidy?: boolean;
   /** Ask dot this way only, instead of trying the usual variants. */
   dot?: DotVariant;
-  /** The source left the direction open: a drawing far wider than a slide may turn top-down. */
+  /** The source left the direction open: a drawing far wider (or taller) than its target shape may turn. */
   autoDirection?: boolean;
+  /** The shape to aim for, width / height (16:9 when not set); 'auto' takes the drawing as it comes. */
+  aspect?: number | 'auto';
   /** 'fit': columns of a left-to-right drawing open up for their longest label (C4's long relationship labels). */
   labelRoom?: 'fit';
   /** With labelRoom 'fit': close each gap between columns to what its own labels need (see squeeze.ts); on unless false. */
@@ -66,12 +69,14 @@ interface VariantKey {
   compact: boolean;
   align: boolean;
   mirror: boolean;
+  /** Cut into this many rows (columns, top-down) by wrap.ts; 0 when not. */
+  wrap: number;
 }
 
 function parseKey(key: string | undefined): VariantKey | undefined {
-  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?$/.exec(key ?? '');
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d))?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
-  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5] } : undefined;
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0) } : undefined;
 }
 
 /** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
@@ -111,17 +116,35 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // would score now. Moving a pin never redraws the rest.
     const d = open ? was.direction : graph.direction;
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn);
+    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
-    // A long chain drawn left to right can end up many times wider than tall: unreadable on a slide
-    // or a page. When the source did not choose a direction, top-down is tried too and kept when it
-    // is better. It is also tried when the previous drawing was top-down, so it can stay that way.
-    if (open && graph.direction === 'right' && (best.placed.width >= WIDE * best.placed.height || stayIn === 'down')) {
-      const down = await choose(turned('down'), spacing, tuning, prev, stayIn === 'down');
-      // Its width is why top-down is tried at all: on a near tie the wide drawing loses, unless the
-      // previous drawing was that one.
-      if (down.cost < best.cost + (was?.direction === 'right' ? 0 : TIE) - 1e-9) best = down;
+    // A long chain drawn left to right can end up many times wider than tall, and a deep tree drawn
+    // top-down many times taller than wide: neither fits a slide or a page. When the source did not
+    // choose a direction, the other one is tried too and kept when its shape is nearer the target
+    // (16:9 unless the source says otherwise) without more crossings or any new error. With a
+    // drawing before this one, that one's direction is tried as well, so it can stay that way.
+    const other = graph.direction === 'right' ? 'down' : 'right';
+    const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
+    const wide = graph.direction === 'right' && best.placed.width >= WIDE * best.placed.height;
+    // Shape alone asks for another try only on a first drawing of a diagram small enough to draw twice.
+    const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF;
+    if (open && (stayIn === other || wide || reshape)) {
+      const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other);
+      const [a, b] = target == null ? [0, 0] : [off(alt.placed, graph, target), off(best.placed, graph, target)];
+      // Without a drawing before, the one that fits the target shape (within OFF) and is clearly
+      // nearer it wins, when it is no worse. Otherwise the better drawing: its shape is why the other
+      // is tried at all, so on a near tie the drawing as asked loses, unless the previous drawing was
+      // that one. A long chain, far off either way, goes top-down there as it always did.
+      const fits = (x: number, y: number) => !was && x <= OFF && x < y - NEARER;
+      if (fits(a, b) && noWorse(alt, best)) best = alt;
+      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins.
+      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
     }
+    // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
+    if (!was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF) best = wrapped(best, spacing, target) ?? best;
+    // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
+    else if (was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap) ?? best;
   }
 
   const s = best.sized;
@@ -144,6 +167,58 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
 
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
+/** The shape a drawing aims for unless the source says otherwise: a slide. */
+const SLIDE = 16 / 9;
+/** Further than this from the target shape (as a log ratio: from about square to 3:1 for 16:9), another shape is tried. */
+const OFF = Math.log(1.8);
+
+/**
+ * How far a drawing's shape is from the target, as a log ratio: 0 is spot on. The shape is that of
+ * the whole picture: the margins, the title (and subtitle) above and the key below, about as render draws them.
+ */
+function off(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
+  const width = p.width + 80;
+  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
+  return Math.abs(Math.log(width / height / target));
+}
+
+/** How much nearer the target shape (log ratio) another drawing has to come to be worth its change. */
+const NEARER = 0.2;
+/** A wrapped drawing may take at most this much more area than the drawing in one row. */
+const ROOM = 1.25;
+
+/** The drawing cut into two or three rows (columns, top-down) when one of those is nearer the target and no worse. */
+function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undefined {
+  const s = best.sized;
+  let found: Choice | undefined;
+  for (const parts of [2, 3]) {
+    const c = rewrap(best, spacing, parts);
+    if (!c) continue;
+    const placed = c.placed;
+    const ref = found ?? best;
+    // And it may not mostly add room: what it saves in length it should not spend twice over in height.
+    const roomy = placed.width * placed.height > ROOM * best.placed.width * best.placed.height;
+    if (!roomy && off(placed, s.graph, target) < off(ref.placed, s.graph, target) - NEARER && noWorse(c, best)) found = c;
+  }
+  return found;
+}
+
+/** The drawing cut into `parts` rows (columns), its key saying so, so the next drawing can be cut the same way. */
+function rewrap(best: Choice, spacing: Spacing, parts: number): Choice | undefined {
+  const s = best.sized;
+  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth);
+  if (!q) return undefined;
+  const placed = normalise({ ...q, edges: route(s, q) });
+  const sc = score(measure(s.graph, placed, s.groupHeader, s.groupMinWidth));
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d$/, '')}w${parts}`, sized: s };
+}
+
+/** A drawing with no more crossings than another and none of the errors (lines through boxes, covered labels, overlaps) that one is free of. */
+function noWorse(a: Choice, b: Choice): boolean {
+  const ma = measure(a.sized.graph, a.placed, a.sized.groupHeader, a.sized.groupMinWidth);
+  const mb = measure(b.sized.graph, b.placed, b.sized.groupHeader, b.sized.groupMinWidth);
+  return ma.crossings <= mb.crossings && ma.edgeThroughNode <= mb.edgeThroughNode && ma.labelOverlaps <= mb.labelOverlaps && ma.overlaps <= mb.overlaps;
+}
 /** How much better (in score) the wide drawing must be to be kept over the top-down one. */
 const TIE = 1;
 
@@ -172,13 +247,43 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     if (kept) {
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const sc = score(measure(graph, placed, sized.groupHeader, sized.groupMinWidth));
+      const m = measure(graph, placed, sized.groupHeader, sized.groupMinWidth);
+      const sc = score(m);
       const cost = sc + moveCost(kept, prev);
+      // Staying put never turns a line against the reading direction: a line drawn between two nodes
+      // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
+      const against = upstream(graph, kept, prev) > upstream(graph, best!.p, prev);
       // Only when it differs: a fresh placement that is exactly the previous one is not "held".
-      if (cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
+      if (!against && cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
     }
   }
   return best!;
+}
+
+/**
+ * Lines whose far end comes before their near end in reading order: back along the flow, or, with
+ * both ends in one layer, up (left in a top-down drawing). Only lines between two nodes the previous
+ * drawing had, one of them with no other line: that end was placed with nothing to go by, so where it
+ * stands says nothing worth keeping.
+ */
+function upstream(graph: Graph, p: Placement, prev: LayoutMemory): number {
+  const down = graph.direction === 'down';
+  const degree = new Map<string, number>();
+  for (const e of graph.edges) for (const id of [e.from.node, e.to.node]) degree.set(id, (degree.get(id) ?? 0) + 1);
+  let n = 0;
+  for (const e of graph.edges) {
+    if (degree.get(e.from.node)! > 1 && degree.get(e.to.node)! > 1) continue;
+    if (!prev.nodes?.has(e.from.node) || !prev.nodes.has(e.to.node)) continue;
+    const a = p.nodes.get(e.from.node);
+    const b = p.nodes.get(e.to.node);
+    if (e.loose || !a || !b || e.from.node === e.to.node) continue;
+    const [along, across] = down ? (['y', 'x'] as const) : (['x', 'y'] as const);
+    const size = down ? 'height' : 'width';
+    const before = b[along] + b[size] <= a[along];
+    const level = b[along] < a[along] + a[size] && a[along] < b[along] + b[size];
+    if (before || (level && b[across] < a[across] - 1)) n++;
+  }
+  return n;
 }
 
 function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
@@ -260,7 +365,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
       const sc = score(m);
       // Close to the previous drawing counts; with only its variant known, being that variant does
       // (in a mirror or not: that follows the order in the source, which may have changed).
-      const way = (k: string) => k.replace(/m?-?$/, '');
+      const way = (k: string) => k.replace(/w\d$/, '').replace(/m?-?$/, '');
       const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && way(prev.variant) !== way(key) ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }
@@ -308,7 +413,9 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     const from = end(e.from, e.start);
     const to = end(e.to, e.end);
     // Dotted lines (lookups, management) route last, so the main flow gets the best paths.
-    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), says: e.label && e.step == null ? `${e.label}|${e.icon ?? ''}` : undefined, order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
+    // Only plain lines share a trunk (see plainLine): what is written on a shared trunk could belong to either line.
+    const style = plainLine(e) ? `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}` : undefined;
+    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
   }
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);

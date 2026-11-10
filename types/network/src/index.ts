@@ -472,6 +472,8 @@ export const network: DiagramType<NetworkSource> = {
   schema: schema(),
   palette,
   build,
+  // Internet at the top is what a network drawing says: the layout never turns it for its shape.
+  tuning: { autoDirection: false },
   references: graphReferences,
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';

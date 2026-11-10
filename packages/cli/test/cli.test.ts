@@ -282,3 +282,57 @@ describe('threats and share', () => {
     expect(no.err).toContain('Share the file itself instead');
   });
 });
+
+describe('carto errors and help', () => {
+  it('says a missing file in one line and exits 1, for every command that reads one', () => {
+    for (const args of [['render', 'missing.yaml'], ['validate', 'missing.yaml'], ['share', 'missing.yaml'], ['threats', 'missing.yaml'], ['export', 'missing.yaml', '-o', 'x.drawio'], ['deck', 'missing.yaml', '-o', 'd.pptx'], ['import', 'missing.mmd']]) {
+      const r = carto(...args);
+      expect(r.code, args.join(' ')).toBe(1);
+      expect(r.err.trim(), args.join(' ')).toBe(`carto: ${args[1]}: no such file or folder`);
+      expect(r.err).not.toMatch(/ENOENT|\n\s+at /);
+    }
+  }, 120_000);
+
+  it('suggests the command meant, with a short usage instead of the whole manual', () => {
+    const r = carto('rendr', 'x.yaml');
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('Did you mean "carto render"?');
+    expect(r.err.split('\n').length).toBeLessThan(6);
+    const nothing = carto('frobnicate');
+    expect(nothing.err).not.toContain('Did you mean');
+    expect(nothing.err).toContain('carto --help');
+  }, 120_000);
+
+  it('has short top-level help, help per command, and the full list on request', () => {
+    const top = carto('--help');
+    expect(top.code).toBe(0);
+    expect(top.out).toMatch(/Draw:\n {2}render/);
+    expect(top.out.split('\n').length).toBeLessThan(35);
+    const render = carto('render', '--help');
+    expect(render.code).toBe(0);
+    expect(render.out).toContain('carto render <file.yaml…>');
+    expect(render.out).not.toMatch(/^  carto import/m);
+    expect(carto('help', 'diff').out).toContain('carto diff --git');
+    expect(carto('help', 'all').out.split('\n').length).toBeGreaterThan(80);
+    const bad = carto('render', 'x.yaml', '--bogus');
+    expect(bad.code).toBe(1);
+    expect(bad.err).toBe("carto: Unknown option '--bogus'\nOptions: carto render --help\n");
+  }, 120_000);
+
+  it('shares to the dev server by default', () => {
+    write('one.yaml', 'type: systems\nnodes:\n  a: service\n');
+    expect(carto('share', 'one.yaml').out).toMatch(/^http:\/\/localhost:5178\/#/);
+  }, 120_000);
+
+  it('takes -o as a folder only when it ends in / or has no extension', () => {
+    write('views.yaml', shop);
+    const r = carto('render', 'views.yaml', '--all-views', '-o', 'x.png');
+    expect(r.code).toBe(1);
+    expect(r.err).toMatch(/^carto: -o x\.png names one file, but --all-views writes one per view: give a folder, e\.g\. -o x\//);
+    expect(exists('x.png')).toBe(false);
+    expect(carto('render', 'views.yaml', '--all-views', '-o', 'pics/').code).toBe(0);
+    expect(exists('pics/views-data.svg')).toBe(true);
+    expect(carto('render', 'views.yaml', '-o', 'one.svg').code).toBe(0);
+    expect(fs.statSync(path.join(tmp, 'one.svg')).isFile()).toBe(true);
+  }, 120_000);
+});

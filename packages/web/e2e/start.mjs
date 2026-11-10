@@ -170,5 +170,36 @@ await page.keyboard.press('Enter');
 await wait(500);
 if (!(await yaml()).includes('title: Payments')) fail('title not renamed in place');
 
+// The picker at 1440×900: four types in view, each with the name its YAML uses; a type's starts show
+// no drawing twice; and once the dialog is left it does not come back at the next launch.
+{
+  const p2 = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await p2.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await p2.evaluate(() => localStorage.clear());
+  await p2.reload();
+  await p2.waitForSelector('.type-card');
+  await p2.waitForTimeout(500);
+  const whole = await p2.locator('.type-card').evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().bottom <= e.closest('.type-grid').getBoundingClientRect().bottom + 1).length);
+  if (whole < 4) fail(`only ${whole} type cards fit at 1440×900`);
+  if (!(await p2.locator('.type-card[data-type="systems"] .type-yaml').innerText()).includes('type: systems')) fail('the Architecture card does not say type: systems');
+  await p2.getByPlaceholder('Describe what you want to show').fill('azure');
+  await p2.keyboard.press('Enter');
+  await p2.waitForSelector('.template-card');
+  const cards = await p2.locator('.template-card .template-meta').allInnerTexts();
+  if (cards.some((c) => c.includes('web-shop.yaml'))) fail('the Azure template and web-shop.yaml (the same drawing) are both offered: ' + cards.join(' | '));
+  const titles = await p2.locator('.template-card .template-title').allInnerTexts();
+  if (new Set(titles).size !== titles.length) fail('two starts with the same name: ' + titles.join(' | '));
+  await p2.screenshot({ path: `${out}/start-azure.png` });
+  await p2.click('button[aria-label="Close"]').catch(() => p2.keyboard.press('Escape'));
+  await p2.waitForTimeout(300);
+  if (await p2.locator('.type-grid, .template-grid').count()) await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(300);
+  await p2.reload();
+  await p2.waitForSelector('.drawing svg');
+  await p2.waitForTimeout(600);
+  if (await p2.locator('.type-grid, .template-grid').count()) fail('the start dialog came back at launch after it was left');
+  await p2.close();
+}
+
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'start flow OK');
 await browser.close();

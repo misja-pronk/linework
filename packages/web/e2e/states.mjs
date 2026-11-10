@@ -30,6 +30,8 @@ await page.addInitScript(
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
+    // The inspector with "More" open: these steps check every field.
+    localStorage.setItem('cartography:inspectorMore', 'true');
     for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'states.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
   },
   [text],

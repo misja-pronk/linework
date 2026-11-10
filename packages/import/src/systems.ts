@@ -29,6 +29,8 @@ export interface SysEdge {
 export interface SysDiagram {
   title?: string;
   direction: 'right' | 'down';
+  /** The source says which way: written even when it is the default, so the layout keeps it. */
+  explicit?: boolean;
   groups: SysGroup[];
   nodes: SysNode[];
   edges: SysEdge[];
@@ -64,7 +66,7 @@ const rules: [string, RegExp][] = [
   ['mobile', /\b(mobile|ios|android|phone|react native|flutter)\b/],
   ['desktop', /\b(desktop|electron)\b/],
   ['device', /\b(iot|devices?|sensors?|meters?|thermostats?)\b/],
-  ['client', /\b(browser|frontend|front-end|web ?app|webapp|spa|ui|web client|website|portal|dashboards?|web|desktop|globe)\b/],
+  ['client', /\b(browser|storefront|frontend|front-end|web ?app|webapp|spa|ui|web client|website|portal|dashboards?|web|desktop|globe)\b/],
   ['external', /\b(external|third[- ]party|3rd party|partners?|vendors?|saas|legacy|upstream|internet|github|slack|twilio|salesforce)\b/],
   ['service', /\b(services?|svc|microservices?|backend|back-end)\b/],
 ];
@@ -103,7 +105,7 @@ const groupLabels = Object.fromEntries(Object.entries(config.groupKinds).map(([k
 export function systemsYaml(d: SysDiagram): string {
   const out: string[] = ['type: systems'];
   if (d.title) out.push(`title: ${scalar(d.title)}`);
-  if (d.direction === 'down') out.push('direction: down');
+  if (d.direction === 'down' || d.explicit) out.push(`direction: ${d.direction}`);
   // The kind is a guess from the words: it gives the icon, but its name is not put under a label the source wrote.
   const entry = (id: string, kind: string, label: string | undefined, parent: string | undefined, known: Record<string, string>, table: typeof config.nodeKinds) => {
     const l = label === known[kind] || label === undefined ? undefined : label;

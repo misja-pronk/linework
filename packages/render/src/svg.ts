@@ -1,6 +1,6 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Placed, type Point, type TableShape } from '@cartography/core';
+import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { arrowBack, arrowHead, endMarker as marker, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
@@ -552,6 +552,8 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   return s;
 }
 
+const COUNTED = new Set<Marker>(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
+
 /**
  * A dot where a shared trunk splits: lines drawn alike that start (or end) at the same point and
  * run on top of each other, then part. Without it a branch looks like a line that just bends.
@@ -564,6 +566,8 @@ function junctions(graph: Graph, placed: Placed, theme: Theme): string {
       if (a.line !== b.line || a.tone !== b.tone) continue;
       const pa = placed.edges.get(a.id)!.points;
       const pb = placed.edges.get(b.id)!.points;
+      // Lines into one key row of a table come in as one with no dot: a ring there would read as one more end mark.
+      if (a.to.node === b.to.node && a.to.row && COUNTED.has(a.end)) continue;
       const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;
       if (at) dots.set(`${r1(at.x)},${r1(at.y)}`, junctionMark(at, edgeColor(a, theme), theme));
     }

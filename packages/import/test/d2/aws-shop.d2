@@ -1,0 +1,75 @@
+# A web shop on AWS, the way D2 docs and blog posts draw it.
+vars: {
+  region: eu-west-1
+}
+
+title: |md
+  # Web shop on AWS
+| {near: top-center}
+
+direction: right
+
+customer: Customer {shape: person}
+
+aws: AWS {
+  icon: https://icons.terrastruct.com/aws%2F_Group%20Icons%2FAWS-Cloud-alt_light-bg.svg
+
+  cdn: CloudFront {
+    icon: https://icons.terrastruct.com/aws%2FNetworking%20&%20Content%20Delivery%2FAmazon-CloudFront.svg
+  }
+
+  vpc: VPC ${region} {
+    public: Public subnet {
+      alb: Load balancer {
+        icon: https://icons.terrastruct.com/aws%2FNetworking%20&%20Content%20Delivery%2FElastic-Load-Balancing.svg
+      }
+    }
+    private: Private subnet {
+      api: Orders API {
+        icon: https://icons.terrastruct.com/aws%2FCompute%2FAmazon-Elastic-Container-Service.svg
+      }
+      worker: Fulfilment worker {
+        icon: https://icons.terrastruct.com/aws%2FCompute%2FAWS-Lambda.svg
+      }
+      db: Orders DB {
+        shape: cylinder
+        icon: https://icons.terrastruct.com/aws%2FDatabase%2FAmazon-RDS.svg
+
+        orders: {
+          shape: sql_table
+          id: uuid {constraint: primary_key}
+          customer_id: uuid {constraint: foreign_key}
+          total: "numeric(10,2)"
+          placed_at: timestamptz
+        }
+        customers: {
+          shape: sql_table
+          id: uuid {constraint: primary_key}
+          email: text {constraint: unique}
+        }
+        orders.customer_id -> customers.id
+      }
+    }
+  }
+
+  queue: order-events {
+    shape: queue
+    icon: https://icons.terrastruct.com/aws%2FApplication%20Integration%2FAmazon-Simple-Queue-Service-SQS.svg
+  }
+  assets: Static assets {
+    icon: https://icons.terrastruct.com/aws%2FStorage%2FAmazon-Simple-Storage-Service-S3.svg
+  }
+}
+
+stripe: Stripe {style.fill: "#635bff"}
+
+
+customer -> aws.cdn: HTTPS
+aws.cdn -> aws.assets: static files
+aws.cdn -> aws.vpc.public.alb: /api
+aws.vpc.public.alb -> aws.vpc.private.api
+aws.vpc.private.api -> aws.vpc.private.db: SQL
+aws.vpc.private.api -> aws.queue: OrderPlaced {style.stroke-dash: 3}
+aws.queue -> aws.vpc.private.worker {style.stroke-dash: 3}
+aws.vpc.private.api -> stripe: charge
+aws.vpc.private.worker -> customer: confirmation email

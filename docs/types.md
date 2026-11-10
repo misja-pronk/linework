@@ -313,12 +313,12 @@ participants:
   shopper: person                 # person, client, service, api, database, queue, topic, external, …
   orders: { kind: service, label: Orders, box: shop }
   psp: { kind: payments, label: Stripe }
-steps:
+messages:
   - shopper -> orders: Place order          # call: opens an activation on orders
   - orders -> orders: Validate cart         # self-call
   - orders ->> psp: Create payment          # async message
   - alt: Paid                               # frames: alt/else, opt, loop, par/and, break, critical, group
-    steps:
+    messages:
       - psp --> orders: succeeded           # reply (dashed), closes the activation
     else:
       Declined:
@@ -330,6 +330,8 @@ steps:
     over: [shopper, orders]
     link: shipping.yaml
 ```
+
+The messages are listed under `messages:` (inside a frame too). Older files that call them `steps:` still draw, with a warning: everywhere else `steps:` are the presenting steps.
 
 Activations follow the calls: a call opens one on the receiver and its reply closes it; one that is never answered ends where its lifeline last takes part. `activations: explicit` draws only the ones you ask for (`a -> +b`, `b --> -a`, `activate: b`, `deactivate: b`), which is what a Mermaid import with `activate` or `+`/`-` gives. `footers: true` repeats the participants under the lifelines.
 

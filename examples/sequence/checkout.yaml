@@ -14,7 +14,7 @@ participants:
   bus: { kind: topic, label: order-events, box: shop }
   psp: { kind: payments, label: Stripe }
 
-steps:
+messages:
   - shopper -> web: Place order
   - web -> orders: POST /orders
   - orders -> orders: Validate cart and prices
@@ -28,7 +28,7 @@ steps:
   - note: The order stays pending until the webhook arrives, never on the browser's word
     over: [orders, psp]
   - alt: Payment succeeded
-    steps:
+    messages:
       - psp ->> orders: webhook payment_intent.succeeded
       - orders -> db: UPDATE order SET status = paid
       - db --> orders: ok
