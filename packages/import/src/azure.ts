@@ -357,7 +357,7 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   if (subOk || rgOk) {
     // What the chosen resources lead to comes along, so a private endpoint's target or a gateway's backend is not cut off.
     const more = new Set<AzResource>();
-    for (const r of picked) for (const x of relsOf(r)) if (drawable(x.to) && !chosen(x.to) && /target|lb|member|gateway|remote/.test(x.rel)) more.add(x.to);
+    for (const r of picked) for (const x of relsOf(r)) if (drawable(x.to) && !chosen(x.to) && /target|lb|member|gateway|remote|logs|vault/.test(x.rel)) more.add(x.to);
     if (more.size) warn.add(`${plural(more.size, 'resource')} outside ${[opts.subscription, opts.rg].filter(Boolean).join(', ')} drawn too, since what is inside leads to them`);
     picked = [...picked, ...more];
   }
@@ -426,7 +426,8 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   }
   for (const v of vnets) mark(placeIn(containerKey(byKey.get(v)!)));
   // Management groups tell the story of a landing zone; above one subscription they are only a frame.
-  if ([...usedContainers].filter((k) => estate.containers.get(k)?.kind === 'subscription').length < 2) for (const k of [...usedContainers]) if (estate.containers.get(k)?.kind === 'management-group') usedContainers.delete(k);
+  // A part picked with --subscription or --rg is about that part: no frame of management groups around it.
+  if (subOk || rgOk || [...usedContainers].filter((k) => estate.containers.get(k)?.kind === 'subscription').length < 2) for (const k of [...usedContainers]) if (estate.containers.get(k)?.kind === 'management-group') usedContainers.delete(k);
   const containers = [...usedContainers].map((k) => estate.containers.get(k)!).filter(Boolean);
   const isPlaceholder = (c: AzContainer) => c.key.endsWith(`/${TARGET_RG}`) || c.key === `/subscriptions/${TARGET_SUB}`;
   for (const c of containers) {
@@ -462,7 +463,7 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     if (r.type === 'microsoft.network/localnetworkgateways') return r.cidr;
     if (r.type === 'microsoft.cdn/profiles') return /premium/i.test(r.sku ?? '') ? 'Premium' : undefined;
     if (/^microsoft\.(storage|network\/(publicip|privateendpoints|privatednszones))/.test(r.type)) return undefined;
-    return r.sku && !/^(standard|basic|default|free|pergb2018|standalone|s0)$/i.test(r.sku) ? r.sku.replace(/_/g, ' ') : undefined;
+    return r.sku && !/^(standard|basic|default|free|pergb2018|standalone|s0|base)$/i.test(r.sku) ? r.sku.replace(/_/g, ' ') : undefined;
   };
   for (const r of picked) {
     const spec = specOf.get(r.key)!;
@@ -574,7 +575,7 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   // ---- ids: readable, from the name. What an earlier import called something stays, so pins and hand edits hold.
   // Key Vault references and diagnostics are on nearly everything: a badge on the card, not a line across the picture.
   const badges = ['identity', 'management'].filter((s) => lines.some((l) => l.style === s));
-  const kept = Kept.open('azure', opts.existing, { title: opts.title ?? titleOf(estate), subtitle: subtitleOf(estate), ...(badges.length ? { badges } : {}) });
+  const kept = Kept.open('azure', opts.existing, { title: opts.title ?? titleOf(subOk || rgOk ? containers.filter((c) => all.some((r) => chosen(r) && drawn.has(r.key) && c.key === `/subscriptions/${r.sub}`)) : containers), subtitle: subtitleOf(estate), ...(badges.length ? { badges } : {}) });
   if (typeof kept === 'string') return { ...nothing(kept), problems: [...problems, { message: kept, severity: 'error' }] };
   if (kept.fresh && badges.length) (kept.doc.get('badges', true) as { flow: boolean }).flow = true;
   const before = { groups: kept.before('groups'), nodes: kept.before('nodes') };
@@ -626,9 +627,9 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     const old = was(id);
     if (old && old.at !== to) kept.drop(old.at, id);
     const tags = [...new Set([IMPORTED, ...(Array.isArray(old?.tags) ? old.tags.map(String) : [])])];
-    // The tone is the import's while it marks a change of a plan; one chosen by hand stays.
+    // The tone is the import's while it marks a change of a plan; one chosen by hand stays. A counted card's label is a count: the import's.
     const marked = !!it.badges || (Array.isArray(old?.badges) && old.badges.some((b) => String(b) in TONE));
-    kept.put(to, id, { kind: it.kind, label: it.label, caption: it.caption, in: it.in && idOf.get(it.in), badges: it.badges, tone: it.badges ? TONE[it.badges[0]!] : undefined, tags }, ['kind', 'caption', 'in', 'badges', 'tags', ...(marked ? ['tone'] : [])]);
+    kept.put(to, id, { kind: it.kind, label: it.label, caption: it.caption, in: it.in && idOf.get(it.in), badges: it.badges, tone: it.badges ? TONE[it.badges[0]!] : undefined, tags }, ['kind', 'caption', 'in', 'badges', 'tags', ...(marked ? ['tone'] : []), ...(it.key.includes('#') ? ['label'] : [])]);
   }
 
   // Lines: those of a style the import speaks for, between what it made, follow it; any other one stays.
@@ -668,12 +669,12 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
 
   const subs = containers.filter((c) => c.kind === 'subscription').length;
   const rgs = containers.filter((c) => c.kind === 'resource-group').length;
-  const summary = [plural(all.filter((r) => specOf.has(r.key) && owner(r) === r).length, 'resource'), ...(subs ? [plural(subs, 'subscription')] : []), ...(rgs ? [plural(rgs, 'resource group')] : []), ...(vnets.size ? [plural(vnets.size, 'network')] : [])].join(', ') + `; ${plural(nodes.length, 'card')} drawn`;
+  const summary = [plural(all.filter((r) => owner(r) === r && !/\/(subnets|diagnosticsettings)$/.test(r.type)).length, 'resource'), ...(subs ? [plural(subs, 'subscription')] : []), ...(rgs ? [plural(rgs, 'resource group')] : []), ...(vnets.size ? [plural(vnets.size, 'network')] : [])].join(', ') + `; ${plural(nodes.length, 'card')} drawn`;
   return { yaml: kept.text(), warnings: warn.list, problems, read, skipped, summary };
 }
 
-function titleOf(estate: Estate): string {
-  const subs = [...estate.containers.values()].filter((c) => c.kind === 'subscription' && !/^Subscription( [0-9a-f]{8})?$/.test(c.name));
+function titleOf(containers: AzContainer[]): string {
+  const subs = containers.filter((c) => c.kind === 'subscription' && !/^Subscription( [0-9a-f]{8})?$/.test(c.name));
   return subs.length === 1 ? subs[0]!.name : 'Azure estate';
 }
 

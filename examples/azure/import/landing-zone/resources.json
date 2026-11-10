@@ -1,5 +1,5 @@
 {
-  "count": 132,
+  "count": 145,
   "data": [
     {
       "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-management/providers/Microsoft.OperationalInsights/workspaces/log-kestrel-platform",
@@ -783,6 +783,300 @@
       "extendedLocation": null
     },
     {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump01",
+      "name": "nic-vm-hub-jump01",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump01/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.0.2.10",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/virtualNetworks/vnet-hub-weu/subnets/snet-shared"
+              }
+            }
+          }
+        ],
+        "virtualMachine": {
+          "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump01"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump01",
+      "name": "vm-hub-jump01",
+      "type": "microsoft.compute/virtualmachines",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "hardwareProfile": {
+          "vmSize": "Standard_B2ms"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump01"
+            }
+          ]
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "osdisk-vm-hub-jump01",
+            "managedDisk": {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-jump01"
+            }
+          }
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-jump01",
+      "name": "osdisk-vm-hub-jump01",
+      "type": "microsoft.compute/disks",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump01",
+      "sku": {
+        "name": "Premium_LRS",
+        "tier": "Premium"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "diskSizeGB": 128
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump02",
+      "name": "nic-vm-hub-jump02",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump02/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.0.2.11",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/virtualNetworks/vnet-hub-weu/subnets/snet-shared"
+              }
+            }
+          }
+        ],
+        "virtualMachine": {
+          "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump02"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump02",
+      "name": "vm-hub-jump02",
+      "type": "microsoft.compute/virtualmachines",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "hardwareProfile": {
+          "vmSize": "Standard_B2ms"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-jump02"
+            }
+          ]
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "osdisk-vm-hub-jump02",
+            "managedDisk": {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-jump02"
+            }
+          }
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-jump02",
+      "name": "osdisk-vm-hub-jump02",
+      "type": "microsoft.compute/disks",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-jump02",
+      "sku": {
+        "name": "Premium_LRS",
+        "tier": "Premium"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "diskSizeGB": 128
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-mgmt01",
+      "name": "nic-vm-hub-mgmt01",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-mgmt01/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.0.2.12",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/virtualNetworks/vnet-hub-weu/subnets/snet-shared"
+              }
+            }
+          }
+        ],
+        "virtualMachine": {
+          "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-mgmt01"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-mgmt01",
+      "name": "vm-hub-mgmt01",
+      "type": "microsoft.compute/virtualmachines",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "hardwareProfile": {
+          "vmSize": "Standard_B2ms"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Network/networkInterfaces/nic-vm-hub-mgmt01"
+            }
+          ]
+        },
+        "storageProfile": {
+          "osDisk": {
+            "name": "osdisk-vm-hub-mgmt01",
+            "managedDisk": {
+              "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-mgmt01"
+            }
+          }
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/disks/osdisk-vm-hub-mgmt01",
+      "name": "osdisk-vm-hub-mgmt01",
+      "type": "microsoft.compute/disks",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-hub-network",
+      "subscriptionId": "e251188d-1e09-f37d-cf3f-842941c7a93f",
+      "managedBy": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-network/providers/Microsoft.Compute/virtualMachines/vm-hub-mgmt01",
+      "sku": {
+        "name": "Premium_LRS",
+        "tier": "Premium"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "diskSizeGB": 128
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
       "id": "/subscriptions/e251188d-1e09-f37d-cf3f-842941c7a93f/resourceGroups/rg-hub-dns/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net",
       "name": "privatelink.blob.core.windows.net",
       "type": "microsoft.network/privatednszones",
@@ -1539,6 +1833,41 @@
       "extendedLocation": null
     },
     {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/networkSecurityGroups/nsg-shop-apim",
+      "name": "nsg-shop-apim",
+      "type": "microsoft.network/networksecuritygroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-shop-network",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "securityRules": [
+          {
+            "name": "deny-internet-inbound",
+            "properties": {
+              "access": "Deny",
+              "direction": "Inbound",
+              "priority": 4000,
+              "protocol": "*",
+              "sourceAddressPrefix": "Internet",
+              "destinationAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*"
+            }
+          }
+        ]
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
       "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/virtualNetworks/vnet-shop-prod",
       "name": "vnet-shop-prod",
       "type": "microsoft.network/virtualnetworks",
@@ -1623,6 +1952,19 @@
                 "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/routeTables/rt-shop-spoke"
               }
             }
+          },
+          {
+            "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/virtualNetworks/vnet-shop-prod/subnets/snet-apim",
+            "name": "snet-apim",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "properties": {
+              "provisioningState": "Succeeded",
+              "addressPrefix": "10.1.3.0/27",
+              "privateEndpointNetworkPolicies": "Disabled",
+              "networkSecurityGroup": {
+                "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/networkSecurityGroups/nsg-shop-apim"
+              }
+            }
           }
         ],
         "virtualNetworkPeerings": [
@@ -1639,6 +1981,78 @@
           }
         ],
         "enableDdosProtection": false
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-app/providers/undefined/service/apim-kestrel-shop",
+      "name": "apim-kestrel-shop",
+      "type": "microsoft.apimanagement/service",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-shop-app",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "managedBy": "",
+      "sku": {
+        "name": "Developer",
+        "capacity": 1
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "gatewayUrl": "https://apim-kestrel-shop.azure-api.net",
+        "virtualNetworkType": "Internal",
+        "virtualNetworkConfiguration": {
+          "subnetResourceId": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-network/providers/Microsoft.Network/virtualNetworks/vnet-shop-prod/subnets/snet-apim"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-app/providers/Microsoft.Insights/actiongroups/ag-shop-oncall",
+      "name": "ag-shop-oncall",
+      "type": "microsoft.insights/actiongroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "global",
+      "resourceGroup": "rg-shop-app",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "groupShortName": "shop-oncall",
+        "enabled": true
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/a268a91f-e757-3c0b-142b-12e2f38ec9d1/resourceGroups/rg-shop-app/providers/Microsoft.Insights/metricalerts/alert-shop-5xx",
+      "name": "alert-shop-5xx",
+      "type": "microsoft.insights/metricalerts",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "global",
+      "resourceGroup": "rg-shop-app",
+      "subscriptionId": "a268a91f-e757-3c0b-142b-12e2f38ec9d1",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "severity": 2,
+        "enabled": true
       },
       "tags": {},
       "identity": null,
@@ -4286,5 +4700,5 @@
     }
   ],
   "skip_token": null,
-  "total_records": 132
+  "total_records": 145
 }

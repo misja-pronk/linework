@@ -8,7 +8,7 @@
 //   webapp/bicep       the same app as az bicep build output, with a network module
 //   webapp/terraform   the same app as terraform show -json: a state, and a plan that changes it
 //   landing-zone       a hub-and-spoke landing zone, about 150 resources in 3 subscriptions
-//   landing-zone-later the same a week on: one storage account more
+//   landing-zone-later the same a week on: one key vault more
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -472,6 +472,7 @@ function landingZone(later) {
   g.add(CONN, 'rg-hub-network', 'microsoft.network/dnsresolvers', 'dnspr-hub-weu', { virtualNetwork: { id: vnetIds.hub } });
   g.vm(CONN, 'rg-hub-network', 'vm-hub-dc01', hub['snet-shared'], '10.0.2.4');
   g.vm(CONN, 'rg-hub-network', 'vm-hub-dc02', hub['snet-shared'], '10.0.2.5');
+  for (const [n, ip] of [['vm-hub-jump01', '10.0.2.10'], ['vm-hub-jump02', '10.0.2.11'], ['vm-hub-mgmt01', '10.0.2.12']]) g.vm(CONN, 'rg-hub-network', n, hub['snet-shared'], ip, 'Standard_B2ms');
   const zones = ['privatelink.blob.core.windows.net', 'privatelink.dfs.core.windows.net', 'privatelink.vaultcore.azure.net', 'privatelink.database.windows.net', 'privatelink.azurewebsites.net', 'privatelink.redis.cache.windows.net', 'privatelink.servicebus.windows.net', 'privatelink.azurecr.io', 'privatelink.postgres.database.azure.com', 'privatelink.documents.azure.com', 'privatelink.westeurope.azmk8s.io', 'privatelink.openai.azure.com', 'privatelink.search.windows.net'];
   for (const z of zones) {
     g.add(CONN, 'rg-hub-dns', 'microsoft.network/privatednszones', z, { numberOfRecordSets: 4 }, { location: 'global' });
@@ -486,7 +487,11 @@ function landingZone(later) {
     ['snet-app', '10.1.1.0/24', { networkSecurityGroup: { id: nsg('nsg-shop-app') }, routeTable: { id: rtShop }, delegations: [{ name: 'web', properties: { serviceName: 'Microsoft.Web/serverFarms' } }] }],
     ['snet-pe', '10.1.2.0/24', { networkSecurityGroup: { id: nsg('nsg-shop-pe') } }],
     ['snet-aks', '10.1.4.0/22', { networkSecurityGroup: { id: nsg('nsg-shop-aks') }, routeTable: { id: rtShop } }],
+    ['snet-apim', '10.1.3.0/27', { networkSecurityGroup: { id: nsg('nsg-shop-apim') } }],
   ], [vnetIds.hub]);
+  g.add(SHOP, 'rg-shop-app', 'microsoft.apimanagement/service', 'apim-kestrel-shop', { gatewayUrl: 'https://apim-kestrel-shop.azure-api.net', virtualNetworkType: 'Internal', virtualNetworkConfiguration: { subnetResourceId: shop['snet-apim'] } }, { sku: { name: 'Developer', capacity: 1 } });
+  g.add(SHOP, 'rg-shop-app', 'microsoft.insights/actiongroups', 'ag-shop-oncall', { groupShortName: 'shop-oncall', enabled: true }, { location: 'global' });
+  g.add(SHOP, 'rg-shop-app', 'microsoft.insights/metricalerts', 'alert-shop-5xx', { severity: 2, enabled: true }, { location: 'global' });
   const pipAgw = g.pip(SHOP, 'rg-shop-network', 'pip-agw-shop-prod', '20.71.20.10', 'kestrel-shop-prod.westeurope.cloudapp.azure.com');
   g.add(SHOP, 'rg-shop-network', 'microsoft.network/applicationgateways', 'agw-shop-prod', {
     sku: { name: 'WAF_v2', tier: 'WAF_v2', capacity: 2 },
@@ -512,6 +517,8 @@ function landingZone(later) {
   g.nic(SHOP, 'rg-shop-app', 'nic-aks-ingress', shop['snet-aks'], '10.1.4.250', { vm: undefined });
   const acr = g.add(SHOP, 'rg-shop-app', 'microsoft.containerregistry/registries', 'crkestrelshopprod', { loginServer: 'crkestrelshopprod.azurecr.io', publicNetworkAccess: 'Disabled' }, { sku: { name: 'Premium', tier: 'Premium' } });
   const kv = g.vault(SHOP, 'rg-shop-app', 'kv-kestrel-shop-prod');
+  // A week on: a vault for certificates is added, and nothing else changes.
+  if (later) g.vault(SHOP, 'rg-shop-app', 'kv-kestrel-shop-certs');
   const sql = g.sql(SHOP, 'rg-shop-app', 'sql-kestrel-shop-prod', ['orders', 'catalog', 'customers']);
   const st = g.storage(SHOP, 'rg-shop-app', 'stkestrelshopprod');
   const redis = g.add(SHOP, 'rg-shop-app', 'microsoft.cache/redis', 'redis-kestrel-shop-prod', { hostName: 'redis-kestrel-shop-prod.redis.cache.windows.net', sku: { name: 'Premium', family: 'P', capacity: 1 }, publicNetworkAccess: 'Disabled' });
@@ -538,7 +545,7 @@ function landingZone(later) {
   g.vm(DATA, D, 'vm-data-shir01', data['snet-compute'], '10.2.2.4', 'Standard_D4s_v5');
   g.vm(DATA, D, 'vm-data-shir02', data['snet-compute'], '10.2.2.5', 'Standard_D4s_v5');
   const lake = g.storage(DATA, D, 'stkestrellake', 'Standard_ZRS', { isHnsEnabled: true });
-  const stores = ['stkestrelraw', 'stkestrelcurated', 'stkestrelarchive', 'stkestrelsandbox', 'stkestrelexports', 'stkestrelaudit', ...(later ? ['stkestrelmodels'] : [])].map((n) => g.storage(DATA, D, n, 'Standard_LRS'));
+  const stores = ['stkestrelraw', 'stkestrelcurated', 'stkestrelarchive', 'stkestrelsandbox', 'stkestrelexports', 'stkestrelaudit'].map((n) => g.storage(DATA, D, n, 'Standard_LRS'));
   const evh = g.add(DATA, D, 'microsoft.eventhub/namespaces', 'evhns-kestrel-data', { serviceBusEndpoint: 'https://evhns-kestrel-data.servicebus.windows.net:443/' }, { sku: { name: 'Standard', tier: 'Standard', capacity: 2 } });
   const cosmos = g.add(DATA, D, 'microsoft.documentdb/databaseaccounts', 'cosmos-kestrel-data', { documentEndpoint: 'https://cosmos-kestrel-data.documents.azure.com:443/', publicNetworkAccess: 'Disabled' }, { kind: 'GlobalDocumentDB' });
   const kvData = g.vault(DATA, D, 'kv-kestrel-data');
