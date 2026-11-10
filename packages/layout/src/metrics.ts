@@ -42,6 +42,16 @@ export interface LayoutMetrics {
   portCrowding: number;
   /** Groups lying over each other (neither inside the other), and nodes lying in a group they are not in. */
   overlaps: number;
+  /** Lines over a group header: through the header of a group that holds neither end, or running along inside any header. */
+  headerHits: number;
+  /** Length of line inside groups that hold neither of its ends, in median node widths (nested groups each count). */
+  foreign: number;
+  /** Small steps: a piece shorter than JOG between two pieces that run the same way. */
+  jogs: number;
+  /** Labels lying on a bend of their own line. */
+  labelOnBend: number;
+  /** How ragged sibling groups of one kind are: per pair lying side by side, how far their starts and ends are apart. */
+  siblingSpread: number;
 }
 
 /** Lines closer than this read as one smudge. */
@@ -50,6 +60,8 @@ const MIN_GAP = 8;
 const VOID = 96;
 /** Parallel lines within this distance count as one bundle. */
 const BUNDLE = 40;
+/** A step shorter than this in a line that runs on the same way reads as a kink. */
+const JOG = 40;
 
 type Seg = [Point, Point];
 
@@ -316,7 +328,78 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
       if (d < MIN_GAP && !(d < 0.5 && siblings(a.edge, b.edge))) portCrowding++;
     }
 
+  // Headers and foreign groups: a line has no business in a group that holds neither of its ends,
+  // least of all over its header; inside any header it may cross (on its way in) but not run along.
+  const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
+  const home = (e: GraphEdge) => {
+    const out = new Set<string>();
+    for (const end of [e.from.node, e.to.node]) for (let g = parent.has(end) ? end : nodeParent.get(end); g && !out.has(g); g = parent.get(g)) out.add(g);
+    return out;
+  };
+  let headerHits = 0;
+  let foreign = 0;
+  for (const e of graph.edges) {
+    const list = segs.get(e.id)!;
+    if (!list.length) continue;
+    const own = home(e);
+    for (const g of graph.groups) {
+      const b = placed.groups.get(g.id);
+      if (!b) continue;
+      const away = !own.has(g.id);
+      const head = { x: b.x + 1, y: b.y + 1, width: b.width - 2, height: Math.min(header, b.height) - 2 };
+      let hit = false;
+      for (const s of list) {
+        const [x0, x1, y0, y1] = [Math.min(s[0].x, s[1].x), Math.max(s[0].x, s[1].x), Math.min(s[0].y, s[1].y), Math.max(s[0].y, s[1].y)];
+        if (away) foreign += lengthInside(s, b);
+        if (!segmentHitsBox(s, head)) continue;
+        if (away || (y0 === y1 && Math.min(x1, head.x + head.width) - Math.max(x0, head.x) > 12)) hit = true;
+      }
+      if (hit) headerHits++;
+    }
+  }
+
+  // Jogs, and labels on a bend of their own line.
+  let jogs = 0;
+  let labelOnBend = 0;
+  for (const e of graph.edges) {
+    const pe = placed.edges.get(e.id);
+    const pts = pe?.points ?? [];
+    for (let i = 1; i + 2 < pts.length; i++) {
+      const [a, b, c, d] = [pts[i - 1]!, pts[i]!, pts[i + 1]!, pts[i + 2]!];
+      const step = Math.abs(c.x - b.x) + Math.abs(c.y - b.y);
+      const same = Math.sign(b.x - a.x) === Math.sign(d.x - c.x) && Math.sign(b.y - a.y) === Math.sign(d.y - c.y);
+      if (step < JOG && same) jogs++;
+    }
+    const l = pe?.label;
+    if (l && pts.slice(1, -1).some((p) => p.x > l.x - 2 && p.x < l.x + l.width + 2 && p.y > l.y - 2 && p.y < l.y + l.height + 2)) labelOnBend++;
+  }
+
+  // Sibling groups of one kind (the zones of a network, the subnets of a zone): side by side they
+  // start and end on one line, stacked they are equally wide.
+  let siblingSpread = 0;
+  const kindOf = (g: Graph['groups'][number]) => `${g.parent ?? ''}|${g.kind ?? `${g.icon ?? ''}/${g.tone}/${g.border}`}`;
+  const sets = new Map<string, Box[]>();
+  for (const g of graph.groups) {
+    const b = placed.groups.get(g.id);
+    if (b) sets.set(kindOf(g), [...(sets.get(kindOf(g)) ?? []), b]);
+  }
+  for (const list of sets.values())
+    for (const [i, a] of list.entries())
+      for (const b of list.slice(i + 1)) {
+        const row = a.y < b.y + b.height && b.y < a.y + a.height;
+        const column = a.x < b.x + b.width && b.x < a.x + a.width;
+        if (row === column) continue;
+        const apart = row ? Math.abs(a.y - b.y) + Math.abs(a.y + a.height - b.y - b.height) : Math.abs(a.x - b.x) + Math.abs(a.x + a.width - b.x - b.width);
+        siblingSpread += Math.min(1, apart / Math.max(1, row ? Math.max(a.height, b.height) : Math.max(a.width, b.width)));
+      }
+
   return {
+    headerHits,
+    foreign: r2(foreign / unit),
+    jogs,
+    labelOnBend,
+    siblingSpread: r2(siblingSpread),
     detour: counted ? r2(ratioSum / counted) : 1,
     detourExcess: r2(detourExcess),
     groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,
@@ -334,6 +417,12 @@ function boxDistance(b: Box, x: number, y: number): number {
   const dx = Math.max(b.x - x, 0, x - b.x - b.width);
   const dy = Math.max(b.y - y, 0, y - b.y - b.height);
   return Math.hypot(dx, dy);
+}
+
+/** How much of an orthogonal segment lies inside a box (not on its border). */
+function lengthInside([a, b]: Seg, box: Box): number {
+  if (a.y === b.y) return a.y > box.y && a.y < box.y + box.height ? Math.max(0, Math.min(Math.max(a.x, b.x), box.x + box.width) - Math.max(Math.min(a.x, b.x), box.x)) : 0;
+  return a.x > box.x && a.x < box.x + box.width ? Math.max(0, Math.min(Math.max(a.y, b.y), box.y + box.height) - Math.max(Math.min(a.y, b.y), box.y)) : 0;
 }
 
 function inset(b: Box, d: number): Box {
