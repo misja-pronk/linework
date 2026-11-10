@@ -10,7 +10,7 @@ import { Icon } from '../icon.tsx';
 import { store } from '../store.ts';
 import { failure, MODELS, type ModelId } from './claude.ts';
 import { ask, newConversation, type AskProgress, type Conversation, type Proposal } from './ask.ts';
-import { contextMessage, followUpMessage, isReview, layoutReport, type AskContext } from './ask-prompt.ts';
+import { contextMessage, followUpMessage, includedFiles, isReview, layoutReport, sentList, type AskContext } from './ask-prompt.ts';
 import { Answer, type Ref } from './answer.tsx';
 import { lineDiff } from './line-diff.ts';
 import { applyOperations } from './edit-tools.ts';
@@ -92,11 +92,14 @@ export function AskPanel(p: AskPanelProps) {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [turns, progress?.text, proposal]);
 
+  // The files the diagram includes (a folder's model): Claude needs them to know what the drawing shows.
+  const included = useMemo(() => includedFiles(p.text, p.load), [p.text, p.load]);
   const ctx = (q: string): AskContext | undefined =>
     p.type && {
       text: p.text,
       type: p.type,
       file: p.file,
+      included,
       selection: p.selection.map((s) => ({ ...s, label: labelIn(p.graph, s) })),
       problems: p.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? `line ${d.line}: ${d.message}` : d.message)),
       ...(isReview(q) ? { layout: layoutReport(p.graph, p.placed) } : {}),
@@ -356,13 +359,6 @@ const stop = (e: KeyboardEvent) => {
   e.stopPropagation();
 };
 
-function sentList(c: AskContext): string {
-  const parts = ['the YAML', `the ${c.type.name} schema and description`];
-  if (c.selection.length) parts.push(`${c.selection.length} selected id${c.selection.length > 1 ? 's' : ''}`);
-  parts.push(c.problems.length ? `${c.problems.length} problem${c.problems.length > 1 ? 's' : ''}` : 'the problem list');
-  if (c.layout) parts.push('the layout report');
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-}
 
 function labelIn(graph: Graph | undefined, s: { kind: string; id: string }): string | undefined {
   if (!graph) return undefined;

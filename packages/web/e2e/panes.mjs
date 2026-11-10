@@ -115,6 +115,12 @@ async function run(width, height, theme) {
     const c = await box('.canvas-pane');
     const ask = await box('.side .ask-panel');
     if (overlap(c, ask)) fail(`${tag}: Ask covers the drawing`);
+    // In a folder the included model goes too, and the line under the box says so.
+    const said = await page.locator('.ask-sent > span').innerText();
+    if (!/included file model\.yaml/.test(said) || !/your question/.test(said)) fail(`${tag}: Ask does not say it sends model.yaml: ${said}`);
+    await page.click('.ask-sent button:has-text("Show exactly")');
+    if (!(await page.locator('.ask-sent-text').innerText()).includes('<included file="model.yaml">')) fail(`${tag}: Ask does not send the included model.yaml`);
+    await page.click('.ask-sent button:has-text("Hide")');
     await page.screenshot({ path: `${out}/panes-${tag}-2-ask-tab.png` });
     await page.click('.side-tabs button:has-text("Properties")');
     await page.waitForSelector('.side .inspector:not(.notes-panel)');

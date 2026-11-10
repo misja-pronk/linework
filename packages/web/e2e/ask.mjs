@@ -93,7 +93,8 @@ await page.keyboard.press('Meta+j');
 await page.waitForSelector('.ask-panel');
 if (!(await page.locator('.ask-panel input[type=password]').isVisible())) fail('no key field without a key');
 const sent = await page.locator('.ask-sent').innerText();
-if (!/the YAML, the Azure .* schema and description, 1 selected id and the problem list/.test(sent)) fail(`what is sent is not said plainly: ${sent}`);
+// Exactly what goes: the file's name, the selected id and its label, and the question too.
+if (!/the YAML of orders\.yaml, the Azure .* schema and description, the id and label of what is selected, the problem list and your question\. Nothing else/.test(sent)) fail(`what is sent is not said plainly: ${sent}`);
 if (!(await page.locator('.ask-scope').innerText()).includes('Orders')) fail('the panel does not say it is about the selection');
 await page.screenshot({ path: `${out}/1-open.png` });
 
@@ -244,7 +245,8 @@ await page.screenshot({ path: `${out}/9-dark.png` });
 await page.locator('.ask-input textarea').focus();
 await page.keyboard.press('Meta+j');
 await wait(300);
-if (await page.locator('.ask-panel').count()) fail('⌘J did not close the panel');
+// Closed, it keeps its conversation behind the side panel's tabs, out of sight.
+if (await page.locator('.ask-panel:visible').count()) fail('⌘J did not close the panel');
 
 // 10. A phone: the panel fits the screen.
 {
