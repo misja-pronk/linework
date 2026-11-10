@@ -840,12 +840,16 @@ export const access: DiagramType<AccessSource> = {
   },
   palette,
   build,
-  views: () => [
-    { name: 'graph', title: 'Who gets what, as a graph' },
-    { name: 'access', title: 'Who × where', table: true },
-    { name: 'packages', title: 'Packages × grants', table: true },
-    { name: 'roles', title: 'Roles × permissions', table: true },
-  ],
+  // A view with nothing to show is not offered: no packages, no packages table.
+  views: (src) => {
+    const any = (c: 'packages' | 'roles') => Object.keys(src[c] ?? {}).length > 0;
+    return [
+      { name: 'graph', title: 'Who gets what, as a graph' },
+      { name: 'access', title: 'Who × where', table: true },
+      ...(any('packages') ? [{ name: 'packages', title: 'Packages × grants', table: true }] : []),
+      ...(any('roles') ? [{ name: 'roles', title: 'Roles × permissions', table: true }] : []),
+    ];
+  },
   references(src) {
     const out: Reference[] = [];
     const has = (c: 'principals' | 'resources' | 'roles' | 'catalogs' | 'packages', id: string) => !!src[c] && Object.hasOwn(src[c]!, id);

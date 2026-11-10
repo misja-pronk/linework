@@ -12,7 +12,7 @@ import { idPattern, type BuildContext, type KindTable, type Reference } from './
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, LinePattern, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
-import type { Origins } from './views.ts';
+import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
 import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
 
@@ -102,6 +102,8 @@ export interface GraphSource {
   edges?: unknown[];
   /** Edge styles drawn as badges on the source card instead of lines, e.g. [identity, management]. */
   badges?: string[];
+  /** `written`: only captions written here are drawn, none from the kind (an import, whose kinds are guesses). */
+  captions?: 'kinds' | 'written';
   /** Set by the model layer: where drawn entries are written when not at their usual place. */
   origin?: Origins;
   /** The threat overlay's own keys (threats.ts) and the view asked for: diagram or threats. */
@@ -172,6 +174,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       title: { type: 'string' },
       subtitle: { type: 'string' },
       direction: { enum: ['right', 'down'] },
+      captions: { enum: ['kinds', 'written'], description: 'kinds (default): a card without a caption says its kind; written: only the captions written here' },
       groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds), overlay ? threatFields.group : {}) },
       nodes: {
         type: 'object',
@@ -197,6 +200,16 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     src = { ...viewSource(src, cfg, model, ctx), ...overlayKeys(src as Record<string, unknown>) };
   }
   const origin = src.origin;
+  // Every environment in one drawing: what only some of them have says which, as a tag on it.
+  const allEnvs = !ctx.model?.view?.environment;
+  const envNames: string[] = [...(ctx.model?.views.values() ?? [])].flatMap((v) => (v.environment ? [v.environment] : []));
+  const envMarks = (v: unknown) => {
+    const tags = allEnvs ? envsOf(v) : undefined;
+    for (const t of tags ?? []) if (!envNames.includes(t)) envNames.push(t);
+    return tags?.length ? { marks: [...envNames.filter((n) => tags.includes(n))] } : {};
+  };
+  const marked = new Set<string>();
+  const written = src.captions === 'written';
   const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
   const entries = (coll: 'groups' | 'nodes') =>
     Object.entries(src[coll] ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { kind: v } : (v ?? {})] as [string, Entry]);
@@ -224,7 +237,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       id,
       parent: parentOf('groups', id, e),
       label: e.label ?? id,
-      caption: e.caption ?? kindCaption(e.label, kind),
+      caption: e.caption ?? (written ? undefined : kindCaption(e.label, kind)),
       icon: e.icon ?? kind?.icon,
       tone: e.tone ?? kind?.tone ?? 'slate',
       border: kind?.border ?? 'solid',
@@ -232,6 +245,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(e.description ? { description: e.description } : {}),
       ...(e.kind ? { kind: e.kind } : {}),
       ...(e.tags?.length ? { tags: e.tags } : {}),
+      ...envMarks(e.env),
       path: at('groups', id),
     };
   });
@@ -248,7 +262,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
         kind: 'card',
         // Without a label the kind names the node ("Users"), and repeating it as caption adds nothing.
         label: e.label ?? kind?.label ?? id,
-        caption: e.caption ?? (e.label ? kindCaption(e.label, kind) : undefined),
+        caption: e.caption ?? (e.label && !written ? kindCaption(e.label, kind) : undefined),
         // A plain step is text only, unless an icon is asked for.
         icon: e.icon ?? (kind?.form === 'plain' ? undefined : kind?.icon),
         tone: e.tone ?? kind?.tone ?? 'slate',
@@ -259,6 +273,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(e.description ? { description: e.description } : {}),
       ...(e.kind ? { kind: e.kind } : {}),
       ...(e.tags?.length ? { tags: e.tags } : {}),
+      ...envMarks(e.env),
       path: at('nodes', id),
     };
   });
@@ -313,6 +328,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(badge ? { badge } : {}),
       ...(style ? { kind: style.label } : {}),
       ...(step ? { step } : {}),
+      ...envMarks(spec.props.env),
       path: spec.path,
     });
   }
@@ -334,7 +350,21 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
   }
 
-  const graph: Graph = { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
+  for (const x of [...groups, ...nodes, ...edges]) for (const t of x.marks ?? []) marked.add(t);
+  const environments = envNames.filter((n) => marked.has(n));
+  if (environments.length) legend.push({ label: `Only in the environments named; unmarked: in all (${environments.join(', ')})`, swatch: 'mark', tag: environments[0] });
+
+  const graph: Graph = {
+    title: src.title,
+    subtitle: src.subtitle,
+    direction: src.direction ?? 'right',
+    groups,
+    nodes,
+    edges,
+    legend,
+    ...(steps.length ? { steps } : {}),
+    ...(environments.length ? { environments } : {}),
+  };
   if (!cfg.threats) return graph;
   applyThreats(graph, src as Record<string, unknown>, cfg.threats === true ? threatKindsOf(cfg.nodeKinds) : cfg.threats, ctx);
   return src.view === 'threats' ? threatTable(graph) : graph;

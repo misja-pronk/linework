@@ -118,7 +118,7 @@ export async function exportPptx(input: ExportInput, name?: string): Promise<{ b
   const others = (r.views ?? []).filter((v) => v.name !== r.view);
   // The other views as they are drawn from scratch (with their own pins): only the one on screen has a drawing before it.
   const rest = await Promise.all(others.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })));
-  const drawings = [r, ...rest.filter((x) => x.graph && x.placed)].map((x) => ({ ...x, name, ...notedDrawing(x, input) }));
+  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty)].map((x) => ({ ...x, name, ...notedDrawing(x, input) }));
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
@@ -161,7 +161,7 @@ export async function exportDrawio(input: ExportInput): Promise<Handed> {
   const { toDrawio, toScene } = await import('@cartography/interop');
   // The view on screen is the drawing as it stands; the others are drawn fresh.
   const drawn = first.views?.length ? await Promise.all(first.views.map((v) => (v.name === first.view ? first : render(input.text, { ...plain(input), view: v.name, previous: undefined })))) : [first];
-  const scenes = drawn.filter((r) => r.graph && r.svg).map((r) => toScene(r));
+  const scenes = drawn.filter((r) => r.graph && r.svg && (r === first || !r.empty)).map((r) => toScene(r));
   return { data: toDrawio(scenes), warnings: [...new Set(scenes.flatMap((s) => s.warnings))] };
 }
 

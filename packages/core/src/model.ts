@@ -33,6 +33,8 @@ export interface Graph {
   arrange?: Record<string, string | number | boolean>;
   /** The drawing is a tree along its solid lines (an org chart): a focus on one element keeps its whole branch and the line up to the top. */
   tree?: boolean;
+  /** Environment names drawn as marks (a drawing of every environment at once): outlined tags, not threats. */
+  environments?: string[];
 }
 
 export interface GraphBeat {

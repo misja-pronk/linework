@@ -66,7 +66,7 @@ Every box of a level is as wide as the others, so the map reads as a grid. How m
 | `maturity` | diverging, 1–5 | 1 Initial, 2 Developing, 3 Defined, 4 Managed, 5 Optimised; red to green |
 | `fit` | diverging, 1–5 (or good, fair, poor) | 1 Poor … 5 Excellent |
 | `investment` | categorical | invest green, maintain sky, tolerate amber, migrate violet, divest and eliminate red and hatched |
-| `cost`, `spend`, `risk` | sequential | five steps from the lowest to the highest value; `€1.2M`, `800k`, `35%` read as numbers |
+| `cost`, `spend`, `risk` | sequential | about five round steps over the values (€0–€200k, €200k–€400k, …); `€1.2M`, `800k`, `35%` read as numbers, and the key keeps their currency or `%` |
 | `systems` | sequential | how many systems support it (counts `systems:`) |
 | anything else | numbers sequential, words categorical | your own scale |
 
@@ -81,7 +81,7 @@ heat:
     eliminate: { tone: rose, pattern: hatch, label: Switch off }
 ```
 
-`scale:` (sequential, diverging, categorical), `min:`/`max:`, `labels:` (words for numbers), `tone:` (hue of a sequential scale) and `reverse:` (higher is worse) are the other keys. **Several heats are several views**: `heat: [maturity, investment]` gives the views `maturity` and `investment` (plus `map`, without colour); the first is the default drawing.
+`scale:` (sequential, diverging, categorical), `min:`/`max:`, `labels:` (words for numbers), `tone:` (hue of a sequential scale), `reverse:` (higher is worse) and `unit:` (what the numbers are in, for the key: `€`, `%`, `FTE`; read from the values when they share one) are the other keys. A view other than the default one is subtitled by its own name (Heatmap: Fit), so the diagram's `subtitle:` belongs to the default drawing. **Several heats are several views**: `heat: [maturity, investment]` gives the views `maturity` and `investment` (plus `map`, without colour); the first is the default drawing.
 
 ![The investment view](capabilities/investment.png)
 
