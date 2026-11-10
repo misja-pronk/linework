@@ -118,7 +118,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // Pins were set on one placement: the one the sidecar names is drawn again, whatever the others
     // would score now. Moving a pin never redraws the rest.
     const d = open ? was.direction : graph.direction;
-    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn);
+    // And what is not pinned stays where it was whenever it can: placing things by hand, the rest
+    // holding still is worth more than any score.
+    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, new Map(Object.entries(sidecar?.nodes ?? {})));
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
@@ -174,8 +176,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   const joins = (id: string, o: EdgeOverride) => s.graph.edges.some((e) => e.id === id && (o.from == null || e.from.node === o.from) && (o.to == null || e.to.node === o.to));
   const via = new Map(Object.entries(sidecar?.edges ?? {}).filter(([id, o]) => o.via?.length && joins(id, o)).map(([id, o]) => [id, o.via]));
   if (!pinned && !via.size) return { ...best.placed, ...direction, memory };
-  const p = pinned ? applyPins(best.p, s.graph, sidecar, s.groupHeader, spacing.groupPad) : best.p;
-  return { ...normalise({ ...p, edges: route(s, p, via.size ? via : undefined) }), ...direction, memory };
+  const p: Placement & { nudged?: string[] } = pinned ? applyPins(best.p, s.graph, sidecar, s.groupHeader, spacing.groupPad) : best.p;
+  const nudged = p.nudged?.length ? { nudged: p.nudged } : {};
+  return { ...normalise({ ...p, edges: route(s, p, via.size ? via : undefined) }), ...direction, memory, ...nudged };
 }
 
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
@@ -290,7 +293,7 @@ function noWorse(a: Choice, b: Choice): boolean {
 const TIE = 1;
 
 /** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was. */
-async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean): Promise<Choice> {
+async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean, hold?: Map<string, Point>): Promise<Choice> {
   // Top-down, lines come into a group's first row from above, and its header title sits right where
   // the leftmost of them would come in. A slightly taller header leaves a lane under the title: such
   // a line comes down beside the title, runs under it and drops into its node.
@@ -311,7 +314,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     if (!best || c.cost < best.cost - 1e-9) best = c;
   }
   if (stay && prev?.nodes?.size) {
-    const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+    const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
     if (kept) {
       const placed = normalise({ ...kept, edges: route(sized, kept) });
       const m = measure(graph, placed, sized.groupHeader, sized.groupMinWidth);
@@ -321,7 +324,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
       // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
       const against = upstream(graph, kept, prev) > upstream(graph, best!.p, prev);
       // Only when it differs: a fresh placement that is exactly the previous one is not "held".
-      if (!against && cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
+      if (!against && (hold || cost < best!.cost - 1e-9)) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
     }
   }
   return best!;

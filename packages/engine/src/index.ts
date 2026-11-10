@@ -270,6 +270,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout))) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
+  // Two things pinned on top of each other: the newer one was moved clear, and that is said.
+  const named = (id: string) => graph.groups.find((g) => g.id === id)?.label ?? id;
+  for (const id of placed.nudged ?? []) diagnostics.push({ severity: 'warning', message: `${named(id)} was pinned on top of another pinned element: it is drawn beside it. Drag it where it should go, or Tidy` });
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
   const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');

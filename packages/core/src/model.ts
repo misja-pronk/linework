@@ -324,6 +324,8 @@ export interface Placed {
   labels?: Map<string, Box>;
   /** What to remember of this drawing so the next one stays close to it: how it was made and where things are, before pins. */
   memory?: LayoutMemory;
+  /** Pinned nodes or groups moved off their pin because they would have lain on another pinned one (the newer pin gives way). */
+  nudged?: string[];
 }
 
 export interface PlacedEdge {
