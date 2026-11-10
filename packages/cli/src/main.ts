@@ -7,7 +7,7 @@ import { iconPng, interTtf, themeTtf, toPng } from './png.ts';
 import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
-import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drift, findType, render, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
@@ -1074,6 +1074,12 @@ async function main(): Promise<number> {
         const rest = values.view ? [] : await Promise.all((r.views ?? []).map((v) => render(text, { ...opts, view: v.name })));
         const seen = new Set<string>();
         const diagnostics = [r, ...rest].flatMap((x) => x.diagnostics).filter((d) => !seen.has(`${d.line}:${d.column}:${d.message}`) && !!seen.add(`${d.line}:${d.column}:${d.message}`));
+        // Fitted onto a 16:9 slide, the smallest text of each drawing should still be readable.
+        for (const x of [r, ...rest.filter((v) => v.view !== r.view)]) {
+          const pt = x.svg && x.width && x.height ? slideTextPt(x.svg, x.width, x.height) : undefined;
+          if (pt != null && pt < SLIDE_MIN_PT)
+            diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a 16:9 slide its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
+        }
         report(f, diagnostics);
         const drifted = values.drift && !(await checkDrift(f));
         if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;

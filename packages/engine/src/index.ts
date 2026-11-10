@@ -301,6 +301,23 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   };
 }
 
+/** A 16:9 slide, 13.33 by 7.5 inches, in CSS pixels (96 to the inch). */
+const SLIDE = { width: 1280, height: 720 };
+/** Text smaller than this (points) on a slide is hard to read from the back of a room. */
+export const SLIDE_MIN_PT = 9;
+
+/**
+ * The smallest text of a drawing, in points, when it is fitted onto a 16:9 slide (13.33 inches
+ * wide): what `carto validate` warns about below SLIDE_MIN_PT. Undefined when it has no text.
+ */
+export function slideTextPt(svg: string, width: number, height: number): number | undefined {
+  const sizes = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1])).filter((n) => n > 0);
+  if (!sizes.length || !width || !height) return undefined;
+  const scale = Math.min(SLIDE.width / width, SLIDE.height / height);
+  // A pixel is three quarters of a point.
+  return Math.min(...sizes) * scale * 0.75;
+}
+
 /** `aspect:` as written: "16:9", "4:3", a number (width / height) or "auto". */
 export function readAspect(v: unknown, warn: (message: string) => void): number | 'auto' | undefined {
   if (v == null) return undefined;

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
 import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, throughVia, type RouteRequest } from '@cartography/layout';
-import { render } from '../src/index.ts';
+import { render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
@@ -495,5 +495,11 @@ describe('slide shape', () => {
     expect(shape(wide)).toBeGreaterThan(3);
     const bad = await render(pipeline.replace('direction: right', 'direction: right\naspect: square'), { fonts: 'none' });
     expect(bad.diagnostics.map((d) => d.message).join()).toMatch(/aspect/);
+  });
+  it('knows how small the text gets on a 16:9 slide', async () => {
+    const small = await render('type: azure\nnodes:\n  a: app-service\n  b: sql-database\nedges:\n  - a -> b\n', { fonts: 'none' });
+    expect(slideTextPt(small.svg!, small.width!, small.height!)).toBeGreaterThan(SLIDE_MIN_PT);
+    const wide = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
+    expect(slideTextPt(wide.svg!, wide.width!, wide.height!)).toBeLessThan(SLIDE_MIN_PT);
   });
 });
