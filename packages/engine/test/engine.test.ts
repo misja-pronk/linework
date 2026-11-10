@@ -46,7 +46,7 @@ edges:
   - web -> nope
 `);
     expect(r.svg).toBeUndefined();
-    expect(r.diagnostics[0]).toMatchObject({ line: 4, message: expect.stringContaining('must be one of') });
+    expect(r.diagnostics[0]).toMatchObject({ line: 4, message: expect.stringContaining('cannot be "sql-databse": did you mean sql-database?') });
   });
 
   it('reports unknown references but still draws', async () => {

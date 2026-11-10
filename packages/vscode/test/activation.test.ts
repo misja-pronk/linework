@@ -55,7 +55,7 @@ describe('problems', () => {
     const doc = stub.openDocument(file, 'type: systems\nnodes:\n  a: { kind: apii }\n');
     const collection = stub.state.collections.find((c) => c.name === 'cartography')!;
     const list = await until(() => collection.get(doc.uri)?.length ? collection.get(doc.uri) : undefined);
-    const d = list.find((x) => x.message.startsWith('"kind" must be one of'))!;
+    const d = list.find((x) => x.message.startsWith('"kind" cannot be "apii": did you mean api?'))!;
     expect(d.range.start).toMatchObject({ line: 2, character: 7 });
     expect(d.source).toBe('cartography');
     const actions = stub.state.codeActionProviders[0]!.provideCodeActions(doc, d.range, { diagnostics: [d] }) as InstanceType<typeof stub.CodeAction>[];
