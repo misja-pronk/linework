@@ -25,6 +25,8 @@ import {
   type FocusSpec,
   type Graph,
   type LayoutMemory,
+  type LegendItem,
+  type LinePattern,
   type LayoutSidecar,
   type ModelContext,
   type Path,
@@ -278,6 +280,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   }
   // The key shows each badge style as its chips look on the cards.
   graph = withBadgeIcons(graph);
+  graph = apartInMoreThanColour(graph);
+  // A ring in the accent colour is a mark like any other: the key says what it means.
+  if (graph.nodes.some((n) => n.focused) || graph.groups.some((g) => g.focused)) graph = { ...graph, legend: [...(graph.legend ?? []), { label: 'In focus', swatch: 'focus' }] };
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
     // (['include', 0, 'model.yaml']), never a path it could take for one of this file's entries.
@@ -367,6 +372,44 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
     ...(focusOwn != null ? { focusWritten: true } : {}),
   };
+}
+
+/** The second marks a line can carry besides its colour, in the order they are handed out. */
+const PATTERNS: LinePattern[] = ['ticks', 'beads', 'double'];
+
+/**
+ * Kinds of line in the key that differ in colour alone (solid grey Connection and solid blue
+ * Request, Ethernet and Fibre) get a second mark, so they read apart without colour (printed in
+ * grey, or for a reader who cannot tell the two colours apart): the most used kind stays plain, the
+ * others get a pattern no kind of that line uses yet, on their lines and in the key alike.
+ */
+export function apartInMoreThanColour(graph: Graph): Graph {
+  const items = (graph.legend ?? []).filter((l) => !l.swatch && !l.end);
+  if (items.length < 2) return graph;
+  const like = (a: { line?: string; pattern?: string; tone?: string }, b: { line?: string; pattern?: string; tone?: string }) => (a.line ?? 'solid') === (b.line ?? 'solid') && (a.pattern ?? '') === (b.pattern ?? '') && (a.tone ?? '') === (b.tone ?? '');
+  const used = (item: LegendItem) => graph.edges.filter((e) => !e.badge && like(e, item)).length;
+  const set = new Map<LegendItem, LinePattern>();
+  const groups = new Map<string, LegendItem[]>();
+  for (const item of items) {
+    const k = `${item.line ?? 'solid'}|${item.pattern ?? ''}`;
+    if (!groups.get(k)?.some((o) => (o.tone ?? '') === (item.tone ?? ''))) groups.set(k, [...(groups.get(k) ?? []), item]);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const line = list[0]!.line ?? 'solid';
+    const free = PATTERNS.filter((p) => !items.some((i) => (i.line ?? 'solid') === line && i.pattern === p));
+    const [, ...rest] = [...list].sort((a, b) => used(b) - used(a));
+    for (const item of rest) {
+      const p = free.shift();
+      if (p) set.set(item, p);
+    }
+  }
+  if (!set.size) return graph;
+  const edges = graph.edges.map((e) => {
+    for (const [item, p] of set) if (!e.badge && like(e, item)) return { ...e, pattern: p };
+    return e;
+  });
+  return { ...graph, edges, legend: graph.legend!.map((l) => (set.has(l) ? { ...l, pattern: set.get(l)! } : l)) };
 }
 
 /** The way each model's first view was drawn (LayoutMemory.variant), by source: the other views start from it. */
