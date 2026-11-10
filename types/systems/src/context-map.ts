@@ -135,8 +135,8 @@ export const contextMap: DiagramType<MapSource> = {
   icon: 'map',
   tagline: 'Bounded contexts and who depends on whom (DDD)',
   useWhen: [
-    'Strategic design: which bounded contexts there are and how they integrate',
-    'Who is upstream, and who protects itself with an anticorruption layer',
+    'Strategic design: the bounded contexts and how they integrate',
+    'Who is upstream, and who hides behind an anticorruption layer',
     'Core, supporting and generic subdomains at a glance',
   ],
   notFor: [
