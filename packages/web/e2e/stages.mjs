@@ -159,8 +159,10 @@ const whole = await places();
 
 // 7. Make roadmap: a new document, a roadmap with an item per change.
 {
-  page.once('dialog', (d) => d.accept());
   await page.locator('.stages-strip button', { hasText: 'Make roadmap' }).click();
+  // The unsaved diagram: the app asks before it is left (its own dialog).
+  const discard = page.locator('.confirm-dialog button', { hasText: 'Discard' });
+  await discard.waitFor({ timeout: 5000 }).then(() => discard.click()).catch(() => {});
   await wait(1500);
   const t = (await stored()).text ?? '';
   if (!/^type: roadmap/m.test(t)) fail(`Make roadmap did not open a roadmap:\n${t.slice(0, 300)}`);
