@@ -131,15 +131,16 @@ export function sequenceYaml(d: SequenceDiagram): string {
   if (d.title) out.push(`title: ${scalar(d.title)}`);
   if (d.autonumber) out.push('autonumber: true');
   if (d.explicit) out.push('activations: explicit');
+  // The kinds are read from the source's words or type: they give the icon, not a caption the source never wrote.
+  if (d.participants.some((p) => p.label && p.kind !== 'person' && p.kind !== 'people')) out.push('captions: written');
   if (d.boxes.length) {
     out.push('', 'boxes:');
     for (const b of d.boxes) out.push(`  ${b.id}: ${scalar(b.label)}`);
   }
   out.push('', 'participants:');
   for (const p of d.participants) {
-    // The kind is read from the source's words or type: it gives the icon, not a caption the source never wrote.
-    const quiet = p.kind === 'person' || p.kind === 'people';
-    const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.label && !quiet ? 'caption: ""' : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
+    // Named after itself (actor User): the name still has to be written, or the kind's name is drawn.
+    const fields = [`kind: ${p.kind}`, `label: ${scalar(p.label ?? p.id)}`, p.box ? `box: ${p.box}` : ''].filter(Boolean);
     out.push(`  ${p.id}: ${fields.length === 1 ? p.kind : `{ ${fields.join(', ')} }`}`);
   }
   out.push('', 'messages:');

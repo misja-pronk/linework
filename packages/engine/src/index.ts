@@ -13,6 +13,7 @@ import {
   parseSource,
   readFocus,
   resolveSteps,
+  finalState,
   stepsSchema,
   unpackLayout,
   validate,
@@ -175,7 +176,12 @@ export interface RenderResult {
   focus?: FocusSpec & { names: string[]; kept: number; total: number; written: boolean };
   /** The diagram (or the view drawn) has a `focus:` of its own, whether or not it was drawn. */
   focusWritten?: boolean;
+  /** Nothing to draw (a view that picks nothing, a table without rows): --all-views and decks leave it out. */
+  empty?: boolean;
 }
+
+/** A drawing with nothing in it: no groups, and no node or only tables without a row. */
+export const isEmpty = (graph: Graph) => !graph.groups.length && graph.nodes.every((n) => n.shape.kind === 'matrix' && !n.shape.rows.length);
 
 /** Keys that are not something drawn, to tell a diagram that only has views. */
 const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspect']);
@@ -266,6 +272,11 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     model,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  // Another of the type's own views than the one the file is written for: its subtitle is about that
+  // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
+  const written = typeof rest.view === 'string' ? rest.view : (ownViews?.find((v) => v.default) ?? ownViews?.[0])?.name;
+  const viewTitle = ownView && ownView !== written ? ownViews!.find((v) => v.name === ownView)?.title : undefined;
+  if (viewTitle && graph.title) graph = { ...graph, subtitle: viewTitle };
   // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
   const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
   const focusOwn = model?.view ? model.view.focus : focusRef;
@@ -345,8 +356,11 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
   const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
+  // No step asked for: the drawing as the steps leave it, not every step's lines on top of each other.
+  const end = !step && told ? finalState(steps, !!opts.interactive) : undefined;
+  const stepView = step ? { index: step - 1, states: steps, caption: opts.stepCaption } : end ? { index: 0, states: [end], caption: false } : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
-  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
+  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView }));
   // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
   const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
@@ -371,6 +385,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(step ? { step } : {}),
     ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
     ...(focusOwn != null ? { focusWritten: true } : {}),
+    ...(isEmpty(graph) ? { empty: true } : {}),
   };
 }
 

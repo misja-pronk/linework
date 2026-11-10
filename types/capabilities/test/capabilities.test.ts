@@ -89,10 +89,14 @@ capabilities:
     expect(numberOf('800k')).toBe(8e5);
     expect(numberOf('invest')).toBeUndefined();
     const s = heatScale({ by: 'cost' }, ['€100k', '€500k']);
-    // The top of the range takes the last of the key's five shades.
-    expect(s.of('€500k')).toMatchObject({ scale: 'sequential', at: 0.9, text: '€500k' });
-    expect(s.of('€110k')).toMatchObject({ at: 0.1 });
-    expect(s.legend).toHaveLength(5);
+    // Round steps in the values' own currency; the top of the range takes the last shade.
+    expect(s.legend.map((l) => l.label)).toEqual(['Cost: €100k–€200k', '€200k–€300k', '€300k–€400k', '€400k–€500k']);
+    expect(s.of('€500k')).toMatchObject({ scale: 'sequential', at: 0.875, text: '€500k' });
+    expect(s.of('€110k')).toMatchObject({ at: 0.125 });
+    // A unit written in the entry, and numbers without one.
+    expect(heatScale({ by: 'staff', unit: 'FTE' }, [3, 47]).legend.map((l) => l.label)).toEqual(['Staff: 0 FTE–10 FTE', '10 FTE–20 FTE', '20 FTE–30 FTE', '30 FTE–40 FTE', '40 FTE–50 FTE']);
+    expect(heatScale({ by: 'load' }, ['12%', '88%']).legend.map((l) => l.label)).toEqual(['Load: 0%–20%', '20%–40%', '40%–60%', '60%–80%', '80%–100%']);
+    expect(heatScale({ by: 'n' }, [0.3, 1.4]).legend.map((l) => l.label)).toEqual(['N: 0.25–0.5', '0.5–0.75', '0.75–1', '1–1.25', '1.25–1.5']);
     const r = await render(example('e-commerce.yaml').replace('heat:', 'depth: 2\nheat:'), { fonts: 'none' });
     expect(r.graph!.nodes.some((n) => block(n).form === 'chip')).toBe(false);
   });

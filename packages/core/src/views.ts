@@ -245,6 +245,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     subtitle: view?.subtitle ?? (view?.title ? undefined : src.subtitle),
     direction: view?.direction ?? src.direction,
     ...(src.badges ? { badges: src.badges } : {}),
+    ...(src.captions ? { captions: src.captions } : {}),
     groups: {},
     nodes: {},
     edges: [],
@@ -318,6 +319,15 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     if (label && !d.labels.includes(label)) d.labels.push(label);
     drawn.set(key, d);
   }
+  // A line that ends on an opened boundary says less than the lines into its parts: "Calls the API"
+  // next to "Signs in" and "Gets accounts" on the API's components is drawn by those alone.
+  const within = (inner: string, outer: string) => ancestry(inner).includes(outer);
+  const ends = [...drawn.keys(), ...pairs].map((k) => k.split('\0') as [string, string]);
+  for (const key of [...drawn.keys()]) {
+    const [from, to] = key.split('\0') as [string, string];
+    if (!asGroup(from) && !asGroup(to)) continue;
+    if (ends.some(([f, t]) => (f !== from || t !== to) && within(f, from) && within(t, to))) drawn.delete(key);
+  }
   const edgeIds = new Set<string>();
   for (const [key, d] of drawn) {
     const [from, to] = key.split('\0') as [string, string];
@@ -371,7 +381,7 @@ export function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: Gra
   };
 }
 
-const envsOf = (v: unknown): string[] | undefined => (v == null ? undefined : (Array.isArray(v) ? v : [v]).map(String));
+export const envsOf = (v: unknown): string[] | undefined => (v == null ? undefined : (Array.isArray(v) ? v : [v]).map(String));
 
 /**
  * An entry that runs a model element (`of:`): infrastructure of its own kind, named after the element.

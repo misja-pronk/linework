@@ -80,6 +80,8 @@ export interface SequenceSource {
   autonumber?: boolean;
   activations?: 'auto' | 'explicit';
   footers?: boolean;
+  /** `written`: only captions written here, none from the kind (an import, whose kinds are guesses). */
+  captions?: 'kinds' | 'written';
   boxes?: Record<string, string | { label?: string; tone?: Tone }>;
   participants?: Record<string, string | ParticipantEntry | null>;
   messages?: unknown[];
@@ -119,7 +121,7 @@ function participantsOf(src: SequenceSource): SequenceParticipant[] {
     const label = e.label ?? (e.kind ? kind?.label : undefined) ?? id;
     // The kind as caption, unless the label says it already or the kind is plain (a person).
     const said = !e.kind || !e.label || kind?.quiet || label.toLowerCase().endsWith(kind?.label.toLowerCase() ?? '\0');
-    out.push({ id, label, caption: e.caption ?? (said ? undefined : kind?.label), icon: e.icon ?? kind?.icon, tone: e.tone ?? kind?.tone ?? 'slate', box: e.box, path: ['participants', id] });
+    out.push({ id, label, caption: e.caption ?? (said || src.captions === 'written' ? undefined : kind?.label), icon: e.icon ?? kind?.icon, tone: e.tone ?? kind?.tone ?? 'slate', box: e.box, path: ['participants', id] });
   }
   // A box holds participants side by side: keep its members together where the first one stands.
   const order: SequenceParticipant[] = [];
@@ -345,6 +347,7 @@ const schema = {
     title: { type: 'string' },
     subtitle: { type: 'string' },
     autonumber: { type: 'boolean', description: 'Number the messages' },
+    captions: { enum: ['kinds', 'written'], description: 'kinds (default): a participant without a caption says its kind; written: only the captions written here' },
     activations: { enum: ['auto', 'explicit'], description: 'auto: calls open activations, replies close them; explicit: only +b, -a, activate:' },
     footers: { type: 'boolean', description: 'Repeat the participants under the lifelines' },
     boxes: {

@@ -31,7 +31,7 @@ import {
 import { config as azureConfig } from '@cartography/azure';
 import { awsGroups, awsNodes, gcpGroups, gcpNodes, generalNodes, providerNames, providers, sharedGroups, sharedLabels, type CloudKind, type Provider } from './kinds.ts';
 
-export { countKinds, providers, type Provider } from './kinds.ts';
+export { awsNodes, countKinds, gcpNodes, providers, type Provider } from './kinds.ts';
 
 const groupTable: Record<string, CloudKind> = { ...sharedGroups, ...awsGroups, ...gcpGroups };
 const nodeTable: Record<string, CloudKind> = { ...generalNodes, ...awsNodes, ...gcpNodes };

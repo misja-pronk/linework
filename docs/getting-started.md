@@ -52,7 +52,7 @@ edges:
 
 ## Pick the right type
 
-The type decides what can go in a diagram and how it is laid out: Azure, AWS and Google Cloud, Kubernetes, a network, a database, a sequence, a process in lanes, a state machine, a roadmap, a journey, a capability map, an org chart, a matrix, and more. [Which type do I need?](types.md) has a table; the [gallery](gallery/index.html) shows every template and example drawn.
+The type decides what can go in a diagram and how it is laid out: Azure, AWS and Google Cloud, Kubernetes, a network, a database, a sequence, a process in lanes, a state machine, a roadmap, a journey, a capability map, an org chart, a matrix, and more. [Which type do I need?](types.md) has a table; the [gallery](../examples/) shows every template and example drawn (on the docs site; on GitHub the link opens the examples themselves).
 
 ## Where to next
 

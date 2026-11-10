@@ -53,12 +53,12 @@ describe('sequenceDiagram', () => {
     deactivate W
 `);
     const d = parse(yaml);
-    expect(d).toMatchObject({ type: 'sequence', title: 'Pay', autonumber: true, activations: 'explicit', boxes: { 'shop-system': 'Shop system' } });
+    expect(d).toMatchObject({ type: 'sequence', title: 'Pay', autonumber: true, activations: 'explicit', captions: 'written', boxes: { 'shop-system': 'Shop system' } });
     expect(d.participants).toEqual({
       C: { kind: 'person', label: 'Customer' },
-      W: { kind: 'client', label: 'Web shop', caption: '', box: 'shop-system' },
-      DB: { kind: 'database', box: 'shop-system' },
-      S: { kind: 'payments', label: 'Stripe', caption: '' },
+      W: { kind: 'client', label: 'Web shop', box: 'shop-system' },
+      DB: { kind: 'database', label: 'DB', box: 'shop-system' },
+      S: { kind: 'payments', label: 'Stripe' },
     });
     expect(d.messages.slice(0, 9)).toEqual([
       { 'C -> W': 'Pay' },
@@ -83,7 +83,7 @@ describe('sequenceDiagram', () => {
     const d = parse(yaml);
     expect(d.activations).toBeUndefined();
     expect(Object.keys(d.participants)).toEqual(['Alice', 'Bob', 'Order-DB']);
-    expect(d.participants['Order-DB']).toEqual({ kind: 'database', label: 'Order DB', caption: '' });
+    expect(d.participants['Order-DB']).toEqual({ kind: 'database', label: 'Order DB' });
     const r = await clean(yaml);
     expect(r.type!.id).toBe('sequence');
   });

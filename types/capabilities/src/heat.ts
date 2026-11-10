@@ -18,6 +18,8 @@ export interface HeatEntry {
   tone?: Tone;
   /** Higher is worse: a diverging scale turns round. */
   reverse?: boolean;
+  /** What the numbers are in: €, $, %, FTE. Left out, it is read from the values (€220k → €). */
+  unit?: string;
 }
 
 /** What the common properties mean, so `heat: maturity` is all a map needs. */
@@ -77,8 +79,45 @@ const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1).rep
 /** 1200000 → 1.2M, as a legend says a range. */
 function short(n: number): string {
   const a = Math.abs(n);
-  const f = (x: number, u: string) => `${Math.round(x * 10) / 10}${u}`;
-  return a >= 1e9 ? f(n / 1e9, 'B') : a >= 1e6 ? f(n / 1e6, 'M') : a >= 1e3 ? f(n / 1e3, 'k') : String(Math.round(n * 10) / 10);
+  // Two decimals at most, so a step of 0.25 or 2.5M says where it ends.
+  const f = (x: number, u: string) => `${Math.round(x * 100) / 100}${u}`;
+  return a >= 1e9 ? f(n / 1e9, 'B') : a >= 1e6 ? f(n / 1e6, 'M') : a >= 1e3 ? f(n / 1e3, 'k') : f(n, '');
+}
+
+/** The unit the values are written in, when they all share one: "€220k" → €, "35%" → %. */
+function unitOf(values: unknown[]): string | undefined {
+  const units = values.map((v) => {
+    if (typeof v !== 'string') return '';
+    const m = /^\s*([^\d\s.,-]{0,3})\s*-?\d[\d.,]*\s*(?:k|m|mn|bn|b)?\s*(%)?\s*$/i.exec(v);
+    return m ? m[1] || m[2] || '' : '';
+  });
+  return units[0] && units.every((u) => u === units[0]) ? units[0] : undefined;
+}
+
+/** A number with its unit: a currency before it (€30k), a percentage or a word after it (35%, 4 FTE). */
+function withUnit(n: number, unit?: string): string {
+  if (!unit) return short(n);
+  if (unit === '%') return `${short(n)}%`;
+  return /^\p{L}/u.test(unit) ? `${short(n)} ${unit}` : `${unit}${short(n)}`;
+}
+
+/**
+ * Round step boundaries around lo..hi: a step of 1, 2, 2.5 or 5 times a power of ten, as close to
+ * five steps as there is, so a key reads €0–€200k, not 30k–152k.
+ */
+export function niceSteps(lo: number, hi: number): { start: number; step: number; count: number } {
+  let best: { start: number; step: number; count: number } | undefined;
+  const e = Math.floor(Math.log10(Math.max(Math.abs(hi - lo), 1e-9) / 5));
+  for (let p = e - 1; p <= e + 1; p++)
+    for (const m of [1, 2, 2.5, 5]) {
+      const step = m * 10 ** p;
+      const start = Math.floor(lo / step + 1e-9) * step;
+      const end = Math.max(start + step, Math.ceil(hi / step - 1e-9) * step);
+      const count = Math.round((end - start) / step);
+      if (count > 7) continue;
+      if (!best || Math.abs(count - 5) < Math.abs(best.count - 5) || (Math.abs(count - 5) === Math.abs(best.count - 5) && count > best.count)) best = { start, step, count };
+    }
+  return best ?? { start: lo, step: (hi - lo) / 5 || 1, count: 5 };
 }
 
 export interface HeatScale {
@@ -128,6 +167,7 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
   }
 
   const found = nums.filter((n): n is number => n !== undefined);
+  const unit = e.unit ?? unitOf(present);
   const lo = e.min ?? (found.length ? Math.min(...found) : 0);
   const hi = e.max ?? (found.length ? Math.max(...found) : 1);
   const scale = e.scale ?? 'sequential';
@@ -139,21 +179,25 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
   // The legend: a sample per labelled value, per whole number of a short range, or five even steps.
   const legend: LegendItem[] = [];
   const whole = found.every((n) => Number.isInteger(n)) && Number.isInteger(lo) && Number.isInteger(hi) && hi - lo <= 6;
-  // Five even steps colour every value as its step's sample, so the map shows the key's five shades and no in-betweens.
-  const steps = !(e.labels && Object.keys(e.labels).length) && !whole ? 5 : 0;
-  const binned = (t: number) => (steps ? (Math.min(steps - 1, Math.floor(t * steps)) + 0.5) / steps : t);
-  const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(at(n)), tone, text });
+  // Round steps colour every value as its step's sample, so the map shows the key's shades and no in-betweens.
+  const bins = !(e.labels && Object.keys(e.labels).length) && !whole && found.length ? niceSteps(lo, hi) : undefined;
+  const binned = (n: number) => {
+    if (!bins) return at(n);
+    const t = (Math.max(0, Math.min(bins.count - 1, Math.floor((n - bins.start) / bins.step + 1e-9))) + 0.5) / bins.count;
+    return e.reverse ? 1 - t : t;
+  };
+  const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(n), tone, text });
   const label = (i: number, s: string) => (i === 0 ? `${title}: ${s}` : s);
   if (e.labels && Object.keys(e.labels).length) {
     const keys = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
     keys.forEach((k, i) => legend.push({ label: label(i, `${short(k)} ${e.labels![String(k)]}`), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } }));
   } else if (whole && found.length) {
     for (let k = lo, i = 0; k <= hi; k++, i++) legend.push({ label: label(i, String(k)), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } });
-  } else if (found.length) {
-    for (let i = 0; i < steps; i++) {
-      const a = lo + ((hi - lo) * i) / steps;
-      const b = lo + ((hi - lo) * (i + 1)) / steps;
-      legend.push({ label: label(i, `${short(a)}–${short(b)}`), swatch: 'block', block: { form: 'chip', heat: heat((a + b) / 2, '') } });
+  } else if (bins) {
+    for (let i = 0; i < bins.count; i++) {
+      const a = bins.start + bins.step * i;
+      const b = a + bins.step;
+      legend.push({ label: label(i, `${withUnit(a, unit)}–${withUnit(b, unit)}`), swatch: 'block', block: { form: 'chip', heat: heat((a + b) / 2, '') } });
     }
   }
   return {
@@ -163,7 +207,7 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
       const n = numberOf(v);
       if (n === undefined) return undefined;
       // A number says itself; a labelled one keeps its number in the tag and its word in the legend.
-      return heat(n, typeof v === 'number' ? short(v) : String(v).trim());
+      return heat(n, typeof v === 'number' ? withUnit(v, unit) : String(v).trim());
     },
     legend,
   };
