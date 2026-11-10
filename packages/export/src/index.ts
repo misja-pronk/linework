@@ -5,3 +5,5 @@ export { svgOnPage } from './page.ts';
 export type { SlideText } from './pptx.ts';
 export { toPictureDeck, type PictureSlide } from './pictures.ts';
 export * from './animate/index.ts';
+export { readTemplate, chooseLayout, type PptxTemplate, type TemplateLayout } from './template/read.ts';
+export { templateTheme } from './template/theme.ts';

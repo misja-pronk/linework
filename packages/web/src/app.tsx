@@ -40,6 +40,7 @@ import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-ed
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
+import { folderBytes, TemplateItems, useTemplateChoice } from './pptx-template.tsx';
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPageSvg, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, drawnAs, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
@@ -778,9 +779,13 @@ export function App() {
   });
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
+  const pptxTemplate = useTemplateChoice(ws, (m) => notify(m, { tone: 'error' }));
   const savePptx = attempt('Export', async () => {
-    const { blob, small } = await exportPptx(exportInput(), yamlName(doc.name));
+    // In the template chosen in the menu, or the one the theme names (read from the open folder, next to the diagram).
+    const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
+    const { blob, small, warnings } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read });
     download(`${baseName(doc.name)}.pptx`, blob);
+    if (warnings.length && !small.length) notify(`In the template: ${warnings[0]}${warnings.length > 1 ? ` (and ${warnings.length - 1} more)` : ''}`);
     // Every slide is checked for text too small to read from the back of a room.
     if (small.length) notify(`${count(small.length, 'slide')} with text under ${SLIDE_MIN_PT} pt (${small.map((t) => `slide ${t.slide}: ${t.smallestPt} pt`).join(', ')}): split into views, or Tidy for the page`, { tone: 'error' });
   });
@@ -2001,6 +2006,7 @@ export function App() {
             <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
           </button>
           <div className="menu-anchor">
+            {pptxTemplate.picker}
             <button className="button primary" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-haspopup="menu">
               <Icon name="download" /> Export <Icon name="chevron-down" size={14} />
             </button>
@@ -2033,8 +2039,9 @@ export function App() {
                 </button>
                 <div className="menu-heading">Document, on the page ({pageName})</div>
                 <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> {written ? 'PowerPoint, a slide per step (.pptx)' : 'PowerPoint (.pptx)'}
+                  <Icon name="layout-template" /> {pptxTemplate.chosen ? `PowerPoint in ${pptxTemplate.chosen.name.split('/').pop()}${written ? ', a slide per step' : ''}` : written ? 'PowerPoint, a slide per step (.pptx)' : 'PowerPoint (.pptx)'}
                 </button>
+                <TemplateItems t={pptxTemplate} />
                 <button role="menuitem" onClick={savePdf}>
                   <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
                 </button>

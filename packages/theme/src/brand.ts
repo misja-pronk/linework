@@ -3,7 +3,7 @@
 import { tones as toneSlots, type Tone } from '@cartography/core';
 import { contrast, ensureContrast, fromHsl, hex, isColor, isDark, mix, parseColor, toHsl } from './color.ts';
 import { bundledFamilies, bundledFamily } from './fonts.ts';
-import { classic, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type SketchLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';
+import { classic, type PptxLook, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type SketchLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';
 
 type FontFiles = string[] | Record<string, string>;
 const RADIUS_KEYS = ['card', 'group', 'tile', 'chip', 'corner'] as const;
@@ -34,6 +34,8 @@ export interface ThemeSpec {
   iconSize?: number;
   cardBar?: boolean;
   titleBlock?: Omit<TitleBlock, 'logo'> & { logo?: string };
+  /** `pptx: template.potx`, or { template, layout, keepLook }: decks are made in that PowerPoint template. */
+  pptx?: PptxLook;
   legend?: LegendPosition;
   legendStyle?: Theme['legendStyle'];
   group?: GroupLook;
@@ -62,7 +64,7 @@ export interface ThemeWarning {
 }
 
 const COLOR_KEYS = ['primary', 'accent', 'canvas', 'surface', 'border', 'text', 'muted', 'faint', 'edge'] as const;
-const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'iconSize', 'cardBar', 'titleBlock', 'legend', 'legendStyle', 'harmonize', 'group', 'edgeLabel', 'edgeLabelInk', 'edgeLabelCaps', 'lines', 'sheet', 'tableHead', 'number', 'chip', 'cardLine', 'title', 'background', 'sketch', 'contrast'];
+const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'iconSize', 'cardBar', 'titleBlock', 'legend', 'legendStyle', 'harmonize', 'group', 'edgeLabel', 'edgeLabelInk', 'edgeLabelCaps', 'lines', 'sheet', 'tableHead', 'number', 'chip', 'cardLine', 'title', 'background', 'sketch', 'contrast', 'pptx'];
 const BLOCK_KEYS = ['logo', 'client', 'project', 'version', 'date', 'classification', 'footer', 'imprint'];
 const RADIUS = { sharp: 0.35, soft: 1, round: 1.4 };
 /** Every tone slot can be given. */
@@ -260,6 +262,11 @@ export function parseThemeSpec(v: unknown, warn: (w: ThemeWarning) => void): The
   if (o.legend != null) {
     if (['bottom', 'top', 'right', 'none'].includes(String(o.legend))) spec.legend = o.legend as LegendPosition;
     else warn({ path: ['legend'], message: 'legend is bottom, top, right or none' });
+  }
+  if (o.pptx != null) {
+    const x = typeof o.pptx === 'string' ? { template: o.pptx } : block('pptx', o.pptx, ['template', 'layout', 'keepLook']);
+    if (x && typeof x.template === 'string' && /\.(potx|pptx)$/i.test(x.template)) spec.pptx = clean({ template: x.template, layout: x.layout == null ? undefined : String(x.layout), keepLook: flag(['pptx', 'keepLook'], x.keepLook) });
+    else warn({ path: ['pptx'], message: 'pptx is a PowerPoint template file (.potx or .pptx), or a map: template, layout, keepLook' });
   }
   if (o.titleBlock != null) {
     if (typeof o.titleBlock !== 'object') warn({ path: ['titleBlock'], message: 'titleBlock is a map: logo, client, project, version, date, classification, footer' });

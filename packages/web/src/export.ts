@@ -134,7 +134,15 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
  * where a view has steps, then one per layer; icon PNG fallbacks drawn by the browser's canvas. `small` lists the slides
  * whose smallest text is under SLIDE_MIN_PT.
  */
-export async function exportPptx(input: ExportInput, name?: string): Promise<{ blob: Blob; small: SlideText[] }> {
+export interface PptxTemplateInput {
+  /** The template chosen in the Export menu. */
+  bytes?: Uint8Array;
+  keepLook?: boolean;
+  /** Reads a template a theme names (pptx:), by its path relative to the diagram. */
+  read?(path: string): Promise<Uint8Array | undefined>;
+}
+
+export async function exportPptx(input: ExportInput, name?: string, template?: PptxTemplateInput): Promise<{ blob: Blob; small: SlideText[]; warnings: string[] }> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
   const others = (r.views ?? []).filter((v) => v.name !== r.view);
@@ -148,8 +156,14 @@ export async function exportPptx(input: ExportInput, name?: string): Promise<{ b
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
-  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t) });
-  return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small };
+  // In a PowerPoint template: the one chosen in the menu, else the one the diagram's theme names (pptx:).
+  const named = r.theme?.pptx;
+  const bytes = template?.bytes ?? (named && template?.read ? await template.read(named.template) : undefined);
+  const warnings: string[] = [];
+  if (named && !bytes) warnings.push(`the theme makes decks in ${named.template}, which is not in the open folder: made without it`);
+  const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}), onWarning: (w: string) => warnings.push(w) } : {};
+  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), ...inTemplate });
+  return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings };
 }
 
 /** Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own faces embedded. */

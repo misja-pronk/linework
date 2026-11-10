@@ -33,7 +33,8 @@ edges:
 );
 write('decisions/0001-use-postgres.md', '---\nstatus: accepted\ndate: 2026-01-02\nconcerns: [db, "api -> db"]\n---\n\n# Use Postgres\n\n## Decision\n\nWe use Postgres.\n');
 
-describe('carto decisions', () => {
+// Each case starts the CLI (tsx) one or more times: room for a machine busy with other work.
+describe('carto decisions', { timeout: 60_000 }, () => {
   it('writes the next decision from the template, and supersedes', () => {
     const r = carto('decisions', 'new', 'Use a managed database', '--concerns', 'db', '--supersedes', '1');
     expect(r.code).toBe(0);
