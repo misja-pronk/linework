@@ -127,7 +127,8 @@ const MINI_H = 120;
 
 /** The whole drawing small, with the part in view; click or drag in it to look elsewhere. */
 export function Minimap(p: { placed: Placed; origin: Point; width: number; height: number; view: { x: number; y: number; scale: number }; pane: { w: number; h: number }; onCentre(x: number, y: number): void }) {
-  const k = Math.min(MINI_W / p.width, MINI_H / p.height);
+  // Never more than a fifth of the pane across or down: on a small pane the overview stays an aside.
+  const k = Math.min(Math.min(MINI_W, p.pane.w * 0.2) / p.width, Math.min(MINI_H, p.pane.h * 0.18) / p.height);
   const w = p.width * k;
   const h = p.height * k;
   const o = p.origin;
