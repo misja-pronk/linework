@@ -43,6 +43,7 @@ import { themes } from '@cartography/theme';
 import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
+import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
@@ -1218,7 +1219,7 @@ export function App() {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
-    else if (e.key === 'F2' && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
+    else if (e.key === 'F2' && !e.shiftKey && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
     e.preventDefault();
@@ -1404,6 +1405,33 @@ export function App() {
     return `${name}${kind}${state}`;
   };
 
+  // ------------------------------------------------------------ the folder as one model (workspace/)
+
+  const wsTools = useWorkspaceTools({
+    ws,
+    file: ws && doc.path ? doc.path : docId,
+    inFolder: !!(ws && doc.path),
+    text: rendered?.text ?? text,
+    textNow,
+    pins,
+    drawn,
+    view: viewName,
+    selected,
+    current,
+    open: async (file, name) => {
+      setPicked({ doc: file, name });
+      if (ws) await openInFolder(ws, file);
+    },
+    showView: (name) => setPicked({ doc: docId, name }),
+    select: (s) => select(s),
+    focus: (node, name) => setLens({ doc: docId, view: name, focus: { on: [node], hops: 1, direction: 'both' } }),
+    zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    reveal: (from, to) => editor.current?.reveal(from, to),
+    replace: (next, nextPins) => editor.current?.replace(next, { pins: nextPins }),
+    refresh: (w) => setWs({ ...w }),
+    notify,
+  });
+
   // ------------------------------------------------------------ commands
 
   /** What the last import or export said, while its document is open. */
@@ -1412,6 +1440,7 @@ export function App() {
     { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: () => (asking ? setAsking(false) : askWith()) },
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
+    ...wsTools.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
@@ -1522,6 +1551,7 @@ export function App() {
       }
       // "?" opens the shortcuts, unless someone is typing.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
+      if (!modal && !presenting && wsTools.onKey(e, mod(e), !!typing)) return e.preventDefault();
       if (e.key === '?' && !typing && !modal) {
         setModal('shortcuts');
         return e.preventDefault();
@@ -1782,6 +1812,7 @@ export function App() {
               </button>
             ))}
             {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
+            {wsTools.wherePanel}
           </nav>
         )}
         {view === 'visual' && type && (
@@ -1876,6 +1907,7 @@ export function App() {
               setDraft(undefined);
               pinTo(withEdge(id, via));
             }}
+            onDrill={wsTools.onDrill}
             onFollow={(s) => {
               const g = drawn?.graph;
               const links = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.links : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.links : undefined;
@@ -1885,6 +1917,7 @@ export function App() {
             }}
           >
             <div className="canvas-top">
+            {wsTools.crumbBar}
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
               <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
                 <Icon name="plus" /> Add <kbd>A</kbd>
@@ -2116,6 +2149,11 @@ export function App() {
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
         </button>
+        {ws && wsTools.folderProblems.length > 0 && (
+          <button className="status-problems status-folder has-warnings" onClick={() => setModal('problems')} title={`Problems across the files of ${ws.name}`}>
+            <Icon name="folder-open" size={14} /> {wsTools.folderProblems.length} across {ws.name}
+          </button>
+        )}
         {result?.graph && <span>{drawnCount(result.graph)}</span>}
         {pinCount > 0 && (
           <span className="status-selected">
@@ -2150,10 +2188,11 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {wsTools.dialogs}
       {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
-          placeholder={diagnostics.length || shownNotes ? 'Filter problems…' : 'No problems: everything draws'}
+          placeholder={diagnostics.length || shownNotes || wsTools.folderProblems.length ? 'Filter problems…' : 'No problems: everything draws'}
           onClose={closeModal}
           commands={[...diagnostics.map((d, i) => ({
             id: `p${i}`,
@@ -2165,7 +2204,7 @@ export function App() {
               if (d.from != null && current) editor.current?.reveal(d.from, d.to ?? d.from);
               requestAnimationFrame(() => editor.current?.focus());
             },
-          })), ...(shownNotes?.items.map((m, i) => ({ id: `n${i}`, group: shownNotes.title, label: m, icon: 'triangle-exclamation-point', run: () => {} })) ?? [])]}
+          })), ...(shownNotes?.items.map((m, i) => ({ id: `n${i}`, group: shownNotes.title, label: m, icon: 'triangle-exclamation-point', run: () => {} })) ?? []), ...wsTools.problemCommands]}
         />
       )}
       {dropping && (

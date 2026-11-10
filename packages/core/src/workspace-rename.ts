@@ -31,6 +31,8 @@ export interface RenamePlan {
   to: string;
   label?: { from?: string; to: string };
   files: RenameFile[];
+  /** Files that name nothing by the old id in their text but draw it: their pins and notes still follow. */
+  drawnIn: RenameFile[];
   /** Why it cannot be done; nothing in `files` then. */
   problem?: string;
 }
@@ -59,7 +61,7 @@ export function planRename(ix: WorkspaceIndex, from: string, toAsked: string, o:
   const defs = ix.elements.get(from);
   const parent = from.includes('.') ? from.slice(0, from.lastIndexOf('.')) : undefined;
   const to = toAsked.includes('.') || !parent ? toAsked.trim() : `${parent}.${toAsked.trim()}`;
-  const plan: RenamePlan = { from, to, files: [] };
+  const plan: RenamePlan = { from, to, files: [], drawnIn: [] };
   const no = (problem: string) => ({ ...plan, problem });
   if (!defs?.length) return no(`There is no element "${from}" in the workspace`);
   const toParent = to.includes('.') ? to.slice(0, to.lastIndexOf('.')) : undefined;
@@ -77,6 +79,7 @@ export function planRename(ix: WorkspaceIndex, from: string, toAsked: string, o:
     const r = renameInFile(f.file, f.text, from, to, homes.has(f.file), label ? { from: plan.label!.from, to: label } : undefined, o.references);
     if (typeof r === 'string') return no(`${f.file}: ${r}`);
     if (r && r.after !== f.text) plan.files.push(r);
+    else if (r) plan.drawnIn.push(r);
   }
   return plan;
 }
@@ -184,7 +187,6 @@ function renameInFile(file: string, text: string, from: string, to: string, home
       if (isPlainMap(m)) for (const [k, e] of Object.entries(m)) if (isPlainMap(e) && e.ref === from && e.label === label.from) setLabel(doc, text, [coll, k], e, label.to, add);
     }
 
-  if (!edits.length) return undefined;
   let after = text;
   for (const e of [...edits].sort((a, b) => b.from - a.from)) after = after.slice(0, e.from) + e.text + after.slice(e.to);
   const node = (id: string) => (own.has(from) && id === from ? id : (renames.get(id) ?? renamedId(id, from, to)));

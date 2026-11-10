@@ -35,6 +35,16 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Folder (one model)',
+    [
+      ['⌘P / ⇧⌘F', 'Search every diagram: elements, views, files (↵ opens in focus, ⌥↵ only selects)'],
+      ['⌘↓ / double-click', 'Down into the selection: a system to its containers, an instance to its model'],
+      ['⌘↑', 'Up a level'],
+      ['⌘[ / ⌘]', 'Back / forward'],
+      ['⇧F2', 'Rename the selected element in every file'],
+    ],
+  ],
+  [
     'Focus',
     [
       ['F', 'Only the selection and what is around it'],

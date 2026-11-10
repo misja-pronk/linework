@@ -102,6 +102,14 @@ async function write(handle: FileSystemFileHandle, text: string) {
   await w.close();
 }
 
+/** Writes one text file of the folder as it is given (a diagram or a sidecar changed by a rename elsewhere). */
+export async function writeInFolder(ws: Workspace, path: string, text: string) {
+  const h = await handleFor(ws, path, true);
+  if (!h) throw new Error(`Cannot write ${path}`);
+  await write(h, text);
+  ws.files.set(path, { handle: h, text });
+}
+
 /** Saves a diagram and its pins (or removes a stale sidecar when there are none). */
 export async function saveInFolder(ws: Workspace, path: string, text: string, pins: LayoutSidecar | undefined) {
   const h = await handleFor(ws, path, true);

@@ -725,6 +725,8 @@ export interface WsHit {
   view?: string;
   /** The node to select when it opens. */
   node?: string;
+  /** Where it is written. */
+  line?: number;
   /** For elements: the drawings it is in. */
   where?: { file: string; view?: string; node: string }[];
   score: number;
@@ -804,6 +806,7 @@ export function searchWorkspace(ix: WorkspaceIndex, query: string, limit = 50): 
       file: first?.file ?? d.file,
       view: first?.view,
       node: first?.node,
+      line: first ? undefined : d.line,
       where,
       score: s + 10 + Math.min(5, where.length),
     });
@@ -819,7 +822,7 @@ export function searchWorkspace(ix: WorkspaceIndex, query: string, limit = 50): 
       // Entries that stand for an element are found as that element.
       if (e.of || (e.ref && ix.elements.has(e.ref)) || (ix.elements.has(e.id) && (ix.scope.get(f.file) ?? []).some((x) => ix.files.get(x)?.elements.some((el) => el.id === e.id)))) continue;
       const s2 = score([{ text: e.id, weight: 0.9, fuzzy: true }, { text: e.label, weight: 0.9, fuzzy: true }, { text: e.kind, weight: 0.4 }], words);
-      if (s2) hits.push({ kind: 'entry', id: e.id, title: e.label ?? e.id, detail: `${e.collection} in ${f.file}`, file: f.file, node: e.id, score: s2 - 5 });
+      if (s2) hits.push({ kind: 'entry', id: e.id, title: e.label ?? e.id, detail: `${e.collection} in ${f.file}`, file: f.file, node: e.id, line: e.line, score: s2 - 5 });
     }
   }
   return hits.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, limit);
