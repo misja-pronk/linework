@@ -555,6 +555,11 @@ kbd {
   padding-top: 12vh;
   animation: fade 120ms ease-out;
 }
+/* Every dialog ends above the bottom of the window, whatever it holds: the part that grows (a diff,
+   a list) scrolls inside it, the header and the buttons stay in view (review 3: Rename everywhere at 900 px). */
+.overlay > [role='dialog'] {
+  max-height: calc(100vh - 12vh - 16px);
+}
 @keyframes fade {
   from {
     opacity: 0;
@@ -1049,6 +1054,9 @@ kbd {
 .canvas-tools [role='menuitem'].tool-folded {
   display: none;
 }
+.canvas-tools .menu button {
+  white-space: nowrap;
+}
 span.tool-more {
   display: contents;
 }
@@ -1474,6 +1482,7 @@ button.rail {
 
 /* The one panel on the right: properties, notes or Ask, on tabs. */
 .side {
+  container: side / inline-size;
   min-height: 0;
   min-width: 0;
   display: flex;
@@ -1491,14 +1500,36 @@ button.rail {
   gap: 2px;
   padding: 6px 6px 0;
   border-bottom: 1px solid var(--border);
-  /* Five tabs are more than a narrow panel holds: the strip scrolls, the open tab is scrolled to. */
+  min-width: 0;
+  /* Should a panel get narrower than the collapsed tabs, the strip scrolls rather than clipping. */
   overflow-x: auto;
   scrollbar-width: none;
 }
-.side-tabs button {
-  flex: none;
+/* Narrower than the five labels (Ask Claude was cut off at 1280 and 1512): only the chosen tab says its
+   name, the others are icon and count with the name as tooltip; narrower still, icons only. The names
+   stay readable to screen readers. */
+@container side (max-width: 480px) {
+  .side-tabs button:not([aria-selected='true']) .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@container side (max-width: 250px) {
+  .side-tabs .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 .side-tabs button {
+  position: relative;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -3860,6 +3891,22 @@ button.type-pill:hover {
   align-items: center;
   gap: 4px;
 }
+.note-composer-name {
+  flex: 1;
+  min-width: 0;
+  margin-right: auto;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--editor-bg);
+  color: var(--text);
+}
+.note-composer-name:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
 .note-composer-actions .fine {
   margin: 0 auto 0 0;
   font-size: 11px;
@@ -3915,4 +3962,28 @@ button.type-pill:hover {
 }
 .pin-badge {
   color: var(--accent);
+}
+
+/* Asking before something is lost (confirm.tsx). */
+.confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 18px 20px 16px;
+  display: grid;
+  gap: 8px;
+}
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.confirm-dialog p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }

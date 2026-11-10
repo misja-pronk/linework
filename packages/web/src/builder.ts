@@ -2,7 +2,7 @@
 // and every change is an ordinary edit in the editor (one undo history, two-way sync for free).
 // Everything is driven by the type's JSON Schema and palette: a new type gets a builder without UI code.
 import { isMap, isScalar, isSeq, parseDocument, YAMLMap, type Document, type Node, type Pair } from 'yaml';
-import type { DiagramType, PaletteItem, Reference } from '@cartography/core';
+import { namesIn, placeRefsTo, placeSites, type DiagramType, type PaletteItem, type PlaceSite, type Reference } from '@cartography/core';
 import { printPreserving } from './yaml-print.ts';
 import { iconNames } from '@cartography/icons';
 import { schemasAt } from './complete.ts';
@@ -220,6 +220,7 @@ function renameEntryUnsafe(text: string, type: DiagramType, path: Path, to: stri
   // must be new there too, or two steps would silently become one.
   if (type.freeNames ? referencesTo(doc, type, String(path[0]), to).length > 0 || (!pair && !refs.length) : !pair) return undefined;
   if (pair) (pair.key as { value: unknown }).value = to;
+  renamePlaces(doc, type, from, to);
   // Later ids in the same string first, so earlier offsets stay right.
   for (const r of [...refs].sort((a, b) => b.start - a.start)) {
     const node = doc.getIn(r.path, true);
@@ -232,6 +233,68 @@ function renameEntryUnsafe(text: string, type: DiagramType, path: Path, to: stri
 }
 
 const splice = (s: string, at: number, len: number, insert: string) => s.slice(0, at) + insert + s.slice(at + len);
+
+/** Keys the type's schema defines itself (a journey's steps): those are its entries, not presentation. */
+const ownsKey = (type: DiagramType) => {
+  const props = (type.schema as Schema).properties ?? {};
+  return (k: string) => k in props;
+};
+
+/** Steps, focus, views, threats and trust that name `from` (place-refs.ts) name `to` instead. */
+function renamePlaces(doc: Document, type: DiagramType, from: string, to: string) {
+  const refs = placeRefsTo(doc.toJS(), from, ownsKey(type)).sort((a, b) => b.start - a.start);
+  for (const r of refs) {
+    const node = doc.getIn(r.path, true);
+    const holder = r.key != null ? (isMap(node) ? node.items.find((p) => isScalar(p.key) && String(p.key.value) === r.key)?.key : undefined) : node;
+    if (isScalar(holder) && typeof holder.value === 'string') holder.value = splice(holder.value, r.start, from.length, to);
+  }
+}
+
+/** Takes away every place-reference to what is gone: a step keeps its caption, a focus or list that names nothing any more goes. */
+function dropPlaces(doc: Document, type: DiagramType, gone: Set<string>) {
+  const owns = ownsKey(type);
+  for (let guard = 0; guard < 1000; guard++) {
+    const hit = placeSites(doc.toJS(), owns).find((s) => namesIn(s.text).some((n) => gone.has(n.id)));
+    if (!hit) return;
+    dropSite(doc, hit);
+  }
+}
+
+function dropSite(doc: Document, s: PlaceSite) {
+  if (s.key != null) {
+    const map = doc.getIn(s.path, true);
+    if (!isMap(map)) return;
+    const value = map.get(s.key);
+    map.delete(s.key);
+    // A route step said its caption as the route's value: the step stays, with that caption.
+    if (s.role === 'route' && typeof value === 'string' && value && !map.has('caption')) {
+      if (!map.items.length) return void doc.setIn(s.path, value);
+      map.set('caption', value);
+    }
+    return prune(doc, s.path);
+  }
+  // A threat about what is gone goes with it.
+  const at = s.role === 'threat' ? s.path.slice(0, -1) : s.path;
+  doc.deleteIn(at);
+  if (at.at(-1) === 'on') {
+    doc.deleteIn(at.slice(0, -1));
+    return prune(doc, at.slice(0, -2));
+  }
+  prune(doc, at.slice(0, -1));
+}
+
+/** Containers left empty go, up to a view (which stays, drawing everything) or the top; a focus without `on` is no focus. */
+function prune(doc: Document, path: Path) {
+  for (let p = path; p.length && !(p[0] === 'views' && p.length <= 2); p = p.slice(0, -1)) {
+    const n = doc.getIn(p, true);
+    if (!((isMap(n) || isSeq(n)) && !n.items.length)) return;
+    doc.deleteIn(p);
+    if (p.at(-1) === 'on') {
+      p = p.slice(0, -1);
+      doc.deleteIn(p);
+    }
+  }
+}
 
 /** Deletes an entry and what only made sense with it: edges to it, list items naming it, `in:` keys. */
 function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string | undefined {
@@ -281,6 +344,7 @@ function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string 
     if (typeof path.at(-2) === 'number' && isMap(holder) && !holder.items.length) doc.deleteIn(path.slice(0, -1));
   }
   else if (!refs.length) return undefined;
+  if (gone.length) dropPlaces(doc, type, new Set(gone));
   return str(doc);
 }
 

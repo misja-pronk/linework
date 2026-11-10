@@ -4,11 +4,26 @@ import { chromium } from '@playwright/test';
 const out = process.argv[2];
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) {
+      const said = await page.locator('.confirm-dialog').innerText({ timeout: 250 }).catch(() => '');
+      if (said) asked.push(said);
+      await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+    }
+  })();
+  return () => void (on = false);
+};
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 // Starting something new over unsaved changes asks first (as opening a folder does): yes, here.
+/** What the app asked before discarding unsaved changes (its own dialog), and any browser dialog (none expected). */
 const asked = [];
-page.on('dialog', (d) => (asked.push(d.message()), d.accept()));
+const native = [];
+page.on('dialog', (d) => (native.push(d.message()), d.accept()));
+discarding();
 const fail = (m) => problems.push(m);
 const wait = (ms = 300) => page.waitForTimeout(ms);
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
@@ -144,7 +159,9 @@ await page.screenshot({ path: `${out}/9-import.png` });
 await page.getByRole('button', { name: /Open in builder/ }).click();
 await wait(800);
 if (!(await yaml()).includes('type: systems')) fail('import not opened');
-if (!asked.some((m) => m.includes('azure.yaml has changes'))) fail('opening the import over the edited azure.yaml should ask first: ' + JSON.stringify(asked));
+// Asked in the app's own dialog, not the browser's confirm() (review 3).
+if (!asked.some((m) => m.includes('azure.yaml has changes'))) fail('opening over the edited azure.yaml should ask first, in the app: ' + JSON.stringify(asked));
+if (native.length) fail(`the browser's own dialog came up: ${JSON.stringify(native)}`);
 
 // 6. Start blank: an empty diagram of the chosen type in the builder, with a start on the canvas.
 await page.emulateMedia({ colorScheme: 'light' });

@@ -79,6 +79,7 @@ await page.locator('.preview').focus();
 await page.keyboard.press('Shift+Q');
 await dialog.waitFor({ timeout: 3000 }).catch(() => fail('⇧Q with two selected should open the trace dialog'));
 check(`two routes from customers to db, got ${await routes().count()}`, (await routes().count()) === 2);
+check(`the header says what is traced, got "${await page.locator('.trace-what').innerText()}"`, (await page.locator('.trace-what').innerText()) === 'from Customers to Orders DB · 2 routes');
 check('the shortest route is offered first', (await routes().first().innerText()).includes('Customers → Storefront → API gateway → Orders → Orders DB'));
 await page.waitForSelector('.trace-preview svg', { timeout: 5000 }).catch(() => fail('the dialog should preview the sequence diagram'));
 await wait(300);

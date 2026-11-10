@@ -61,9 +61,12 @@ const when = (iso: string) => {
 };
 
 /** A text box that sends with ⌘↩ (or Ctrl↩) and cancels with Esc; no key reaches the drawing. */
-function Composer(p: { label: string; initial?: string; placeholder: string; send: string; autoFocus?: boolean; onSend(text: string): void; onCancel?(): void }) {
+/** `askName`: no name yet; it is asked next to the send button, so the first note is never typed into it. */
+function Composer(p: { label: string; initial?: string; placeholder: string; send: string; autoFocus?: boolean; askName?: boolean; onSend(text: string, name?: string): void; onCancel?(): void }) {
   const [text, setText] = useState(p.initial ?? '');
-  const go = () => text.trim() && (p.onSend(text), setText(''));
+  const [name, setName] = useState('');
+  const ready = !!text.trim() && (!p.askName || !!name.trim());
+  const go = () => ready && (p.onSend(text, p.askName ? name.trim() : undefined), setText(''));
   return (
     <div className="note-composer">
       <textarea
@@ -85,13 +88,29 @@ function Composer(p: { label: string; initial?: string; placeholder: string; sen
         }}
       />
       <div className="note-composer-actions">
-        <span className="fine">{tr('**bold**, *italic*, `code`, - lists')}</span>
+        {p.askName ? (
+          <input
+            className="note-composer-name"
+            aria-label={tr('Your name, shown on your notes')}
+            placeholder={tr('Your name')}
+            title={tr('Your name, shown on your notes; asked once')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') (e.preventDefault(), go());
+              else if (e.key === 'Escape' && p.onCancel) (e.preventDefault(), p.onCancel());
+            }}
+          />
+        ) : (
+          <span className="fine">{tr('**bold**, *italic*, `code`, - lists')}</span>
+        )}
         {p.onCancel && (
           <button className="button ghost small" onClick={p.onCancel}>
             {tr('Cancel')}
           </button>
         )}
-        <button className="button primary small" onClick={go} disabled={!text.trim()} title={`${p.send} (⌘↩)`}>
+        <button className="button primary small" onClick={go} disabled={!ready} title={p.askName && !name.trim() ? 'Your name first: it is shown on your notes' : `${p.send} (⌘↩)`}>
           {p.send}
         </button>
       </div>
@@ -174,7 +193,7 @@ export function NotesPanel(p: NotesPanelProps) {
         </button>
       </div>
       <div className="notes-body" ref={list}>
-        {!review.author && (
+        {!review.author && !p.draft && (
           <form
             className="note-name"
             onSubmit={(e) => {
@@ -184,14 +203,14 @@ export function NotesPanel(p: NotesPanelProps) {
           >
             <label htmlFor="note-author">{tr('Your name, shown on your notes')}</label>
             <div>
-              <input id="note-author" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder={tr('e.g. Misja')} autoFocus={!!p.draft} />
+              <input id="note-author" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder={tr('e.g. Misja')} />
               <button className="button primary small" disabled={!name.trim()}>
                 {tr('Set')}
               </button>
             </div>
           </form>
         )}
-        {p.draft && review.author && (
+        {p.draft && (
           <div className="note-thread drafting">
             <div className="note-about">
               <Icon name="map-pin" size={13} /> {p.draft.about}
@@ -201,8 +220,10 @@ export function NotesPanel(p: NotesPanelProps) {
               placeholder={tr('Write a note…')}
               send={tr('Add note')}
               autoFocus
-              onSend={(text) => {
-                const t = review.add(p.draft!.anchor, text, p.draft!.anchor.kind === 'point' ? p.view : undefined);
+              askName={!review.author}
+              onSend={(text, name) => {
+                if (name) review.setAuthor(name);
+                const t = review.add(p.draft!.anchor, text, p.draft!.anchor.kind === 'point' ? p.view : undefined, name);
                 p.onDraftDone();
                 p.onActive(t.id);
               }}

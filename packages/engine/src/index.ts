@@ -1,6 +1,7 @@
 // The whole pipeline in one call, shared by the CLI and the web app:
 // YAML → validate → type.build → measure → layout → pins → SVG.
 import {
+  readKindAliases,
   compose,
   filterGraph,
   focusGraph,
@@ -269,9 +270,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // such a type defines itself (an ERD's relations) stays the type's.
   // Theme and icons are about the look, shared by every type: they never reach the type's schema.
   // So is the shape the drawing aims for (aspect: 16:9, 4:3, 1.5 or auto).
+  // "user" where the type says person (and the like): read as the type's kind, with a hint to write it so.
+  const aliased = readKindAliases(data, type.palette);
+  for (const a of aliased.read) diagnostics.push(source.at(a.path, `"${a.from}" is read as ${a.to}, the kind this diagram type has: write ${a.to}`, 'warning'));
   // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
   // So is the language of the drawing's own words (`lang: nl`).
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...rest } = data;
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...rest } = aliased.data;
   const lang = diagramLang(langRef) ?? opts.lang ?? 'en';
   if (langRef != null && !diagramLang(langRef)) diagnostics.push(source.at(['lang'], 'lang is the language of the words the drawing adds itself: en or nl', 'warning'));
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};

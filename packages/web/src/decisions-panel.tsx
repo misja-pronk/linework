@@ -336,9 +336,9 @@ function DecisionsPanel(p: PanelProps) {
         </span>
         <div className="inspector-title">
           <strong>{tr('Decisions')}</strong>
-          <span>
-            {tr('{count} in {where}', { count: decisions.list.length, where: decisions.inFolder ? `${decisions.dir}/` : tr('this browser') })}
-            {here.size ? tr(', {count} on this drawing', { count: here.size }) : ''}
+          <span title={decisions.inFolder ? tr('In {dir}/ of the folder', { dir: decisions.dir }) : tr('Kept in this browser')}>
+            {tr('{count} decision|{count} decisions', { count: decisions.list.length })}
+            {here.size ? tr(' · {count} about this drawing', { count: here.size }) : ''}
           </span>
         </div>
         <button className="icon-button" onClick={() => p.onNew()} aria-label={tr('New decision')} title={sel.length ? tr('New decision about the selection (⌥⇧D)') : tr('New decision (⌥⇧D)')}>

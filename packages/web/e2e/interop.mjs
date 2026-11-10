@@ -58,11 +58,11 @@ if (!/^(---\n[^]*?\n---\n)?(flowchart|erDiagram|sequenceDiagram|gitGraph|journey
 
 // Office-safe SVG: a switch in the menu; the SVG row follows it, and it is remembered.
 await page.click('button:has-text("Export")');
-await page.click('[role=menuitemcheckbox]:has-text("Office-safe SVG")');
+await page.click('[role=menuitemcheckbox]:has-text("SVG for PowerPoint / Word")');
 if ((await page.locator('[role=menuitemcheckbox][aria-checked=true]').count()) !== 1) fail('Office-safe switch did not turn on');
 await page.screenshot({ path: `${out}/1-export-menu.png` });
 await page.keyboard.press('Escape');
-const svg = await save('SVG, Office-safe');
+const svg = await save('SVG for PowerPoint / Word');
 for (const [what, re] of [
   ['a style sheet', /<style/],
   ['a CSS variable', /var\(--/],
@@ -74,8 +74,8 @@ for (const [what, re] of [
 await page.reload();
 await page.waitForSelector('.preview svg [data-node]');
 await page.click('button:has-text("Export")');
-if (!(await page.locator('[role=menuitem]:has-text("SVG, Office-safe")').count())) fail('Office-safe choice not remembered');
-await page.click('[role=menuitemcheckbox]:has-text("Office-safe SVG")');
+if (!(await page.locator('[role=menuitem]:has-text("SVG for PowerPoint / Word")').count())) fail('Office-safe choice not remembered');
+await page.click('[role=menuitemcheckbox]:has-text("SVG for PowerPoint / Word")');
 await page.keyboard.press('Escape');
 
 // 2. Drop the draw.io file on the window: the Import panel opens with it, positions can be kept.

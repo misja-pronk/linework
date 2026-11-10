@@ -111,15 +111,19 @@ export function useWorkspaceTools(h: Host) {
   const elementOf = (node: string | undefined) => (node ? elementAt(index, h.file, h.drawn?.view, node) : undefined);
   const selectedElement = here.node ? elementOf(here.node) : undefined;
 
+  /** The drill-downs that led here, so ⌘↑ goes back up the path people came down (review 3: it went to the model). */
+  const drilled = useRef<{ from: Place; to: Place }[]>([]);
+  const sameDrawing = (a: Place, b: Place) => a.file === b.file && (a.view ?? '') === (b.view ?? '');
   /** Down a level: the view about the element (its containers, its components), or for an instance the model's drawing of it. */
   const drill = (node: string | undefined): boolean => {
     const el = elementOf(node);
     if (!el) return false;
-    const to = drillTarget(index, el, { file: h.file, view: h.drawn?.view });
-    if (to) return void go({ ...to, node: el }), true;
-    const elsewhere = drawingsOf(index, el).find((d) => !(d.file === h.file && d.view === h.drawn?.view));
-    if (!elsewhere) return false;
-    void go(elsewhere);
+    const from: Place = { file: h.file, view: h.drawn?.view, node };
+    const target = drillTarget(index, el, { file: h.file, view: h.drawn?.view });
+    const to = target ? { ...target, node: el } : drawingsOf(index, el).find((d) => !(d.file === h.file && d.view === h.drawn?.view));
+    if (!to) return false;
+    drilled.current = [...drilled.current, { from, to }].slice(-50);
+    void go(to);
     return true;
   };
   /** Double-click: down a level in a C4 view or on an instance; elsewhere the label is edited, as before. */
@@ -132,6 +136,13 @@ export function useWorkspaceTools(h: Host) {
     return drill(s.id);
   };
   const up = () => {
+    // Came down here by a drill: back up the same way, with what was drilled into selected.
+    while (drilled.current.length && !sameDrawing(drilled.current.at(-1)!.to, { file: h.file, view: h.drawn?.view })) drilled.current = drilled.current.slice(0, -1);
+    const back = drilled.current.at(-1);
+    if (back) {
+      drilled.current = drilled.current.slice(0, -1);
+      return void go(back.from);
+    }
     const to = upFrom(index, scope, here);
     if (!to) return h.notify(t('This is the top: there is no view above it'));
     void go(to);

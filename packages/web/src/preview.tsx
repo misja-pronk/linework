@@ -1135,16 +1135,8 @@ export function Preview(p: Props) {
         <button onClick={() => fit()} title={t('Fit to screen (⇧1 or ⌘0)')} aria-label={t('Fit to screen')}>
           <Icon name="maximize" />
         </button>
-        <button onClick={zoomToSelection} title={t('Zoom to selection (⇧2)')} aria-label={t('Zoom to selection')} disabled={!selection.length}>
-          <Icon name="focus" />
-        </button>
+        {/* Zoom to selection (⇧2), snap to grid (⇧G) and the minimap (⇧M) are in the toolbar's ⋯: fewer controls at first sight. */}
         <span className="zoom-sep" />
-        <button className={p.grid ? 'on' : ''} onClick={() => p.onToggle?.('grid')} title={t('Snap to the 8px grid (⇧G)')} aria-label={t('Snap to grid')} aria-pressed={!!p.grid}>
-          <Icon name="grid-3x3" />
-        </button>
-        <button className={p.minimap ? 'on' : ''} onClick={() => p.onToggle?.('minimap')} title={t('Overview when the drawing does not fit (⇧M)')} aria-label={t('Minimap')} aria-pressed={!!p.minimap}>
-          <Icon name="map" />
-        </button>
         <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('The page it is for, a {page}, and text too small on it (⇧P)', { page: result.page.name }) : t('The page it is for, and text too small on it (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
           <Icon name="monitor" />
         </button>

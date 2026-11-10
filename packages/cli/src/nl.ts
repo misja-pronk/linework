@@ -209,6 +209,18 @@ export const nl = {
   'number or name, Enter: *': 'nummer of naam, Enter: *',
   'Not one of the choices; try again.': 'Geen van de keuzes; probeer het nog eens.',
   'Not a question of {wizard}, ignored: {ids}. Questions: {questions}': 'Geen vraag van {wizard}, genegeerd: {ids}. Vragen: {questions}',
+  Create: 'Maken',
+  'start from a template or a wizard': 'beginnen met een sjabloon of een wizard',
+  'Mermaid, draw.io, Terraform, Azure, … to YAML': 'Mermaid, draw.io, Terraform, Azure, … naar YAML',
+  'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
+  Export: 'Exporteren',
+  'a link that opens it in the web app': 'een link die het opent in de webapp',
+  'a request through it, as a sequence diagram': 'een verzoek erdoorheen, als sequentiediagram',
+  'the threat table': 'de dreigingstabel',
+  'review notes': 'reviewnotities',
+  'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
+  'carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram\'s steps\nOptions: carto trace --help': 'carto trace moet weten waar het verzoek begint: --from <element> (met --to <element> voor één route), of --steps om de stappen van het diagram te volgen\nOpties: carto trace --help',
+  '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
 } as const satisfies Record<string, string>;
 
 /** The help, part by part (see helpChunks): the English as main.ts writes it, the Dutch laid out the same way. */

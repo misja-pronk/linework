@@ -423,7 +423,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                   </div>
                 )}
                 <span className="type-count">
-                  {t('{count} start|{count} starts', { count: typeCount(ty.id) })}
+                  {t('{count} template|{count} templates', { count: typeCount(ty.id) })}
                 </span>
               </div>
             </div>

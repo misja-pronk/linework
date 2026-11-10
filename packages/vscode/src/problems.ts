@@ -115,8 +115,8 @@ function choicesFix(text: string, path: Path, choices: string[]): Fix[] {
 export function fixesFor(text: string, d: Diagnostic): Fix[] {
   const unknownType = /^Unknown type "(.*)", use one of: (.+) \(or model\)$/.exec(d.message);
   if (unknownType) return choicesFix(text, ['type'], unknownType[2]!.split(', '));
-  const oneOf = /must be one of: (.+)$/.exec(d.message);
-  if (oneOf && d.path) return choicesFix(text, d.path, oneOf[1]!.split(', '));
+  const oneOf = /must be one of: ([^(]+?)(?: \(did you mean .*\))?$/.exec(d.message);
+  if ((d.choices || oneOf) && d.path) return choicesFix(text, d.path, d.choices ?? oneOf![1]!.split(', '));
   const noType = /^Add "type:" at the top, one of: (.+?) \(or model\)$/.exec(d.message);
   if (noType) {
     const first = noType[1]!.split(', ')[0]!;

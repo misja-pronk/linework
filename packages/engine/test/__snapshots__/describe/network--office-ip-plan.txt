@@ -1,6 +1,6 @@
 Small office IP plan
 
-Network diagram: The same kind of file as small-office.yaml, drawn as a table. A table of 11 rows by 4 columns.
+Network diagram: Utrecht office, every device's addresses by interface and VLAN. A table of 11 rows by 4 columns.
 
 By row (Device)
 Columns: Interface, IP address, VLAN and Zone.
