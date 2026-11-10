@@ -274,4 +274,7 @@ export const nlShell = {
   'Space drag': 'Spatie + slepen',
   'Tab ↵ / ⌘-click': 'Tab ↵ / ⌘-klik',
   'Tab, then F': 'Tab, dan F',
+  'Previous / next stage: overview, as-is … to-be': 'Vorige / volgende stage: overzicht, huidig … gewenst',
+  Stages: 'Stages',
+  'On the timeline: walk the stages': 'Op de tijdlijn: de stages doorlopen',
 } as const satisfies Record<string, string>;

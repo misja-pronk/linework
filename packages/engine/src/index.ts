@@ -26,6 +26,11 @@ import {
   resolveSteps,
   finalState,
   stepsSchema,
+  planStages,
+  readStages,
+  stagesSchema,
+  takeTimeMarks,
+  type StageInfo,
   unpackLayout,
   validate,
   viewPins,
@@ -53,6 +58,7 @@ import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
+import { drawStage, pickStage, stageStates, stageStrip, stageTitle, type StageAt } from './stages.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
 import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
 import type { Lang } from '@cartography/i18n';
@@ -115,7 +121,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema, lang: langSchema };
+  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema, stages: stagesSchema, lang: langSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -173,6 +179,11 @@ export interface RenderOptions extends SvgOptions {
   layers?: string | string[] | null;
   /** Only the layers (laid out on their own) or everything with the rest faded; by default as the layers say. */
   layerMode?: LayerMode;
+  /**
+   * One of the diagram's `stages:` (its id, number or title), or "overview": everything, marked with
+   * when it comes and goes. Without it the to-be is drawn (the editor, interactive, opens the overview).
+   */
+  stage?: string | number;
 }
 
 /** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
@@ -235,6 +246,11 @@ export interface RenderResult {
   layers?: LayersInfo;
   /** What a layer drawn with dim-others leaves faded: exports that draw for themselves (slides, PDF pages) fade it too. */
   faded?: Faded;
+  /** The diagram's stages, from the as-is to the to-be, and the one drawn (its id, or "overview"). */
+  stages?: StageInfo[];
+  stage?: string;
+  /** With stage "union" (everything, unmarked): each stage as a step of that drawing, what is not there hidden in its place. */
+  stageStates?: StepState[];
 }
 
 /** A drawing with nothing in it: no groups, and no node or only tables without a row. */
@@ -247,6 +263,9 @@ const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
 const layersOnly = { type: 'object', properties: { layers: layersSchema } };
 const reviewOnly = { type: 'object', properties: { review: reviewSchema } };
+const stagesOnly = { type: 'object', properties: { stages: stagesSchema } };
+/** Types that are not elements and lines (a timeline, a sequence of messages): stages do not apply. */
+const NO_STAGES = new Set(['roadmap', 'sequence', 'gitflow', 'journey', 'matrix']);
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
@@ -275,9 +294,16 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   for (const a of aliased.read) diagnostics.push(source.at(a.path, `"${a.from}" is read as ${a.to}, the kind this diagram type has: write ${a.to}`, 'warning'));
   // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
   // So is the language of the drawing's own words (`lang: nl`).
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...rest } = aliased.data;
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...asWritten } = aliased.data;
   const lang = diagramLang(langRef) ?? opts.lang ?? 'en';
   if (langRef != null && !diagramLang(langRef)) diagnostics.push(source.at(['lang'], 'lang is the language of the words the drawing adds itself: en or nl', 'warning'));
+  // Stages are about time, shared by every type of elements and lines: `stages:` and the elements'
+  // from: and until: never reach the type's schema.
+  const props0 = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
+  const stagesRef = 'stages' in props0 ? undefined : asWritten.stages;
+  const timed = stagesRef !== undefined ? takeTimeMarks(asWritten) : undefined;
+  const rest = timed?.data ?? asWritten;
+  if (stagesRef !== undefined) delete rest.stages;
   const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
   // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
   const stepsRef = 'steps' in props ? undefined : rest.steps;
@@ -298,6 +324,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
   if (reviewRef !== undefined) invalid.push(...validate({ ...source, data: { review: reviewRef } }, reviewOnly));
+  if (stagesRef !== undefined) invalid.push(...(NO_STAGES.has(type.id) ? [source.at(['stages'], `A ${type.id} has no elements and lines to change over time: stages are for drawings of them`)] : validate({ ...source, data: { stages: stagesRef } }, stagesOnly)));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
@@ -345,6 +372,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
   graph = translateGraph(graph, lang, built);
+  // Stages are resolved on everything there is; a view only checks what it draws of them.
+  const staged = stagesRef !== undefined ? planStages(graph, readStages(stagesRef, model?.view ? () => {} : report), timed!.marks, model?.view ? () => {} : report) : undefined;
+  if (staged) graph = staged.graph;
   // Another of the type's own views than the one the file is written for: its subtitle is about that
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
   const written = typeof rest.view === 'string' ? rest.view : (ownViews?.find((v) => v.default) ?? ownViews?.[0])?.name;
@@ -424,7 +454,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // (the editor's memory, or its own note in the sidecar), never from the whole drawing's note or a view's.
   const only = lens.info?.mode === 'only' && !!lens.info.active.length;
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
-  const placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
   if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus && !only) {
     if (seeds.size > 64) seeds.clear();
     seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });
@@ -434,12 +464,18 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Two things pinned on top of each other: the newer one was moved clear, and that is said.
   const named = (id: string) => graph.groups.find((g) => g.id === id)?.label ?? id;
   for (const id of placed.nudged ?? []) diagnostics.push({ severity: 'warning', message: `${named(id)} was pinned on top of another pinned element: it is drawn beside it. Drag it where it should go, or Tidy` });
+  // A stage comes after the layout as well: it leaves out what is not there then, and nothing moves.
+  let stageAt: StageAt | undefined;
+  if (staged) {
+    stageAt = pickStage(staged.plan, opts.stage, !!opts.interactive, (message) => report([], message));
+    ({ graph, placed } = drawStage(stageAt, staged.plan, graph, placed, type, built, { load: opts.load, model }));
+  }
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
-  const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
+  const told = staged ? undefined : model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
-  const steps = told ? resolveSteps(told, lens.info?.active.length && lens.info.mode === 'only' ? { ...whole, legend: graph.legend } : graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
+  const steps = staged ? [] : told ? resolveSteps(told, lens.info?.active.length && lens.info.mode === 'only' ? { ...whole, legend: graph.legend } : graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   // No step asked for: the drawing as the steps leave it, not every step's lines on top of each other.
   const end = !step && told ? finalState(steps, !!opts.interactive) : undefined;
@@ -448,14 +484,14 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const faded = lens.faded;
   const stepView = faded ? (at ? { ...at, states: at.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false }) : at;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
-  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView }));
+  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView, ...(staged && stageAt != null && stageAt !== 'union' && opts.stepCaption !== false ? { stageStrip: stageStrip(staged.plan, stageAt) } : {}) }));
   // A drawing that leaves the editor carries its text alternative (see docs/describe.md): screen readers
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
     const said = describe({ lang, graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
-    const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : said.title;
+    const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : staged && stageAt != null ? `${said.title}, ${stageTitle(staged.plan, stageAt)}` : said.title;
     const desc = toText(said, { title: false }).trim();
     out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}` });
   }
@@ -487,6 +523,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(isEmpty(graph) ? { empty: true } : {}),
     ...(lens.info ? { layers: lens.info } : {}),
     ...(faded ? { faded } : {}),
+    ...(staged ? { stages: staged.plan.stages, stage: typeof stageAt === 'number' ? staged.plan.stages[stageAt]!.id : stageAt } : {}),
+    ...(staged && stageAt === 'union' ? { stageStates: stageStates(staged.plan, graph) } : {}),
   };
 }
 
@@ -690,6 +728,7 @@ function pickTheme(opts: RenderOptions, ref: unknown, source: Source, diagnostic
 
 export { themes };
 export { drift, type DriftItem, type DriftResult } from './drift.ts';
+export { stageStrip, type StageAt } from './stages.ts';
 export type { IconPackFile, IconMode };
 /** Review notes drawn on an export ("with review notes"); see packages/core/src/notes.ts. */
 export { noteMarker, noteSpots, withReviewNotes, type NoteSpot } from '@cartography/render';

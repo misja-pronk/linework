@@ -224,6 +224,9 @@ importers:
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   packages/docs-plugins:
     devDependencies:

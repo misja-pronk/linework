@@ -6,7 +6,7 @@ import { render } from '@cartography/engine';
 import type { Repo } from './git.ts';
 import { t } from '../i18n/index.ts';
 
-export type BaselineKind = 'saved' | 'snapshot' | 'file' | 'git';
+export type BaselineKind = 'saved' | 'snapshot' | 'file' | 'git' | 'stage';
 
 export interface Baseline {
   /** 'saved', 'snapshot:<label>', 'file:<path>', 'git:<commit>'. */
@@ -19,6 +19,10 @@ export interface Baseline {
   sidecar?: LayoutSidecar;
   /** How it reads what it includes; without it, as the open diagram does. */
   load?: (file: string) => string;
+  /** Comparing two stages of the open diagram: the stage drawn as before, the one drawn as now, and what replaces what between them. */
+  stage?: string;
+  toStage?: string;
+  replaces?: { from: string; to: string }[];
 }
 
 const utf8 = new TextDecoder();

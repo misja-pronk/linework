@@ -42,6 +42,8 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
+               [--stage q2 | --stage overview]  one of its stages: (as-is to to-be; without it the to-be), or
+                                                everything marked with the stage it comes and goes in
                [--svg-safe]                     an SVG that PowerPoint, Word and Keynote take whole: no CSS, no
                                                 filters or markers, system fonts, one group per node and line
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
@@ -65,6 +67,8 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 as an azure diagram, with the options of carto import below
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
+               [--stages]                           a slide per stage of its stages: and per transition, the overview,
+                                                    as-is and to-be side by side, the roadmap (pptx)
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
@@ -73,10 +77,17 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
                [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
                [--layers | --walk "a -> b -> c"]    the caption as a lower third; --layers walks its layers
+               [--stages]                           (--stages: its stages, what comes fades in, what goes out)
                [--hold 2.5] [--transition 0.5]      (the rest faded in place), --walk a route hop by hop;
                [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
                [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
                [--no-captions]                      and the frames as PNG). More: docs/animate.md
+  carto stages <file.yaml> [-o folder] [-f png]  everything its stages: make: each stage, the migration overview,
+               [--from as-is --to q2]           each transition (what is added, changed, removed, replaced),
+               [--side-by-side]                 the as-is and to-be side by side, the roadmap (YAML and drawn)
+                                                and the stages in words; --from/--to: that transition only.
+                                                Decks and animations: carto deck --stages, carto animate --stages.
+                                                More: docs/transitions.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
@@ -90,6 +101,7 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, threats
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
+               [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
   carto export-md <file.yaml|folder> -o dir/    a Markdown page with each view as SVG and PNG, its description
                [--title "…"] [--no-steps]       under it and steps as sections; a folder gets README.md as its
@@ -260,6 +272,7 @@ const groups: [string, [string, string][]][] = [
     ['render', t('a diagram to SVG, PNG, PowerPoint or PDF')],
     ['deck', t('several diagrams in one deck')],
     ['animate', t('steps or layers as a GIF, MP4 or WebM')],
+    ['stages', t('as-is, transition stages and to-be: each, compared, a roadmap')],
     ['watch', t('render again on every save')],
   ]],
   [t('Export'), [
@@ -392,6 +405,8 @@ const parsed = (() => {
     'fail-on': { type: 'string' },
     fix: { type: 'boolean' },
     step: { type: 'string' },
+    stage: { type: 'string' },
+    stages: { type: 'boolean' },
     'all-steps': { type: 'boolean' },
     'no-steps': { type: 'boolean' },
     focus: { type: 'string', multiple: true },
@@ -759,6 +774,7 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     file: path.basename(file),
     view: values.view,
     step: values.step ? Number(values.step) || 1 : undefined,
+    ...(values.stage ? { stage: values.stage } : {}),
     focus: focusFlag(),
     ...(values.layer?.length ? { layers: values.layer.flatMap((l) => l.split(',')).map((l) => l.trim()).filter(Boolean) } : {}),
     ...(values.dim ? { layerMode: 'dim' as const } : {}),
@@ -915,6 +931,7 @@ async function animateFile(file: string): Promise<boolean> {
       out: values.out!,
       layers: values.layers,
       walk: values.walk,
+      stages: values.stages,
       hold: num('hold', values.hold, 0.2, 60),
       transition: values['no-transitions'] ? 0 : num('transition', values.transition, 0, 5),
       fps: num('fps', values.fps, 5, 60),
@@ -1353,6 +1370,17 @@ async function deck(): Promise<boolean> {
   if (!values.out || !/\.(pptx|pdf)$/i.test(values.out)) {
     console.error(t('carto deck needs -o <file>.pptx or -o <file>.pdf'));
     return false;
+  }
+  // --stages: a slide per stage and per transition, the overview, before and after, the roadmap.
+  if (values.stages) {
+    if (format !== 'pptx') return (console.error('carto deck --stages makes a PowerPoint deck: -o <file>.pptx'), false);
+    const { stagesDeck } = await import('./stages.ts');
+    const made = await stagesDeck(files, (f) => optionsFor(f, 'none'), async (svg, theme) => toPng(svg, 2, await ttfFiles(theme?.font.faces ?? [])), values.title);
+    if (!made) return false;
+    fs.mkdirSync(path.dirname(values.out), { recursive: true });
+    fs.writeFileSync(values.out, made.data);
+    console.log(`${made.slides} slides → ${values.out}`);
+    return true;
   }
   const drawings: Drawing[] = [];
   let theme: RenderResult['theme'];
@@ -1832,6 +1860,18 @@ async function main(): Promise<number> {
       const asked = values.format === 'markdown' ? 'md' : values.format;
       if (asked !== 'svg' && !['text', 'md', 'html'].includes(asked)) throw new UsageError(`--format ${values.format}: carto describe writes text, md or html`);
       const format = asked === 'text' || asked === 'md' || asked === 'html' ? asked : ext === 'md' || ext === 'markdown' ? 'md' : ext === 'html' || ext === 'htm' ? 'html' : 'text';
+      if (values.stages) {
+        // The stages in words: what each one changes against the one before, a replacement told as one.
+        const { stageStory, storyMarkdown, storyText } = await import('@cartography/diff');
+        const opts = optionsFor(f, 'none');
+        const story = await stageStory(fs.readFileSync(f, 'utf8'), opts);
+        if (!story.length) return (console.error(`${f}: this diagram has no stages: (see docs/transitions.md)`), 1);
+        const title = (await render(fs.readFileSync(f, 'utf8'), { ...opts, stage: 'overview' })).graph?.title ?? path.basename(f);
+        const said = format === 'md' ? storyMarkdown(title, story) : storyText(title, story);
+        if (!values.out || values.out === '-') process.stdout.write(said);
+        else fs.writeFileSync(values.out, said);
+        return 0;
+      }
       const { describeFile } = await import('./wiki.ts');
       const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
       for (const p of r.problems) console.error(`${f}  ${red(t('error'))}  ${p}`);
@@ -1923,6 +1963,22 @@ async function main(): Promise<number> {
       }
       for (const dir of folders) ok = validateWorkspace(dir) && ok;
       return ok ? 0 : 1;
+    }
+    case 'stages': {
+      if (files.length !== 1) return (console.error(helpFor(command)), 2);
+      if (!themeFlag()) return 2;
+      const { stagesCommand } = await import('./stages.ts');
+      return stagesCommand({
+        file: files[0]!,
+        out: values.out,
+        format: values.format === 'png' ? 'png' : 'svg',
+        from: values.from,
+        to: values.to,
+        sideBySide: values['side-by-side'],
+        options: { ...optionsFor(files[0]!, 'none'), stage: undefined },
+        png: async (svg, theme) => toPng(svg, Number(values.scale) || 2, await ttfFiles(theme?.font.faces ?? [])),
+        say: { red, yellow, dim },
+      });
     }
     case 'review': {
       if (!files.length) return (console.error(helpFor(command)), 2);

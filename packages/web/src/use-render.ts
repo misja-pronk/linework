@@ -25,7 +25,7 @@ export interface Rendered {
  * the view from scratch. `focus` cuts the drawing down to a neighbourhood, as `focus:` in the YAML
  * would (null: everything, whatever the YAML says); its caller keeps it the same object between renders.
  */
-export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, step?: number, fresh = 0, focus?: unknown, layers?: LayersOptions) {
+export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, step?: number, fresh = 0, focus?: unknown, layers?: LayersOptions & { stage?: string }) {
   const [out, setOut] = useState<Rendered>();
   const seq = useRef(0);
   const doc = useRef(docKey);

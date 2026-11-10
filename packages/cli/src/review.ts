@@ -120,6 +120,11 @@ async function reviewFile(file: string, flags: ReviewFlags): Promise<Reviewed> {
     const x = await render(text, { ...opts, view: v.name });
     if (x.graph && !x.empty && !(x.graph.nodes.length === 1 && x.graph.nodes[0]!.shape.kind === 'matrix')) drawings.push(x);
   }
+  // A diagram with stages is the to-be; each stage before it is reviewed too, its findings named by the stage (what the to-be has as well is said once).
+  for (const st of r.stages?.slice(0, -1) ?? []) {
+    const x = await render(text, { ...opts, stage: st.id });
+    if (x.graph && !x.empty) drawings.push({ ...x, view: st.id });
+  }
   const seen = new Set<string>();
   const results: Reviewed['results'] = [];
   const rules = new Map<string, RuleInfo>();
