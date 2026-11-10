@@ -192,7 +192,7 @@ export function corporateTemplate(): Uint8Array {
     colors: { dk1: '1B1B1F', lt1: 'FFFFFF', dk2: '0B2545', lt2: 'EEF1F5', accent1: '1F5FAD', accent2: 'F28C28', accent3: '13A89E', accent4: '7B4FA0', accent5: 'D7263D', accent6: 'E7E9EE', hlink: '1F5FAD', folHlink: '7B4FA0' },
     major: 'Georgia',
     minor: 'Arial',
-    logo: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100"><rect x="4" y="14" width="72" height="72" rx="10" fill="#F28C28"/><path d="M24 34h32M24 50h24M24 66h32" stroke="#0B2545" stroke-width="9" stroke-linecap="round"/><text x="92" y="62" font-family="Arial" font-weight="bold" font-size="40" fill="#FFFFFF">EXEMPLAR</text></svg>',
+    logo: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100"><rect x="4" y="14" width="72" height="72" rx="10" fill="#F28C28"/><path d="M24 34h32M24 50h24M24 66h32" stroke="#0B2545" stroke-width="9" stroke-linecap="round"/><text x="92" y="62" font-family="Arial" font-weight="bold" font-size="34" fill="#FFFFFF">EXEMPLAR</text></svg>',
     masterLogo: true,
     potx: true,
     notesMaster: true,
