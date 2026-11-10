@@ -99,7 +99,8 @@ export function importFlowchart(body: string[], header: string, title: string | 
       }
       const kw = /^(classDef|class|style|linkStyle|click|accTitle|accDescr)\b/.exec(s)?.[1];
       if (kw) {
-        if (!kw.startsWith('acc')) warn.onceFor('style', `Styling (${kw}) is not imported: Cartography colours by kind`);
+        if (kw === 'click') warn.onceFor('click', 'Clicks (click) are not imported: add links: to the node in the YAML');
+        else if (!kw.startsWith('acc')) warn.onceFor('style', `Styling (${kw}) is not imported: Cartography colours by kind`);
         continue;
       }
       if (!parseChain(s, node, links, warn)) warn.add(`Could not read "${s}"`);

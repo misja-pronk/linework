@@ -366,6 +366,9 @@ importers:
       '@cartography/azure':
         specifier: workspace:*
         version: link:../../types/azure
+      '@cartography/cloud':
+        specifier: workspace:*
+        version: link:../../types/cloud
       '@cartography/core':
         specifier: workspace:*
         version: link:../core

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@cartography/azure": "workspace:*",
+    "@cartography/cloud": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/data-products": "workspace:*",
     "@cartography/systems": "workspace:*",

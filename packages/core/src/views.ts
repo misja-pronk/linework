@@ -245,6 +245,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     subtitle: view?.subtitle ?? (view?.title ? undefined : src.subtitle),
     direction: view?.direction ?? src.direction,
     ...(src.badges ? { badges: src.badges } : {}),
+    ...(src.captions ? { captions: src.captions } : {}),
     groups: {},
     nodes: {},
     edges: [],

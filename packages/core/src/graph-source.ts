@@ -102,6 +102,8 @@ export interface GraphSource {
   edges?: unknown[];
   /** Edge styles drawn as badges on the source card instead of lines, e.g. [identity, management]. */
   badges?: string[];
+  /** `written`: only captions written here are drawn, none from the kind (an import, whose kinds are guesses). */
+  captions?: 'kinds' | 'written';
   /** Set by the model layer: where drawn entries are written when not at their usual place. */
   origin?: Origins;
   /** The threat overlay's own keys (threats.ts) and the view asked for: diagram or threats. */
@@ -172,6 +174,7 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       title: { type: 'string' },
       subtitle: { type: 'string' },
       direction: { enum: ['right', 'down'] },
+      captions: { enum: ['kinds', 'written'], description: 'kinds (default): a card without a caption says its kind; written: only the captions written here' },
       groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds), overlay ? threatFields.group : {}) },
       nodes: {
         type: 'object',
@@ -206,6 +209,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     return tags?.length ? { marks: [...envNames.filter((n) => tags.includes(n))] } : {};
   };
   const marked = new Set<string>();
+  const written = src.captions === 'written';
   const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
   const entries = (coll: 'groups' | 'nodes') =>
     Object.entries(src[coll] ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { kind: v } : (v ?? {})] as [string, Entry]);
@@ -233,7 +237,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       id,
       parent: parentOf('groups', id, e),
       label: e.label ?? id,
-      caption: e.caption ?? kindCaption(e.label, kind),
+      caption: e.caption ?? (written ? undefined : kindCaption(e.label, kind)),
       icon: e.icon ?? kind?.icon,
       tone: e.tone ?? kind?.tone ?? 'slate',
       border: kind?.border ?? 'solid',
@@ -258,7 +262,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
         kind: 'card',
         // Without a label the kind names the node ("Users"), and repeating it as caption adds nothing.
         label: e.label ?? kind?.label ?? id,
-        caption: e.caption ?? (e.label ? kindCaption(e.label, kind) : undefined),
+        caption: e.caption ?? (e.label && !written ? kindCaption(e.label, kind) : undefined),
         // A plain step is text only, unless an icon is asked for.
         icon: e.icon ?? (kind?.form === 'plain' ? undefined : kind?.icon),
         tone: e.tone ?? kind?.tone ?? 'slate',
