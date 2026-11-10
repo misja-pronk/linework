@@ -35,7 +35,8 @@ const byName = new Map<string, Stride>([...letters.map((l) => [l.toLowerCase(), 
 export interface ThreatRow {
   id: string;
   stride: Stride[];
-  title: string;
+  /** What could go wrong; a threat written as its category alone has none yet. */
+  title?: string;
   mitigation?: string;
   status: ThreatStatus;
   /** What it is about, as drawn: "Orders API" or "Storefront → Orders API". */
@@ -73,7 +74,7 @@ const threatList = { type: 'array', items: threatEntry(false), description: 'STR
 /** Fields of the overlay on a node or group, an edge and the diagram, for graphSchema. */
 export const threatFields = {
   node: { threats: threatList, encrypted: { type: 'boolean', description: 'Data at rest is encrypted (threat rules)' } },
-  group: { threats: threatList, trust: { type: ['boolean', 'string'], description: 'A trust boundary: drawn as one and checked by the threat rules; a string names it' } },
+  group: { threats: threatList, trust: { anyOf: [{ type: 'boolean' }, { type: 'string' }], description: 'A trust boundary: drawn as one and checked by the threat rules; a string names it' } },
   edge: {
     threats: threatList,
     encrypted: { type: 'boolean', description: 'Encrypted in transit (TLS); an HTTPS or TLS label says so too' },
@@ -278,7 +279,7 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
   const where = (t: Target) => ({ on: t.edge ? lineName(t.edge) : name(t.node!), ...(t.edge ? { edge: t.edge.id } : { node: t.node }) });
   for (const t of targets.values())
     for (const w of t.written)
-      rows.push({ id: w.id ?? next(), stride: w.stride, title: w.title ?? w.stride.map((s) => strideNames[s]).join(', '), ...(w.mitigation ? { mitigation: w.mitigation } : {}), status: w.status ?? 'open', ...where(t), path: w.path });
+      rows.push({ id: w.id ?? next(), stride: w.stride, ...(w.title ? { title: w.title } : {}), ...(w.mitigation ? { mitigation: w.mitigation } : {}), status: w.status ?? 'open', ...where(t), path: w.path });
   // In the table by number, as a reader looks them up from the drawing: T2 before T10.
   rows.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   for (const f of found) {
@@ -322,7 +323,7 @@ export function threatTable(graph: Graph): Graph {
   const cells: (MatrixCell | undefined)[][] = rows.map((r) => [
     { text: r.on, strong: true },
     { text: r.stride.map((s) => strideNames[s]).join(', ') },
-    { text: r.title },
+    { text: r.title ?? '–' },
     { text: r.mitigation ?? '–' },
     { text: statusLabel[r.status], tone: statusTone[r.status] },
   ]);
