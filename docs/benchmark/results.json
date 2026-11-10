@@ -52,8 +52,8 @@
             "crossings": 0,
             "touches": 0,
             "bends": 20,
-            "turning": 119.91125115709609,
-            "length": 1.831832491950586,
+            "turning": 119.93319138073008,
+            "length": 1.8081042600006343,
             "area": 6.262641509433962,
             "aspect": 3.532567049808429,
             "labelOverlaps": 0,
@@ -284,21 +284,21 @@
             "crossings": 0,
             "touches": 0,
             "bends": 5,
-            "turning": 49.90410293633746,
-            "length": 1.783250877145507,
-            "area": 6.659013502508792,
-            "aspect": 3.1562399896078954,
-            "labelOverlaps": 2,
+            "turning": 49.90858223601953,
+            "length": 1.7418989382030805,
+            "area": 6.430637298665343,
+            "aspect": 3.047994210113084,
+            "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
             "matched": 8,
-            "mean": 0.004736904903536068,
+            "mean": 0.00488903620200424,
             "moved": 0
           },
           "editKept": {
             "matched": 8,
-            "mean": 0.004736904903536068,
+            "mean": 0.00488903620200424,
             "moved": 0
           }
         },
@@ -400,11 +400,11 @@
             "crossings": 0,
             "touches": 0,
             "bends": 5,
-            "turning": 40.90855551857922,
-            "length": 2.5480627297428473,
-            "area": 5.3522430346010115,
-            "aspect": 4.680934845367989,
-            "labelOverlaps": 1,
+            "turning": 40.90909090909091,
+            "length": 2.20911697868797,
+            "area": 6.484530111442345,
+            "aspect": 0.7911944439080535,
+            "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
@@ -516,21 +516,21 @@
             "crossings": 0,
             "touches": 0,
             "bends": 8,
-            "turning": 79.98684560354405,
-            "length": 2.540578350246496,
-            "area": 2.8023717293661923,
-            "aspect": 12.384057971014492,
+            "turning": 79.98316402983548,
+            "length": 2.026868967794798,
+            "area": 4.419449131395708,
+            "aspect": 0.49252013808975836,
             "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
             "matched": 8,
-            "mean": 0.03651204440423742,
-            "moved": 0.5
+            "mean": 0.002322743460440485,
+            "moved": 0
           },
           "editKept": {
             "matched": 8,
-            "mean": 0.0014730238770266845,
+            "mean": 0.002322743460440485,
             "moved": 0
           }
         },
@@ -748,8 +748,8 @@
             "crossings": 0,
             "touches": 0,
             "bends": 11,
-            "turning": 81.64146369795387,
-            "length": 3.404667161605584,
+            "turning": 80.93112643781775,
+            "length": 3.3941326718668523,
             "area": 8.418480429377391,
             "aspect": 9.87192154051004,
             "labelOverlaps": 0,
@@ -757,8 +757,8 @@
           },
           "edit": {
             "matched": 10,
-            "mean": 0.01642667169747741,
-            "moved": 0.2
+            "mean": 0.010597741764551872,
+            "moved": 0.1
           },
           "editKept": {
             "matched": 10,
@@ -861,25 +861,25 @@
           "metrics": {
             "nodes": 12,
             "lines": 16,
-            "crossings": 4,
+            "crossings": 6,
             "touches": 0,
-            "bends": 24,
-            "turning": 134.439287882888,
-            "length": 2.6334082375717136,
-            "area": 4.7975743503606365,
-            "aspect": 0.8064705882352942,
+            "bends": 20,
+            "turning": 112.412313600783,
+            "length": 3.264442233138049,
+            "area": 5.685670058953331,
+            "aspect": 4.048426150121065,
             "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
             "matched": 12,
-            "mean": 0.028312603910729924,
-            "moved": 0.08333333333333333
+            "mean": 0.19593197106002586,
+            "moved": 1
           },
           "editKept": {
             "matched": 12,
-            "mean": 0.028312603910729924,
-            "moved": 0.08333333333333333
+            "mean": 0,
+            "moved": 0
           }
         },
         "mermaid": {
@@ -977,19 +977,19 @@
           "metrics": {
             "nodes": 13,
             "lines": 14,
-            "crossings": 1,
+            "crossings": 3,
             "touches": 0,
-            "bends": 15,
-            "turning": 96.4039761291904,
-            "length": 2.9225414258650213,
-            "area": 7.399253845917647,
-            "aspect": 0.7442882249560633,
+            "bends": 17,
+            "turning": 109.11915811254427,
+            "length": 3.106917095024654,
+            "area": 7.278617926121534,
+            "aspect": 0.7283085013146363,
             "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
             "matched": 13,
-            "mean": 0.2247638246381643,
+            "mean": 0.19566649171759593,
             "moved": 1
           },
           "editKept": {
@@ -1093,20 +1093,20 @@
           "metrics": {
             "nodes": 13,
             "lines": 16,
-            "crossings": 2,
+            "crossings": 0,
             "touches": 0,
-            "bends": 15,
-            "turning": 83.82826600817555,
-            "length": 2.5525677150558175,
-            "area": 5.790185036967484,
-            "aspect": 0.35390946502057613,
+            "bends": 13,
+            "turning": 73.12290139544976,
+            "length": 3.2863176080365,
+            "area": 4.716316020865651,
+            "aspect": 1.9210525030134433,
             "labelOverlaps": 0,
             "throughShapes": 0
           },
           "edit": {
             "matched": 13,
-            "mean": 0.545819790864229,
-            "moved": 0.9230769230769231
+            "mean": 0,
+            "moved": 0
           },
           "editKept": {
             "matched": 13,

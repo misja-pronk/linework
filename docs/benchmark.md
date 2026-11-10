@@ -47,16 +47,14 @@ The cases: an order platform with two groups, an analytics pipeline in four grou
 
 ### Where Cartography loses
 
-- **Event mesh**, crossings: Cartography 4; Mermaid 2, D2 · dagre 3, D2 · ELK 3
-- **Delivery pipeline**, crossings: Cartography 2; Mermaid 0, D2 · dagre 0, D2 · ELK 0, D2 · TALA 0
-- **Leave request**, label overlaps: Cartography 2; Mermaid 0, D2 · dagre 0, D2 · ELK 0, D2 · TALA 0
-- **Sign-in flow**, label overlaps: Cartography 1; Mermaid 0, D2 · dagre 0, D2 · ELK 0, D2 · TALA 0
-- **Leave request**, white space (area per shape area, more than 1.5 more): Cartography 6.7; Mermaid 3.6
-- **Sign-in flow**, white space (area per shape area, more than 1.5 more): Cartography 5.4; Mermaid 2.6
-- **Delivery pipeline**, white space (area per shape area, more than 1.5 more): Cartography 5.8; Mermaid 3.8
-- **Cloud platform**, movement after the edit, from scratch (more than 5 points more): Cartography 22.5 %; Mermaid 11.4 %, D2 · dagre 2.7 %, D2 · ELK 5.8 %
-- **Delivery pipeline**, movement after the edit, from scratch (more than 5 points more): Cartography 54.6 %; Mermaid 0.8 %, D2 · dagre 0.4 %, D2 · ELK 0.8 %, D2 · TALA 5.4 %
-- **Very wide drawings** that will not fit a slide or a page without shrinking: Sign-in flow (4.7 : 1), Photo uploads (12.4 : 1), Order lifecycle (9.9 : 1)
+- **Event mesh**, crossings: Cartography 6; Mermaid 2, D2 · dagre 3, D2 · ELK 3, D2 · TALA 5
+- **Cloud platform**, crossings: Cartography 3; Mermaid 1, D2 · dagre 2, D2 · ELK 1
+- **Leave request**, white space (area per shape area, more than 1.5 more): Cartography 6.4; Mermaid 3.6
+- **Sign-in flow**, white space (area per shape area, more than 1.5 more): Cartography 6.5; Mermaid 2.6, D2 · dagre 4.3, D2 · ELK 4.5, D2 · TALA 4.0
+- **Event mesh**, white space (area per shape area, more than 1.5 more): Cartography 5.7; D2 · ELK 3.5
+- **Event mesh**, movement after the edit, from scratch (more than 5 points more): Cartography 19.6 %; Mermaid 3.5 %, D2 · dagre 0.8 %
+- **Cloud platform**, movement after the edit, from scratch (more than 5 points more): Cartography 19.6 %; Mermaid 11.4 %, D2 · dagre 2.7 %, D2 · ELK 5.8 %
+- **Very wide drawings** that will not fit a slide or a page without shrinking: Order lifecycle (9.9 : 1), Event mesh (4.0 : 1)
 
 Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bold (lower is better everywhere).
 
@@ -71,10 +69,10 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | Photo uploads | **0** | 2 | 1 | **0** | **0** |
 | Shop schema | **0** | **0** | **0** | **0** | **0** |
 | Order lifecycle | **0** | 1 | 1 | **0** | **0** |
-| Event mesh | 4 | **2** | 3 | 3 | 5 |
-| Cloud platform | **1** | **1** | 2 | **1** | 3 |
-| Delivery pipeline | 2 | **0** | **0** | **0** | **0** |
-| **Total** | 7 | 6 | 7 | 4 | 8 |
+| Event mesh | 6 | **2** | 3 | 3 | 5 |
+| Cloud platform | 3 | **1** | 2 | **1** | 3 |
+| Delivery pipeline | **0** | **0** | **0** | **0** | **0** |
+| **Total** | 9 | 6 | 7 | 4 | 8 |
 
 ### Unrelated lines touching (they meet and part on one track)
 
@@ -103,10 +101,10 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | Photo uploads | 8 | **0** | 1 | 12 | 2 |
 | Shop schema | 4 | 8 | **0** | 8 | 4 |
 | Order lifecycle | 11 | 28 | **3** | 19 | 8 |
-| Event mesh | 24 | 42 | **1** | 22 | 12 |
-| Cloud platform | 15 | 32 | **5** | 18 | **5** |
-| Delivery pipeline | 15 | 24 | **1** | 20 | 11 |
-| **Total** | 118 | 222 | 24 | 161 | 61 |
+| Event mesh | 20 | 42 | **1** | 22 | 12 |
+| Cloud platform | 17 | 32 | **5** | 18 | **5** |
+| Delivery pipeline | 13 | 24 | **1** | 20 | 11 |
+| **Total** | 114 | 222 | 24 | 161 | 61 |
 
 ### Turning per line, degrees (a right angle is 90, a curve counts its sweep)
 
@@ -118,10 +116,10 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | Sign-in flow | 41 | 155 | 40 | 65 | **8** |
 | Photo uploads | 80 | **0** | 28 | 120 | 20 |
 | Shop schema | 72 | 144 | **28** | 144 | 72 |
-| Order lifecycle | 82 | 194 | **35** | 131 | 55 |
-| Event mesh | 134 | 231 | **31** | 124 | 67 |
-| Cloud platform | 96 | 198 | 38 | 116 | **32** |
-| Delivery pipeline | 84 | 132 | **20** | 112 | 61 |
+| Order lifecycle | 81 | 194 | **35** | 131 | 55 |
+| Event mesh | 112 | 231 | **31** | 124 | 67 |
+| Cloud platform | 109 | 198 | 38 | 116 | **32** |
+| Delivery pipeline | 73 | 132 | **20** | 112 | 61 |
 
 ### Line labels overlapping a label or a shape
 
@@ -129,15 +127,15 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Order platform | **0** | **0** | **0** | **0** | **0** |
 | Analytics platform | **0** | **0** | **0** | **0** | **0** |
-| Leave request | 2 | **0** | **0** | **0** | **0** |
-| Sign-in flow | 1 | **0** | **0** | **0** | **0** |
+| Leave request | **0** | **0** | **0** | **0** | **0** |
+| Sign-in flow | **0** | **0** | **0** | **0** | **0** |
 | Photo uploads | **0** | **0** | **0** | **0** | **0** |
 | Shop schema | **0** | **0** | **0** | **0** | **0** |
 | Order lifecycle | **0** | **0** | **0** | **0** | **0** |
 | Event mesh | **0** | **0** | **0** | **0** | **0** |
 | Cloud platform | **0** | **0** | **0** | **0** | **0** |
 | Delivery pipeline | **0** | **0** | **0** | **0** | **0** |
-| **Total** | 3 | 0 | 0 | 0 | 0 |
+| **Total** | 0 | 0 | 0 | 0 | 0 |
 
 ### Lines passing through a shape that is not one of their ends
 
@@ -159,16 +157,16 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 
 | Case | Cartography | Mermaid | D2 · dagre | D2 · ELK | D2 · TALA |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Order platform | 1.83 | 4.04 | 3.03 | 4.39 | **1.80** |
+| Order platform | 1.81 | 4.04 | 3.03 | 4.39 | **1.80** |
 | Analytics platform | 2.63 | **2.62** | 4.49 | 3.56 | 4.22 |
-| Leave request | 1.78 | 2.37 | 2.85 | 6.51 | **1.55** |
-| Sign-in flow | 2.55 | 2.43 | 2.16 | 2.64 | **1.09** |
-| Photo uploads | 2.54 | **2.52** | 3.66 | 3.11 | 3.04 |
+| Leave request | 1.74 | 2.37 | 2.85 | 6.51 | **1.55** |
+| Sign-in flow | 2.21 | 2.43 | 2.16 | 2.64 | **1.09** |
+| Photo uploads | **2.03** | 2.52 | 3.66 | 3.11 | 3.04 |
 | Shop schema | 1.47 | 1.06 | **1.02** | 1.24 | 1.10 |
-| Order lifecycle | 3.40 | 3.94 | 5.45 | 3.97 | **1.55** |
-| Event mesh | **2.63** | 3.58 | 3.63 | 3.03 | 3.99 |
-| Cloud platform | **2.92** | 3.93 | 3.92 | 4.54 | 3.17 |
-| Delivery pipeline | 2.55 | 2.96 | 3.50 | 3.39 | **1.99** |
+| Order lifecycle | 3.39 | 3.94 | 5.45 | 3.97 | **1.55** |
+| Event mesh | 3.26 | 3.58 | 3.63 | **3.03** | 3.99 |
+| Cloud platform | **3.11** | 3.93 | 3.92 | 4.54 | 3.17 |
+| Delivery pipeline | 3.29 | 2.96 | 3.50 | 3.39 | **1.99** |
 
 ### Area per shape area (white space; lower is tighter)
 
@@ -176,14 +174,14 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Order platform | **6.3** | 7.6 | 13.7 | 7.9 | 10.6 |
 | Analytics platform | 5.7 | **5.6** | 13.7 | 6.6 | 11.4 |
-| Leave request | 6.7 | **3.6** | 7.5 | 7.9 | 10.1 |
-| Sign-in flow | 5.4 | **2.6** | 4.3 | 4.5 | 4.0 |
-| Photo uploads | **2.8** | 6.7 | 6.3 | 4.3 | 7.7 |
+| Leave request | 6.4 | **3.6** | 7.5 | 7.9 | 10.1 |
+| Sign-in flow | 6.5 | **2.6** | 4.3 | 4.5 | 4.0 |
+| Photo uploads | 4.4 | 6.7 | 6.3 | **4.3** | 7.7 |
 | Shop schema | 2.8 | **2.4** | 3.0 | 2.9 | 3.2 |
 | Order lifecycle | 8.4 | 13.0 | 25.8 | 10.5 | **7.4** |
-| Event mesh | 4.8 | 6.3 | 8.2 | **3.5** | 5.6 |
-| Cloud platform | 7.4 | **6.9** | 14.2 | 8.2 | 16.5 |
-| Delivery pipeline | 5.8 | **3.8** | 6.7 | 4.7 | 8.2 |
+| Event mesh | 5.7 | 6.3 | 8.2 | **3.5** | 5.6 |
+| Cloud platform | 7.3 | **6.9** | 14.2 | 8.2 | 16.5 |
+| Delivery pipeline | 4.7 | **3.8** | 6.7 | 4.7 | 8.2 |
 
 ### Displacement after adding one shape and one line, % of the diagonal (drawn from scratch)
 
@@ -193,12 +191,12 @@ Generated 2026-11-10 with Mermaid 12.3.0 and D2 v0.9.0. Best value per row in bo
 | Analytics platform | 3.2 | 4.6 | 3.7 | **2.1** | 10.2 |
 | Leave request | 0.5 | **0.0** | **0.0** | 0.2 | 27.1 |
 | Sign-in flow | **0.0** | **0.0** | **0.0** | **0.0** | 30.8 |
-| Photo uploads | 3.7 | 3.2 | **0.0** | **0.0** | 41.4 |
+| Photo uploads | 0.2 | 3.2 | **0.0** | **0.0** | 41.4 |
 | Shop schema | **0.0** | 2.3 | 5.9 | 1.7 | 34.3 |
-| Order lifecycle | 1.6 | **0.7** | 3.9 | 1.0 | 40.8 |
-| Event mesh | 2.8 | 3.5 | **0.8** | 21.1 | 17.9 |
-| Cloud platform | 22.5 | 11.4 | **2.7** | 5.8 | 24.0 |
-| Delivery pipeline | 54.6 | 0.8 | **0.4** | 0.8 | 5.4 |
+| Order lifecycle | 1.1 | **0.7** | 3.9 | 1.0 | 40.8 |
+| Event mesh | 19.6 | 3.5 | **0.8** | 21.1 | 17.9 |
+| Cloud platform | 19.6 | 11.4 | **2.7** | 5.8 | 24.0 |
+| Delivery pipeline | **0.0** | 0.8 | 0.4 | 0.8 | 5.4 |
 
 Cartography also keeps the drawing before the edit in mind when it can (the editor does, and `carto render --stable`). Drawn that way, the same edits move the shapes that were there by:
 
@@ -208,12 +206,12 @@ Cartography also keeps the drawing before the edit in mind when it can (the edit
 | Analytics platform | 3.2 % | 0.0 % |
 | Leave request | 0.5 % | 0.5 % |
 | Sign-in flow | 0.0 % | 0.0 % |
-| Photo uploads | 3.7 % | 0.1 % |
+| Photo uploads | 0.2 % | 0.2 % |
 | Shop schema | 0.0 % | 0.0 % |
-| Order lifecycle | 1.6 % | 1.1 % |
-| Event mesh | 2.8 % | 2.8 % |
-| Cloud platform | 22.5 % | 0.0 % |
-| Delivery pipeline | 54.6 % | 0.0 % |
+| Order lifecycle | 1.1 % | 1.1 % |
+| Event mesh | 19.6 % | 0.0 % |
+| Cloud platform | 19.6 % | 0.0 % |
+| Delivery pipeline | 0.0 % | 0.0 % |
 
 ### Aspect ratio (width / height; a 16:9 slide is 1.78)
 
@@ -221,14 +219,14 @@ Cartography also keeps the drawing before the edit in mind when it can (the edit
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Order platform | 3.53 | 3.34 | 2.24 | 3.99 | 1.45 |
 | Analytics platform | 0.72 | 0.59 | 0.60 | 0.40 | 0.77 |
-| Leave request | 3.16 | 7.07 | 5.63 | 6.20 | 1.42 |
-| Sign-in flow | 4.68 | 0.17 | 0.24 | 0.22 | 0.48 |
-| Photo uploads | 12.38 | 1.44 | 5.93 | 6.82 | 1.09 |
+| Leave request | 3.05 | 7.07 | 5.63 | 6.20 | 1.42 |
+| Sign-in flow | 0.79 | 0.17 | 0.24 | 0.22 | 0.48 |
+| Photo uploads | 0.49 | 1.44 | 5.93 | 6.82 | 1.09 |
 | Shop schema | 1.54 | 0.90 | 1.73 | 2.11 | 1.58 |
 | Order lifecycle | 9.87 | 5.13 | 4.84 | 7.54 | 0.86 |
-| Event mesh | 0.81 | 3.76 | 3.19 | 2.02 | 1.52 |
-| Cloud platform | 0.74 | 0.36 | 0.61 | 0.25 | 0.60 |
-| Delivery pipeline | 0.35 | 8.27 | 6.85 | 9.55 | 2.71 |
+| Event mesh | 4.05 | 3.76 | 3.19 | 2.02 | 1.52 |
+| Cloud platform | 0.73 | 0.36 | 0.61 | 0.25 | 0.60 |
+| Delivery pipeline | 1.92 | 8.27 | 6.85 | 9.55 | 2.71 |
 
 Not measured:
 
