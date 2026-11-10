@@ -4,6 +4,7 @@
 import { render, themes } from '@cartography/engine';
 import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
 import type { FamilyBytes } from '@cartography/export';
+import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
 
 export interface ExportInput {
@@ -26,7 +27,7 @@ export interface ExportInput {
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), fonts: 'embed' as const });
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, options(input));

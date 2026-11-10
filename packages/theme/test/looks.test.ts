@@ -12,7 +12,7 @@ const grounds = (t: Theme): string[] => [t.surface, t.canvas, ...(look(t).group.
 
 describe('built-in themes', () => {
   it('lists the looks, the brand examples and the two aliases', () => {
-    expect(names).toEqual(['survey', 'survey-dark', 'survey-cool', 'transit', 'transit-dark', 'drafting', 'drafting-dark', 'classic', 'classic-dark', 'slate', 'ocean', 'mono', 'light', 'dark']);
+    expect(names).toEqual(['survey', 'survey-dark', 'survey-cool', 'transit', 'transit-dark', 'drafting', 'drafting-dark', 'sketch', 'sketch-dark', 'classic', 'classic-dark', 'slate', 'ocean', 'mono', 'light', 'dark']);
     expect(themes.light).toBe(themes.survey);
     expect(themes.dark).toBe(themes['survey-dark']);
     expect(themeCatalog.map((x) => x.name)).toEqual(names.slice(0, -2));
@@ -80,7 +80,7 @@ describe('colour-blind readers', () => {
   // Ten inks cannot all stay far apart on the one hue axis a dichromat has left, so kind is never
   // carried by colour alone (icon, label and legend sample repeat it). What the ramps do guarantee:
   // no two tones turn into the same colour.
-  it.each(['survey', 'survey-cool', 'survey-dark', 'transit', 'transit-dark'])('%s: no two tones collapse into one', (name) => {
+  it.each(['survey', 'survey-cool', 'survey-dark', 'transit', 'transit-dark', 'sketch', 'sketch-dark'])('%s: no two tones collapse into one', (name) => {
     const t = themes[name]!;
     for (const [kind, m] of Object.entries(sight)) {
       const labs = tones.map((k) => oklab(seen(t.tones[k].fg, m)));

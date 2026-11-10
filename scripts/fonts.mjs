@@ -6,7 +6,9 @@
 //                                    same in Node and the browser without loading a font parser
 // The other families are checked in as the upstream TTF files (fonts/, each with its OFL text):
 // Instrument Sans (github.com/Instrument/instrument-sans), Geist Mono (github.com/vercel/geist-font),
-// Barlow (github.com/google/fonts ofl/barlow), IBM Plex Sans and Mono (github.com/IBM/plex).
+// Barlow (github.com/google/fonts ofl/barlow), IBM Plex Sans and Mono (github.com/IBM/plex),
+// Kalam, a handwriting face for the sketch look (github.com/google/fonts ofl/kalam; Regular and Bold,
+// the bold drawn at 600).
 // For each: src/generated/font-<slug>.ts with the metrics and the woff2 to embed in SVGs.
 // A family without a Reserved Font Name is embedded as a latin subset; IBM Plex reserves "Plex",
 // so its files are embedded whole (woff2 is only a container) and never subsetted.
@@ -76,6 +78,7 @@ const families = [
   { slug: 'geist-mono', family: 'Geist Mono', file: 'GeistMono', licence: 'OFL-GeistMono.txt', weights: { 400: 'Regular', 500: 'Medium' }, mono: true },
   { slug: 'barlow', family: 'Barlow', file: 'Barlow', licence: 'OFL-Barlow.txt', weights },
   { slug: 'ibm-plex-sans', family: 'IBM Plex Sans', file: 'IBMPlexSans', licence: 'OFL-IBMPlexSans.txt', weights, reserved: 'Plex' },
+  { slug: 'kalam', family: 'Kalam', file: 'Kalam', licence: 'OFL-Kalam.txt', weights: { 400: 'Regular', 600: 'Bold' } },
   { slug: 'ibm-plex-mono', family: 'IBM Plex Mono', file: 'IBMPlexMono', licence: 'OFL-IBMPlexMono.txt', weights: { 400: 'Regular', 500: 'Medium' }, mono: true, reserved: 'Plex' },
 ];
 

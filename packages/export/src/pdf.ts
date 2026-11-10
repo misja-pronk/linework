@@ -55,6 +55,32 @@ const SHEETS = { a4: [841.89, 595.28], a3: [1190.55, 841.89] } as const;
 const MARGIN = 28;
 const FOOTER = 18;
 
+/**
+ * Official icons are SVG images; the PDF writer draws only PNG and JPEG images, so each is set into
+ * the drawing as a nested SVG (its ids made its own) and comes out as vectors.
+ */
+function inlineImages(svg: string): string {
+  let n = 0;
+  return svg.replace(/<image\b([^>]*)\/>/g, (all, attrs: string) => {
+    const at = (name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(attrs)?.[1];
+    const href = at('href');
+    if (!href?.startsWith('data:image/svg+xml;base64,')) return all;
+    const text = new TextDecoder().decode(Uint8Array.from(atob(href.slice(26)), (c) => c.charCodeAt(0)));
+    const open = /<svg\b([^>]*)>/.exec(text);
+    if (!open) return all;
+    const box = /viewBox="([^"]+)"/.exec(open[1]!)?.[1] ?? `0 0 ${/width="([\d.]+)/.exec(open[1]!)?.[1] ?? 24} ${/height="([\d.]+)/.exec(open[1]!)?.[1] ?? 24}`;
+    const own = `i${++n}-`;
+    const inner = text
+      .slice(open.index + open[0].length, text.lastIndexOf('</svg>'))
+      .replace(/\sid="([^"]+)"/g, ` id="${own}$1"`)
+      .replace(/url\(#([^)]+)\)/g, `url(#${own}$1)`)
+      .replace(/href="#([^"]+)"/g, `href="#${own}$1"`);
+    const nested = `<svg x="${at('x') ?? 0}" y="${at('y') ?? 0}" width="${at('width') ?? 24}" height="${at('height') ?? 24}" viewBox="${box}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+    // A step that stands an element back dims its icon too.
+    return at('opacity') ? `<g opacity="${at('opacity')}">${nested}</g>` : nested;
+  });
+}
+
 export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promise<Uint8Array> {
   const drawings = Array.isArray(input) ? input : [input];
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
@@ -79,8 +105,8 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');
     // Drawn in the theme's own faces, as the engine measured it.
     const { graph, placed } = d;
-    const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view }));
-    const svg = nameFaces(out.svg, monoFamily);
+    const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view, images: d.images }));
+    const svg = inlineImages(nameFaces(out.svg, monoFamily));
     const foot = footer ? FOOTER : 0;
     const sheet = opts.page === 'a4' || opts.page === 'a3';
     // The SVG has its own padding: a fitted page adds nothing around it, a sheet keeps a margin.

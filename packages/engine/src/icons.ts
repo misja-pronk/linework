@@ -2,7 +2,7 @@
 // diagram's own `icons:` entries), read only those files and hand them to render as data URIs.
 import { parse } from 'yaml';
 import type { Graph, Path } from '@cartography/core';
-import type { IconPackFile } from '@cartography/icons';
+import { vendorsFor, type IconPackFile } from '@cartography/icons';
 import { joinPath } from '@cartography/theme';
 import type { RenderOptions } from './index.ts';
 
@@ -24,8 +24,22 @@ function kindAt(data: Record<string, unknown>, path: Path): string | undefined {
   return v && typeof v === 'object' && typeof (v as { kind?: unknown }).kind === 'string' ? (v as { kind: string }).kind : undefined;
 }
 
-export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: unknown, opts: RenderOptions, warn: (path: Path, message: string) => void): RenderOptions['images'] {
-  if (ref == null && !opts.packs?.length && !opts.icons) return undefined;
+/**
+ * `icons: official` uses the imported official set of each vendor the diagram draws (Azure for an
+ * azure diagram; AWS and Google Cloud for a cloud diagram, by the shapes in it; Kubernetes);
+ * `icons: lucide` keeps our line icons whatever packs are around. An override (--icons, the editor's
+ * toggle) wins over what the diagram says.
+ */
+export type IconMode = 'official' | 'lucide';
+
+export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: unknown, opts: RenderOptions, warn: (path: Path, message: string) => void, typeId?: string): RenderOptions['images'] {
+  const written = ref === 'official' || ref === 'lucide' ? (ref as IconMode) : undefined;
+  const mode = opts.iconsOverride ?? written;
+  if (mode === 'lucide') return undefined;
+  if (written) ref = undefined;
+  // The vendor sets of the diagram's type (Azure; AWS and Google Cloud; Kubernetes).
+  const official = mode === 'official' && typeId ? vendorsFor(typeId) : [];
+  if (ref == null && !opts.packs?.length && !opts.icons && !official.length) return undefined;
   const load = opts.load;
   // kind → how to get its SVG markup
   const files = new Map<string, () => string>();
@@ -33,17 +47,29 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
   const packs = new Map<string, Map<string, () => string>>();
   // Kinds mapped by hand, in the diagram or by the caller: these win over any pack.
   const byHand = new Set<string>();
+  // In `icons: official` the first vendor's icon wins for a kind every vendor has (users, a server):
+  // one look for the people in a diagram, not whichever set came last.
+  let keep = false;
   const fromPack = (p: IconPackFile, base: string, name: string) => {
     const root = joinPath(base, p.root || '.');
     const own = packs.get(name) ?? new Map<string, () => string>();
     packs.set(name, own);
     for (const [kind, rel] of Object.entries(p.icons ?? {})) {
       const get = () => load!(joinPath(root + '/', rel));
-      files.set(kind, get);
+      if (!keep || !files.has(kind)) files.set(kind, get);
       own.set(kind, get);
     }
   };
-  const usePack = (name: string, path: Path) => {
+  const fromMarkup = (icons: Record<string, string>, name: string) => {
+    const own = packs.get(name) ?? new Map<string, () => string>();
+    packs.set(name, own);
+    for (const [kind, svg] of Object.entries(icons)) {
+      if (!keep || !files.has(kind)) files.set(kind, () => svg);
+      own.set(kind, () => svg);
+    }
+  };
+  const usePack = (name: string, path: Path, quiet = false) => {
+    if (opts.iconPacks?.[name]) return fromMarkup(opts.iconPacks[name]!, name);
     if (isPath(name)) {
       try {
         const p = parse(load!(name)) as IconPackFile;
@@ -55,10 +81,18 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
       return;
     }
     const p = opts.pack?.(name);
-    if (!p) return warn(path, opts.pack ? `No icon pack "${name}": import one with carto icons import <folder|zip> --pack ${name}` : `Icon pack "${name}" is only available in the CLI; use a pack file or the editor's icon folder`);
+    if (!p) {
+      if (quiet) return;
+      return warn(path, opts.pack || !opts.iconPacks ? `No ${name} icons imported yet: download the official set and run carto icons import <folder|zip> (docs/icons.md)` : `No ${name} icons in this browser yet: Theme → Official icons… imports the download (docs/icons.md)`);
+    }
     fromPack(p, '', name);
   };
 
+  keep = true;
+  // One vendor (azure, kubernetes): say when its set is missing. Several (cloud): only when none is there.
+  for (const v of official) usePack(v, ['icons'], official.length > 1);
+  if (official.length > 1 && !official.some((v) => packs.has(v))) usePack(official[0]!, ['icons']);
+  keep = false;
   for (const name of opts.packs ?? []) usePack(name, ['icons']);
   for (const [kind, svg] of Object.entries(opts.icons ?? {})) {
     files.set(kind, () => svg);
@@ -75,7 +109,7 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
       }
       else warn(['icons', kind], 'An icon is the path of an SVG file, e.g. key-vault: ./icons/key-vault.svg');
     }
-  else if (ref != null) warn(['icons'], 'icons is a pack name, a pack file, or a map of kind: file.svg');
+  else if (ref != null) warn(['icons'], 'icons is official, lucide, a pack name, a pack file, or a map of kind: file.svg');
   if (!files.size) return undefined;
 
   const cache = new Map<string, string | undefined>();
@@ -97,7 +131,7 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
     if (!cache.has(kind)) {
       let svg: string | undefined;
       try {
-        if (!load && !opts.icons?.[written!]) throw new Error('no files here');
+        if (!load && !opts.icons?.[written!] && !opts.iconPacks) throw new Error('no files here');
         svg = from.get();
         if (!/<svg[\s>]/.test(svg)) throw new Error('not an SVG');
       } catch (e) {

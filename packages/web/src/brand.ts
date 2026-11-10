@@ -1,10 +1,8 @@
 // The editor's brand choices, outside React state so the renderer and the exports read the same
 // thing without app.tsx passing it around: a theme (built-in or a .theme.yaml from the open folder)
-// that wins over the diagram's own, and a BYO icon folder mapped to kinds.
+// that wins over the diagram's own. Official icon sets live in icon-packs.ts.
 import { useSyncExternalStore } from 'react';
-import { matchIcons, type KindInfo } from '@cartography/icons';
 import { measureText, resolveTheme, SCALE_SAMPLE, themes, type Theme, type ThemeWarning } from '@cartography/theme';
-import { types } from '@cartography/engine';
 import { store } from './store.ts';
 import type { Workspace } from './files.ts';
 
@@ -13,11 +11,6 @@ export interface Brand {
   choice: string;
   theme?: Theme;
   warnings: ThemeWarning[];
-  /** kind → SVG markup from the icon folder. */
-  icons?: Record<string, string>;
-  iconFolder?: string;
-  /** A remembered icon folder that needs a click to be read again. */
-  iconsToReconnect?: boolean;
 }
 
 let state: Brand = { choice: '', warnings: [] };
@@ -111,93 +104,4 @@ async function registerFonts(theme: Theme | undefined): Promise<number | undefin
   } catch {
     return undefined;
   }
-}
-
-// Icon folder: picked once, the handle kept in IndexedDB like the workspace folder.
-
-const DB = 'cartography-icons';
-function idb(): Promise<IDBDatabase> {
-  return new Promise((ok, fail) => {
-    const r = indexedDB.open(DB, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('handles');
-    r.onsuccess = () => ok(r.result);
-    r.onerror = () => fail(r.error);
-  });
-}
-async function remember(dir: FileSystemDirectoryHandle | undefined) {
-  try {
-    const db = await idb();
-    const s = db.transaction('handles', 'readwrite').objectStore('handles');
-    if (dir) s.put(dir, 'icons');
-    else s.delete('icons');
-  } catch {
-    /* private window */
-  }
-}
-async function remembered(): Promise<FileSystemDirectoryHandle | undefined> {
-  try {
-    const db = await idb();
-    return await new Promise((ok) => {
-      const r = db.transaction('handles').objectStore('handles').get('icons');
-      r.onsuccess = () => ok(r.result as FileSystemDirectoryHandle | undefined);
-      r.onerror = () => ok(undefined);
-    });
-  } catch {
-    return undefined;
-  }
-}
-
-let iconDir: FileSystemDirectoryHandle | undefined;
-void remembered().then(async (dir) => {
-  if (!dir) return;
-  iconDir = dir;
-  const h = dir as unknown as { queryPermission(o: object): Promise<PermissionState> };
-  if ((await h.queryPermission?.({ mode: 'read' })) === 'granted') await readIcons(dir);
-  else set({ iconFolder: dir.name, iconsToReconnect: true });
-});
-
-const kinds = (): KindInfo[] => {
-  const seen = new Map<string, KindInfo>();
-  for (const t of types) for (const p of t.palette) if (!seen.has(p.kind)) seen.set(p.kind, { kind: p.kind, label: p.label, keywords: p.keywords });
-  return [...seen.values()];
-};
-
-async function readIcons(dir: FileSystemDirectoryHandle) {
-  const handles = new Map<string, FileSystemFileHandle>();
-  const walk = async (d: FileSystemDirectoryHandle, prefix: string, depth: number) => {
-    for await (const [name, h] of (d as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }).entries()) {
-      if (handles.size > 20000 || name.startsWith('.') || name === '__MACOSX') continue;
-      if (h.kind === 'directory' && depth < 8) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
-      else if (/\.svg$/i.test(name)) handles.set(prefix + name, h as FileSystemFileHandle);
-    }
-  };
-  await walk(dir, '', 0);
-  // Only the matched files are read: a full Azure pack is hundreds of icons.
-  const map = matchIcons([...handles.keys()], kinds());
-  const icons: Record<string, string> = {};
-  for (const [kind, file] of Object.entries(map)) icons[kind] = await (await handles.get(file)!.getFile()).text();
-  set({ icons, iconFolder: dir.name, iconsToReconnect: false });
-}
-
-export async function pickIconFolder() {
-  try {
-    const dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'read', id: 'cartography-icons' });
-    iconDir = dir;
-    await remember(dir);
-    await readIcons(dir);
-  } catch (e) {
-    if ((e as Error).name !== 'AbortError') throw e;
-  }
-}
-
-export async function reconnectIcons() {
-  if (!iconDir) return;
-  const h = iconDir as unknown as { requestPermission(o: object): Promise<PermissionState> };
-  if ((await h.requestPermission({ mode: 'read' })) === 'granted') await readIcons(iconDir);
-}
-
-export function forgetIcons() {
-  iconDir = undefined;
-  void remember(undefined);
-  set({ icons: undefined, iconFolder: undefined, iconsToReconnect: false });
 }

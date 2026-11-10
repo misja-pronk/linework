@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { focusReach, type LayoutSidecar, type Link } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
 import { useBrand } from './brand.ts';
+import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';
 import { Icon } from './icon.tsx';
 import { linkTarget } from './links.ts';
@@ -85,7 +86,8 @@ let decks = 0;
 export function Present(p: PresentProps) {
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const { theme: themeOverride, icons } = useBrand();
+  const { theme: themeOverride } = useBrand();
+  const icons = useIconOptions();
   const [deck, setDeck] = useState<Deck>();
   const [at, setAt] = useState(0);
   /** The drawing on screen and, while it fades, the one before it. */
@@ -111,7 +113,7 @@ export function Present(p: PresentProps) {
       const key = `${d.id}:${i}${focus.focus ? ':focus' : ''}`;
       let hit = cache.current.get(key);
       if (!hit) {
-        hit = render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus }).then(async (r) => {
+        hit = render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus }).then(async (r) => {
           // A linked diagram can have a theme of its own: the page needs its faces before the slide shows.
           await registerThemeFonts(r.theme);
           return r;
@@ -127,7 +129,7 @@ export function Present(p: PresentProps) {
   const outline = useCallback(
     async (doc: PresentDoc): Promise<Deck | undefined> => {
       const d: Deck = { id: ++decks, doc, slides: [] };
-      const whole = (view?: string) => render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view, fonts: 'none' });
+      const whole = (view?: string) => render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view, fonts: 'none' });
       let first = await whole();
       const told = first.svg ? autoSteps(doc.text, first) : undefined;
       if (told) {

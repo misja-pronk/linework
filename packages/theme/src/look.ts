@@ -1,6 +1,6 @@
 // The look of a theme with every optional token filled in, so renderers (SVG, slides) read one
 // resolved value instead of repeating the defaults. The defaults are the classic look.
-import type { LineLook, MonoRole, Theme, TileStyle, ToneColors } from './tokens.ts';
+import type { LineLook, MonoRole, SketchLook, Theme, TileStyle, ToneColors } from './tokens.ts';
 
 export interface Look {
   group: {
@@ -30,6 +30,8 @@ export interface Look {
   title: { mono: boolean; caps: boolean; size: number; weight: 400 | 500 | 600; tracking: number };
   /** Text set in the monospace face. */
   mono: Record<MonoRole, boolean>;
+  /** Drawn by hand; absent for every ruled look. */
+  sketch?: Required<SketchLook>;
 }
 
 const ICON: Record<TileStyle, number> = { soft: 18, solid: 18, outline: 18, bare: 22, disc: 17, ring: 17 };
@@ -76,6 +78,7 @@ export function look(theme: Theme): Look {
     cardLine: theme.cardLine ?? 'border',
     title: { mono: !!theme.title?.mono || mono('title'), caps: !!theme.title?.caps, size: theme.title?.size ?? theme.size.title, weight: theme.title?.weight ?? 600, tracking: theme.title?.tracking ?? 0 },
     mono: { edgeLabel: mono('edgeLabel'), type: mono('type'), title: mono('title') },
+    ...(theme.sketch ? { sketch: { roughness: Math.max(0, Math.min(3, theme.sketch.roughness ?? 1)), fill: theme.sketch.fill ?? 'hachure', double: theme.sketch.double ?? true } } : {}),
   };
   cache.set(theme, made);
   return made;
