@@ -19,6 +19,13 @@ import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { exportFrom, exportKind, exportRemark } from './exports.ts';
+
+/** The command palette's entry for the exports in the open folder, by what they are. */
+const EXPORT_ENTRY = {
+  access: { label: (name: string) => `Who reaches what in ${name}`, hint: 'its az, Graph or AzureHound exports in access.yaml', icon: 'shield-user' },
+  github: { label: (name: string) => `GitHub organisation of ${name}`, hint: 'its gh api responses in github.yaml', icon: 'folder-git-2' },
+  azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
+};
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -523,7 +530,7 @@ export function App() {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
             types: [
-              { description: 'Cartography diagram, data products and contracts, or access and GitHub exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
+              { description: 'Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
               { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
             ],
           });
@@ -1238,7 +1245,7 @@ export function App() {
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
-    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: exportInWs === 'github' ? `GitHub organisation of ${ws.name}` : `Who reaches what in ${ws.name}`, hint: exportInWs === 'github' ? 'its gh api responses in github.yaml' : 'its az, Graph or AzureHound exports in access.yaml', icon: exportInWs === 'github' ? 'folder-git-2' : 'shield-user', run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
+    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
