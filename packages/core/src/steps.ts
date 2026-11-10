@@ -211,8 +211,10 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
 export function finalState(steps: StepState[], keep = false): StepState | undefined {
   const last = steps.at(-1);
   if (!last) return undefined;
-  const gone = (r: Record<string, Emphasis>): Record<string, Emphasis> => Object.fromEntries(Object.entries(r).flatMap(([id, e]) => (e === 'hidden' ? [[id, keep ? 'dim' : 'hidden'] as const] : [])));
-  const state: StepState = { nodes: gone(last.nodes), groups: gone(last.groups), edges: gone(last.edges), notes: [] };
+  // Only what the story took away after showing it: what no step ever showed is still part of the file.
+  const gone = (key: 'nodes' | 'groups' | 'edges'): Record<string, Emphasis> =>
+    Object.fromEntries(Object.entries(last[key]).flatMap(([id, e]) => (e === 'hidden' && steps.some((s) => s[key][id] !== 'hidden') ? [[id, keep ? 'dim' : 'hidden'] as const] : [])));
+  const state: StepState = { nodes: gone('nodes'), groups: gone('groups'), edges: gone('edges'), notes: [] };
   return Object.keys(state.nodes).length + Object.keys(state.groups).length + Object.keys(state.edges).length ? state : undefined;
 }
 

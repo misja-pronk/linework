@@ -305,6 +305,11 @@ describe('steps: without a step', () => {
     expect(part(svg, 'node', 'stripe')).toContain('data-dim');
   });
 
+  it('what no step ever showed is still drawn', async () => {
+    const text = steps(`  - { title: The front, show: [customer, web] }\n  - { title: All of it }\n`);
+    expect((await render(text, { fonts: 'none', marks: true })).svg).toContain('data-node="db"');
+  });
+
   it('a story that hides nothing is drawn as written', async () => {
     const text = steps(`  - focus: web\n  - path: api -> db\n`);
     expect((await render(text, { fonts: 'none' })).svg).toBe((await render(shop, { fonts: 'none' })).svg);
