@@ -54,9 +54,10 @@ import { states } from '@cartography/states';
 import { matrix } from '@cartography/matrix';
 import { capabilities } from '@cartography/capabilities';
 import { teams } from '@cartography/teams';
+import { classDiagram } from '@cartography/class';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap, matrix, capabilities, teams];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap, matrix, capabilities, teams, classDiagram];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

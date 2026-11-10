@@ -244,6 +244,9 @@ importers:
       '@cartography/capabilities':
         specifier: workspace:*
         version: link:../../types/capabilities
+      '@cartography/class':
+        specifier: workspace:*
+        version: link:../../types/class
       '@cartography/cloud':
         specifier: workspace:*
         version: link:../../types/cloud
@@ -651,6 +654,19 @@ importers:
       '@cartography/theme':
         specifier: workspace:*
         version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
+  types/class:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       yaml:
         specifier: ^2.9.1
         version: 2.9.1

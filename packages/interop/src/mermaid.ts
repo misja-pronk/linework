@@ -259,8 +259,8 @@ function states(g: Graph, sub: string[], notes: Notes): string[] {
 }
 
 // A crow's foot as Mermaid writes it at the left and at the right of a relation.
-const LEFT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: '|o', many: '}o', zeroOrMany: '}o', oneOrMany: '}|', slash: '||' };
-const RIGHT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: 'o|', many: 'o{', zeroOrMany: 'o{', oneOrMany: '|{', slash: '||' };
+const LEFT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: '|o', many: '}o', zeroOrMany: '}o', oneOrMany: '}|', slash: '||', triangle: '||', diamond: '||', filledDiamond: '||', open: '||' };
+const RIGHT: Record<Marker, string> = { none: '||', arrow: '||', one: '||', zeroOrOne: 'o|', many: 'o{', zeroOrMany: 'o{', oneOrMany: '|{', slash: '||', triangle: '||', diamond: '||', filledDiamond: '||', open: '||' };
 
 /** A column type or name as one Mermaid word. */
 const word = (s: string) => {

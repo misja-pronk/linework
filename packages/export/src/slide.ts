@@ -252,9 +252,9 @@ class SlideDrawing {
     for (const e of edges) {
       if (!e.ends) continue;
       const pts = toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node);
-      for (const [list, tip, from] of [[e.ends.from, pts[0]!, pts[1]!], [e.ends.to, pts.at(-1)!, pts.at(-2)!]] as const) {
+      for (const [list, tip, from, marker] of [[e.ends.from, pts[0]!, pts[1]!, e.start], [e.ends.to, pts.at(-1)!, pts.at(-2)!, e.end]] as const) {
         if (!list?.length) continue;
-        const at = endTagAt(list, tip, from, taken);
+        const at = endTagAt(list, tip, from, taken, marker);
         if (at) out.push(...this.tags(list, at.x, at.cy, endStyle).map((i) => i.xml));
       }
     }

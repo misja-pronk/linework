@@ -200,7 +200,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   if (item.end && item.end !== 'none') {
     // A relationship's end (a crow's foot): a longer line, so the mark sits clear of where it starts.
     const tip = { x: x0 + 30, y: cy };
-    return `<path d="M${x0} ${cy}H${tip.x}" stroke="${color}" stroke-width="${r1(theme.stroke.edge)}" stroke-linecap="round"/>` + endMarker(item.end, tip, { x: x0, y: cy }, color, theme) + label;
+    return `<path d="M${x0} ${cy}H${tip.x}" stroke="${color}" stroke-width="${r1(theme.stroke.edge)}" stroke-linecap="round"${dashAttr(item.line, theme.stroke.edge, theme)}/>` + endMarker(item.end, tip, { x: x0, y: cy }, color, theme) + label;
   }
   const d = `M${x0} ${cy}H${x0 + 20}`;
   return `<path d="${d}" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round"${dash}/>` + patternOver(item.pattern, `M${x0 - 1} ${cy}H${x0 + 22}`, color, width, theme, dash) + label;
