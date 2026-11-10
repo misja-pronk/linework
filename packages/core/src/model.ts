@@ -131,6 +131,8 @@ export interface MatrixShape {
   cells: (MatrixCell | undefined)[][];
   /** A plain table: cells are left-aligned text, no pills (an IP plan). A row with an empty label continues the one above. */
   plain?: boolean;
+  /** A comparison with an earlier state: cells carry a `change`, and those without one are drawn quietly. */
+  compare?: boolean;
 }
 
 export interface MatrixHeader {
@@ -138,6 +140,8 @@ export interface MatrixHeader {
   caption?: string;
   icon?: string;
   tone?: Tone;
+  /** In a comparison: new here, or gone (the label is struck through). */
+  change?: 'added' | 'removed';
 }
 
 export interface MatrixCell {
@@ -151,6 +155,8 @@ export interface MatrixCell {
   tone?: Tone;
   /** Bold text, in a plain table. */
   strong?: boolean;
+  /** In a comparison: gained, lost (struck through) or another value than before. Drawn with a ring; the sign is part of the text. */
+  change?: 'added' | 'removed' | 'changed';
 }
 
 export type TableRow =

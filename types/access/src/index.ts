@@ -31,6 +31,8 @@ export const principalKinds: KindTable = {
   'service-principal': { label: 'Service principal', icon: 'bot', tone: 'indigo' },
   'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'indigo' },
   'connected-org': { label: 'Connected organisation', icon: 'handshake', tone: 'orange' },
+  // What an export names but no longer finds: a deleted user or group that still holds a role.
+  unknown: { label: 'Identity not found', icon: 'circle-question-mark', tone: 'rose' },
 };
 
 export const resourceKinds: KindTable = {
@@ -61,6 +63,8 @@ interface Principal {
   label?: string;
   caption?: string;
   'member-of'?: string | string[];
+  /** The object id in the directory: an import recognises the principal by it, whatever it is called here. */
+  'object-id'?: string;
 }
 
 interface Resource {
@@ -68,6 +72,8 @@ interface Resource {
   label?: string;
   caption?: string;
   in?: string;
+  /** The id where it lives (an Azure resource id, a repository's full name): as object-id, for imports. */
+  'resource-id'?: string;
 }
 
 interface Policy {
@@ -88,6 +94,7 @@ interface Package {
   policy?: Policy | Policy[];
   /** Who holds the package now; used by the access view. */
   holders?: string[];
+  'object-id'?: string;
 }
 
 interface Role {
@@ -95,6 +102,13 @@ interface Role {
   inherits?: string | string[];
   permissions?: string[];
   tone?: Tone;
+  /** The role definition's id, for imports. */
+  'role-id'?: string;
+}
+
+interface Catalog {
+  label?: string;
+  'object-id'?: string;
 }
 
 export interface AccessSource {
@@ -103,11 +117,13 @@ export interface AccessSource {
   direction?: 'right' | 'down';
   view?: 'graph' | 'access' | 'packages' | 'roles';
   principals?: Record<string, string | Principal>;
-  catalogs?: Record<string, string | { label?: string } | null>;
+  catalogs?: Record<string, string | Catalog | null>;
   packages?: Record<string, Package>;
   resources?: Record<string, string | Resource>;
   roles?: Record<string, Role | null>;
   assignments?: (string | { principal: string; role: string; scope: string })[];
+  /** An earlier state of the same diagram: the who × where matrix then shows what was gained and lost. Written by `carto diff`. */
+  was?: AccessSource;
 }
 
 const list = (v: string | string[] | undefined) => (v == null ? [] : Array.isArray(v) ? v : [v]);
@@ -119,7 +135,7 @@ class Model {
   resources: [string, Resource][];
   packages: [string, Package][];
   roles: [string, Role][];
-  catalogs: [string, { label?: string }][];
+  catalogs: [string, Catalog][];
   assignments: { principal: string; role: string; scope: string; path: (string | number)[] }[] = [];
 
   constructor(
@@ -132,7 +148,7 @@ class Model {
     this.resources = norm<Resource>(src.resources, 'kind');
     this.packages = Object.entries(src.packages ?? {});
     this.roles = Object.entries(src.roles ?? {}).map(([id, r]) => [id, r ?? {}]);
-    this.catalogs = norm<{ label?: string }>(src.catalogs, 'label');
+    this.catalogs = norm<Catalog>(src.catalogs, 'label');
 
     for (const [i, a] of (src.assignments ?? []).entries()) {
       const path = ['assignments', i];
@@ -212,7 +228,87 @@ class Model {
     for (const p of this.role(role)?.permissions ?? []) out.set(p, true);
     return out;
   }
+
+  private assigned?: Map<string, Model['assignments']>;
+  private inside?: Map<string, string[]>;
+
+  /** A scope and everything in it. */
+  covered(scope: string): string[] {
+    if (!this.inside) {
+      this.inside = new Map();
+      for (const [id, r] of this.resources) if (r.in) this.inside.set(r.in, [...(this.inside.get(r.in) ?? []), id]);
+    }
+    const out: string[] = [];
+    const walk = (s: string) => {
+      if (out.includes(s)) return;
+      out.push(s);
+      for (const c of this.inside!.get(s) ?? []) walk(c);
+    };
+    walk(scope);
+    return out;
+  }
+
+  /**
+   * What a principal reaches: per scope every role it has there, the strongest first (a direct one before
+   * an equally strong one from elsewhere), each with where it comes from: itself, a group, an access
+   * package, a scope above.
+   */
+  reach(p: string): Map<string, Reach[]> {
+    if (!this.assigned) {
+      this.assigned = new Map();
+      for (const a of this.assignments) this.assigned.set(a.principal, [...(this.assigned.get(a.principal) ?? []), a]);
+    }
+    // Identities p acts as: itself, its groups, and what its access packages give it.
+    const groups = this.memberships(p);
+    const sources: { id: string; via?: string }[] = [{ id: p }];
+    for (const [g, via] of groups) sources.push({ id: g, via: this.label(via) });
+    const out = new Map<string, Reach[]>();
+    const add = (scope: string, r: Reach) => out.set(scope, [...(out.get(scope) ?? []), r]);
+    const appRoles: { scope: string; role: string; via: string }[] = [];
+    for (const [, pkg] of this.packages.filter(([, x]) => (x.holders ?? []).some((h) => h === p || groups.has(h)))) {
+      const via = pkg.label ?? 'access package';
+      for (const g of this.grants(pkg)) {
+        if (this.principal(g.target)) {
+          sources.push({ id: g.target, via });
+          for (const [inner] of this.memberships(g.target)) sources.push({ id: inner, via });
+        } else if (this.resource(g.target)) appRoles.push({ scope: g.target, role: g.role, via });
+      }
+    }
+    for (const s of sources)
+      for (const a of this.assigned.get(s.id) ?? [])
+        for (const scope of this.covered(a.scope)) {
+          const from = a.scope !== scope ? this.label(a.scope) : undefined;
+          const role = this.role(a.role);
+          add(scope, { role: a.role, text: role?.label ?? a.role, direct: !s.via && !from, via: s.via, from, tone: role?.tone ?? 'indigo' });
+        }
+    // App and site roles from a package: a fixed text, not one of the roles.
+    for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, tone: 'indigo' });
+    const rank = (r: Reach) => (r.role ? this.rank(r.role) : 0);
+    for (const [scope, list] of out) {
+      list.sort((x, y) => rank(y) - rank(x) || Number(y.direct) - Number(x.direct));
+      // One entry per role: the first way it is reached.
+      out.set(scope, list.filter((r, i) => list.findIndex((x) => x.text === r.text) === i));
+    }
+    return out;
+  }
 }
+
+/** One way a principal reaches a scope. */
+export interface Reach {
+  /** The role's id; none for an app or site role a package grants. */
+  role?: string;
+  /** The role as it is shown. */
+  text: string;
+  /** Assigned to the principal itself, on this very scope. */
+  direct: boolean;
+  /** The group or access package it comes through. */
+  via?: string;
+  /** The scope above it was assigned on. */
+  from?: string;
+  tone: Tone;
+}
+
+const reachNote = (r: Reach) => [r.via && `via ${r.via}`, r.from && `from ${r.from}`].filter(Boolean).join(', ') || undefined;
 
 function principalHeader(m: Model, id: string): MatrixHeader {
   const p = m.principal(id)!;
@@ -316,10 +412,10 @@ const pillLegend = (direct: string, inherited: string, checks = false): LegendIt
   { label: inherited, swatch: checks ? 'check-outline' : 'outline', tone: 'indigo' },
 ];
 
-/** Who × where: the strongest effective role per cell, and where it comes from. */
-function accessView(m: Model): Graph {
-  const rows = m.principals.filter(([, p]) => !['dynamic-group', 'connected-org'].includes(p.kind ?? '')).map(([id]) => id);
-  // Resources in tree order, so a scope sits right before what it contains.
+const inMatrix = (m: Model) => m.principals.filter(([, p]) => !['dynamic-group', 'connected-org'].includes(p.kind ?? '')).map(([id]) => id);
+
+/** Resources in tree order, so a scope sits right before what it contains. */
+function scopesInOrder(m: Model): string[] {
   const columns: string[] = [];
   const add = (parent: string | undefined) => {
     for (const [id, r] of m.resources)
@@ -329,45 +425,221 @@ function accessView(m: Model): Graph {
       }
   };
   add(undefined);
+  return columns;
+}
 
-  /** A role from an assignment, or a fixed text for app and site roles from a package. */
-  type Entry = { role?: string; text?: string; direct: boolean; note?: string };
+const cellOf = (r: Reach): MatrixCell => ({ text: r.text, inherited: !r.direct, note: reachNote(r), tone: r.tone });
+
+/** Who × where: the strongest effective role per cell, and where it comes from. With an earlier state: what was gained and lost since. */
+function accessView(m: Model, was?: Model): Graph {
+  if (was) return compareView(was, m);
+  const rows = inMatrix(m);
+  const columns = scopesInOrder(m);
   const cells = rows.map((p) => {
-    // Identities p acts as: itself, its groups, and what its access packages give it.
-    const sources: { id: string; via?: string }[] = [{ id: p }];
-    for (const [g, via] of m.memberships(p)) sources.push({ id: g, via: m.label(via) });
-    const appRoles: { scope: string; role: string; via: string }[] = [];
-    for (const [, pkg] of m.packages.filter(([, x]) => (x.holders ?? []).includes(p) || [...m.memberships(p).keys()].some((g) => (x.holders ?? []).includes(g)))) {
-      for (const g of m.grants(pkg)) {
-        if (m.principal(g.target)) {
-          sources.push({ id: g.target, via: pkg.label ?? 'access package' });
-          for (const [inner] of m.memberships(g.target)) sources.push({ id: inner, via: pkg.label ?? 'access package' });
-        } else if (m.resource(g.target)) appRoles.push({ scope: g.target, role: g.role, via: pkg.label ?? 'access package' });
-      }
-    }
-    return columns.map((scope): MatrixCell | undefined => {
-      const entries: Entry[] = [];
-      const covering = [scope, ...m.ancestors(scope)];
-      for (const s of sources)
-        for (const a of m.assignments.filter((x) => x.principal === s.id && covering.includes(x.scope))) {
-          const from = a.scope !== scope ? `from ${m.label(a.scope)}` : undefined;
-          const note = [s.via && `via ${s.via}`, from].filter(Boolean).join(', ') || undefined;
-          entries.push({ role: a.role, direct: !s.via && !from, note });
-        }
-      for (const a of appRoles) if (a.scope === scope) entries.push({ text: a.role, direct: false, note: `via ${a.via}` });
-      if (!entries.length) return undefined;
-      entries.sort((x, y) => Number(y.direct) - Number(x.direct) || (y.role ? m.rank(y.role) : 0) - (x.role ? m.rank(x.role) : 0));
-      const best = entries[0]!;
-      const role = best.role ? m.role(best.role) : undefined;
-      return { text: best.text ?? role?.label ?? best.role, inherited: !best.direct, note: best.note, tone: role?.tone ?? 'indigo' };
+    const reach = m.reach(p);
+    return columns.map((scope) => {
+      const best = reach.get(scope)?.[0];
+      return best ? cellOf(best) : undefined;
     });
   });
-
   return matrixGraph(
     m,
     { kind: 'matrix', corner: 'Who \\ where', rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => resourceHeader(m, id)), cells },
     pillLegend('Assigned directly', 'Through a group, access package or parent scope'),
   );
+}
+
+// ---------------------------------------------------------------- gained and lost
+
+/** What one principal reaches on one scope, before and after. */
+interface Delta {
+  before: Reach[];
+  after: Reach[];
+  gained: Reach[];
+  lost: Reach[];
+}
+
+interface Side {
+  /** The id in the later state, or in the earlier one for what is gone. */
+  id: string;
+  /** The model that knows it: the later one unless it is gone. */
+  of: Model;
+  state: 'same' | 'added' | 'removed';
+}
+
+/**
+ * Two states side by side. A principal or scope is the same one when its object-id (resource-id) is,
+ * and otherwise when its id is: so a rename in the directory is not somebody leaving and somebody arriving.
+ */
+function compareModels(was: Model, now: Model): { rows: Side[]; columns: Side[]; delta(row: number, column: number): Delta | undefined } {
+  const principalKey = (m: Model, id: string) => m.principal(id)?.['object-id']?.toLowerCase() ?? id;
+  const resourceKey = (m: Model, id: string) => m.resource(id)?.['resource-id']?.toLowerCase() ?? id;
+  const sides = (before: string[], after: string[], key: (m: Model, id: string) => string) => {
+    const old = new Map(before.map((id) => [key(was, id), id]));
+    const seen = new Set(after.map((id) => key(now, id)));
+    return [
+      ...after.map((id): Side & { key: string } => ({ id, of: now, state: old.has(key(now, id)) ? 'same' : 'added', key: key(now, id) })),
+      ...before.filter((id) => !seen.has(key(was, id))).map((id): Side & { key: string } => ({ id, of: was, state: 'removed', key: key(was, id) })),
+    ];
+  };
+  const rows = sides(inMatrix(was), inMatrix(now), principalKey);
+  const columns = sides(scopesInOrder(was), scopesInOrder(now), resourceKey);
+  const wasId = new Map(inMatrix(was).map((id) => [principalKey(was, id), id]));
+  const nowId = new Map(inMatrix(now).map((id) => [principalKey(now, id), id]));
+  const byKey = (m: Model, reach: Map<string, Reach[]> | undefined) => new Map([...(reach ?? [])].map(([scope, r]) => [resourceKey(m, scope), r]));
+  const reached = rows.map((r) => ({
+    before: wasId.has(r.key) ? byKey(was, was.reach(wasId.get(r.key)!)) : undefined,
+    after: nowId.has(r.key) ? byKey(now, now.reach(nowId.get(r.key)!)) : undefined,
+  }));
+  return {
+    rows,
+    columns,
+    delta(row, column) {
+      const before = reached[row]!.before?.get(columns[column]!.key) ?? [];
+      const after = reached[row]!.after?.get(columns[column]!.key) ?? [];
+      if (!before.length && !after.length) return undefined;
+      return { before, after, gained: after.filter((a) => !before.some((b) => b.text === a.text)), lost: before.filter((b) => !after.some((a) => a.text === b.text)) };
+    },
+  };
+}
+
+const header = (s: Side, principal: boolean): MatrixHeader => {
+  const h = principal ? principalHeader(s.of, s.id) : resourceHeader(s.of, s.id);
+  return s.state === 'same' ? h : { ...h, change: s.state, caption: `${s.state === 'added' ? 'New' : 'Gone'}${h.caption ? ` · ${h.caption}` : ''}` };
+};
+
+/** The who × where matrix of what changed: gained with a +, lost with a − and struck through, changed with a ~; the rest of those rows and columns quietly. */
+function compareView(was: Model, now: Model): Graph {
+  const c = compareModels(was, now);
+  const cells = c.rows.map((_, i) =>
+    c.columns.map((_, j): MatrixCell | undefined => {
+      const d = c.delta(i, j);
+      if (!d) return undefined;
+      if (!d.gained.length && !d.lost.length) return cellOf(d.after[0]!);
+      if (!d.before.length) return { ...cellOf(d.after[0]!), text: `+ ${d.after[0]!.text}`, tone: 'green', change: 'added' };
+      if (!d.after.length) return { ...cellOf(d.before[0]!), text: `− ${d.before[0]!.text}`, tone: 'rose', change: 'removed' };
+      // Still something there, but not what it was: the strongest role now, and what came or went.
+      const top = d.after[0]!;
+      const note = d.gained.includes(top) && d.lost.length === 1 ? `was ${d.lost[0]!.text}` : [...d.gained.filter((r) => r !== top).map((r) => `+ ${r.text}`), ...d.lost.map((r) => `− ${r.text}`)].join(', ');
+      return { ...cellOf(top), text: `~ ${top.text}`, tone: 'amber', change: 'changed', note: note || reachNote(top) };
+    }),
+  );
+  // Only the rows and columns something changed in: a tenant is large, a change is small.
+  const rows = c.rows.map((_, i) => i).filter((i) => cells[i]!.some((x) => x?.change));
+  const columns = c.columns.map((_, j) => j).filter((j) => cells.some((r) => r[j]?.change));
+  const graph = matrixGraph(
+    now,
+    {
+      kind: 'matrix',
+      corner: 'Who \\ where',
+      compare: true,
+      rows: rows.map((i) => header(c.rows[i]!, true)),
+      columns: columns.map((j) => header(c.columns[j]!, false)),
+      cells: rows.map((i) => columns.map((j) => cells[i]![j])),
+    },
+    [
+      { label: '+ gained', swatch: 'fill', tone: 'green' },
+      { label: '− lost', swatch: 'outline', tone: 'rose' },
+      { label: '~ changed', swatch: 'fill', tone: 'amber' },
+      { label: 'as it was', swatch: 'outline', tone: 'slate', muted: true },
+    ],
+  );
+  if (!rows.length) graph.nodes = [{ id: 'matrix', shape: { kind: 'card', label: 'No access gained or lost', caption: 'Everyone reaches what they reached before', icon: 'shield-check', tone: 'green' }, path: [] }];
+  return graph;
+}
+
+export interface AccessChange {
+  kind: 'gained' | 'lost' | 'changed';
+  /** Ids in the later state; in the earlier one for a principal or scope that is gone. */
+  principal: string;
+  scope: string;
+  /** The names they are shown with. */
+  who: string;
+  where: string;
+  /** The role gained or lost; the new one for a change. */
+  role: string;
+  /** The role it was, for a change. */
+  was?: string;
+  /** Where it comes from: "via sg-developers", "via Developer access". */
+  how?: string;
+  /** Others who got or lost the same through this principal (a group): their names. */
+  with?: string[];
+  /** The whole change in plain words. */
+  text: string;
+}
+
+const silent: BuildContext = { error() {}, warn() {} };
+
+/**
+ * What everyone gained and lost between two states, in plain words: effective access, so joining a
+ * group that holds a role counts, and a role on a subscription is told once, not for everything in it.
+ */
+export function accessChanges(before: AccessSource, after: AccessSource): AccessChange[] {
+  const was = new Model(before, silent);
+  const now = new Model(after, silent);
+  const c = compareModels(was, now);
+  const out: AccessChange[] = [];
+  for (const [i, row] of c.rows.entries())
+    for (const [j, column] of c.columns.entries()) {
+      const d = c.delta(i, j);
+      // What comes from a scope above is told there.
+      const gained = d?.gained.filter((r) => !r.from) ?? [];
+      const lost = d?.lost.filter((r) => !r.from) ?? [];
+      if (!gained.length && !lost.length) continue;
+      const base = { principal: row.id, scope: column.id, who: row.of.label(row.id), where: column.of.label(column.id) };
+      if (gained.length === 1 && lost.length === 1) out.push({ ...base, kind: 'changed', role: gained[0]!.text, was: lost[0]!.text, how: gained[0]!.via && `via ${gained[0]!.via}`, text: '' });
+      else {
+        for (const r of gained) out.push({ ...base, kind: 'gained', role: r.text, how: r.via && `via ${r.via}`, text: '' });
+        for (const r of lost) out.push({ ...base, kind: 'lost', role: r.text, how: r.via && `via ${r.via}`, text: '' });
+      }
+    }
+  // A group's change is told once, with who it carries along, not again for each member.
+  const own = out.filter((x) => !x.how);
+  const told = out.filter((x) => {
+    const through = x.how && own.find((g) => `via ${g.who}` === x.how && g.scope === x.scope && g.kind === x.kind && g.role === x.role && g.was === x.was);
+    if (through) (through.with ??= []).push(x.who);
+    return !through;
+  });
+  for (const x of told) {
+    const others = x.with?.length ? `, and with it ${x.with.slice(0, 3).join(', ')}${x.with.length > 3 ? ` and ${x.with.length - 3} more` : ''}` : '';
+    const what = x.kind === 'changed' ? `changed from ${x.was} to ${x.role}` : `${x.kind} ${x.role}`;
+    x.text = `${x.who} ${what} on ${x.where}${x.how ? ` (${x.how})` : ''}${others}`;
+  }
+  return told;
+}
+
+/** Every principal with what it reaches, scope by scope: for tools that ask "who can reach this" without drawing. */
+export function effectiveAccess(source: AccessSource): { principal: string; scope: string; reach: Reach[] }[] {
+  const m = new Model(source, silent);
+  return inMatrix(m).flatMap((p) => [...m.reach(p)].map(([scope, reach]) => ({ principal: p, scope, reach })));
+}
+
+// ---------------------------------------------------------------- checks
+
+const OWNER_LEVEL = /\b(owner|user access administrator|role based access control administrator|global administrator|privileged role administrator)\b/i;
+const BROAD = ['tenant', 'management-group', 'subscription'];
+const GROUPS = ['group', 'role-assignable-group', 'm365-group', 'dynamic-group'];
+
+/** Things worth a second look. Warnings only: the picture stays as it is. */
+function check(m: Model, ctx: BuildContext) {
+  for (const a of m.assignments) {
+    const kind = m.principal(a.principal)?.kind;
+    const what = `${m.label(a.role)} on ${m.label(a.scope)}`;
+    if (kind === 'unknown') ctx.warn(a.path, `${what} is held by an identity that no longer exists (${m.label(a.principal)}): the assignment can go`);
+    if (kind === 'user' || kind === 'guest') {
+      const group = m.assignments.find((x) => x.role === a.role && x.scope === a.scope && GROUPS.includes(m.principal(x.principal)?.kind ?? ''));
+      if (group) ctx.warn(a.path, `${m.label(a.principal)} is ${what} directly, where ${m.label(group.principal)} holds the same role: membership of the group would do`);
+    }
+  }
+  for (const [id, p] of m.principals) {
+    if (p.kind !== 'guest') continue;
+    for (const [scope, reach] of m.reach(id)) {
+      const scopeKind = m.resource(scope)?.kind ?? '';
+      const top = reach.find((r) => !r.from && OWNER_LEVEL.test(r.text));
+      if (top && BROAD.includes(scopeKind))
+        ctx.warn(['principals', id], `Guest ${m.label(id)} is ${top.text} on ${resourceKinds[scopeKind]!.label.toLowerCase()} ${m.label(scope)}${top.via ? ` (via ${top.via})` : ''}: an owner-level role on a broad scope for someone from outside`);
+    }
+  }
 }
 
 /** Access packages × what they grant. */
@@ -409,9 +681,10 @@ function rolesView(m: Model): Graph {
 
 function build(src: AccessSource, ctx: BuildContext): Graph {
   const m = new Model(src, ctx);
+  check(m, ctx);
   switch (src.view ?? 'graph') {
     case 'access':
-      return accessView(m);
+      return accessView(m, src.was ? new Model(src.was, silent) : undefined);
     case 'packages':
       return packagesView(m);
     case 'roles':
@@ -422,6 +695,7 @@ function build(src: AccessSource, ctx: BuildContext): Graph {
 }
 
 const strings = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] };
+const objectId = { type: 'string', description: 'The object id in the directory: an import recognises it by this, whatever it is called here' };
 const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
   anyOf: [
     { enum: kinds },
@@ -485,12 +759,12 @@ export const access: DiagramType<AccessSource> = {
       principals: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: entry(Object.keys(principalKinds), { 'member-of': strings }),
+        additionalProperties: entry(Object.keys(principalKinds), { 'member-of': strings, 'object-id': objectId }),
       },
       catalogs: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: { anyOf: [{ type: 'string' }, { type: 'null' }, { type: 'object', properties: { label: { type: 'string' } }, additionalProperties: false }] },
+        additionalProperties: { anyOf: [{ type: 'string' }, { type: 'null' }, { type: 'object', properties: { label: { type: 'string' }, 'object-id': objectId }, additionalProperties: false }] },
       },
       packages: {
         type: 'object',
@@ -508,6 +782,7 @@ export const access: DiagramType<AccessSource> = {
             },
             policy: { anyOf: [policy, { type: 'array', items: policy }] },
             holders: { type: 'array', items: { type: 'string' } },
+            'object-id': objectId,
           },
           additionalProperties: false,
         },
@@ -515,7 +790,10 @@ export const access: DiagramType<AccessSource> = {
       resources: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: entry(Object.keys(resourceKinds), { in: { type: 'string' } }),
+        additionalProperties: entry(Object.keys(resourceKinds), {
+          in: { type: 'string' },
+          'resource-id': { type: 'string', description: 'The id where it lives, e.g. an Azure resource id: an import recognises it by this' },
+        }),
       },
       roles: {
         type: 'object',
@@ -525,7 +803,13 @@ export const access: DiagramType<AccessSource> = {
             { type: 'null' },
             {
               type: 'object',
-              properties: { label: { type: 'string' }, inherits: strings, permissions: { type: 'array', items: { type: 'string' } }, tone: { enum: tones } },
+              properties: {
+                label: { type: 'string' },
+                inherits: strings,
+                permissions: { type: 'array', items: { type: 'string' } },
+                tone: { enum: tones },
+                'role-id': { type: 'string', description: 'The role definition id, for imports' },
+              },
               additionalProperties: false,
             },
           ],
@@ -545,11 +829,18 @@ export const access: DiagramType<AccessSource> = {
           ],
         },
       },
+      was: { type: 'object', description: 'An earlier state of this diagram (its principals, resources, roles, packages and assignments): the who × where matrix then shows what was gained and lost. Written by carto diff' },
     },
     additionalProperties: false,
   },
   palette,
   build,
+  views: () => [
+    { name: 'graph', title: 'Who gets what, as a graph' },
+    { name: 'access', title: 'Who × where' },
+    { name: 'packages', title: 'Packages × grants' },
+    { name: 'roles', title: 'Roles × permissions' },
+  ],
   references(src) {
     const out: Reference[] = [];
     const has = (c: 'principals' | 'resources' | 'roles' | 'catalogs' | 'packages', id: string) => !!src[c] && Object.hasOwn(src[c]!, id);

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MatrixShape } from '@cartography/core';
+import { parse, stringify } from 'yaml';
+import { accessChanges, effectiveAccess, type AccessSource } from '@cartography/access';
 import { render } from '../src/index.ts';
 
 const source = (view: string) => `type: access
@@ -26,7 +28,7 @@ assignments:
 
 async function matrix(view: string) {
   const r = await render(source(view), { fonts: 'none' });
-  expect(r.diagnostics).toEqual([]);
+  expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
   const m = r.graph!.nodes[0]!.shape as MatrixShape;
   const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
   return { m, cell };
@@ -61,5 +63,111 @@ describe('access view', () => {
   it('reports what does not exist', async () => {
     const r = await render(source('graph').replace('- alice is owner on rg', '- alice is owner on nowhere'), { fonts: 'none' });
     expect(r.diagnostics.map((d) => d.message)).toEqual(['There is no resource "nowhere"']);
+  });
+});
+
+describe('access checks', () => {
+  const warnings = async (text: string) => (await render(text, { fonts: 'none' })).diagnostics.filter((d) => d.severity === 'warning').map((d) => d.message);
+
+  it('names a user who holds directly what a group holds', async () => {
+    expect(await warnings(source('graph'))).toEqual(['alice is Owner on rg directly, where sg-ops holds the same role: membership of the group would do']);
+  });
+
+  it('names a guest with an owner-level role on a broad scope, also through a group', async () => {
+    const text = `type: access
+principals:
+  eve: { kind: guest, label: Eve (Contoso), member-of: sg-ops }
+  sg-ops: group
+  gone: { kind: unknown, label: Identity not found }
+resources:
+  prod: { kind: subscription, label: Production }
+  rg: { kind: resource-group, in: prod }
+roles:
+  owner: { label: Owner }
+  reader: { label: Reader }
+assignments:
+  - sg-ops is owner on prod
+  - gone is reader on rg
+`;
+    expect(await warnings(text)).toEqual([
+      'Reader on rg is held by an identity that no longer exists (Identity not found): the assignment can go',
+      'Guest Eve (Contoso) is Owner on subscription Production (via sg-ops): an owner-level role on a broad scope for someone from outside',
+    ]);
+  });
+
+  it('says nothing about a tidy diagram', async () => {
+    expect(await warnings(source('graph').replace('  - alice is owner on rg\n', ''))).toEqual([]);
+  });
+});
+
+describe('gained and lost access', () => {
+  const before = parse(source('access')) as AccessSource;
+  const after = parse(
+    source('access')
+      .replace('carol: { kind: user, member-of: sg-ops }', 'carol: { kind: user, member-of: [sg-ops, sg-dev] }\n  dave: { kind: guest, label: Dave, member-of: sg-ops }')
+      .replace('  - alice is owner on rg\n', '  - sg-ops is reader on prod\n'),
+  ) as AccessSource;
+
+  it('tells what changed in plain words, effective access included', () => {
+    expect(accessChanges(before, after).map((c) => c.text)).toEqual([
+      // She keeps Reader there through her access package: only the direct Owner went.
+      'alice lost Owner on rg',
+      // A new member of a group that holds a role.
+      'Dave gained Owner on rg (via sg-ops)',
+      // The group's new role is told once, not again for carol and Dave.
+      'sg-ops gained Reader on prod, and with it carol, Dave',
+    ]);
+    expect(accessChanges(before, before)).toEqual([]);
+  });
+
+  it('tells a group change once, with the members it carries along', () => {
+    const more = { ...before, assignments: [...before.assignments!, 'sg-ops is reader on gh'] };
+    expect(accessChanges(before, more).map((c) => c.text)).toEqual(['sg-ops gained Reader on gh, and with it carol']);
+  });
+
+  it('knows a renamed principal by its object id', () => {
+    const named = (id: string) => ({ ...before, principals: { ...before.principals, [id]: { kind: 'user', 'object-id': 'A1' } } }) as AccessSource;
+    const a = { ...named('bob'), assignments: ['bob is reader on rg'] };
+    const b = { ...named('robert'), principals: Object.fromEntries(Object.entries(named('robert').principals!).filter(([id]) => id !== 'bob')), assignments: ['robert is owner on rg'] };
+    expect(accessChanges(a, b).filter((c) => c.who === 'robert').map((c) => c.text)).toEqual(['robert changed from Reader to Owner on rg']);
+  });
+
+  it('draws the who × where matrix of the change: signs, struck text, the rest quiet', async () => {
+    const r = await render(stringify({ ...after, was: before }), { fonts: 'none' });
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const m = r.graph!.nodes[0]!.shape as MatrixShape;
+    expect(m.compare).toBe(true);
+    // Only who and where something changed.
+    expect(m.rows.map((x) => x.label)).toEqual(['alice', 'carol', 'Dave', 'sg-ops']);
+    expect(m.rows[2]).toMatchObject({ change: 'added', caption: 'New · Guest' });
+    expect(m.columns.map((x) => x.label)).toEqual(['prod', 'rg']);
+    const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
+    expect(cell('alice', 'rg')).toMatchObject({ text: '~ Reader', change: 'changed', note: '− Owner', tone: 'amber' });
+    expect(cell('carol', 'prod')).toMatchObject({ text: '+ Reader', change: 'added', tone: 'green', note: 'via sg-ops' });
+    expect(cell('alice', 'prod')).toMatchObject({ text: 'Reader' });
+    expect(cell('alice', 'prod')!.change).toBeUndefined();
+    expect(r.svg).toContain('opacity="0.42"');
+    // And the other way round: what was lost is struck through.
+    const back = await render(stringify({ ...before, was: after }), { fonts: 'none' });
+    const lost = (back.graph!.nodes[0]!.shape as MatrixShape);
+    expect(lost.rows.find((x) => x.label === 'Dave')).toMatchObject({ change: 'removed' });
+    expect(lost.cells.flat().some((c) => c?.change === 'removed' && c.text === '− Owner')).toBe(true);
+    expect(back.svg).toContain('text-decoration="line-through"');
+  });
+
+  it('says so when nothing changed', async () => {
+    const r = await render(stringify({ ...before, was: before }), { fonts: 'none' });
+    expect(r.graph!.nodes[0]!.shape).toMatchObject({ kind: 'card', label: 'No access gained or lost' });
+  });
+
+  it('lists what everyone reaches', () => {
+    const all = effectiveAccess(before);
+    expect(all.find((x) => x.principal === 'carol' && x.scope === 'rg')!.reach.map((r) => [r.text, r.via])).toEqual([['Owner', 'sg-ops']]);
+  });
+
+  it('picks a view by name', async () => {
+    const r = await render(source('graph'), { fonts: 'none', view: 'access' });
+    expect(r.graph!.nodes[0]!.shape.kind).toBe('matrix');
+    expect(r.views!.map((v) => v.name)).toEqual(['graph', 'access', 'packages', 'roles']);
   });
 });

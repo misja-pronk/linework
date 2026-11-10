@@ -37,8 +37,8 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end') {
-  const a = anchor ? ` text-anchor="${anchor}"` : '';
+function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end', struck = false) {
+  const a = `${anchor ? ` text-anchor="${anchor}"` : ''}${struck ? ' text-decoration="line-through"' : ''}`;
   return `<text x="${r1(x)}" y="${r1(cy + baselineOffset(size))}" font-size="${size}" font-weight="${weight}" fill="${fill}"${a}>${esc(s)}</text>`;
 }
 
@@ -69,7 +69,7 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     const start = m.plain ? x + PAD : cx - (labelW + iconW) / 2;
     const cy = col.caption ? b.y + HEAD / 2 - 7 : b.y + HEAD / 2;
     if (col.icon) s += glyph(col.icon, start, cy - 7, 14, tone(col.tone).fg);
-    s += text(start + iconW, cy, fitText(col.label, theme.size.cell, 600, w - 2 * PAD - iconW), theme.size.cell, 600, theme.text);
+    s += text(start + iconW, cy, fitText(col.label, theme.size.cell, 600, w - 2 * PAD - iconW), theme.size.cell, 600, col.change === 'removed' ? theme.textMuted : theme.text, undefined, col.change === 'removed');
     if (col.caption) s += text(cx, cy + 16, fitText(col.caption, theme.size.caption, 400, w - 2 * PAD), theme.size.caption, 400, theme.textFaint, 'middle');
     // Column separators, subtle.
     s += `<line x1="${r1(x)}" y1="${r1(b.y + 10)}" x2="${r1(x)}" y2="${r1(b.y + b.height - 10)}" stroke="${theme.border}" stroke-opacity="0.5" stroke-width="1"/>`;
@@ -91,10 +91,11 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
       tx += ROW_ICON;
     }
     const room = g.rowHeader - (tx - b.x) - PAD;
+    const gone = row.change === 'removed';
     if (row.caption) {
-      s += text(tx, cy - 7, fitText(row.label, theme.size.cell, 600, room), theme.size.cell, 600, theme.text);
+      s += text(tx, cy - 7, fitText(row.label, theme.size.cell, 600, room), theme.size.cell, 600, gone ? theme.textMuted : theme.text, undefined, gone);
       s += text(tx, cy + 8, fitText(row.caption, theme.size.caption, 400, room), theme.size.caption, 400, theme.textMuted);
-    } else s += text(tx, cy, fitText(row.label, theme.size.cell, 600, room), theme.size.cell, 600, theme.text);
+    } else s += text(tx, cy, fitText(row.label, theme.size.cell, 600, room), theme.size.cell, 600, gone ? theme.textMuted : theme.text, undefined, gone);
 
     let cx = b.x + g.rowHeader;
     for (const [j] of m.columns.entries()) {
@@ -102,7 +103,9 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
       const cell = m.cells[i]?.[j];
       s += m.plain
         ? text(cx + PAD, cy, fitText(cell?.text ?? '–', theme.size.cell, cell?.strong ? 600 : 400, w - 2 * PAD), theme.size.cell, cell?.strong ? 600 : 400, cell?.text ? theme.text : theme.textFaint)
-        : drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme);
+        : m.compare && cell && !cell.change
+          ? `<g opacity="0.42">${drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme)}</g>`
+          : drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme);
       cx += w;
     }
     y += g.rowHeight;
@@ -131,7 +134,10 @@ function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: numbe
     s += c.inherited
       ? `<rect x="${r1(x + 0.5)}" y="${r1(py - PILL_H / 2 + 0.5)}" width="${r1(w - 1)}" height="${PILL_H - 1}" rx="${rx}" fill="${theme.surface}" stroke="${t.fg}" stroke-opacity="0.7" stroke-width="1" stroke-dasharray="3 2"/>`
       : chipBack(theme, x, py - PILL_H / 2, w, PILL_H, t, rx);
-    s += text(cx, py, label, size, 500, t.fg, 'middle');
+    // A change has its own outline besides its sign: solid for gained, dashed for changed, dotted for lost.
+    if (c.change)
+      s += `<rect x="${r1(x - 2.5)}" y="${r1(py - PILL_H / 2 - 2.5)}" width="${r1(w + 5)}" height="${PILL_H + 5}" rx="${rx + 2.5}" fill="none" stroke="${t.fg}" stroke-width="1.4"${c.change === 'added' ? '' : ` stroke-dasharray="${c.change === 'changed' ? '5 3' : '1.5 3'}" stroke-linecap="round"`}/>`;
+    s += text(cx, py, label, size, 500, t.fg, 'middle', c.change === 'removed');
   }
   if (c.note) s += text(cx, cy + 13, fitText(c.note, NOTE, 400, room), NOTE, 400, theme.textMuted, 'middle');
   return s;
