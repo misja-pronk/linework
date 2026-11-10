@@ -55,6 +55,14 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Trace a request',
+    [
+      ['⇧Q', 'Two selected: a request from the first to the second; one: until it ends'],
+      ['↑ ↓ or 1–9', 'Pick a route; Z shows the preview at its own size'],
+      ['↵ / ⌥↵', 'Open as a new sequence diagram / add to the model as a dynamic view'],
+    ],
+  ],
+  [
     'Arrange',
     [
       ['⌥A / ⌥H / ⌥D', 'Align left / centre / right'],
