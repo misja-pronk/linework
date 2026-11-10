@@ -49,6 +49,7 @@ import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
+import { AnimateDialog } from './animate-dialog.tsx';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -180,6 +181,7 @@ export function App() {
   const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const [more, setMore] = useState(false);
   /** The type pill's card: what this type is for, and the way to the type guide. */
   const [typeCard, setTypeCard] = useState(false);
@@ -1568,6 +1570,7 @@ export function App() {
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'animate', group: 'Export', label: 'Animation (GIF / MP4)…', hint: 'the steps or layers, a short blend between them', icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
     { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
     ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
@@ -1856,6 +1859,9 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={savePdf}>
                   <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
+                </button>
+                <button role="menuitem" onClick={() => setAnimating(true)}>
+                  <Icon name="circle-play" /> Animation (GIF / MP4)
                 </button>
                 <button role="menuitem" onClick={() => saveHtml()}>
                   <Icon name="globe" /> Interactive HTML (.html)
@@ -2356,6 +2362,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
       {noteMenu && (
         <div className="context-menu" style={{ left: noteMenu.x, top: noteMenu.y }}>
