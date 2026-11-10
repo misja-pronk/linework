@@ -6,7 +6,7 @@ Groups and elements
 - Internet
   - KPN Fibre (ISP · 203.0.113.1)
 - Utrecht office (10.20.0.0/16)
-  - fw-utr (FortiGate 60F · 10.20.1.1 · HA pair, a redundant pair)
+  - fw-utr (FortiGate 60F · 10.20.1.1 · HA pair)
   - Management (VLAN 1 · 10.20.1.0/24)
     - sw-core (USW Pro 24 PoE · 10.20.1.2)
     - ap-ground (U6 Pro · 10.20.1.11)

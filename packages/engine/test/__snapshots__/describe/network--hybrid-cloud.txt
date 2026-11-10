@@ -4,9 +4,9 @@ Network diagram: Data centre to an Azure hub and spokes over ExpressRoute, with 
 
 Groups and elements
 - Amsterdam DC (10.0.0.0/16)
-  - rtr-ams (Cisco ASR 1001-X · HA pair, a redundant pair)
-  - fw-ams (Palo Alto PA-3420 · HA pair, a redundant pair)
-  - core-ams (Nexus 93180 · HA vPC, a redundant pair)
+  - rtr-ams (Cisco ASR 1001-X · HA pair)
+  - fw-ams (Palo Alto PA-3420 · HA pair)
+  - core-ams (Nexus 93180 · HA vPC)
   - Servers (VLAN 100 · 10.0.100.0/24)
     - esx-cluster (6 hosts)
     - dc-01 (DNS · 10.0.100.10)

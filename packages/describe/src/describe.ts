@@ -140,7 +140,7 @@ function detailOf(n: GraphNode): string[] {
     // C4 writes its kinds in brackets: "[Container: Spring Boot]".
     if (s.caption) out.push(s.caption.replace(/^\[(.*)\]$/, '$1'));
     if (s.muted) out.push('external');
-    if (s.stack) out.push('a redundant pair');
+    if (s.stack && !/\b(ha|pair|stack|cluster|redundant)\b/i.test(s.caption ?? '')) out.push('a redundant pair');
   } else if (s.kind === 'flow') {
     const what = FLOW_WORDS[s.mark ?? ''];
     if (s.form === 'gateway' || s.form === 'event') out.push(clean(s.label) || s.form === 'event' ? [n.kind && !['start', 'end', 'message', 'none'].includes(n.kind) ? n.kind : '', what ?? s.form].filter(Boolean).join(' ') : (what ?? s.form));
