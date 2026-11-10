@@ -182,7 +182,8 @@ export function AskPanel(p: AskPanelProps) {
         return stop(e);
       }
       if (!proposal || typing || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'Enter' && !e.shiftKey && !current?.stale) {
+      // ⏎ on a focused button or link is that button's.
+      if (e.key === 'Enter' && !e.shiftKey && !current?.stale && !(e.target as HTMLElement | null)?.closest?.('button, a, summary')) {
         accept();
         stop(e);
       } else if (e.key === 'Escape') {
