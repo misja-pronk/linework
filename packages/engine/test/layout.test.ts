@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
 import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
 import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
-import { big, timed } from './perf.ts';
+import { big, budget, race, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
@@ -291,7 +291,7 @@ describe('layout quality', () => {
     // Best of three, so a busy machine does not fail it.
     const { ms, result } = await timed(big(10, 20), {}, 3);
     expect(result.graph!.nodes).toHaveLength(200);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(budget(1000));
   }, 20_000);
 
   it('and as fast one line later, knowing the drawing before', async () => {
@@ -300,13 +300,67 @@ describe('layout quality', () => {
     // A line right across the drawing: the longest route there can be. Best of two, so a busy machine does not fail it.
     const { ms, result } = await timed(text + '  - n0_1 -> n9_19\n', { previous: before.placed!.memory }, 2);
     expect(result.graph!.edges).toHaveLength(before.graph!.edges.length + 1);
-    expect(ms).toBeLessThan(1000);
+    expect(ms).toBeLessThan(budget(1000));
     // Drawn the way the drawing before was, and nothing that was there moved.
     expect(result.placed!.memory!.variant).toBe(before.placed!.memory!.variant);
     const was = before.placed!.memory!.nodes!;
     const now = result.placed!.memory!.nodes!;
     const far = [...was].filter(([id, p]) => Math.hypot(now.get(id)!.x - p.x, now.get(id)!.y - p.y) > 16);
     expect(far.length / was.size).toBeLessThan(0.1);
+  });
+});
+
+describe('drawn again', () => {
+  const file = path.join(examples, 'cloud/multi-cloud.yaml');
+  const text = fs.readFileSync(file, 'utf8');
+  const load = (rel: string) => fs.readFileSync(path.resolve(path.dirname(file), rel), 'utf8');
+
+  it('the same diagram with a label edited is drawn the way it was, without trying the others', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const memory = first.placed!.memory!;
+    // A drawing that was turned and wrapped for the page: the search is long, its answer is kept.
+    expect(memory.variant).toMatch(/w\d/);
+    const edited = text.replace('label: Web shop CDN', 'label: Web shop content delivery network');
+    const [fresh, again] = await race(
+      () => render(edited, { fonts: 'none', load }),
+      () => render(edited, { fonts: 'none', load, previous: memory }),
+    );
+    const r = await render(edited, { fonts: 'none', load, previous: memory });
+    expect(r.placed!.memory!.variant).toBe(memory.variant);
+    expect(r.placed!.memory!.shape).toBe(memory.shape);
+    const far = [...memory.nodes!].filter(([id, p]) => Math.hypot(r.placed!.memory!.nodes!.get(id)!.x - p.x, r.placed!.memory!.nodes!.get(id)!.y - p.y) > 48);
+    expect(far.map(([id]) => id)).toEqual([]);
+    // Taken in turns, so a busy machine slows both: one way drawn is a small part of the search.
+    expect(again).toBeLessThan(fresh / 3);
+    expect(again).toBeLessThan(budget(300));
+  }, 30_000);
+
+  it('the same diagram drawn again comes out exactly as it was', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const again = await render(text, { fonts: 'none', load, previous: first.placed!.memory });
+    expect(again.svg).toBe(first.svg);
+  });
+
+  it('a pin moved keeps the way it was drawn and costs no search', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const shop = first.placed!.nodes.get('cdn')!;
+    const shift = first.placed!.shift!;
+    const sidecar = (dy: number) => ({ version: 1 as const, nodes: { cdn: { x: shop.x + shift.x, y: shop.y + shift.y + dy } }, layout: { variant: first.placed!.memory!.variant } });
+    const [fresh, pinned] = await race(
+      () => render(text, { fonts: 'none', load, previous: null }),
+      () => render(text, { fonts: 'none', load, sidecar: sidecar(48), previous: first.placed!.memory }),
+    );
+    const r = await render(text, { fonts: 'none', load, sidecar: sidecar(48), previous: first.placed!.memory });
+    expect(r.placed!.memory!.variant).toBe(first.placed!.memory!.variant);
+    expect(pinned).toBeLessThan(fresh / 3);
+  }, 30_000);
+
+  it('a diagram that changed shape (a card added) is laid out afresh', async () => {
+    const first = await render(text, { fonts: 'none', load });
+    const added = text.replace('nodes:\n', 'nodes:\n  extra: { kind: users, label: Partners }\n');
+    const r = await render(added, { fonts: 'none', load, previous: first.placed!.memory });
+    expect(r.placed!.memory!.shape).not.toBe(first.placed!.memory!.shape);
+    expect(r.placed!.nodes.has('extra')).toBe(true);
   });
 });
 
