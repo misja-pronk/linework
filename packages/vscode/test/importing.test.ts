@@ -12,8 +12,13 @@ describe('import from other tools', () => {
   it('reads each mermaid block of a Markdown file', () => {
     const md = '# One\n\n```mermaid\nflowchart LR\n  a --> b\n```\n\n# Two\n\n```mermaid\nflowchart LR\n  c --> d\n```\n';
     const r = importText('/x/notes.md', md);
-    expect(r.map((x) => x.name)).toEqual(['notes-1.yaml', 'notes-2.yaml']);
+    expect(r.map((x) => x.name)).toEqual(['notes.yaml', 'notes-2.yaml']);
     expect(importText('/x/empty.md', '# nothing\n')[0]!.yaml).toBe('');
+  });
+
+  it('reads D2 and PlantUML', () => {
+    expect(importText('/x/arch.d2', 'web -> api: calls\napi -> db\n')[0]!.yaml).toMatch(/^type: /m);
+    expect(importText('/x/flow.puml', '@startuml\nAlice -> Bob: hello\n@enduml\n')[0]!.yaml).toMatch(/^type: sequence/m);
   });
 
   it('reads a draw.io page', () => {
