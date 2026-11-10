@@ -228,6 +228,34 @@ const browser = await chromium.launch();
     await page.waitForSelector('[data-decision-open="4"]');
   });
 
+  // Without a folder: kept in this browser, with a download.
+  await step('without a folder', async () => {
+    const p2 = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    await p2.goto(URL);
+    await p2.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('cartography:started', 'true');
+      localStorage.setItem('cartography:hinted', 'true');
+    });
+    await p2.reload();
+    await p2.waitForSelector('.drawing [data-node]');
+    const first = p2.locator('.drawing [data-node]').first();
+    const id = await first.getAttribute('data-node');
+    await first.click();
+    await p2.focus('.preview');
+    await p2.keyboard.press('Alt+Shift+D');
+    await p2.waitForSelector('#decision-title');
+    await p2.keyboard.type('Keep it simple');
+    await p2.keyboard.press('Enter');
+    await p2.waitForSelector('[data-decision-open="1"]');
+    const kept = await p2.evaluate(() => localStorage.getItem('cartography:decisions'));
+    check(kept?.includes('decisions/0001-keep-it-simple.md') && kept.includes(`concerns: [${id}]`), `editor: without a folder the decision is kept in this browser (${kept?.slice(0, 80)})`);
+    check(await p2.locator('.decision-open button:has-text("Download")').isVisible(), 'editor: without a folder a decision can be downloaded');
+    check((await p2.locator('.decision-marker').count()) === 1, 'editor: its marker is on the drawing');
+    await p2.screenshot({ path: path.join(out, 'editor-5-browser.png') });
+    await p2.close();
+  });
+
   await page.close();
 }
 
