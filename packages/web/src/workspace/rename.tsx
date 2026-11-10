@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { lineDiff, planRename, type RenameOptions, type RenamePlan, type WorkspaceIndex } from '@cartography/core';
 import { Icon } from '../icon.tsx';
 import { useRestoreFocus } from '../menu.tsx';
+import { t } from '../i18n/index.ts';
 
 export function RenameEverywhere({
   index,
@@ -37,24 +38,24 @@ export function RenameEverywhere({
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette rename-everywhere" role="dialog" aria-label={`Rename ${element} everywhere`} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette rename-everywhere" role="dialog" aria-label={t('Rename {id} everywhere', { id: element })} onMouseDown={(e) => e.stopPropagation()}>
         <header className="rename-head">
           <Icon name="tag" />
-          <strong>Rename everywhere</strong>
+          <strong>{t('Rename everywhere')}</strong>
           <code>{element}</code>
           <kbd>esc</kbd>
         </header>
         <div className="rename-fields">
           <label>
-            <span>New id</span>
+            <span>{t('New id')}</span>
             <span className="rename-id">
               {el?.parent && <code>{el.parent}.</code>}
-              <input autoFocus value={id} onChange={(e) => setId(e.target.value)} onKeyDown={keys} spellCheck={false} aria-label="New id" onFocus={(e) => e.currentTarget.select()} />
+              <input autoFocus value={id} onChange={(e) => setId(e.target.value)} onKeyDown={keys} spellCheck={false} aria-label={t('New id')} onFocus={(e) => e.currentTarget.select()} />
             </span>
           </label>
           <label>
-            <span>New label</span>
-            <input value={label} placeholder={`${el?.label ?? element} (unchanged)`} onChange={(e) => setLabel(e.target.value)} onKeyDown={keys} aria-label="New label (optional)" />
+            <span>{t('New label')}</span>
+            <input value={label} placeholder={t('{label} (unchanged)', { label: el?.label ?? element })} onChange={(e) => setLabel(e.target.value)} onKeyDown={keys} aria-label={t('New label (optional)')} />
           </label>
         </div>
         <div className="rename-summary" role="status">
@@ -63,20 +64,20 @@ export function RenameEverywhere({
               <Icon name="circle-exclamation-point" size={14} /> {plan.problem}
             </span>
           ) : same ? (
-            'Type the new id; the change in every file shows here first.'
+            t('Type the new id; the change in every file shows here first.')
           ) : (
             <>
-              {places} place{places === 1 ? '' : 's'} in {plan.files.length} file{plan.files.length === 1 ? '' : 's'}
-              {pins.length ? `; pins and notes follow in ${pins.join(', ')}` : ''}. One undo per file, and “Undo rename” for all of it.
+              {t('{places} in {files}{pins}. One undo per file, and “Undo rename” for all of it.', { places: t('{count} place|{count} places', { count: places }), files: t('{count} file|{count} files', { count: plan.files.length }),
+              pins: pins.length ? t('; pins and notes follow in {list}', { list: pins.join(', ') }) : '' })}
             </>
           )}
         </div>
-        <div className="rename-diff" aria-label="Preview">
+        <div className="rename-diff" aria-label={t('Preview')}>
           {ready &&
             plan.files.map((f) => (
               <section key={f.file} className="rename-file">
                 <h4>
-                  <Icon name="file-code" size={13} /> {f.file} <span>{f.count} change{f.count === 1 ? '' : 's'}</span>
+                  <Icon name="file-code" size={13} /> {f.file} <span>{t('{count} change|{count} changes', { count: f.count })}</span>
                 </h4>
                 {lineDiff(f.before, f.after).map((hunk, i) => (
                   <pre key={i} className="diff-hunk">
@@ -94,10 +95,10 @@ export function RenameEverywhere({
         </div>
         <footer className="rename-actions">
           <button className="button ghost" onClick={onClose}>
-            Cancel
+            {t('Cancel')}
           </button>
           <button className="button primary" disabled={!ready} onClick={() => onApply(plan)}>
-            Rename in {plan.files.length || ''} file{plan.files.length === 1 ? '' : 's'} <kbd>↵</kbd>
+            {t('Rename in {count} file|Rename in {count} files', { count: plan.files.length || '' })} <kbd>↵</kbd>
           </button>
         </footer>
       </div>

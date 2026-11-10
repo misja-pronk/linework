@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
 import { store } from './store.ts';
+import { t } from './i18n/index.ts';
 import type { ExportInput } from './export.ts';
 import type { AnimationChoice, AnimationFormat } from './animate.ts';
 import './animate.css';
@@ -66,17 +67,17 @@ export function AnimateDialog({ input, name, theme, onClose, onDone }: { input: 
 
   const go = async () => {
     if (busy || nothing) return;
-    setBusy({ what: 'Starting', done: 0 });
+    setBusy({ what: t('Starting'), done: 0 });
     try {
       const m = await import('./animate.ts');
       const told = storyFor(stories ?? (await m.storiesOf(input())));
       const blob = await m.exportAnimation({ ...input(), theme: choice.theme ?? theme }, { ...choice, story: told, format }, (what, done) => setBusy({ what, done }));
       const { download } = await import('./export.ts');
       download(`${name}${told === 'layers' ? '-layers' : ''}.${format}`, blob);
-      onDone(`Saved ${format.toUpperCase()}: ${blob.size >= 1e6 ? `${(blob.size / 1e6).toFixed(1)} MB` : `${Math.round(blob.size / 1000)} kB`}`);
+      onDone(t('Saved {format}: {size}', { format: format.toUpperCase(), size: blob.size >= 1e6 ? `${(blob.size / 1e6).toFixed(1)} MB` : `${Math.round(blob.size / 1000)} kB` }));
       onClose();
     } catch (e) {
-      onDone(`Animation failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
+      onDone(t('Animation failed: {error}', { error: e instanceof Error ? e.message : String(e) }), 'error');
       setBusy(undefined);
     }
   };
@@ -93,53 +94,53 @@ export function AnimateDialog({ input, name, theme, onClose, onDone }: { input: 
 
   return (
     <div className="overlay" onMouseDown={() => !busy && onClose()}>
-      <div className="shortcuts animate-dialog" role="dialog" aria-label="Animation" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts animate-dialog" role="dialog" aria-label={t('Animation')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
-            <Icon name="circle-play" /> Animation
+            <Icon name="circle-play" /> {t('Animation')}
           </h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close" disabled={!!busy}>
+          <button className="icon-button" onClick={onClose} aria-label={t('Close')} disabled={!!busy}>
             <Icon name="x" />
           </button>
         </header>
         <p className="animate-lead">
           {nothing
-            ? 'This diagram has no steps or layers to animate. Add steps: to tell it in parts (docs/animate.md).'
-            : 'Every step held, a short blend to the next, the caption under the drawing. Made in this browser; nothing is uploaded.'}
+            ? t('This diagram has no steps or layers to animate. Add steps: to tell it in parts (docs/animate.md).')
+            : t('Every step held, a short blend to the next, the caption under the drawing. Made in this browser; nothing is uploaded.')}
         </p>
         <div className="animate-form">
           <Choice<AnimationFormat>
-            label="Format"
+            label={t('Format')}
             value={format}
             onChange={(v) => set({ format: v })}
             options={[
               { value: 'gif', label: 'GIF' },
-              { value: 'mp4', label: 'MP4', disabled: video && !video.mp4, title: video && !video.mp4 ? 'This browser cannot encode H.264' : 'H.264 video' },
-              { value: 'webm', label: 'WebM', disabled: video && !video.webm, title: video && !video.webm ? 'This browser cannot encode VP9' : 'VP9 video' },
+              { value: 'mp4', label: 'MP4', disabled: video && !video.mp4, title: video && !video.mp4 ? t('This browser cannot encode H.264') : t('H.264 video') },
+              { value: 'webm', label: 'WebM', disabled: video && !video.webm, title: video && !video.webm ? t('This browser cannot encode VP9') : t('VP9 video') },
             ]}
           />
           {stories && stories.steps > 0 && stories.layers > 0 && (
             <Choice<'steps' | 'layers'>
-              label="Tell"
+              label={t('Tell')}
               value={story}
               onChange={(v) => set({ story: v })}
               options={[
-                { value: 'steps', label: `Steps (${stories.steps})` },
-                { value: 'layers', label: `Layers (${stories.layers})` },
+                { value: 'steps', label: t('Steps ({count})', { count: stories.steps }) },
+                { value: 'layers', label: t('Layers ({count})', { count: stories.layers }) },
               ]}
             />
           )}
-          <Choice<number> label="Size" value={choice.width} onChange={(v) => set({ width: v })} options={[{ value: 1280, label: '1280 × 720' }, { value: 1920, label: '1920 × 1080' }]} />
-          <Choice<number> label="Each step" value={HOLDS.includes(choice.hold) ? choice.hold : 2.5} onChange={(v) => set({ hold: v })} options={HOLDS.map((h) => ({ value: h, label: `${h} s` }))} />
-          <Choice<'light' | 'dark'> label="Theme" value={choice.theme ?? theme} onChange={(v) => set({ theme: v })} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+          <Choice<number> label={t('Size')} value={choice.width} onChange={(v) => set({ width: v })} options={[{ value: 1280, label: '1280 × 720' }, { value: 1920, label: '1920 × 1080' }]} />
+          <Choice<number> label={t('Each step')} value={HOLDS.includes(choice.hold) ? choice.hold : 2.5} onChange={(v) => set({ hold: v })} options={HOLDS.map((h) => ({ value: h, label: `${h} s` }))} />
+          <Choice<'light' | 'dark'> label={t('Theme')} value={choice.theme ?? theme} onChange={(v) => set({ theme: v })} options={[{ value: 'light', label: t('Light') }, { value: 'dark', label: t('Dark') }]} />
           <div className="animate-row">
-            <span className="animate-label">Between steps</span>
+            <span className="animate-label">{t('Between steps')}</span>
             <div className="animate-checks">
               <label>
-                <input type="checkbox" checked={choice.transitions} onChange={(e) => set({ transitions: e.target.checked })} /> Fade
+                <input type="checkbox" checked={choice.transitions} onChange={(e) => set({ transitions: e.target.checked })} /> {t('Fade')}
               </label>
-              <label title="New lines are drawn from where they start to where they end">
-                <input type="checkbox" checked={choice.drawLines} onChange={(e) => set({ drawLines: e.target.checked })} /> Draw new lines
+              <label title={t('New lines are drawn from where they start to where they end')}>
+                <input type="checkbox" checked={choice.drawLines} onChange={(e) => set({ drawLines: e.target.checked })} /> {t('Draw new lines')}
               </label>
             </div>
           </div>
@@ -152,11 +153,11 @@ export function AnimateDialog({ input, name, theme, onClose, onDone }: { input: 
             </div>
           ) : (
             <span className="animate-hint">
-              <kbd>Enter</kbd> export · <kbd>Esc</kbd> close
+              <kbd>Enter</kbd> {t('export@hint')} · <kbd>Esc</kbd> {t('close@hint')}
             </span>
           )}
           <button className="button primary" onClick={() => void go()} disabled={!!busy || nothing} autoFocus>
-            <Icon name="download" /> Export {format.toUpperCase()}
+            <Icon name="download" /> {t('Export {format}', { format: format.toUpperCase() })}
           </button>
         </footer>
       </div>

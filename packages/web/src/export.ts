@@ -6,6 +6,7 @@ import { noteLines, type Decision, type LayoutMemory, type LayoutSidecar, type N
 import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
+import { t } from './i18n/index.ts';
 import { describe, pngWithText, toText } from '@cartography/describe';
 
 export interface ExportInput {
@@ -68,13 +69,13 @@ export const options = (input: ExportInput) => ({ theme: input.theme, themeOverr
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, options(input)), input);
-  if (!r.svg) throw new Error('Nothing to export: fix the problems first');
+  if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
   return r.svg;
 }
 
 export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
   const r = noted(await render(input.text, options(input)), input);
-  if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
+  if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
   img.src = URL.createObjectURL(new Blob([r.svg], { type: 'image/svg+xml' }));
@@ -88,7 +89,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
   g.scale(scale, scale);
   g.drawImage(img, 0, 0, r.width, r.height);
   URL.revokeObjectURL(img.src);
-  const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+  const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('The browser could not make the PNG')))), 'image/png'));
   // The PNG carries its title and description, as the CLI's does (docs/describe.md).
   const said = describe({ ...r, name: input.file });
   return new Blob([pngWithText(new Uint8Array(await png.arrayBuffer()), { title: said.title, description: toText(said, { title: false }).trim() }) as BlobPart], { type: 'image/png' });
@@ -97,7 +98,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
 /** The SVG on its page (aspect: in the YAML, a 16:9 slide by default): the canvas grown to the page's shape, the drawing centred. */
 export async function exportPageSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, options(input)), input);
-  if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
+  if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   if (!r.page) return r.svg;
   const { svgOnPage } = await import('@cartography/export');
   return svgOnPage(r.svg, r.width, r.height, r.page.width / r.page.height, r.theme?.canvas ?? themes[input.theme].canvas).svg;
@@ -106,7 +107,7 @@ export async function exportPageSvg(input: ExportInput): Promise<string> {
 /** A 1920 px wide picture of the page (a 1920×1080 slide by default): the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
   const r = noted(await render(input.text, options(input)), input);
-  if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
+  if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   const page = r.page ?? { width: 1280, height: 720 };
   const W = page.width >= page.height ? 1920 : Math.round((1920 * page.width) / page.height);
   const H = Math.round((W * page.height) / page.width);
@@ -126,7 +127,7 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
   const h = r.height * scale;
   g.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('The browser could not make the PNG')))), 'image/png'));
 }
 
 /**
@@ -144,7 +145,7 @@ export interface PptxTemplateInput {
 
 export async function exportPptx(input: ExportInput, name?: string, template?: PptxTemplateInput): Promise<{ blob: Blob; small: SlideText[]; warnings: string[] }> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
-  if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
+  if (!r.graph || !r.placed) throw new Error(t('Nothing to export: fix the problems first'));
   const others = (r.views ?? []).filter((v) => v.name !== r.view);
   // The other views as they are drawn from scratch (with their own pins): only the one on screen has a drawing before it.
   const rest = await Promise.all(others.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })));
@@ -160,7 +161,7 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   const named = r.theme?.pptx;
   const bytes = template?.bytes ?? (named && template?.read ? await template.read(named.template) : undefined);
   const warnings: string[] = [];
-  if (named && !bytes) warnings.push(`the theme makes decks in ${named.template}, which is not in the open folder: made without it`);
+  if (named && !bytes) warnings.push(t('the theme makes decks in {template}, which is not in the open folder: made without it', { template: named.template }));
   const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}), onWarning: (w: string) => warnings.push(w) } : {};
   const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), ...inTemplate });
   return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings };
@@ -169,7 +170,7 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
 /** Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own faces embedded. */
 export async function exportPdf(input: ExportInput, name?: string): Promise<Blob> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
-  if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
+  if (!r.graph || !r.placed) throw new Error(t('Nothing to export: fix the problems first'));
   const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
   const bytes = async (u: URL) => new Uint8Array(await (await fetch(u)).arrayBuffer());
@@ -197,7 +198,7 @@ const plain = (input: ExportInput) => ({ ...options(input), step: undefined, fon
 /** draw.io: editable shapes, containers and attached connectors; every view of the file is a page. */
 export async function exportDrawio(input: ExportInput): Promise<Handed> {
   const first = await render(input.text, plain(input));
-  if (!first.graph || !first.svg) throw new Error('Nothing to export: fix the problems first');
+  if (!first.graph || !first.svg) throw new Error(t('Nothing to export: fix the problems first'));
   const { toDrawio, toScene } = await import('@cartography/interop');
   // The view on screen is the drawing as it stands; the others are drawn fresh.
   const drawn = first.views?.length ? await Promise.all(first.views.map((v) => (v.name === first.view ? first : render(input.text, { ...plain(input), view: v.name, previous: undefined })))) : [first];
@@ -208,7 +209,7 @@ export async function exportDrawio(input: ExportInput): Promise<Handed> {
 /** Excalidraw: the view on screen as rectangles, bound text and bound arrows, frames for groups. */
 export async function exportExcalidraw(input: ExportInput): Promise<Handed> {
   const r = await render(input.text, plain(input));
-  if (!r.graph || !r.svg) throw new Error('Nothing to export: fix the problems first');
+  if (!r.graph || !r.svg) throw new Error(t('Nothing to export: fix the problems first'));
   const { toExcalidraw, toScene } = await import('@cartography/interop');
   const scene = toScene(r);
   return { data: toExcalidraw(scene), warnings: scene.warnings };
@@ -217,7 +218,7 @@ export async function exportExcalidraw(input: ExportInput): Promise<Handed> {
 /** Mermaid text of the view on screen, for a README: what is in the drawing, not where it stands. */
 export async function exportMermaid(input: ExportInput): Promise<Handed> {
   const r = await render(input.text, plain(input));
-  if (!r.graph) throw new Error('Nothing to export: fix the problems first');
+  if (!r.graph) throw new Error(t('Nothing to export: fix the problems first'));
   const { toMermaid } = await import('@cartography/interop');
   const m = toMermaid(r);
   return { data: m.text, warnings: m.warnings };
@@ -226,7 +227,7 @@ export async function exportMermaid(input: ExportInput): Promise<Handed> {
 /** An SVG that PowerPoint, Word and Keynote take whole: no CSS, no effects, system fonts, a group per node. */
 export async function exportSafeSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, { ...options(input), fonts: 'none' }), input);
-  if (!r.svg) throw new Error('Nothing to export: fix the problems first');
+  if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
   const { toSafeSvg } = await import('@cartography/interop');
   return toSafeSvg(r.svg);
 }
@@ -240,7 +241,7 @@ async function rasterize(svg: string, width: number, height: number): Promise<Ui
   canvas.height = height;
   canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
   const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/png'));
-  if (!blob) throw new Error('The browser could not draw an icon');
+  if (!blob) throw new Error(t('The browser could not draw an icon'));
   return new Uint8Array(await blob.arrayBuffer());
 }
 

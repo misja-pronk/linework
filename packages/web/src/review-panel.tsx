@@ -11,6 +11,7 @@ import type { Workspace } from './files.ts';
 import { Icon } from './icon.tsx';
 import { keyHint } from './keys.ts';
 import { store } from './store.ts';
+import { say, t as tr } from './i18n/index.ts';
 import './review.css';
 
 type Sel = { kind: 'node' | 'group' | 'edge'; id: string };
@@ -77,6 +78,9 @@ function folderConfig(ws: Workspace | undefined): { config: ReviewConfig; proble
   return { config, problems };
 }
 
+/** A pillar's name in the editor's language (categoryLabel is the review package's English). */
+const pillarLabel = (c: Category) => ({ security: tr('Security'), reliability: tr('Reliability'), operations: tr('Operational excellence'), performance: tr('Performance efficiency'), cost: tr('Cost optimisation') })[c] ?? categoryLabel[c];
+
 type SeverityFilter = 'all' | Severity;
 const SEVERITY_FILTERS: [SeverityFilter, string][] = [
   ['all', 'All'],
@@ -117,15 +121,15 @@ export function useReviewTool(h: ReviewHost) {
   };
   const ignore = (f: Finding, reason: string) => {
     const next = ignoreFinding(h.textNow(), f, reason, h.inline);
-    if (next === h.textNow()) return h.notify('That finding could not be set aside here: write it under review: ignore: in the YAML', { tone: 'error' });
+    if (next === h.textNow()) return h.notify(tr('That finding could not be set aside here: write it under review: ignore: in the YAML'), { tone: 'error' });
     h.apply(next);
-    h.notify(`${f.id} set aside${reason.trim() ? '' : ' (no reason given: the report will say so)'}`);
+    h.notify(reason.trim() ? tr('{id} set aside', { id: f.id }) : tr('{id} set aside (no reason given: the report will say so)', { id: f.id }));
   };
   const decide = (f: Finding) =>
     h.decide(`${f.rule.title}: ${f.about}`, f.on.kind === 'diagram' ? undefined : f.on, `The architecture review found: ${f.message} (${f.rule.id}). ${f.rule.why} Suggested: ${f.rule.fix}.`);
   /** Next finding, in the order of the list, for the keyboard. */
   const next = () => {
-    if (!live.length) return h.notify('No findings');
+    if (!live.length) return h.notify(tr('No findings'));
     const i = live.findIndex((f) => f.id === active);
     const f = live[(i + 1) % live.length]!;
     setOpen(true);
@@ -133,8 +137,8 @@ export function useReviewTool(h: ReviewHost) {
   };
 
   const commands: Command[] = [
-    { id: 'arch-review', group: 'Review', label: open ? 'Hide the architecture review' : 'Architecture review', hint: live.length ? `${live.length} finding${live.length === 1 ? '' : 's'}` : 'no findings', icon: 'shield-check', shortcut: keyHint('arch-review'), run: toggle },
-    { id: 'arch-review-next', group: 'Review', label: 'Next review finding', hint: 'selects what it is about', icon: 'arrow-down', run: next },
+    { id: 'arch-review', group: tr('Review'), label: open ? tr('Hide the architecture review') : tr('Architecture review'), hint: live.length ? tr('{count} finding|{count} findings', { count: live.length }) : tr('no findings'), icon: 'shield-check', shortcut: keyHint('arch-review'), run: toggle },
+    { id: 'arch-review-next', group: tr('Review'), label: tr('Next review finding'), hint: tr('selects what it is about'), icon: 'arrow-down', run: next },
   ];
 
   const markers = (scale: number): ReactNode => {
@@ -151,8 +155,8 @@ export function useReviewTool(h: ReviewHost) {
           className={`review-marker${s.marks.some((m) => m.id === active) ? ' active' : ''}`}
           data-review={s.marks.map((m) => m.id).join(' ')}
           style={{ left: p.x, top: p.y, transform: `scale(${1 / scale})` }}
-          aria-label={s.marks.map((m) => `${m.id}, ${severityLabel[m.severity as Severity]}: ${m.message}`).join('; ')}
-          title={s.marks.map((m) => `${m.id} ${severityLabel[m.severity as Severity]}: ${m.message}`).join('\n')}
+          aria-label={s.marks.map((m) => `${m.id}, ${say(severityLabel[m.severity as Severity])}: ${m.message}`).join('; ')}
+          title={s.marks.map((m) => `${m.id} ${say(severityLabel[m.severity as Severity])}: ${m.message}`).join('\n')}
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -173,7 +177,7 @@ export function useReviewTool(h: ReviewHost) {
       findings={findings}
       ran={result?.rules.length ?? 0}
       off={!!result?.off}
-      problems={[...settings.problems.map((p) => `${p.file}${p.line ? `:${p.line}` : ''}: ${p.message}`), ...(result?.problems ?? []).map((p) => `${p.line ? `line ${p.line}: ` : ''}${p.message}`)]}
+      problems={[...settings.problems.map((p) => `${p.file}${p.line ? `:${p.line}` : ''}: ${p.message}`), ...(result?.problems ?? []).map((p) => `${p.line ? tr('line {line}: ', { line: p.line }) : ''}${p.message}`)]}
       configFiles={settings.config.files}
       severity={severity}
       onSeverity={(s) => (setSeverity(s), store.set('review-severity', s))}
@@ -217,33 +221,33 @@ function ReviewPanel(p: PanelProps) {
   const [showAside, setShowAside] = useState(false);
   const t = tally(p.findings);
   return (
-    <aside className="inspector review-panel" aria-label="Architecture review">
+    <aside className="inspector review-panel" aria-label={tr('Architecture review')}>
       <header>
         <span className="inspector-icon">
           <Icon name="shield-check" />
         </span>
         <div className="inspector-title">
-          <strong>Review</strong>
+          <strong>{tr('Review')}</strong>
           <span>
-            {p.off ? 'off for this file (review: off)' : live.length ? [t.error && `${t.error} error${t.error === 1 ? '' : 's'}`, t.warn && `${t.warn} warning${t.warn === 1 ? '' : 's'}`, t.info && `${t.info} info`].filter(Boolean).join(', ') : `no findings, ${p.ran} rules`}
+            {p.off ? tr('off for this file (review: off)') : live.length ? [t.error && tr('{count} error|{count} errors', { count: t.error }), t.warn && tr('{count} warning|{count} warnings', { count: t.warn }), t.info && tr('{count} info', { count: t.info })].filter(Boolean).join(', ') : tr('no findings, {count} rules', { count: p.ran })}
           </span>
         </div>
-        <button className="icon-button" onClick={p.onClose} aria-label="Close the review" title={`Close (${keyHint('arch-review')})`}>
+        <button className="icon-button" onClick={p.onClose} aria-label={tr('Close the review')} title={tr('Close ({key})', { key: keyHint('arch-review') })}>
           <Icon name="x" />
         </button>
       </header>
       <div className="notes-tools">
-        <div className="segmented" role="radiogroup" aria-label="Severity">
+        <div className="segmented" role="radiogroup" aria-label={tr('Severity')}>
           {SEVERITY_FILTERS.map(([s, label]) => (
             <button key={s} role="radio" aria-checked={p.severity === s} className={p.severity === s ? 'active' : ''} onClick={() => p.onSeverity(s)}>
-              {label}
+              {say(label)}
             </button>
           ))}
         </div>
         {pillars.length > 1 &&
           pillars.map((c) => (
             <button key={c} className={p.pillar === c ? 'chip active' : 'chip'} aria-pressed={p.pillar === c} onClick={() => p.onPillar(p.pillar === c ? undefined : c)}>
-              {categoryLabel[c]}
+              {pillarLabel(c)}
             </button>
           ))}
       </div>
@@ -253,31 +257,31 @@ function ReviewPanel(p: PanelProps) {
             <Icon name="circle-exclamation-point" size={13} /> {m}
           </p>
         ))}
-        {!shown.length && <p className="notes-empty">{live.length ? 'Nothing here with this filter.' : `The ${p.ran} rules that apply to this diagram found nothing.${p.configFiles.length ? '' : ' Your own rules go in .cartography/rules.yaml in the folder (docs/review.md).'}`}</p>}
+        {!shown.length && <p className="notes-empty">{live.length ? tr('Nothing here with this filter.') : tr('The {count} rules that apply to this diagram found nothing.{own}', { count: p.ran, own: p.configFiles.length ? '' : tr(' Your own rules go in .cartography/rules.yaml in the folder (docs/review.md).') })}</p>}
         {shown.map((f) => (
           <div key={f.id} className={`finding-row ${f.severity}${p.active === f.id ? ' active' : ''}`} data-finding={f.id}>
-            <button className="finding-main" onClick={() => p.onGo(f)} title={f.on.kind === 'diagram' ? 'About the whole diagram' : `Select ${f.about}`}>
+            <button className="finding-main" onClick={() => p.onGo(f)} title={f.on.kind === 'diagram' ? tr('About the whole diagram') : tr('Select {name}', { name: f.about })}>
               <ReviewFlag severity={f.severity} text={f.id} />
               <span className="finding-text">
                 <strong>{f.rule.title}</strong>
                 <span className="finding-message">{f.message}</span>
                 <span className="finding-meta">
-                  {severityLabel[f.severity]} · {categoryLabel[f.rule.category]} · {f.rule.id}
-                  {f.line ? ` · line ${f.line}` : ''}
+                  {say(severityLabel[f.severity])} · {pillarLabel(f.rule.category)} · {f.rule.id}
+                  {f.line ? ` · ${tr('line {line}', { line: f.line })}` : ''}
                 </span>
               </span>
             </button>
             {p.active === f.id && (
               <div className="finding-detail">
                 <p>
-                  <span className="finding-label">Why</span> {f.rule.why}
+                  <span className="finding-label">{tr('Why')}</span> {f.rule.why}
                 </p>
                 <p>
-                  <span className="finding-label">Fix</span> {f.rule.fix}
+                  <span className="finding-label">{tr('Fix')}</span> {f.rule.fix}
                 </p>
                 {f.rule.docs && (
                   <p>
-                    <span className="finding-label">Read</span> {f.rule.docs}
+                    <span className="finding-label">{tr('Read')}</span> {f.rule.docs}
                   </p>
                 )}
               </div>
@@ -286,8 +290,8 @@ function ReviewPanel(p: PanelProps) {
               <div className="finding-ignore">
                 <input
                   autoFocus
-                  aria-label={`Why ${f.id} is set aside`}
-                  placeholder="Why it does not apply, e.g. internal tool behind the VPN"
+                  aria-label={tr('Why {id} is set aside', { id: f.id })}
+                  placeholder={tr('Why it does not apply, e.g. internal tool behind the VPN')}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   onKeyDown={(e) => {
@@ -305,16 +309,16 @@ function ReviewPanel(p: PanelProps) {
                     setIgnoring(undefined);
                   }}
                 >
-                  Set aside <kbd>↵</kbd>
+                  {tr('Set aside')} <kbd>↵</kbd>
                 </button>
               </div>
             ) : (
               <div className="finding-actions">
-                <button className="button ghost small" onClick={() => (setIgnoring(f.id), setReason(''))} title="Set this finding aside, with a reason (written in the YAML)">
-                  <Icon name="eye-off" size={13} /> Ignore…
+                <button className="button ghost small" onClick={() => (setIgnoring(f.id), setReason(''))} title={tr('Set this finding aside, with a reason (written in the YAML)')}>
+                  <Icon name="eye-off" size={13} /> {tr('Ignore…')}
                 </button>
-                <button className="button ghost small" onClick={() => p.onDecide(f)} title="A new architecture decision about it, prefilled">
-                  <Icon name="scroll-text" size={13} /> Decision…
+                <button className="button ghost small" onClick={() => p.onDecide(f)} title={tr('A new architecture decision about it, prefilled')}>
+                  <Icon name="scroll-text" size={13} /> {tr('Decision…')}
                 </button>
               </div>
             )}
@@ -323,12 +327,12 @@ function ReviewPanel(p: PanelProps) {
         {aside.length > 0 && (
           <div className="review-aside">
             <button className="note-go" aria-expanded={showAside} onClick={() => setShowAside(!showAside)}>
-              <Icon name={showAside ? 'chevron-down' : 'chevron-right'} size={13} /> {aside.length} set aside
+              <Icon name={showAside ? 'chevron-down' : 'chevron-right'} size={13} /> {tr('{count} set aside', { count: aside.length })}
             </button>
             {showAside &&
               aside.map((f, i) => (
                 <p key={i} className="review-aside-row">
-                  <code>{f.rule.id}</code> on {f.about}: {f.ignored!.reason ?? <em>no reason given</em>}
+                  <code>{f.rule.id}</code> {tr('on {about}:', { about: f.about })} {f.ignored!.reason ?? <em>{tr('no reason given')}</em>}
                 </p>
               ))}
           </div>
@@ -336,7 +340,7 @@ function ReviewPanel(p: PanelProps) {
       </div>
       <footer className="notes-footer">
         <span className="review-foot">
-          {p.ran} rules{p.configFiles.length ? ` · ${p.configFiles.join(', ')}` : ''} · <kbd>carto review</kbd> for a report
+          {tr('{count} rules', { count: p.ran })}{p.configFiles.length ? ` · ${p.configFiles.join(', ')}` : ''} · <kbd>carto review</kbd> {tr('for a report')}
         </span>
       </footer>
     </aside>

@@ -4,6 +4,7 @@
 import type { LayoutSidecar } from '@cartography/core';
 import { compare, explainMarkdown, toldSummary, type Comparison, type Explained, type Picture } from '@cartography/diff';
 import { baseName, download } from '../export.ts';
+import { say, t } from '../i18n/index.ts';
 import type { Baseline } from './versions.ts';
 import type { CompareMode, CompareNow } from './compare-view.tsx';
 
@@ -42,13 +43,13 @@ export async function svgToPng(svg: string, width: number, height: number, wante
   g.scale(scale, scale);
   g.drawImage(img, 0, 0, width, height);
   URL.revokeObjectURL(img.src);
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(t('The browser could not make the PNG')))), 'image/png'));
 }
 
 export function compareExports(i: Input): CompareExports {
   const markdown = () => {
     const c = i.diff();
-    if (!c) throw new Error('One moment: still comparing');
+    if (!c) throw new Error(t('One moment: still comparing'));
     return explainMarkdown(c.diff, c.before?.graph, c.after?.graph, { name: c.after?.graph?.title ?? i.name, against: i.baseline.name });
   };
   /** Both versions drawn again, with their fonts in the SVG (a picture outside the page has no page fonts). */
@@ -60,16 +61,16 @@ export function compareExports(i: Input): CompareExports {
     });
   const picture = async (): Promise<Picture> => {
     const c = await embedded();
-    const p = i.mode === 'overlay' ? c.picture({ against: i.baseline.name }) : c.sideBySide({ against: i.baseline.name, labels: { before: `Before · ${i.baseline.name}`, after: 'After · now' } });
-    if (!p) throw new Error('Nothing to draw: fix the problems first');
+    const p = i.mode === 'overlay' ? c.picture({ against: i.baseline.name }) : c.sideBySide({ against: i.baseline.name, labels: { before: t('Before · {name}', { name: i.baseline.name }), after: t('After · now') } });
+    if (!p) throw new Error(t('Nothing to draw: fix the problems first'));
     return p;
   };
   const file = (suffix: string) => `${baseName(i.name)}-compare${suffix}`;
-  const attempt = (what: string, run: () => Promise<void>) => () => run().catch((e: unknown) => i.notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
+  const attempt = (what: string, run: () => Promise<void>) => () => run().catch((e: unknown) => i.notify(t('{what} failed: {error}', { what: say(what), error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
   return {
     copySummary: attempt('Copy', async () => {
       await navigator.clipboard.writeText(markdown());
-      i.notify('Summary copied as Markdown: paste it into the change request');
+      i.notify(t('Summary copied as Markdown: paste it into the change request'));
     }),
     saveSummary: attempt('Export', async () => download(file('.md'), markdown(), 'text/markdown')),
     saveSvg: attempt('Export', async () => download(file('.svg'), (await picture()).svg, 'image/svg+xml')),
@@ -86,14 +87,14 @@ export function compareExports(i: Input): CompareExports {
       const title = c.after?.graph?.title ?? c.before?.graph?.title ?? i.name;
       const slides = await Promise.all(
         [
-          { pic: was ?? empty(`Not there in ${i.baseline.name}`), title: `Before: ${title}`, subtitle: `${i.baseline.name} · what was removed and changed is marked` },
-          { pic: is ?? empty('Removed'), title: `After: ${title}`, subtitle: `Now · ${counts}` },
+          { pic: was ?? empty(t('Not there in {name}', { name: i.baseline.name })), title: t('Before: {title}', { title }), subtitle: t('{name} · what was removed and changed is marked', { name: i.baseline.name }) },
+          { pic: is ?? empty(t('Removed')), title: t('After: {title}', { title }), subtitle: t('Now · {counts}', { counts }) },
         ].map(async (s) => ({ title: s.title, subtitle: s.subtitle, svg: s.pic.svg, width: s.pic.width, height: s.pic.height, png: new Uint8Array(await (await svgToPng(s.pic.svg, s.pic.width, s.pic.height)).arrayBuffer()), notes: [s.title, '', ...sentences] })),
       );
       const { toPictureDeck } = await import('@cartography/export');
       const theme = (c.after ?? c.before)?.theme;
-      download(file('.pptx'), new Blob([toPictureDeck(slides, { ...(theme ? { theme } : {}), title: `Changes to ${title}` }) as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }));
-      i.notify('Saved before and after as two slides; the changes are in the speaker notes');
+      download(file('.pptx'), new Blob([toPictureDeck(slides, { ...(theme ? { theme } : {}), title: t('Changes to {title}', { title }) }) as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }));
+      i.notify(t('Saved before and after as two slides; the changes are in the speaker notes'));
     }),
   };
 }

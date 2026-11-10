@@ -7,6 +7,7 @@ import { withoutBadges } from '@cartography/core';
 import { measure, score } from '@cartography/layout';
 import { schemaOf } from '@cartography/engine';
 import { parse } from 'yaml';
+import { t } from '../i18n/index.ts';
 
 export const ASK_SYSTEM = `You help people with diagrams in Cartography, a diagrams-as-code editor. A diagram is one YAML file, validated against its type's JSON Schema and laid out automatically: positions never go in the YAML.
 
@@ -157,12 +158,12 @@ export function includedFiles(text: string, load: ((file: string) => string) | u
 
 /** Exactly what a question sends, in words, for the line under the Ask box. */
 export function sentList(c: AskContext): string {
-  const parts = [c.file ? `the YAML of ${c.file}` : 'the YAML'];
-  if (c.included?.length) parts.push(`the included ${c.included.length === 1 ? 'file' : 'files'} ${c.included.map((f) => f.file).join(', ')}`);
-  parts.push(`the ${c.type.name} schema and description`);
-  if (c.selection.length) parts.push(`the ${c.selection.length === 1 ? 'id and label' : 'ids and labels'} of what is selected`);
-  parts.push(c.problems.length ? `${c.problems.length} problem${c.problems.length > 1 ? 's' : ''}` : 'the problem list');
-  if (c.layout) parts.push('the layout report');
-  parts.push('your question');
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
+  const parts = [c.file ? t('the YAML of {file}', { file: c.file }) : t('the YAML')];
+  if (c.included?.length) parts.push(t('the included file {files}|the included files {files}', { count: c.included.length, files: c.included.map((f) => f.file).join(', ') }));
+  parts.push(t('the {type} schema and description', { type: c.type.name }));
+  if (c.selection.length) parts.push(t('the id and label of what is selected|the ids and labels of what is selected', { count: c.selection.length }));
+  parts.push(c.problems.length ? t('{count} problem|{count} problems', { count: c.problems.length }) : t('the problem list'));
+  if (c.layout) parts.push(t('the layout report'));
+  parts.push(t('your question'));
+  return t('{list} and {last}', { list: parts.slice(0, -1).join(', '), last: parts.at(-1)! });
 }

@@ -6,6 +6,7 @@ import { decodeShare, type SharedDiagram } from '@cartography/core';
 import { useRender } from './use-render.ts';
 import { Present } from './present.tsx';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 import { showBuiltin } from './brand.ts';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSvg, yamlName, type ExportInput } from './export.ts';
 
@@ -36,13 +37,13 @@ export function Viewer({ value }: { value: string }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
-  if (shared === undefined) return <div className="viewer-empty">Opening the shared diagram…</div>;
+  if (shared === undefined) return <div className="viewer-empty">{t('Opening the shared diagram…')}</div>;
   if (shared === null)
     return (
       <div className="viewer-empty">
-        <p>This link does not hold a diagram: it may have been cut short when it was copied.</p>
+        <p>{t('This link does not hold a diagram: it may have been cut short when it was copied.')}</p>
         <a className="button primary" href={location.pathname}>
-          Open the editor
+          {t('Open the editor')}
         </a>
       </div>
     );
@@ -103,7 +104,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
   });
 
   const input = (): ExportInput => ({ text: doc.yaml, theme, sidecar: doc.layout, view: result?.view, file: name });
-  const attempt = (run: () => Promise<void>) => () => void run().catch((e: unknown) => setMessage(`Export failed: ${e instanceof Error ? e.message : String(e)}`));
+  const attempt = (run: () => Promise<void>) => () => void run().catch((e: unknown) => setMessage(t('Export failed: {error}', { error: e instanceof Error ? e.message : String(e) })));
   const base = baseName(name);
   // A document of this browser's own: the editor opens it from the same link data, with an undo.
   const openInEditor = () => {
@@ -121,12 +122,12 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
         <div className="doc-name">
           <Icon name="eye" />
           <span>{title}</span>
-          <span className="type-pill">Read-only</span>
+          <span className="type-pill">{t('Read-only')}</span>
         </div>
         <div className="actions">
           {result?.views && result.views.length > 1 && (
-            <select className="viewer-views" aria-label="View" value={result.view ?? ''} onChange={(e) => setView(e.target.value || undefined)}>
-              {!result.view && <option value="">As written</option>}
+            <select className="viewer-views" aria-label={t('View')} value={result.view ?? ''} onChange={(e) => setView(e.target.value || undefined)}>
+              {!result.view && <option value="">{t('As written')}</option>}
               {result.views.map((v) => (
                 <option key={v.name} value={v.name}>
                   {v.title ?? v.name}
@@ -134,8 +135,8 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
               ))}
             </select>
           )}
-          <button className="button ghost" onClick={() => setPresenting(true)} title="Present, step by step (P)">
-            <Icon name="play" /> Present
+          <button className="button ghost" onClick={() => setPresenting(true)} title={t('Present, step by step (P)')}>
+            <Icon name="play" /> {t('Present')}
           </button>
           <button className="button ghost" onClick={attempt(async () => download(`${base}.svg`, await exportSvg(input()), 'image/svg+xml'))}>
             SVG
@@ -152,13 +153,13 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
           <button className="button ghost" onClick={() => download(yamlName(name), doc.yaml, 'text/yaml')}>
             YAML
           </button>
-          <button className="button primary" onClick={openInEditor} title="Copy it into a new document in this browser, to change it">
-            <Icon name="file-plus" /> Open in editor
+          <button className="button primary" onClick={openInEditor} title={t('Copy it into a new document in this browser, to change it')}>
+            <Icon name="file-plus" /> {t('Open in editor')}
           </button>
         </div>
       </header>
       <p className="viewer-note">
-        <Icon name="shield-check" size={14} /> The diagram is inside this link, after the #. Browsers never send that part to a server: nothing was uploaded, and nothing is stored until you open it in the editor.
+        <Icon name="shield-check" size={14} /> {t('The diagram is inside this link, after the #. Browsers never send that part to a server: nothing was uploaded, and nothing is stored until you open it in the editor.')}
       </p>
       {message && (
         <p className="viewer-note error" role="alert">
@@ -170,24 +171,24 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
           <div className="viewer-drawing" style={{ transform: `translate(${at.x}px, ${at.y}px) scale(${at.k})` }} dangerouslySetInnerHTML={{ __html: result.svg }} />
         ) : rendered ? (
           <div className="viewer-empty">
-            <p>The diagram in this link has problems:</p>
+            <p>{t('The diagram in this link has problems:')}</p>
             <ul>
               {errors.slice(0, 5).map((d, i) => (
                 <li key={i}>
-                  line {d.line}: {d.message}
+                  {t('line {line}: {message}', { line: d.line ?? '', message: d.message })}
                 </li>
               ))}
             </ul>
           </div>
         ) : null}
         <div className="viewer-zoom">
-          <button className="icon-button" onClick={() => zoom(0.8)} aria-label="Zoom out" title="Zoom out (-)">
+          <button className="icon-button" onClick={() => zoom(0.8)} aria-label={t('Zoom out')} title={t('Zoom out (-)')}>
             <Icon name="minus" />
           </button>
-          <button className="icon-button" onClick={fit} aria-label="Fit" title="Fit (0)">
+          <button className="icon-button" onClick={fit} aria-label={t('Fit')} title={t('Fit (0)')}>
             <Icon name="maximize" />
           </button>
-          <button className="icon-button" onClick={() => zoom(1.25)} aria-label="Zoom in" title="Zoom in (+)">
+          <button className="icon-button" onClick={() => zoom(1.25)} aria-label={t('Zoom in')} title={t('Zoom in (+)')}>
             <Icon name="plus" />
           </button>
         </div>

@@ -6,6 +6,7 @@ import { render } from '@cartography/engine';
 import { asked, resolve, type Answer, type Answers, type Question, type Wizard } from '@cartography/wizards';
 import { Icon } from './icon.tsx';
 import { store } from './store.ts';
+import { t } from './i18n/index.ts';
 import './wizard.css';
 
 export interface WizardResult {
@@ -88,7 +89,7 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
   }, []);
 
   const chooser: Question | undefined =
-    at < 0 ? { id: PICK, kind: 'choice', label: 'Which one?', default: wizard.id, options: wizards.map((w) => ({ value: w.id, label: w.name, help: w.description })) } : undefined;
+    at < 0 ? { id: PICK, kind: 'choice', label: t('Which one?'), default: wizard.id, options: wizards.map((w) => ({ value: w.id, label: w.name, help: w.description })) } : undefined;
   const shown = chooser ?? q!;
   const value = chooser ? wizard.id : (full[shown.id] ?? (shown as Question).default);
   const total = questions.length;
@@ -96,14 +97,14 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
   return (
     <div className="wizard">
       <div className="wizard-ask">
-        <div className="wizard-progress" role="group" aria-label="Questions">
+        <div className="wizard-progress" role="group" aria-label={t('Questions')}>
           {wizards.length > 1 && (
-            <button className={at < 0 ? 'dot current' : 'dot done'} onClick={() => setAt(-1)} title="Which wizard" aria-label="Which wizard" aria-current={at < 0} />
+            <button className={at < 0 ? 'dot current' : 'dot done'} onClick={() => setAt(-1)} title={t('Which wizard')} aria-label={t('Which wizard')} aria-current={at < 0} />
           )}
           {questions.map((x, i) => (
-            <button key={x.id} className={i === at ? 'dot current' : i < at ? 'dot done' : 'dot'} onClick={() => setAt(i)} title={x.label} aria-label={`Question ${i + 1}: ${x.label}`} aria-current={i === at} />
+            <button key={x.id} className={i === at ? 'dot current' : i < at ? 'dot done' : 'dot'} onClick={() => setAt(i)} title={x.label} aria-label={t('Question {n}: {question}', { n: i + 1, question: x.label })} aria-current={i === at} />
           ))}
-          <span className="wizard-count">{at < 0 ? wizard.name : `${at + 1} of ${total}`}</span>
+          <span className="wizard-count">{at < 0 ? wizard.name : t('{n} of {total}', { n: at + 1, total })}</span>
         </div>
         <div className="wizard-question" key={`${wizard.id}:${shown.id}`}>
           <h3 id="wizard-q">{shown.label}</h3>
@@ -111,32 +112,32 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
           <Field q={shown} value={value} onChange={(v) => (chooser ? pick(String(v)) : set(shown.id, v))} onEnter={next} />
         </div>
         <footer className="wizard-nav">
-          <button className="button ghost" onClick={back} disabled={!canBack} title="Previous question (Esc)">
-            <Icon name="arrow-left" /> Back
+          <button className="button ghost" onClick={back} disabled={!canBack} title={t('Previous question (Esc)')}>
+            <Icon name="arrow-left" /> {t('Back')}
           </button>
           <span className="spacer" />
           {last ? (
-            <button className="button primary" onClick={next} title={how === 'code' ? 'Open the drawing with its YAML' : 'Open the drawing to build on'}>
-              Finish <kbd>↵</kbd>
+            <button className="button primary" onClick={next} title={how === 'code' ? t('Open the drawing with its YAML') : t('Open the drawing to build on')}>
+              {t('Finish')} <kbd>↵</kbd>
             </button>
           ) : (
             <button className="button primary" onClick={next}>
-              Next <kbd>↵</kbd>
+              {t('Next')} <kbd>↵</kbd>
             </button>
           )}
         </footer>
         <p className="fine wizard-source" title={wizard.source}>
-          After {wizard.source.split(/[,:(]/)[0]}. Every answer has a default: <kbd>⌘↵</kbd> finishes now.
+          {t('After {source}. Every answer has a default:', { source: wizard.source.split(/[,:(]/)[0]! })} <kbd>⌘↵</kbd> {t('finishes now.')}
         </p>
       </div>
       <div className="ask-preview wizard-preview">
         <div
           className={close ? 'mode-preview close' : 'mode-preview'}
           aria-live="polite"
-          aria-label="Preview of the drawing"
+          aria-label={t('Preview of the drawing')}
           role="button"
           tabIndex={0}
-          title={close ? 'Click to fit the drawing again' : 'Click to read it at full size'}
+          title={close ? t('Click to fit the drawing again') : t('Click to read it at full size')}
           onClick={() => setClose((c) => !c)}
           onKeyDown={(e) => (e.key === ' ' || (e.key === 'Enter' && !e.metaKey && !e.ctrlKey)) && (e.preventDefault(), setClose((c) => !c))}
         >
@@ -144,7 +145,7 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
         </div>
         {drawing.problem && <p className="fine">{drawing.problem}</p>}
         <footer>
-          <div className="segmented" role="radiogroup" aria-label="Open it">
+          <div className="segmented" role="radiogroup" aria-label={t('Open it')}>
             <button role="radio" aria-checked={how === 'visual'} className={how === 'visual' ? 'active' : ''} onClick={() => setHow('visual')}>
               <Icon name="mouse-pointer-2" /> Builder
             </button>
@@ -153,8 +154,8 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
             </button>
           </div>
           <span className="spacer" />
-          <button className="button ghost" onClick={() => onAsk(result(how))} title="Describe what else it needs; Claude starts from this drawing">
-            <Icon name="sparkles" /> Ask Claude to refine it
+          <button className="button ghost" onClick={() => onAsk(result(how))} title={t('Describe what else it needs; Claude starts from this drawing')}>
+            <Icon name="sparkles" /> {t('Ask Claude to refine it')}
           </button>
         </footer>
       </div>
@@ -180,7 +181,7 @@ function Field({ q, value, onChange, onEnter }: { q: Question; value: Answer; on
         <input
           className="wizard-text"
           value={String(value ?? '')}
-          placeholder={q.placeholder ?? (q.list ? 'Names, separated by commas' : undefined)}
+          placeholder={q.placeholder ?? (q.list ? t('Names, separated by commas') : undefined)}
           aria-labelledby="wizard-q"
           spellCheck={false}
           onChange={(e) => onChange(e.target.value)}
@@ -218,7 +219,7 @@ function Field({ q, value, onChange, onEnter }: { q: Question; value: Answer; on
           else if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !(e.target instanceof HTMLInputElement)) (e.preventDefault(), onEnter());
         }}
       >
-        <button className="icon-button" onClick={() => step(-1)} disabled={n <= q.min} aria-label="Fewer">
+        <button className="icon-button" onClick={() => step(-1)} disabled={n <= q.min} aria-label={t('Fewer')}>
           −
         </button>
         <input
@@ -232,7 +233,7 @@ function Field({ q, value, onChange, onEnter }: { q: Question; value: Answer; on
             if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) (e.preventDefault(), onEnter());
           }}
         />
-        <button className="icon-button" onClick={() => step(1)} disabled={n >= q.max} aria-label="More">
+        <button className="icon-button" onClick={() => step(1)} disabled={n >= q.max} aria-label={t('More')}>
           +
         </button>
         <span className="fine">
@@ -244,7 +245,7 @@ function Field({ q, value, onChange, onEnter }: { q: Question; value: Answer; on
   }
 
   // Choice, yes/no and multi: a list of big options; arrows move, numbers pick, Enter goes on.
-  const options = q.kind === 'yesno' ? [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }] : q.options;
+  const options = q.kind === 'yesno' ? [{ value: 'yes', label: t('Yes') }, { value: 'no', label: t('No') }] : q.options;
   const multi = q.kind === 'multi';
   const on = (v: string) => (multi ? (value as string[]).includes(v) : q.kind === 'yesno' ? (value ? 'yes' : 'no') === v : value === v);
   const choose = (v: string) => {
@@ -302,7 +303,7 @@ function Field({ q, value, onChange, onEnter }: { q: Question; value: Answer; on
           {i < 9 && <kbd>{q.kind === 'yesno' ? (i === 0 ? 'Y' : 'N') : i + 1}</kbd>}
         </button>
       ))}
-      {multi && <p className="fine">Space or a number turns one on or off; Enter goes on.</p>}
+      {multi && <p className="fine">{t('Space or a number turns one on or off; Enter goes on.')}</p>}
     </div>
   );
 }

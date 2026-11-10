@@ -17,6 +17,9 @@ let current: Lang = store.get<Lang>(KEY) === 'nl' || store.get<Lang>(KEY) === 'e
 const listeners = new Set<() => void>();
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
+/** What was picked in the menu: a language, or `undefined` for the browser's. */
+export const uiLangChoice = (): Lang | undefined => (store.get<Lang>(KEY) === 'nl' || store.get<Lang>(KEY) === 'en' ? store.get<Lang>(KEY)! : undefined);
+
 /** The editor's language now. */
 export const uiLang = () => current;
 
@@ -43,3 +46,6 @@ const free = lookup(nl);
 export const t = (id: Message, params?: Params) => tr(current, id, params);
 /** Text known only at run time, in the editor's language when the catalog has it. */
 export const say = (text: string, params?: Params) => free(current, text, params);
+
+/** A new diagram from the start dialog speaks the editor's language: Dutch gets `lang: nl` after `type:`. */
+export const withUiLang = (yaml: string) => (current === 'nl' && !/^lang:/m.test(yaml) ? yaml.replace(/^(type:.*)$/m, '$1\nlang: nl') : yaml);

@@ -13,6 +13,7 @@ import { useIconOptions } from '../icon-packs.ts';
 import { registerThemeFonts } from '../fonts.ts';
 import { Icon } from '../icon.tsx';
 import { Menu } from '../menu.tsx';
+import { say, t as tr } from '../i18n/index.ts';
 import type { Baseline } from './versions.ts';
 import { compareExports, type CompareExports } from './compare-export.ts';
 import './compare.css';
@@ -305,65 +306,65 @@ export function CompareView(p: Props) {
         style={{ transform: `translate(${t.x}px, ${t.y}px) scale(${t.k})`, width: pic?.width, height: pic?.height }}
         dangerouslySetInnerHTML={{ __html: pic?.svg ?? '' }}
       />
-      {!pic && cmp && <div className="cmp-empty">{where === 'before' ? `Not there in ${baseline.name}` : 'Nothing to draw'}</div>}
+      {!pic && cmp && <div className="cmp-empty">{where === 'before' ? tr('Not there in {name}', { name: baseline.name }) : tr('Nothing to draw')}</div>}
     </div>
   );
 
   return (
-    <div className={`compare mode-${mode}`} ref={root} tabIndex={-1} role="region" aria-label={`Compared with ${baseline.name}`}>
-      <div className="cmp-bar" role="toolbar" aria-label="Compare">
-        <button className="tool cmp-against" onClick={p.onPick} title="Compare with another version (⇧⌘D)">
-          <Icon name="clock" /> <span>Against <strong>{baseline.name}</strong></span> <Icon name="chevron-down" size={14} />
+    <div className={`compare mode-${mode}`} ref={root} tabIndex={-1} role="region" aria-label={tr('Compared with {name}', { name: baseline.name })}>
+      <div className="cmp-bar" role="toolbar" aria-label={tr('Compare')}>
+        <button className="tool cmp-against" onClick={p.onPick} title={tr('Compare with another version (⇧⌘D)')}>
+          <Icon name="clock" /> <span>{tr('Against')} <strong>{baseline.name}</strong></span> <Icon name="chevron-down" size={14} />
         </button>
-        <div className="segmented cmp-mode" role="radiogroup" aria-label="Show">
-          <button role="radio" aria-checked={mode === 'overlay'} className={mode === 'overlay' ? 'active' : ''} onClick={() => p.onMode('overlay')} title="One drawing, the changes marked (M)">
-            <Icon name="layers" /> Overlay
+        <div className="segmented cmp-mode" role="radiogroup" aria-label={tr('Show')}>
+          <button role="radio" aria-checked={mode === 'overlay'} className={mode === 'overlay' ? 'active' : ''} onClick={() => p.onMode('overlay')} title={tr('One drawing, the changes marked (M)')}>
+            <Icon name="layers" /> {tr('Overlay')}
           </button>
-          <button role="radio" aria-checked={mode === 'side'} className={mode === 'side' ? 'active' : ''} onClick={() => p.onMode('side')} title="Before and after next to each other (M)">
-            <Icon name="split" /> Side by side
+          <button role="radio" aria-checked={mode === 'side'} className={mode === 'side' ? 'active' : ''} onClick={() => p.onMode('side')} title={tr('Before and after next to each other (M)')}>
+            <Icon name="split" /> {tr('Side by side')}
           </button>
         </div>
         <div className="cmp-counts" aria-live="polite">
           {counts ? (
             cmp!.c.diff.same ? (
-              <span>No changes</span>
+              <span>{tr('No changes')}</span>
             ) : (
               (['added', 'changed', 'removed'] as const).map((s) => (
                 <span key={s} className={`cmp-count ${s}`} data-count={s}>
-                  <b aria-hidden="true">{SIGN[s]}</b> {counts[s]} {s}
+                  <b aria-hidden="true">{SIGN[s]}</b> {counts[s]} {say(s)}
                 </span>
               ))
             )
           ) : (
-            <span className="cmp-busy">Comparing…</span>
+            <span className="cmp-busy">{tr('Comparing…')}</span>
           )}
         </div>
-        <button className="tool" onClick={() => void exports.copySummary()} title="Copy the changes as Markdown, for a change advisory board" disabled={!cmp}>
-          <Icon name="copy" /> Copy summary
+        <button className="tool" onClick={() => void exports.copySummary()} title={tr('Copy the changes as Markdown, for a change advisory board')} disabled={!cmp}>
+          <Icon name="copy" /> {tr('Copy summary')}
         </button>
         <div className="menu-anchor">
           <button className="tool" onClick={() => setMenu((m) => !m)} aria-expanded={menu} aria-haspopup="menu" disabled={!cmp}>
-            <Icon name="download" /> Export
+            <Icon name="download" /> {tr('Export')}
           </button>
           {menu && (
             <Menu onClose={() => setMenu(false)}>
               <button role="menuitem" onClick={() => void exports.saveSummary()}>
-                <Icon name="file-text" /> Summary (.md)
+                <Icon name="file-text" /> {tr('Summary (.md)')}
               </button>
               <button role="menuitem" onClick={() => void exports.savePptx()}>
-                <Icon name="layout-template" /> Before and after (.pptx)
+                <Icon name="layout-template" /> {tr('Before and after (.pptx)')}
               </button>
               <button role="menuitem" onClick={() => void exports.savePng()}>
-                <Icon name="image" /> {mode === 'overlay' ? 'Overlay' : 'Side by side'} as PNG
+                <Icon name="image" /> {tr('{mode} as PNG', { mode: mode === 'overlay' ? tr('Overlay') : tr('Side by side') })}
               </button>
               <button role="menuitem" onClick={() => void exports.saveSvg()}>
-                <Icon name="download" /> {mode === 'overlay' ? 'Overlay' : 'Side by side'} as SVG
+                <Icon name="download" /> {tr('{mode} as SVG', { mode: mode === 'overlay' ? tr('Overlay') : tr('Side by side') })}
               </button>
             </Menu>
           )}
         </div>
-        <button className="tool cmp-done" onClick={p.onExit} title="Back to editing (Esc)">
-          <Icon name="x" /> Done <kbd>Esc</kbd>
+        <button className="tool cmp-done" onClick={p.onExit} title={tr('Back to editing (Esc)')}>
+          <Icon name="x" /> {tr('Done')} <kbd>Esc</kbd>
         </button>
       </div>
       <div className="cmp-body">
@@ -371,8 +372,8 @@ export function CompareView(p: Props) {
         <div className={mode === 'side' && size.width > 1.2 * size.height ? 'cmp-panes stacked' : 'cmp-panes'}>
           {mode === 'overlay' ? pane('overlay', cmp?.pictures.overlay) : (
             <>
-              {pane('before', cmp?.pictures.before, `Before · ${baseline.name}`)}
-              {pane('after', cmp?.pictures.after, 'After · now')}
+              {pane('before', cmp?.pictures.before, tr('Before · {name}', { name: baseline.name }))}
+              {pane('after', cmp?.pictures.after, tr('After · now'))}
             </>
           )}
           {failed && (
@@ -381,25 +382,25 @@ export function CompareView(p: Props) {
             </div>
           )}
           <div className="cmp-zoom">
-            <button className="tool" onClick={() => zoomBy(0.8)} aria-label="Zoom out" title="Zoom out (−)">
+            <button className="tool" onClick={() => zoomBy(0.8)} aria-label={tr('Zoom out')} title={tr('Zoom out (−)')}>
               <Icon name="minus" />
             </button>
-            <button className="tool" onClick={fit} title="Fit (0)">
+            <button className="tool" onClick={fit} title={tr('Fit (0)')}>
               <Icon name="maximize" />
             </button>
-            <button className="tool" onClick={() => zoomBy(1.25)} aria-label="Zoom in" title="Zoom in (+)">
+            <button className="tool" onClick={() => zoomBy(1.25)} aria-label={tr('Zoom in')} title={tr('Zoom in (+)')}>
               <Icon name="plus" />
             </button>
           </div>
         </div>
-        <aside className="cmp-list" aria-label="Changes">
+        <aside className="cmp-list" aria-label={tr('Changes')}>
           <header>
-            <strong>Changes</strong>
+            <strong>{tr('Changes')}</strong>
             <span className="cmp-keys">
-              <kbd>]</kbd> <kbd>[</kbd> step · <kbd>↵</kbd> edit
+              <kbd>]</kbd> <kbd>[</kbd> {tr('step')} · <kbd>↵</kbd> {tr('edit')}
             </span>
           </header>
-          {cmp && !sentences.length && <p className="cmp-none">Nothing drawn differs from {baseline.name}.</p>}
+          {cmp && !sentences.length && <p className="cmp-none">{tr('Nothing drawn differs from {name}.', { name: baseline.name })}</p>}
           <ol>
             {sentences.map((s, i) => {
               const n = s.item ? steps.indexOf(s) : -1;
@@ -413,9 +414,9 @@ export function CompareView(p: Props) {
                     aria-current={n === at && n >= 0 ? 'true' : undefined}
                     onClick={() => (n >= 0 ? setAt(n) : undefined)}
                     onDoubleClick={() => s.item && p.onEdit(s.item)}
-                    title={s.item ? `${s.item.kind === 'edge' ? 'line' : s.item.kind} ${s.item.id} · double-click or ↵ to edit it` : undefined}
+                    title={s.item ? tr('{what} {id} · double-click or ↵ to edit it', { what: say(s.item.kind === 'edge' ? 'line' : s.item.kind), id: s.item.id }) : undefined}
                   >
-                    <span className={`cmp-sign ${status}`} aria-label={status}>
+                    <span className={`cmp-sign ${status}`} aria-label={say(status)}>
                       {SIGN[status]}
                     </span>
                     <span className="cmp-text">{s.text}</span>

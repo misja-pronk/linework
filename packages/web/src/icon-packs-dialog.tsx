@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
+import { t } from './i18n/index.ts';
 import { coverage, folderFiles, iconSvg, importDownload, listFiles, mapKind, removePack, searchIcons, unmapKind, useIconPacks, vendorKinds, vendors, zipFiles, type StoredPack, type Vendor } from './icon-packs.ts';
 
 const ORDER: Vendor[] = ['azure', 'aws', 'gcp', 'kubernetes'];
@@ -41,7 +42,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
       if (!got) return;
       const r = await importDownload(got.files, got.source, vendor);
       setOpen(r.vendor);
-      onDone?.(`${vendors[r.vendor].name} icons: ${r.have} of ${r.of} kinds have an icon`);
+      onDone?.(t('{vendor} icons: {have} of {of} kinds have an icon', { vendor: vendors[r.vendor].name, have: r.have, of: r.of }));
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       setError((e as Error).message);
@@ -72,7 +73,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
       <div
         className={`shortcuts icon-packs${over ? ' dropping' : ''}`}
         role="dialog"
-        aria-label="Official icons"
+        aria-label={t('Official icons')}
         onMouseDown={(e) => e.stopPropagation()}
         onDragOver={(e) => (e.preventDefault(), setOver(true))}
         onDragLeave={() => setOver(false)}
@@ -80,16 +81,16 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
       >
         <header>
           <h2>
-            <Icon name="boxes" /> Official icons
+            <Icon name="boxes" /> {t('Official icons')}
           </h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close" autoFocus>
+          <button className="icon-button" onClick={onClose} aria-label={t('Close')} autoFocus>
             <Icon name="x" />
           </button>
         </header>
         <p className="icon-packs-lead">
-          Customers expect the vendors' own icons. Their terms do not let us ship them, so download each set once and drop the zip here: it is
-          copied into this browser and matched to our shapes. Diagrams made with them can be shared as pictures, slides and pages; the set itself
-          stays with you. Turn them on in the theme menu, or with <code>icons: official</code> in a diagram.
+          {t("Customers expect the vendors' own icons. Their terms do not let us ship them, so download each set once and drop the zip here: it is copied into this browser and matched to our shapes. Diagrams made with them can be shared as pictures, slides and pages; the set itself stays with you. Turn them on in the theme menu, or with")}{' '}
+          <code>icons: official</code>{' '}
+          {t('in a diagram.')}
         </p>
         <input
           ref={zipInput}
@@ -120,7 +121,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
         )}
         {s.busy && (
           <p className="icon-packs-busy" role="status">
-            Copying {s.busy.vendor ? vendors[s.busy.vendor].name : ''} icons… {s.busy.done} of {s.busy.of}
+            {s.busy.vendor ? t('Copying {vendor} icons… {done} of {of}', { vendor: vendors[s.busy.vendor].name, done: s.busy.done, of: s.busy.of }) : t('Copying icons… {done} of {of}', { done: s.busy.done, of: s.busy.of })}
           </p>
         )}
         <div className="icon-vendors">
@@ -132,34 +133,34 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
               <section key={v} className="icon-vendor" data-vendor={v}>
                 <h3>
                   {info.name}
-                  <span className="icon-status">{cov ? `${cov.have} of ${cov.of} shapes · ${pack!.imported ?? ''}` : 'not imported'}</span>
+                  <span className="icon-status">{cov ? t('{have} of {of} shapes · {date}', { have: cov.have, of: cov.of, date: pack!.imported ?? '' }) : t('not imported')}</span>
                 </h3>
                 <ol>
                   <li>
-                    Open{' '}
+                    {t('Open@step')}{' '}
                     <a href={info.page} target="_blank" rel="noreferrer noopener">
                       {info.page.replace(/^https:\/\//, '').replace(/\/$/, '')}
                     </a>
                   </li>
                   <li>{info.link}</li>
                   <li>
-                    You get <span className="icon-file">{info.file.split(/[\s,;]/)[0]}</span> {info.file.split(';')[0]!.replace(/^\S+[\s,]*/, '')}
+                    {t('You get')} <span className="icon-file">{info.file.split(/[\s,;]/)[0]}</span> {info.file.split(';')[0]!.replace(/^\S+[\s,]*/, '')}
                   </li>
                 </ol>
                 <p className="icon-terms">{info.terms}</p>
                 <div className="icon-actions">
                   <button className="button" onClick={() => chooseZip(v)} disabled={!!s.busy}>
-                    <Icon name="archive" /> {pack ? 'Newer zip…' : 'Choose zip…'}
+                    <Icon name="archive" /> {pack ? t('Newer zip…') : t('Choose zip…')}
                   </button>
                   <button className="button ghost" onClick={() => chooseFolder(v)} disabled={!!s.busy}>
-                    <Icon name="folder-open" /> Folder…
+                    <Icon name="folder-open" /> {t('Folder…')}
                   </button>
                   {pack && (
                     <>
                       <button className="button ghost" onClick={() => setOpen(open === v ? undefined : v)} aria-expanded={open === v}>
-                        <Icon name="layout-grid" /> {open === v ? 'Hide shapes' : 'Check shapes'}
+                        <Icon name="layout-grid" /> {open === v ? t('Hide shapes') : t('Check shapes')}
                       </button>
-                      <button className="button ghost" onClick={() => void removePack(v)} title="Forget this set in this browser">
+                      <button className="button ghost" onClick={() => void removePack(v)} title={t('Forget this set in this browser')}>
                         <Icon name="trash" />
                       </button>
                     </>
@@ -169,7 +170,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
             );
           })}
         </div>
-        <p className="icon-packs-note">Vendors move their pages and rename their downloads now and then; matching goes by the icons' names, so a newer release imports the same way and keeps what you mapped by hand. Or drop a zip anywhere on this sheet.</p>
+        <p className="icon-packs-note">{t("Vendors move their pages and rename their downloads now and then; matching goes by the icons' names, so a newer release imports the same way and keeps what you mapped by hand. Or drop a zip anywhere on this sheet.")}</p>
         <div ref={sheet}>{open && s.packs[open] && <PackSheet vendor={open} pack={s.packs[open]!} markup={s.markup[open] ?? {}} />}</div>
       </div>
     </div>
@@ -183,20 +184,20 @@ function PackSheet({ vendor, pack, markup }: { vendor: Vendor; pack: StoredPack;
   const [picking, setPicking] = useState<string>();
   const uris = useMemo(() => Object.fromEntries(Object.entries(markup).map(([k, svg]) => [k, dataUri(svg)])), [markup]);
   return (
-    <section className="icon-sheet" aria-label={`${vendors[vendor].name} shapes`}>
+    <section className="icon-sheet" aria-label={t('{vendor} shapes', { vendor: vendors[vendor].name })}>
       <h3>
-        {cov.have} of {cov.of} shapes have a {vendors[vendor].name} icon
+        {t('{have} of {of} shapes have a {vendor} icon', { have: cov.have, of: cov.of, vendor: vendors[vendor].name })}
       </h3>
       <p className="icon-terms">
-        {cov.missing.length ? `${cov.missing.length} draw their line icon (dashed below): ${cov.missing.slice(0, 12).join(', ')}${cov.missing.length > 12 ? ' and more' : ''}. ` : ''}
-        Click a shape to give it another icon from the set.
+        {cov.missing.length ? `${t('{count} draw their line icon (dashed below): {list}|{count} draw their line icon (dashed below): {list}', { count: cov.missing.length, list: `${cov.missing.slice(0, 12).join(', ')}${cov.missing.length > 12 ? t(' and more') : ''}` })}. ` : ''}
+        {t('Click a shape to give it another icon from the set.')}
       </p>
       <div className="icon-grid" role="list">
         {kinds.map((k) => (
-          <button key={k.kind} role="listitem" className={`icon-tile${pack.icons[k.kind] ? '' : ' missing'}${picking === k.kind ? ' picking' : ''}`} onClick={() => setPicking(picking === k.kind ? undefined : k.kind)} title={pack.icons[k.kind] ?? 'No icon yet: click to pick one'} data-kind={k.kind}>
+          <button key={k.kind} role="listitem" className={`icon-tile${pack.icons[k.kind] ? '' : ' missing'}${picking === k.kind ? ' picking' : ''}`} onClick={() => setPicking(picking === k.kind ? undefined : k.kind)} title={pack.icons[k.kind] ?? t('No icon yet: click to pick one')} data-kind={k.kind}>
             {uris[k.kind] ? <img src={uris[k.kind]} alt="" width={32} height={32} /> : <span className="icon-empty" aria-hidden="true" />}
             <span>{k.label ?? k.kind}</span>
-            {pack.manual?.[k.kind] && <span className="icon-hand">by hand</span>}
+            {pack.manual?.[k.kind] && <span className="icon-hand">{t('by hand')}</span>}
           </button>
         ))}
       </div>
@@ -224,8 +225,8 @@ function IconPick({ vendor, pack, kind, label, onDone }: { vendor: Vendor; pack:
   return (
     <div className="icon-pick" onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), onDone())}>
       <label>
-        Icon for <strong>{label}</strong>:{' '}
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Words of its name, e.g. key vault" aria-label={`Search ${vendors[vendor].name} icons`} />
+        {t('Icon for')} <strong>{label}</strong>:{' '}
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Words of its name, e.g. key vault')} aria-label={t('Search {vendor} icons', { vendor: vendors[vendor].name })} />
       </label>
       <div className="icon-grid" role="list">
         {hits.map((h) => (
@@ -234,11 +235,11 @@ function IconPick({ vendor, pack, kind, label, onDone }: { vendor: Vendor; pack:
             <span>{h.name}</span>
           </button>
         ))}
-        {!hits.length && <p className="menu-note">Nothing in this set is called that.</p>}
+        {!hits.length && <p className="menu-note">{t('Nothing in this set is called that.')}</p>}
       </div>
       {pack.icons[kind] && (
         <button className="button ghost" onClick={() => void unmapKind(vendor, kind).then(onDone)}>
-          <Icon name="x" /> No official icon for {label}
+          <Icon name="x" /> {t('No official icon for {label}', { label })}
         </button>
       )}
     </div>

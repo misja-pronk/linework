@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StepState } from '@cartography/core';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 
 export interface StepsStripProps {
   steps: StepState[];
@@ -85,13 +86,13 @@ export function StepsStrip(p: StepsStripProps) {
   };
 
   return (
-    <div className="steps-strip" role="toolbar" aria-label="Steps">
+    <div className="steps-strip" role="toolbar" aria-label={t('Steps')}>
       <span className="steps-title">
-        <Icon name="layers" size={14} /> Steps
+        <Icon name="layers" size={14} /> {t('Steps')}
       </span>
       <div className="steps-row" ref={row}>
-        <button className={p.value ? 'step-chip' : 'step-chip active'} data-step={0} onClick={() => p.onPick(undefined)} onKeyDown={(e) => onKey(e, 0)} aria-pressed={!p.value} title="The whole drawing, nothing standing back">
-          All
+        <button className={p.value ? 'step-chip' : 'step-chip active'} data-step={0} onClick={() => p.onPick(undefined)} onKeyDown={(e) => onKey(e, 0)} aria-pressed={!p.value} title={t('The whole drawing, nothing standing back')}>
+          {t('All')}
         </button>
         {p.steps.map((s, i) => {
           const n = i + 1;
@@ -103,8 +104,8 @@ export function StepsStrip(p: StepsStripProps) {
                 <input
                   autoFocus
                   value={editing.text}
-                  placeholder="Name this step"
-                  aria-label={`Name of step ${n}`}
+                  placeholder={t('Name this step')}
+                  aria-label={t('Name of step {n}', { n })}
                   onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) => setEditing({ step: n, text: e.target.value })}
                   onBlur={() => done(true)}
@@ -125,8 +126,8 @@ export function StepsStrip(p: StepsStripProps) {
               onDoubleClick={() => !p.implied && name(n)}
               onKeyDown={(e) => onKey(e, n)}
               aria-pressed={p.value === n}
-              aria-label={`Step ${n}${label ? `: ${label}` : ''}`}
-              title={[s.title, s.caption].filter(Boolean).join(' — ') || `Step ${n}`}
+              aria-label={label ? t('Step {n}: {label}', { n, label }) : t('Step {n}', { n })}
+              title={[s.title, s.caption].filter(Boolean).join(' — ') || t('Step {n}', { n })}
             >
               <b>{n}</b>
               {label && <span>{short(label)}</span>}
@@ -134,17 +135,17 @@ export function StepsStrip(p: StepsStripProps) {
           );
         })}
         {!p.implied && (
-          <button className="step-chip add" onClick={p.onAdd} title={p.selected ? 'A new step with the selection in focus (S)' : 'A new step; select elements first to put them in focus (S)'}>
-            <Icon name="plus" size={14} /> Step <kbd>S</kbd>
+          <button className="step-chip add" onClick={p.onAdd} title={p.selected ? t('A new step with the selection in focus (S)') : t('A new step; select elements first to put them in focus (S)')}>
+            <Icon name="plus" size={14} /> {t('Step')} <kbd>S</kbd>
           </button>
         )}
       </div>
       <span className="steps-keys" aria-hidden="true">
-        <kbd>[</kbd> <kbd>]</kbd> step
+        <kbd>[</kbd> <kbd>]</kbd> {t('step@hint')}
         {!p.implied && (
           <>
             {' · '}
-            <kbd>F2</kbd> name · <kbd>⌥←→</kbd> move · <kbd>⌫</kbd> remove
+            <kbd>F2</kbd> {t('name@hint')} · <kbd>⌥←→</kbd> {t('move@hint')} · <kbd>⌫</kbd> {t('remove@hint')}
           </>
         )}
       </span>

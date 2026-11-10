@@ -11,6 +11,7 @@ import { Palette, type Command } from '../palette.tsx';
 import { Icon } from '../icon.tsx';
 import { is, keyHint } from '../keys.ts';
 import type { Workspace } from '../files.ts';
+import { t as tr } from '../i18n/index.ts';
 import { pinsOf, useBlockLibrary, useBlockThumbs } from './library.ts';
 import { BlocksPanel, blockSearch } from './blocks-panel.tsx';
 import { InsertDialog, SaveDialog, UpdateDialog, type SaveRequest, type UpdatePlan } from './dialogs.tsx';
@@ -82,14 +83,14 @@ export function useBlocks(h: BlocksHost) {
     h.selectPaths(entries);
     setFresh({ ids: entries.filter((p) => p[0] !== 'groups').map((p) => String(p[1])), text: r.text });
     const suffix = [...r.ids].find(([a, b]) => a !== b);
-    h.notify(`Inserted ${block.title}${into ? ` in ${groupLabel(into)}` : ''}${suffix ? ` (ids end in ${suffix[1].slice(suffix[0].length)}: the others were taken)` : ''}. Drag from a dot to connect it; ⌘Z takes it out`);
+    h.notify(tr('{inserted}{ids}. Drag from a dot to connect it; ⌘Z takes it out', { inserted: into ? tr('Inserted {block} in {group}', { block: block.title, group: groupLabel(into)! }) : tr('Inserted {block}', { block: block.title }), ids: suffix ? tr(' (ids end in {suffix}: the others were taken)', { suffix: suffix[1].slice(suffix[0].length) }) : '' }));
   };
   /** A block chosen: its parameters asked for first, if it has any. */
   const pick = (block: Block, where: Into | null | 'selection' = 'selection', at?: Point) => {
     if (!h.type) return;
     // Dropped on no group is no group, whatever is selected.
     const into = where === 'selection' ? selectionInto() : (where ?? undefined);
-    if (block.type !== h.type.id) return h.notify(`${block.title} is a block for ${block.type} diagrams`, { tone: 'error' });
+    if (block.type !== h.type.id) return h.notify(tr('{block} is a block for {type} diagrams', { block: block.title, type: block.type }), { tone: 'error' });
     if (block.params.length) setAsking({ block, into, at });
     else insert(block, {}, into, at);
   };
@@ -102,12 +103,12 @@ export function useBlocks(h: BlocksHost) {
   const startSave = () => {
     if (!h.type) return;
     const paths = h.selection.map(h.pathOf).filter((p): p is Path => !!p && p.length === 2 && typeof p[1] === 'string');
-    if (!paths.length) return h.notify('Select the shapes and groups to keep as a block first (⇧-click for more)', { tone: 'error' });
+    if (!paths.length) return h.notify(tr('Select the shapes and groups to keep as a block first (⇧-click for more)'), { tone: 'error' });
     let data: Record<string, unknown>;
     try {
       data = parse(h.textNow()) as Record<string, unknown>;
     } catch {
-      return h.notify('Fix the YAML first: it does not parse', { tone: 'error' });
+      return h.notify(tr('Fix the YAML first: it does not parse'), { tone: 'error' });
     }
     const selected = gather(data, h.type, paths);
     // Where they are drawn now, by entry id: kept relative as the block's pins.
@@ -125,9 +126,9 @@ export function useBlocks(h: BlocksHost) {
     setSaving(undefined);
     try {
       await lib.save(r.name, r.text, r.where);
-      h.notify(r.where === 'folder' ? `Saved blocks/${r.name}.block.yaml: it is in the Blocks section of the shapes` : `Saved ${r.name} in your library: it is in the Blocks section of the shapes`);
+      h.notify(r.where === 'folder' ? tr('Saved blocks/{name}.block.yaml: it is in the Blocks section of the shapes', { name: r.name }) : tr('Saved {name} in your library: it is in the Blocks section of the shapes', { name: r.name }));
     } catch (e) {
-      h.notify(`Could not save the block: ${(e as Error).message}`, { tone: 'error' });
+      h.notify(tr('Could not save the block: {error}', { error: (e as Error).message }), { tone: 'error' });
     }
   };
 
@@ -138,7 +139,7 @@ export function useBlocks(h: BlocksHost) {
       const block = lib.byName.get(instance.block)!;
       return { instance, block, before: t, result: updateInstance(t, h.type!, block, instance) };
     });
-    if (!plans.length) return h.notify('Every instance is up to date with its block');
+    if (!plans.length) return h.notify(tr('Every instance is up to date with its block'));
     setUpdating(plans);
   };
   const applyUpdates = (picked: UpdatePlan[]) => {
@@ -155,22 +156,22 @@ export function useBlocks(h: BlocksHost) {
     }
     if (done) {
       h.apply(t);
-      h.notify(`Updated ${done} ${done === 1 ? 'instance' : 'instances'} (⌘Z takes it back)`);
+      h.notify(tr('Updated {count} instance (⌘Z takes it back)|Updated {count} instances (⌘Z takes it back)', { count: done }));
     }
   };
 
   const insertOptions = (into?: Into): Command[] =>
     forType.flatMap((l) =>
       l.block
-        ? [{ id: `block:${l.name}`, group: into ? `Insert a block in ${groupLabel(into)}` : 'Insert a block', label: l.block.title, hint: [l.block.params.map((p) => p.name).join(', '), l.block.tags.join(' ')].filter(Boolean).join(' · '), icon: 'boxes', tags: l.block.tags, run: () => pick(l.block!, into ?? null) }]
+        ? [{ id: `block:${l.name}`, group: into ? tr('Insert a block in {group}', { group: groupLabel(into)! }) : tr('Insert a block'), label: l.block.title, hint: [l.block.params.map((p) => p.name).join(', '), l.block.tags.join(' ')].filter(Boolean).join(' · '), icon: 'boxes', tags: l.block.tags, run: () => pick(l.block!, into ?? null) }]
         : [],
     );
 
   const commands: Command[] = h.type
     ? [
-        { id: 'block-save', group: 'Blocks', label: 'Save the selection as a block…', hint: 'with its groups and the lines between, into blocks/ or your library', icon: 'package', shortcut: keyHint('save-block'), run: startSave },
-        { id: 'block-insert', group: 'Blocks', label: 'Insert a block…', hint: forType.length ? `${forType.length} for this type` : 'none for this type yet', icon: 'boxes', shortcut: keyHint('insert-block'), run: () => setChoosing(true) },
-        ...(behind.length ? [{ id: 'block-update', group: 'Blocks', label: `Update instances of blocks (${behind.length} behind)…`, hint: 'a diff per instance first', icon: 'refresh-cw', run: review }] : []),
+        { id: 'block-save', group: tr('Blocks'), label: tr('Save the selection as a block…'), hint: tr('with its groups and the lines between, into blocks/ or your library'), icon: 'package', shortcut: keyHint('save-block'), run: startSave },
+        { id: 'block-insert', group: tr('Blocks'), label: tr('Insert a block…'), hint: forType.length ? tr('{count} for this type', { count: forType.length }) : tr('none for this type yet'), icon: 'boxes', shortcut: keyHint('insert-block'), run: () => setChoosing(true) },
+        ...(behind.length ? [{ id: 'block-update', group: tr('Blocks'), label: tr('Update instances of blocks ({count} behind)…', { count: behind.length }), hint: tr('a diff per instance first'), icon: 'refresh-cw', run: review }] : []),
         ...insertOptions(),
       ]
     : [];
@@ -178,7 +179,7 @@ export function useBlocks(h: BlocksHost) {
   const menuItems = (close: () => void): ReactNode =>
     h.type && h.selection.some((s) => s.kind !== 'edge') ? (
       <button role="menuitem" onClick={() => (close(), startSave())}>
-        <Icon name="package" /> Save as block…
+        <Icon name="package" /> {tr('Save as block…')}
       </button>
     ) : null;
 
@@ -188,7 +189,7 @@ export function useBlocks(h: BlocksHost) {
     <>
       {choosing && (
         <Palette
-          placeholder={forType.length ? `Insert a block${selectionInto() ? ` in ${groupLabel(selectionInto())}` : ''}…` : 'No blocks for this type yet: select shapes, then ⇧B'}
+          placeholder={forType.length ? (selectionInto() ? tr('Insert a block in {group}…', { group: groupLabel(selectionInto())! }) : tr('Insert a block…')) : tr('No blocks for this type yet: select shapes, then ⇧B')}
           onClose={() => setChoosing(false)}
           commands={insertOptions(selectionInto()).map((c) => ({ ...c, hint: [c.hint, blockSearch(lib.byName.get(c.id.slice(6))!)].filter(Boolean).join(' · ').slice(0, 90) }))}
         />
@@ -197,7 +198,7 @@ export function useBlocks(h: BlocksHost) {
         <InsertDialog
           block={asking.block}
           thumb={thumb(asking.block)}
-          where={asking.into ? `In ${groupLabel(asking.into)}` : asking.at ? 'Where you dropped it' : 'The layout finds it a place'}
+          where={asking.into ? tr('In {group}', { group: groupLabel(asking.into)! }) : asking.at ? tr('Where you dropped it') : tr('The layout finds it a place')}
           onInsert={(v) => insert(asking.block, v, asking.into, asking.at)}
           onClose={() => setAsking(undefined)}
         />
@@ -214,7 +215,7 @@ export function useBlocks(h: BlocksHost) {
     const o = h.drawn?.origin ?? { x: 0, y: 0 };
     return fresh.ids.map((id) => {
       const b = placed.nodes.get(id);
-      return b ? <button key={id} className="connect-handle block-handle" data-handle={id} tabIndex={-1} title="Drag to another element to connect" aria-label={`Connect ${id}`} style={{ left: b.x + b.width + o.x, top: b.y + b.height / 2 + o.y, transform: `translate(-50%, -50%) scale(${1 / scale})` }} /> : null;
+      return b ? <button key={id} className="connect-handle block-handle" data-handle={id} tabIndex={-1} title={tr('Drag to another element to connect')} aria-label={tr('Connect {id}', { id })} style={{ left: b.x + b.width + o.x, top: b.y + b.height / 2 + o.y, transform: `translate(-50%, -50%) scale(${1 / scale})` }} /> : null;
     });
   };
 

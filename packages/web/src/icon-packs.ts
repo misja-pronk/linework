@@ -5,6 +5,7 @@ import { useSyncExternalStore } from 'react';
 import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type Vendor } from '@cartography/icons';
 import { iconKinds, vendorKinds, type IconMode } from '@cartography/engine';
 import { store } from './store.ts';
+import { t } from './i18n/index.ts';
 
 export interface StoredPack extends IconPackFile {
   /** Every icon of the set by its cleaned-up name, for mapping by hand. */
@@ -145,14 +146,14 @@ export async function zipFiles(file: Blob): Promise<DownloadFile[]> {
       eocd = i;
       break;
     }
-  if (eocd < 0) throw new Error('That is not a zip file');
+  if (eocd < 0) throw new Error(t('That is not a zip file'));
   const count = view.getUint16(eocd + 10, true);
   let p = view.getUint32(eocd + 16, true);
-  if (p === 0xffffffff) throw new Error('This zip is too big to read here; unzip it and choose the folder');
+  if (p === 0xffffffff) throw new Error(t('This zip is too big to read here; unzip it and choose the folder'));
   const out: DownloadFile[] = [];
   const decoder = new TextDecoder();
   for (let i = 0; i < count; i++) {
-    if (view.getUint32(p, true) !== 0x02014b50) throw new Error('The zip is damaged');
+    if (view.getUint32(p, true) !== 0x02014b50) throw new Error(t('The zip is damaged'));
     const method = view.getUint16(p + 10, true);
     const size = view.getUint32(p + 20, true);
     const nameLen = view.getUint16(p + 28, true);
@@ -199,12 +200,12 @@ export const listFiles = (files: File[]): DownloadFile[] =>
  * Hand mappings of the set it replaces are kept, found by name in a newer release.
  */
 export async function importDownload(files: DownloadFile[], source: string, vendor?: Vendor): Promise<{ vendor: Vendor; pack: StoredPack; have: number; of: number }> {
-  if (!files.length) throw new Error('No SVG icons in there. Choose the zip you downloaded, or the folder it unzips to.');
+  if (!files.length) throw new Error(t('No SVG icons in there. Choose the zip you downloaded, or the folder it unzips to.'));
   const paths = files.map((f) => f.path);
   const v = vendor ?? detectVendor(paths);
-  if (!v) throw new Error('These do not look like the Azure, AWS, Google Cloud or Kubernetes icons. Use the button of the vendor they are from.');
+  if (!v) throw new Error(t('These do not look like the Azure, AWS, Google Cloud or Kubernetes icons. Use the button of the vendor they are from.'));
   const root = await packsDir(true);
-  if (!root) throw new Error('This browser does not let the page keep files (private window?), so the icons cannot be stored');
+  if (!root) throw new Error(t('This browser does not let the page keep files (private window?), so the icons cannot be stored'));
   set({ busy: { vendor: v, done: 0, of: files.length } });
   try {
     try {
@@ -234,7 +235,7 @@ export async function importDownload(files: DownloadFile[], source: string, vend
     }
     // OPFS cannot rename a folder everywhere yet: the finished copy is moved file by file only where it must be.
     const moved = await moveDir(root, `${v}.importing`, v);
-    if (!moved) throw new Error('Could not store the icons');
+    if (!moved) throw new Error(t('Could not store the icons'));
     const markup = await loadMarkup(v, pack);
     set({ packs: { ...state.packs, [v]: pack }, markup: { ...state.markup, [v]: markup } });
     const c = coverage(pack, vendorKinds(v));

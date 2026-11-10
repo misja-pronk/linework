@@ -12,6 +12,7 @@ import { Icon } from './icon.tsx';
 import { linkTarget } from './links.ts';
 import { useRestoreFocus } from './menu.tsx';
 import type { LayersOptions } from './layers-control.tsx';
+import { t } from './i18n/index.ts';
 
 /** A diagram to present: its text and what it needs to draw like it does in the editor. */
 export interface PresentDoc {
@@ -69,7 +70,7 @@ function autoSteps(text: string, r: RenderResult): string | undefined {
   const groups = top.length === 1 ? drawn.filter((g) => !g.parent || g.parent === top[0]!.id) : top;
   if (r.steps?.length || r.views?.length || groups.length < 2 || groups.length > 9 || /^steps:/m.test(text)) return undefined;
   const q = (v: string) => JSON.stringify(v);
-  return `${text.replace(/\s*$/, '')}\n\nsteps:\n${groups.map((g) => `  - { title: ${q(g.label || g.id)}, focus: ${q(g.id)} }`).join('\n')}\n  - { title: "Everything" }\n`;
+  return `${text.replace(/\s*$/, '')}\n\nsteps:\n${groups.map((g) => `  - { title: ${q(g.label || g.id)}, focus: ${q(g.id)} }`).join('\n')}\n  - { title: ${q(t('Everything'))} }\n`;
 }
 
 interface Frame {
@@ -177,7 +178,7 @@ export function Present(p: PresentProps) {
     let live = true;
     void outline(p.doc).then((d) => {
       if (!live) return;
-      if (!d) return say('Nothing to present yet: fix the problems in the editor first');
+      if (!d) return say(t('Nothing to present yet: fix the problems in the editor first'));
       if (p.focus !== undefined) for (const s of d.slides) if (s.view === p.view) s.focus = p.focus;
       if (p.layers) for (const s of d.slides) if (s.view === p.view && !s.layer) s.layers = p.layers;
       const start = d.slides.findIndex((s) => s.view === p.view && (s.step ?? 1) === (p.step ?? 1));
@@ -196,7 +197,7 @@ export function Present(p: PresentProps) {
     let live = true;
     void draw(deck, at).then((result) => {
       if (!live) return;
-      if (!result.svg) return say('This step cannot be drawn: fix the problems in the editor');
+      if (!result.svg) return say(t('This step cannot be drawn: fix the problems in the editor'));
       const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       setFrames((f) => [...(calm ? [] : f.slice(-1)), { id: ++frameId.current, deck, at, result }]);
       setRing(undefined);
@@ -218,7 +219,7 @@ export function Present(p: PresentProps) {
   // A layer's slide says which layer it is, and what its caption says.
   const shownLayers = top?.deck.slides[top.at]?.layer ? top.result.layers : undefined;
   const layer = shownLayers?.list.find((l) => l.name === shownLayers.active[0]);
-  const title = state?.title ?? (layer ? `${layer.title ?? layer.name} layer` : undefined);
+  const title = state?.title ?? (layer ? t('{name} layer', { name: layer.title ?? layer.name }) : undefined);
   const caption = state?.caption ?? layer?.caption;
   // Room for the words under the drawing wherever the deck has steps, so the drawing keeps its place; a view says its title itself.
   const band = !!top && top.deck.slides.some((s) => s.step || s.layer);
@@ -248,22 +249,22 @@ export function Present(p: PresentProps) {
 
   const follow = (link: Link) => {
     if (!deck) return;
-    const t = linkTarget(link, deck.doc.path);
-    if (t.kind === 'url') return void window.open(t.url, '_blank', 'noopener');
-    if (t.kind === 'none') return say(t.why);
-    if (t.kind === 'view') {
-      const i = deck.slides.findIndex((s) => s.view === t.view);
-      if (i < 0) return say(`There is no view ${t.view} here`);
+    const to = linkTarget(link, deck.doc.path);
+    if (to.kind === 'url') return void window.open(to.url, '_blank', 'noopener');
+    if (to.kind === 'none') return say(to.why);
+    if (to.kind === 'view') {
+      const i = deck.slides.findIndex((s) => s.view === to.view);
+      if (i < 0) return say(t('There is no view {view} here', { view: to.view }));
       setTrail((b) => [...b, { deck, at }]);
       return setAt(i);
     }
-    const next = p.open?.(t.path);
-    if (!next) return say(`${t.path} is not at hand: open its folder to follow this link`);
+    const next = p.open?.(to.path);
+    if (!next) return say(t('{path} is not at hand: open its folder to follow this link', { path: to.path }));
     void outline(next).then((d) => {
-      if (!d) return say(`${t.path} cannot be drawn`);
+      if (!d) return say(t('{path} cannot be drawn', { path: to.path }));
       setTrail((b) => [...b, { deck, at }]);
       setDeck(d);
-      setAt(Math.max(0, t.view ? d.slides.findIndex((s) => s.view === t.view) : 0));
+      setAt(Math.max(0, to.view ? d.slides.findIndex((s) => s.view === to.view) : 0));
     });
   };
   /** L: the deck with a slide per layer after each view's steps, or without them again; the slide on screen stays. */
@@ -273,7 +274,7 @@ export function Present(p: PresentProps) {
     const next = !byLayer;
     void outline(deck.doc, next).then((d) => {
       if (!d) return;
-      if (!d.slides.some((s) => s.layer) && next) return say('This diagram has no layers: (tags and a layers: block, see docs/layers.md)');
+      if (!d.slides.some((s) => s.layer) && next) return say(t('This diagram has no layers: (tags and a layers: block, see docs/layers.md)'));
       for (const s of d.slides) {
         const old = deck.slides.find((o) => o.view === s.view && o.step === s.step && !o.layer);
         if (old && !s.layer) Object.assign(s, { focus: old.focus, layers: old.layers });
@@ -282,7 +283,7 @@ export function Present(p: PresentProps) {
       setDeck(d);
       const i = d.slides.findIndex((s) => s.view === now?.view && s.step === now?.step && !!s.layer === !!now?.layer && (!s.layer || s.layers?.layers?.[0] === now?.layers?.layers?.[0]));
       setAt(Math.max(0, i >= 0 ? i : d.slides.findIndex((s) => s.view === now?.view)));
-      say(next ? 'A slide per layer after each view' : 'Layers left out of the deck');
+      say(next ? t('A slide per layer after each view') : t('Layers left out of the deck'));
     });
   };
   const back = () => {
@@ -313,7 +314,7 @@ export function Present(p: PresentProps) {
       // The rest by the table in keys.ts, which the "?" sheet shows.
       const id = shortcutFor(e, ['present']);
       if (id === 'present-links') {
-        if (!links.length) say('Nothing on this slide leads further');
+        if (!links.length) say(t('Nothing on this slide leads further'));
         else setRing((r) => (r == null ? (e.shiftKey ? links.length - 1 : 0) : (r + (e.shiftKey ? links.length - 1 : 1)) % links.length));
       } else if (id === 'present-back') back();
       else if (id === 'present-next') go(at + 1);
@@ -380,17 +381,17 @@ export function Present(p: PresentProps) {
     else go(at + 1);
   };
 
-  const t = top?.result.theme;
-  const colours = t ? ({ '--present-canvas': t.canvas, '--present-text': t.text, '--present-muted': t.textMuted, '--present-faint': t.textFaint, '--present-line': t.border, '--present-accent': t.accent ?? t.tones.blue.fg } as React.CSSProperties) : undefined;
+  const th = top?.result.theme;
+  const colours = th ? ({ '--present-canvas': th.canvas, '--present-text': th.text, '--present-muted': th.textMuted, '--present-faint': th.textFaint, '--present-line': th.border, '--present-accent': th.accent ?? th.tones.blue.fg } as React.CSSProperties) : undefined;
   const linkCount = linked().length;
   /** Why there is nowhere to go: one slide, and how to make more. */
-  const oneSlide = 'One slide: this drawing has no steps. Add some in the editor (S on a selection, or steps: in the YAML) to tell it in parts';
+  const oneSlide = t('One slide: this drawing has no steps. Add some in the editor (S on a selection, or steps: in the YAML) to tell it in parts');
   /** This slide has the editor's focus: drawn, or set aside with A. */
   const focusable = top?.deck.slides[top.at]?.focus != null;
   const lens = focusable ? top?.result.focus : undefined;
 
   return (
-    <div ref={root} className={`present${idle ? ' idle' : ''}${top && !band ? ' no-band' : ''}`} style={colours} tabIndex={-1} role="dialog" aria-label="Presentation" aria-modal="true" onMouseMove={stir} onClick={onClick}>
+    <div ref={root} className={`present${idle ? ' idle' : ''}${top && !band ? ' no-band' : ''}`} style={colours} tabIndex={-1} role="dialog" aria-label={t('Presentation')} aria-modal="true" onMouseMove={stir} onClick={onClick}>
       <div className="present-stage" ref={stage}>
         {frames.map((f, i) => (
           <div key={f.id} className={`present-frame${i < frames.length - 1 ? ' leaving' : ''}`} aria-hidden={i < frames.length - 1}>
@@ -422,57 +423,57 @@ export function Present(p: PresentProps) {
           <Icon name="focus" size={14} />
           {lens && !whole ? (
             <span>
-              Focused on <strong>{lens.names.join(', ') || lens.on.join(', ')}</strong> · {focusReach(lens)}
+              {t('Focused on')} <strong>{lens.names.join(', ') || lens.on.join(', ')}</strong> · {focusReach(lens)}
             </span>
           ) : (
-            <span>Everything shown</span>
+            <span>{t('Everything shown')}</span>
           )}
-          <button onClick={() => setWhole((w) => !w)} title={whole ? 'Back to the focus set in the editor (A)' : 'Show everything (A)'}>
-            {whole ? 'Focus' : 'All'} <kbd>A</kbd>
+          <button onClick={() => setWhole((w) => !w)} title={whole ? t('Back to the focus set in the editor (A)') : t('Show everything (A)')}>
+            {whole ? t('Focus') : t('All')} <kbd>A</kbd>
           </button>
         </div>
       )}
       <div className="present-tools" onClick={(e) => e.stopPropagation()}>
         {trail.length > 0 && (
-          <button onClick={back} title="Back to where the link was followed (⌫)">
-            <Icon name="arrow-left" size={15} /> Back <kbd>⌫</kbd>
+          <button onClick={back} title={t('Back to where the link was followed (⌫)')}>
+            <Icon name="arrow-left" size={15} /> {t('Back')} <kbd>⌫</kbd>
           </button>
         )}
-        <button onClick={() => go(at - 1)} disabled={at === 0} title={count <= 1 ? oneSlide : at === 0 ? 'This is the first slide' : 'Previous (←)'} aria-label="Previous">
+        <button onClick={() => go(at - 1)} disabled={at === 0} title={count <= 1 ? oneSlide : at === 0 ? t('This is the first slide') : t('Previous (←)')} aria-label={t('Previous')}>
           <kbd>←</kbd>
         </button>
-        <button onClick={() => go(at + 1)} disabled={at >= count - 1} title={count <= 1 ? oneSlide : at >= count - 1 ? 'This is the last slide' : 'Next (→ or Space)'} aria-label="Next">
+        <button onClick={() => go(at + 1)} disabled={at >= count - 1} title={count <= 1 ? oneSlide : at >= count - 1 ? t('This is the last slide') : t('Next (→ or Space)')} aria-label={t('Next')}>
           <kbd>→</kbd>
         </button>
-        <button onClick={close} title="Stop presenting (Esc)">
-          <Icon name="x" size={15} /> Exit <kbd>Esc</kbd>
+        <button onClick={close} title={t('Stop presenting (Esc)')}>
+          <Icon name="x" size={15} /> {t('Exit')} <kbd>Esc</kbd>
         </button>
       </div>
       {top && (count <= 1 || top.deck.auto) && (
         <div className="present-about" onClick={(e) => e.stopPropagation()}>
-          {count <= 1 ? 'One slide: add steps in the editor (S on a selection) to tell this drawing in parts' : 'Told group by group: write steps: (S in the editor) to tell it your way'}
+          {count <= 1 ? t('One slide: add steps in the editor (S on a selection) to tell this drawing in parts') : t('Told group by group: write steps: (S in the editor) to tell it your way')}
         </div>
       )}
       <div className="present-help" aria-hidden="true">
-        <kbd>→</kbd> <kbd>Space</kbd> next · <kbd>←</kbd> back · number + <kbd>↵</kbd> jump · <kbd>L</kbd> {byLayer ? 'no layer slides' : 'through the layers'} · <kbd>B</kbd> blank
+        <kbd>→</kbd> <kbd>Space</kbd> {t('next@hint')} · <kbd>←</kbd> {t('back@hint')} · {t('number@hint')} + <kbd>↵</kbd> {t('jump@hint')} · <kbd>L</kbd> {byLayer ? t('no layer slides') : t('through the layers')} · <kbd>B</kbd> {t('blank@hint')}
         {focusable && (
           <>
             {' · '}
-            <kbd>A</kbd> {whole ? 'focus' : 'everything'}
+            <kbd>A</kbd> {whole ? t('focus@hint') : t('everything@hint')}
           </>
         )}
         {linkCount > 0 && (
           <>
             {' · '}
-            <kbd>Tab</kbd> <kbd>↵</kbd> or ⌘-click opens a link
+            <kbd>Tab</kbd> <kbd>↵</kbd> {t('or ⌘-click opens a link')}
           </>
         )}
         {' · '}
-        <kbd>Esc</kbd> exit
+        <kbd>Esc</kbd> {t('exit@hint')}
       </div>
       {typed && (
         <div className="present-note" role="status">
-          Go to {typed} <kbd>↵</kbd>
+          {t('Go to {n}', { n: typed })} <kbd>↵</kbd>
         </div>
       )}
       {flash && !typed && (
@@ -482,7 +483,7 @@ export function Present(p: PresentProps) {
       )}
       {blank && <div className="present-blank" />}
       <div className="sr-only" role="status" aria-live="polite">
-        {top ? `${count > 1 ? `${top.at + 1} of ${count}. ` : ''}${[title, caption].filter(Boolean).join('. ')}` : ''}
+        {top ? `${count > 1 ? `${t('{n} of {count}', { n: top.at + 1, count })}. ` : ''}${[title, caption].filter(Boolean).join('. ')}` : ''}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Block, Listed } from '@cartography/blocks';
 import { Icon } from '../icon.tsx';
 import { score } from '../palette.tsx';
+import { say, t } from '../i18n/index.ts';
 
 export const BLOCK_MIME = 'application/x-cartography-block';
 const OPEN_KEY = 'cartography:blocks-open';
@@ -50,38 +51,38 @@ export function BlocksPanel(p: {
   }, [mine, query]);
 
   return (
-    <section className={open ? 'blocks-panel open' : 'blocks-panel'} aria-label="Blocks">
+    <section className={open ? 'blocks-panel open' : 'blocks-panel'} aria-label={t('Blocks')}>
       <header>
         <button className="blocks-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
-          <Icon name="chevron-down" size={14} /> Blocks <span className="blocks-count">{mine.length}</span>
+          <Icon name="chevron-down" size={14} /> {t('Blocks')} <span className="blocks-count">{mine.length}</span>
         </button>
-        <kbd title="Insert a block from the keyboard">{p.hint}</kbd>
+        <kbd title={t('Insert a block from the keyboard')}>{p.hint}</kbd>
       </header>
       {open && (
         <>
           {p.outdated > 0 && (
             <button className="blocks-outdated" onClick={p.onReview}>
-              <Icon name="refresh-cw" size={13} /> {p.outdated === 1 ? '1 instance is' : `${p.outdated} instances are`} older than its block · Review…
+              <Icon name="refresh-cw" size={13} /> {t('{count} instance is older than its block · Review…|{count} instances are older than its block · Review…', { count: p.outdated })}
             </button>
           )}
           {mine.length > 3 && (
             <div className="palette-input blocks-search">
               <Icon name="search" />
               <input
-                placeholder="Search blocks…"
+                placeholder={t('Search blocks…')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && shown[0]?.block) (e.preventDefault(), p.onPick(shown[0].block));
                   else if (e.key === 'Escape') setQuery('');
                 }}
-                aria-label="Search blocks"
+                aria-label={t('Search blocks')}
               />
             </div>
           )}
           <div className="blocks-list" role="list">
-            {!mine.length && <p className="blocks-empty">No blocks for this type yet. Select shapes and choose Save as block… to make one.</p>}
-            {mine.length > 0 && !shown.length && <p className="blocks-empty">Nothing matches “{query}”</p>}
+            {!mine.length && <p className="blocks-empty">{t('No blocks for this type yet. Select shapes and choose Save as block… to make one.')}</p>}
+            {mine.length > 0 && !shown.length && <p className="blocks-empty">{t('Nothing matches “{query}”', { query })}</p>}
             {shown.map((l) => {
               const b = l.block!;
               const svg = p.thumb(b);
@@ -98,12 +99,12 @@ export function BlocksPanel(p: {
                     e.dataTransfer.effectAllowed = 'copy';
                   }}
                   onClick={() => p.onPick(b)}
-                  title={`${b.description ?? b.title}\n\nClick or ↵ to insert (into the selected group), or drag onto the drawing`}
+                  title={`${b.description ?? b.title}\n\n${t('Click or ↵ to insert (into the selected group), or drag onto the drawing')}`}
                 >
                   <span className="block-thumb" aria-hidden="true" dangerouslySetInnerHTML={svg ? { __html: svg } : undefined} />
                   <span className="block-title">{b.title}</span>
                   <span className="block-meta">
-                    <span className={`block-source ${l.source}`}>{SOURCE[l.source]}</span>
+                    <span className={`block-source ${l.source}`}>{say(SOURCE[l.source])}</span>
                     {b.params.length > 0 && <span>{b.params.map((x) => x.name).join(', ')}</span>}
                     {errors.length > 0 && (
                       <span className="block-problem" title={errors.map((x) => x.message).join('\n')}>

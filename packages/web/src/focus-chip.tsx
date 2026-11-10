@@ -1,6 +1,7 @@
 // "Focused on Orders": what the drawing is cut down to, how far it reaches, and the way back to the whole.
 import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
+import { t, say } from './i18n/index.ts';
 
 export type Focus = NonNullable<RenderResult['focus']>;
 
@@ -32,35 +33,35 @@ export function FocusChip({ focus, off, onHops, onDirection, onLeave }: FocusChi
     return (
       <div className="focus-chip" role="status" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <Icon name="focus" size={14} />
-        <span>Everything shown</span>
-        <button className="tool" onClick={onLeave} title="Back to the focus written in the YAML (Esc)">
-          Back to the focus <kbd>Esc</kbd>
+        <span>{t('Everything shown')}</span>
+        <button className="tool" onClick={onLeave} title={t('Back to the focus written in the YAML (Esc)')}>
+          {t('Back to the focus')} <kbd>Esc</kbd>
         </button>
       </div>
     );
-  const hops = focus.hops === Infinity ? 'All hops' : `${focus.hops} ${focus.hops === 1 ? 'hop' : 'hops'}`;
+  const hops = focus.hops === Infinity ? t('All hops') : t('{count} hop|{count} hops', { count: focus.hops });
   return (
     <div className="focus-chip" role="status" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
       <Icon name="focus" size={14} />
-      <span className="focus-chip-name" title={`${focus.kept} of ${focus.total} elements are drawn${focus.written ? '; this focus is written in the YAML' : ''}`}>
-        Focused on <strong>{focus.names.join(', ') || focus.on.join(', ')}</strong>
+      <span className="focus-chip-name" title={focus.written ? t('{kept} of {total} elements are drawn; this focus is written in the YAML', { kept: focus.kept, total: focus.total }) : t('{kept} of {total} elements are drawn', { kept: focus.kept, total: focus.total })}>
+        {t('Focused on')} <strong>{focus.names.join(', ') || focus.on.join(', ')}</strong>
       </span>
       <span className="focus-chip-count">
-        {focus.kept} of {focus.total}
+        {t('{kept} of {total}', { kept: focus.kept, total: focus.total })}
       </span>
-      <button className="tool" onClick={() => onHops(-1)} disabled={focus.hops === 0} title="One hop fewer (−)" aria-label="One hop fewer">
+      <button className="tool" onClick={() => onHops(-1)} disabled={focus.hops === 0} title={t('One hop fewer (−)')} aria-label={t('One hop fewer')}>
         <Icon name="minus" size={14} />
       </button>
       <span className="focus-chip-hops" aria-live="polite">
         {hops}
       </span>
-      <button className="tool" onClick={() => onHops(1)} disabled={focus.hops === Infinity} title="One hop more (+)" aria-label="One hop more">
+      <button className="tool" onClick={() => onHops(1)} disabled={focus.hops === Infinity} title={t('One hop more (+)')} aria-label={t('One hop more')}>
         <Icon name="plus" size={14} />
       </button>
-      <button className="tool" onClick={onDirection} title="Both ways, upstream (what feeds it) or downstream (what it feeds): D">
-        <Icon name="arrow-left-right" size={14} /> {WAYS[focus.direction]} <kbd>D</kbd>
+      <button className="tool" onClick={onDirection} title={t('Both ways, upstream (what feeds it) or downstream (what it feeds): D')}>
+        <Icon name="arrow-left-right" size={14} /> {say(WAYS[focus.direction])} <kbd>D</kbd>
       </button>
-      <button className="tool" onClick={onLeave} title={focus.written ? 'Show everything (Esc)' : 'Leave the focus (Esc)'} aria-label={focus.written ? 'Show everything' : 'Leave the focus'}>
+      <button className="tool" onClick={onLeave} title={focus.written ? t('Show everything (Esc)') : t('Leave the focus (Esc)')} aria-label={focus.written ? t('Show everything') : t('Leave the focus')}>
         <Icon name="x" size={14} /> <kbd>Esc</kbd>
       </button>
     </div>
