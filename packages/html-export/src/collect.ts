@@ -160,18 +160,21 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     const told = said.elements.find((e) => e.id === id);
     const entry = ix.files.get(file)?.entries.find((e) => e.id === id);
     const raw = def ? rawAt(def.file, def.path) : entry ? rawAt(file, entry.path) : undefined;
+    const own = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+    const text = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
     const tags = def?.tags.length ? def.tags : node?.tags;
+    const technology = def?.technology ?? text(own.technology);
+    const owner = def?.owner ?? text(own.owner);
     const el: PElement = {
       id: def?.id ?? id,
       label: def?.label ?? told?.label ?? group?.label ?? id,
       ...((def?.kind ?? node?.kind ?? entry?.kind) ? { kind: def?.kind ?? node?.kind ?? entry?.kind } : {}),
       ...((def?.description ?? told?.description) ? { description: def?.description ?? told?.description } : {}),
-      ...(def?.technology ? { technology: def.technology } : {}),
-      ...(def?.owner ? { owner: def.owner } : {}),
+      ...(technology ? { technology } : {}),
+      ...(owner ? { owner } : {}),
       ...(tags?.length ? { tags } : {}),
       where: [],
     };
-    if (!el.technology && !def && told?.detail) el.technology = told.detail;
     const props = propsOf(raw);
     if (props.length) el.props = props;
     at = elements.push(el) - 1;
@@ -276,6 +279,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
             continue;
           }
           const t = linkTarget(l);
+          // A link that is not safe to follow is not a link at all.
+          if (t.kind === 'none') continue;
           const href = t.kind === 'url' && t.external ? t.href : undefined;
           const label = linkText(l);
           el.links ??= [];

@@ -596,6 +596,9 @@ importers:
       '@cartography/export':
         specifier: workspace:*
         version: link:../export
+      '@cartography/html-export':
+        specifier: workspace:*
+        version: link:../html-export
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons

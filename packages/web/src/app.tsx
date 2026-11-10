@@ -727,6 +727,11 @@ export function App() {
   const pageName = (result?.page ?? drawn?.page)?.name ?? '16:9 slide';
   const savePageSvg = attempt('Export', async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
+  const saveHtml = (folder?: boolean) =>
+    attempt('Export', async () => {
+      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, folder });
+      download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
+    })();
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await svgNow());
     notify('SVG copied');
@@ -1556,6 +1561,8 @@ export function App() {
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
+    ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
     { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
@@ -1841,6 +1848,9 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={savePdf}>
                   <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
+                </button>
+                <button role="menuitem" onClick={() => saveHtml()}>
+                  <Icon name="globe" /> Interactive HTML (.html)
                 </button>
                 <hr />
                 <button role="menuitem" onClick={copyPng}>

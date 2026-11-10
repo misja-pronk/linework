@@ -334,6 +334,8 @@ function parseHash(): { d?: number; step: number; shape?: string; home: boolean 
 
 function route() {
   const r = parseHash();
+  // Already there (go() shows it at once; the hashchange that follows has nothing to do).
+  if (r.d !== undefined && here && r.d === here.d && r.step === here.step && (!r.shape || r.shape === selected) && !els.stage.hidden) return;
   if (r.d === undefined) {
     if (data.site || !data.drawings.length) return showHome();
     return show(0, 0);
@@ -341,10 +343,11 @@ function route() {
   show(r.d, r.step, r.shape);
 }
 
+/** Goes there now: keys pressed quickly one after another each move on from where the last one went. */
 const go = (d: number, step = 0, shape?: string) => {
   const next = hrefOf(d, step, shape);
-  if (location.hash === next) route();
-  else location.hash = next;
+  if (location.hash !== next) location.hash = next;
+  route();
 };
 
 function showHome() {
@@ -621,6 +624,16 @@ function centerOn(shape: string) {
   if (!inside) panBy(stage.left + r.w / 2 - (b.left + b.width / 2), stage.top + r.h / 2 - (b.top + b.height / 2));
 }
 
+/** Pans only when the shape is out of sight (behind the panel that just opened). */
+function keepInSight(shape: string) {
+  const el = shapeEl(shape);
+  if (!el) return;
+  const b = el.getBoundingClientRect();
+  const s = els.stage.getBoundingClientRect();
+  const dx = b.right > s.right - 16 ? s.right - 16 - b.right : b.left < s.left + 16 ? s.left + 16 - b.left : 0;
+  if (dx) panBy(dx, 0);
+}
+
 function gestures() {
   const stage = els.stage;
   const local = (e: { clientX: number; clientY: number }) => {
@@ -704,7 +717,8 @@ function gestures() {
   stage.addEventListener('pointercancel', end);
   stage.addEventListener('dblclick', (e) => {
     if (presenting) return;
-    const shape = shapeAt(e.target);
+    // The pointer was captured by the stage: the shape is the one the last tap was on.
+    const shape = shapeAt(e.target) ?? lastTap;
     const to = shape && here ? data.drawings[here.d]!.drill[shape] : undefined;
     if (to !== undefined) return go(to);
     const [x, y] = local(e);
@@ -722,6 +736,7 @@ function shapeAt(target: EventTarget | null): string | undefined {
   return el ? shapeKey(el) : undefined;
 }
 
+let lastTap: string | undefined;
 function tap(e: PointerEvent, target: EventTarget | null) {
   if (presenting) {
     // A click moves on, as in slides; on the left third it goes back.
@@ -729,6 +744,7 @@ function tap(e: PointerEvent, target: EventTarget | null) {
     return move(e.clientX - r.left < r.width / 3 ? -1 : 1);
   }
   const shape = shapeAt(target);
+  lastTap = shape;
   if (shape) select(shape);
   else if (selected) clearSelection();
 }
@@ -771,7 +787,11 @@ function select(shape: string, quiet = false) {
   if (ei === undefined) return;
   selected = shape;
   ring(shape);
+  // The panel takes room from the stage: the drawing stays where it is under the pointer.
+  fitted = false;
+  const wasOpen = els.panel.classList.contains('open');
   details(data.elements[ei]!, drawing, shape);
+  if (!wasOpen && !quiet) setTimeout(() => keepInSight(shape), 200);
   if (!quiet) els.live.textContent = data.elements[ei]!.label;
 }
 
