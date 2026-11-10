@@ -79,7 +79,7 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
 
   // Edges to a group attach to one of its nodes and are clipped at the cluster (lhead/ltail).
   const groupIds = new Set(graph.groups.map((g) => g.id));
-  const back = feedback(graph);
+  const back = feedback(graph, kids);
   // What hangs on weak lines alone (a laptop on its wireless link): there the weak line is the one
   // that says where it belongs, and it pulls like any other.
   const held = new Set(graph.edges.filter((e) => e.line !== 'dotted').flatMap((e) => [e.from.node, e.to.node]));
@@ -148,7 +148,7 @@ interface DotJson {
 function sameRankGroups(graph: Graph): Map<string, string[]> {
   const ids = new Set(graph.nodes.map((n) => n.id));
   const groupIds = new Set(graph.groups.map((g) => g.id));
-  const back = feedback(graph);
+  const back = feedback(graph, childrenOf(graph));
   const next = new Map<string, string[]>();
   for (const e of graph.edges)
     if (ids.has(e.from.node) && ids.has(e.to.node) && e.from.node !== e.to.node && !back.has(e.id)) next.set(e.from.node, [...(next.get(e.from.node) ?? []), e.to.node]);
@@ -180,13 +180,17 @@ function sameRankGroups(graph: Graph): Map<string, string[]> {
 /**
  * Lines that close a cycle (feedback, such as scores flowing back to the CRM), found depth first in
  * the order of the source. dot would pick its own line to turn around, and which one depends on the
- * order it is handed the nodes; deciding here keeps every variant's flow the same.
+ * order it is handed the nodes; deciding here keeps every variant's flow the same. A line that ends
+ * on a group counts at the node that stands in for the group.
  */
-function feedback(graph: Graph): Set<string> {
+function feedback(graph: Graph, kids: Map<string, string>): Set<string> {
   const ids = new Set(graph.nodes.map((n) => n.id));
   const out = new Map<string, { id: string; to: string }[]>();
-  for (const e of graph.edges)
-    if (ids.has(e.from.node) && ids.has(e.to.node) && e.from.node !== e.to.node) out.set(e.from.node, [...(out.get(e.from.node) ?? []), { id: e.id, to: e.to.node }]);
+  for (const e of graph.edges) {
+    const from = kids.get(e.from.node) ?? e.from.node;
+    const to = kids.get(e.to.node) ?? e.to.node;
+    if (ids.has(from) && ids.has(to) && from !== to) out.set(from, [...(out.get(from) ?? []), { id: e.id, to }]);
+  }
   const back = new Set<string>();
   const state = new Map<string, 1 | 2>();
   const visit = (n: string) => {

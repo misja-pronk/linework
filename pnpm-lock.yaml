@@ -242,6 +242,9 @@ importers:
       '@cartography/sequence':
         specifier: workspace:*
         version: link:../../types/sequence
+      '@cartography/states':
+        specifier: workspace:*
+        version: link:../../types/states
       '@cartography/systems':
         specifier: workspace:*
         version: link:../../types/systems

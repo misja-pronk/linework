@@ -42,9 +42,10 @@ import { gitflow } from '@cartography/gitflow';
 import { roadmap } from '@cartography/roadmap';
 import { journey } from '@cartography/journey';
 import { process } from '@cartography/process';
+import { states } from '@cartography/states';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);

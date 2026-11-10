@@ -177,7 +177,7 @@ const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2
 function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
   const out = new Map<string, [Side, Side]>();
   const options = new Map<string, [Side, Side][]>();
-  for (const e of input.edges) options.set(e.id, candidates(e));
+  for (const e of input.edges) options.set(e.id, candidates(e, input.direction));
 
   // A grid with the stub ends of every candidate side, at the side's centre.
   const probe = new Map<string, Ports>();
@@ -212,10 +212,11 @@ function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
   return out;
 }
 
-function candidates(e: RouteRequest): [Side, Side][] {
+function candidates(e: RouteRequest, direction: 'right' | 'down'): [Side, Side][] {
   const a = e.from.box;
   const b = e.to.box;
-  if (e.from.node === e.to.node) return [['E', 'E']];
+  // A line back to its own node loops off the side the flow does not use (rows attach left or right only).
+  if (e.from.node === e.to.node) return direction === 'right' && e.from.rowY == null && e.to.rowY == null ? [['N', 'N']] : [['E', 'E']];
   const ca = centre(a);
   const cb = centre(b);
   if (e.from.rowY != null || e.to.rowY != null) {
@@ -744,6 +745,10 @@ class Heap {
 // ---------------------------------------------------------------- helpers
 
 function selfLoop(p: Ports): Point[] {
+  if (p.fromSide === 'N') {
+    const y = Math.min(p.start.y, p.goal.y);
+    return [p.from, { x: p.from.x, y }, { x: p.to.x, y }, p.to];
+  }
   const x = Math.max(p.start.x, p.goal.x) + 14;
   return [p.from, { x, y: p.from.y }, { x, y: p.to.y }, p.to];
 }
