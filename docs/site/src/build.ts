@@ -8,7 +8,7 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { bundledFont } from '@cartography/theme';
 import { pageCss } from '@cartography/docs-plugins';
-import { benchmarkCharts, benchmarkTeaser } from './bench-page.ts';
+import { benchmarkCharts, benchmarkDrawings, benchmarkTeaser } from './bench-page.ts';
 import { buildGallery, galleryIndex, typePage, type TypeEntry } from './gallery.ts';
 import { home } from './home.ts';
 import { page, rel, type NavSection, type Page } from './layout.ts';
@@ -180,7 +180,16 @@ const results = path.join(docs, 'benchmark/results.json');
 for (const [f, r] of rendered) {
   const p = sitePath(f);
   let body = r.html;
-  if (f === 'benchmark.md' && fs.existsSync(results)) body = body.replace(/<!-- charts -->|<p><!-- charts --><\/p>/, benchmarkCharts(JSON.parse(fs.readFileSync(results, 'utf8'))));
+  if (f === 'benchmark.md' && fs.existsSync(results)) {
+    const data = JSON.parse(fs.readFileSync(results, 'utf8'));
+    body = body.replace('<!-- charts -->', benchmarkCharts(data)).replace(
+      '<!-- drawings -->',
+      benchmarkDrawings(data, (file) => {
+        copy(path.join(docs, file), file);
+        return rel(p, file);
+      }),
+    );
+  }
   const lead = /<p>([^]*?)<\/p>/.exec(r.html)?.[1]?.replace(/<[^>]+>/g, '').slice(0, 200);
   pages.push({ path: p, title: r.title, description: lead, body: `<article class="prose">${body}</article>`, headings: r.headings, wide: f === 'benchmark.md' || f === 'comparison/README.md' });
   for (const s of r.sections) search.push({ p: r.title, h: s.heading || r.title, u: s.id ? `${p}#${s.id}` : p, x: s.text.replace(/\s+/g, ' ').slice(0, 1200) });

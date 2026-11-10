@@ -1,0 +1,42 @@
+title: Cloud platform {near: top-center; shape: text; style.font-size: 24}
+direction: down
+
+user: User {shape: person}
+ops: Operator {shape: person}
+cdn: CDN
+
+cloud: Cloud account {
+  vpc: VPC {
+    public: Public subnet {
+      lb: Load balancer
+      bastion: Bastion host
+    }
+    private: Private subnet {
+      web: Web app
+      api: API
+      jobs: Job runner
+      mq: Job queue {shape: queue}
+    }
+    datasubnet: Data subnet {
+      pg: Postgres {shape: cylinder}
+      redis: Redis {shape: cylinder}
+    }
+  }
+  s3: Object storage {shape: cylinder}
+  secrets: Secrets manager
+}
+
+user -> cdn
+ops -> cloud.vpc.public.bastion
+cdn -> cloud.vpc.public.lb
+cloud.vpc.public.lb -> cloud.vpc.private.web
+cloud.vpc.private.web -> cloud.vpc.private.api
+cloud.vpc.private.api -> cloud.vpc.datasubnet.pg
+cloud.vpc.private.api -> cloud.vpc.datasubnet.redis
+cloud.vpc.private.api -> cloud.vpc.private.mq
+cloud.vpc.private.mq -> cloud.vpc.private.jobs
+cloud.vpc.private.jobs -> cloud.vpc.datasubnet.pg
+cloud.vpc.private.jobs -> cloud.s3
+cloud.vpc.private.api -> cloud.secrets
+cloud.vpc.private.jobs -> cloud.secrets
+cloud.vpc.public.bastion -> cloud.vpc.datasubnet.pg

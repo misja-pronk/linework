@@ -1,0 +1,20 @@
+---
+title: Delivery pipeline
+---
+flowchart LR
+    push([Push]) --> lint[Lint]
+    push --> unit[Unit tests]
+    push --> build[Build image]
+    build --> scan[Image scan]
+    lint --> gate{All green?}
+    unit --> gate
+    scan --> gate
+    gate -->|yes| staging[Deploy to staging]
+    gate -->|no| fix[Fix and push again]
+    fix --> push
+    staging --> e2e[End-to-end tests]
+    e2e --> approve{Approved?}
+    approve -->|yes| prod[Deploy to production]
+    approve -->|no| fix
+    prod --> smoke[Smoke tests]
+    smoke -->|fails| rollback[Roll back]
