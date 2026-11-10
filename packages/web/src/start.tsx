@@ -1,6 +1,7 @@
 // Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
-// (describe it to AI, build it visually, or write YAML), and for AI answer a few questions. The answers become a prompt that
-// Claude runs here with your own key, or that you copy into any chat and paste the answer back.
+// (describe it to AI, build it visually, write YAML, or for some types a wizard), and for AI answer a few questions. The answers
+// become a prompt that Claude runs here with your own key, or that you copy into any chat and paste the answer back. A wizard
+// (wizard.tsx) needs no AI: its answers make the YAML directly.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType, type LayoutSidecar } from '@cartography/core';
