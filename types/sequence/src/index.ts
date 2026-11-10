@@ -95,11 +95,19 @@ function stepKind(item: unknown): 'message' | 'note' | 'divider' | 'ref' | 'acti
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v == null ? [] : [String(v)]);
 
+/** The kind a participant's name points to: a kind's id, name or keyword as a whole word ("Orders API", "user-db"). */
+function kindFromName(name: string): KindTable[string] | undefined {
+  const words = ` ${name.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
+  const has = (w: string) => words.includes(` ${w.toLowerCase()} `);
+  return Object.entries(kinds).find(([id, k]) => has(id) || has(k.label) || k.keywords?.some(has))?.[1];
+}
+
 function participantsOf(src: SequenceSource): SequenceParticipant[] {
   const out: SequenceParticipant[] = [];
   for (const [id, raw] of Object.entries(src.participants ?? {})) {
     const e: ParticipantEntry = typeof raw === 'string' ? { kind: raw } : (raw ?? {});
-    const kind = kinds[e.kind ?? 'service'];
+    // Without a kind, the name may say it (Orders API, Payments DB); otherwise a plain card, never a guessed service cube.
+    const kind = e.kind ? kinds[e.kind] : kindFromName(`${id} ${e.label ?? ''}`);
     const label = e.label ?? (e.kind ? kind?.label : undefined) ?? id;
     // The kind as caption, unless the label says it already or the kind is plain (a person).
     const said = !e.kind || !e.label || kind?.quiet || label.toLowerCase().endsWith(kind?.label.toLowerCase() ?? '\0');
