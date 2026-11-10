@@ -201,6 +201,94 @@ export function boxOverlaps(graph: Graph, placed: Pick<Placed, 'nodes' | 'groups
   return out;
 }
 
+/** A label nearer than this to another line seems to belong to it. */
+const LABEL_AIR = 4;
+
+/**
+ * Labels that read wrong: `far` sit clear of their own line (more than a few pixels from every piece
+ * of it), `touching` have another line running through them or right along them.
+ */
+export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { labelFar: number; labelTouching: number } {
+  const grow = (b: Box, by: number): Box => ({ x: b.x - by, y: b.y - by, width: b.width + 2 * by, height: b.height + 2 * by });
+  const hits = (b: Box, [p, q]: Seg) =>
+    Math.max(p.x, q.x) >= b.x && Math.min(p.x, q.x) <= b.x + b.width && Math.max(p.y, q.y) >= b.y && Math.min(p.y, q.y) <= b.y + b.height;
+  const segsOf = (id: string) => {
+    const pts = placed.edges.get(id)?.points ?? [];
+    return pts.slice(1).map((p, i) => [pts[i]!, p] as Seg);
+  };
+  let labelFar = 0;
+  let labelTouching = 0;
+  for (const e of graph.edges) {
+    const box = placed.edges.get(e.id)?.label;
+    if (!box) continue;
+    if (!segsOf(e.id).some((s) => hits(grow(box, LABEL_AIR), s))) labelFar++;
+    const near = grow(box, LABEL_AIR - 1);
+    // Lines that share this line's ends run into the same card beside it: only lines that pass count.
+    if (graph.edges.some((o) => o.id !== e.id && segsOf(o.id).some((s) => hits(near, s) && !endsAt(s, placed.edges.get(e.id)!.points)))) labelTouching++;
+  }
+  return { labelFar, labelTouching };
+}
+
+/** A piece that starts or ends where the line does (a sibling leaving the same port). */
+function endsAt([p, q]: Seg, pts: Point[]): boolean {
+  const same = (a: Point, b: Point) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+  const ends = [pts[0]!, pts[pts.length - 1]!];
+  return ends.some((x) => same(x, p) || same(x, q));
+}
+
+/** Ends that say how many (an ERD's crow's feet). */
+const COUNTED = new Set(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
+
+/**
+ * A line that may share a trunk: nothing on it says which line it is (no label, step number, end
+ * tags or threat marks), and no crow's feet, except between table rows: the lines into one key
+ * row all end in the same mark there and may come in as one.
+ */
+export function plainLine(e: GraphEdge): boolean {
+  if (e.label || e.step != null || e.marks?.length || e.ends?.from?.length || e.ends?.to?.length) return false;
+  return (!!e.from.row && !!e.to.row) || (!COUNTED.has(e.start) && !COUNTED.has(e.end));
+}
+
+/** Two lines nearer than this end to end on one track read as one line. */
+const MEET = 8;
+
+/**
+ * Pairs of lines that run on one track (on top of each other, or end to end) and may not: they are
+ * not one trunk, so the ink they share draws a link between their far ends that the source does not
+ * have, or puts a label or end tag where it could belong to either. Each as "a+b".
+ */
+export function falseJoins(graph: Graph, placed: Pick<Placed, 'edges'>): string[] {
+  const segsOf = (id: string) => {
+    const pts = placed.edges.get(id)?.points ?? [];
+    return pts.slice(1).map((p, i) => [pts[i]!, p] as Seg);
+  };
+  // One trunk: lines drawn alike from one start or into one end. Lines that leave one row (a data
+  // product's output port) start as one whatever they look like: the row is what they share.
+  const port = (a: GraphEdge, b: GraphEdge) => !!a.from.row && a.from.node === b.from.node && a.from.row === b.from.row;
+  const alike = (a: GraphEdge, b: GraphEdge) => a.line === b.line && a.tone === b.tone && a.start === b.start && a.end === b.end;
+  const may = (a: GraphEdge, b: GraphEdge) =>
+    plainLine(a) && plainLine(b) && (port(a, b) || (alike(a, b) && ((a.from.node === b.from.node && a.from.row === b.from.row) || (a.to.node === b.to.node && a.to.row === b.to.row))));
+  const track = ([p, q]: Seg, [r, t]: Seg) => {
+    const flat = (s: Point, u: Point) => (s.y === u.y ? 'h' : s.x === u.x ? 'v' : '');
+    const k = flat(p, q);
+    if (!k || k !== flat(r, t)) return false;
+    const [at, along] = k === 'h' ? (['y', 'x'] as const) : (['x', 'y'] as const);
+    if (Math.abs(p[at] - r[at]) > 0.5) return false;
+    const gap = Math.max(Math.min(p[along], q[along]), Math.min(r[along], t[along])) - Math.min(Math.max(p[along], q[along]), Math.max(r[along], t[along]));
+    return gap < MEET;
+  };
+  const out: string[] = [];
+  const edges = graph.edges.filter((e) => placed.edges.has(e.id));
+  for (const [i, a] of edges.entries())
+    for (const b of edges.slice(i + 1)) {
+      if (may(a, b)) continue;
+      const sa = segsOf(a.id);
+      const sb = segsOf(b.id);
+      if (sa.some((x) => sb.some((y) => track(x, y)))) out.push(`${a.id}+${b.id}`);
+    }
+  return out;
+}
+
 /** Lines that may share ink: same start or same end, drawn alike (a trunk that branches). */
 function siblings(a: GraphEdge, b: GraphEdge): boolean {
   return (a.from.node === b.from.node || a.to.node === b.to.node) && a.line === b.line && a.tone === b.tone;
