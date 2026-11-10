@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*" },
+  "dependencies": { "@cartography/core": "workspace:*", "@cartography/i18n": "workspace:*" },
   "devDependencies": {
     "@cartography/engine": "workspace:*",
     "@cartography/icons": "workspace:*",

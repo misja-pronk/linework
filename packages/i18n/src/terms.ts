@@ -284,6 +284,7 @@ export const terms: Record<string, string> = {
   Actions: 'Acties',
   Goal: 'Doel',
   Future: 'Toekomst',
+  Today: 'Vandaag',
   'Low point': 'Dieptepunt',
   'High point': 'Hoogtepunt',
   Frontstage: 'Frontstage',

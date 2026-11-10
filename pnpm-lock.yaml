@@ -934,6 +934,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@cartography/i18n':
+        specifier: workspace:*
+        version: link:../../packages/i18n
     devDependencies:
       '@cartography/engine':
         specifier: workspace:*
