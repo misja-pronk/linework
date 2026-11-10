@@ -55,7 +55,16 @@
   margin: 0 2px;
 }
 
-/* Breadcrumbs, first in the row above the drawing. */
+/* Breadcrumbs, a row of their own above the drawing's tools. */
+.canvas-top > .crumbs-row {
+  flex-basis: 100%;
+  display: flex;
+  min-width: 0;
+  pointer-events: none;
+}
+.crumbs-row > .crumbs {
+  pointer-events: auto;
+}
 .crumbs {
   display: flex;
   align-items: center;

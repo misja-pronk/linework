@@ -33,6 +33,8 @@ export function upFrom(index: WorkspaceIndex, scope: string, here: Place): Place
 
 export function Crumbs({ crumbs, back, forward, onGo }: { crumbs: Crumb[]; back?: () => void; forward?: () => void; onGo(p: Place): void }) {
   return (
+    // A row of its own, so the tools and the focus chip keep theirs below it.
+    <div className="crumbs-row">
     <nav className="crumbs" aria-label="Where this drawing is" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
       <button className="tool" onClick={back} disabled={!back} title="Back (⌘[)" aria-label="Back">
         <Icon name="arrow-left" />
@@ -58,5 +60,6 @@ export function Crumbs({ crumbs, back, forward, onGo }: { crumbs: Crumb[]; back?
         ))}
       </ol>
     </nav>
+    </div>
   );
 }
