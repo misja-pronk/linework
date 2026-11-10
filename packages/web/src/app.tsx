@@ -2256,7 +2256,6 @@ export function App() {
                   <Icon name="layers" /> <span className="tool-label">Step</span> <kbd>S</kbd>
                 </button>
               )}
-              <span className="tool-more">{comparing.button}</span>
               <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" aria-label="Present" disabled={!drawn?.svg}>
                 <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
               </button>
@@ -2267,23 +2266,23 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* A narrow drawing: the tools that fold away are here, in the same order. */}
+              {/* Decisions and Compare, at every width (the trackpad way in with nothing selected; ⋯ takes the room the clock had); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
-                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More tools">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: decisions, compare with an earlier version">
                   <span className="more-dots" aria-hidden="true">⋯</span>
                 </button>
                 {toolsMore && (
                   <Menu onClose={() => setToolsMore(false)}>
                     {(vpins || drawnLayout?.held) && (
-                      <button role="menuitem" onClick={() => (setToolsMore(false), tidyAll())}>
+                      <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), tidyAll())}>
                         <Icon name="pin-off" /> Tidy all
                       </button>
                     )}
-                    <button role="menuitem" onClick={() => (setToolsMore(false), focusOnSelection())} disabled={!selection.length && !focusOn}>
+                    <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), focusOnSelection())} disabled={!selection.length && !focusOn}>
                       <Icon name="focus" /> Focus <kbd>F</kbd>
                     </button>
                     {!stepList.length && (
-                      <button role="menuitem" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
+                      <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
                       </button>
                     )}
@@ -2291,7 +2290,7 @@ export function App() {
                       <Icon name="scroll-text" /> {decisionsOpen ? 'Hide the decisions' : 'Decisions'}{decisionsTool.count ? ` (${decisionsTool.count})` : ''} <kbd>{keyHint('decisions')}</kbd>
                     </button>
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
-                      <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'}
+                      <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'} <kbd>{keyHint('compare')}</kbd>
                     </button>
                   </Menu>
                 )}

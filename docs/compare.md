@@ -6,7 +6,7 @@ What changed in a diagram since the review, since the last commit, since last qu
 
 ## Compare with…
 
-**⇧⌘D** (with the drawing in focus: elsewhere it stays the browser's), the **Compare** button in the drawing's toolbar, or *Compare with…* in the command palette (⌘K). It offers:
+**⇧⌘D** (with the drawing in focus: elsewhere it stays the browser's), *Compare with an earlier version* in the drawing toolbar's **⋯**, or *Compare with…* in the command palette (⌘K). It offers:
 
 | Version | What it is |
 |---|---|

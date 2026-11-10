@@ -1,11 +1,14 @@
 // A small dropdown: focus moves in, arrows move between items, Escape or a click outside closes it.
 import { useEffect, useRef } from 'react';
 
+/** An item a narrow layout hides (display: none) is skipped by the arrows. */
+const shown = (x: HTMLElement) => x.getClientRects().length > 0;
+
 export function Menu({ onClose, children }: { onClose(): void; children: React.ReactNode }) {
   const el = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
-    el.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+    [...(el.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])].find(shown)?.focus();
     const outside = (e: PointerEvent) => {
       if (!el.current?.parentElement?.contains(e.target as Node)) onClose();
     };
@@ -17,7 +20,7 @@ export function Menu({ onClose, children }: { onClose(): void; children: React.R
   }, [onClose]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const items = [...(el.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
+    const items = [...(el.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])].filter(shown);
     const i = items.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'Escape') onClose();
     else if (e.key === 'ArrowDown') items[(i + 1) % items.length]?.focus();
