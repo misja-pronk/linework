@@ -10,7 +10,7 @@ import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
-import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
+import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
@@ -73,10 +73,13 @@ const help = `carto — architecture diagrams that look good
                                                 --fresh lays the newer drawing out from scratch instead of keeping
                                                 what was there in place; --exit-code exits 1 when something changed
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
-  carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
+  carto import <file.mmd|.d2|.puml|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta, stateDiagram,
                                                 erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
-                                                .md: every mermaid block; Kubernetes manifests: all files in one diagram;
+                                                D2 (boxes, sql_table, sequence_diagram; layers: one file each);
+                                                PlantUML (sequence, component, deployment, C4, state, activity,
+                                                entity; every @startuml block); .md: every mermaid, d2 and
+                                                plantuml block; Kubernetes manifests: all files in one diagram;
                                                 .csv inventory or NetBox JSON: a network diagram;
                                                 terraform show -json (state or plan, AWS and Google Cloud): a cloud diagram;
                                                 a folder (or files) of data products and contracts (ODPS, ODCS):
@@ -707,18 +710,18 @@ async function deck(): Promise<boolean> {
   return ok;
 }
 
-/** Mermaid or Markdown → <name>.yaml (or <name>-<n>.yaml per block), checked by rendering it once. */
+/** Mermaid, D2, PlantUML or Markdown → <name>.yaml (or <name>-<n>.yaml per block or diagram), checked by rendering it once. */
 async function importFile(file: string): Promise<boolean> {
   const text = fs.readFileSync(file, 'utf8');
-  const base = path.basename(file).replace(/\.(mmd|mermaid|md|markdown|dsl)$/i, '');
+  const base = path.basename(file).replace(/\.(mmd|mermaid|md|markdown|dsl|d2|puml|plantuml|pu|iuml|wsd)$/i, '');
   // A Structurizr workspace becomes one C4 file: the model and all its views.
   const dsl = /\.dsl$/i.test(file);
-  const blocks = dsl ? [{ ...importStructurizr(text, base), line: 0 }] : /\.(md|markdown)$/i.test(file) ? importMarkdown(text) : [{ ...importMermaid(text), line: 0 }];
+  const blocks = dsl ? [{ ...importStructurizr(text, base), line: 0 }] : importText(text, path.basename(file));
   if (dsl && !blocks[0]!.yaml) console.error(`${file}  ${yellow('warning')}  no workspace model found`);
-  if (!blocks.length) console.error(`${file}  ${yellow('warning')}  no \`\`\`mermaid blocks found`);
+  if (!blocks.length) console.error(`${file}  ${yellow('warning')}  no \`\`\`mermaid, \`\`\`d2 or \`\`\`plantuml blocks found`);
   let ok = blocks.length > 0;
   for (const [i, b] of blocks.entries()) {
-    const where = b.line ? `${file}:${b.line}` : file;
+    const where = `${b.line ? `${file}:${b.line}` : file}${b.name ? ` (${b.name})` : ''}`;
     for (const w of b.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
     if (!b.yaml) {
       ok = false;
@@ -730,7 +733,9 @@ async function importFile(file: string): Promise<boolean> {
       process.stdout.write((i ? '---\n' : '') + b.yaml);
       continue;
     }
-    const name = blocks.length > 1 ? `${base}-${i + 1}.yaml` : `${base}.yaml`;
+    // Several diagrams: named after what each is (aws-shop-tables.yaml), numbered when that is not clear.
+    const part = b.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const name = blocks.length > 1 && (b.name || blocks.some((x, j) => j < i && !x.name)) ? `${base}-${part && blocks.filter((x) => x.name === b.name).length === 1 ? part : i + 1}.yaml` : `${base}.yaml`;
     const out = !values.out ? path.join(path.dirname(file), name) : files.length === 1 && blocks.length === 1 && path.extname(values.out) ? values.out : path.join(values.out, name);
     if (fs.existsSync(out) && !values.force) {
       console.error(`${out} already exists, use --force to overwrite`);

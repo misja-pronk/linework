@@ -5,8 +5,10 @@ import { scalar } from './text.ts';
 export interface FlowNode {
   source: string;
   label: string;
-  kind: 'task' | 'decision' | 'start' | 'end' | 'subprocess' | 'document';
+  kind: 'task' | 'decision' | 'start' | 'end' | 'subprocess' | 'document' | 'parallel';
   lane?: string;
+  /** Drawn without its name (a gateway that only splits or joins). */
+  bare?: boolean;
 }
 
 export interface FlowLink {
@@ -62,7 +64,8 @@ export function processYaml(d: FlowDiagram): string {
     const id = name(n.source);
     const implied = id === 'start' ? 'start' : id === 'end' ? 'end' : /\?\s*$/.test(id) ? 'decision' : 'task';
     const kind = n.kind === implied ? undefined : n.kind;
-    if (kind && n.lane) entries.push(`  ${plain(id)}: { in: ${n.lane}, kind: ${kind} }`);
+    if (n.bare) entries.push(`  ${plain(id)}: { ${[`kind: ${n.kind}`, n.lane && `in: ${n.lane}`, 'label: ""'].filter(Boolean).join(', ')} }`);
+    else if (kind && n.lane) entries.push(`  ${plain(id)}: { in: ${n.lane}, kind: ${kind} }`);
     else if (kind || n.lane) entries.push(`  ${plain(id)}: ${kind ?? n.lane}`);
   }
   if (entries.length) out.push('', 'nodes:', ...entries);

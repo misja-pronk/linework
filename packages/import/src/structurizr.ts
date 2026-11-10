@@ -328,13 +328,17 @@ export function importStructurizr(text: string, fallbackTitle = 'Imported worksp
   if (Object.keys(finished).length) out.views = finished;
   else warn.add('No views found: add views: to draw the model');
 
-  // Leaf maps on one line, as people write them by hand.
+  return { yaml: c4Yaml(out), warnings: warn.list };
+}
+
+/** A c4 document as YAML: leaf maps on one line, as people write them by hand. */
+export function c4Yaml(out: Record<string, unknown>): string {
   const doc = new Document(out);
   // A relation with only a label stays "a -> b: label".
   const arrow = (k: unknown) => isScalar(k) && String(k.value).includes('->');
   visit(doc, { Map: (_, node) => void (!(node.items.length === 1 && arrow(node.items[0]!.key)) && node.items.every((p) => isScalar(p.value) || (isSeq(p.value) && p.value.items.every(isScalar))) && (node.flow = true)) });
   (doc.contents as { flow?: boolean }).flow = false;
-  return { yaml: doc.toString({ lineWidth: 0, flowCollectionPadding: true }), warnings: warn.list };
+  return doc.toString({ lineWidth: 0, flowCollectionPadding: true });
 }
 
 export const isStructurizr = (text: string) => /^\s*workspace\b/m.test(text.replace(/^\s*(\/\/|#).*$/gm, ''));
