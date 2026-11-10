@@ -184,7 +184,7 @@ const impliedKind = (id: string) => reserved(id) ?? (/\?\s*$/.test(id) ? 'decisi
 // ---------------------------------------------------------------- build
 
 /** How much heavier the happy path is drawn. */
-const HAPPY = 1.7;
+const HAPPY = 2;
 
 export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
   const lanes = new Map(Object.entries(src.lanes ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { label: v } : (v ?? {})]));
@@ -325,7 +325,8 @@ export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
   const walk: GraphBeat[] = main.length
     ? [{ title: title(main[0]!.from), nodes: [main[0]!.from], edges: [] }, ...main.map((h) => ({ title: title(h.to), ...(h.label ? { caption: `${title(h.from)} ${h.label}` } : {}), nodes: [h.to], edges: [edgeId(h)] }))]
     : [];
-  const legend: LegendItem[] = [...(marked ? [{ label: 'Happy path', line: 'solid' as const, width: HAPPY }] : []), ...(hops.some((h) => h.message && !assoc(h)) ? [{ label: 'Message', line: 'dashed' as const }] : [])];
+  // The heavier happy path only means something next to the other ways through: the key names both.
+  const legend: LegendItem[] = [...(marked ? [{ label: 'Happy path', line: 'solid' as const, width: HAPPY }, { label: 'Other paths', line: 'solid' as const }] : []), ...(hops.some((h) => h.message && !assoc(h)) ? [{ label: 'Message', line: 'dashed' as const }] : [])];
 
   return {
     ...(src.title ? { title: src.title } : {}),

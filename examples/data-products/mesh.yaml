@@ -10,9 +10,9 @@ domains:
   finance: { label: Finance }
 
 sources:
-  crm-accounts: { label: CRM accounts, caption: Outside these files }
-  webshop-order-events: { label: Webshop order events, caption: Outside these files }
-  payment-provider-settlements: { label: Payment provider settlements, caption: Outside these files }
+  crm-accounts: { label: CRM accounts, caption: Outside the mesh }
+  webshop-order-events: { label: Webshop order events, caption: Outside the mesh }
+  payment-provider-settlements: { label: Payment provider settlements, caption: Outside the mesh }
 
 products:
   customer-360:

@@ -89,7 +89,9 @@ capabilities:
     expect(numberOf('800k')).toBe(8e5);
     expect(numberOf('invest')).toBeUndefined();
     const s = heatScale({ by: 'cost' }, ['€100k', '€500k']);
-    expect(s.of('€500k')).toMatchObject({ scale: 'sequential', at: 1, text: '€500k' });
+    // The top of the range takes the last of the key's five shades.
+    expect(s.of('€500k')).toMatchObject({ scale: 'sequential', at: 0.9, text: '€500k' });
+    expect(s.of('€110k')).toMatchObject({ at: 0.1 });
     expect(s.legend).toHaveLength(5);
     const r = await render(example('e-commerce.yaml').replace('heat:', 'depth: 2\nheat:'), { fonts: 'none' });
     expect(r.graph!.nodes.some((n) => block(n).form === 'chip')).toBe(false);

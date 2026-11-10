@@ -6,6 +6,8 @@ Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, networ
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
+**Docs, gallery, benchmark.** `pnpm docs:build` builds the documentation site into `docs/site/dist`, the web app included; `pnpm docs:serve` serves it on localhost (the pages also open from disk, offline): [get started](docs/getting-started.md), a gallery (`gallery/index.html`) of every template and every file in [examples](examples), drawn light and dark, each with its YAML and an "Open in the editor" link, the [layout benchmark](docs/benchmark.md) against Mermaid and D2 (including where Cartography loses), and guides for people coming from [Mermaid](docs/coming-from/mermaid.md), [D2](docs/coming-from/d2.md), [draw.io](docs/coming-from/drawio.md), [PlantUML](docs/coming-from/plantuml.md) and [Structurizr](docs/coming-from/structurizr.md).
+
 ## The editor
 
 ```sh
@@ -24,7 +26,7 @@ YAML on the left, the drawing on the right; both stay in sync and select the sam
 - **Undo** everything with `⌘Z`: typing, builder edits and moves share one history.
 - **Export** SVG, PNG, a 16:9 slide, or copy as PNG for slides and docs; an Office-safe SVG for PowerPoint and Word; draw.io, Excalidraw or Mermaid to carry on in another tool. `?` shows every shortcut.
 
-Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side.
+Diagrams look better than the usual tools: lines that share a path are spaced evenly or merge into a trunk, labels stay off group borders, supporting links (Key Vault, logging) can be badges on the card instead of lines (`badges: [identity]`). See [docs/comparison](docs/comparison/README.md) for Mermaid and D2 side by side, and [the benchmark](docs/benchmark.md) for the numbers.
 
 **A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels set on the lines, a key. Transit and Drafting are built in as alternatives, and a theme file puts a client's colours, font and logo on top. See [docs/style.md](docs/style.md) and [docs/themes.md](docs/themes.md).
 
@@ -50,7 +52,7 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 **Steps and presenting**: `steps:` tells a drawing in parts (`- customer -> web -> api: The order comes in`), with what is shown, what stands out and the sentence you say. Press `P` to present it full screen, or export it: one slide per step in PowerPoint, one page per step in PDF, with every shape in the same place. See [docs/steps.md](docs/steps.md).
 
-CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML. Also imported: Structurizr DSL, Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history, ODPS and ODCS files, Azure / Entra ID access exports (az, Graph, AzureHound), Azure resources (Resource Graph, ARM / Bicep, azurerm Terraform) and GitHub organisations (`gh api`).
+CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML. A kind guessed from the words (`Orders DB` is a database) gives the icon; its name is not added as a caption the source never had (`caption: ""`). Also imported: Structurizr DSL, Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history, ODPS and ODCS files, Azure / Entra ID access exports (az, Graph, AzureHound), Azure resources (Resource Graph, ARM / Bicep, azurerm Terraform) and GitHub organisations (`gh api`).
 
 **Other tools, both ways**: `carto export shop.yaml -o shop.drawio` writes a draw.io file that stays editable (real shapes, groups as containers, connectors attached to their shapes, ERD tables as tables, a page per view); `.excalidraw` and `.mmd` work the same way. `carto import diagram.drawio` (compressed or not, every page) or `sketch.excalidraw` reads a drawing back and guesses its type from the stencils; `--keep-positions` keeps its layout as pins. `carto render --svg-safe [--outline-text]` writes an SVG that PowerPoint, Word and Keynote take whole. What each format keeps and loses: [docs/interop.md](docs/interop.md).
 
@@ -75,6 +77,9 @@ pnpm carto render examples/model/containers.yaml --all-views   # one SVG per vie
 pnpm gallery                                      # render all examples → gallery/out/index.html
 pnpm test
 pnpm lab                                          # layout quality per example, variants side by side
+pnpm docs:build                                   # the docs site → docs/site/dist/index.html
+pnpm bench                                        # the layout benchmark (d2 optional) → docs/benchmark.md
+pnpm licences && pnpm pack:check                  # licence check; what npm would get, without publishing
 ```
 
 Fonts: Instrument Sans, Geist Mono, Barlow, IBM Plex Sans, IBM Plex Mono and Inter (all SIL OFL 1.1; licence texts in `packages/theme/fonts`). Icons: Lucide (ISC). Node placement: Graphviz dot (EPL) via @hpcc-js/wasm-graphviz (Apache-2.0); lines are drawn by our own router.

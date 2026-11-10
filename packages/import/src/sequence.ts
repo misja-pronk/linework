@@ -118,7 +118,9 @@ export function importSequence(body: string[], title: string | undefined, warn: 
   }
   out.push('', 'participants:');
   for (const p of participants.values()) {
-    const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
+    // The kind is read from the source's words or type: it gives the icon, not a caption the source never wrote.
+    const quiet = p.kind === 'person' || p.kind === 'people';
+    const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.label && !quiet ? 'caption: ""' : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
     out.push(`  ${p.id}: ${fields.length === 1 ? p.kind : `{ ${fields.join(', ')} }`}`);
   }
   out.push('', 'messages:');

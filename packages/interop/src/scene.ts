@@ -561,7 +561,7 @@ class SceneBuilder {
     // Grouped columns and rows: their names over the columns and between the rows.
     for (const band of g.bands) parts.push(this.text(`Group: ${band.label}`, b.x + band.x + band.width / 2, b.y + g.band / 2 + 4, band.label.toUpperCase(), 10, 600, t.textMuted, 'middle'));
     for (const sec of g.sections) parts.push(this.text(`Group: ${sec.label}`, b.x + PAD, b.y + sec.y + MATRIX.SECTION / 2, sec.label.toUpperCase(), 10, 600, t.textMuted));
-    if (m.corner) parts.push(this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
+    if (m.corner) parts.push(m.plain ? this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.cell, 600, t.text) : this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
       const w = g.columns[j]!;
@@ -583,7 +583,7 @@ class SceneBuilder {
       const tall = g.rows[i]!.height > g.rowHeight;
       const cy = tall ? y + 10 + MATRIX.LINE / 2 : y + g.rowHeight / 2;
       // A row without a label continues the one above: the rule skips its header.
-      if (i > 0) parts.push(hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
+      if (i > 0) parts.push(hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
       let tx = b.x + PAD;
       if (row.icon) {
@@ -1018,7 +1018,8 @@ class SceneBuilder {
     const some = (...p: (Part | undefined)[]) => p.filter((q): q is Part => !!q);
     if (item.swatch === 'badge') {
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { fill: t.surface, stroke: tone.fg, strokeOpacity: 0.55, strokeWidth: 1 }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { fill: tone.bg });
-      return [back, this.line('Swatch', [{ x: x + 6, y: cy }, { x: x + 14, y: cy }], tone.fg, 1.4, { end: 'arrow' })];
+      const mark = item.icon ? this.picture(item.icon, x + 4, cy - 6, 12, tone.fg, 1.6) : undefined;
+      return some(back, mark ?? this.line('Swatch', [{ x: x + 6, y: cy }, { x: x + 14, y: cy }], tone.fg, 1.4, { end: 'arrow' }));
     }
     if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
       // A kind of element: its own icon, treated as on the cards.
@@ -1032,6 +1033,7 @@ class SceneBuilder {
       const paper = paperTint(t, 0);
       return [box(19, 15, Math.min(4, t.radius.group), { ...(paper ? { fill: paper } : {}), stroke: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, strokeWidth: 1.2, dash: 'dashed' }, 0.5)];
     }
+    if (item.swatch === 'glyph') return some(item.icon ? this.picture(item.icon, x + 3, cy - 7, 14, tone.fg, 1.75) : undefined);
     if (item.swatch === 'fill') return [box(20, 14, Math.min(7, t.radius.chip + 3), { fill: tone.bg })];
     if (item.swatch === 'outline') return [box(19, 13, Math.min(6.5, t.radius.chip + 2.5), { stroke: color, strokeOpacity: 0.7, strokeWidth: 1, dash: 'dashed' }, 0.5)];
     if (item.swatch === 'check' || item.swatch === 'check-outline') {

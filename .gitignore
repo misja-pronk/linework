@@ -8,3 +8,5 @@ packages/web/dist/
 test-results/
 playwright-report/
 .claude/
+docs/site/dist/
+docs/site/shots/

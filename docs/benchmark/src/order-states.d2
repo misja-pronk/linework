@@ -1,0 +1,29 @@
+title: Order lifecycle {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+start: "" {shape: circle; width: 16; height: 16; style.fill: black}
+AwaitingPayment: Awaiting payment
+Fulfilment: {
+  start: "" {shape: circle; width: 12; height: 12; style.fill: black}
+  Picking
+  Packed
+  start -> Picking
+  Picking -> Packed: all items scanned
+  Packed -> Picking: "item missing [damaged]"
+}
+Shipped
+Delivered
+Cancelled
+end: "" {shape: circle; width: 16; height: 16; style.fill: black; style.double-border: true}
+note: Stock is released {shape: page}
+
+start -> AwaitingPayment: order placed
+AwaitingPayment -> Fulfilment: payment received
+AwaitingPayment -> Cancelled: 30 min without payment
+Fulfilment -> Shipped: handed to carrier
+Fulfilment -> Cancelled: customer cancels
+Shipped -> Shipped: delayed / tell the customer
+Shipped -> Delivered: signed for
+Delivered -> end
+Cancelled -> end
+Cancelled -- note {style.stroke-dash: 3}

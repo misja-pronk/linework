@@ -3,6 +3,12 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "description": "Architecture diagrams as text: YAML in, a clean and consistent drawing out",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/cartography.git"
+  },
+  "homepage": "https://github.com/OWNER/cartography#readme",
   "packageManager": "pnpm@10.34.7",
   "scripts": {
     "carto": "tsx packages/cli/src/main.ts",
@@ -18,7 +24,13 @@
     "snapshot": "tsx packages/cli/src/snapshot.ts",
     "stability": "tsx packages/engine/test/stability.ts",
     "web": "pnpm --filter @cartography/web dev",
-    "web:build": "pnpm --filter @cartography/web build"
+    "web:build": "pnpm --filter @cartography/web build",
+    "docs:build": "pnpm --filter @cartography/web build && pnpm --filter @cartography/site build",
+    "docs:serve": "pnpm --filter @cartography/site serve",
+    "bench": "pnpm --filter @cartography/site bench",
+    "licences": "node scripts/licences.mjs",
+    "pack:check": "node scripts/pack-check.mjs",
+    "e2e:templates": "node packages/web/e2e/templates.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -94,7 +94,9 @@ function cardSize(shape: CardShape, theme: Theme, list: Chip[] = [], linked = fa
   }
   // Room for all chips in one row if the card may grow that far; past maxWidth they wrap.
   const row = list.reduce((w, ch, i) => w + chipWidth(ch, theme) + (i ? CHIP.gap : 0), 0);
-  const width = Math.round(Math.min(c.maxWidth, Math.max(c.minWidth, text, inset.left + row + inset.right)));
+  // A name or caption longer than the usual card widens it by up to a third before it is cut; chips wrap instead.
+  const most = text > c.maxWidth ? Math.min(Math.ceil(text), Math.round(c.maxWidth * 1.33)) : c.maxWidth;
+  const width = Math.round(Math.min(most, Math.max(c.minWidth, text, inset.left + row + inset.right)));
   const height = list.length ? cardHeight(chipRows(list, width - inset.left - inset.right, theme).rows, theme) : c.height;
   // A stacked pair keeps the card as it is and adds the edge of the one behind it.
   return shape.stack ? { width: width + STACK, height: height + STACK } : { width, height };

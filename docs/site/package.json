@@ -1,0 +1,28 @@
+{
+  "name": "@cartography/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "The documentation site, template gallery and layout benchmark, built to static files in dist/",
+  "scripts": {
+    "build": "tsx src/build.ts",
+    "bench": "tsx src/bench.ts",
+    "shoot": "tsx src/shoot.ts",
+    "serve": "tsx src/serve.ts"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/docs-plugins": "workspace:*",
+    "@cartography/engine": "workspace:*",
+    "@cartography/icons": "workspace:*",
+    "@cartography/import": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "markdown-it": "^15.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/markdown-it": "^14.2.0",
+    "mermaid": "^12.3.0"
+  }
+}

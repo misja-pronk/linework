@@ -347,8 +347,11 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     }
     for (const [j, b] of frameBox) if (j !== i && bands[j]!.from >= band.from && bands[j]!.to <= band.to) (lo = Math.min(lo, b.x)), (hi = Math.max(hi, b.x + b.width));
     if (lo > hi) (lo = cx(0)), (hi = cx(lanes.length - 1));
+    // The tab (ALT, LOOP) and a branch word (ELSE) stand clear of the first lifeline and its bars, never on them.
+    const word = (w: string) => measureText(w.toUpperCase(), TAB.size, 600);
+    const tag = Math.max(word(band.ev.frame) + 2 * TAB.padX, band.branches.length ? TAB.padX + word(BRANCH_WORD[band.ev.frame] ?? 'else') : 0) + 8;
     const pad = K.frame.pad + level[i]! * K.frame.step;
-    const x = lo - pad;
+    const x = lo - Math.max(pad, tag + level[i]! * K.frame.step);
     const width = Math.max(hi + pad - x, tabWidth(band.ev, theme) + 24, ...band.branches.map((b) => branchWidth(band.ev.frame, b.label, theme) + 24));
     const s = stacked.bands[i]!;
     frameBox.set(i, { x, y: top + s.start, width, height: s.end - s.start });
@@ -456,7 +459,18 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   for (const b of g.boxes) {
     const t = tone(b.tone);
     const line = groupLine(theme, t);
-    out.push(rect(b.box, theme.radius.group, `fill="${groupFill(theme, 0, t)}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
+    const fill = groupFill(theme, 0, t);
+    out.push(rect(b.box, theme.radius.group, `fill="${fill}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
+    // A frame or note that reaches past the box lies on top of it: the box's side stops short of it,
+    // so the two never read as one line crossing the other.
+    if (line)
+      for (const o of [...g.frames.map((f) => f.box), ...g.notes.map((n) => n.box)])
+        for (const x of [b.box.x, b.box.x + b.box.width])
+          if (o.x < x - 1 && o.x + o.width > x + 1 && o.y < b.box.y + b.box.height && o.y + o.height > b.box.y) {
+            const y0 = Math.max(b.box.y + theme.radius.group, o.y - 8);
+            const y1 = Math.min(b.box.y + b.box.height - theme.radius.group, o.y + o.height + 8);
+            if (y1 > y0) out.push(`<rect x="${r1(x - 2)}" y="${r1(y0)}" width="4" height="${r1(y1 - y0)}" fill="${fill}"/>`);
+          }
     const lab = groupLabel(theme, b.label);
     const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
     out.push(text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitText(lab.text, lab.size, 600, b.box.width - 28, 'sans', lab.tracking), lab.size, 600, groupLabelInk(theme, t), undefined, track));
@@ -568,10 +582,12 @@ function drawFrame(f: Frame, theme: Theme, ff: FrameFill): string {
   const word = f.ev.frame.toUpperCase();
   const ww = measureText(word, TAB.size, 600) + 2 * TAB.padX;
   const th = K.frame.tab;
+  // The tab sits on a clear patch of the frame's tint, so a lifeline or bar stops short of it instead of running into it.
+  s += rect({ x: b.x + 0.6, y: b.y + 0.6, width: ww + 4, height: th + 4 }, Math.min(10, theme.radius.group), `fill="${ff.fill}"`);
   s += tab(b, ww, th, Math.min(10, theme.radius.group), t.bg);
   s += text(b.x + TAB.padX, b.y + th / 2, word, TAB.size, 600, t.fg, undefined, ' letter-spacing="0.4"');
   // Words sit on a patch of the frame's own tint, so a lifeline or bar never runs through them.
-  const patch = (x: number, cy: number, w: number) => rect({ x: x - 4, y: cy - 8, width: w + 8, height: 16 }, Math.min(4, theme.radius.chip), `fill="${ff.fill}"`);
+  const patch = (x: number, cy: number, w: number) => rect({ x: x - 6, y: cy - 9, width: w + 12, height: 18 }, Math.min(4, theme.radius.chip), `fill="${ff.fill}"`);
   if (f.ev.label) {
     const label = fitText(f.ev.label, theme.size.caption, 500, b.width - ww - 2 * TAB.labelGap);
     s += patch(b.x + ww + TAB.labelGap, b.y + th / 2, measureText(label, theme.size.caption, 500));
@@ -681,6 +697,15 @@ function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) =>
 
 function numberBadge(n: number, cx: number, cy: number, theme: Theme): string {
   return numberMark(theme, cx, cy, n, K.number, theme.tones.slate.fg, 10);
+}
+
+/** A key's sample of a message: a short line with the head and dash the drawing gives that kind. */
+export function messageSample(arrow: Ev<'message'>['arrow'], x: number, cy: number, theme: Theme): string {
+  const color = arrow === 'async' ? theme.tones.violet.fg : arrow === 'reply' ? theme.edge : theme.textMuted;
+  const tip = arrow === 'lost' ? x + 20 : x + 24;
+  const end = arrow === 'sync' ? tip - 6 : tip - 1;
+  const dash = arrow === 'reply' ? ' stroke-dasharray="4 3"' : '';
+  return `<path d="M${r1(x)} ${r1(cy)}H${r1(end)}" stroke="${color}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" fill="none"${dash}/>` + head(arrow, { x: tip, y: cy }, 1, color, theme);
 }
 
 /** Arrowheads at `tip`, pointing along `dir` (1 right, -1 left): filled for a call, open otherwise, a cross when lost. */
