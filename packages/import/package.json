@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@cartography/azure": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/data-products": "workspace:*",
     "@cartography/systems": "workspace:*",

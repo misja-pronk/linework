@@ -188,7 +188,7 @@ const nameAttr: Record<string, string> = { aws_lambda_function: 'function_name',
 
 // ---------------------------------------------------------------- reading
 
-interface Resource {
+export interface Resource {
   address: string;
   /** Address without the index: what the configuration calls it. */
   config: string;
@@ -201,7 +201,7 @@ interface Resource {
   refs: Map<string, Set<string>>;
 }
 
-function readResources(root: unknown, out: Resource[]) {
+export function readResources(root: unknown, out: Resource[]) {
   if (!isObj(root)) return;
   for (const r of Array.isArray(root.resources) ? root.resources : []) {
     if (!isObj(r) || r.mode !== 'managed' || !str(r.type) || !str(r.address)) continue;
@@ -214,7 +214,7 @@ function readResources(root: unknown, out: Resource[]) {
 }
 
 /** A module of the configuration: where its resources live, and what its variables were given. */
-interface Scope {
+export interface Scope {
   module: Obj;
   prefix: string;
   variable: (name: string, depth: number) => string[];
@@ -249,7 +249,7 @@ function resolver(scope: Scope): (refs: string[], depth: number) => string[] {
 }
 
 /** References in the configuration of a plan: config address → attribute → config addresses. */
-function readConfig(scope: Scope, out: Map<string, Map<string, string[]>>) {
+export function readConfig(scope: Scope, out: Map<string, Map<string, string[]>>) {
   const resolve = resolver(scope);
   for (const r of Array.isArray(scope.module.resources) ? scope.module.resources : []) {
     if (!isObj(r) || r.mode !== 'managed' || !str(r.address)) continue;
@@ -272,7 +272,7 @@ function readConfig(scope: Scope, out: Map<string, Map<string, string[]>>) {
 
 const idLike = (s: string) => s.length >= 8 && (/[:/]/.test(s) || /^[a-z]+-[0-9a-f]{8,}$/.test(s) || (s.length >= 12 && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(s)));
 
-function link(resources: Resource[], config: Map<string, Map<string, string[]>>) {
+export function link(resources: Resource[], config: Map<string, Map<string, string[]>>) {
   const byId = new Map<string, string>();
   const named = new Map<string, string>();
   const instances = new Map<string, Resource[]>();
@@ -349,7 +349,8 @@ export function importTerraform(text: string, title = 'Infrastructure'): Importe
   const config = new Map<string, Map<string, string[]>>();
   if (isObj(doc.configuration) && isObj(doc.configuration.root_module)) readConfig({ module: doc.configuration.root_module, prefix: '', variable: () => [] }, config);
   const cloudy = all.filter((r) => /^(aws|google)_/.test(r.type)).sort((a, b) => (a.address < b.address ? -1 : a.address > b.address ? 1 : 0));
-  if (!cloudy.length) return { yaml: '', warnings: ['No AWS or Google Cloud resources found: expected the output of terraform show -json (a state or a saved plan)'] };
+  if (!cloudy.length)
+    return { yaml: '', warnings: [all.some((r) => r.type.startsWith('azurerm_')) ? 'Azure resources (azurerm): carto import reads them as an azure diagram' : 'No AWS or Google Cloud resources found: expected the output of terraform show -json (a state or a saved plan)'] };
   link(cloudy, config);
   const at = new Map(cloudy.map((r) => [r.address, r]));
   const google = cloudy.filter((r) => r.type.startsWith('google_')).length;

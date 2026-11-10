@@ -56,6 +56,16 @@ export const config: GraphTypeConfig = {
     internet: { label: 'Internet', icon: 'cloud', tone: 'slate' },
     external: { label: 'External system', icon: 'earth', tone: 'slate' },
     service: { label: 'Service', icon: 'box', tone: 'slate' },
+    bastion: { label: 'Bastion', icon: 'door-open', tone: 'sky' },
+    'nat-gateway': { label: 'NAT gateway', icon: 'network', tone: 'sky' },
+    expressroute: { label: 'ExpressRoute', icon: 'cable', tone: 'sky' },
+    mysql: { label: 'MySQL', icon: 'database', tone: 'indigo' },
+    // Plumbing: what an import leaves out unless asked for everything (carto import --all).
+    'app-service-plan': { label: 'App Service plan', icon: 'layers', tone: 'blue' },
+    nic: { label: 'Network interface', icon: 'ethernet-port', tone: 'slate' },
+    disk: { label: 'Managed disk', icon: 'hard-drive', tone: 'slate' },
+    'public-ip': { label: 'Public IP address', icon: 'map-pin', tone: 'sky' },
+    'route-table': { label: 'Route table', icon: 'route', tone: 'rose' },
   },
   edgeStyles: {
     public: { label: 'Public traffic', line: 'solid', tone: 'sky' },
