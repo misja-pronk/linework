@@ -87,6 +87,8 @@ const groups: [string, [string, string][]][] = [
     'Editor',
     [
       ['Ctrl Space', 'Suggestions from the schema'],
+      ['Tab / ⇧Tab', 'Indent two spaces (never a tab) / outdent'],
+      ['Esc, then Tab · F6', 'Leave the YAML for the next pane'],
       ['⌘F', 'Find'],
       ['⌘/', 'Comment line'],
     ],

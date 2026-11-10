@@ -222,7 +222,24 @@ function useThumbs(list: Starter[], theme: 'light' | 'dark') {
       stop = true;
     };
   }, [ids, theme]); // eslint-disable-line react-hooks/exhaustive-deps
-  return (s: Starter) => thumbs.get(`${theme}:${s.id}`);
+  return (s: Starter, box?: { w: number; h: number }) => filled(thumbs.get(`${theme}:${s.id}`), box);
+}
+
+/**
+ * A thumbnail big enough to read: a drawing that would shrink below a third of its size shows its middle
+ * at that size instead of the whole of it, filling the card (`box`: the card's thumbnail area in px).
+ */
+function filled(svg: string | undefined, box = { w: 240, h: 130 }): string | undefined {
+  const m = svg && /^<svg[^>]*\sviewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+  if (!svg || !m) return svg;
+  const [w, h] = [Number(m[1]), Number(m[2])];
+  const fit = Math.min(box.w / w, box.h / h);
+  const scale = Math.max(fit, 0.3);
+  if (scale <= fit * 1.05) return svg;
+  const vw = Math.min(w, box.w / scale);
+  const vh = Math.min(h, box.h / scale);
+  const view = `${((w - vw) / 2).toFixed(1)} ${((h - vh) / 2).toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`;
+  return svg.replace(/viewBox="[^"]*"/, `viewBox="${view}" preserveAspectRatio="xMidYMid slice"`);
 }
 
 /** Arrow keys through a grid of cards; columns from the layout (cards on the first row share its top). Returns the new index. */
@@ -324,7 +341,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
       <div className="type-grid" ref={grid} onKeyDown={onGridKey}>
         {ranked.map(({ type: t, score }, i) => {
           const s = typeTemplates.find((x) => x.type === t.id);
-          const svg = s && thumb(s);
+          const svg = s && thumb(s, { w: 222, h: 80 });
           const notFor = t.notFor ?? [];
           const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === t.id && 'flash', t.id === current && 'current'];
           return (
@@ -340,11 +357,14 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                   <span className="type-name">{t.name}</span>
                   {matched && i === 0 ? <span className="type-badge">Best match</span> : t.id === current ? <span className="type-badge quiet">This diagram</span> : null}
                 </span>
-                {t.tagline && <span className="type-tagline">{t.tagline}</span>}
+                <span className="type-tagline">
+                  <code className="type-yaml" title="What the YAML says">type: {t.id}</code>
+                  {t.tagline && <> · {t.tagline}</>}
+                </span>
                 {!!t.useWhen?.length && (
-                  <span className="type-use">
+                  <span className="type-use" title={t.useWhen.length > 2 ? t.useWhen.join('\n') : undefined}>
                     <span className="type-label">Use when</span>
-                    {t.useWhen.map((u) => (
+                    {t.useWhen.slice(0, 2).map((u) => (
                       <span key={u} className="type-bullet">
                         {u}
                       </span>
@@ -353,22 +373,22 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                 )}
               </button>
               <div className="type-foot">
-                {notFor.length > 0 && (
+                {/* Where to go instead, as links; what each is for is in its tooltip. Compact, so more types fit. */}
+                {notFor.some((n) => pointsTo(n.use)) && (
                   <div className="type-not">
-                    <span className="type-label">Not for</span>
-                    {notFor.map((n) => {
-                      const use = pointsTo(n.use);
-                      return (
-                        <span key={n.text} className="type-not-item">
-                          {n.text}
-                          {use && (
-                            <button className="link" onClick={() => jump(use)} title={`Show ${typeName(use)}`}>
+                    <span className="type-label">Not for this? Try</span>
+                    <span className="type-not-links">
+                      {notFor.map((n) => {
+                        const use = pointsTo(n.use);
+                        return (
+                          use && (
+                            <button key={n.text} className="link" onClick={() => jump(use)} title={`${n.text}: ${typeName(use)}`}>
                               → {typeName(use)}
                             </button>
-                          )}
-                        </span>
-                      );
-                    })}
+                          )
+                        );
+                      })}
+                    </span>
                   </div>
                 )}
                 <span className="type-count">
@@ -455,13 +475,18 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
       <div className="template-grid" ref={grid} onKeyDown={onGridKey}>
         {shown.map((s, i) => {
           const svg = thumb(s);
+          // Two of the same title (a web shop as a system and as its deployment): the subtitle tells them apart.
+          const twin = s.subtitle && shown.some((o) => o !== s && o.title === s.title);
           return (
             <button key={s.id} className="template-card" onClick={() => onPick(s)} autoFocus={i === 0} tabIndex={i === active ? 0 : -1} onFocus={() => setActive(i)}>
               <div className="thumb" aria-hidden="true">
                 {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}
               </div>
               <div className="template-meta">
-                <span className="template-title">{s.title}</span>
+                <span className="template-title">
+                  {s.title}
+                  {twin && <span className="template-twin"> · {s.subtitle}</span>}
+                </span>
                 <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
                   {s.kind === 'template' ? 'Template' : 'Example'}
                   {type ? (s.kind === 'template' ? ': the smallest start' : ` · ${s.file}`) : ` · ${typeName(s.type)}`}

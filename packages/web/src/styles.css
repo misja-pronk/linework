@@ -336,6 +336,15 @@ kbd {
   top: 0;
   transform-origin: 0 0;
 }
+/* Fitting again after the pane changed: a short glide, not a jump. */
+.stage.easing {
+  transition: transform 240ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage.easing {
+    transition: none;
+  }
+}
 .drawing {
   border-radius: 12px;
   overflow: hidden;
@@ -355,12 +364,21 @@ kbd {
   filter: grayscale(0.5);
   transition: opacity 200ms;
 }
-.stale-note {
-  position: absolute;
-  left: 50%;
-  top: 16px;
-  transform: translateX(-50%);
+/*
+ * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
+ * notes on a row of their own under the tools); the hint docked bottom-left, the zoom bottom-right;
+ * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over
+ * everything, and a toast from before a dialog opened goes (one from the dialog itself shows on top).
+ */
+.canvas-note {
+  flex-basis: 100%;
   display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.stale-note {
+  display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
@@ -370,7 +388,8 @@ kbd {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  white-space: nowrap;
+  white-space: normal;
+  pointer-events: auto;
 }
 .selection-ring {
   position: absolute;
@@ -757,6 +776,9 @@ kbd {
   box-shadow: var(--shadow);
   animation: rise 160ms ease-out;
 }
+.app.with-hint .toast {
+  bottom: calc(44px + var(--hint-h, 72px) + 12px);
+}
 .toast button {
   border: none;
   background: none;
@@ -871,6 +893,33 @@ kbd {
   border: 2px dashed var(--accent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
+  pointer-events: none;
+}
+/* Says what a drop from the palette does here, at the top right so the group's own label stays readable. */
+.drop-ring > span {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translateY(-100%);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.drop-ring.refused {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+.drop-ring.refused > span {
+  background: var(--danger);
+}
+/* Where a shape dragged from the palette will land: it stays there. */
+.drop-ghost {
+  position: absolute;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   pointer-events: none;
 }
 
@@ -1076,6 +1125,58 @@ kbd {
   font-weight: 550;
   color: var(--text-muted);
 }
+.field-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+/* Fields an element is rarely about, folded away; open or closed as people left it. */
+.inspector-more {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.more-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+/* A switch reads as one line: the box, its name, and what it does under the name. */
+.field.toggle {
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+.field.toggle > span {
+  grid-column: 2;
+  grid-row: 1;
+}
+.field.toggle > input {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.field.toggle > .field-note {
+  grid-column: 2;
+}
+.inspector-more > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 0;
+  border-radius: 4px;
+  list-style-position: inside;
+}
+.inspector-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.inspector-more > summary .count {
+  margin-left: 4px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
 .field input:not([type='checkbox']),
 .field select {
   height: 32px;
@@ -2039,6 +2140,25 @@ kbd {
   .wide-only {
     display: none;
   }
+  /* The canvas tools fit a phone: no key hints (no keyboard there), and they scroll sideways rather
+     than run off the edge when a view picker makes them wider. */
+  .canvas-tools {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .canvas-tools .tool {
+    flex: none;
+  }
+  .canvas-tools .tool kbd {
+    display: none;
+  }
+  /* Icons only (the names stay for screen readers and in the tooltips). */
+  .canvas-tools .tool {
+    font-size: 0;
+    gap: 0;
+    min-width: 36px;
+  }
   .narrow-only {
     display: block;
   }
@@ -2132,7 +2252,7 @@ kbd {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   grid-auto-rows: max-content;
   align-content: start;
   gap: 14px;
@@ -2192,7 +2312,7 @@ kbd {
   outline: none;
 }
 .type-thumb {
-  height: 124px;
+  height: 96px;
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
   place-items: center;
@@ -2294,6 +2414,27 @@ kbd {
   border-top: 1px dashed var(--border);
 }
 .type-not-item {
+  color: var(--text-muted);
+}
+.type-not-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+}
+.type-not-links button.link {
+  margin-left: 0;
+  padding: 0;
+  text-align: left;
+}
+/* The name the YAML uses, beside the name people read. */
+.type-yaml {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.template-twin {
+  font-weight: 450;
   color: var(--text-muted);
 }
 button.link {
@@ -2686,6 +2827,10 @@ button.type-pill:hover {
   position: absolute;
   inset: 5vh 5vw 19vh;
 }
+/* No words under the drawing in this deck: the drawing takes that room too. */
+.present.no-band .present-stage {
+  inset: 6vh 3vw 7vh;
+}
 .present-frame {
   position: absolute;
   inset: 0;
@@ -2810,6 +2955,19 @@ button.type-pill:hover {
 .present-tools button:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.present-about {
+  position: absolute;
+  right: 22px;
+  bottom: 14px;
+  max-width: 50vw;
+  font-size: 12px;
+  color: var(--present-muted, var(--text-muted));
+  text-align: right;
+  transition: opacity 300ms ease;
+}
+.present.idle .present-about {
+  opacity: 0;
 }
 .present-help {
   left: 22px;

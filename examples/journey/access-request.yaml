@@ -77,7 +77,7 @@ steps:
   audit:
     label: Is asked a year later why the access exists
     in: review
-    feel: 2 puzzled
+    feel: 2 caught out
     touchpoint: Email
     with: Auditor
     thought: I do not remember. Probably that one shift.

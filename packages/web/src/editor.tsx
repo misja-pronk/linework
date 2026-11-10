@@ -4,7 +4,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { EditorState, StateEffect, StateField, Transaction, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentWithTab, invertedEffects, redo, undo } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore, invertedEffects, redo, undo } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
@@ -76,7 +76,22 @@ const markField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-/** Enter keeps the indentation, and goes one level deeper after "key:" (also "- key:"). */
+/** The indentation Enter just put on a line: until something else is typed there, it is only a suggestion. */
+const autoIndent = StateEffect.define<number | null>();
+const autoIndentField = StateField.define<number | null>({
+  create: () => null,
+  update(line, tr) {
+    for (const e of tr.effects) if (e.is(autoIndent)) return e.value;
+    if (line == null || !tr.docChanged) return line;
+    return null;
+  },
+});
+
+/**
+ * Enter keeps the indentation, goes one level deeper after "key:" (also "- key:"), and lines up with
+ * the keys of a list item that is a map ("- name: x"); after a plain item ("- a -> b: text") the next
+ * item starts where it did.
+ */
 function yamlEnter(view: EditorView): boolean {
   const { state } = view;
   const r = state.selection.main;
@@ -86,8 +101,38 @@ function yamlEnter(view: EditorView): boolean {
   const indent = /^\s*/.exec(before)![0];
   const item = /^\s*- /.test(before);
   const opens = /:\s*(#.*)?$/.test(before) && !/^\s*#/.test(before);
-  const next = opens ? indent + (item ? '    ' : '  ') : item ? indent + '  ' : indent;
+  const mapItem = /^\s*- [\w.-]+:(\s|$)/.test(before);
+  const next = opens ? indent + (item ? '    ' : '  ') : mapItem ? indent + '  ' : indent;
   view.dispatch(state.update({ changes: { from: r.head, insert: '\n' + next }, selection: { anchor: r.head + 1 + next.length }, scrollIntoView: true, userEvent: 'input' }));
+  if (next) view.dispatch({ effects: autoIndent.of(line.number + 1) });
+  return true;
+}
+
+/**
+ * Spaces typed right after Enter on a line that only has the suggested indentation: the person indents
+ * by hand, so their spaces replace the suggestion instead of adding to it (typed or pasted YAML keeps
+ * its own indentation).
+ */
+const ownIndent = EditorView.inputHandler.of((view, from, to, text) => {
+  const pending = view.state.field(autoIndentField);
+  if (pending == null || !/^ +$/.test(text) || from !== to) return false;
+  const line = view.state.doc.lineAt(from);
+  if (line.number !== pending || line.text.trim() !== '' || from !== line.to) return false;
+  view.dispatch({ changes: { from: line.from, to: line.to, insert: text }, selection: { anchor: line.from + text.length }, userEvent: 'input.type' });
+  return true;
+});
+
+/** Tab indents as YAML does, with two spaces and never a tab: lines of a selection one level deeper,
+ * at the start of a line one level, elsewhere up to the next two-space column (the line itself stays). */
+function yamlTab(view: EditorView): boolean {
+  const { state } = view;
+  if (state.readOnly) return false;
+  const r = state.selection.main;
+  if (!r.empty && state.doc.lineAt(r.from).number !== state.doc.lineAt(r.to).number) return indentMore(view);
+  const line = state.doc.lineAt(r.from);
+  const col = r.from - line.from;
+  const spaces = ' '.repeat(2 - (col % 2));
+  view.dispatch(state.update(state.replaceSelection(spaces), { scrollIntoView: true, userEvent: 'input' }));
   return true;
 }
 
@@ -147,7 +192,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
     theme,
     EditorView.lineWrapping,
     EditorState.tabSize.of(2),
-    keymap.of([...closeBracketsKeymap, { key: 'Enter', run: yamlEnter }, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, indentWithTab]),
+    autoIndentField,
+    ownIndent,
+    // Esc then Tab (or F6) leaves the editor: CodeMirror lets the Tab after an Escape move the focus.
+    keymap.of([...closeBracketsKeymap, { key: 'Enter', run: yamlEnter }, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, { key: 'Tab', run: yamlTab, shift: indentLess }]),
     EditorView.updateListener.of((u) => {
       if (u.docChanged) callbacks.current.onChange(u.state.doc.toString());
       if (u.startState.field(pinsField) !== u.state.field(pinsField)) callbacks.current.onPins(u.state.field(pinsField));

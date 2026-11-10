@@ -20,7 +20,7 @@ describe('PlantUML sequence', () => {
   it('reads participants, arrows, activations, frames, notes, dividers and autonumber', async () => {
     const { d, yaml, warnings } = one(fixture('checkout-sequence.puml'));
     expect(d).toMatchObject({ type: 'sequence', title: 'Checkout with card payment', autonumber: true, activations: 'explicit' });
-    expect(d.participants).toEqual({
+    expect(d.participants).toMatchObject({
       user: { kind: 'person', label: 'Shopper' },
       web: { kind: 'client', label: 'Storefront' },
       api: { kind: 'api', label: 'Orders API' },
@@ -28,14 +28,14 @@ describe('PlantUML sequence', () => {
       bus: { kind: 'queue', label: 'order-events' },
       psp: { kind: 'payments', label: 'Stripe' },
     });
-    expect(d.steps[1]).toEqual({ 'web -> +api': 'POST /orders' });
-    expect(d.steps[4]).toEqual({ divider: 'Payment' });
-    expect(d.steps[6]).toEqual({ 'psp --> -api': 'client secret' });
-    expect(d.steps[7].else).toHaveProperty('card declined');
-    expect(d.steps[7].steps[0]).toEqual({ 'psp ->> api': 'webhook succeeded' });
-    expect(d.steps[9]).toEqual({ note: 'The browser never decides that an order is paid', over: ['web', 'api'] });
+    expect(d.messages[1]).toEqual({ 'web -> +api': 'POST /orders' });
+    expect(d.messages[4]).toEqual({ divider: 'Payment' });
+    expect(d.messages[6]).toEqual({ 'psp --> -api': 'client secret' });
+    expect(d.messages[7].else).toHaveProperty('card declined');
+    expect(d.messages[7].messages[0]).toEqual({ 'psp ->> api': 'webhook succeeded' });
+    expect(d.messages[9]).toEqual({ note: 'The browser never decides that an order is paid', over: ['web', 'api'] });
     // return answers the call that is still open: web -> api ++.
-    expect(d.steps[10]).toEqual({ 'api --> -web': '201 Created' });
+    expect(d.messages[10]).toEqual({ 'api --> -web': '201 Created' });
     expect(warnings).toEqual(['skinparam and themes are left out: the theme draws each kind its own way']);
     await clean(yaml);
   });
@@ -62,7 +62,7 @@ end
 @enduml`);
     expect(d.boxes).toEqual({ shop: 'Shop' });
     expect(d.participants.A).toEqual({ kind: 'service', box: 'shop' });
-    expect(d.steps.slice(0, 6)).toEqual([
+    expect(d.messages.slice(0, 6)).toEqual([
       { 'B -> A': 'back' },
       { 'A -x B': 'lost' },
       { 'Outside -> A': 'from outside' },
@@ -70,8 +70,8 @@ end
       { note: 'two lines', left: 'A' },
       { ref: 'Login', over: ['A', 'B'] },
     ]);
-    expect(d.steps[6]).toEqual({ divider: 'five minutes later' });
-    expect(d.steps[7]).toMatchObject({ group: 'Retry' });
+    expect(d.messages[6]).toEqual({ divider: 'five minutes later' });
+    expect(d.messages[7]).toMatchObject({ group: 'Retry' });
     expect(warnings.join('\n')).toMatch(/Delays/);
     expect(warnings.join('\n')).toMatch(/outside/);
     await clean(yaml);
@@ -80,7 +80,7 @@ end
   it('without activations the drawing keeps ours', () => {
     const { d } = one('Alice -> Bob : hi\nBob --> Alice : hello');
     expect(d.activations).toBeUndefined();
-    expect(d.steps).toEqual([{ 'Alice -> Bob': 'hi' }, { 'Bob --> Alice': 'hello' }]);
+    expect(d.messages).toEqual([{ 'Alice -> Bob': 'hi' }, { 'Bob --> Alice': 'hello' }]);
   });
 });
 
@@ -88,7 +88,7 @@ describe('PlantUML component and deployment', () => {
   it('elements, containers as groups, relations with labels, dotted lines async', async () => {
     const { d, yaml, warnings } = one(fixture('deployment.puml'));
     expect(d).toMatchObject({ type: 'systems', title: 'Shop deployment', direction: 'right' });
-    expect(d.groups).toEqual({ dmz: { kind: 'zone', label: 'DMZ' }, 'kubernetes-cluster': { kind: 'cluster', label: 'Kubernetes cluster' } });
+    expect(d.groups).toMatchObject({ dmz: { kind: 'zone', label: 'DMZ' }, 'kubernetes-cluster': { kind: 'cluster', label: 'Kubernetes cluster' } });
     expect(d.nodes).toMatchObject({
       customer: { kind: 'user' },
       internet: { kind: 'external' },

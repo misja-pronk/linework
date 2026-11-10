@@ -172,7 +172,7 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
       label,
       ...(caption ? { caption } : {}),
       tone,
-      ...(heat ? { heat } : {}),
+      ...(heat ? { heat } : scale && !kids ? { blank: true } : {}),
       ...(kids ? { container: true } : {}),
       ...(cap.parent ? { inside: cap.parent } : {}),
       // In the systems view every capability without children lists what supports it, or says nothing does.

@@ -256,5 +256,34 @@ views:
   if (await page.locator('.present').count()) fail('Esc did not stop presenting the views');
 }
 
+// A drawing without steps: told group by group, said so, and filling the screen; without groups one
+// slide, and the arrows say why they do nothing.
+{
+  await seed('type: azure\ngroups:\n  front: { kind: resource-group, label: Front }\n  back: { kind: resource-group, label: Back }\nnodes:\n  web: { kind: app-service, in: front }\n  db: { kind: sql-database, in: back }\nedges:\n  - web -> db\n', 'plain.yaml');
+  await page.reload();
+  await page.waitForSelector('.drawing [data-node="db"]', { timeout: 10000 });
+  await page.locator('.preview').focus();
+  await page.keyboard.press('p');
+  await page.waitForSelector('.present-frame svg');
+  await wait(900);
+  check('slides made from the groups', await page.locator('.present-count').innerText().catch(() => ''), '1 / 3');
+  if (!/group by group/.test(await page.locator('.present-about').innerText().catch(() => ''))) fail('presenting by group is not said');
+  const svg = await page.locator('.present-frame:last-child svg').boundingBox();
+  if (!svg || (svg.width < 1512 * 0.6 && svg.height < 900 * 0.7)) fail(`the drawing does not fill the screen: ${JSON.stringify(svg)}`);
+  await page.screenshot({ path: `${out}/p-auto-steps.png` });
+  await page.keyboard.press('Escape');
+  await wait();
+  await seed('type: azure\nnodes:\n  web: app-service\n  db: sql-database\nedges:\n  - web -> db\n', 'flat.yaml');
+  await page.reload();
+  await page.waitForSelector('.drawing [data-node="db"]', { timeout: 10000 });
+  await page.locator('.preview').focus();
+  await page.keyboard.press('p');
+  await page.waitForSelector('.present-frame svg');
+  await wait(600);
+  if (!/^One slide/.test(await page.locator('.present-about').innerText().catch(() => ''))) fail('one slide without a word on how to make more');
+  if (!/no steps/.test((await page.locator('.present-tools button[aria-label="Next"]').getAttribute('title')) ?? '')) fail('the disabled Next does not say why');
+  await page.keyboard.press('Escape');
+}
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all present steps ok');
 await browser.close();

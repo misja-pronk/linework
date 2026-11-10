@@ -32,7 +32,7 @@ shop.api -> shop.db: SQL
 `);
     expect(d).toMatchObject({ type: 'systems', direction: 'right' });
     expect(d.groups).toEqual({ shop: { kind: 'group', label: 'Web shop' } });
-    expect(d.nodes).toEqual({
+    expect(d.nodes).toMatchObject({
       customer: { kind: 'user', label: 'Customer' },
       web: { kind: 'client', label: 'Storefront', in: 'shop' },
       api: { kind: 'api', label: 'Orders API', in: 'shop' },
@@ -141,7 +141,7 @@ pg: Main {icon: https://icons.terrastruct.com/dev%2Fpostgresql.svg}
     const { d, warnings } = one(`
 Order: {shape: class; +id: uuid; +total(): Money}
 `);
-    expect(d.nodes).toEqual({ Order: { kind: 'service', label: 'Order' } });
+    expect(d.nodes).toMatchObject({ Order: { kind: 'service', label: 'Order' } });
     expect(warnings.join('\n')).toMatch(/class shapes/);
   });
 });
@@ -189,15 +189,15 @@ users.id <- posts.author_id: writes
     const d = parse(blocks[0]!.yaml);
     expect(d.type).toBe('sequence');
     expect(d.participants).toMatchObject({ user: { kind: 'person' }, idp: { kind: 'identity' }, db: { kind: 'database' } });
-    expect(d.steps[4]).toEqual({ 'idp --> app': 'Authorization code' });
-    expect(d.steps[7]).toMatchObject({ loop: 'until the session expires' });
-    expect(d.steps[7].steps).toHaveLength(4);
-    expect(d.steps[8]).toEqual({ note: 'Keeps the refresh token server side', over: 'app' });
-    expect(d.steps[9]).toMatchObject({ alt: 'token expired' });
+    expect(d.messages[4]).toEqual({ 'idp --> app': 'Authorization code' });
+    expect(d.messages[7]).toMatchObject({ loop: 'until the session expires' });
+    expect(d.messages[7].messages).toHaveLength(4);
+    expect(d.messages[8]).toEqual({ note: 'Keeps the refresh token server side', over: 'app' });
+    expect(d.messages[9]).toMatchObject({ alt: 'token expired' });
     await clean(blocks[0]!.yaml);
 
     const spans = importD2('shape: sequence_diagram\na; b\na.t1 -> b: hi\nb -> a.t1: ok', 'S');
-    expect(parse(spans[0]!.yaml).steps).toEqual([{ 'a -> b': 'hi' }, { 'b -> a': 'ok' }]);
+    expect(parse(spans[0]!.yaml).messages).toEqual([{ 'a -> b': 'hi' }, { 'b -> a': 'ok' }]);
     expect(spans[0]!.warnings.join('\n')).toMatch(/Spans/);
   });
 

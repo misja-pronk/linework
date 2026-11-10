@@ -313,12 +313,12 @@ participants:
   shopper: person                 # person, client, service, api, database, queue, topic, external, …
   orders: { kind: service, label: Orders, box: shop }
   psp: { kind: payments, label: Stripe }
-steps:
+messages:
   - shopper -> orders: Place order          # call: opens an activation on orders
   - orders -> orders: Validate cart         # self-call
   - orders ->> psp: Create payment          # async message
   - alt: Paid                               # frames: alt/else, opt, loop, par/and, break, critical, group
-    steps:
+    messages:
       - psp --> orders: succeeded           # reply (dashed), closes the activation
     else:
       Declined:
@@ -330,6 +330,8 @@ steps:
     over: [shopper, orders]
     link: shipping.yaml
 ```
+
+The messages are listed under `messages:` (inside a frame too). Older files that call them `steps:` still draw, with a warning: everywhere else `steps:` are the presenting steps.
 
 Activations follow the calls: a call opens one on the receiver and its reply closes it; one that is never answered ends where its lifeline last takes part. `activations: explicit` draws only the ones you ask for (`a -> +b`, `b --> -a`, `activate: b`, `deactivate: b`), which is what a Mermaid import with `activate` or `+`/`-` gives. `footers: true` repeats the participants under the lifelines.
 
@@ -381,7 +383,7 @@ steps:
 
 Branch names say what they are: `main`/`master`/`trunk`, `develop`, `release/*`, `hotfix/*`, `feature/*` (also `feat/`, `fix/`, `bugfix/`) each get their own colour and lane, top to bottom: main, hotfixes, releases, develop, features. Short-lived branches with the same prefix share a lane when they do not overlap in time. Every commit owns a column of one time axis; the lanes engine spreads the columns so labels never touch, and keeps every fork, merge and deploy line clear of the text it passes. Forks leave their commit vertically and merges arrive vertically (with an arrowhead), so a commit's label always has a free side; a second line from the same commit splits off the line a little later instead of sharing a stretch.
 
-`view: delivery` draws the same branches through a CI/CD pipeline: stages as columns (Build, Test, Staging, Production by default; your own with `stages:`), one row per branch kind, gates such as an approval as pills on the arrow before a stage. Each preset brings its own pipelines; override them with `pipelines:` (keys: `feature`, `develop`, `release`, `hotfix`, `main`, or a branch name):
+`view: delivery` draws the same branches through a CI/CD pipeline: stages as columns (Build, Test, Staging, Production by default; your own with `stages:`), one row per branch kind, gates such as an approval as pills on the arrow before a stage. Where the history merges one kind into the row next to it (feature branches into main), a *merge* arrow hands over from that row's last step to the other's first. Each preset brings its own pipelines; override them with `pipelines:` (keys: `feature`, `develop`, `release`, `hotfix`, `main`, or a branch name):
 
 ```yaml
 view: delivery

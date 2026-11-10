@@ -240,7 +240,7 @@ export function buildGitflow(src: GitflowSource, ctx: BuildContext): Graph {
   for (const c of commits) for (const d of c.deploy) if (!envs.some((e) => e.id === d)) envs.push({ id: d, label: d, tone: envTone(d) });
 
   const view = src.view ?? 'branches';
-  const { stages, pipelines } = view === 'delivery' ? delivery(src, ordered, ctx) : { stages: [], pipelines: [] };
+  const { stages, pipelines } = view === 'delivery' ? delivery(src, ordered, commits, ctx) : { stages: [], pipelines: [] };
 
   return {
     title: src.title ?? preset?.title,
@@ -259,7 +259,7 @@ export function buildGitflow(src: GitflowSource, ctx: BuildContext): Graph {
 }
 
 /** Stages and the pipeline rows of the delivery view: one row per family (or per named branch). */
-function delivery(src: GitflowSource, branches: GitBranch[], ctx: BuildContext): { stages: GitStage[]; pipelines: GitPipeline[] } {
+function delivery(src: GitflowSource, branches: GitBranch[], commits: GitCommit[], ctx: BuildContext): { stages: GitStage[]; pipelines: GitPipeline[] } {
   const rawStages = src.stages ?? Object.fromEntries(Object.keys(defaultStages).map((k) => [k, null]));
   const stages: (GitStage & { action: string })[] = Object.entries(rawStages).map(([id, raw]) => {
     const d = defaultStages[id];
@@ -272,6 +272,7 @@ function delivery(src: GitflowSource, branches: GitBranch[], ctx: BuildContext):
   const own = src.pipelines;
   const keys = own ? Object.keys(own) : [...new Set(branches.map((b) => b.family))].filter((f) => preset[f]);
   const pipelines: GitPipeline[] = [];
+  const familyOfRow = new Map<GitPipeline, BranchFamily>();
   for (const key of keys) {
     const raw = own ? own[key]! : preset[key]!;
     const path: Path = own ? ['pipelines', key] : ['view'];
@@ -293,10 +294,22 @@ function delivery(src: GitflowSource, branches: GitBranch[], ctx: BuildContext):
       steps.push({ stage: e.stage, label: e.label ?? stages[at]!.action, ...(e.gate ? { gate: e.gate } : {}) });
     }
     pipelines.push({ label, tone: named[0]?.tone ?? familyTones[fam], steps, path });
+    familyOfRow.set(pipelines.at(-1)!, fam);
   }
   // Rows in lane order: main on top, features at the bottom, as in the branches view.
   pipelines.sort((a, b) => FAMILY_ORDER.indexOf(familyOf(a.label.replace('/*', '/x'))) - FAMILY_ORDER.indexOf(familyOf(b.label.replace('/*', '/x'))));
-  return { stages: stages.map(({ action: _, ...s }) => s), pipelines: pipelines.filter((p) => p.steps.length) };
+  // Where a family's branches merge in the history, its row hands over to that family's row: the nearest
+  // one, and only when it is next to it, so the hand-over never runs through another row.
+  const familyOfBranch = new Map(branches.map((b) => [b.name, b.family]));
+  const byId = new Map(commits.map((c) => [c.id, c]));
+  const shown = pipelines.filter((p) => p.steps.length);
+  const rowOf = (f: BranchFamily | undefined) => shown.findIndex((p) => familyOfRow.get(p) === f);
+  for (const c of commits) {
+    const from = rowOf(c.merge ? familyOfBranch.get(byId.get(c.merge)?.branch ?? '') : undefined);
+    const to = rowOf(familyOfBranch.get(c.branch));
+    if (from >= 0 && to >= 0 && Math.abs(from - to) === 1) shown[from]!.into ??= shown[to]!.label;
+  }
+  return { stages: stages.map(({ action: _, ...s }) => s), pipelines: shown };
 }
 
 /** Branch names in steps and commit ids in cherry-picks, so renames follow them. */

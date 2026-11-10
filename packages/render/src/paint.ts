@@ -1,7 +1,7 @@
 // The pieces every drawer shares, drawn the way the theme asks: icon tiles, step numbers, line
 // corners, dashes and arrowheads, the ground behind a label, chips. One place, so the graph renderer,
 // sequence, git, roadmap and matrix drawings all follow the same look.
-import type { Point } from '@cartography/core';
+import type { LinePattern, Marker, Point } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { baselineOffset, look, mix, type Theme, type ToneColors } from '@cartography/theme';
 
@@ -129,6 +129,20 @@ export function dashAttr(line: 'solid' | 'dashed' | 'dotted' | undefined, width:
   return line === 'dashed' ? ` stroke-dasharray="${r1(6 * k)} ${r1(4 * k)}"` : ` stroke-dasharray="${r1(k > 1 ? Math.max(0.1, 1.5 * k - width) : 1.5)} ${r1(3.5 * k)}"`;
 }
 
+/**
+ * The second mark of a line style over its stroke `d`: short ticks across it, beads on it, or a
+ * double line (a light core in a wider stroke). Drawn on top of the line, in its colour.
+ */
+export function patternOver(pattern: LinePattern | undefined, d: string, color: string, width: number, theme: Theme, dash = ''): string {
+  if (!pattern) return '';
+  if (pattern === 'ticks') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 4.5)}" stroke-dasharray="1.3 11" stroke-dashoffset="-5"/>`;
+  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3)}" stroke-dasharray="0 12" stroke-dashoffset="-5" stroke-linecap="round"/>`;
+  return `<path d="${d}" fill="none" stroke="${theme.surface}" stroke-width="${r1(Math.max(1, width * 0.4))}" stroke-linejoin="round"${dash}/>`;
+}
+
+/** A double line is drawn wider, so its light core leaves a line of colour on each side. */
+export const patternWidth = (pattern: LinePattern | undefined, width: number) => (pattern === 'double' ? Math.max(width * 2.4, 3.2) : width);
+
 /** How far a line stops short of its arrowhead's tip, so it does not poke through. */
 export function arrowBack(theme: Theme): number {
   const l = look(theme).line;
@@ -202,3 +216,39 @@ export const cardStroke = (theme: Theme, tone: ToneColors) => (look(theme).cardL
 
 /** The shadow filter attribute; nothing on a theme without shadows, so flat looks stay crisp in every renderer. */
 export const shadowAttr = (theme: Theme, filterId: string) => (theme.shadow.opacity > 0 ? ` filter="url(#${filterId})"` : '');
+
+/** Arrowheads and crow's-foot ends, drawn at `tip` pointing away from `from`. */
+export function endMarker(kind: Marker, tip: Point, from: Point, color: string, theme: Theme): string {
+  if (kind === 'none') return '';
+  const len = Math.hypot(tip.x - from.x, tip.y - from.y) || 1;
+  const d = { x: (tip.x - from.x) / len, y: (tip.y - from.y) / len };
+  const n = { x: -d.y, y: d.x };
+  const at = (back: number, side = 0) => ({ x: tip.x - d.x * back + n.x * side, y: tip.y - d.y * back + n.y * side });
+  const P = (p: Point) => `${r1(p.x)} ${r1(p.y)}`;
+  const line = (a: Point, b: Point) =>
+    `<path d="M${P(a)}L${P(b)}" stroke="${color}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" fill="none"/>`;
+  const bar = (back: number) => line(at(back, -6), at(back, 6));
+  const circle = (back: number) => {
+    const c = at(back);
+    return `<circle cx="${r1(c.x)}" cy="${r1(c.y)}" r="4" fill="${theme.surface}" stroke="${color}" stroke-width="${theme.stroke.edge}"/>`;
+  };
+  const crow = () => line(at(12), at(0, -7)) + line(at(12), at(0, 7)) + line(at(12), at(0));
+
+  switch (kind) {
+    case 'arrow':
+      return arrowHead(tip, from, color, theme);
+    case 'one':
+      return bar(8) + bar(13);
+    case 'zeroOrOne':
+      return bar(8) + circle(17);
+    case 'many':
+      return crow();
+    case 'oneOrMany':
+      return crow() + bar(16);
+    case 'zeroOrMany':
+      return crow() + circle(20);
+    case 'slash':
+      // A default flow: a short stroke across the line, just past where it leaves.
+      return `<path d="M${P(at(12, -5))}L${P(at(6, 5))}" stroke="${color}" stroke-width="${r1(theme.stroke.edge * 1.2)}" stroke-linecap="round" fill="none"/>`;
+  }
+}

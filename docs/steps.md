@@ -88,7 +88,7 @@ views:
 
 Steps at the top of a file belong to the drawing as written; a file that only has views says so when it finds steps there.
 
-Two kinds of drawing step by themselves, with nothing extra written: a **sequence diagram** goes message by message, and a **C4 dynamic view** goes line by line in its numbered order. In both, `steps:` already means those messages or lines, so they take no presentation steps of their own; the label of a message or line is its caption.
+Two kinds of drawing step by themselves, with nothing extra written: a **sequence diagram** goes message by message, and a **C4 dynamic view** goes line by line in its numbered order. They take no presentation steps of their own (a sequence lists its messages under `messages:`; its old name `steps:` is still read, with a warning); the label of a message or line is its caption.
 
 ## Problems
 

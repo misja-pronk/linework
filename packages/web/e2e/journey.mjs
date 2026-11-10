@@ -19,6 +19,8 @@ await page.addInitScript(
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
+    // The inspector with "More" open: these steps check every field.
+    localStorage.setItem('cartography:inspectorMore', 'true');
     for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'journey.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
   },
   [text],
@@ -33,7 +35,7 @@ await page.screenshot({ path: `${out}/j1-builder.png` });
   await page.locator('.drawing [data-node="access"]').click();
   await page.waitForSelector('.inspector label.field');
   const names = await page.locator('.inspector label.field > span').allInnerTexts();
-  for (const want of ['Label', 'In', 'Feel', 'Thought', 'Touchpoint', 'Pains']) if (!names.includes(want)) fail(`no ${want} field for a step: ${names.join(', ')}`);
+  for (const want of ['Label', 'Inside', 'Feel', 'Thought', 'Touchpoint', 'Pains']) if (!names.includes(want)) fail(`no ${want} field for a step: ${names.join(', ')}`);
   await page.screenshot({ path: `${out}/j2-step.png` });
   const input = page.locator('.inspector label.field', { hasText: 'Label' }).first().locator('input, textarea').first();
   await input.fill('Asks for access to everything');

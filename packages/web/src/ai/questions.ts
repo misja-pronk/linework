@@ -58,7 +58,7 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
   sequence: () => [
     { ...about, label: 'Which interaction?', placeholder: 'E.g. checkout with a card: the shop creates a payment, the provider confirms by webhook.' },
     { id: 'participants', label: 'Who takes part, left to right', kind: 'text', placeholder: 'Shopper, Storefront, Orders API, Orders DB, Payment provider' },
-    { id: 'steps', label: 'The steps, roughly', kind: 'long', placeholder: 'One per line is enough: place order, create payment, confirm card, webhook, mark paid…' },
+    { id: 'messages', label: 'The messages, roughly', kind: 'long', placeholder: 'One per line is enough: place order, create payment, confirm card, webhook, mark paid…' },
     { id: 'branches', label: 'Include', kind: 'chips', options: ['Failure path', 'Retries or loops', 'Async messages', 'Notes'], initial: ['Failure path'] },
   ],
   gitflow: () => [

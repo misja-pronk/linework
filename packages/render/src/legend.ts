@@ -3,10 +3,11 @@
 // is that kind's own icon in the theme's tile style, so it also reads without colour.
 import type { Graph, LegendItem } from '@cartography/core';
 import { baselineOffset, chipText, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
-import { chipBack, dashAttr, esc, glyph, iconTile, monoAttr, r1, tagRadius } from './paint.ts';
+import { chipBack, dashAttr, endMarker, esc, glyph, iconTile, monoAttr, patternOver, patternWidth, r1, tagRadius } from './paint.ts';
 import { drawTags, endStyle, tagsWidth } from './tags.ts';
 import { blockSample } from './block.ts';
 import { drawMarks } from './flow.ts';
+import { messageSample } from './sequence.ts';
 
 /** Sample, gap, label, then the gap to the next item. */
 const SAMPLE = 28;
@@ -19,7 +20,7 @@ const WRAP = 640;
 const COLUMN_ROW = 26;
 
 /** A tag sample wider than the usual sample (OHS, ACL) pushes its label along. */
-export const sampleExtra = (item: LegendItem) => (item.swatch === 'mark' ? Math.max(0, tagsWidth([item.tag ?? 'T1']) + 8 - SAMPLE) : 0);
+export const sampleExtra = (item: LegendItem) => (item.swatch === 'mark' ? Math.max(0, tagsWidth([item.tag ?? 'T1']) + 8 - SAMPLE) : (item.end && item.end !== 'none') || item.swatch === 'message' ? 10 : 0);
 const labelWidth = (item: LegendItem, theme: Theme) => sampleExtra(item) + measureText(item.label, theme.size.caption, 500);
 
 /** Positions of the items in one unwrapped row (the classic legend). */
@@ -137,12 +138,11 @@ export function legendColumn(g: Graph, theme: Theme) {
   return { width, height: items.length * COLUMN_ROW + 32, draw };
 }
 
-/** Legend sample of a badge: a small chip with an arrow, in the style's colour. */
-function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme): string {
-  const box =
-    look(theme).chip === 'outline'
-      ? `<rect x="${x + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="${Math.min(4, theme.radius.chip)}" fill="${theme.surface}" stroke="${tone.fg}" stroke-opacity="0.55"/>`
-      : `<rect x="${x}" y="${cy - 7}" width="20" height="14" rx="${Math.min(4, theme.radius.chip)}" fill="${tone.bg}"/>`;
+/** Legend sample of a badge: the chip as on the cards, with the icon its chips carry (an arrow when they have none). */
+function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme, icon?: string): string {
+  const box = chipBack(theme, x, cy - 8, 20, 16, tone);
+  const mark = glyph(icon, x + 4, cy - 6, 12, tone.fg, 1.6);
+  if (mark) return box + mark;
   return box + `<path d="M${x + 6} ${cy}h8m-3-3l3 3-3 3" fill="none" stroke="${tone.fg}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
@@ -151,7 +151,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   const lk = look(theme);
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
   const label = `<text x="${r1(x0 + SAMPLE + sampleExtra(item))}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
-  if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme) + label;
+  if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme, item.icon) + label;
   if (item.swatch === 'block' && item.block) return drawMarks(blockSample(item.block.form, theme, x0, cy, item.block.heat), theme, '') + label;
   if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
     // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.
@@ -171,6 +171,8 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
     if (paper) return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="${Math.min(4, theme.radius.group)}" fill="${paper}" stroke="${groupLine(theme, theme.tones.slate) ?? theme.textFaint}" stroke-width="1.2" stroke-dasharray="${lk.group.dash}"/>` + label;
     return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="4" fill="none" stroke="${theme.textFaint}" stroke-width="1.2" stroke-dasharray="3 2.5"/>` + label;
   }
+  if (item.swatch === 'message') return messageSample(item.arrow ?? 'sync', x0, cy, theme) + label;
+  if (item.swatch === 'glyph') return glyph(item.icon, x0 + 3, cy - 7, 14, theme.tones[item.tone ?? 'slate'].fg, 1.75) + label;
   if (item.swatch === 'trust') return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${theme.tones.rose.fg}" stroke-width="1.8" stroke-dasharray="5 3"/>` + label;
   if (item.swatch === 'mark' && item.tag && item.tone) {
     // A matrix value: its letter in a pill of its tone, as in the cells.
@@ -193,6 +195,13 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   }
   if (item.swatch === 'outline')
     return `<rect x="${x0 + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="${Math.min(6.5, theme.radius.chip + 2.5)}" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
-  const width = theme.stroke.edge * (item.width ?? 1) + 0.4;
-  return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round"${dashAttr(item.line, width, theme)}/>` + label;
+  const width = patternWidth(item.pattern, theme.stroke.edge * (item.width ?? 1) + 0.4);
+  const dash = dashAttr(item.line, width, theme);
+  if (item.end && item.end !== 'none') {
+    // A relationship's end (a crow's foot): a longer line, so the mark sits clear of where it starts.
+    const tip = { x: x0 + 30, y: cy };
+    return `<path d="M${x0} ${cy}H${tip.x}" stroke="${color}" stroke-width="${r1(theme.stroke.edge)}" stroke-linecap="round"/>` + endMarker(item.end, tip, { x: x0, y: cy }, color, theme) + label;
+  }
+  const d = `M${x0} ${cy}H${x0 + 20}`;
+  return `<path d="${d}" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round"${dash}/>` + patternOver(item.pattern, `M${x0 - 1} ${cy}H${x0 + 22}`, color, width, theme, dash) + label;
 }

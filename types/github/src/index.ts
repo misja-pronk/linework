@@ -39,12 +39,12 @@ export const config: GraphTypeConfig = {
   },
   edgeStyles: {
     access: { label: 'Repository access', line: 'solid', tone: 'indigo' },
-    member: { label: 'Member of', line: 'dotted', tone: 'slate' },
+    member: { label: 'Member of', line: 'solid' },
     trigger: { label: 'Triggers', line: 'dashed', tone: 'green' },
-    deploy: { label: 'Deploys', line: 'solid', tone: 'amber' },
+    deploy: { label: 'Deploys', line: 'solid', tone: 'amber', pattern: 'double' },
     uses: { label: 'Uses', line: 'dotted', tone: 'slate' },
-    oidc: { label: 'OIDC federation', line: 'dotted', tone: 'violet' },
-    protects: { label: 'Protects', line: 'dashed', tone: 'rose' },
+    oidc: { label: 'OIDC federation', line: 'dotted', tone: 'violet', pattern: 'beads' },
+    protects: { label: 'Protects', line: 'dashed', tone: 'rose', pattern: 'ticks' },
   },
 };
 

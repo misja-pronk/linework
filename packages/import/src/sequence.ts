@@ -137,10 +137,12 @@ export function sequenceYaml(d: SequenceDiagram): string {
   }
   out.push('', 'participants:');
   for (const p of d.participants) {
-    const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
+    // The kind is read from the source's words or type: it gives the icon, not a caption the source never wrote.
+    const quiet = p.kind === 'person' || p.kind === 'people';
+    const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.label && !quiet ? 'caption: ""' : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
     out.push(`  ${p.id}: ${fields.length === 1 ? p.kind : `{ ${fields.join(', ')} }`}`);
   }
-  out.push('', 'steps:');
+  out.push('', 'messages:');
   writeSteps(d.steps, '  ', out);
   return out.join('\n') + '\n';
 }
@@ -154,7 +156,7 @@ function writeSteps(steps: Step[], indent: string, out: string[]) {
       continue;
     }
     out.push(`${indent}- ${step.frame}:${step.label ? ` ${scalar(step.label)}` : ''}`);
-    out.push(`${indent}  steps:`);
+    out.push(`${indent}  messages:`);
     writeSteps(step.steps, `${indent}    `, out);
     if (!step.branches.length) continue;
     const key = step.frame === 'par' ? 'and' : 'else';

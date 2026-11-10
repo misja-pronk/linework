@@ -291,7 +291,7 @@ export function writeImported(d: InDiagram, opts: ImportOptions = {}): ImportedD
       const caption = n.caption === said ? undefined : n.caption;
       out.push(`  ${n.id}: ${kind && !label && !caption ? kind : flow([['kind', kind], ['label', label], ['caption', caption]])}`);
     }
-    out.push('', 'steps:');
+    out.push('', 'messages:');
     const op = { sync: '->', async: '->>', reply: '-->', lost: '-x' };
     for (const m of d.messages ?? []) out.push(`  - ${m.from} ${op[m.arrow]} ${m.to}${m.label ? `: ${scalar(m.label)}` : ''}`);
     report.push(`${plural(d.nodes.length, 'participant')}, ${plural(d.messages?.length ?? 0, 'message')}`);

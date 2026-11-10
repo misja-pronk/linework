@@ -58,7 +58,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
     if (m.plain && !c.tone) return measureText(c.text ?? '–', theme.size.cell, c.strong ? 600 : 400);
     return Math.max(pill(c), c.note ? measureText(c.note, NOTE, 400) : 0);
   };
-  const rowHeader = Math.max(m.corner ? measureText(m.corner, theme.size.caption, 500) : 0, ...m.rows.map((r) => label(r, ROW_ICON))) + 2 * PAD;
+  const rowHeader = Math.max(m.corner ? (m.plain ? measureText(m.corner, theme.size.cell, 600) : measureText(m.corner, theme.size.caption, 500)) : 0, ...m.rows.map((r) => label(r, ROW_ICON))) + 2 * PAD;
   const natural = m.columns.map((col, j) => Math.max(72, label(col, COL_ICON), ...m.cells.map((r) => cellWidth(r[j]))));
   // A plain table that wraps keeps long text in its column: the words go on the next line.
   const wraps = (j: number) => !!m.plain && !!m.wrap && natural[j]! > m.wrap;
@@ -124,7 +124,8 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     s += text(b.x + band.x + band.width / 2, b.y + g.band / 2 + 4, fitText(band.label.toUpperCase(), 10, 600, band.width - 12), 10, 600, theme.textMuted, 'middle');
     s += `<line x1="${r1(b.x + band.x + 8)}" y1="${r1(b.y + g.band + 2)}" x2="${r1(b.x + band.x + band.width - 8)}" y2="${r1(b.y + g.band + 2)}" stroke="${theme.textFaint}" stroke-opacity="0.6" stroke-width="1"/>`;
   }
-  if (m.corner) s += text(b.x + PAD, b.y + g.band + HEAD / 2, m.corner, theme.size.caption, 500, theme.textFaint);
+  // A plain table's corner is its first column's header, lettered like the others; a matrix's says how to read it (who \ where).
+  if (m.corner) s += m.plain ? text(b.x + PAD, b.y + g.band + HEAD / 2, m.corner, theme.size.cell, 600, theme.text) : text(b.x + PAD, b.y + g.band + HEAD / 2, m.corner, theme.size.caption, 500, theme.textFaint);
   let x = b.x + g.rowHeader;
   for (const [j, col] of m.columns.entries()) {
     const w = g.columns[j]!;
@@ -138,7 +139,7 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     s += text(start + iconW, cy, fitText(col.label, theme.size.cell, 600, w - 2 * PAD - iconW), theme.size.cell, 600, col.change === 'removed' ? theme.textMuted : theme.text, undefined, col.change === 'removed');
     if (col.caption) s += text(cx, cy + 16, fitText(col.caption, theme.size.caption, 400, w - 2 * PAD), theme.size.caption, 400, theme.textFaint, 'middle');
     // Column separators, subtle.
-    s += `<line x1="${r1(x)}" y1="${r1(b.y + g.band + 10)}" x2="${r1(x)}" y2="${r1(b.y + b.height - 10)}" stroke="${theme.border}" stroke-opacity="0.5" stroke-width="1"/>`;
+    s += `<line x1="${r1(x)}" y1="${r1(b.y + g.band + 10)}" x2="${r1(x)}" y2="${r1(b.y + b.height)}" stroke="${theme.border}" stroke-opacity="0.5" stroke-width="1"/>`;
     x += w;
   }
 
@@ -159,7 +160,8 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     // A row without a label continues the one above (more interfaces of one device): the rule skips its header.
     const more = m.plain && !row.label;
     if (i > 0 && g.rows[i - 1]!.y + g.rows[i - 1]!.height === g.rows[i]!.y)
-      s += `<line x1="${r1(more ? b.x + g.rowHeader : b.x + PAD)}" y1="${r1(y)}" x2="${r1(b.x + b.width - PAD)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
+      // Rules run to the table's edges, as the header's does.
+      s += `<line x1="${r1(more ? b.x + g.rowHeader : b.x)}" y1="${r1(y)}" x2="${r1(b.x + b.width)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
     const t = tone(row.tone);
     let tx = b.x + PAD;
     if (row.icon) {

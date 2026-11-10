@@ -338,16 +338,16 @@ describe('examples/deployment', () => {
         expect(r.diagnostics, `${f}#${view}`).toEqual([]);
         (counts[f] ??= []).push(r.graph!.nodes.length);
       }
-    expect(counts).toEqual({ 'azure.yaml': [9, 7, 6], 'aws.yaml': [11, 8, 6] });
+    expect(counts).toEqual({ 'azure.yaml': [9, 7, 6], 'aws.yaml': [10, 8, 6] });
   }, 30_000);
 
-  it('production on AWS runs the Orders API in both zones, each behind its own load balancer', async () => {
+  it('production on AWS runs the Orders API in both zones, behind one load balancer across them', async () => {
     const r = await show('aws.yaml', 'prod');
     const apis = r.graph!.nodes.filter((n) => n.shape.kind === 'card' && n.shape.label === 'Orders API');
     expect(apis.map((n) => [n.id, n.parent])).toEqual([['api-a', 'app-a'], ['api-b', 'app-b']]);
     expect(apis[0]!.links!.map((l) => l.target)).toEqual(['model.yaml#containers']);
     const edges = ids(r).edges;
-    // Both write to the one database; the storefront reaches them through the load balancers.
+    // Both write to the one database; the storefront reaches them through the load balancer.
     expect(edges).toContain('api-a>db:Reads and writes [SQL]');
     expect(edges).toContain('api-b>db:Reads and writes [SQL]');
     expect(edges.filter((e) => e.startsWith('cdn>api'))).toEqual([]);

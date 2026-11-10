@@ -113,7 +113,9 @@ const PORT_KINDS: [RegExp, string][] = [
 const portKind = (type: string | undefined) => (type ? PORT_KINDS.find(([re]) => re.test(type))?.[1] : undefined);
 
 /** The caption of a source that stands for an input contract nobody in the folder provides; also how a later import knows it made it. */
-const OUTSIDE = 'Outside these files';
+const OUTSIDE = 'Outside the mesh';
+/** What earlier versions wrote there, still known as theirs. */
+const OUTSIDE_BEFORE = 'Outside these files';
 
 /** The team's name, else whoever is its owner. */
 function ownerOf(team: unknown): string | undefined {
@@ -470,7 +472,7 @@ function write(products: Product[], contracts: Map<string, ContractFile>, option
   const now = (doc.toJS() ?? {}) as Record<string, Record<string, unknown> | undefined>;
   const all = (name: string) => Object.values(isObj(now[name]) ? now[name]! : {}).filter(isObj);
   const refs = new Set([...all('products').flatMap((p) => (Array.isArray(p.inputs) ? p.inputs : [])), ...all('consumers').flatMap((c) => (Array.isArray(c.uses) ? c.uses : []))].map((r) => fromOf(r)?.split('.')[0]));
-  for (const [id, s] of Object.entries(before('sources'))) if (!sources.has(id) && !refs.has(id) && isObj(s) && s.caption === OUTSIDE) mapOf('sources', false)?.delete(id);
+  for (const [id, s] of Object.entries(before('sources'))) if (!sources.has(id) && !refs.has(id) && isObj(s) && (s.caption === OUTSIDE || s.caption === OUTSIDE_BEFORE)) mapOf('sources', false)?.delete(id);
   const governed = new Set(all('products').flatMap((p) => Object.values(isObj(p.outputs) ? p.outputs : {}).map((o) => (isObj(o) ? o.contract : undefined))));
   const contractFiles = new Set([...contracts.values()].map((c) => c.file));
   for (const [id, c] of Object.entries(oldContracts)) if (fileOf(c) && !contractFiles.has(fileOf(c)!) && !governed.has(id)) mapOf('contracts', false)?.delete(id);

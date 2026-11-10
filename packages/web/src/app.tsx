@@ -34,7 +34,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
-import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, drawnAs, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
 import { themes } from '@cartography/theme';
@@ -97,6 +97,17 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
+/** What the status bar counts: what the type draws. One shape drawn whole (a sequence, a roadmap) is
+ * counted by its parts; everything else by its elements and connections. */
+function drawnCount(graph: { nodes: GraphNode[]; edges: unknown[] }): string {
+  const s = graph.nodes.length === 1 ? graph.nodes[0]!.shape : undefined;
+  if (s?.kind === 'sequence') return `${count(s.participants.length, 'participant')} · ${count(s.events.filter((e) => e.kind === 'message').length, 'message')}`;
+  if (s?.kind === 'gitflow') return `${count(s.branches.length, 'branch')} · ${count(s.commits.length, 'commit')}`.replace('branchs', 'branches');
+  if (s?.kind === 'roadmap') return `${count(s.lanes.length, 'lane')} · ${count(s.items.length, 'item')}`;
+  if (s?.kind === 'journey') return `${count(s.phases.length, 'phase')} · ${count(s.steps.length, 'step')}`;
+  if (s?.kind === 'matrix') return `${count(s.rows.length, 'row')} · ${count(s.columns.length, 'column')}`;
+  return `${count(graph.nodes.length, 'element')} · ${count(graph.edges.length, 'connection')}`;
+}
 const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' || n.shape.kind === 'block' ? n.shape.label || n.id : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
@@ -130,7 +141,14 @@ export function App() {
     [],
   );
   // A first visit starts with choosing what to make and how.
+  // The start dialog only until it has been left once (by any way: a template, a file, Esc).
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
+  // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
+  // Once the start dialog is left, by whatever way, it is not shown at the next launch.
+  useEffect(() => {
+    if (modal) setToast(undefined);
+    else store.set('started', true);
+  }, [modal]);
   /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
   // A first visit shows the builder: the friendliest way in.
   const [view, setViewState] = useState<View>(() => store.get<View>('view') ?? (store.get('started') ? 'code' : 'visual'));
@@ -143,6 +161,8 @@ export function App() {
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
   /** The first-visit hint, until it is dismissed once. */
   const [hint, setHint] = useState(() => !store.get('hinted'));
+  /** The hint's height: a toast stands clear above it (see .with-hint .toast). */
+  const [hintHeight, setHintHeight] = useState(72);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);
@@ -790,7 +810,7 @@ export function App() {
     if (n || g) {
       setSelected(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id });
       setInspector(true);
-      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.field:nth-child(2) input', true);
+      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.inspector-body > .field input', true);
     }
     setPendingPath(undefined);
   }, [pendingPath, result, current]);
@@ -817,7 +837,9 @@ export function App() {
     const parent = gp && gp.length === 2 && parentKey(type, item.collection, String(gp[0])) ? { collection: String(gp[0]), id: String(gp[1]) } : holder;
     const r = addEntry(textNow(), type, item, parent);
     if (!r) return apply(undefined);
-    apply(r.text, at ? withPin(r.id, at) : undefined);
+    // Dropped at a point: it stays there, pinned as a node or, for a new group, by its top-left.
+    const drawnAt = at && drawnAs(r.text, type, r.path);
+    apply(r.text, at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
     // The label is what people change first: selected and focused once it is drawn.
     setPendingPath(JSON.stringify(r.path));
   };
@@ -1133,7 +1155,7 @@ export function App() {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
-    else if (e.key === 'F2' && selected) (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select();
+    else if (e.key === 'F2' && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
     e.preventDefault();
@@ -1493,8 +1515,8 @@ export function App() {
   const typeId = type?.id;
   return (
     <div
-      className="app"
-      style={{ ['--split' as string]: `${split * 100}%` }}
+      className={hint && !adding && !modal ? 'app with-hint' : 'app'}
+      style={{ ['--split' as string]: `${split * 100}%`, ['--hint-h' as string]: `${hintHeight}px` }}
       onDragOverCapture={onDragFiles}
       onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
       onDropCapture={onDropFiles}
@@ -1757,7 +1779,12 @@ export function App() {
               const collection = what.palette != null ? type.palette[what.palette]?.collection : String(pathOf({ kind: 'node', id: what.node! })?.[0] ?? '');
               return !!collection && !!parentKey(type, collection, String(g.path[0]));
             }}
-            onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
+            onPaletteDrop={(i, at, group, refused) => {
+              const item = type?.palette[i];
+              if (!item) return;
+              add(item, group, at);
+              if (refused) notify(`${item.label} cannot go in ${result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused}: placed outside it`);
+            }}
             onKeyDown={onCanvasKey}
             locked={locked}
             bent={bent}
@@ -1810,9 +1837,17 @@ export function App() {
               </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
+            {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
+            {!!rendered && !!drawn?.svg && drawn !== result && (
+              <div className="canvas-note">
+                <div className="stale-note" role="status">
+                  <Icon name="circle-exclamation-point" size={14} /> Showing the last version that worked: fix the problems in the editor
+                </div>
+              </div>
+            )}
             </div>
             {hint && !adding && !modal && (
-              <div className="hint" role="note">
+              <div className="hint" role="note" ref={(el) => void (el && el.offsetHeight !== hintHeight && setHintHeight(el.offsetHeight))}>
                 <span>
                   {view === 'visual' ? (
                     <>
@@ -1820,7 +1855,7 @@ export function App() {
                     </>
                   ) : (
                     <>
-                      Edit the YAML, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                      Edit the YAML (<kbd>Tab</kbd> indents two spaces; <kbd>Esc</kbd> <kbd>Tab</kbd> or <kbd>F6</kbd> leaves it), or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>?</kbd> shows all keys.
                     </>
                   )}
                 </span>
@@ -1976,11 +2011,7 @@ export function App() {
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
         </button>
-        {result?.graph && (
-          <span>
-            {count(result.graph.nodes.length, 'element')} · {count(result.graph.edges.length, 'connection')}
-          </span>
-        )}
+        {result?.graph && <span>{drawnCount(result.graph)}</span>}
         {pinCount > 0 && (
           <span className="status-selected">
             <Icon name="pin" size={13} /> {pinCount} pinned
