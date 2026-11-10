@@ -2,7 +2,7 @@
 import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Diagnostic } from '@cartography/core';
 import { diffGraphs, type GraphDiff } from './structure.ts';
-import { drawDiff, sideBySide, type Drawing, type OverlayOptions, type Picture } from './overlay.ts';
+import { drawDiff, markedSide, sideBySide, type Drawing, type OverlayOptions, type Picture } from './overlay.ts';
 
 export interface CompareOptions {
   /** How to read what the older version refers to (includes, pins): its own loader and sidecar. */
@@ -15,6 +15,8 @@ export interface CompareOptions {
    * older one, so what both have stays where it was and the picture shows the change, not a reshuffle.
    */
   fresh?: boolean;
+  /** The older version as already drawn (same text, options and view): an editor comparing live draws it once, not on every keystroke. */
+  drawnBefore?: RenderResult;
 }
 
 export interface Comparison {
@@ -28,6 +30,8 @@ export interface Comparison {
   /** The marked-up drawing; undefined when neither version could be drawn. */
   picture(opts?: OverlayOptions): Picture | undefined;
   sideBySide(opts?: OverlayOptions): Picture | undefined;
+  /** One side alone with its own marks; undefined when that side could not be drawn. */
+  side(which: 'before' | 'after'): Picture | undefined;
 }
 
 function drawing(r: RenderResult | undefined): Drawing | undefined {
@@ -38,7 +42,7 @@ function drawing(r: RenderResult | undefined): Drawing | undefined {
 /** `before` or `after` undefined: the file did not exist then (a new diagram), or is gone now. */
 export async function compare(before: string | undefined, after: string | undefined, opts: CompareOptions = {}): Promise<Comparison> {
   const view = opts.view ? { view: opts.view } : {};
-  const old = before === undefined ? undefined : await render(before, { fonts: 'none', ...opts.before, ...view });
+  const old = before === undefined ? undefined : opts.drawnBefore ?? await render(before, { fonts: 'none', ...opts.before, ...view });
   // A view the older version did not have yet is a new drawing, not an error.
   const was = drawing(old);
   const now =
@@ -56,5 +60,6 @@ export async function compare(before: string | undefined, after: string | undefi
     failed: diagnostics.some((d) => d.severity === 'error'),
     picture: (o) => (was || is ? drawDiff(was, is, diff, o) : undefined),
     sideBySide: (o) => (was || is ? sideBySide(was, is, diff, o) : undefined),
+    side: (which) => ((d) => (d ? markedSide(d, diff, which) : undefined))(which === 'before' ? was : is),
   };
 }
