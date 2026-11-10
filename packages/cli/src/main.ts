@@ -20,7 +20,7 @@ import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
 import { threatMarkdown } from '@cartography/core';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
-const help = `carto — architecture diagrams that look good
+const helpAll = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
@@ -54,7 +54,7 @@ const help = `carto — architecture diagrams that look good
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
-                                                http://localhost:5173/)
+                                                http://localhost:5178/)
   carto validate <file.yaml…>                   check files and each of their views, print problems
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
@@ -118,7 +118,77 @@ Manual positions are read from <file>.layout.json next to the diagram (per view 
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
 so the same YAML and layout file always give the same picture. More: docs/ci.md`;
 
-const { positionals, values } = parseArgs({
+/** Each command's part of the full help, from the lines that start with "carto <command>". */
+const usage = new Map<string, string>();
+{
+  let current = '';
+  for (const line of helpAll.split('\n').slice(2)) {
+    const m = /^  carto (\w+)/.exec(line);
+    if (m) current = m[1]!;
+    else if (!line.startsWith('   ')) current = '';
+    if (current) usage.set(current, (usage.has(current) ? usage.get(current) + '\n' : '') + line);
+  }
+}
+
+/** The commands, grouped, one line each: what `carto --help` shows. */
+const groups: [string, [string, string][]][] = [
+  ['Draw', [
+    ['render', 'a diagram to SVG, PNG, PowerPoint or PDF'],
+    ['deck', 'several diagrams in one deck'],
+    ['watch', 'render again on every save'],
+    ['embed', 'a web page that carries the drawing'],
+    ['share', 'a link that opens the diagram in the web app'],
+  ]],
+  ['Check', [
+    ['validate', 'check files and their views'],
+    ['diff', 'what changed between two versions'],
+    ['threats', 'the threat table as markdown'],
+  ]],
+  ['Start and convert', [
+    ['new', 'start from a template'],
+    ['types', 'which diagram type to pick'],
+    ['import', 'Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML'],
+    ['export', 'to draw.io, Excalidraw or Mermaid'],
+  ]],
+  ['Look', [
+    ['themes', 'built-in themes'],
+    ['icons', 'import and list vendor icon packs'],
+  ]],
+];
+const commands = groups.flatMap(([, list]) => list.map(([c]) => c));
+
+const help = `carto — architecture diagrams that look good
+
+Usage: carto <command> [files…] [options]
+
+${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.padEnd(10)} ${what}`).join('\n')}`).join('\n\n')}
+
+carto <command> --help   the options of one command
+carto help all           every command with every option
+Example: carto render shop.yaml -o shop.png`;
+
+/** Help for one command, or the short help. */
+const helpFor = (cmd?: string) => (cmd && usage.has(cmd) ? `${usage.get(cmd)}\n\nAll commands: carto --help` : help);
+
+/** The command meant by a typo: the nearest by edit distance, when it is close. */
+function nearest(word: string): string | undefined {
+  const dist = (a: string, b: string) => {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array<number>(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) d[0]![j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++) d[i]![j] = Math.min(d[i - 1]![j]! + 1, d[i]![j - 1]! + 1, d[i - 1]![j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length]![b.length]!;
+  };
+  const best = commands.map((c) => [c, c.startsWith(word) && word.length >= 2 ? 0 : dist(word, c)] as const).sort((a, b) => a[1] - b[1])[0];
+  return best && best[1] <= Math.max(1, Math.floor(word.length / 3)) ? best[0] : undefined;
+}
+
+/** A mistake in how carto was called: said in one line, without a stack. */
+class UsageError extends Error {}
+
+const parsed = (() => {
+  try {
+    return parseArgs({
   allowPositionals: true,
   options: {
     out: { type: 'string', short: 'o' },
@@ -172,7 +242,15 @@ const { positionals, values } = parseArgs({
     base: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
-});
+    });
+  } catch (e) {
+    // An unknown or malformed option: one line and how to see the right ones.
+    const cmd = process.argv[2] && !process.argv[2].startsWith('-') ? process.argv[2] : undefined;
+    console.error(`carto: ${(e as Error).message.split('\n')[0]!.replace(/\. To specify a positional.*$/, '')}\n${cmd && usage.has(cmd) ? `Options: carto ${cmd} --help` : 'Commands: carto --help'}`);
+    process.exit(1);
+  }
+})();
+const { positionals, values } = parsed;
 
 const [command, ...files] = positionals;
 const useColor = process.stderr.isTTY;
@@ -248,7 +326,12 @@ function outputPath(file: string, format: string, view?: string, step?: number):
   const nn = step ? `-step-${String(step).padStart(2, '0')}` : '';
   const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + nn + '.' + format;
   if (!values.out) return path.join(path.dirname(file), base);
-  if (files.length === 1 && !values['all-views'] && path.extname(values.out)) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), nn ? values.out.replace(/(\.\w+)$/, `${nn}$1`) : values.out);
+  // -o is a folder when it ends in / or has no extension; a file name for several pictures is a mistake,
+  // not a folder named x.png.
+  const folder = values.out.endsWith('/') || values.out.endsWith(path.sep) || !path.extname(values.out);
+  if (!folder && (files.length > 1 || values['all-views']))
+    throw new UsageError(`-o ${values.out} names one file, but ${values['all-views'] ? '--all-views writes one per view' : 'several diagrams make several files'}: give a folder, e.g. -o ${path.join(path.dirname(values.out), path.basename(values.out, path.extname(values.out)))}/`);
+  if (!folder) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), nn ? values.out.replace(/(\.\w+)$/, `${nn}$1`) : values.out);
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
 }
@@ -962,9 +1045,17 @@ function typeGuide(query = '') {
 }
 
 async function main(): Promise<number> {
+  if (command === 'help') {
+    const [what] = files;
+    if (what === 'all') console.log(helpAll);
+    else if (what && !usage.has(what)) return unknown(what);
+    else console.log(helpFor(what));
+    return 0;
+  }
   if (values.help || !command) {
-    console.log(help);
-    return command ? 0 : 1;
+    if (command && !usage.has(command)) return unknown(command);
+    console.log(helpFor(command));
+    return command || values.help ? 0 : 1;
   }
   switch (command) {
     case 'types':
@@ -983,7 +1074,7 @@ async function main(): Promise<number> {
         for (const p of packs) console.log(`${p.name.padEnd(12)} ${Object.keys(p.icons).length} kinds ${dim(`← ${p.source ?? '?'}  (${p.root})`)}`);
         return 0;
       }
-      if (sub !== 'import' || !src) return (console.error(help), 1);
+      if (sub !== 'import' || !src) return (console.error(helpFor(command)), 1);
       const name = values.pack?.[0];
       if (!name) return (console.error('Name the pack: carto icons import <folder|zip> --pack azure'), 1);
       try {
@@ -1022,7 +1113,7 @@ async function main(): Promise<number> {
       const { embed, embedCss } = await import('./embed.ts');
       if (values.css) return (process.stdout.write(embedCss()), 0);
       const [f] = files;
-      if (!f) return (console.error(help), 1);
+      if (!f) return (console.error(helpFor(command)), 1);
       const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static });
       report(f === '-' ? 'stdin' : f, r.problems);
       // A fragment, or a page made from standard input, goes to standard output unless -o says where.
@@ -1035,7 +1126,7 @@ async function main(): Promise<number> {
     }
     case 'threats': {
       const [f] = files;
-      if (!f) return (console.error(help), 1);
+      if (!f) return (console.error(helpFor(command)), 1);
       const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
       report(f, r.diagnostics);
       if (!r.graph) return 1;
@@ -1053,9 +1144,9 @@ async function main(): Promise<number> {
     }
     case 'share': {
       const [f] = files;
-      if (!f) return (console.error(help), 1);
+      if (!f) return (console.error(helpFor(command)), 1);
       const { shareLink, SHARE_LIMIT } = await import('@cartography/core');
-      const link = await shareLink({ yaml: fs.readFileSync(f, 'utf8'), name: path.basename(f), layout: sidecarFor(f) }, values.base ?? 'http://localhost:5173/');
+      const link = await shareLink({ yaml: fs.readFileSync(f, 'utf8'), name: path.basename(f), layout: sidecarFor(f) }, values.base ?? 'http://localhost:5178/');
       if (link.length > SHARE_LIMIT) {
         console.error(`${f}: the link would be ${Math.ceil(link.length / 1000)} kB, over the ${SHARE_LIMIT / 1000} kB a link can safely carry. Share the file itself instead.`);
         return 1;
@@ -1086,7 +1177,7 @@ async function main(): Promise<number> {
       return diffFiles();
     case 'import': {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
-      if (!files.length) return (console.error(help), 1);
+      if (!files.length) return (console.error(helpFor(command)), 1);
       // Access exports and gh api responses: a folder (or the files) is one diagram, as a mesh is.
       const kinds = new Map(files.map((f) => [f, isFolder(f) ? (dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? undefined : exportKind([f])) : /\.json$/i.test(f) ? exportKind([f]) : undefined] as const));
       const exports = files.filter((f) => kinds.get(f));
@@ -1114,7 +1205,7 @@ async function main(): Promise<number> {
       return ok ? 0 : 1;
     }
     case 'render': {
-      if (!files.length) return (console.error(help), 1);
+      if (!files.length) return (console.error(helpFor(command)), 1);
       if (!themeFlag()) return 1;
       let ok = true;
       if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
@@ -1125,14 +1216,14 @@ async function main(): Promise<number> {
       return ok ? 0 : 1;
     }
     case 'export': {
-      if (!files.length) return (console.error(help), 1);
+      if (!files.length) return (console.error(helpFor(command)), 1);
       if (!themeFlag()) return 1;
       let ok = true;
       for (const f of files) ok = (await exportFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'deck':
-      if (!files.length) return (console.error(help), 1);
+      if (!files.length) return (console.error(helpFor(command)), 1);
       return (await deck()) ? 0 : 1;
     case 'watch': {
       if (!themeFlag()) return 1;
@@ -1161,9 +1252,32 @@ async function main(): Promise<number> {
       return new Promise(() => {});
     }
     default:
-      console.error(`Unknown command "${command}"\n\n${help}`);
-      return 1;
+      return unknown(command);
   }
 }
 
-process.exitCode = await main();
+function unknown(cmd: string): number {
+  const guess = nearest(cmd);
+  console.error(`carto: unknown command "${cmd}"${guess ? `. Did you mean "carto ${guess}"?` : ''}\nCommands: ${commands.join(', ')}\nMore: carto --help`);
+  return 1;
+}
+
+/** What went wrong, in one line: a file that is not there, a folder where a file was meant, … */
+function friendly(e: unknown): string {
+  const err = e as NodeJS.ErrnoException;
+  const where = err.path ? path.relative(process.cwd(), err.path) || err.path : undefined;
+  if (err.code === 'ENOENT') return `${where ?? 'file'}: no such file or folder`;
+  if (err.code === 'EISDIR') return `${where ?? 'that'} is a folder; give a file`;
+  if (err.code === 'ENOTDIR') return `${where ?? 'that'}: a file is in the way where a folder is needed`;
+  if (err.code === 'EACCES' || err.code === 'EPERM') return `${where ?? 'file'}: not allowed to read or write it`;
+  return err.message ?? String(e);
+}
+
+try {
+  process.exitCode = await main();
+} catch (e) {
+  console.error(`carto: ${friendly(e)}`);
+  // The stack only when asked for: CARTO_DEBUG=1.
+  if (process.env.CARTO_DEBUG && !(e instanceof UsageError)) console.error((e as Error).stack);
+  process.exitCode = 1;
+}
