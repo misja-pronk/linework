@@ -255,6 +255,7 @@ const heatEntry = {
         values: { type: 'object', additionalProperties: { anyOf: [tone, { type: 'object', properties: { tone, label: { type: 'string' }, pattern: { enum: ['hatch', 'dots'] } }, additionalProperties: false }] }, description: 'Tones for words: { invest: green, divest: { tone: rose, pattern: hatch } }' },
         tone: { ...tone, description: 'The hue of a sequential scale' },
         reverse: { type: 'boolean', description: 'Higher is worse' },
+        unit: { type: 'string', description: 'What the numbers are in, for the key: €, $, %, FTE; read from the values (€220k) when left out' },
       },
       additionalProperties: false,
     },
