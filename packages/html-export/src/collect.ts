@@ -7,6 +7,7 @@ import { decisionsOnDrawing, drillTarget, elementAt, indexFile, indexWorkspace, 
 import { noteSpots, render, withDecisions, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Theme } from '@cartography/theme';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
+import { describe as inWords, toText } from '@cartography/describe';
 import type { PDecision, PDrawing, PElement, PFile, PNote, PStep, Picture } from './payload.ts';
 
 export interface HtmlExportInput {
@@ -248,7 +249,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? first.views?.find((v) => v.name === viewName)?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
       const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
-      const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? `${wsView.kind} view` : viewName ? `view of ${typeName}` : `${typeName}`, ...pic, shapes: {}, drill: {} };
+      const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? `${wsView.kind} view` : viewName ? `view of ${typeName}` : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
       const index = n++;
       drawings.push(drawing);
       pfile.drawings.push(index);

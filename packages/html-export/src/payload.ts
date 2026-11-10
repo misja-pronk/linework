@@ -65,6 +65,8 @@ export interface PDrawing extends Picture {
   title: string;
   /** What kind of drawing: "container view", "azure diagram". */
   kind: string;
+  /** The drawing in plain words (docs/describe.md): what a screen reader reads for it. */
+  words?: string;
   steps?: PStep[];
   /** Drawn shape ("n:id" or "g:id") → element index. */
   shapes: Record<string, number>;

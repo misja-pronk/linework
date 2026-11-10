@@ -387,6 +387,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/embed':
         specifier: workspace:*
         version: link:../embed
@@ -633,6 +636,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/diff':
         specifier: workspace:*
         version: link:../diff

@@ -1,0 +1,53 @@
+/* Describe (describe-dialog.tsx): the diagram in words. */
+
+.describe-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+.describe-body {
+  overflow: auto;
+  padding: 0 24px 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.describe-body:focus-visible {
+  outline: 2px solid var(--accent, #2b62a3);
+  outline-offset: -2px;
+}
+.describe-summary {
+  margin: 4px 0 8px;
+  color: var(--text-muted);
+}
+.describe-body h3 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.describe-body p {
+  margin: 4px 0;
+}
+.describe-body ul,
+.describe-body ol {
+  margin: 2px 0;
+  padding-left: 20px;
+}
+.describe-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--border);
+}
+.describe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.describe-actions kbd {
+  margin-left: 4px;
+}

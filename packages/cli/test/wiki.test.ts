@@ -5,7 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import MarkdownIt from 'markdown-it';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+
+// Each case runs the CLI, some of them several times, drawing every view and step.
+vi.setConfig({ testTimeout: 60_000 });
 
 const root = path.resolve(import.meta.dirname, '../../..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-wiki-'));

@@ -2,7 +2,10 @@
 // __snapshots__/describe, so a change in wording shows up in review as a change in text.
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe as group, expect, it } from 'vitest';
+import { describe as group, expect, it, vi } from 'vitest';
+
+// A file with views is drawn once per view.
+vi.setConfig({ testTimeout: 30_000 });
 import { describe, toText } from '@cartography/describe';
 import { isDiagramFile } from '@cartography/core';
 import { render } from '../src/index.ts';
