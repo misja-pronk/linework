@@ -708,6 +708,35 @@ kbd {
   color: var(--text-faint);
 }
 
+/* Files dragged over the page: says what a drop does, and takes no clicks. */
+.drop-here {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  pointer-events: none;
+}
+.drop-here > div {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 420px;
+  padding: 28px 32px;
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.drop-here .icon {
+  color: var(--accent);
+}
+.drop-here span {
+  color: var(--text-muted);
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -880,6 +909,47 @@ kbd {
 }
 .tool kbd {
   background: none;
+}
+
+/* Under the tools: what the drawing is cut down to, and the way back. */
+.focus-chip {
+  position: absolute;
+  left: 16px;
+  top: 60px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100% - 32px);
+  padding: 3px 3px 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--text-muted);
+  z-index: 5;
+  animation: rise 120ms ease-out;
+}
+.focus-chip > .icon {
+  color: var(--accent);
+  flex: none;
+}
+.focus-chip > span {
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.focus-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-chip-name strong {
+  color: var(--text);
+}
+.focus-chip-count,
+.focus-chip-hops {
+  font-variant-numeric: tabular-nums;
+}
+.focus-chip-count {
+  color: var(--text-faint);
 }
 
 .add-menu {

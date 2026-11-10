@@ -1,6 +1,6 @@
 # Cartography next to Mermaid and D2
 
-Nine everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
+Eleven everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
 The Cartography column is **not hand-tuned**: it is the Mermaid source run through `carto import`
 and rendered as is. The imported YAML is in [`cartography/`](cartography/).
 
@@ -60,12 +60,57 @@ unique mark. Table ids are lowercased (`ORDER` → `order`); the import says so.
 | --- | --- | --- |
 | ![Mermaid](png/login-flow-mermaid.png) | ![D2](png/login-flow-d2.png) | ![Cartography](png/login-flow-cartography.png) |
 
-Questions, `{…}` and plain `{{…}}` shapes import as decisions (pointed ends, a diamond tile, an amber
-outline), `([…])` and `((…))` at the start or end of the flow as pills, and the other boxes as plain
-steps without an icon or caption. Next to Mermaid this is now a fair match: the same shapes in the
-same order, yes/no labels readable on every branch, and a slightly shorter drawing (decisions do not
-need a diamond's height). Mermaid's diamonds are still the more familiar symbol at first sight, and the
-long "yes" line from the first decision runs the whole height of the drawing in both tools.
+A flowchart that decides something imports as a `process`, not as an architecture diagram: here
+three of its nine nodes are diamonds and two are terminals. Questions, `{…}` and plain `{{…}}` shapes
+become decisions (a small diamond with the question beside it), `([…])` at the start a start event,
+the other boxes tasks. The first chain of the source is the happy path: drawn straight and a little
+heavier, and named in the key. Each "no" leaves its diamond downwards with its label at the exit, and
+the two ways back (retry, skip MFA) run under the row, nested, without crossing.
+
+What changed against Mermaid's own picture, and may not be what you wanted: the source says
+`flowchart TD` and the import runs it left to right, as every process (`direction: down` in the YAML
+brings it back); and "Show home screen" was a pill at the end in Mermaid and is a task here, because
+a second line leads into it. Mermaid's big diamonds with the question inside are the more familiar
+flowchart at first sight, and its drawing is narrower: ours is a banner that wants the width of a slide.
+
+## Leave request (flowchart with subgraphs)
+
+| Mermaid | D2 | Cartography |
+| --- | --- | --- |
+| ![Mermaid](png/leave-request-mermaid.png) | ![D2](png/leave-request-d2.png) | ![Cartography](png/leave-request-cartography.png) |
+
+Three subgraphs, one per role. Mermaid and D2 draw them as boxes wherever the layout puts them, so
+the flow runs from box to box and the "no" lines go back through the Manager box (Mermaid) or sweep
+across the gap (D2). Imported as a `process` the subgraphs are swimlanes: every role a row over the
+full width, the steps in the order of the flow from left to right, so who does what and when can both
+be read off. Both "no" branches go straight up to "Pick other dates", and the way back to "Ask for
+leave" runs along the top of the Employee lane.
+
+Where the others still win: Mermaid's picture is a third shorter, and a reader who knows flowcharts
+recognises it at once, where swimlanes ask for a moment. Our lanes are as tall as their busiest
+column, so HR's lane is mostly empty. A subgraph inside a subgraph has no lane of its own: its steps
+stand in the outer lane and the import says so. A flowchart where a line ends on a subgraph is not
+taken as a process at all.
+
+## Order lifecycle (stateDiagram-v2)
+
+| Mermaid | Cartography |
+| --- | --- |
+| ![Mermaid](png/order-states-mermaid.png) | ![Cartography](png/order-states-cartography.png) |
+
+D2 has no state diagram. Imported as `states`: `[*]` became start and end at the level they stand
+on, `state Fulfilment { … }` a composite state with its substates nested, the description
+("Awaiting payment") the name, and the note the `note:` of its state. The main line reads left to
+right in one row, the composite state included, where Mermaid lays the inside of a composite top
+to bottom whatever the direction outside. Labels are set in mono beside their line with a halo;
+Mermaid sets them on grey chips across the line. The self-transition is a small loop on the state in
+both.
+
+Where Mermaid still wins: its picture is more compact (ours is five times as wide as it is high,
+which is small print on a page), its yellow note box is what people expect a note to look like,
+and its two lines into "Cancelled" arrive apart where ours share the last stretch. Our dotted line
+from the note takes a jog under the corner of its state. Fork and join bars and concurrent regions
+(`--`) are not drawn here at all: they come in as plain states and one merged region, with a warning.
 
 ## Card payment (sequenceDiagram)
 

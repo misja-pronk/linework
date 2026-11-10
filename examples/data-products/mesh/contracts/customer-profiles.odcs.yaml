@@ -1,0 +1,45 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+apiVersion: v3.1.0
+kind: DataContract
+id: a81f5c3d-customer-profiles
+name: customer profiles
+version: 0.9.0
+status: draft
+domain: Customer
+dataProduct: Customer 360
+description:
+  purpose: A customer with what they bought, one row per customer.
+schema:
+  - name: profiles
+    physicalType: table
+    properties:
+      - name: customer_id
+        logicalType: string
+        physicalType: uuid
+        primaryKey: true
+        required: true
+        relationships:
+          - type: foreignKey
+            to: customers.odcs.yaml#/schema/customers_tbl/properties/customer_id_pk
+      - name: orders
+        logicalType: integer
+        physicalType: int
+        required: true
+      - name: lifetime_value
+        logicalType: number
+        physicalType: decimal(12,2)
+        required: true
+      - name: last_order_at
+        logicalType: date
+        physicalType: timestamp
+      - name: segment
+        logicalType: string
+        physicalType: varchar(20)
+    quality:
+      - description: one profile per customer
+slaProperties:
+  - property: latency
+    value: 1
+    unit: d
+team:
+  name: CRM team

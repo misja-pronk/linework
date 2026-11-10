@@ -1,0 +1,22 @@
+type: states
+title: Document approval
+subtitle: An architecture decision record from first draft to superseded
+
+states:
+  Draft: { do: author writes }
+  In review: { entry: notify the reviewers, do: reviewers comment }
+  All agree?: choice
+  Approved: { entry: assign a number, do: announce it }
+  Superseded: { note: Kept for the record and linked to its successor }
+  Withdrawn:
+
+transitions:
+  - start -> Draft
+  - Draft -> In review: submitted
+  - In review -> All agree?: review closed
+  - All agree? -> Approved: [yes]
+  - All agree? -> Draft: [changes asked]
+  - Approved -> Superseded: replaced
+  - Superseded -> end
+  - Draft -> Withdrawn: withdrawn
+  - Withdrawn -> end

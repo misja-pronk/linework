@@ -334,3 +334,60 @@ describe('journey', () => {
     expect(new Set(pdf.match(/\/MediaBox \[[^\]]*\]/g)).size).toBe(1);
   });
 });
+
+describe('process and states', () => {
+  const slideCount = (zip: Uint8Array) => Object.keys(parts(zip).files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length;
+  const slideOf = async (f: string) => {
+    const r = await draw(f);
+    const slide = parts(await toPptx(r, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    return { r, slide, texts: [...slide.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((m) => m[1]!).join(' ') };
+  };
+  const flowOf = (r: RenderResult) => r.graph!.nodes.flatMap((n) => (n.shape.kind === 'flow' ? [n.shape] : []));
+
+  it('pptx: a process is native shapes: a diamond per gateway, a circle per event, a box per task, its lanes named', async () => {
+    const { r, slide, texts } = await slideOf('process/access-request.yaml');
+    expect(wellFormed(slide)).toBe(true);
+    expect(slide).not.toContain('NaN');
+    const count = (form: string) => flowOf(r).filter((s) => s.form === form).length;
+    expect(slide.match(/prst="diamond"/g)!.length).toBe(count('gateway'));
+    expect(slide.match(/prst="ellipse"/g)!.length).toBeGreaterThanOrEqual(count('event'));
+    for (const s of flowOf(r)) if (s.label) expect(texts, s.label).toContain(s.label.split(' ')[0]);
+    for (const g of r.graph!.groups) expect(texts.toLowerCase(), g.label).toContain(g.label.toLowerCase().split(' ')[0]);
+    for (const e of r.graph!.edges) if (e.label) expect(texts, e.label).toContain(e.label);
+    // Lines are connectors bound to the shapes they join, so they follow when a shape is moved.
+    expect(slide.match(/<p:cxnSp>/g)!.length).toBeGreaterThanOrEqual(r.graph!.edges.length);
+    expect(slide.match(/<a:stCxn /g)!.length).toBe(r.graph!.edges.length);
+  });
+
+  it('pptx: a state machine is native shapes: a box per state with its name inside, a frame around substates, dots for start and end', async () => {
+    const { r, slide, texts } = await slideOf('states/device-connection.yaml');
+    expect(wellFormed(slide)).toBe(true);
+    expect(slide).not.toContain('NaN');
+    for (const s of flowOf(r)) if (s.label) expect(texts, s.label).toContain(s.label.split(' ')[0]);
+    for (const g of r.graph!.groups) expect(texts.toLowerCase(), g.label).toContain(g.label.toLowerCase().split(' ')[0]);
+    expect(slide).toContain('prst="ellipse"');
+    // Every transition is a line of its own; one that ends mid-side is a connector bound to its states.
+    expect(slide.match(/name="Line: /g)!.length).toBe(r.graph!.edges.length);
+    expect(slide).toMatch(/<a:stCxn id="\d+" idx="\d"\/>/);
+  });
+
+  it('pptx and pdf: the happy path as a slide per step when asked for', async () => {
+    const r = await draw('process/access-request.yaml');
+    expect(r.stepsImplied).toBe(true);
+    const n = r.steps!.length;
+    expect(slideCount(await toPptx(r, { rasterize: () => PNG }))).toBe(1);
+    expect(slideCount(await toPptx(r, { steps: true, rasterize: () => PNG }))).toBe(n);
+    const pdf = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false, steps: true })).toString('latin1');
+    expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(n);
+  });
+
+  it('pdf: one page, every name text a reader can select', async () => {
+    for (const f of ['process/build-buy-reuse.yaml', 'states/order-lifecycle.yaml']) {
+      const r = await draw(f);
+      const pdf = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false })).toString('latin1');
+      expect(pdf.match(/\/Type \/Page\b/g), f).toHaveLength(1);
+      const said = pdfText(pdf).join('');
+      for (const s of flowOf(r)) if (s.label) expect(said, `${f}: ${s.label}`).toContain(s.label.split(" ")[0]);
+    }
+  });
+});

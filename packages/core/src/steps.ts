@@ -44,17 +44,17 @@ const TERM = '(?:[A-Za-z0-9_.*-]+|tag:[\\w-]+|kind:[\\w-]+)';
 const ROUTE = new RegExp(`^\\s*${TERM}(?:\\s*->\\s*${TERM})+\\s*$`);
 const KEYS = ['title', 'caption', 'show', 'focus', 'highlight', 'path', 'hide', 'note'];
 
-interface Picked {
+export interface Picked {
   nodes: string[];
   groups: string[];
   edges: string[];
 }
 
-/** Resolves written steps against the graph; what a step names and is not drawn is reported at its line. */
-export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Report): StepState[] {
-  if (!Array.isArray(raw)) return [];
+/** What selectors pick in a drawn graph: steps and the focus view share them, so there is one way to name things. */
+export function selectorsOf(graph: Graph) {
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   const groups = new Map(graph.groups.map((g) => [g.id, g]));
+  /** A group and the groups around it, innermost first. */
   const up = (id: string | undefined): string[] => {
     const out: string[] = [];
     for (let g = id; g && groups.has(g) && !out.includes(g); g = groups.get(g)!.parent) out.push(g);
@@ -94,11 +94,11 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
     return { nodes: all.filter((id) => nodes.has(id)), groups: all.filter((id) => groups.has(id)), edges: ids };
   };
   /** A selector: a term, or a route "a -> b -> c" (its lines, and with `withEnds` what they connect). */
-  const pick = (sel: string, path: Path, withEnds: boolean): Picked => {
+  const pick = (sel: string, withEnds: boolean, report: (message: string, severity?: 'error' | 'warning') => void): Picked => {
     const parts = sel.split('->').map((s) => s.trim());
     const picked = parts.map((p) => {
       const t = p ? term(p) : undefined;
-      if (!t) report(path, p ? `Nothing drawn here is called "${p}"` : `"${sel}" misses an end`);
+      if (!t) report(p ? `Nothing drawn here is called "${p}"` : `"${sel}" misses an end`);
       return t;
     });
     if (parts.length === 1) return picked[0] ?? { nodes: [], groups: [], edges: [] };
@@ -107,11 +107,19 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
       const [a, b] = [picked[i], picked[i + 1]];
       if (!a || !b) continue;
       const lines = between(a, b);
-      if (!lines.length) report(path, `There is no line between "${parts[i]}" and "${parts[i + 1]}"`, 'warning');
+      if (!lines.length) report(`There is no line between "${parts[i]}" and "${parts[i + 1]}"`, 'warning');
       out.push(withEnds ? ends(lines) : { nodes: [], groups: [], edges: lines });
     }
     return merge(...out);
   };
+  return { nodes, groups, up, inside, merge, term, pick };
+}
+
+/** Resolves written steps against the graph; what a step names and is not drawn is reported at its line. */
+export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Report): StepState[] {
+  if (!Array.isArray(raw)) return [];
+  const { nodes, groups, up, merge, pick: picked } = selectorsOf(graph);
+  const pick = (sel: string, path: Path, withEnds: boolean) => picked(sel, withEnds, (message, severity) => report(path, message, severity));
 
   interface Sel {
     v: string;
@@ -199,7 +207,7 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
 export function impliedSteps(graph: Graph): StepState[] {
   const name = (id: string) => {
     const n = graph.nodes.find((x) => x.id === id);
-    return n ? (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (graph.groups.find((g) => g.id === id)?.label ?? id);
+    return n ? (n.shape.kind === 'card' || n.shape.kind === 'flow' ? n.shape.label || id : n.shape.kind === 'table' ? n.shape.title : id) : (graph.groups.find((g) => g.id === id)?.label ?? id);
   };
   if (graph.steps?.length)
     return graph.steps.map((s) => {
@@ -212,6 +220,21 @@ export function impliedSteps(graph: Graph): StepState[] {
         nodes: Object.fromEntries(graph.nodes.map((n) => [n.id, lit.has(n.id) ? 'focus' : 'dim'])),
         groups: Object.fromEntries(graph.groups.filter((g) => !lit.has(g.id)).map((g) => [g.id, 'dim'])),
         edges: Object.fromEntries(graph.edges.map((e) => [e.id, e.id === s.edge ? 'focus' : 'dim'])),
+        notes: [],
+      } satisfies StepState;
+    });
+  // A process or a state machine is walked along its main line: the stop in focus, the rest standing back.
+  if (graph.walk?.length)
+    return graph.walk.map((b) => {
+      const lit = new Set(b.nodes);
+      const groups = new Map(graph.groups.map((g) => [g.id, g.parent]));
+      for (const id of [...lit]) for (let g = graph.nodes.find((n) => n.id === id)?.parent ?? groups.get(id); g && !lit.has(g); g = groups.get(g)) lit.add(g);
+      return {
+        title: b.title,
+        ...(b.caption ? { caption: b.caption } : {}),
+        nodes: Object.fromEntries(graph.nodes.map((n) => [n.id, lit.has(n.id) ? 'focus' : 'dim'])),
+        groups: Object.fromEntries(graph.groups.filter((g) => !lit.has(g.id)).map((g) => [g.id, 'dim'])),
+        edges: Object.fromEntries(graph.edges.map((e) => [e.id, b.edges.includes(e.id) ? 'focus' : 'dim'])),
         notes: [],
       } satisfies StepState;
     });

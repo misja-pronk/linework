@@ -1,0 +1,60 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+apiVersion: v3.1.0
+kind: DataContract
+id: 7f2c1d4e-payments
+name: settled payments
+version: 3.2.0
+status: active
+domain: Finance
+dataProduct: Payments
+description:
+  purpose: Every settled card and bank payment, one row per settlement.
+schema:
+  - name: settlements
+    physicalName: fin_settlements
+    physicalType: table
+    properties:
+      - name: settlement_id
+        logicalType: string
+        physicalType: varchar(36)
+        primaryKey: true
+        required: true
+      - name: order_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        # By name: the object and the property of the other contract.
+        relationships:
+          - type: foreignKey
+            to: orders.odcs.yaml#/orders.order_id
+      - name: amount
+        logicalType: number
+        physicalType: decimal(12,2)
+        required: true
+        quality:
+          - description: amount is never negative
+      - name: currency
+        logicalType: string
+        physicalType: char(3)
+        required: true
+      - name: iban
+        logicalType: string
+        physicalType: varchar(34)
+        classification: restricted
+        tags: [pii]
+      - name: settled_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+    quality:
+      - metric: rowCount
+        mustBeGreaterThan: 0
+slaProperties:
+  - property: latency
+    value: 4
+    unit: h
+  - property: retention
+    value: 7
+    unit: y
+team:
+  name: Finance data

@@ -9,24 +9,27 @@ type Schema = Record<string, any>;
 
 /** Every schema that can apply at a path, with anyOf branches spread out. */
 export function schemasAt(root: Schema, path: string[]): Schema[] {
-  let current = spread(root);
+  let current = spread(root, root);
   for (const seg of path) {
     const next: Schema[] = [];
     for (const s of current) {
       if (seg === '-') {
-        if (s.items) next.push(...spread(s.items));
-      } else if (s.properties?.[seg]) next.push(...spread(s.properties[seg]));
-      else if (s.additionalProperties && typeof s.additionalProperties === 'object') next.push(...spread(s.additionalProperties));
+        if (s.items) next.push(...spread(s.items, root));
+      } else if (s.properties?.[seg]) next.push(...spread(s.properties[seg], root));
+      else if (s.additionalProperties && typeof s.additionalProperties === 'object') next.push(...spread(s.additionalProperties, root));
     }
     current = next;
   }
   return current;
 }
 
-function spread(s: Schema | undefined): Schema[] {
+/** A schema as its branches; one that points at a definition (states inside a state) is that definition. */
+function spread(s: Schema | undefined, root: Schema): Schema[] {
   if (!s || typeof s !== 'object') return [];
+  const ref = typeof s.$ref === 'string' ? /^#\/(definitions|\$defs)\/(.+)$/.exec(s.$ref) : null;
+  if (ref) return spread(root[ref[1]!]?.[ref[2]!], root);
   const alts = s.anyOf ?? s.oneOf;
-  return alts ? alts.flatMap(spread) : [s];
+  return alts ? alts.flatMap((a: Schema) => spread(a, root)) : [s];
 }
 
 /** Values that point at other entries, by the key they are written under. */

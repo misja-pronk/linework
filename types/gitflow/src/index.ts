@@ -435,6 +435,7 @@ export const gitflow: DiagramType<GitflowSource> = {
   notFor: [
     { text: 'The order services call each other', use: 'sequence' },
     { text: 'Which repos and teams a GitHub org has', use: 'github' },
+    { text: 'The states a pull request can be in', use: 'states' },
   ],
   keywords: ['git', 'git flow', 'gitflow', 'branching', 'branching strategy', 'branch', 'merge', 'release', 'hotfix', 'trunk', 'trunk-based', 'github flow', 'cherry-pick', 'tag', 'pull request', 'delivery', 'pipeline', 'ci/cd', 'promotion', 'gitgraph'],
   schema,

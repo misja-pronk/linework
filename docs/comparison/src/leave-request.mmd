@@ -1,0 +1,25 @@
+---
+title: Leave request
+---
+flowchart LR
+    subgraph Employee
+        start([Wants time off]) --> ask[Ask for leave]
+        other[Pick other dates]
+    end
+    subgraph Manager
+        enough{Enough days left?}
+        covered{Team covered?}
+        approve[Approve]
+    end
+    subgraph HR
+        book[Book the days]
+        done([Leave booked])
+    end
+    ask --> enough
+    enough -->|yes| covered
+    enough -->|no| other
+    covered -->|yes| approve
+    covered -->|no| other
+    other --> ask
+    approve --> book
+    book --> done

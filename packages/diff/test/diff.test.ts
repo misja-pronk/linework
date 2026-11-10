@@ -1,4 +1,5 @@
 // What changed between two versions of a diagram: as data, as words and as marks on the picture.
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compare, formatDiff, markdownDiff, summary } from '../src/index.ts';
 
@@ -212,6 +213,22 @@ describe('visual diff', () => {
     const shift = { x: Number(ghost[1]) - old.x, y: Number(ghost[2]) - old.y };
     const follows = Math.abs(shift.x - (db.now.x - db.was.x)) < 200 && Math.abs(shift.y - (db.now.y - db.was.y)) < 200;
     expect(follows || svg.includes('No longer in the drawing')).toBe(true);
+  });
+
+  it('draws what is gone clear of the lines that are there now', async () => {
+    // The pull request of the docs: the line to the new cache runs where Reports stood.
+    const doc = (name: string) => fs.readFileSync(new URL(`../../../docs/ci/${name}.yaml`, import.meta.url), 'utf8');
+    const c = await compare(doc('before'), doc('after'));
+    const svg = c.picture()!.svg;
+    const ghosts = [...svg.matchAll(/<g data-diff="removed" data-node="[^"]*"><rect x="([\d.-]+)" y="([\d.-]+)" width="([\d.-]+)" height="([\d.-]+)"/g)].map((m) => m.slice(1, 5).map(Number));
+    expect(ghosts.length).toBeGreaterThan(0);
+    for (const [x, y, w, h] of ghosts as [number, number, number, number][])
+      for (const r of c.after!.placed!.edges.values())
+        for (const [i, q] of r.points.slice(1).entries()) {
+          const p = r.points[i]!;
+          const through = Math.min(p.x, q.x) < x + w && Math.max(p.x, q.x) > x && Math.min(p.y, q.y) < y + h && Math.max(p.y, q.y) > y;
+          expect(through).toBe(false);
+        }
   });
 
   it('keeps what both versions have in place, unless asked to draw afresh', async () => {

@@ -10,3 +10,4 @@ export { keyLayout, LEGEND } from './legend.ts';
 export { cardStroke, labelInk, labelString, tagRadius } from './paint.ts';
 export * from './journey.ts';
 export * from './steps.ts';
+export * from './flow.ts';

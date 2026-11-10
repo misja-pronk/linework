@@ -16,6 +16,8 @@ import { Menu } from './menu.tsx';
 import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
+import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
+import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -24,7 +26,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
-import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -37,6 +39,8 @@ interface Doc {
   starter?: string;
   /** Path inside the open folder. */
   path?: string;
+  /** The data product and contract files it was imported from, by path: its contracts are read from there. */
+  files?: Record<string, string>;
 }
 
 interface Saved {
@@ -81,8 +85,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -159,9 +163,11 @@ export function App() {
   }, []);
 
   const load = useMemo(
-    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
-    [ws, doc.path, doc.starter],
+    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : doc.files ? memoryLoader(doc.files) : undefined),
+    [ws, doc.path, doc.starter, doc.files],
   );
+  /** The open folder holds data products or data contracts (ODPS, ODCS): it can be drawn as one map. */
+  const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -171,6 +177,9 @@ export function App() {
   const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
   const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
   const [presenting, setPresenting] = useState(false);
+  // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
+  const [lens, setLens] = useState<{ doc: string; view?: string; focus: { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null }>();
+  const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
   /** A step just made from the selection: the strip asks for its name. */
   const [naming, setNaming] = useState<number>();
   const drawnView = useRef<string>(undefined);
@@ -184,7 +193,7 @@ export function App() {
   const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -285,7 +294,7 @@ export function App() {
   };
 
   const open = useCallback(
-    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false) => {
+    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false, said?: string) => {
       const before = { text: editor.current?.text() ?? text, doc, pins, handle: fileHandle.current, savedText, savedPins };
       editor.current?.load(next, nextPins);
       setDoc(nextDoc);
@@ -296,7 +305,7 @@ export function App() {
       openedText.current = next;
       // Within a folder, files are saved before switching: nothing to undo. A blank start says nothing either.
       if (nextDoc.path || quiet) return;
-      notify(`Opened ${nextDoc.name}`, {
+      notify(said ?? `Opened ${nextDoc.name}`, {
         action: {
           label: 'Undo',
           run: () => {
@@ -368,7 +377,7 @@ export function App() {
           setWs(await scan(ws.dir));
         } else {
           fileHandle.current = r.handle;
-          setDoc({ name: r.name });
+          setDoc({ name: r.name, ...(doc.files ? { files: doc.files } : {}) });
         }
       } else download(yamlName(doc.name), now, 'text/yaml');
       setSavedText(now);
@@ -397,6 +406,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
+      else if (meshInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -416,37 +426,80 @@ export function App() {
   /** A file from another tool goes through the Import panel: pages, positions and what was left out are shown first. */
   const [incoming, setIncoming] = useState<Incoming>();
   const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
-  const openText = (name: string, text: string, handle?: FileSystemFileHandle) => {
-    if (foreign(name, text)) {
-      setIncoming({ name, text });
+  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid'] };
+
+  /** data-mesh.yaml in the open folder: its data products and contracts as one map, made or brought up to date. False: the folder has none. */
+  const meshInFolder = (w: Workspace): boolean => {
+    const path = 'data-mesh.yaml';
+    const was = w.files.get(path)?.text;
+    if (was != null && !/^type:\s*data-products\s*$/m.test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    const mesh = meshFrom([...w.files].filter(([p]) => p !== path).map(([p, f]) => ({ path: p, text: f.text })), was != null ? { existing: was } : {});
+    if (!mesh?.yaml) return false;
+    fileHandle.current = undefined;
+    open(mesh.yaml, { name: path, path }, readSidecar(w, path));
+    // Not on disk yet, or not like this: ⌘S writes it into the folder.
+    setSavedText(was ?? null);
+    notify(`${mesh.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${meshRemarks(mesh.problems)}`, mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    focusDrawing();
+    return true;
+  };
+  const meshRemarks = (problems: { file?: string; message: string }[]) =>
+    problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
+
+  /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
+  const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
+    const other = files.find((f) => foreign(f.path, f.text));
+    if (other) {
+      setIncoming({ name: other.path.split('/').pop()!, text: other.text });
       setModal('templates');
       return;
     }
-    fileHandle.current = handle;
-    open(text, { name });
+    const folder = folderOf(files);
+    const mesh = meshFrom(files);
+    if (mesh?.yaml) {
+      fileHandle.current = undefined;
+      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`);
+      return focusDrawing();
+    }
+    if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error' });
+    const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
+    if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
+    fileHandle.current = files.length === 1 ? handle : undefined;
+    open(diagram.text, { name: diagram.path.split('/').pop()! });
   };
-  /** A file dropped on the window: a diagram opens, a drawing from draw.io, Excalidraw or Mermaid is imported. */
-  const onFileDrop = (e: React.DragEvent) => {
-    const f = e.dataTransfer.files[0];
-    if (!f) return;
+
+  // Files dragged over the page: the whole page takes them, before the YAML editor reads them as text to insert.
+  const [dropping, setDropping] = useState(false);
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
+  const onDragFiles = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropping(true);
+  };
+  const onDropFiles = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     e.stopPropagation();
-    void f.text().then((t) => openText(f.name, t));
+    setDropping(false);
+    void dropped(e.dataTransfer)
+      .then((files) => openTexts(files))
+      .catch((err: unknown) => notify(`Opening failed: ${err instanceof Error ? err.message : String(err)}`, { tone: 'error' }));
   };
-  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid'] };
 
   const openFile = () => {
     if ('showOpenFilePicker' in window) {
       void (async () => {
         try {
-          const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
+          const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
+            multiple: true,
             types: [
-              { description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } },
+              { description: 'Cartography diagram, or data products and contracts (ODPS, ODCS)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
               { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
             ],
           });
-          const f = await h!.getFile();
-          openText(f.name, await f.text(), h);
+          const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
+          openTexts(files, hs[0]);
         } catch (e) {
           if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
         }
@@ -455,17 +508,18 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid';
+    input.accept = '.yaml,.yml,.json,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid';
+    input.multiple = true;
     input.onchange = async () => {
-      const f = input.files?.[0];
-      if (f) openText(f.name, await f.text());
+      const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));
+      if (files.length) openTexts(files);
     };
     input.click();
   };
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -683,8 +737,15 @@ export function App() {
   const remove = (sel: Selection | undefined = selected) => {
     const path = pathOf(sel);
     if (!path || !sel || !type || !ready()) return;
+    // One arrow of a chain ("a -> b -> c"): the chain is cut there, the rest of it stays.
+    if (sel.kind === 'edge' && isChainLine(textNow(), type, sel.id)) {
+      const next = editChainLine(textNow(), type, sel.id);
+      apply(next);
+      if (next != null && sel === selected) setSelected(undefined);
+      return;
+    }
     // A line that stands for part of something bigger (a policy, a list) is changed in the YAML.
-    const deletable = (path.length === 2 && typeof path[1] === 'string') || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
+    const deletable = isEntryPath(path) || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
     if (!deletable) {
       notify('This one is part of a larger entry: change it in the YAML', { tone: 'error' });
       const e = entries.find((x) => x.kind === sel.kind && x.id === sel.id);
@@ -701,7 +762,7 @@ export function App() {
     if (selection.length > 1) return paste(copy(false));
     const path = pathOf(selected);
     if (!path || !selected || path.length !== 2 || !ready()) return;
-    const r = duplicateEntry(textNow(), path);
+    const r = duplicateEntry(textNow(), path, type);
     if (!r) return apply(undefined);
     const box = result?.placed?.nodes.get(selected.id);
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
@@ -713,16 +774,31 @@ export function App() {
   const removeAll = () => {
     if (!type || !ready()) return;
     const t = textNow();
-    const paths = selection.map(pathOf).filter((p): p is Path => !!p && ((p.length === 2 && typeof p[1] === 'string') || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
-    if (!paths.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
-    const next = deleteEntries(t, type, paths);
+    const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(t, type, s.id));
+    const rest = selection.filter((s) => !chain.includes(s));
+    const paths = rest.map(pathOf).filter((p): p is Path => !!p && (isEntryPath(p) || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
+    if (!paths.length && !chain.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
+    // Arrows of chains and whole list items go together, last written first, so the places of the
+    // others stay right; an arrow in an item that goes anyway is left alone.
+    const place = (p: Path | undefined) => (typeof p?.at(-1) === 'number' ? (p.at(-1) as number) : -1);
+    const items = paths.filter((p) => place(p) >= 0);
+    const ops = [...items.map((p) => ({ at: place(p), path: p, id: '' })), ...chain.map((s) => ({ at: place(pathOf(s)), path: undefined, id: s.id }))];
+    ops.sort((a, b) => b.at - a.at || Number(!!b.path) - Number(!!a.path) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+    let next: string | undefined = t;
+    for (const op of ops) {
+      if (next == null) break;
+      if (op.path) next = deleteEntry(next, type, op.path);
+      else if (!items.some((p) => place(p) === op.at)) next = editChainLine(next, type, op.id);
+    }
+    const others = paths.filter((p) => place(p) < 0);
+    if (next != null && others.length) next = deleteEntries(next, type, others);
     const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
     const unpinned = vpins && selection.some((s) => (s.kind === 'node' ? vpins.nodes?.[s.id] : s.kind === 'group' ? vpins.groups?.[s.id] : undefined));
     const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
     apply(next, nextPins);
     if (next != null) {
       setSelection([]);
-      if (paths.length < selection.length) notify(`Deleted ${paths.length}; ${selection.length - paths.length} that are part of larger entries stayed`);
+      if (paths.length < rest.length) notify(`Deleted ${paths.length + chain.length}; ${rest.length - paths.length} that are part of larger entries stayed`);
     }
   };
 
@@ -762,10 +838,11 @@ export function App() {
     const path = pathOf(t as Selection);
     if (!path) return undefined;
     if (t.kind === 'edge') {
+      if (isChainLine(textNow(), type, t.id)) return result?.graph?.edges.find((x) => x.id === t.id)?.label ?? '';
       const f = path[0] === 'edges' && typeof path[1] === 'number' ? edgeFields(textNow(), type, path).find((x) => x.key === 'label') : undefined;
       return f?.kind === 'text' ? f.value : undefined;
     }
-    if (path.length !== 2 || typeof path[1] !== 'string') return undefined;
+    if (!isEntryPath(path)) return undefined;
     const f = labelField(path);
     if (!f) return undefined;
     const n = t.kind === 'node' ? result?.graph?.nodes.find((x) => x.id === t.id) : undefined;
@@ -777,9 +854,16 @@ export function App() {
     if (t.kind === 'title' || t.kind === 'subtitle') return apply(setField(textNow(), type, [], t.kind, value));
     const path = pathOf(t as Selection);
     if (!path) return;
-    if (t.kind === 'edge') return apply(setEdgeField(textNow(), path, 'label', value));
+    if (t.kind === 'edge') return apply(isChainLine(textNow(), type, t.id) ? editChainLine(textNow(), type, t.id, value) : setEdgeField(textNow(), path, 'label', value));
     const f = labelField(path);
-    if (f) apply(setField(textNow(), type, path, f.key, value));
+    if (!f) return;
+    // A step or a state is its name: typing another one renames it wherever it is written. Only a
+    // name the YAML cannot hold as a key (a colon, an arrow) becomes a label on the entry.
+    if (type.freeNames && !f.value && value.trim()) {
+      const renamed = renameEntry(textNow(), type, path, value.trim());
+      if (renamed != null) return apply(renamed);
+    }
+    apply(setField(textNow(), type, path, f.key, value));
   };
 
   const rename = (to: string): boolean => {
@@ -941,7 +1025,10 @@ export function App() {
     else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'v') paste();
     else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
     else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
-    else if (e.key === 'Escape') setSelection([]);
+    else if (e.key === 'Escape') selection.length || !focusOn ? setSelection([]) : leaveFocus();
+    else if (e.key.toLowerCase() === 'f' && !mod(e) && !e.altKey) focusOnSelection();
+    else if ((e.key === '+' || e.key === '=' || e.key === '-') && !mod(e) && !e.altKey && drawn?.focus) focusHops(e.key === '-' ? -1 : 1);
+    else if (e.key === 'd' && !mod(e) && !e.altKey && drawn?.focus) focusDirection();
     else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
     else if (craftKey(e) === 'lock') toggleLock();
     else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
@@ -983,6 +1070,40 @@ export function App() {
     setPicked({ doc: s.id, name: t.view });
     pick(s);
   };
+
+  // ------------------------------------------------------------ focus
+
+  /** A focus is drawn, or one of the YAML is switched off: there is a way back. */
+  const focusOn = focusAsked !== undefined || !!drawn?.focus?.written;
+  const setFocus = (focus: NonNullable<typeof lens>['focus'] | undefined) => setLens(focus === undefined ? undefined : { doc: docId, view: viewName, focus });
+  /** Esc: out of a focus set here; a focus the YAML has is switched off, and on again. */
+  const leaveFocus = () => setFocus(focusAsked !== undefined ? undefined : drawn?.focus?.written ? null : undefined);
+  /** F: the drawing cut down to the selection and what is around it. In a focus, that walks on to a neighbour. */
+  const focusOnSelection = () => {
+    const g = drawn?.graph;
+    if (!g) return;
+    if (!selection.length) return focusOn ? leaveFocus() : notify('Select what to focus on, then press F');
+    const ends = (id: string) => g.edges.filter((e) => e.id === id).flatMap((e) => [e.from.node, e.to.node]);
+    const on = [...new Set(selection.flatMap((x) => (x.kind === 'edge' ? ends(x.id) : [x.id])))];
+    if (!on.length) return;
+    const now = drawn?.focus;
+    setFocus({ on, hops: !now ? 1 : now.hops === Infinity ? 'all' : now.hops, direction: now?.direction ?? 'both' });
+  };
+  const refocus = (change: (now: Focus) => Partial<Pick<Focus, 'hops' | 'direction'>>) => {
+    const now = drawn?.focus;
+    if (!now) return notify('No focus yet: select something and press F');
+    const next = { hops: now.hops, direction: now.direction, ...change(now) };
+    setFocus({ on: now.on, hops: next.hops === Infinity ? 'all' : next.hops, direction: next.direction });
+  };
+  const focusHops = (by: 1 | -1) => refocus((now) => ({ hops: hopsBy(now.hops, by) }));
+  const focusDirection = () => refocus((now) => ({ direction: nextDirection(now.direction) }));
+  // A drawing that is one shape (a sequence, a roadmap) has nothing to walk from: say so and stay on the whole.
+  useEffect(() => {
+    if (!focusAsked || !result?.svg || result.focus || rendered?.text !== text) return;
+    const why = result.diagnostics.find((d) => d.message.startsWith('Focus'));
+    setLens(undefined);
+    notify(why ? why.message.replace(/^Focus: /, '') : 'Nothing to focus on there');
+  }, [result]);
 
   // ------------------------------------------------------------ steps and presenting
 
@@ -1036,11 +1157,22 @@ export function App() {
   const selNode = selected?.kind === 'node' ? (result ?? drawn)?.graph?.nodes.find((n) => n.id === selected.id) : undefined;
   const selGroup = selected?.kind === 'group' ? (result ?? drawn)?.graph?.groups.find((g) => g.id === selected.id) : undefined;
   const selEdge = selected?.kind === 'edge' ? (result ?? drawn)?.graph?.edges.find((e) => e.id === selected.id) : undefined;
-  const isEntry = !!selectedPath && selectedPath.length === 2 && typeof selectedPath[1] === 'string';
+  const isEntry = !!selectedPath && isEntryPath(selectedPath) && selected?.kind !== 'edge';
   const isEdgeItem = !!selectedPath && selectedPath[0] === 'edges' && typeof selectedPath[1] === 'number';
+  /** One arrow of a chain ("a -> b -> c" in a process): its label is the one thing to set. */
+  const isChain = !!type && selected?.kind === 'edge' && isChainLine(text, type, selected.id);
   const fields = useMemo(
-    () => (type && selectedPath ? (isEntry ? fieldsFor(text, type, selectedPath) : isEdgeItem ? edgeFields(text, type, selectedPath) : []) : []),
-    [type, isEntry, isEdgeItem, selectedPath, text],
+    () =>
+      type && selectedPath
+        ? isChain
+          ? [{ key: 'label', kind: 'text' as const, label: 'Label', value: selEdge?.label ?? '', hint: type.lines?.hint }]
+          : isEntry
+            ? fieldsFor(text, type, selectedPath)
+            : isEdgeItem
+              ? edgeFields(text, type, selectedPath)
+              : []
+        : [],
+    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
   const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector);
   /** A diagram with nothing in it yet: the canvas says how to start. */
@@ -1072,10 +1204,11 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
       : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open file…', hint: 'YAML, or draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
+    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram, data products and contracts, or draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
+    ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
@@ -1110,6 +1243,15 @@ export function App() {
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
     { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
     { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
+    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: 'F', run: focusOnSelection },
+    ...(drawn?.focus
+      ? [
+          { id: 'focus-more', group: 'Focus', label: 'Focus: one hop more', hint: drawn.focus.hops === Infinity ? 'everything connected is shown' : `now ${drawn.focus.hops}`, icon: 'plus', shortcut: '+', run: () => focusHops(1) },
+          { id: 'focus-fewer', group: 'Focus', label: 'Focus: one hop fewer', icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
+          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: 'D', run: focusDirection },
+        ]
+      : []),
+    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: 'Esc', run: leaveFocus }] : []),
     { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
     { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
@@ -1223,13 +1365,9 @@ export function App() {
     <div
       className="app"
       style={{ ['--split' as string]: `${split * 100}%` }}
-      onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes('Files')) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-      }}
-      // Before the editor or the drawing take it: a file dropped anywhere is opened, not pasted in.
-      onDropCapture={(e) => e.dataTransfer.types.includes('Files') && onFileDrop(e)}
+      onDragOverCapture={onDragFiles}
+      onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
+      onDropCapture={onDropFiles}
     >
       <header className="topbar">
         <div className="brand">
@@ -1460,7 +1598,7 @@ export function App() {
             result={drawn}
             stale={!!rendered && drawn !== result}
             selection={selection}
-            docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}`}
+            docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}:${drawn?.focus ? `${drawn.focus.on.join(' ')} ${drawn.focus.hops} ${drawn.focus.direction}` : ''}`}
             onSelect={(s, add) => (add && s ? toggle(s) : select(s))}
             onSelectMany={selectMany}
             labelOf={labelOf}
@@ -1475,7 +1613,9 @@ export function App() {
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
               const path = pathOf({ kind: 'node', id });
-              return !!type && !type.unconnected && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+              // A type that writes its own lines says what can be joined (a start dot has no entry of its own).
+              const entry = !!path && (type?.lines ? true : path.length === 2 && typeof path[1] === 'string');
+              return !!type && !type.unconnected && entry && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
             }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
@@ -1522,6 +1662,9 @@ export function App() {
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
+              <button className={drawn?.focus ? 'tool active' : 'tool'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" disabled={!selection.length && !focusOn}>
+                <Icon name="focus" /> Focus <kbd>F</kbd>
+              </button>
               {!stepList.length && (
                 <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
                   <Icon name="layers" /> Step <kbd>S</kbd>
@@ -1531,6 +1674,7 @@ export function App() {
                 <Icon name="play" /> Present <kbd>P</kbd>
               </button>
             </div>
+            {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {hint && !adding && !modal && (
               <div className="hint" role="note">
                 <span>
@@ -1595,12 +1739,13 @@ export function App() {
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
-            id={isEntry ? String(selectedPath![1]) : selected.id}
+            id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
             kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
+            freeName={!!type.freeNames}
             pinned={selected.kind === 'node' ? !!vpins?.nodes?.[selected.id] : selected.kind === 'group' && !!vpins?.groups?.[selected.id]}
             locked={selected.kind === 'edge' ? undefined : locked.has(selected.id)}
             onLock={toggleLock}
@@ -1608,7 +1753,15 @@ export function App() {
             links={(selNode ?? selGroup)?.links}
             onFollowLink={follow}
             onField={(key, value) =>
-              type && selectedPath && apply(isEdgeItem ? setEdgeField(textNow(), selectedPath, key, value) : setField(textNow(), type, selectedPath, key, value))
+              type &&
+              selectedPath &&
+              apply(
+                isChain
+                  ? editChainLine(textNow(), type, selected.id, String(value ?? ''))
+                  : isEdgeItem
+                    ? setEdgeField(textNow(), selectedPath, key, value)
+                    : setField(textNow(), type, selectedPath, key, value),
+              )
             }
             onRename={rename}
             onReveal={() => {
@@ -1742,6 +1895,15 @@ export function App() {
             },
           }))}
         />
+      )}
+      {dropping && (
+        <div className="drop-here" aria-hidden="true">
+          <div>
+            <Icon name="folder-open" size={22} />
+            <strong>Drop to open</strong>
+            <span>A diagram, or data product and data contract files (ODPS, ODCS) and folders of them: they become one data mesh map</span>
+          </div>
+        </div>
       )}
       {toast && (
         <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'}>

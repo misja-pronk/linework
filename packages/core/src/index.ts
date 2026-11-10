@@ -15,3 +15,4 @@ export * from './views.ts';
 export * from './c4-views.ts';
 export * from './memory.ts';
 export * from './steps.ts';
+export * from './focus.ts';

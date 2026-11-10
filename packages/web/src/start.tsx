@@ -866,7 +866,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey, or a draw.io or Excalidraw file
+          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey, or a draw.io or Excalidraw file
         </div>
         <textarea
           className="paste mono"
