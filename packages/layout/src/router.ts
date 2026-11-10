@@ -81,6 +81,7 @@ const FOREIGN = 1; // per pixel inside a group that holds neither end, for each 
 const HEADER = 6; // per pixel more in the header strip of such a group
 const ALONG = 3; // per pixel of running along the header strip of a group the line belongs in
 const OUTSIDE = 10; // a track this far outside each group border, to go around the group
+const SLIDE = 40; // a step aside shorter than this, right out of a card, is taken out by sliding the line's end
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -130,6 +131,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
       }
       out.set(e.id, { points: simplify(points) });
     }
+  slideEnds(input, out, sides, trunk, loose);
   if (input.nudge !== false) {
     const list = input.edges.filter((e) => out.has(e.id));
     const moved = nudge({
@@ -158,6 +160,55 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   }
   placeLabels(input, out, trunk);
   return out;
+}
+
+/**
+ * A line that leaves its card, steps a little aside and runs on the way it was going has its end
+ * in the wrong spot: the end slides along the side to where the line runs, when that spot is on
+ * the side, a lane away from the other ends there, and the way to it is free. The lines of a trunk
+ * that share the end slide together, or not at all.
+ */
+function slideEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>, free: Set<string>) {
+  const walls = [...input.obstacles].map(([id, b]) => ({ id, box: grow(b, MARGIN - 1) })).concat((input.texts ?? []).map((b) => ({ id: '', box: grow(b, 8) })));
+  const overlap = (r: Box, t: Box) => r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height;
+  const same = (p: Point, q: Point) => p.x === q.x && p.y === q.y;
+  for (const e of input.edges)
+    for (const end of ['from', 'to'] as const) {
+      const from = (id: string) => (end === 'from' ? routes.get(id)!.points : [...routes.get(id)!.points].reverse());
+      const [p0, p1, p2, p3] = from(e.id);
+      if (!p0 || !p1 || !p2 || !p3 || e[end].rowY != null) continue;
+      const shared = trunk.get(e.id)?.startsWith(end === 'from' ? 'out|' : 'in|');
+      const mates = shared ? input.edges.filter((m) => trunk.get(m.id) === trunk.get(e.id)).map((m) => m.id) : [e.id];
+      const side = sides.get(e.id)![end === 'from' ? 0 : 1];
+      const along = side === 'N' || side === 'S' ? 'x' : 'y';
+      const across = along === 'x' ? 'y' : 'x';
+      // Out of the side, a short step along it, and on in the direction it left in: for every line on this end.
+      if (p0[along] !== p1[along] || p1[across] !== p2[across] || Math.abs(p2[along] - p1[along]) >= SLIDE) continue;
+      const on = (id: string) => {
+        const [q0, q1, q2, q3] = from(id);
+        return free.has(id) && q3 && same(q0!, p0) && same(q1!, p1) && same(q2!, p2) && q2![along] === q3[along] && Math.sign(p1[across] - p0[across]) === Math.sign(q3[across] - q2![across]);
+      };
+      if (!mates.every(on)) continue;
+      const box = e[end].box;
+      const v = p2[along];
+      if (v < box[along] + 12 || v > box[along] + (along === 'x' ? box.width : box.height) - 12) continue;
+      const moved = { ...p0, [along]: v };
+      const way = grow(segmentBox(moved, p2), LANE - 5);
+      if (walls.some((w) => w.id !== e[end].node && overlap(way, w.box))) continue;
+      // Other lines: none in the way, and no end on this side nearer than a lane.
+      const near = grow(segmentBox(moved, moved), 11);
+      let taken = false;
+      for (const [id, r] of routes) {
+        if (taken || mates.includes(id)) continue;
+        for (let i = 1; i < r.points.length && !taken; i++) taken = overlap(way, segmentBox(r.points[i - 1]!, r.points[i]!));
+        taken ||= [r.points[0]!, r.points[r.points.length - 1]!].some((q) => overlap(near, segmentBox(q, q)));
+      }
+      if (taken) continue;
+      for (const id of mates) {
+        const points = simplify([moved, ...from(id).slice(3)]);
+        routes.set(id, { points: end === 'from' ? points : points.reverse() });
+      }
+    }
 }
 
 /**
@@ -1049,6 +1100,10 @@ function sharedPart(lines: Point[][]): [Point, Point][] {
 }
 
 const at = (p: Point, v: number, horizontal: boolean): Point => (horizontal ? { x: v, y: p.y } : { x: p.x, y: v });
+
+function grow(b: Box, by: number): Box {
+  return { x: b.x - by, y: b.y - by, width: b.width + 2 * by, height: b.height + 2 * by };
+}
 
 function segmentBox(a: Point, b: Point): Box {
   return { x: Math.min(a.x, b.x) - 1, y: Math.min(a.y, b.y) - 1, width: Math.abs(b.x - a.x) + 2, height: Math.abs(b.y - a.y) + 2 };

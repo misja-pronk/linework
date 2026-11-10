@@ -79,8 +79,19 @@ const crossingBudget: Record<string, number> = {
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
-const headerBudget: Record<string, number> = {
-  'deployment/aws.yaml': 1, // Users' line to the load balancer steps aside right above the public subnet
+const headerBudget: Record<string, number> = {};
+
+// Jogs (a short step aside between two runs the same way): none, but for the ones named here.
+const jogBudget: Record<string, number> = {
+  'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
+  'data-products/customer-detailed.yaml': 1, // the same
+  'data-products/customer-focus.yaml': 2, // the same, twice
+  'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
+  'deployment/azure.yaml': 1, // Users' line to Storefront goes under Front Door
+  'erd/saas.yaml': 5, // ends are fixed on their rows
+  'kubernetes/platform.yaml': 2, // /api goes under storefront
+  'kubernetes/web-app.yaml': 1, // two lines into one side
+  'systems/data-pipeline.yaml': 1, // two lines into one side
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -118,6 +129,7 @@ describe('layout quality', () => {
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
       expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
       expect(m.labelOnBend).toBeLessThanOrEqual(bendBudget[key] ?? 0);
+      expect(m.jogs).toBeLessThanOrEqual(jogBudget[key] ?? 0);
       expect(disorder({ ...r.graph!, direction: r.placed!.direction ?? r.graph!.direction }, r.placed!.groups)).toBeLessThanOrEqual(orderBudget[key] ?? 0);
     });
 
