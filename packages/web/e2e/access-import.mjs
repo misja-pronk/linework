@@ -11,6 +11,14 @@ const examples = path.resolve(import.meta.dirname, '../../../examples');
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
@@ -116,15 +124,16 @@ await page.waitForSelector('.drawing svg');
       await w.close();
     }
     window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('kestrel-gh');
-    // The diagram of the drop before is not kept: this is about the folder.
-    window.confirm = () => true;
   }, files);
+  // The diagram of the drop before is not kept: this is about the folder.
+  const stop = discarding();
   // All by keyboard, right after the folder is drawn: ⌘K, then ⌘S and Enter in the palette.
   await page.keyboard.press('Meta+k');
   await page.keyboard.type('open folder');
   await page.keyboard.press('Enter');
   // No diagram in the folder yet: its exports are drawn straight away.
   await page.waitForSelector('.drawing [data-node="shop-production"]', { timeout: 15000 }).catch(() => fail('the folder of gh api responses was not drawn'));
+  stop();
   await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('→ github.yaml'), null, { timeout: 5000 }).catch(() => {});
   if (!(await toast()).includes('→ github.yaml')) fail('opening the folder should say where the diagram goes: ' + (await toast()));
   // Saved with ⌘S: the new diagram is not in the folder until then.

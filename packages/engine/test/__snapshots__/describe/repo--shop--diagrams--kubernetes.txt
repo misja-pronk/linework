@@ -1,0 +1,19 @@
+Shop on Kubernetes
+
+Kubernetes diagram. 3 elements in 2 groups, with 4 connections.
+
+Groups and elements
+- Cluster
+  - data (Namespace)
+    - shop-postgres (Service · :5432)
+    - shop-postgres (StatefulSet · postgres:16.4 · :5432)
+    - shop-backup (CronJob · pg-backup:1.2 · 0 3 * * *)
+
+Connections
+- shop-postgres (Service) sends traffic to shop-postgres (StatefulSet).
+- shop-postgres (StatefulSet) mounts data · 50Gi and mounts shop-db.
+- shop-backup mounts shop-db.
+
+Key
+- Solid blue line: Traffic
+- Badge: Mounts badge

@@ -1,0 +1,29 @@
+Shop on GitHub
+
+GitHub design: Who works on the repository and where it deploys. 8 elements in 3 groups, with 6 connections.
+
+Groups and elements
+- acme (Organisation)
+  - Shop developers (Team)
+  - acme/shop (Repository)
+    - main protected (1 review · CI green)
+    - ci.yml (on pull request)
+    - deploy.yml (on push to main)
+    - staging (Environment)
+    - production (required reviewers · Platform)
+  - Platform (Team)
+- Azure (Cloud)
+  - Container Apps and AKS (Deployment target)
+
+Connections
+- Shop developers connects to acme/shop (Repository access: write).
+- Platform connects to acme/shop (Repository access: admin).
+- main protected connects to ci.yml (Protects: required check).
+- deploy.yml connects to staging (Deploys) and connects to production (Deploys).
+- production connects to Container Apps and AKS (OIDC federation: OIDC).
+
+Key
+- Solid indigo line: Repository access
+- Solid amber line, double: Deploys
+- Dotted violet line with beads: OIDC federation
+- Dashed rose line with ticks: Protects

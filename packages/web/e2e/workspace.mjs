@@ -97,6 +97,36 @@ await step('search', async () => {
   if (await page.locator('.focus-chip').count()) fail('⌥↵ focused');
 });
 
+// Review 3: ⌘↑ from the containers (drilled into from the context) went to model.yaml. It goes back up
+// the way it came: to the context, with Harbour Online selected, then to the landscape.
+await step('up goes back the way it came down', async () => {
+  await page.keyboard.press('Meta+p');
+  await page.keyboard.type('landscape');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Enter');
+  await waitFile('model.yaml');
+  await settle();
+  const dbl = async (id) => {
+    const box = await page.locator(`.drawing [data-node="${id}"], .drawing [data-group="${id}"]`).first().boundingBox();
+    await page.mouse.dblclick(box.x + 30, box.y + 20);
+  };
+  await dbl('online');
+  await waitFile('context.yaml');
+  await settle();
+  await dbl('online');
+  await waitFile('containers.yaml');
+  await settle();
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+ArrowUp');
+  await waitFile('context.yaml').catch(async () => fail(`⌘↑ from the containers went to ${await activeFile()}, not back to context.yaml`));
+  await settle();
+  if ((await selectedId()) !== 'online') fail(`back up, what was drilled into should be selected: ${await selectedId()}`);
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+ArrowUp');
+  await waitFile('model.yaml').catch(async () => fail(`⌘↑ from the context went to ${await activeFile()}, not the landscape in model.yaml`));
+  await settle();
+});
+
 await step('drill down', async () => {
   await page.keyboard.press('Meta+p');
   await page.keyboard.type('landscape');
@@ -149,6 +179,35 @@ await step('where used', async () => {
   await waitFile('deployment.yaml');
   await settle();
   if ((await selectedId()) !== 'api') fail(`selected from where used: ${await selectedId()}`);
+});
+
+// Review 3: renaming the ledger (12 places in 5 files) made the dialog taller than the window; its
+// button was cut off. The diff scrolls, the buttons stay in view, at 1512×900 and at 1280×800.
+await step('rename everywhere fits the window', async () => {
+  await page.click('.files .file:has-text("context.yaml")');
+  await waitFile('context.yaml');
+  await settle();
+  await page.click('.drawing [data-node="ledger"]');
+  await page.keyboard.press('Shift+F2');
+  await page.waitForSelector('.rename-everywhere');
+  await page.keyboard.type('ledger-core');
+  await page.waitForTimeout(300);
+  if (!/in [4-9] files/.test(await page.locator('.rename-actions button.primary').innerText())) fail(`ledger is in several files: ${await page.locator('.rename-actions button.primary').innerText()}`);
+  for (const viewport of [{ width: 1512, height: 900 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    await page.waitForTimeout(300);
+    const box = await page.locator('.rename-everywhere').boundingBox();
+    const button = await page.locator('.rename-actions button.primary').boundingBox();
+    if (!box || box.y + box.height > viewport.height) fail(`rename dialog ends at ${box && Math.round(box.y + box.height)} in a ${viewport.height} px window`);
+    if (!button || button.y + button.height > viewport.height) fail(`the rename button is cut off at ${viewport.width}×${viewport.height}`);
+    await page.screenshot({ path: `${out}/workspace-5-rename-${viewport.height}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1512, height: 900 });
+  await settle();
+  await page.click('.files .file:has-text("deployment.yaml")');
+  await waitFile('deployment.yaml');
+  await settle();
 });
 
 await step('rename everywhere', async () => {

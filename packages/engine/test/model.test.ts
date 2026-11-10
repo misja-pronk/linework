@@ -71,7 +71,7 @@ describe('include', () => {
 
   it('points at the line inside an included file that is wrong', async () => {
     const r = await render('type: azure\ninclude: [x.yaml]\n', { load: files({ 'x.yaml': 'nodes:\n  a: { kind: nope }\n' }), fonts: 'none' });
-    expect(r.diagnostics[0]!.message).toMatch(/^x\.yaml:2: .*must be one of/);
+    expect(r.diagnostics[0]!.message).toMatch(/^x\.yaml:2: "kind" cannot be "nope"/);
   });
 
   it('works for types with their own collections (ERD tables and relations)', async () => {

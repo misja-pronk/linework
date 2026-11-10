@@ -4,6 +4,15 @@ const out = process.argv[2];
 const browser = await chromium.launch();
 const problems = [];
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
+discarding();
 page.on('pageerror', (e) => problems.push(e.message));
 // Opening a template over the edited example asks first: yes, replace it.
 page.on('dialog', (d) => d.accept());

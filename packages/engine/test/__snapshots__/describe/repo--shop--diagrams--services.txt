@@ -1,0 +1,33 @@
+Shop services
+
+Architecture diagram: From the Compose file: what runs and what it uses. 12 elements in 2 groups, with 16 connections.
+
+Groups and elements
+- backend (internal)
+  - payments (Python 3.12)
+  - postgres (PostgreSQL 16): with pgdata
+  - rabbitmq (RabbitMQ 3.13): with mqdata
+  - worker (Python 3.12)
+  - mailpit: with profile dev
+  - otel (OpenTelemetry Collector 0.104): with profile monitoring
+  - orders (Go 1.22)
+  - redis (Redis 7)
+- Outside (published ports)
+- gateway (nginx 1.27)
+- keycloak (Keycloak 25.0)
+- frontend
+  - web (Node.js 20)
+
+Connections
+- payments sends data to postgres (SQL) and sends messages to rabbitmq.
+- worker sends messages to rabbitmq, calls mailpit and connects to otel (Supporting: HTTP).
+- Outside calls mailpit (:8025), calls gateway (:8080) and calls keycloak (:8081).
+- gateway calls web and calls orders.
+- web calls keycloak over HTTP and calls orders over HTTP.
+- orders sends data to postgres (SQL), sends messages to rabbitmq over AMQP, connects to otel (Supporting: HTTP) and sends data to redis (Redis).
+
+Key
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow
+- Badge: Supporting badge

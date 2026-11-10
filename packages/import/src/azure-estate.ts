@@ -112,7 +112,7 @@ export class Estate {
   resources = new Map<string, AzResource>();
   containers = new Map<string, AzContainer>();
   /** Where each resource was read from: Resource Graph, a template, Terraform state or a plan. */
-  sources = new Set<'graph' | 'arm' | 'state' | 'plan'>();
+  sources = new Set<'graph' | 'arm' | 'bicep' | 'state' | 'plan'>();
 
   /** A resource; what was read about it before stays where this says nothing. */
   resource(id: string, fill: Partial<Omit<AzResource, 'key' | 'id'>> & { name?: string; type?: string }): AzResource {

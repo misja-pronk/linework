@@ -251,6 +251,23 @@ describe('carto import and diff of access and GitHub exports', () => {
     expect(read('tenant.yaml')).toContain('label: Developers');
   }, 60_000);
 
+  it('imports a code repository into diagrams/, and again keeps what was changed by hand', () => {
+    fs.cpSync(path.join(root, 'examples/repo/shop'), path.join(tmp, 'shop'), { recursive: true, filter: (src) => !src.includes(`${path.sep}diagrams`) });
+    const dry = carto('import', 'shop', '--dry-run');
+    expect(dry.code).toBe(0);
+    expect(dry.out).toContain('compose.yaml → shop/diagrams/services.yaml 9 services, 2 stores, 2 networks (not written: --dry-run)');
+    expect(exists('shop/diagrams')).toBe(false);
+    const first = carto('import', 'shop', '--values', 'shop/deploy/helm/shop/values-prod.yaml');
+    expect(first.code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'shop/diagrams')).sort()).toEqual(['events.yaml', 'infra-azure.yaml', 'kubernetes.yaml', 'services.yaml', 'shop-api-callbacks.yaml', 'shop-api.yaml', 'shop-chart.yaml', 'workflow-ci.yaml', 'workflow-deploy.yaml']);
+    expect(read('shop/diagrams/shop-chart.yaml')).toMatch(/replicas: "?4-20/);
+    expect(first.out).toContain('also: infra/dns: Terraform source');
+    write('shop/diagrams/services.yaml', read('shop/diagrams/services.yaml').replace('  web: { kind: client, label: web,', '  web: { kind: client, label: Storefront,'));
+    const again = carto('import', 'shop');
+    expect(again.out).toContain('services.yaml 9 services, 2 stores, 2 networks, what was added by hand kept');
+    expect(read('shop/diagrams/services.yaml')).toContain('label: Storefront');
+  }, 90_000);
+
   it('says a flag it does not know, and stops', () => {
     const r = carto('import', az('kestrel'), '--principals', 'some', '-o', '-');
     expect(r.code).toBe(1);
@@ -361,18 +378,61 @@ describe('carto errors and help', () => {
   it('has short top-level help, help per command, and the full list on request', () => {
     const top = carto('--help');
     expect(top.code).toBe(0);
-    expect(top.out).toMatch(/Draw:\n {2}render/);
-    // One line per command: 41 since describe, export-md, export-confluence and blocks joined decisions and animate (still one screen).
-    expect(top.out.split('\n').length).toBeLessThan(41);
+    expect(top.out).toMatch(/^Draw {4}render/m);
+    for (const g of ['Create', 'Draw', 'Export', 'Check', 'Look']) expect(top.out).toMatch(new RegExp(`^${g} `, 'm'));
+    // One line per command in five groups, the three export-* folded into export --to: 27 lines with review, one screen.
+    expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(27);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');
+    // What most people need first; the rest under More options.
+    const [common, more] = render.out.split('More options:');
+    expect(common).toMatch(/Common options:[\s\S]*--view name[\s\S]*--step 3/);
+    expect(common!.split('\n').length).toBeLessThan(12);
+    expect(more).toContain('--svg-safe');
     expect(render.out).not.toMatch(/^  carto import/m);
     expect(carto('help', 'diff').out).toContain('carto diff --git');
     expect(carto('help', 'all').out.split('\n').length).toBeGreaterThan(80);
     const bad = carto('render', 'x.yaml', '--bogus');
     expect(bad.code).toBe(1);
     expect(bad.err).toBe("carto: Unknown option '--bogus'\nOptions: carto render --help\n");
+  }, 120_000);
+
+  it('refuses formats it cannot write, before writing anything, and says what it can', () => {
+    write('fmt.yaml', 'type: systems\nnodes:\n  a: service\n');
+    write('afile', 'x');
+    const jpg = carto('render', 'fmt.yaml', '--format', 'jpg', '-o', 'afile');
+    expect(jpg.code).toBe(1);
+    expect(jpg.err.trim()).toBe('carto: --format jpg is not one carto render writes; use one of: svg, png, pptx, pdf');
+    const ext = carto('render', 'fmt.yaml', '-o', 'x.jpg');
+    expect(ext.err.trim()).toBe('carto: -o x.jpg: carto render writes svg, png, pptx, pdf, not .jpg');
+    expect(exists('x.jpg')).toBe(false);
+    // A file where -o names a folder: said in words, never EEXIST.
+    const inWay = carto('render', 'fmt.yaml', '-o', 'afile');
+    expect(inWay.code).toBe(1);
+    expect(inWay.err).toMatch(/^carto: afile: a file is in the way where a folder is needed/);
+    for (const r of [jpg, ext, inWay]) expect(r.err).not.toMatch(/EEXIST|mkdir|\n\s+at /);
+    expect(carto('render', 'fmt.yaml', '--scale', 'abc', '-o', 's.png').err).toContain('--scale abc: give a number above 0');
+    expect(carto('describe', 'fmt.yaml', '--format', 'docx').err).toContain('carto describe writes text, md or html');
+  }, 120_000);
+
+  it('trace without --from says what is missing', () => {
+    write('tr.yaml', 'type: systems\nnodes:\n  a: service\n  b: database\nedges:\n  - a -> b\n');
+    const r = carto('trace', 'tr.yaml');
+    expect(r.code).toBe(1);
+    expect(r.err).toMatch(/^carto trace needs where the request starts: --from <element>/);
+  }, 120_000);
+
+  it('export --to is the umbrella; the export-* commands stay', () => {
+    write('ex.yaml', 'type: systems\nnodes:\n  a: service\n  b: database\nedges:\n  - a -> b\n');
+    expect(carto('export', 'ex.yaml', '--to', 'mermaid', '-o', 'ex.mmd').code).toBe(0);
+    expect(read('ex.mmd')).toContain('flowchart');
+    expect(carto('export', 'ex.yaml', '--to', 'html', '-o', 'ex.html').code).toBe(0);
+    expect(read('ex.html')).toMatch(/^<!doctype html>/i);
+    expect(carto('export-html', 'ex.yaml', '-o', 'ex2.html').code).toBe(0);
+    const bad = carto('export', 'ex.yaml', '--to', 'pdf');
+    expect(bad.code).toBe(1);
+    expect(bad.err).toContain('carto render <file> -o out.pdf');
   }, 120_000);
 
   it('shares to the dev server by default', () => {

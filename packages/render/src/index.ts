@@ -15,3 +15,4 @@ export * from './tags.ts';
 export * from './block.ts';
 export * from './notes.ts';
 export * from './decisions.ts';
+export * from './review.ts';

@@ -1,0 +1,25 @@
+Shop in Azure
+
+Azure infrastructure diagram: From the Bicep source. 7 elements in 5 groups, with 3 connections.
+
+Groups and elements
+- Subscription (where the template is deployed)
+  - Target resource group (where the template is deployed)
+    - vnet-shop-prod (Virtual network · 10.40.0.0/16)
+      - snet-apps (10.40.0.0/23)
+        - ca-shop-prod-orders (Container App)
+        - ca-shop-prod-payments (Container App)
+        - ca-shop-prod-web (Container App)
+      - snet-data (10.40.2.0/24 · delegated to PostgreSQL)
+        - psql-shop-prod (PostgreSQL · Standard D2ds v5)
+    - kv-shop-prod (Key Vault)
+    - log-shop-prod (Log Analytics)
+    - redis-shop-prod (Cache for Redis)
+
+Connections
+- ca-shop-prod-orders signs in with kv-shop-prod (secrets).
+- ca-shop-prod-payments signs in with kv-shop-prod (secrets).
+- ca-shop-prod-web signs in with kv-shop-prod (secrets).
+
+Key
+- Amber badge: Identity badge

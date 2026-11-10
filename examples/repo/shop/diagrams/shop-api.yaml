@@ -1,0 +1,42 @@
+type: systems
+title: Shop API
+subtitle: What the storefront and partners call.
+captions: written
+direction: right
+
+groups:
+  api: { kind: system, label: Shop API, caption: v2.14.0, tags: [imported] }
+  tag-orders: { kind: domain, label: orders, in: api, description: Placing and following orders, tags: [imported] }
+  tag-payments: { kind: domain, label: payments, in: api, description: Paying for an order, tags: [imported] }
+  tag-catalog: { kind: domain, label: catalog, in: api, description: Products and prices, tags: [imported] }
+  tag-customers: { kind: domain, label: customers, in: api, description: Accounts and addresses, tags: [imported] }
+  tag-untagged: { kind: domain, label: untagged, in: api, tags: [imported] }
+
+nodes:
+  clients: { kind: users, label: API clients, tags: [imported] }
+  server: { kind: gateway, label: api.shop.example.com, caption: Production · Staging, in: api, tags: [imported] }
+  orders-orders: { kind: api, label: /orders, caption: GET · POST · DELETE · PATCH · 7 operations, in: tag-orders, tags: [imported] }
+  payments-payments: { kind: api, label: /payments, caption: POST · GET · 3 operations, in: tag-payments, tags: [imported] }
+  catalog-products: { kind: api, label: /products, caption: GET · 2 operations, in: tag-catalog, tags: [imported] }
+  catalog-categories: { kind: api, label: /categories, caption: GET, in: tag-catalog, tags: [imported] }
+  catalog-prices: { kind: api, label: /prices, caption: GET, in: tag-catalog, tags: [imported] }
+  customers-customers: { kind: api, label: /customers, caption: GET · PUT · POST · 4 operations, in: tag-customers, tags: [imported] }
+  untagged-health: { kind: api, label: /health, caption: GET, in: tag-untagged, tags: [imported] }
+  auth-oauth: { kind: identity, label: auth.shop.example.com, caption: OAuth 2 · authorizationCode, tags: [imported] }
+  auth-partnerkey: { kind: secrets, label: API key, caption: X-Partner-Key in header, tags: [imported] }
+  callbacks: { kind: external, label: Callback receivers, caption: the URL the caller gives, tags: [imported] }
+  subscribers: { kind: external, label: Webhook subscribers, tags: [imported] }
+
+edges:
+  - clients -> server: { label: HTTPS, style: sync }
+  - server -> orders-orders: { style: sync }
+  - server -> payments-payments: { style: sync }
+  - server -> catalog-products: { style: sync }
+  - server -> catalog-categories: { style: sync }
+  - server -> catalog-prices: { style: sync }
+  - server -> customers-customers: { style: sync }
+  - server -> untagged-health: { style: sync }
+  - clients -> auth-oauth: { label: token, style: dotted }
+  - clients -> auth-partnerkey: { label: key, style: dotted }
+  - payments-payments -> callbacks: { label: paymentResult, style: async }
+  - api -> subscribers: { label: orderShipped, style: async }

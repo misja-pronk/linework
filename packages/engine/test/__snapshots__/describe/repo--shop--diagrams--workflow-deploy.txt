@@ -1,0 +1,42 @@
+Deploy
+
+Process diagram: From deploy.yml: 6 jobs. 9 elements in 3 lanes, with 9 connections.
+
+Lanes and steps
+- Pipeline (lane)
+  - On push to main, by hand (start event)
+  - build (subprocess, uses ci.yml)
+  - Smoke tests
+  - Announce release
+  - End event
+- staging (lane)
+  - Azure infrastructure
+  - Deploy to staging (staging.shop.example.com)
+- production (lane)
+  - Approve production (environment protection)
+  - Deploy to production (shop.example.com)
+
+Main path
+1. On push to main, by hand
+2. build
+3. Azure infrastructure
+4. Deploy to staging
+5. Smoke tests
+6. Approve production: Smoke tests on main
+7. Deploy to production
+8. Announce release
+9. End event
+
+Connections
+- On push to main, by hand leads to build.
+- build leads to Azure infrastructure and leads to Deploy to staging.
+- Azure infrastructure leads to Deploy to staging.
+- Deploy to staging leads to Smoke tests.
+- Smoke tests leads to Approve production (on main).
+- Approve production leads to Deploy to production.
+- Deploy to production leads to Announce release.
+- Announce release leads to End event.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

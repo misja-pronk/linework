@@ -12,6 +12,8 @@ export interface Diagnostic {
   /** Character offsets in the source, for editors. */
   from?: number;
   to?: number;
+  /** The values allowed here, when the message names only a few of them (editors offer them as fixes). */
+  choices?: string[];
 }
 
 export interface Source {
@@ -107,7 +109,8 @@ export function validate(source: Source, schema: object): Diagnostic[] {
       indented.add(`${section}/${key}`);
       continue;
     }
-    out.push(source.at(e.keyword === 'additionalProperties' ? [...path, e.params.additionalProperty] : path, describe(e, path)));
+    const d = source.at(e.keyword === 'additionalProperties' ? [...path, e.params.additionalProperty] : path, describe(e, path));
+    out.push(e.keyword === 'enum' ? { ...d, choices: (e.params.allowedValues as unknown[]).map(String) } : d);
   }
   return out;
 }
@@ -126,6 +129,8 @@ function simplify(errors: ErrorObject[]): ErrorObject[] {
     // A map that fails its own branch: the short-form branch's "must be one of …" says nothing useful.
     const isMap = (e: ErrorObject) => e.data !== null && typeof e.data === 'object' && !Array.isArray(e.data);
     const scalarNoise = (e: ErrorObject) => isMap(e) && ['enum', 'const', 'pattern', 'format'].includes(e.keyword);
+    // A map whose own branch fails deeper ("kind" there): the short-form "must be one of" is noise, one error per value.
+    if (deeper && concrete.length && concrete.every((e) => e.keyword === 'type' || (e.keyword === 'enum' && isMap(e)))) continue;
     const specific = concrete.filter((e) => e.keyword !== 'type' && !(scalarNoise(e) && concrete.some((x) => !scalarNoise(x) && x.keyword !== 'type')));
     const chosen = specific.length ? specific : concrete.length ? concrete : list;
     out.push(...dedupe(chosen));
@@ -151,7 +156,7 @@ function describe(e: ErrorObject, path: Path): string {
     case 'required':
       return `${where} needs "${e.params.missingProperty}"`;
     case 'enum':
-      return `${where} must be one of: ${(e.params.allowedValues as unknown[]).join(', ')}`;
+      return oneOf(where, e.data, (e.params.allowedValues as unknown[]).map(String));
     case 'type':
       return `${where} must be ${Array.isArray(e.params.type) ? e.params.type.join(' or ') : e.params.type}`;
     case 'pattern': {
@@ -165,6 +170,46 @@ function describe(e: ErrorObject, path: Path): string {
     default:
       return `${where} ${e.message ?? 'is invalid'}`;
   }
+}
+
+/** Up to this many allowed values, the message lists them all; past it, the nearest and a few. */
+const LIST_ALL = 8;
+
+/** "kind" must be one of a, b, c; a long list says what was probably meant and names a few. */
+function oneOf(where: string, value: unknown, allowed: string[]): string {
+  const near = typeof value === 'string' ? nearest(value, allowed) : undefined;
+  if (allowed.length <= LIST_ALL) return `${where} must be one of: ${allowed.join(', ')}${near ? ` (did you mean ${near}?)` : ''}`;
+  const shown = typeof value === 'string' || typeof value === 'number' ? `"${value}"` : 'that';
+  const few = allowed.filter((a) => a !== near).slice(0, 6).join(', ');
+  return `${where} cannot be ${shown}${near ? `: did you mean ${near}?` : ''} (${allowed.length} allowed, e.g. ${few}, …; completion in the editor lists them all)`;
+}
+
+/** The allowed value one typo or so away, or the only one that starts the same. */
+export function nearest(value: string, allowed: string[]): string | undefined {
+  const v = value.toLowerCase();
+  let best: string | undefined;
+  let score = Infinity;
+  for (const a of allowed) {
+    const d = editDistance(v, a.toLowerCase());
+    if (d < score) (score = d), (best = a);
+  }
+  if (best && score <= Math.max(1, Math.floor(v.length / 3))) return best;
+  const starts = v.length >= 3 ? allowed.filter((a) => a.toLowerCase().startsWith(v)) : [];
+  return starts.length === 1 ? starts[0] : undefined;
+}
+
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]!;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const was = row[j]!;
+      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = was;
+    }
+  }
+  return row[b.length]!;
 }
 
 function pointerToPath(pointer: string): Path {

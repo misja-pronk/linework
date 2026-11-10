@@ -68,19 +68,24 @@ const label = await markers().first().getAttribute('aria-label');
 if (label !== 'Note 1 on Orders DB, unread') fail(`marker label: ${label}`);
 await page.screenshot({ path: `${out}/1-unread-marker.png` });
 
-// 2. N on a selection: the name is asked once, then the note is written and sent with ⌘↩.
+// 2. N on a selection: what is typed right away is the note (review 3: it went into the name field and
+// the note was lost); the name is asked once, next to the send button.
 await select('api');
 await page.keyboard.press('n');
 await wait();
 if (!(await page.locator('.notes-panel').isVisible())) fail('N should open the Notes panel');
-await page.locator('#note-author').fill('Ann');
-await page.keyboard.press('Enter');
-await wait();
 const composer = page.locator('.note-thread.drafting textarea');
-if (!(await composer.isVisible())) fail('after the name, the note composer should be there');
+if (!(await composer.isVisible())) fail('N should open the note composer at once, also before a name is known');
+await page.keyboard.type('Is **this**');
+if ((await composer.inputValue()) !== 'Is **this**') fail(`typing after N should go into the note, got "${await composer.inputValue()}"`);
+if (await page.locator('#note-author').count()) fail('no separate name form while writing the first note');
 if (!(await page.locator('.note-thread.drafting .note-about').innerText()).includes('Orders API')) fail('the draft should say it is on Orders API');
 await composer.fill('Is **this** one service?\n- billing\n- shipping');
-await page.keyboard.press('Meta+Enter');
+const send = page.locator('.note-thread.drafting button:has-text("Add note")');
+if (!(await send.isDisabled())) fail('Add note waits for a name the first time');
+await page.locator('.note-thread.drafting .note-composer-name').fill('Ann');
+await page.screenshot({ path: `${out}/2-first-note-name.png` });
+await page.keyboard.press('Enter');
 await wait();
 let list = await threads();
 const ann = list.find((t) => t.author === 'Ann');

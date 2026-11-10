@@ -39,5 +39,5 @@ The type is guessed per page: shapes from the Azure, AWS, Google Cloud, Kubernet
 - **Diffs that mean something.** A change is a line in a pull request, and `carto diff` draws what changed ([ci.md](../ci.md)). A draw.io XML diff is unreadable.
 - **No more tidying.** Add a box and the lines re-route; the rest of the drawing stays where it was.
 - **Consistency across a team**: every diagram in the same look, with a key, without a style guide to police.
-- **Generated diagrams**: from Terraform, Azure exports, Kubernetes manifests, Entra and GitHub exports, so the drawing follows the real system.
+- **Generated diagrams**: from Terraform, Azure exports, Kubernetes manifests, Entra and GitHub exports, and the code of a repository (Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows: [docs/repo-import.md](../repo-import.md)), so the drawing follows the real system.
 - **The way back stays open.** `carto export -o x.drawio` writes real draw.io shapes, containers and attached connectors, not a picture.

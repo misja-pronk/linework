@@ -20,6 +20,8 @@ import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { SLIDE_MIN_PT } from '@cartography/engine';
 import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
+import { isRepo, scanRepo, type RepoDiagram } from '@cartography/import';
+import { RepoDialog, type RepoOffer } from './repo-dialog.tsx';
 
 /** The command palette's entry for the exports in the open folder, by what they are. */
 const EXPORT_ENTRY = {
@@ -30,6 +32,7 @@ const EXPORT_ENTRY = {
 import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
+import { useConfirm } from './confirm.tsx';
 import { useLayers } from './layers-control.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
@@ -55,11 +58,12 @@ import { useBlocks } from './blocks/use-blocks.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { useDecisionsTool } from './decisions-panel.tsx';
+import { useReviewTool } from './review-panel.tsx';
 import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
-import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
+import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, writeInFolder, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -114,7 +118,7 @@ function useWindowWidth() {
 
 /**
  * Puts a toast just under the drawing's tools, at their left: where the eyes are after an action, and
- * never over the zoom bar, the hint or a panel. Without a drawing on screen (a phone on the YAML tab)
+ * never over the zoom bar, the hint, a panel or an open popover. Without a drawing on screen (a phone on the YAML tab)
  * it stays at the bottom of the window.
  */
 function dockToast(el: HTMLDivElement | null) {
@@ -123,7 +127,9 @@ function dockToast(el: HTMLDivElement | null) {
   const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
   if (!top.length || !pane?.width) return el.classList.remove('docked');
   el.classList.add('docked');
-  el.style.top = `${Math.max(...top.map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
+  // Under an open popover too (the Layers panel, ⋯): a toast never covers what is being used.
+  const open = [...document.querySelectorAll('.canvas-top [role="menu"]')];
+  el.style.top = `${Math.max(...[...top, ...open].map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
   el.style.left = `${pane.left + 16}px`;
   el.style.maxWidth = `${pane.width - 32}px`;
 }
@@ -187,6 +193,8 @@ export function App() {
   );
   // A first visit starts with choosing what to make and how.
   // The start dialog only until it has been left once (by any way: a template, a file, Esc).
+  /** Questions before something is lost, in the app's own dialog (confirm.tsx). */
+  const confirmer = useConfirm();
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
   // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
   // Once the start dialog is left, by whatever way, it is not shown at the next launch.
@@ -263,6 +271,10 @@ export function App() {
   const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
   /** The open folder holds access exports or gh api responses: they can be drawn as one access or GitHub diagram. */
   const exportInWs = useMemo(() => (ws && !meshInWs ? exportKind([...ws.files].map(([path, f]) => ({ path, text: f.text }))) : undefined), [ws, meshInWs]);
+  /** The open folder is a code repository (Compose, Helm, Bicep, OpenAPI, workflows …): a diagram can be made of each. */
+  const repoInWs = useMemo(() => !!ws && !meshInWs && isRepo([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws, meshInWs]);
+  /** Diagrams from the code, offered in a dialog: written into the folder, or one opened. */
+  const [repoOffer, setRepoOffer] = useState<RepoOffer>();
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -338,6 +350,7 @@ export function App() {
 
   const [notesOpen, setNotesOpen] = useState(false);
   const [decisionsOpen, setDecisionsOpen] = useState(false);
+  const [archReviewOpen, setArchReviewOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
   const [noteMine, setNoteMine] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
@@ -517,7 +530,7 @@ export function App() {
   const leave = async (): Promise<boolean> => {
     if (!dirty) return true;
     if ((ws && doc.path) || fileHandle.current) return save();
-    return window.confirm(`${doc.name} has changes that are not saved in a file. Discard them?`);
+    return confirmer.ask({ title: 'Discard the unsaved changes?', text: `${doc.name} has changes that are not saved in a file.`, ok: 'Discard', cancel: 'Keep editing' });
   };
 
   const focusDrawing = () => requestAnimationFrame(() => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true }));
@@ -552,7 +565,7 @@ export function App() {
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
         const disk = await diskText(ws, doc.path);
-        if (disk != null && savedText != null && disk !== savedText && disk !== now && !window.confirm(`${doc.path} was changed outside Cartography. Overwrite it?`)) return false;
+        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await confirmer.ask({ title: `Overwrite ${doc.path}?`, text: `${doc.path} was changed outside Cartography since it was opened.`, ok: 'Overwrite', cancel: 'Keep the file' }))) return false;
         await saveInFolder(ws, doc.path, now, pinsToSave);
         await review.saveTo(ws, doc.path, drawn?.view ? undefined : drawn?.graph);
       }
@@ -600,7 +613,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
-      else if (meshInFolder(next) || exportInFolder(next)) return;
+      else if (meshInFolder(next) || repoInFolder(next) || exportInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -656,6 +669,46 @@ export function App() {
     focusDrawing();
     return true;
   };
+  /** A code repository in the open folder: its diagrams offered, to be written into diagrams/. False: it is none. */
+  const repoInFolder = (w: Workspace): boolean => {
+    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
+    if (!isRepo(files)) return false;
+    const scan = scanRepo(files, { name: w.name, existing: (file) => w.files.get(file)?.text });
+    if (!scan.diagrams.length) return false;
+    setRepoOffer({ scan, name: w.name, write: true });
+    return true;
+  };
+  const writeRepo = async (chosen: RepoDiagram[]) => {
+    const w = ws;
+    setRepoOffer(undefined);
+    if (!w || !chosen.length) return;
+    if (!(await leave())) return;
+    try {
+      for (const d of chosen) await writeInFolder(w, d.file, d.yaml);
+    } catch (e) {
+      return notify(`Writing the diagrams failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+    }
+    const first = chosen[0]!;
+    fileHandle.current = undefined;
+    open(first.yaml, { name: first.file.split('/').pop()!, path: first.file }, readSidecar(w, first.file));
+    setSavedText(first.yaml);
+    const kept = chosen.filter((d) => d.kept).length;
+    const notes = chosen.flatMap((d) => d.warnings.map((x) => `${d.file}: ${x}`));
+    notify(`${chosen.length} diagram${chosen.length === 1 ? '' : 's'} from the code in ${w.name} → ${first.file.includes('/') ? first.file.slice(0, first.file.lastIndexOf('/') + 1) : w.name}${kept ? `, what you added by hand is kept in ${kept}` : ''}`, remember(first.file, 'From the code', notes));
+    focusDrawing();
+  };
+  const openRepoDiagram = async (d: RepoDiagram) => {
+    const offer = repoOffer;
+    setRepoOffer(undefined);
+    if (!(await leave())) return;
+    fileHandle.current = undefined;
+    // In a folder it opens where it will be written (⌘S writes it); dropped, it is a new document.
+    if (offer?.write && ws) {
+      open(d.yaml, { name: d.file.split('/').pop()!, path: d.file }, readSidecar(ws, d.file));
+      setSavedText(ws.files.get(d.file)?.text ?? null);
+    } else open(d.yaml, { name: d.file.split('/').pop()! }, undefined, false, `${d.summary}, from ${d.sources.join(', ')}`, { title: 'From the code', items: d.warnings });
+    focusDrawing();
+  };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
     problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
   const meshNotes = (problems: { file?: string; message: string }[]) => problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message));
@@ -687,6 +740,11 @@ export function App() {
       return focusDrawing();
     }
     if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, 'From the exports (nothing drawn)', exportNotes(exported)) });
+    // A code repository dropped: its diagrams offered, one to open.
+    if (isRepo(files)) {
+      const scan = scanRepo(files, { name: folder });
+      if (scan.diagrams.length) return setRepoOffer({ scan, name: folder ?? 'the drop', write: false });
+    }
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
     if (!(await leave())) return;
@@ -1377,6 +1435,7 @@ export function App() {
       case 'review': toggleReview(); break;
       case 'decisions': decisionsTool.toggle(); break;
       case 'decision-new': decisionsTool.newAbout(); break;
+      case 'arch-review': reviewTool.toggle(); break;
       case 'edit':
         if (!selected) return;
         if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
@@ -1539,22 +1598,23 @@ export function App() {
         ? isChain
           ? [{ key: 'label', kind: 'text' as const, label: 'Label', value: selEdge?.label ?? '', hint: type.lines?.hint }]
           : isEntry
-            ? fieldsFor(text, type, selectedPath)
+            ? withDrawnName(fieldsFor(text, type, selectedPath), selNode ? label(selNode) : selGroup?.label)
             : isEdgeItem
               ? edgeFields(text, type, selectedPath)
               : []
         : [],
-    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
+    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text, selNode, selGroup],
   );
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
   /** One panel on the right, with tabs: the selection's properties, the review notes, the decisions, or Ask. */
-  const sideTab: 'properties' | 'notes' | 'decisions' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : 'properties';
+  const sideTab: 'properties' | 'notes' | 'decisions' | 'review' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : archReviewOpen ? 'review' : 'properties';
   const showInspector = sideTab === 'properties' && inspector && hasProperties;
-  const sideOpen = asking || notesOpen || decisionsOpen || showInspector;
+  const sideOpen = asking || notesOpen || decisionsOpen || archReviewOpen || showInspector;
   const showSide = (tab: typeof sideTab) => {
     setAsking(tab === 'ask');
     setDecisionsOpen(tab === 'decisions');
+    setArchReviewOpen(tab === 'review');
     if (tab === 'ask') setAskKept(true);
     if (tab !== 'notes' && notesOpen) toggleNotes();
     else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
@@ -1645,6 +1705,24 @@ export function App() {
     setOpen: setDecisionsOpen,
   });
   decisionsRef.current = decisionsTool;
+
+  // Architecture review (review-panel.tsx): the Review tab, its flags on the drawing, its commands.
+  const reviewTool = useReviewTool({
+    ws,
+    drawn,
+    text: rendered?.text ?? text,
+    textNow,
+    load,
+    inline: !!(type?.schema as { properties?: { nodes?: { additionalProperties?: { anyOf?: { properties?: object }[] } } } } | undefined)?.properties?.nodes?.additionalProperties?.anyOf?.some((x) => !!x.properties && 'review' in x.properties),
+    select: (s) => select(s),
+    zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    focusDrawing,
+    notify,
+    apply: (yaml) => apply(yaml),
+    decide: (title, about, context) => (setArchReviewOpen(false), decisionsTool.newWith(title, about, context)),
+    open: archReviewOpen,
+    setOpen: (o) => (o ? showSide('review') : setArchReviewOpen(false)),
+  });
   // One panel on the right at a time: notes and decisions take turns.
   useEffect(() => {
     if (notesOpen && decisionsTool.open) decisionsTool.close();
@@ -1695,7 +1773,9 @@ export function App() {
     selection,
     pathOf: (s) => pathOf(s),
     theme,
-    apply: (next, nodePins) => apply(next, nodePins ? withPins(nodePins) : undefined),
+    // An inserted block grows the drawing: fit it again (review 3: it ran past the edge, under the
+    // minimap); dropped at a point it stays where dropped, kept in view.
+    apply: (next, nodePins) => (nodePins ? previewControl.current?.keepInView(true) : previewControl.current?.fitNext(), apply(next, nodePins ? withPins(nodePins) : undefined)),
     selectPaths: (paths) => setPendingPaths(paths.map((p) => JSON.stringify(p))),
     notify,
   });
@@ -1741,6 +1821,7 @@ export function App() {
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
+    ...(ws && repoInWs ? [{ id: 'repo', group: 'File', label: `Diagrams from the code in ${ws.name}`, hint: 'Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows → diagrams/', icon: 'folder-git-2', run: () => void leave().then((ok) => ok && repoInFolder(ws)) }] : []),
     ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
@@ -1757,7 +1838,7 @@ export function App() {
     { id: 'describe', group: 'Export', label: 'Describe in words…', hint: 'what the diagram shows, for a screen reader or a handout; copy as text or Markdown', icon: 'scroll-text', run: () => setTimeout(() => setDescribing(true)) },
     { id: 'copy-wiki', group: 'Export', label: 'Copy for Confluence / Notion', hint: 'the picture and the description in one paste', icon: 'book-open', run: copyForWiki },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
-    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
+    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (SVG for PowerPoint / Word off)' : 'SVG for PowerPoint / Word on', hint: 'an SVG that PowerPoint, Word and Keynote take whole', icon: 'monitor', run: toggleSafeSvg },
     { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
     { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
@@ -1783,6 +1864,7 @@ export function App() {
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
     ...decisionsTool.commands,
+    ...reviewTool.commands,
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
@@ -2012,7 +2094,7 @@ export function App() {
               <Menu onClose={() => setMenu(false)}>
                 <div className="menu-heading">Image</div>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG for PowerPoint / Word' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
@@ -2033,7 +2115,7 @@ export function App() {
                     toggleSafeSvg();
                   }}
                 >
-                  <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
+                  <Icon name={safeSvg ? 'check' : 'square'} /> SVG for PowerPoint / Word
                 </button>
                 <div className="menu-heading">Document, on the page ({pageName})</div>
                 <button role="menuitem" onClick={savePptx}>
@@ -2049,6 +2131,9 @@ export function App() {
                 <button role="menuitem" onClick={savePageSvg}>
                   <Icon name="monitor" /> SVG of the page
                 </button>
+                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
+                  <Icon name="scroll-text" /> Describe in words…
+                </button>
                 <div className="menu-heading">Share</div>
                 <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
                   <Icon name="link" /> Copy share link
@@ -2061,9 +2146,6 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copyForWiki} title="The picture and the description in one paste, for Confluence, Notion or Google Docs">
                   <Icon name="book-open" /> Copy for Confluence / Notion
-                </button>
-                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
-                  <Icon name="scroll-text" /> Describe in words…
                 </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
@@ -2120,9 +2202,10 @@ export function App() {
               onClick={() => (paneLayout({ width: windowWidth, folder: true, files: 'list', view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen }).filesMode === 'list' ? setFilesPref('list') : setFilesOver((o) => !o))}
               aria-expanded={filesOver}
               title={`The diagrams in ${ws.name}`}
+              aria-label={`Files: ${diagrams(ws).length} diagrams in ${ws.name}`}
             >
-              <Icon name="folder-open" size={16} />
-              <span className="rail-label">{ws.name}</span>
+              <Icon name="file-code" size={16} />
+              <span className="rail-label">Files · {diagrams(ws).length}</span>
             </button>
           </nav>
         )}
@@ -2153,7 +2236,7 @@ export function App() {
         {panes.editorMode === 'rail' && (
           <button
             className="rail rail-button yaml-rail"
-            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : setYamlFolded(false))}
+            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : (setYamlFolded(false), setForceYaml(true)))}
             title={panes.editorSqueezed ? 'Show the YAML (the window is narrow: the drawing gets less room)' : 'Show the YAML'}
             aria-label="Show the YAML"
           >
@@ -2254,6 +2337,7 @@ export function App() {
                 <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
                 {blocks.overlay(scale)}
                 {decisionsTool.markers(scale)}
+                {reviewTool.markers(scale)}
               </>
             )}
             onContextMenu={(s, at, client) => {
@@ -2315,9 +2399,16 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* Decisions and Compare, at every width (the trackpad way in with nothing selected; ⋯ takes the room the clock had); in a narrow drawing also the tools that fold away, in the same order. */}
+              {/* Decisions in one click, with its count, like Notes, once there are any (review 3: they hid in ⋯); the first one is written from ⋯. */}
+              {(decisionsTool.count > 0 || decisionsOpen) && (
+              <button className={decisionsOpen ? 'tool active' : 'tool'} onClick={() => decisionsTool.toggle()} title={`Architecture decisions (${keyHint('decisions')})`} aria-pressed={decisionsOpen} aria-label={`Decisions${decisionsTool.count ? `, ${decisionsTool.count}` : ''}`}>
+                <Icon name="scroll-text" />
+                {decisionsTool.count > 0 && <span className="tool-count">{decisionsTool.count}</span>}
+              </button>
+              )}
+              {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
-                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: decisions, compare with an earlier version">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: compare with an earlier version, zoom to the selection, grid, minimap">
                   <span className="more-dots" aria-hidden="true">⋯</span>
                 </button>
                 {toolsMore && (
@@ -2335,11 +2426,23 @@ export function App() {
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
                       </button>
                     )}
-                    <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
-                      <Icon name="scroll-text" /> {decisionsOpen ? 'Hide the decisions' : 'Decisions'}{decisionsTool.count ? ` (${decisionsTool.count})` : ''} <kbd>{keyHint('decisions')}</kbd>
-                    </button>
+                    {!(decisionsTool.count > 0 || decisionsOpen) && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
+                        <Icon name="scroll-text" /> Decisions <kbd>{keyHint('decisions')}</kbd>
+                      </button>
+                    )}
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
                       <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'} <kbd>{keyHint('compare')}</kbd>
+                    </button>
+                    <hr />
+                    <button role="menuitem" onClick={() => (setToolsMore(false), previewControl.current?.zoomToSelection())} disabled={!selection.length}>
+                      <Icon name="focus" /> Zoom to the selection <kbd>{keyHint('zoom-selection')}</kbd>
+                    </button>
+                    <button role="menuitemcheckbox" aria-checked={!!craft.grid} onClick={() => (setToolsMore(false), craft.toggle('grid'))}>
+                      <Icon name="grid-3x3" /> Snap to grid {craft.grid && <Icon name="check" size={14} />} <kbd>{keyHint('grid')}</kbd>
+                    </button>
+                    <button role="menuitemcheckbox" aria-checked={!!craft.minimap} onClick={() => (setToolsMore(false), craft.toggle('minimap'))}>
+                      <Icon name="map" /> Minimap {craft.minimap && <Icon name="check" size={14} />} <kbd>{keyHint('minimap')}</kbd>
                     </button>
                   </Menu>
                 )}
@@ -2421,16 +2524,19 @@ export function App() {
           <div className="side" role="region" aria-label="Side panel">
             <div className="side-tabs" role="tablist" aria-label="Side panel">
               <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
-                <Icon name="file-sliders" size={14} /> Properties
+                <Icon name="file-sliders" size={14} /> <span className="tab-label">Properties</span>
               </button>
               <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
-                <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
+                <Icon name="message-square" size={14} /> <span className="tab-label">Notes</span>{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
               <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={`Architecture decisions (${keyHint('decisions')})`}>
-                <Icon name="scroll-text" size={14} /> Decisions{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
+                <Icon name="scroll-text" size={14} /> <span className="tab-label">Decisions</span>{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
+              </button>
+              <button role="tab" aria-selected={sideTab === 'review'} onClick={() => showSide('review')} disabled={!type} title={`Architecture review (${keyHint('arch-review')})`}>
+                <Icon name="shield-check" size={14} /> <span className="tab-label">Review</span>{reviewTool.count > 0 && <span className="tab-count">{reviewTool.count}</span>}
               </button>
               <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
-                <Icon name="sparkles" size={14} /> Ask Claude
+                <Icon name="sparkles" size={14} /> <span className="tab-label">Ask Claude</span>
               </button>
             </div>
           {askKept && (
@@ -2458,6 +2564,7 @@ export function App() {
             />
           )}
         {sideTab === 'decisions' && decisionsTool.panel}
+        {sideTab === 'review' && reviewTool.panel}
         {notesOpen && !asking && (
           <NotesPanel
             review={review}
@@ -2594,7 +2701,7 @@ export function App() {
       </main>
 
       <footer className="statusbar">
-        <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={() => setModal('problems')}>
+        <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={() => setModal('problems')} title={rendered ? `Drawn in ${rendered.ms} ms` : undefined}>
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
         </button>
@@ -2618,13 +2725,13 @@ export function App() {
         <button className="status-link" onClick={() => setModal('shortcuts')} title="Keyboard shortcuts">
           <Icon name="keyboard" size={13} /> ?
         </button>
-        {rendered && <span>{rendered.ms} ms</span>}
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
       {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} layers={layering.options} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {comparing.dialogs}
+      {confirmer.dialog}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
           placeholder={`Connect ${nodeName(selected.id)} to…`}
@@ -2638,6 +2745,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {repoOffer && <RepoDialog offer={repoOffer} onWrite={(chosen) => void writeRepo(chosen)} onOpen={(d) => void openRepoDiagram(d)} onClose={() => setRepoOffer(undefined)} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
@@ -2716,4 +2824,10 @@ export function App() {
       )}
     </div>
   );
+}
+
+/** An empty label field says what is drawn instead ("Users", from the kind) as its placeholder: empty is not "no name". */
+function withDrawnName<F extends { key: string; kind: string; value?: unknown; note?: string }>(fields: F[], drawn: string | undefined): F[] {
+  if (!drawn) return fields;
+  return fields.map((f) => (f.kind === 'text' && ['label', 'name', 'title'].includes(f.key) && f.value === '' ? { ...f, note: `${drawn} (as drawn; type to change it)` } : f));
 }

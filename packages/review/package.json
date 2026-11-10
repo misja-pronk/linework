@@ -1,0 +1,19 @@
+{
+  "name": "@cartography/review",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Architecture review rules (well-architected lint) over a drawn diagram: built-in packs, customer rules, findings and reports",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/data-products": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@cartography/engine": "workspace:*",
+    "@cartography/wizards": "workspace:*"
+  }
+}

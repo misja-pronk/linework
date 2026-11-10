@@ -118,20 +118,23 @@ const browser = await chromium.launch();
   await page.waitForSelector('.files .file');
   await settle();
 
-  // The trackpad way in with nothing selected, in a wide window: the toolbar's ⋯ (it holds only what
-  // the toolbar does not show itself).
-  await step('the toolbar ⋯ opens the decisions with nothing selected', async () => {
+  // The trackpad way in with nothing selected: one click on the toolbar's Decisions, with its count
+  // (review 3: it hid in ⋯). ⋯ holds Compare and the view's switches, never Focus while it shows.
+  await step('the toolbar opens the decisions in one click, with nothing selected', async () => {
+    const tool = page.locator('.canvas-tools button[aria-label^="Decisions"]');
+    check(await tool.isVisible(), 'editor: Decisions is on the toolbar');
+    check(/\d/.test(await tool.innerText()), 'editor: the Decisions tool shows its count');
     const more = page.locator('.canvas-tools button[aria-label="More tools"]');
-    check(await more.isVisible(), 'editor: ⋯ shows in a wide window');
     await more.click();
-    const item = page.locator('.canvas-tools [role="menuitem"]:has-text("Decisions")');
-    check(await item.isVisible(), 'editor: ⋯ offers Decisions');
+    check(await page.locator('.canvas-tools [role="menuitem"]:has-text("Compare")').isVisible(), 'editor: ⋯ offers Compare');
+    check((await page.locator('.canvas-tools .menu [role^="menuitem"]:visible').count()) > 1, 'editor: ⋯ holds more than one item');
     check(!(await page.locator('.canvas-tools [role="menuitem"]:has-text("Focus")').isVisible()), 'editor: ⋯ does not repeat Focus while the toolbar shows it');
     await page.screenshot({ path: path.join(out, 'editor-0-more.png') });
-    await item.click();
+    await page.keyboard.press('Escape');
+    await tool.click();
     await page.waitForSelector('.decisions-panel');
-    await more.click();
-    await page.click('.canvas-tools [role="menuitem"]:has-text("Hide the decisions")');
+    check((await tool.getAttribute('aria-pressed')) === 'true', 'editor: the Decisions tool shows it is open');
+    await tool.click();
     await page.waitForSelector('.decisions-panel', { state: 'detached' });
   });
 

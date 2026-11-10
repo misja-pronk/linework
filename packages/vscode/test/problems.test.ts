@@ -17,7 +17,7 @@ describe('diagnostics as problems', () => {
     const text = 'type: systems\nnodes:\n  a: { kind: apii }\n';
     const r = await render(text, { fonts: 'none' });
     const p = toProblems(text, r.diagnostics);
-    const kind = p.find((x) => x.message.startsWith('"kind" must be one of'))!;
+    const kind = p.find((x) => x.message.startsWith('"kind" cannot be "apii": did you mean api?'))!;
     expect(kind.severity).toBe('error');
     // carto validate says line 3, column 8 (1-based): the same place.
     expect(kind.start).toEqual({ line: 2, character: 7 });
