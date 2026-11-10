@@ -66,6 +66,8 @@ const helpAll = `carto — architecture diagrams that look good
                                                 as an azure diagram, with the options of carto import below
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
+               [--stages]                           a slide per stage of its stages: and per transition, the overview,
+                                                    as-is and to-be side by side, the roadmap (pptx)
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
@@ -74,6 +76,7 @@ const helpAll = `carto — architecture diagrams that look good
   carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
                [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
                [--layers | --walk "a -> b -> c"]    the caption as a lower third; --layers walks its layers
+               [--stages]                           (--stages: its stages, what comes fades in, what goes out)
                [--hold 2.5] [--transition 0.5]      (the rest faded in place), --walk a route hop by hop;
                [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
                [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
@@ -869,6 +872,7 @@ async function animateFile(file: string): Promise<boolean> {
       out: values.out!,
       layers: values.layers,
       walk: values.walk,
+      stages: values.stages,
       hold: num('hold', values.hold, 0.2, 60),
       transition: values['no-transitions'] ? 0 : num('transition', values.transition, 0, 5),
       fps: num('fps', values.fps, 5, 60),
@@ -1307,6 +1311,17 @@ async function deck(): Promise<boolean> {
   if (!values.out || !/\.(pptx|pdf)$/i.test(values.out)) {
     console.error('carto deck needs -o <file>.pptx or -o <file>.pdf');
     return false;
+  }
+  // --stages: a slide per stage and per transition, the overview, before and after, the roadmap.
+  if (values.stages) {
+    if (format !== 'pptx') return (console.error('carto deck --stages makes a PowerPoint deck: -o <file>.pptx'), false);
+    const { stagesDeck } = await import('./stages.ts');
+    const made = await stagesDeck(files, (f) => optionsFor(f, 'none'), async (svg, theme) => toPng(svg, 2, await ttfFiles(theme?.font.faces ?? [])), values.title);
+    if (!made) return false;
+    fs.mkdirSync(path.dirname(values.out), { recursive: true });
+    fs.writeFileSync(values.out, made.data);
+    console.log(`${made.slides} slides → ${values.out}`);
+    return true;
   }
   const drawings: Drawing[] = [];
   let theme: RenderResult['theme'];

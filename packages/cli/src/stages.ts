@@ -67,3 +67,48 @@ export async function stagesCommand(f: StagesFlags): Promise<number> {
   console.log(`${f.file} → ${story}`);
   return 0;
 }
+
+/**
+ * carto deck --stages: a slide per stage with a transition slide between each two (what is added,
+ * changed, removed and replaced), then the overview, the as-is and to-be side by side and the
+ * roadmap. Pictures, so the marks come along; every stage slide is the same size, so they line up.
+ */
+export async function stagesDeck(files: string[], options: (file: string) => RenderOptions, png: (svg: string, theme: Theme | undefined) => Promise<Uint8Array>, title?: string): Promise<{ data: Uint8Array; slides: number } | undefined> {
+  const { toPictureDeck } = await import('@cartography/export');
+  const slides: Parameters<typeof toPictureDeck>[0] = [];
+  let theme: Theme | undefined;
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    const opts = { ...options(file), stage: undefined };
+    const story = await stageStory(text, opts);
+    if (!story.length) {
+      console.error(`${file}: no stages: (see docs/transitions.md), left out`);
+      continue;
+    }
+    const slide = async (name: string, sub: string | undefined, pic: { svg: string; width: number; height: number } | undefined, t: Theme | undefined, notes: string[]) => {
+      if (!pic) return;
+      theme ??= t;
+      slides.push({ title: name, ...(sub ? { subtitle: sub } : {}), svg: pic.svg, png: await png(pic.svg, t), width: pic.width, height: pic.height, notes });
+    };
+    for (const [k, { stage, told }] of story.entries()) {
+      if (k) {
+        const c = await compareStages(text, story[k - 1]!.stage.id, stage.id, opts);
+        await slide(`From ${story[k - 1]!.stage.title} to ${stage.title}`, stage.when, c?.picture(), c?.after?.theme, told.map((t) => t.text));
+      }
+      const r = await render(text, { ...opts, fonts: 'none', stage: stage.id });
+      await slide(stage.title, stage.when, r.svg ? { svg: r.svg, width: r.width!, height: r.height! } : undefined, r.theme, [stage.description ?? '', ...told.map((t) => t.text)].filter(Boolean));
+    }
+    const all = await render(text, { ...opts, fonts: 'none', stage: 'overview' });
+    await slide('Migration overview', undefined, all.svg ? { svg: all.svg, width: all.width!, height: all.height! } : undefined, all.theme, ['Every element with the stage it is added (+), changed (~) and gone (−) in.']);
+    const [first, last] = [story[0]!.stage, story.at(-1)!.stage];
+    const both = await compareStages(text, first.id, last.id, opts);
+    await slide(`${first.title} and ${last.title}`, undefined, both?.sideBySide(), both?.after?.theme, both?.told.map((t) => t.text) ?? []);
+    const roadmap = await stagesRoadmap(text, opts);
+    if (roadmap) {
+      const r = await render(roadmap, { ...opts, fonts: 'none', file: undefined, sidecar: undefined });
+      await slide('Roadmap', undefined, r.svg ? { svg: r.svg, width: r.width!, height: r.height! } : undefined, r.theme, ['Made from the stages: an item per change, a band per stage.']);
+    }
+  }
+  if (!slides.length) return undefined;
+  return { data: toPictureDeck(slides, { theme, ...(title ? { title } : {}) }), slides: slides.length };
+}

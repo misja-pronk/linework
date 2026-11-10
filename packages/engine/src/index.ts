@@ -57,7 +57,7 @@ import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
-import { drawStage, pickStage, stageStrip, stageTitle, type StageAt } from './stages.ts';
+import { drawStage, pickStage, stageStates, stageStrip, stageTitle, type StageAt } from './stages.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
 import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
 
@@ -238,6 +238,8 @@ export interface RenderResult {
   /** The diagram's stages, from the as-is to the to-be, and the one drawn (its id, or "overview"). */
   stages?: StageInfo[];
   stage?: string;
+  /** With stage "union" (everything, unmarked): each stage as a step of that drawing, what is not there hidden in its place. */
+  stageStates?: StepState[];
 }
 
 /** A drawing with nothing in it: no groups, and no node or only tables without a row. */
@@ -462,7 +464,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const faded = lens.faded;
   const stepView = faded ? (at ? { ...at, states: at.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false }) : at;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
-  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView, ...(staged && stageAt != null && opts.stepCaption !== false ? { stageStrip: stageStrip(staged.plan, stageAt) } : {}) }));
+  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView, ...(staged && stageAt != null && stageAt !== 'union' && opts.stepCaption !== false ? { stageStrip: stageStrip(staged.plan, stageAt) } : {}) }));
   // A drawing that leaves the editor carries its text alternative (see docs/describe.md): screen readers
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
@@ -500,7 +502,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(isEmpty(graph) ? { empty: true } : {}),
     ...(lens.info ? { layers: lens.info } : {}),
     ...(faded ? { faded } : {}),
-    ...(staged ? { stages: staged.plan.stages, stage: stageAt === 'overview' ? 'overview' : staged.plan.stages[stageAt!]!.id } : {}),
+    ...(staged ? { stages: staged.plan.stages, stage: typeof stageAt === 'number' ? staged.plan.stages[stageAt]!.id : stageAt } : {}),
+    ...(staged && stageAt === 'union' ? { stageStates: stageStates(staged.plan, graph) } : {}),
   };
 }
 
