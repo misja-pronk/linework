@@ -587,11 +587,43 @@ export function Preview(p: Props) {
     if (!hit) return e.shiftKey ? undefined : p.onSelect(undefined);
     const kind = hit.dataset.node != null ? 'node' : hit.dataset.edge != null ? 'edge' : 'group';
     if (follow({ kind, id: hit.dataset[kind]! })) return;
-    lastClick.current = { s: { kind, id: hit.dataset[kind]! }, at: Date.now() };
+    lastClick.current = { s: { kind, id: hit.dataset[kind]! }, at: Date.now(), x: e.clientX, y: e.clientY };
     p.onSelect({ kind, id: hit.dataset[kind]! }, e.shiftKey);
   };
   /** The first click of a double-click: the inspector it opens can move the drawing before the second. */
-  const lastClick = useRef<{ s: Selection; at: number }>(null);
+  const lastClick = useRef<{ s: Selection; at: number; x: number; y: number }>(null);
+  /** Double-click on an element: edit its label right there, or the inspector's field when that cannot be. */
+  const editSelected = (s: Selection) => {
+    p.onSelect(s);
+    if (editLabel(s)) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select()));
+  };
+  const editRef = useRef(editSelected);
+  editRef.current = editSelected;
+  // The inspector the first click opens can cover the spot of the second one: a press on the inspector
+  // right where (and right after) an element was clicked is that double-click's second click, not a
+  // press on whatever field or button now sits there.
+  useEffect(() => {
+    const swallow = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const down = (e: PointerEvent) => {
+      const c = lastClick.current;
+      if (!c || e.button !== 0 || Date.now() - c.at > 500 || Math.hypot(e.clientX - c.x, e.clientY - c.y) > 8) return;
+      if (!(e.target as Element | null)?.closest?.('.inspector')) return;
+      lastClick.current = null;
+      swallow(e);
+      // The rest of this press (focus, click, the browser's own double-click) goes nowhere.
+      const types = ['mousedown', 'mouseup', 'click', 'dblclick'] as const;
+      for (const t of types) window.addEventListener(t, swallow, true);
+      const done = () => setTimeout(() => types.forEach((t) => window.removeEventListener(t, swallow, true)), 0);
+      window.addEventListener('pointerup', done, { capture: true, once: true });
+      editRef.current(c.s);
+    };
+    window.addEventListener('pointerdown', down, true);
+    return () => window.removeEventListener('pointerdown', down, true);
+  }, []);
 
   /** Nodes and groups wholly inside a marquee (screen points). */
   const inMarquee = (ax: number, ay: number, bx: number, by: number): Selection[] => {
@@ -731,10 +763,7 @@ export function Preview(p: Props) {
           : hit.dataset.node != null ? { kind: 'node', id: hit.dataset.node }
           : hit.dataset.group != null ? { kind: 'group', id: hit.dataset.group }
           : { kind: 'edge', id: hit.dataset.edge! });
-        if (!s) return;
-        p.onSelect(s);
-        if (editLabel(s)) return;
-        requestAnimationFrame(() => requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select()));
+        if (s) editSelected(s);
       }}
       onKeyDown={(e) => {
         if (drag.current && e.key === 'Escape') {

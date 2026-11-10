@@ -178,10 +178,9 @@ await page.keyboard.press('Escape');
 await page.keyboard.press('Meta+0');
 await wait(300);
 const nodeCount = await page.locator('.drawing [data-node]').count();
-// Selected first: here the node sits where the inspector opens, so a double-click on it unselected
-// would have its second click land on the inspector that the first click opens (a known gap).
-await page.locator('.drawing [data-node="vault"]').click();
-await wait(600);
+// Unselected: the first click opens the inspector, which narrows the canvas; the second click still
+// lands on the node, not on the inspector that now covers where the node was.
+if (await page.locator('.inspector').count()) fail('inspector open before the double-click');
 const vb = await page.locator('.drawing [data-node="vault"]').boundingBox();
 await page.mouse.dblclick(vb.x + vb.width / 2, vb.y + vb.height / 2);
 await wait(300);
@@ -199,6 +198,21 @@ await page.keyboard.type('Nope');
 await page.keyboard.press('Escape');
 await wait(400);
 if ((await yaml()).includes('Nope')) fail('Esc did not cancel the inline rename');
+// The same at a person's pace: a pause between the clicks, the inspector already in by the second.
+await page.locator('.preview').focus();
+await page.keyboard.press('Escape');
+await page.keyboard.press('Meta+0');
+await wait(300);
+const vb3 = await page.locator('.drawing [data-node="vault"]').boundingBox();
+await page.mouse.click(vb3.x + vb3.width / 2, vb3.y + vb3.height / 2);
+await wait(180);
+await page.mouse.click(vb3.x + vb3.width / 2, vb3.y + vb3.height / 2, { clickCount: 2 });
+await wait(300);
+if (!(await page.locator('.label-editor').isVisible())) fail('a slower double-click did not open the label editor');
+const yBefore = await yaml();
+await page.keyboard.press('Escape');
+await wait(300);
+if ((await yaml()) !== yBefore) fail('the second click changed something in the inspector');
 await page.screenshot({ path: `${out}/9-renamed.png` });
 
 // 13. Shift-click two nodes, then a marquee around everything: both select several.
