@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RepoDiagram, RepoKind, RepoScan } from '@cartography/import';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
+import { t, say } from './i18n/index.ts';
 import './repo.css';
 
 const KIND: Record<RepoKind, { icon: string; what: string }> = {
@@ -58,20 +59,20 @@ export function RepoDialog({ offer, onWrite, onOpen, onClose }: { offer: RepoOff
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="shortcuts repo-dialog" role="dialog" aria-label="Diagrams from the code" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts repo-dialog" role="dialog" aria-label={t('Diagrams from the code')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
-            <Icon name="folder-git-2" /> Diagrams from the code in {offer.name}
+            <Icon name="folder-git-2" /> {t('Diagrams from the code in {name}', { name: offer.name })}
           </h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close">
+          <button className="icon-button" onClick={onClose} aria-label={t('Close')}>
             <Icon name="x" />
           </button>
         </header>
         <p className="repo-intro">
-          {diagrams.length} found: one diagram for each source.{' '}
-          {offer.write ? `Picked ones are written to ${folder || 'the folder'}; importing again keeps what you changed by hand.` : 'Open one to look at it; open the folder to write them all.'}
+          {t('{count} found: one diagram for each source.', { count: diagrams.length })}{' '}
+          {offer.write ? (folder ? t('Picked ones are written to {folder}; importing again keeps what you changed by hand.', { folder }) : t('Picked ones are written to the folder; importing again keeps what you changed by hand.')) : t('Open one to look at it; open the folder to write them all.')}
         </p>
-        <ul className="repo-list" role="listbox" aria-label="Diagrams" aria-multiselectable="true">
+        <ul className="repo-list" role="listbox" aria-label={t('Diagrams')} aria-multiselectable="true">
           {diagrams.map((d, i) => (
             <li
               key={d.file}
@@ -87,23 +88,23 @@ export function RepoDialog({ offer, onWrite, onOpen, onClose }: { offer: RepoOff
               <Icon name={KIND[d.kind].icon} />
               <span className="repo-what">
                 <strong>{d.file.split('/').pop()}</strong>
-                <span className="repo-kind">{KIND[d.kind].what}</span>
+                <span className="repo-kind">{say(KIND[d.kind].what)}</span>
                 <span className="repo-source">{d.sources.join(', ')}</span>
                 <span className="repo-summary">
                   {d.summary}
-                  {d.kept ? ' · your edits kept' : ''}
-                  {d.warnings.length ? ` · ${d.warnings.length} note${d.warnings.length > 1 ? 's' : ''}` : ''}
+                  {d.kept ? ` · ${t('your edits kept')}` : ''}
+                  {d.warnings.length ? ` · ${t('{count} note|{count} notes', { count: d.warnings.length })}` : ''}
                 </span>
               </span>
-              <button className="button ghost repo-open" onClick={(e) => (e.stopPropagation(), onOpen(d))} title="Open this one (O)">
-                Open
+              <button className="button ghost repo-open" onClick={(e) => (e.stopPropagation(), onOpen(d))} title={t('Open this one (O)')}>
+                {t('Open')}
               </button>
             </li>
           ))}
         </ul>
         {hints.length > 0 && (
           <details className="repo-hints">
-            <summary>Also found, not drawn ({hints.length})</summary>
+            <summary>{t('Also found, not drawn ({count})', { count: hints.length })}</summary>
             <ul>
               {hints.map((h) => (
                 <li key={h}>{h}</li>
@@ -113,17 +114,17 @@ export function RepoDialog({ offer, onWrite, onOpen, onClose }: { offer: RepoOff
         )}
         <footer className="describe-footer">
           <span className="animate-hint">
-            <kbd>Space</kbd> picks · <kbd>O</kbd> opens · <kbd>A</kbd> all
+            <kbd>Space</kbd> {t('picks@hint')} · <kbd>O</kbd> {t('opens@hint')} · <kbd>A</kbd> {t('all@hint')}
           </span>
           <div className="describe-actions">
             {offer.write ? (
               <button className="button primary" onClick={() => main()} disabled={!chosen.length}>
-                <Icon name="save" /> Write {chosen.length} diagram{chosen.length === 1 ? '' : 's'}
-                {folder ? ` to ${folder}` : ''} <kbd>↵</kbd>
+                <Icon name="save" /> {folder ? t('Write {count} diagram to {folder}|Write {count} diagrams to {folder}', { count: chosen.length, folder }) : t('Write {count} diagram|Write {count} diagrams', { count: chosen.length })}
+                {' '}<kbd>↵</kbd>
               </button>
             ) : (
               <button className="button primary" onClick={() => main()}>
-                <Icon name="folder-open" /> Open {(chosen[0] ?? diagrams[at])?.file.split('/').pop()} <kbd>↵</kbd>
+                <Icon name="folder-open" /> {t('Open {name}', { name: (chosen[0] ?? diagrams[at])?.file.split('/').pop() ?? '' })} <kbd>↵</kbd>
               </button>
             )}
           </div>

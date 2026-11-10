@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Workspace } from './files.ts';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 
 export interface TemplateChoice {
   /** File name, or its path in the folder. */
@@ -103,7 +104,7 @@ export function useTemplateChoice(ws: Workspace | undefined, onError: (m: string
   const useFound = useCallback(
     async (path: string) => {
       const bytes = ws && (await folderBytes(ws, path));
-      if (!bytes) return onError(`Cannot read ${path}`);
+      if (!bytes) return onError(t('Cannot read {path}', { path }));
       choose({ name: path, bytes });
     },
     [ws, choose, onError],
@@ -112,7 +113,7 @@ export function useTemplateChoice(ws: Workspace | undefined, onError: (m: string
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!/\.(potx|pptx)$/i.test(file.name)) return onError(`${file.name} is not a PowerPoint template: pick a .potx or .pptx`);
+    if (!/\.(potx|pptx)$/i.test(file.name)) return onError(t('{name} is not a PowerPoint template: pick a .potx or .pptx', { name: file.name }));
     choose({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
   };
   const picker = <input ref={input} type="file" accept=".potx,.pptx,application/vnd.openxmlformats-officedocument.presentationml.template,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden onChange={onFile} data-pptx-template />;
@@ -130,35 +131,35 @@ export function useTemplateChoice(ws: Workspace | undefined, onError: (m: string
 export type TemplateState = ReturnType<typeof useTemplateChoice>;
 
 /** The Export menu's rows for the template, under PowerPoint. */
-export function TemplateItems({ t }: { t: TemplateState }) {
+export function TemplateItems({ t: tpl }: { t: TemplateState }) {
   const base = (p: string) => p.split('/').pop()!;
   return (
     <>
-      {t.found
-        .filter((p) => p !== t.chosen?.name)
+      {tpl.found
+        .filter((p) => p !== tpl.chosen?.name)
         .map((p) => (
-          <button key={p} role="menuitem" onClick={() => void t.useFound(p)} title="A PowerPoint template in this folder" data-template-found={p}>
-            <Icon name="layout-template" /> Use {base(p)}
+          <button key={p} role="menuitem" onClick={() => void tpl.useFound(p)} title={t('A PowerPoint template in this folder')} data-template-found={p}>
+            <Icon name="layout-template" /> {t('Use {name}', { name: base(p) })}
           </button>
         ))}
-      <button role="menuitem" onClick={t.pick} title="Make the PowerPoint export in a .potx or .pptx: its layouts, master, fonts and colours" data-template-pick>
-        <Icon name="folder-open" /> {t.chosen ? 'Another template…' : 'Use a template…'}
+      <button role="menuitem" onClick={tpl.pick} title={t('Make the PowerPoint export in a .potx or .pptx: its layouts, master, fonts and colours')} data-template-pick>
+        <Icon name="folder-open" /> {tpl.chosen ? t('Another template…') : t('Use a template…')}
       </button>
-      {t.chosen && (
+      {tpl.chosen && (
         <>
           <button
             role="menuitemcheckbox"
-            aria-checked={!!t.chosen.keepLook}
-            title="Draw the diagram in its own theme on the template's slides, rather than in the template's colours and fonts"
+            aria-checked={!!tpl.chosen.keepLook}
+            title={t("Draw the diagram in its own theme on the template's slides, rather than in the template's colours and fonts")}
             onClick={(e) => {
               e.stopPropagation();
-              t.toggleKeepLook();
+              tpl.toggleKeepLook();
             }}
           >
-            <Icon name={t.chosen.keepLook ? 'check' : 'square'} /> Keep the diagram's own look
+            <Icon name={tpl.chosen.keepLook ? 'check' : 'square'} /> {t("Keep the diagram's own look")}
           </button>
-          <button role="menuitem" onClick={t.clear} data-template-clear>
-            <Icon name="x" /> Stop using {base(t.chosen.name)}
+          <button role="menuitem" onClick={tpl.clear} data-template-clear>
+            <Icon name="x" /> {t('Stop using {name}', { name: base(tpl.chosen.name) })}
           </button>
         </>
       )}
