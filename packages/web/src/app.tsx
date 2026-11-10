@@ -80,7 +80,7 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
 
 export function App() {
