@@ -43,3 +43,6 @@ const free = lookup(nl);
 export const t = (id: Message, params?: Params) => tr(current, id, params);
 /** Text known only at run time, in the editor's language when the catalog has it. */
 export const say = (text: string, params?: Params) => free(current, text, params);
+
+/** A new diagram from the start dialog speaks the editor's language: Dutch gets `lang: nl` after `type:`. */
+export const withUiLang = (yaml: string) => (current === 'nl' && !/^lang:/m.test(yaml) ? yaml.replace(/^(type:.*)$/m, '$1\nlang: nl') : yaml);

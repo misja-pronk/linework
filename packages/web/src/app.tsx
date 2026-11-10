@@ -62,6 +62,7 @@ import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
+import { t, say, useUiLang, withUiLang } from './i18n/index.ts';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, writeInFolder, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
@@ -160,6 +161,7 @@ const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'jo
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'topic' ? 'brain' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
 export function App() {
+  const lang = useUiLang();
   const saved = useMemo(() => store.get<Saved>('doc'), []);
   const [text, setText] = useState(saved?.text ?? firstStarter.text);
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
@@ -535,7 +537,7 @@ export function App() {
     setModal(undefined);
     if (!(await leave())) return;
     fileHandle.current = undefined;
-    open(s.text, { name: s.file, starter: s.id });
+    open(withUiLang(s.text), { name: s.file, starter: s.id });
     focusDrawing();
   };
 
@@ -545,7 +547,7 @@ export function App() {
     if (!(await leave())) return;
     fileHandle.current = undefined;
     setView(o.view);
-    open(o.text, { name: o.name, starter: o.starter }, o.pins, o.blank);
+    open(withUiLang(o.text), { name: o.name, starter: o.starter }, o.pins, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -1914,7 +1916,7 @@ export function App() {
       run: () => {
         setModal(undefined);
         fileHandle.current = undefined;
-        open(blankText(t), { name: `${t}.yaml` }, undefined, true);
+        open(withUiLang(blankText(t)), { name: `${t}.yaml` }, undefined, true);
         focusDrawing();
       },
     })),
