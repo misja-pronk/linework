@@ -2021,7 +2021,7 @@ export function App() {
                 <Icon name="sparkles" /> Ask <kbd>⌘J</kbd>
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
-                <Icon name="message-square" /> Notes
+                <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
             </div>
