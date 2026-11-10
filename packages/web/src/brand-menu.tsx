@@ -3,17 +3,28 @@ import { Fragment, useState } from 'react';
 import { themeCatalog } from '@cartography/theme';
 import { Icon } from './icon.tsx';
 import { Menu } from './menu.tsx';
-import { canUseFolders, type Workspace } from './files.ts';
-import { chooseBuiltin, chooseFile, forgetIcons, pickIconFolder, reconnectIcons, themeFiles, useBrand } from './brand.ts';
+import { type Workspace } from './files.ts';
+import { chooseBuiltin, chooseFile, themeFiles, useBrand } from './brand.ts';
+import { setIconMode, useIconPacks, type IconPacks } from './icon-packs.ts';
+import { IconPacksDialog } from './icon-packs-dialog.tsx';
 
 /** The built-in looks by name, as a person reads them: "survey-dark" is "Survey dark". */
 const BUILTIN = themeCatalog.map((t) => [t.name, t.name[0]!.toUpperCase() + t.name.slice(1).replace(/-/g, ' '), t.description] as const);
 /** A rule before each new family (Survey, Transit, Drafting, Sketch, Classic, then the colourways). */
 const family = (name: string) => name.split('-')[0]!;
 
-export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: string): void }) {
+const ICON_MODES: [IconPacks['mode'], string, string][] = [
+  ['', 'Icons as the diagram says', 'icons: official or lucide in the diagram; line icons when it says nothing'],
+  ['official', 'Official icons', "The vendors' own icons (Azure, AWS, Google Cloud, Kubernetes) where a set is imported"],
+  ['lucide', 'Line icons', 'Our line icons everywhere, whatever the diagram says'],
+];
+
+export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(message: string): void; onNotice?(message: string): void }) {
   const [open, setOpen] = useState(false);
+  const [packs, setPacks] = useState(false);
   const b = useBrand();
+  const ip = useIconPacks();
+  const imported = Object.keys(ip.packs).length;
   const files = themeFiles(ws);
   const run = (f: () => unknown) => () => {
     setOpen(false);
@@ -56,27 +67,18 @@ export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: s
               {mark(b.choice === f)} {f}
             </button>
           ))}
-          {canUseFolders && (
-            <>
-              <hr />
-              {b.iconsToReconnect ? (
-                <button role="menuitem" onClick={run(reconnectIcons)}>
-                  <Icon name="folder-open" /> Reconnect icons: {b.iconFolder}
-                </button>
-              ) : (
-                <button role="menuitem" onClick={run(pickIconFolder)}>
-                  <Icon name="folder-open" /> {b.iconFolder ? `Icons: ${b.iconFolder} (${Object.keys(b.icons ?? {}).length})` : 'Icon folder…'}
-                </button>
-              )}
-              {b.iconFolder && (
-                <button role="menuitem" onClick={run(forgetIcons)}>
-                  <Icon name="x" /> Stop using icon folder
-                </button>
-              )}
-            </>
-          )}
+          <hr />
+          {ICON_MODES.map(([mode, name, title]) => (
+            <button key={mode || 'diagram'} role="menuitem" onClick={run(() => setIconMode(mode))} title={title} data-icon-mode={mode || 'diagram'}>
+              {mark(ip.mode === mode)} {name}
+            </button>
+          ))}
+          <button role="menuitem" onClick={run(() => setPacks(true))} data-icon-packs>
+            <Icon name="boxes" /> Official icons…{imported ? <span className="menu-note"> {imported} imported</span> : null}
+          </button>
         </Menu>
       )}
+      {packs && <IconPacksDialog onClose={() => setPacks(false)} onDone={(m) => onNotice?.(m)} />}
     </div>
   );
 }

@@ -1601,7 +1601,7 @@ export function App() {
               </Menu>
             )}
           </div>
-          <BrandMenu ws={ws} onError={(m) => notify(m, { tone: 'error' })} />
+          <BrandMenu ws={ws} onError={(m) => notify(m, { tone: 'error' })} onNotice={(m) => notify(m)} />
           <button
             className="icon-button wide-only"
             onClick={() => setPref(theme === 'dark' ? 'light' : 'dark')}
