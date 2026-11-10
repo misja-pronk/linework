@@ -88,12 +88,18 @@ export function pack(roots: PackItem[], o: PackOptions = {}): Packed {
   const fixed = ranges.map((r, i) => (o.columns?.[i] ? [Math.max(1, Math.round(o.columns[i]!))] : r));
 
   const options: (Packed & { score: number })[] = [];
+  // Top items in rows (each row as tall as its tallest) or, for columns, in lanes of their own height.
+  const tops: ('rows' | 'lanes')[] = mode === 'columns' ? ['rows', 'lanes'] : ['rows'];
   const combos = (i: number, acc: number[]) => {
     if (i === fixed.length) {
-      const p = arrange(roots, levels, acc, { mode, gap, outer, pad });
-      const leafArea = levels.reduce((s, l) => s + l.items.filter((it) => !it.children?.length).reduce((a, it) => a + (p.boxes.get(it.id)?.width ?? 0) * (p.boxes.get(it.id)?.height ?? 0), 0), 0);
-      const fill = leafArea / Math.max(1, p.width * p.height);
-      options.push({ ...p, score: slideScale(p.width, p.height, o.frame, o.aspect) * (0.85 + 0.15 * fill) });
+      for (const top of tops) {
+        if (top === 'lanes' && (acc[0] === 1 || acc[0] === roots.length)) continue;
+        const p = arrange(roots, levels, acc, { mode, top, gap, outer, pad });
+        const leafArea = levels.reduce((s, l) => s + l.items.filter((it) => !it.children?.length).reduce((a, it) => a + (p.boxes.get(it.id)?.width ?? 0) * (p.boxes.get(it.id)?.height ?? 0), 0), 0);
+        // Fitting the slide comes first; among drawings that fit about as well, the one with the least empty paper.
+        const fill = leafArea / Math.max(1, p.width * p.height);
+        options.push({ ...p, score: slideScale(p.width, p.height, o.frame, o.aspect) * (0.7 + 0.3 * fill) });
+      }
       return;
     }
     for (const c of fixed[i]!) combos(i + 1, [...acc, c]);
@@ -104,7 +110,7 @@ export function pack(roots: PackItem[], o: PackOptions = {}): Packed {
 }
 
 /** One combination of columns, laid out. */
-function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 'columns' | 'bands'; gap: number; outer: number; pad: number }): Packed {
+function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 'columns' | 'bands'; top: 'rows' | 'lanes'; gap: number; outer: number; pad: number }): Packed {
   const { mode, gap, pad } = o;
   const depthOf = new Map<string, number>();
   for (const [d, l] of levels.entries()) for (const it of l.items) depthOf.set(it.id, d);
@@ -125,6 +131,12 @@ function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 
       }
     }
     width[d] = Math.ceil(w);
+  }
+  // Then down again: what stands in a container fills its width, so a wide capability does not leave its chips a gap.
+  for (let d = 0; d < levels.length - 1; d++) {
+    const c = cols[d + 1] ?? 1;
+    const room = left(d) ? width[d]! - headerWidth - pad : width[d]! - 2 * pad;
+    width[d + 1] = Math.max(width[d + 1]!, Math.floor((room - (c - 1) * gap) / c));
   }
 
   // Heights, memoised: a container is its header and its grid.
@@ -161,13 +173,19 @@ function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 
       place(kid, x0 + cell.col * (w + gap), y0 + cell.y, cell.height);
     }
   };
-  const top = rows(roots.map(heightOf), Math.min(cols[0] ?? 1, roots.length), o.outer);
+  const across = Math.min(cols[0] ?? 1, roots.length);
+  const top = o.top === 'lanes' ? balanced(roots.map(heightOf), across, o.outer) : rows(roots.map(heightOf), across, o.outer);
+  // In lanes the last item of each runs down to the foot of the tallest, so the map ends on one line.
+  if (o.top === 'lanes')
+    for (let k = 0; k < across; k++) {
+      const last = top.cells.findLastIndex((c) => c.col === k);
+      if (last >= 0) top.cells[last]!.height = top.height - top.cells[last]!.y;
+    }
   for (const [i, r] of roots.entries()) {
     const cell = top.cells[i]!;
     place(r, cell.col * (width[0]! + o.outer), cell.y, cell.height);
   }
-  const across = Math.min(cols[0] ?? 1, roots.length);
-  return { boxes, width: across * width[0]! + (across - 1) * o.outer, height: top.height, variant: `${mode}:${cols.join('.')}`, columns: cols };
+  return { boxes, width: across * width[0]! + (across - 1) * o.outer, height: top.height, variant: `${mode}${o.top === 'lanes' ? '-lanes' : ''}:${cols.join('.')}`, columns: cols };
 }
 
 interface Grid {

@@ -348,7 +348,7 @@ capabilities:
   views(src) {
     const out = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h) => ({ name: h.by, title: `Heatmap: ${h.title ?? h.by}` }))];
     const any = (map: Record<string, Entry> | undefined): boolean => JSON.stringify(map ?? {}).includes('"systems"');
-    if (any(src.capabilities)) out.push({ name: 'systems', title: 'Supporting systems' });
+    if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: 'Supporting systems' });
     return out.length > 1 ? out : [];
   },
   async layout(sized, _pins, previous) {

@@ -217,7 +217,7 @@ function buildOrg(src: TeamsSource, ctx: BuildContext): Graph {
       if (!known.has(d)) ctx.error(at, `There is no person "${d}"`);
       else if (d !== p.id) {
         dotted++;
-        edges.push({ id: `dotted:${p.id}:${i}`, from: { node: d }, to: { node: p.id }, line: 'dotted', start: 'none', end: 'arrow', tone: 'slate', kind: 'dotted', path: at, loose: true });
+        edges.push({ id: `dotted:${p.id}:${i}`, from: { node: d }, to: { node: p.id }, line: 'dotted', start: 'none', end: 'none', tone: 'slate', kind: 'dotted', path: at, loose: true });
       }
     }
   }

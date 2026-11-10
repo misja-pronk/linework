@@ -21,7 +21,7 @@ export interface TidyNode {
 export interface Arrangement {
   /** Reports without reports of their own stand in a list from this many on; Infinity never. */
   list: number;
-  /** A list of six or more stands in two columns either side of a spine. */
+  /** A list of four or more stands in two columns either side of a spine. */
   pairs: boolean;
   /** The branches of the widest node wrap into this many rows. */
   wrap: number;
@@ -67,7 +67,7 @@ interface Sub {
 }
 
 const STUB = 14;
-const PAIRS = 6;
+const PAIRS = 4;
 
 export const variantOf = (a: Arrangement) => `${a.list === Infinity ? 'row' : `l${a.list}`}${a.pairs ? 'p' : ''}-w${a.wrap}`;
 
@@ -195,7 +195,10 @@ export function arrange(roots: TidyNode[], a: Arrangement, o: TidyOptions = {}):
 
     // A row: branches packed side by side, the manager centred over the first and the last.
     line(kids, gapX, shift);
-    const c = (centre(0) + centre(kids.length - 1)) / 2;
+    // With an odd number of branches the manager stands right over the middle one when that is close: one straight trunk, no kink beside it.
+    const mid = (centre(0) + centre(kids.length - 1)) / 2;
+    const median = kids.length % 2 ? centre((kids.length - 1) / 2) : mid;
+    const c = Math.abs(median - mid) < 0.2 * (centre(kids.length - 1) - centre(0)) ? median : mid;
     for (const s of kids) shift(s, -c, ph + gapY);
     const bus = ph + gapY / 2;
     const xs = n.children.map((_, k) => centre(k));

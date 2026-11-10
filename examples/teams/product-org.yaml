@@ -1,0 +1,34 @@
+type: teams
+title: Product and technology
+subtitle: Org chart and team topology, Q3 2026
+
+people:
+  anna: Anna de Vries, Chief product and technology officer
+  bo: { name: Bo Jansen, role: Head of product, reports: anna }
+  cem: { name: Cem Yilmaz, role: Head of engineering, reports: anna }
+  dewi: { name: Dewi Kartika, role: Head of design, reports: anna }
+  dana: { name: Dana Smit, role: Product lead Checkout, reports: bo, team: checkout }
+  eli: { name: Eli Bakker, role: Product lead Search, reports: bo, team: search }
+  finn: { name: Finn Mulder, role: Product lead Accounts, reports: bo, team: accounts }
+  fay: { name: Fay Visser, role: Platform lead, reports: cem, team: platform, dotted: bo }
+  gus: { name: Gus Peeters, role: Engineering manager, reports: cem, team: checkout }
+  hana: { name: Hana Sato, role: Engineering manager, reports: cem, team: search }
+  ivo: { name: Ivo de Boer, role: Data science lead, reports: cem, team: ranking }
+  open-sre: { role: SRE coach, reports: cem, vacant: true, team: enablement }
+  jade: { name: Jade Lin, role: Product designer, reports: dewi, dotted: dana }
+  kai: { name: Kai Vermeer, role: UX researcher, reports: dewi }
+
+teams:
+  checkout: { kind: stream-aligned, caption: Basket to payment, size: 7, lead: dana }
+  search: { kind: stream-aligned, caption: Find and compare, size: 6, lead: eli }
+  accounts: { kind: stream-aligned, caption: Sign-up and profile, size: 5, lead: finn }
+  ranking: { kind: complicated-subsystem, caption: Search ranking models, size: 3 }
+  enablement: { kind: enabling, caption: SRE practices, size: 2 }
+  platform: { kind: platform, caption: "Paved road: build, deploy, run", size: 8, lead: fay }
+
+interactions:
+  - enablement -> checkout: facilitating
+  - enablement -> search: facilitating
+  - checkout <-> search: collaboration
+  - search <-> ranking: collaboration
+  - accounts -> platform: x-as-a-service

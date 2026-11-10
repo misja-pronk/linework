@@ -1,0 +1,17 @@
+type: teams
+title: Cloud migration engagement
+subtitle: Client and consultancy team, who steers and who answers to whom
+
+people:
+  sponsor: { name: Marieke Hoekstra, role: CIO and sponsor, location: Client }
+  pm-client: { name: Joost van Dijk, role: Programme manager, reports: sponsor, location: Client }
+  ea: { name: Lotte Willems, role: Enterprise architect, reports: sponsor, location: Client }
+  partner: { name: Sven Kramer, role: Engagement partner, dotted: sponsor, location: Consultancy }
+  lead: { name: Noor El Amrani, role: Engagement lead, reports: partner, dotted: pm-client, location: Consultancy }
+  arch: { name: Tim Bos, role: Lead cloud architect, reports: lead, dotted: ea, location: Consultancy }
+  sec: { name: Iris Kok, role: Security architect, reports: arch, location: Consultancy }
+  net: { name: Ravi Patel, role: Network engineer, reports: arch, location: Consultancy }
+  data: { role: Data migration lead, reports: lead, vacant: true, location: Consultancy }
+  change: { name: Eva Jacobs, role: Change manager, reports: lead, location: Consultancy }
+  ops-client: { name: Kees Smits, role: Head of IT operations, reports: pm-client, location: Client }
+  apps-client: { name: Mila Bakker, role: Application owner, reports: pm-client, location: Client }
