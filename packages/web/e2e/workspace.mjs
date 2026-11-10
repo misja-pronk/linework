@@ -9,6 +9,7 @@ const root = path.resolve(import.meta.dirname, '../../../examples/workspace');
 const files = Object.fromEntries(fs.readdirSync(root).filter((f) => f.endsWith('.yaml')).map((f) => [f, fs.readFileSync(path.join(root, f), 'utf8')]));
 // Pins that must follow a rename, and one diagram that names an element that is not there.
 files['containers.layout.json'] = JSON.stringify({ version: 1, views: { payments: { nodes: { 'payments.engine': { x: 40, y: 400 } } } } }, null, 2) + '\n';
+files['containers.notes.json'] = JSON.stringify({ version: 1, threads: [{ id: 'n1', author: 'Misja', created: '2026-11-10T10:00:00Z', text: 'Does this scale?', status: 'open', view: 'payments', anchor: { kind: 'node', id: 'payments.engine' } }] }, null, 2) + '\n';
 files['broken.yaml'] = 'type: azure\ninclude: [model.yaml]\nnodes:\n  worker: { of: payments.engin, kind: container-app }\n';
 
 const browser = await chromium.launch();
@@ -159,7 +160,8 @@ await step('rename everywhere', async () => {
   await page.waitForTimeout(150);
   const shown = await page.locator('.rename-file h4').allInnerTexts();
   if (shown.map((s) => s.split(/\s/)[0]).sort().join() !== 'deployment.yaml,model.yaml') fail(`preview files: ${shown}`);
-  if (!(await page.locator('.rename-summary').innerText()).includes('containers.layout.json')) fail('pins not in the summary');
+  const summary = await page.locator('.rename-summary').innerText();
+  if (!summary.includes('containers.layout.json') || !summary.includes('containers.notes.json')) fail(`pins and notes not in the summary: ${summary}`);
   await page.screenshot({ path: `${out}/workspace-5-rename.png` });
   await page.keyboard.press('Enter');
   await page.waitForSelector('.toast:has-text("Renamed payments.engine")');
@@ -168,6 +170,7 @@ await step('rename everywhere', async () => {
   if (!(await page.locator('.cm-content').innerText()).includes('of: payments.settlement')) fail('open file not renamed');
   if (!(await disk('model.yaml')).includes('      settlement: { kind: container, label: Settlement engine')) fail('model not renamed on disk');
   if (!(await disk('containers.layout.json')).includes('"payments.settlement"')) fail('pins did not follow');
+  if (!(await disk('containers.notes.json')).includes('"payments.settlement"')) fail('notes did not follow');
   if (!(await disk('broken.yaml')).includes('payments.engin,')) fail('touched a file that does not name it');
   await page.screenshot({ path: `${out}/workspace-6-renamed.png` });
   // Undo rename puts every file back.
@@ -177,6 +180,7 @@ await step('rename everywhere', async () => {
   await page.waitForSelector('.toast:has-text("Rename undone")');
   if ((await disk('model.yaml')) !== before.model) fail('model.yaml not back');
   if ((await disk('containers.layout.json')) !== before.pins) fail('pins not back');
+  if (!(await disk('containers.notes.json')).includes('"payments.engine"')) fail('notes not back');
   if (!(await page.locator('.cm-content').innerText()).includes('of: payments.engine')) fail('open file not back');
   await page.keyboard.press('Meta+s');
   await settle();

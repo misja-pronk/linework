@@ -44,6 +44,9 @@ import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
+import { useReview } from './notes-state.ts';
+import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
+import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
@@ -193,7 +196,9 @@ export function App() {
   const [savedText, setSavedText] = useState<string | null>(saved ? (saved.savedText ?? null) : firstStarter.text);
   /** Pins as saved, compared as JSON: a move is an unsaved change too. */
   const [savedPins, setSavedPins] = useState<string>(() => JSON.stringify(saved?.pins ?? null));
-  const dirty = savedText !== text || savedPins !== JSON.stringify(pins ?? null);
+  /** Review notes: saved with the diagram in a folder, kept in this browser otherwise (notes-state.ts). */
+  const review = useReview(doc.path ?? doc.starter ?? doc.name, docKey, ws && doc.path ? { ws, path: doc.path } : undefined);
+  const dirty = savedText !== text || savedPins !== JSON.stringify(pins ?? null) || (!!ws && !!doc.path && review.dirty);
 
   useEffect(() => {
     if (canUseFolders) void lastFolder().then(setRemembered);
@@ -268,6 +273,57 @@ export function App() {
   const pinnedIds = useMemo(() => new Set([...Object.keys(vpins?.nodes ?? {}), ...Object.keys(vpins?.groups ?? {})]), [vpins?.nodes, vpins?.groups]);
   const craft = useCraftPrefs();
   const previewControl = useRef<PreviewControl>(null);
+
+  // ------------------------------------------------------------ review notes
+
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
+  const [noteMine, setNoteMine] = useState(false);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [notesInExports, setNotesInExports] = useState(() => store.get<boolean>('notes-in-exports') ?? false);
+  /** A note being written, and on what. */
+  const [noteDraft, setNoteDraft] = useState<{ anchor: NoteAnchor; about: string }>();
+  const [activeNote, setActiveNote] = useState<string>();
+  /** Right-click on the drawing: where, and on what. */
+  const [noteMenu, setNoteMenu] = useState<{ x: number; y: number; s?: Selection; at: Point }>();
+  const anchorOf = (s: Selection | undefined) => {
+    const g = drawn?.graph;
+    const a = s && g ? anchorFor(g, s.kind, s.id) : undefined;
+    return a && g ? { anchor: a, about: anchorLabel(a, g) } : undefined;
+  };
+  const pointAnchor = (at: Point) => ({ anchor: { kind: 'point' as const, x: Math.round(at.x), y: Math.round(at.y) }, about: 'A point on the canvas' });
+  /** A note on the selection; with nothing selected, on the middle of what is in view. */
+  const addNote = (on?: { anchor: NoteAnchor; about: string }) => {
+    const centre = previewControl.current?.centre();
+    const target = on ?? anchorOf(selected) ?? (centre && pointAnchor(centre));
+    if (!target) return;
+    setNoteDraft(target);
+    setNotesOpen(true);
+  };
+  const toggleNotes = () => {
+    setNotesOpen((o) => !o);
+    setNoteDraft(undefined);
+    if (notesOpen) setReviewMode(false);
+  };
+  const toggleReview = () => {
+    if (!reviewMode) setNotesOpen(true);
+    setReviewMode(!reviewMode);
+  };
+  const setExportsWithNotes = (on: boolean) => {
+    setNotesInExports(on);
+    store.set('notes-in-exports', on);
+  };
+  /** A marker clicked, or a thread picked in the palette: the thread opens and what it is about is selected. */
+  const openNote = (id: string) => {
+    const t = review.notes.threads.find((x) => x.id === id);
+    setNotesOpen(true);
+    setActiveNote(id);
+    review.seen([id]);
+    const r = t && drawn?.graph ? resolveAnchor(t.anchor, drawn.graph) : undefined;
+    if (r?.state === 'attached') setSelected({ kind: r.kind, id: r.id });
+  };
+  const openNotes = notesInView(review.notes, drawn?.view).filter((t) => t.status === 'open');
+  const unreadNotes = openNotes.filter((t) => review.unread(t)).length;
   const type = result?.type ?? drawn?.type;
   const diagnostics = result?.diagnostics ?? NONE;
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
@@ -436,6 +492,7 @@ export function App() {
         const disk = await diskText(ws, doc.path);
         if (disk != null && savedText != null && disk !== savedText && disk !== now && !window.confirm(`${doc.path} was changed outside Cartography. Overwrite it?`)) return false;
         await saveInFolder(ws, doc.path, now, pinsToSave);
+        await review.saveTo(ws, doc.path, drawn?.view ? undefined : drawn?.graph);
       }
       else if (fileHandle.current) await saveFile(fileHandle.current, now);
       else if (canSaveFiles) {
@@ -446,6 +503,7 @@ export function App() {
         if (ws && inside) {
           const path = inside.join('/');
           await saveInFolder(ws, path, now, pinsToSave);
+          await review.saveTo(ws, path, drawn?.view ? undefined : drawn?.graph);
           fileHandle.current = undefined;
           setDoc({ name: r.name, path });
           setWs(await scan(ws.dir));
@@ -625,7 +683,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, notes: notesInExports ? review.notes : undefined });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -1021,7 +1079,10 @@ export function App() {
     // name the YAML cannot hold as a key (a colon, an arrow) becomes a label on the entry.
     if (type.freeNames && !f.value && value.trim()) {
       const renamed = renameEntry(textNow(), type, path, value.trim());
-      if (renamed != null) return apply(renamed);
+      if (renamed != null) {
+        if (t.kind === 'node' || t.kind === 'group') review.rename(t.kind, t.id, value.trim());
+        return apply(renamed);
+      }
     }
     apply(setField(textNow(), type, path, f.key, value));
   };
@@ -1038,6 +1099,8 @@ export function App() {
     const rekey = (k: string) => (k === selected.id ? nodeId : k.startsWith(`${selected.id}:`) ? nodeId + k.slice(selected.id.length) : k);
     const moved = vpins?.nodes && Object.keys(vpins.nodes).some((k) => rekey(k) !== k);
     apply(next, moved ? { ...vpins, nodes: Object.fromEntries(Object.entries(vpins!.nodes!).map(([k, v]) => [rekey(k), v])) } : undefined);
+    // Review notes on it, and on its lines, go along.
+    if (selected.kind !== 'edge') review.rename(selected.kind, selected.id, nodeId);
     setSelected({ kind: selected.kind, id: nodeId });
     return true;
   };
@@ -1219,6 +1282,9 @@ export function App() {
       if (!cycle(e.shiftKey ? -1 : 1)) return;
     } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
     else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
+    else if (e.key === 'n' && !mod(e) && !e.altKey) addNote();
+    else if (e.key === 'N' && !mod(e) && !e.altKey) toggleNotes();
+    else if (e.key === 'R' && !mod(e) && !e.altKey) toggleReview();
     else if (e.key === 'F2' && !e.shiftKey && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
     else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
     else return;
@@ -1381,8 +1447,8 @@ export function App() {
         : [],
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
-  // The Ask panel takes the right side while it is open: the inspector would squeeze the drawing between the two.
-  const showInspector = !asking && (!!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
+  // The Ask panel takes the right side while it is open: the inspector and notes would squeeze the drawing between the two.
+  const showInspector = !asking && (notesOpen || !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1430,6 +1496,15 @@ export function App() {
     reveal: (from, to) => editor.current?.reveal(from, to),
     replace: (next, nextPins) => editor.current?.replace(next, { pins: nextPins }),
     refresh: (w) => setWs({ ...w }),
+    noteIds: () => review.notes.threads.flatMap((t) => (t.anchor.kind === 'node' || t.anchor.kind === 'group' ? [t.anchor.id] : t.anchor.kind === 'edge' ? [t.anchor.from, t.anchor.to] : [])),
+    renameNotes: (node) => {
+      const ids = new Map<string, 'node' | 'group'>();
+      for (const { anchor: a } of review.notes.threads) {
+        if (a.kind === 'node' || a.kind === 'group') ids.set(a.id, a.kind);
+        else if (a.kind === 'edge') for (const id of [a.from, a.to]) if (!ids.has(id)) ids.set(id, 'node');
+      }
+      for (const [id, kind] of ids) if (node(id) !== id) review.rename(kind, id, node(id));
+    },
     notify,
   });
 
@@ -1480,6 +1555,12 @@ export function App() {
           ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
         ]
       : []),
+    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: 'N', run: () => addNote() },
+    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: '⇧N', run: toggleNotes },
+    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: '⇧R', run: toggleReview },
+    { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
+    ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
+    ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
     { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'sparkles', shortcut: 'T', run: tidyLayout },
@@ -1576,6 +1657,8 @@ export function App() {
     // ⌘↩ presents too, also while typing YAML: caught before the editor takes it for a new line.
     const onPresentKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || !mod(e) || e.shiftKey || e.altKey || modal || presenting) return;
+      // In a note, ⌘↩ sends it.
+      if ((e.target as HTMLElement | null)?.closest?.('.note-composer')) return;
       e.preventDefault();
       e.stopPropagation();
       present();
@@ -1856,7 +1939,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}`} aria-label="Drawing">
+        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}${reviewMode ? ' review-mode' : ''}`} aria-label="Drawing">
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -1902,6 +1985,11 @@ export function App() {
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
+            overlay={(scale) => <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />}
+            onContextMenu={(s, at, client) => {
+              if (s) select(s, false);
+              setNoteMenu({ x: client.x, y: client.y, s, at });
+            }}
             onBend={(id, via, done) => {
               const e = result?.graph?.edges.find((x) => x.id === id);
               if (!done) return setDraft({ edges: { [id]: { via, from: e?.from.node, to: e?.to.node } } });
@@ -1951,6 +2039,10 @@ export function App() {
               </button>
               <button className={asking ? 'tool active' : 'tool'} onClick={() => setAsking((a) => !a)} title="Ask Claude for a change or about the diagram (⌘J)" aria-expanded={asking} disabled={!type}>
                 <Icon name="sparkles" /> Ask <kbd>⌘J</kbd>
+              </button>
+              <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
+                <Icon name="message-square" /> Notes
+                {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
@@ -2045,7 +2137,36 @@ export function App() {
             />
           )}
         </section>
-            {showInspector && selected && type && (selNode || selGroup || selEdge) && (
+        {notesOpen && !asking && (
+          <NotesPanel
+            review={review}
+            graph={drawn?.graph}
+            view={drawn?.view}
+            filter={noteFilter}
+            onFilter={setNoteFilter}
+            mine={noteMine}
+            onMine={setNoteMine}
+            reviewMode={reviewMode}
+            onReviewMode={(on) => setReviewMode(on)}
+            withExports={notesInExports}
+            onWithExports={setExportsWithNotes}
+            draft={noteDraft}
+            onDraftDone={() => {
+              setNoteDraft(undefined);
+              focusDrawing();
+            }}
+            active={activeNote}
+            onActive={setActiveNote}
+            onGo={(target) => {
+              if ('point' in target) return;
+              select(target);
+              requestAnimationFrame(() => previewControl.current?.zoomToSelection());
+            }}
+            selectionAnchor={anchorOf(selected)}
+            onClose={toggleNotes}
+          />
+        )}
+            {showInspector && !notesOpen && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
@@ -2106,7 +2227,7 @@ export function App() {
             onClose={() => setInspector(false)}
           />
         )}
-        {showInspector && selection.length > 1 && (
+        {showInspector && !notesOpen && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">
@@ -2190,6 +2311,23 @@ export function App() {
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {wsTools.dialogs}
+      {noteMenu && (
+        <div className="context-menu" style={{ left: noteMenu.x, top: noteMenu.y }}>
+          <Menu onClose={() => setNoteMenu(undefined)}>
+            {anchorOf(noteMenu.s) && (
+              <button role="menuitem" onClick={() => addNote(anchorOf(noteMenu.s))}>
+                <Icon name="message-square" /> Add a note on {anchorOf(noteMenu.s)!.about}
+              </button>
+            )}
+            <button role="menuitem" onClick={() => addNote(pointAnchor(noteMenu.at))}>
+              <Icon name="map-pin" /> Add a note here
+            </button>
+            <button role="menuitem" onClick={() => setNotesOpen(true)}>
+              <Icon name="message-square" /> Show the notes
+            </button>
+          </Menu>
+        </div>
+      )}
       {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette

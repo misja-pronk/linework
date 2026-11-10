@@ -67,7 +67,7 @@ export function RenameEverywhere({
           ) : (
             <>
               {places} place{places === 1 ? '' : 's'} in {plan.files.length} file{plan.files.length === 1 ? '' : 's'}
-              {pins.length ? `; pins follow in ${pins.join(', ')}` : ''}. One undo per file, and “Undo rename” for all of it.
+              {pins.length ? `; pins and notes follow in ${pins.join(', ')}` : ''}. One undo per file, and “Undo rename” for all of it.
             </>
           )}
         </div>

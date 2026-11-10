@@ -139,6 +139,27 @@ describe('preview', () => {
     const hl = await until(() => panel.posted.findLast((m) => (m as { type: string }).type === 'highlight')) as { items: unknown[] };
     expect(hl.items).toEqual([{ kind: 'node', id: 'api' }]);
   });
+
+  it('draws review notes as markers and lists them as comments on their lines', async () => {
+    const panel = stub.state.panels.find((p) => p.viewType === 'cartography.preview')!;
+    const doc = stub.state.documents.find((d) => d.fileName.endsWith('web.yaml'))!;
+    const thread = (id: string, anchor: object, text: string, status = 'open') => ({ id, anchor, status, author: 'Ann', created: `2026-11-10T09:0${id.length}:00Z`, text });
+    fs.writeFileSync(
+      path.join(dir, 'web.notes.json'),
+      JSON.stringify({ version: 1, threads: [thread('a', { kind: 'node', id: 'api', label: 'api' }, 'Is this **one** service?'), thread('bb', { kind: 'node', id: 'gone', label: 'Old cache' }, 'Removed?')] }),
+    );
+    const before = panel.posted.length;
+    stub.changeDocument(doc, doc.getText() + '\n');
+    const pic = (await until(() => panel.posted.slice(before).find((m) => (m as { type: string }).type === 'picture'))) as { picture: { svg: string } };
+    expect(pic.picture.svg).toContain('data-note="1"');
+    expect(pic.picture.svg).not.toContain('data-note="2"');
+    const threads = await until(() => (stub.state.commentThreads.length === 2 ? stub.state.commentThreads : undefined));
+    const api = threads.find((t) => t.label?.startsWith('1. '))!;
+    expect(api.range.start.line).toBe(3);
+    expect(api.canReply).toBe(false);
+    expect(api.comments[0]!.body.value).toBe('Is this **one** service?');
+    expect(threads.find((t) => t.label?.startsWith('2.'))!.label).toBe('2. Old cache (no longer in the diagram)');
+  });
 });
 
 describe('markdown', () => {

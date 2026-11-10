@@ -44,7 +44,7 @@ Select an element and the panel under the file list says where it is used:
 - Give the new last part of the id (`online.api` → `backend` makes `online.backend`); a rename never moves an element to another parent. A new label is optional: it is written in the definition, and where an entry repeats the old label (an access resource `Core ledger`), there too.
 - Only the ids change: comments, quotes, order and layout of each file stay as they were. A part's id goes with its system (`online` → `digital` makes `online.api` `digital.api` everywhere).
 - A node with its own key and `ref: ledger` keeps its key; only the ref changes. An entry that is the element by its id (`ledger:`) gets the new key, with whatever its type says refers to it: lines, `in:`, access assignments, data product inputs.
-- Pins follow: in each `.layout.json`, what was pinned, locked or bent under the old id is under the new one, in every view, also for files whose text does not change.
+- Pins and review notes follow: in each `.layout.json`, what was pinned, locked or bent under the old id is under the new one, in every view, and threads in `.notes.json` hang on the new id; also for files whose text does not change.
 - The change to every file is shown first, as a diff; ↵ applies it. Nothing is written when one of the files changed on disk since it was read, or when the new id is taken (also by another kind of entry in a diagram, such as a principal).
 - The open file changes in the editor, as one undo step (⌘Z); the others are written to the folder. *Undo rename* (in the toast and in the command palette) puts every file back, asking first about a file that changed since.
 
