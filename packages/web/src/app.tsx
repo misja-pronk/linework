@@ -27,6 +27,7 @@ const EXPORT_ENTRY = {
   azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
+import { useCompare } from './compare/index.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
 import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-edit.ts';
@@ -1396,6 +1397,26 @@ export function App() {
 
   // ------------------------------------------------------------ commands
 
+  // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
+  const comparing = useCompare({
+    docKey: ws && doc.path ? `${ws.name}/${doc.path}` : docId,
+    docName: doc.name,
+    path: ws ? doc.path : undefined,
+    ws,
+    text,
+    textNow,
+    pins,
+    savedText,
+    savedPins,
+    load,
+    file: docFile,
+    view: drawn?.view ?? viewName,
+    theme,
+    blocked: !!modal || presenting,
+    notify,
+    onSelect: (s) => select(s),
+  });
+
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
@@ -1437,6 +1458,7 @@ export function App() {
           ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
         ]
       : []),
+    ...comparing.commands,
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
     { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'sparkles', shortcut: 'T', run: tidyLayout },
@@ -1898,6 +1920,7 @@ export function App() {
                   <Icon name="layers" /> Step <kbd>S</kbd>
                 </button>
               )}
+              {comparing.button}
               <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
                 <Icon name="play" /> Present <kbd>P</kbd>
               </button>
@@ -1956,6 +1979,7 @@ export function App() {
               />
             )}
           </Preview>
+          {comparing.view}
           {stepList.length > 0 && (
             <StepsStrip
               steps={stepList}
@@ -2098,6 +2122,7 @@ export function App() {
 
       {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
+      {comparing.dialogs}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
           placeholder={`Connect ${nodeName(selected.id)} to…`}

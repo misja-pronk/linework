@@ -553,6 +553,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
