@@ -6,7 +6,7 @@
 import { chips, type BlockShape, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { kinds as sequenceKinds } from '@cartography/sequence';
-import { besideShortLine, blockMarks, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
+import { besideShortLine, blockMarks, joinDot, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
 
 /** What the engine's `render` returns; only what is drawn from is asked for. */
@@ -712,7 +712,7 @@ class SceneBuilder {
     const l = look(this.theme).line;
     for (const [i, a] of edges.entries())
       for (const b of edges.slice(i + 1)) {
-        if (a.line !== b.line || a.tone !== b.tone) continue;
+        if (a.line !== b.line || a.tone !== b.tone || !joinDot(a) || !joinDot(b)) continue;
         const pa = this.placed.edges.get(a.id)!.points;
         const pb = this.placed.edges.get(b.id)!.points;
         const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;

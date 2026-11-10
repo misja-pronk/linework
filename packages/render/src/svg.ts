@@ -557,6 +557,12 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   return s;
 }
 
+/**
+ * Whether a split in a line gets a junction dot: not the branches of a mind map, nor a UML hierarchy,
+ * whose trunks read as one line by convention (one triangle for all the children).
+ */
+export const joinDot = (e: GraphEdge) => e.kind !== 'branch' && e.kind !== 'generalization' && e.kind !== 'realization';
+
 const COUNTED = new Set<Marker>(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
 
 /**
@@ -568,7 +574,7 @@ function junctions(graph: Graph, placed: Placed, theme: Theme): string {
   const edges = graph.edges.filter((e) => (placed.edges.get(e.id)?.points.length ?? 0) > 1);
   for (const [i, a] of edges.entries())
     for (const b of edges.slice(i + 1)) {
-      if (a.line !== b.line || a.tone !== b.tone) continue;
+      if (a.line !== b.line || a.tone !== b.tone || !joinDot(a) || !joinDot(b)) continue;
       const pa = placed.edges.get(a.id)!.points;
       const pb = placed.edges.get(b.id)!.points;
       // Lines into one key row of a table come in as one with no dot: a ring there would read as one more end mark.
