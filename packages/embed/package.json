@@ -4,25 +4,42 @@
   "type": "module",
   "license": "MIT",
   "description": "<carto-diagram>: a Cartography diagram in any web page, with zoom, pan and drill-down",
+  "keywords": [
+    "cartography",
+    "diagram",
+    "architecture",
+    "web-component"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/cartography.git",
+    "directory": "packages/embed"
+  },
+  "homepage": "https://github.com/OWNER/cartography#readme",
   "exports": {
     ".": "./src/index.ts",
     "./shared": "./src/shared.ts",
     "./build": "./build.mjs"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "scripts": {
     "build": "node build.mjs",
     "e2e": "node e2e/embed.mjs"
   },
-  "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/theme": "workspace:*"
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/carto-diagram.js",
+      "./standalone": "./dist/carto-diagram.standalone.js",
+      "./engine": "./dist/carto-engine.js"
+    }
   },
   "devDependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/engine": "workspace:*",
+    "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",
     "esbuild": "^0.28.2"
   }

@@ -1,0 +1,67 @@
+# Release to npm. Never runs on its own: only when started by hand (Actions → Release → Run workflow),
+# only when the repository variable RELEASE_ENABLED is "true", and only after a reviewer approves the
+# "npm" environment (Settings → Environments → npm → Required reviewers; the NPM_TOKEN secret lives
+# there). A dry run is the default: it builds, checks and packs, and publishes nothing.
+# Which packages go out is scripts/pack-check.mjs (PUBLISH).
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (semver, e.g. 0.1.0)
+        required: true
+      dry-run:
+        description: Pack and check only, publish nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: vars.RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm licences
+      - name: Set the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "not a semver version: $VERSION"; exit 1; }
+          for dir in $(node scripts/pack-check.mjs --list); do
+            (cd "$dir" && npm version "$VERSION" --no-git-tag-version --allow-same-version)
+          done
+      - run: pnpm pack:check
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          for dir in $(node scripts/pack-check.mjs --list); do
+            if [ "$DRY_RUN" = "true" ]; then
+              (cd "$dir" && pnpm publish --dry-run --no-git-checks --access public)
+            else
+              (cd "$dir" && pnpm publish --no-git-checks --access public --provenance)
+            fi
+          done

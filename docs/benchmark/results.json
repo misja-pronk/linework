@@ -1,0 +1,1200 @@
+{
+  "generated": "2026-11-10",
+  "versions": {
+    "cartography": "this commit",
+    "mermaid": "12.3.0",
+    "d2": "v0.9.0"
+  },
+  "tools": [
+    {
+      "id": "cartography",
+      "name": "Cartography",
+      "note": "The Mermaid source through `carto import`, default theme, no hand-tuning"
+    },
+    {
+      "id": "mermaid",
+      "name": "Mermaid",
+      "note": "The `mermaid` npm package, default config, in headless Chromium"
+    },
+    {
+      "id": "d2-dagre",
+      "name": "D2 · dagre",
+      "note": "D2 default layout"
+    },
+    {
+      "id": "d2-elk",
+      "name": "D2 · ELK",
+      "note": "D2 with `--layout elk`"
+    },
+    {
+      "id": "d2-tala",
+      "name": "D2 · TALA",
+      "note": "D2 with `--layout tala` (TALA is proprietary and needs a licence for use beyond evaluation)"
+    }
+  ],
+  "skippedTools": {
+    "plantuml": "PlantUML is not installed here (it needs Java and the plantuml jar); not measured"
+  },
+  "cases": [
+    {
+      "id": "microservices",
+      "title": "Order platform",
+      "kind": "flowchart, 2 groups",
+      "sources": [
+        "comparison/src/microservices.mmd",
+        "comparison/src/microservices.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 15,
+            "lines": 15,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 20,
+            "turning": 119.91125115709609,
+            "length": 1.831832491950586,
+            "area": 6.262641509433962,
+            "aspect": 3.532567049808429,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 15,
+            "mean": 0.006678980066518754,
+            "moved": 0.13333333333333333
+          },
+          "editKept": {
+            "matched": 15,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 15,
+            "lines": 15,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 32,
+            "turning": 191.9058948418262,
+            "length": 4.043938387356832,
+            "area": 7.6321161411087575,
+            "aspect": 3.3447609451765525,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 15,
+            "mean": 0.08625746948694799,
+            "moved": 0.6666666666666666
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 15,
+            "lines": 15,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 1,
+            "turning": 25.418474269214176,
+            "length": 3.0274933106148194,
+            "area": 13.663203312916904,
+            "aspect": 2.2441977800201816,
+            "labelOverlaps": 0,
+            "throughShapes": 2
+          },
+          "edit": {
+            "matched": 15,
+            "mean": 0.018093195001116627,
+            "moved": 0.2
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 15,
+            "lines": 15,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 26,
+            "turning": 156.00082664675924,
+            "length": 4.385128410972018,
+            "area": 7.928117678861056,
+            "aspect": 3.98989898989899,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 15,
+            "mean": 0.08077912545518194,
+            "moved": 0.8666666666666667
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 15,
+            "lines": 15,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 10,
+            "turning": 59.972878826984214,
+            "length": 1.7978266917757282,
+            "area": 10.570491581164472,
+            "aspect": 1.452621895124195,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 15,
+            "mean": 0.27810708210266566,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "data-platform",
+      "title": "Analytics platform",
+      "kind": "flowchart, 4 groups",
+      "sources": [
+        "comparison/src/data-platform.mmd",
+        "comparison/src/data-platform.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 12,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 11,
+            "turning": 82.42708513796553,
+            "length": 2.627332823419032,
+            "area": 5.694190283722929,
+            "aspect": 0.7243460764587525,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.03248817779645499,
+            "moved": 0.25
+          },
+          "editKept": {
+            "matched": 12,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 12,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 20,
+            "turning": 149.78706335774748,
+            "length": 2.618037243156684,
+            "area": 5.607200093362816,
+            "aspect": 0.5858856923796114,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.04630462402149401,
+            "moved": 0.5
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 12,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 10,
+            "turning": 65.28385751500595,
+            "length": 4.486927543292212,
+            "area": 13.718907519130822,
+            "aspect": 0.6002137894174239,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.03704301102987425,
+            "moved": 0.75
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 12,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 12,
+            "turning": 89.98332313513846,
+            "length": 3.557427228926153,
+            "area": 6.6162557498563555,
+            "aspect": 0.3968192662703379,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.020917704942793,
+            "moved": 0
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 12,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 59.9653937342749,
+            "length": 4.217645272493238,
+            "area": 11.439076593792999,
+            "aspect": 0.7701375245579568,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.1023791495460515,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "leave-request",
+      "title": "Leave request",
+      "kind": "flowchart in lanes",
+      "sources": [
+        "comparison/src/leave-request.mmd",
+        "comparison/src/leave-request.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 5,
+            "turning": 49.90410293633746,
+            "length": 1.783250877145507,
+            "area": 6.659013502508792,
+            "aspect": 3.1562399896078954,
+            "labelOverlaps": 2,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.004736904903536068,
+            "moved": 0
+          },
+          "editKept": {
+            "matched": 8,
+            "mean": 0.004736904903536068,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 16,
+            "turning": 154.41384020117533,
+            "length": 2.3731521221406786,
+            "area": 3.580273722930642,
+            "aspect": 7.070253540081028,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 2.310761204290625e-7,
+            "moved": 0
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 0,
+            "turning": 13.108662884065819,
+            "length": 2.8458769181749006,
+            "area": 7.455053167724064,
+            "aspect": 5.628571428571429,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 16,
+            "turning": 158.686187615495,
+            "length": 6.510841793503956,
+            "area": 7.872600036273944,
+            "aspect": 6.1953090534875095,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.0022467509470347146,
+            "moved": 0
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 0,
+            "turning": 0,
+            "length": 1.5511237508216613,
+            "area": 10.148824948619426,
+            "aspect": 1.417877094972067,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.2710666381242577,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "login-flow",
+      "title": "Sign-in flow",
+      "kind": "flowchart with decisions",
+      "sources": [
+        "comparison/src/login-flow.mmd",
+        "comparison/src/login-flow.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 9,
+            "lines": 11,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 5,
+            "turning": 40.90855551857922,
+            "length": 2.5480627297428473,
+            "area": 5.3522430346010115,
+            "aspect": 4.680934845367989,
+            "labelOverlaps": 1,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 9,
+            "mean": 0,
+            "moved": 0
+          },
+          "editKept": {
+            "matched": 9,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 9,
+            "lines": 11,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 20,
+            "turning": 155.49268222875574,
+            "length": 2.4334718127165944,
+            "area": 2.557926872993462,
+            "aspect": 0.17487630805741416,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 9,
+            "mean": 1.2897315954900468e-8,
+            "moved": 0
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 9,
+            "lines": 11,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 2,
+            "turning": 39.57545487919094,
+            "length": 2.158734220183841,
+            "area": 4.277545709184357,
+            "aspect": 0.23584140775144138,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 9,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 9,
+            "lines": 11,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 65.41244119002671,
+            "length": 2.644228148186691,
+            "area": 4.452565472255271,
+            "aspect": 0.21682145522345556,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 9,
+            "mean": 0.00011622233496792272,
+            "moved": 0
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 9,
+            "lines": 11,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 1,
+            "turning": 8.181818181818182,
+            "length": 1.0892395165343098,
+            "area": 3.964612163653771,
+            "aspect": 0.48355855855855856,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 9,
+            "mean": 0.3084675201700703,
+            "moved": 0.8888888888888888
+          }
+        }
+      }
+    },
+    {
+      "id": "serverless",
+      "title": "Photo uploads",
+      "kind": "architecture, nested groups",
+      "sources": [
+        "comparison/src/serverless.mmd",
+        "comparison/src/serverless.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 79.98684560354405,
+            "length": 2.540578350246496,
+            "area": 2.8023717293661923,
+            "aspect": 12.384057971014492,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.03651204440423742,
+            "moved": 0.5
+          },
+          "editKept": {
+            "matched": 8,
+            "mean": 0.0014730238770266845,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 2,
+            "touches": 1,
+            "bends": 0,
+            "turning": 0,
+            "length": 2.523665428688646,
+            "area": 6.65031769834951,
+            "aspect": 1.4410878123221227,
+            "labelOverlaps": 0,
+            "throughShapes": 2
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.032092976441483616,
+            "moved": 0.125
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 1,
+            "turning": 28.048081902213898,
+            "length": 3.658628655336686,
+            "area": 6.334770577257224,
+            "aspect": 5.933438985736926,
+            "labelOverlaps": 0,
+            "throughShapes": 1
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 12,
+            "turning": 119.99855185206313,
+            "length": 3.1126090417337866,
+            "area": 4.285778879904548,
+            "aspect": 6.817991593541258,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 8,
+            "lines": 9,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 2,
+            "turning": 20,
+            "length": 3.0385584041200193,
+            "area": 7.698210953085784,
+            "aspect": 1.091245376078915,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 8,
+            "mean": 0.4141504363775767,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "shop-schema",
+      "title": "Shop schema",
+      "kind": "entity relationship",
+      "sources": [
+        "comparison/src/shop-schema.mmd",
+        "comparison/src/shop-schema.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 6,
+            "lines": 5,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 4,
+            "turning": 71.84952810629828,
+            "length": 1.4723788443519525,
+            "area": 2.7751053832164745,
+            "aspect": 1.5375426621160408,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 6,
+            "mean": 0,
+            "moved": 0
+          },
+          "editKept": {
+            "matched": 6,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 6,
+            "lines": 5,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 143.7735980837055,
+            "length": 1.0607874920145242,
+            "area": 2.4088438500695903,
+            "aspect": 0.9020527652370203,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 6,
+            "mean": 0.022566173271837523,
+            "moved": 0
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 6,
+            "lines": 5,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 0,
+            "turning": 28.046950505877533,
+            "length": 1.0246429808354618,
+            "area": 3.016673162704084,
+            "aspect": 1.7255747126436782,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 6,
+            "mean": 0.05907362444662732,
+            "moved": 0.16666666666666666
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 6,
+            "lines": 5,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 144,
+            "length": 1.240987974809859,
+            "area": 2.8922379570684105,
+            "aspect": 2.112012987012987,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 6,
+            "mean": 0.01734182826475691,
+            "moved": 0
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 6,
+            "lines": 5,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 4,
+            "turning": 72,
+            "length": 1.0998939518920818,
+            "area": 3.2435725318666724,
+            "aspect": 1.5809018567639257,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 6,
+            "mean": 0.3425000720687608,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "order-states",
+      "title": "Order lifecycle",
+      "kind": "state machine",
+      "sources": [
+        "comparison/src/order-states.mmd",
+        "benchmark/src/order-states.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 10,
+            "lines": 13,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 11,
+            "turning": 81.64146369795387,
+            "length": 3.404667161605584,
+            "area": 8.418480429377391,
+            "aspect": 9.87192154051004,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 10,
+            "mean": 0.01642667169747741,
+            "moved": 0.2
+          },
+          "editKept": {
+            "matched": 10,
+            "mean": 0.010597741764551872,
+            "moved": 0.1
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 10,
+            "lines": 13,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 28,
+            "turning": 193.72060585237085,
+            "length": 3.938109685482645,
+            "area": 13.041483355870119,
+            "aspect": 5.130592889271694,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 10,
+            "mean": 0.006666456543747596,
+            "moved": 0.1
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 10,
+            "lines": 13,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 3,
+            "turning": 34.691288143821644,
+            "length": 5.4452411291799265,
+            "area": 25.780159792922866,
+            "aspect": 4.837661105743801,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 10,
+            "mean": 0.03882760565697765,
+            "moved": 0.7
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 10,
+            "lines": 13,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 19,
+            "turning": 131.45425099948247,
+            "length": 3.9683067207418063,
+            "area": 10.515438452037875,
+            "aspect": 7.538961038961039,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 10,
+            "mean": 0.010229095239529154,
+            "moved": 0.2
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 10,
+            "lines": 13,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 8,
+            "turning": 55.370091007377226,
+            "length": 1.5549348764442956,
+            "area": 7.42172276993677,
+            "aspect": 0.8572950736778538,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 10,
+            "mean": 0.4076276656757623,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "event-mesh",
+      "title": "Event mesh",
+      "kind": "dense flowchart",
+      "sources": [
+        "benchmark/src/event-mesh.mmd",
+        "benchmark/src/event-mesh.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 16,
+            "crossings": 4,
+            "touches": 0,
+            "bends": 24,
+            "turning": 134.439287882888,
+            "length": 2.6334082375717136,
+            "area": 4.7975743503606365,
+            "aspect": 0.8064705882352942,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.028312603910729924,
+            "moved": 0.08333333333333333
+          },
+          "editKept": {
+            "matched": 12,
+            "mean": 0.028312603910729924,
+            "moved": 0.08333333333333333
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 16,
+            "crossings": 2,
+            "touches": 0,
+            "bends": 42,
+            "turning": 230.9537836588124,
+            "length": 3.5773555643288155,
+            "area": 6.262690035588306,
+            "aspect": 3.7599295532373964,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.03450462157886039,
+            "moved": 0.4166666666666667
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 16,
+            "crossings": 3,
+            "touches": 0,
+            "bends": 1,
+            "turning": 31.21472784582745,
+            "length": 3.6307335397713496,
+            "area": 8.235234510712218,
+            "aspect": 3.185185185185185,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.007862253493388479,
+            "moved": 0
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 16,
+            "crossings": 3,
+            "touches": 0,
+            "bends": 22,
+            "turning": 123.70996869860218,
+            "length": 3.0279620043334408,
+            "area": 3.473022412656559,
+            "aspect": 2.0232558139534884,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.21110795419193754,
+            "moved": 0.6666666666666666
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 12,
+            "lines": 16,
+            "crossings": 5,
+            "touches": 0,
+            "bends": 12,
+            "turning": 67.46272913524047,
+            "length": 3.9933165947722955,
+            "area": 5.6199991059854275,
+            "aspect": 1.5177304964539007,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 12,
+            "mean": 0.17870373646301793,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "cloud-platform",
+      "title": "Cloud platform",
+      "kind": "flowchart, 3 levels of groups",
+      "sources": [
+        "benchmark/src/cloud-platform.mmd",
+        "benchmark/src/cloud-platform.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 14,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 15,
+            "turning": 96.4039761291904,
+            "length": 2.9225414258650213,
+            "area": 7.399253845917647,
+            "aspect": 0.7442882249560633,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.2247638246381643,
+            "moved": 1
+          },
+          "editKept": {
+            "matched": 13,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 14,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 32,
+            "turning": 197.64289076168464,
+            "length": 3.9330430815781146,
+            "area": 6.894920640056425,
+            "aspect": 0.35701956632688403,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.11406599971122067,
+            "moved": 0.9230769230769231
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 14,
+            "crossings": 2,
+            "touches": 0,
+            "bends": 5,
+            "turning": 38.20043181394467,
+            "length": 3.915645044904135,
+            "area": 14.167429094236047,
+            "aspect": 0.6061349693251534,
+            "labelOverlaps": 0,
+            "throughShapes": 2
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.02661093467926691,
+            "moved": 0.6153846153846154
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 14,
+            "crossings": 1,
+            "touches": 0,
+            "bends": 18,
+            "turning": 115.57000201312012,
+            "length": 4.537474839272471,
+            "area": 8.184373197065854,
+            "aspect": 0.2507537688442211,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.057749312294929536,
+            "moved": 1
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 14,
+            "crossings": 3,
+            "touches": 0,
+            "bends": 5,
+            "turning": 32.142857142857146,
+            "length": 3.1659808698935383,
+            "area": 16.54788742636899,
+            "aspect": 0.6016260162601627,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.23964190300659716,
+            "moved": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "ci-pipeline",
+      "title": "Delivery pipeline",
+      "kind": "flowchart with loops",
+      "sources": [
+        "benchmark/src/ci-pipeline.mmd",
+        "benchmark/src/ci-pipeline.d2"
+      ],
+      "results": {
+        "cartography": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 16,
+            "crossings": 2,
+            "touches": 0,
+            "bends": 15,
+            "turning": 83.82826600817555,
+            "length": 2.5525677150558175,
+            "area": 5.790185036967484,
+            "aspect": 0.35390946502057613,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.545819790864229,
+            "moved": 0.9230769230769231
+          },
+          "editKept": {
+            "matched": 13,
+            "mean": 0,
+            "moved": 0
+          }
+        },
+        "mermaid": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 16,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 24,
+            "turning": 132.3555032962082,
+            "length": 2.960790884203997,
+            "area": 3.7648253123814643,
+            "aspect": 8.267882470194728,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.008264207769523354,
+            "moved": 0.07692307692307693
+          }
+        },
+        "d2-dagre": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 16,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 1,
+            "turning": 19.936643107534785,
+            "length": 3.503157794438519,
+            "area": 6.708719546265184,
+            "aspect": 6.848357791754018,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.0038273965880351894,
+            "moved": 0.07692307692307693
+          }
+        },
+        "d2-elk": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 16,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 20,
+            "turning": 111.84767554584981,
+            "length": 3.386474999955026,
+            "area": 4.715438369259652,
+            "aspect": 9.548866702851774,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.007914613156390204,
+            "moved": 0.07692307692307693
+          }
+        },
+        "d2-tala": {
+          "metrics": {
+            "nodes": 13,
+            "lines": 16,
+            "crossings": 0,
+            "touches": 0,
+            "bends": 11,
+            "turning": 61.06323180171238,
+            "length": 1.986970479810407,
+            "area": 8.237906145342293,
+            "aspect": 2.712962962962963,
+            "labelOverlaps": 0,
+            "throughShapes": 0
+          },
+          "edit": {
+            "matched": 13,
+            "mean": 0.05447904488181193,
+            "moved": 0.9230769230769231
+          }
+        }
+      }
+    }
+  ]
+}
