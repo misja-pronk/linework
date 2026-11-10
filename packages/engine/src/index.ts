@@ -163,6 +163,8 @@ export interface RenderResult {
   stepsImplied?: boolean;
   /** The theme it was drawn with (PNG export needs its font files). */
   theme?: Theme;
+  /** Official icons drawn (BYO packs), as data URIs by node and group id: exports that draw for themselves (slides) use them. */
+  images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
   /** The focus drawn: what it is about (as labelled), how far it reaches, and how much of the diagram that left. */
   focus?: FocusSpec & { names: string[]; kept: number; total: number; written: boolean };
   /** The diagram (or the view drawn) has a `focus:` of its own, whether or not it was drawn. */
@@ -323,6 +325,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph,
     placed,
     theme,
+    ...(images ? { images } : {}),
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),

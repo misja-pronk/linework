@@ -59,8 +59,11 @@ export function contentSize(graph: Graph, placed: Placed, theme: Theme, view?: S
 }
 
 /** `view`: one step of the drawing. Shapes keep their place and name on every step's slide. */
-export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, fonts: SlideFonts, icons: IconSink, ids: () => number, view?: StepView): string {
-  return new SlideDrawing(graph, placed, theme, at, fonts, icons, ids, view).draw();
+/** Official icons (BYO packs) as SVG data URIs by node and group id, as render() hands them to the SVG. */
+export type SlideImages = { nodes?: Map<string, string>; groups?: Map<string, string> };
+
+export function drawDiagram(graph: Graph, placed: Placed, theme: Theme, at: Placement, fonts: SlideFonts, icons: IconSink, ids: () => number, view?: StepView, images?: SlideImages): string {
+  return new SlideDrawing(graph, placed, theme, at, fonts, icons, ids, view, images).draw();
 }
 
 class SlideDrawing {
@@ -78,6 +81,7 @@ class SlideDrawing {
     private icons: IconSink,
     private next: () => number,
     private view?: StepView,
+    private images?: SlideImages,
   ) {
     this.chipsByNode = chips(graph);
     this.ground = groundOf(graph, placed, theme);
@@ -130,11 +134,17 @@ class SlideDrawing {
    * An icon in its slot, in the theme's tile style (the shapes of render's iconTile): on a soft tint,
    * a solid tone or an outlined square; bare; or on a filled roundel or in a ring.
    */
-  private tile(x: number, y: number, slot: number, tone: ToneColors, name: string | undefined, o: { round?: boolean; muted?: boolean; rx?: number; iconSize?: number } = {}): (Item | undefined)[] {
-    if (!name) return [];
+  private tile(x: number, y: number, slot: number, tone: ToneColors, name: string | undefined, o: { round?: boolean; muted?: boolean; rx?: number; iconSize?: number; image?: string } = {}): (Item | undefined)[] {
     const t = this.theme;
     const lk = look(t);
     const style = lk.tile;
+    // A vendor's icon as it is: bare on a light page, else on a neutral tile (render's iconTile).
+    if (o.image) {
+      if (style === 'bare' && t.mode === 'light') return [this.icon(o.image, x + 3, y + 3, slot - 6, '', 0)];
+      const back = this.sp({ name: 'Tile', frame: this.frame(x, y, slot, slot), geom: o.round || style === 'disc' || style === 'ring' ? { prst: 'ellipse' } : this.roundRect({ x: 0, y: 0, width: slot, height: slot }, o.rx ?? t.radius.tile), fill: { color: t.mode === 'dark' ? '#E9ECF1' : '#F3F5F8' }, line: null });
+      return [back, this.icon(o.image, x + 5, y + 5, slot - 10, '', 0)];
+    }
+    if (!name) return [];
     const size = o.iconSize ?? Math.round((lk.iconSize * slot) / 34);
     const at = (color: string) => this.icon(name, x + (slot - size) / 2, y + (slot - size) / 2, size, color, t.stroke.icon);
     if (style === 'bare') return [at(tone.fg)];
@@ -158,7 +168,8 @@ class SlideDrawing {
     const ref = name ? this.icons(name, color, size, stroke) : undefined;
     if (!ref || !name) return undefined;
     const f = this.frame(x, y, size, size);
-    return { xml: picture({ id: this.next(), name: `Icon ${name}`, descr: name, frame: f, ...ref }), box: f };
+    const label = name.startsWith('data:') ? 'Official icon' : name;
+    return { xml: picture({ id: this.next(), name: `Icon ${label}`, descr: label, frame: f, ...ref }), box: f };
   }
 
   private group(name: string, items: (Item | undefined)[]): Item {
@@ -305,7 +316,8 @@ class SlideDrawing {
       line: outline ? { color: outline, width: this.L(g.trust ? Math.max(1.6, t.stroke.group + 0.6) : t.stroke.group), dash: g.border === 'dashed' || g.trust ? 'dashed' : 'solid' } : null,
       text: { anchor: 't', inset: { l: this.L(16 + iconRoom), t: this.L(22 - lineH / 2), r: this.L(16) }, paras: [{ runs }] },
     });
-    return this.group(`Group: ${g.label}`, [frame, lk.icon ? this.icon(g.icon, b.x + 16, b.y + 22 - lk.icon / 2, lk.icon, tone.fg, 1.75) : undefined]);
+    const official = this.images?.groups?.get(g.id);
+    return this.group(`Group: ${g.label}`, [frame, lk.icon ? this.icon(official ?? g.icon, b.x + 16, b.y + 22 - lk.icon / 2, lk.icon, tone.fg, 1.75) : undefined]);
   }
 
   private drawCard(n: GraphNode, s: CardShape, b: Box): Item {
@@ -340,7 +352,7 @@ class SlideDrawing {
     } else {
       const pill = s.form === 'terminal';
       items.push(this.sp({ ...base, geom: pill ? { prst: 'roundRect', adj: { adj: 50000 } } : this.roundRect(b, t.radius.card), line: { color: muted ? t.tones.slate.line : cardStroke(t, tone), width: this.L(t.stroke.card) } }));
-      items.push(...this.tile(b.x + c.padX, b.y + (top - c.tile) / 2, c.tile, tone, s.icon, { round: pill || s.form === 'person', muted }));
+      items.push(...this.tile(b.x + c.padX, b.y + (top - c.tile) / 2, c.tile, tone, s.icon, { round: pill || s.form === 'person', muted, image: this.images?.nodes?.get(n.id) }));
     }
     for (const [i, line] of body.entries()) items.push(this.text(b.x + c.padX + 1, b.y + c.height + BODY.top + BODY.line * (i + 0.5), line, t.size.caption, 400, muted ? t.textFaint : t.textMuted, 'start', 'Description'));
     for (const p of chipRows(badges, room, t).placed) items.push(this.chip(p.chip, b.x + inset.left + p.x, b.y + CHIP.top + p.y, p.width));
