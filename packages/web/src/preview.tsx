@@ -135,6 +135,8 @@ export function Preview(p: Props) {
   const selected = selection.length === 1 ? selection[0] : undefined;
   /** Types with their own layout (sequence) draw lines themselves: no hand-made bends there. */
   const bendable = !stale && !!p.onBend && !result?.type?.layout;
+  /** A process stands where its flow puts it: its steps and lanes are picked, not dragged. */
+  const flowed = !!result?.type?.layout && !!result.graph?.nodes.some((n) => n.shape.kind === 'flow');
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
   const [dragging, setDragging] = useState<Drag['mode']>();
@@ -354,10 +356,10 @@ export function Preview(p: Props) {
     // A locked element is picked like the background: it can be selected, not moved.
     const id = hit?.dataset.node;
     // So is a part of a journey: steps stand in the order written, there is nowhere to drag them to.
-    const fixed = !!id && !!result?.graph?.nodes.find((n) => n.id === id)?.shape.kind.startsWith('journey');
+    const fixed = !!id && (flowed || !!result?.graph?.nodes.find((n) => n.id === id)?.shape.kind.startsWith('journey'));
     const box = id && !p.locked?.has(id) && !fixed ? result?.placed?.nodes.get(id) : undefined;
     // A group's header (its label strip) moves the whole group; the rest of it pans the canvas.
-    const headerHit = !id && e.button === 0 && !stale ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
+    const headerHit = !id && e.button === 0 && !stale && !flowed ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
     const header = headerHit && !p.locked?.has(headerHit) ? headerHit : undefined;
     if (header) {
       drag.current = {

@@ -83,8 +83,8 @@ interface Hop {
 
 interface Read {
   hops: Hop[];
-  /** Every name as written, for renames. */
-  names: { id: string; start: number; item: number; key: boolean }[];
+  /** Every name as written, for renames; `count` is how many other names its item holds, `cut` what goes with it. */
+  names: { id: string; start: number; item: number; key: boolean; count: number; cut: [number, number] }[];
   bad: number[];
 }
 
@@ -125,7 +125,11 @@ function readTransitions(list: unknown): Read {
       continue;
     }
     const label = key ? labelOf((raw as Record<string, unknown>)[text]) : undefined;
-    for (const n of names) out.names.push({ ...n, item, key });
+    for (const [i, n] of names.entries()) {
+      // Deleting the state takes its name and one arrow out of a chain: "a -> b -> c" stays "a -> c".
+      const cut: [number, number] = i === names.length - 1 ? [names[i - 1]!.start + names[i - 1]!.id.length, n.start + n.id.length] : [n.start, names[i + 1]!.start];
+      out.names.push({ ...n, item, key, count: names.length - names.filter((x) => x.id === n.id).length, cut });
+    }
     // What is written after the colon belongs to the first arrow.
     for (let n = 0; n + 1 < names.length; n++) out.hops.push({ from: names[n]!.id, to: names[n + 1]!.id, ...(n === 0 && label ? { label } : {}), item, n });
   }
@@ -277,7 +281,8 @@ export function buildStates(src: StatesSource, ctx: BuildContext): Graph {
     const parent = parentOf(id);
     const links = parseLinks(e.links);
     const lines = linesOf(e);
-    const more = { ...(parent ? { parent } : {}), ...(links ? { links } : {}), ...(e.description ? { description: e.description } : {}), ...(e.tags?.length ? { tags: e.tags } : {}), path: at(id) };
+    // A state the transitions alone name gets its entry at the top of `states:` once it needs one.
+    const more = { ...(parent ? { parent } : {}), ...(links ? { links } : {}), ...(e.description ? { description: e.description } : {}), ...(e.tags?.length ? { tags: e.tags } : {}), path: known.get(id)?.path ?? ['states', id] };
     if (composite(id)) groups.push({ id, label: title(id), ...(lines.length ? { caption: lines.join(' · ') } : {}), tone: e.tone ?? 'slate', border: 'solid', kind: 'composite', ...more });
     else {
       const k = kinds[kind.get(id)!]!;
@@ -336,8 +341,44 @@ export function buildStates(src: StatesSource, ctx: BuildContext): Graph {
 export function statesReferences(src: StatesSource): Reference[] {
   return readTransitions(src.transitions)
     .names.filter((n) => !reserved(n.id))
-    .map((n) => ({ path: ['transitions', n.item], ...(n.key ? { key: true } : {}), id: n.id, start: n.start, collection: 'states' }));
+    .map((n) => ({ path: ['transitions', n.item], ...(n.key ? { key: true } : {}), id: n.id, start: n.start, collection: 'states', ...(n.count > 1 ? { onDelete: 'cut' as const, cut: n.cut, among: n.count + 1 } : {}) }));
 }
+
+// ---------------------------------------------------------------- one line of a chain, for the builder
+
+/** A transition as the shortest item that says it: "a -> b", or "a -> b: label". */
+const itemFor = (names: string[], label?: unknown): unknown => (label == null || label === '' ? names.join(' -> ') : { [names.join(' -> ')]: label });
+
+/** The transition a drawn line is part of, and which of its arrows it is. */
+function lineOf(src: StatesSource, edge: string) {
+  const m = /^t(\d+)(?:\.(\d+))?$/.exec(edge);
+  const raw = m ? src.transitions?.[Number(m[1])] : undefined;
+  const key = !!raw && typeof raw === 'object' && !Array.isArray(raw);
+  const text = typeof raw === 'string' ? raw : key && Object.keys(raw).length === 1 ? Object.keys(raw)[0]! : '';
+  const names = parseTransition(text)?.map((x) => x.id);
+  const n = Number(m?.[2] ?? 0);
+  if (!m || !names || n + 1 >= names.length) return undefined;
+  return { item: Number(m[1]), n, names, label: key ? (raw as Record<string, unknown>)[text] : undefined };
+}
+
+const lineEdits: NonNullable<DiagramType<StatesSource>['lines']> = {
+  hint: 'event [guard] / action',
+  label(src, edge, label) {
+    const at = lineOf(src, edge);
+    if (!at) return undefined;
+    const { item, n, names } = at;
+    const text = label.trim().replace(/\s+/g, ' ');
+    if (n === 0) return { path: ['transitions', item], items: [itemFor(names, text)] };
+    // What stands after the colon belongs to the first arrow: the chain is cut where the label goes.
+    return { path: ['transitions', item], items: [itemFor(names.slice(0, n + 1), at.label), itemFor(names.slice(n), text)] };
+  },
+  remove(src, edge) {
+    const at = lineOf(src, edge);
+    if (!at) return undefined;
+    const { item, n, names } = at;
+    return { path: ['transitions', item], items: [...(n > 0 ? [itemFor(names.slice(0, n + 1), at.label)] : []), ...(n + 2 < names.length ? [itemFor(names.slice(n + 1))] : [])] };
+  },
+};
 
 // ---------------------------------------------------------------- schema
 
@@ -460,6 +501,8 @@ transitions:
     if (collection === 'states') return stateShorthand(value) as Record<string, unknown>;
     return undefined;
   },
+  freeNames: true,
+  lines: lineEdits,
   // Left to right, unless the source says otherwise: top-down the labels crowd the lines between states.
   tuning: { labelRoom: 'fit', autoDirection: false },
 };

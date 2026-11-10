@@ -129,26 +129,38 @@ interface Hop {
 
 interface Read {
   hops: Hop[];
-  /** Every name as written, for renames. */
-  names: { id: string; start: number; item: number; key: boolean; count: number }[];
+  /** Every name as written, for renames; `count` is how many other names its item holds, `cut` what goes with it. */
+  names: { id: string; start: number; item: number; key: boolean; count: number; cut: [number, number] }[];
   bad: number[];
+}
+
+/** One item of `flow:` as its chain and what stands after the colon. */
+function readItem(raw: unknown): { chain: Chain; props: FlowProps; key: boolean } | undefined {
+  const key = !!raw && typeof raw === 'object';
+  const keys = key ? Object.keys(raw as object) : [];
+  const text = typeof raw === 'string' ? raw : keys.length === 1 ? keys[0]! : '';
+  const chain = parseChain(text);
+  if (!chain) return undefined;
+  const value = key ? (raw as Record<string, unknown>)[text] : undefined;
+  return { chain, props: value && typeof value === 'object' ? (value as FlowProps) : value == null ? {} : { label: String(value) }, key };
 }
 
 function readFlow(flow: unknown): Read {
   const out: Read = { hops: [], names: [], bad: [] };
   if (!Array.isArray(flow)) return out;
   for (const [item, raw] of flow.entries()) {
-    const key = !!raw && typeof raw === 'object';
-    const keys = key ? Object.keys(raw as object) : [];
-    const text = typeof raw === 'string' ? raw : keys.length === 1 ? keys[0]! : '';
-    const chain = parseChain(text);
-    if (!chain) {
+    const read = readItem(raw);
+    if (!read) {
       out.bad.push(item);
       continue;
     }
-    const value = key ? (raw as Record<string, unknown>)[text] : undefined;
-    const props: FlowProps = value && typeof value === 'object' ? (value as FlowProps) : value == null ? {} : { label: String(value) };
-    for (const n of chain.names) out.names.push({ ...n, item, key, count: chain.names.length });
+    const { chain, props, key } = read;
+    for (const [i, n] of chain.names.entries()) {
+      // Deleting the step takes its name and one arrow out of the chain: "a -> b -> c" stays "a -> c".
+      const last = i === chain.names.length - 1;
+      const cut: [number, number] = last ? [chain.names[i - 1]!.start + chain.names[i - 1]!.id.length, n.start + n.id.length] : [n.start, chain.names[i + 1]!.start];
+      out.names.push({ ...n, item, key, count: chain.names.length - chain.names.filter((x) => x.id === n.id).length, cut });
+    }
     for (const [n, a] of chain.arrows.entries()) {
       // What is written after the colon belongs to the first arrow: that is where a branch starts.
       const label = a.label ?? (n === 0 && props.label != null && props.label !== '' ? String(props.label) : undefined);
@@ -333,9 +345,58 @@ export function processReferences(src: ProcessSource): Reference[] {
     if (typeof raw === 'string' && lanes.has(raw) && !kindOf(raw)) out.push({ path: ['nodes', id], id: raw, start: 0, collection: 'lanes', onDelete: 'key' });
     else if (raw && typeof raw === 'object' && typeof raw.in === 'string' && lanes.has(raw.in)) out.push({ path: ['nodes', id, 'in'], id: raw.in, start: 0, collection: 'lanes', onDelete: 'key' });
   }
-  for (const n of readFlow(src.flow).names) out.push({ path: ['flow', n.item], ...(n.key ? { key: true } : {}), id: n.id, start: n.start, collection: 'nodes' });
+  // A chain that still says something without the step loses the step alone; "a -> b" goes whole.
+  for (const n of readFlow(src.flow).names) out.push({ path: ['flow', n.item], ...(n.key ? { key: true } : {}), id: n.id, start: n.start, collection: 'nodes', ...(n.count > 1 ? { onDelete: 'cut' as const, cut: n.cut, among: n.count + 1 } : {}) });
   return out;
 }
+
+// ---------------------------------------------------------------- one line of a chain, for the builder
+
+const arrowText = (a: Chain['arrows'][number]) => (a.message ? (a.label ? ` --${a.label}--> ` : ' --> ') : a.label ? ` -${a.label}-> ` : ' -> ');
+/** A chain as the shortest item that says it: the text, "text: label" or "text: { label, default }". */
+function itemFor(names: string[], arrows: Chain['arrows'], props: FlowProps = {}): unknown {
+  const text = names.map((n, i) => (i ? arrowText(arrows[i - 1]!) : '') + n).join('');
+  const label = props.label != null && props.label !== '' && !arrows[0]?.label ? props.label : undefined;
+  return props.default ? { [text]: { ...(label != null ? { label } : {}), default: true } } : label != null ? { [text]: label } : text;
+}
+/** A label short and plain enough to stand in its arrow: "-yes->". */
+const inArrow = (label: string) => /^[^-\s>]([^>]*[^-\s>])?$/.test(label) && label.length <= 16;
+
+/** The chain a drawn line is part of, and which of its arrows it is. */
+function lineOf(src: ProcessSource, edge: string) {
+  const m = /^flow(\d+)(?:\.(\d+))?$/.exec(edge);
+  const read = m && readItem(src.flow?.[Number(m[1])]);
+  const n = Number(m?.[2] ?? 0);
+  if (!m || !read || n >= read.chain.arrows.length) return undefined;
+  return { item: Number(m[1]), n, names: read.chain.names.map((x) => x.id), arrows: read.chain.arrows.map((a) => ({ ...a })), props: read.props };
+}
+
+const lines: NonNullable<DiagramType<ProcessSource>['lines']> = {
+  hint: 'Short, like yes or no; a longer one is written after the line',
+  label(src, edge, label) {
+    const at = lineOf(src, edge);
+    if (!at) return undefined;
+    const { item, n, names, arrows, props } = at;
+    const text = label.trim().replace(/\s+/g, ' ');
+    delete arrows[n]!.label;
+    const first: FlowProps = n === 0 ? (props.default ? { default: true } : {}) : props;
+    if (!text || inArrow(text)) {
+      if (text) arrows[n]!.label = text;
+      return { path: ['flow', item], items: [itemFor(names, arrows, first)] };
+    }
+    // A sentence reads better after the colon, and that belongs to the first arrow of a line.
+    if (n === 0) return { path: ['flow', item], items: [itemFor(names, arrows, { ...first, label: text })] };
+    return { path: ['flow', item], items: [itemFor(names.slice(0, n + 1), arrows.slice(0, n), props), itemFor(names.slice(n), arrows.slice(n), { label: text })] };
+  },
+  remove(src, edge) {
+    const at = lineOf(src, edge);
+    if (!at) return undefined;
+    const { item, n, names, arrows, props } = at;
+    const before = n > 0 ? [itemFor(names.slice(0, n + 1), arrows.slice(0, n), props)] : [];
+    const after = n + 2 < names.length ? [itemFor(names.slice(n + 1), arrows.slice(n + 1))] : [];
+    return { path: ['flow', item], items: [...before, ...after] };
+  },
+};
 
 // ---------------------------------------------------------------- schema
 
@@ -466,6 +527,8 @@ flow:
     return undefined;
   },
   refKeys: { in: ['lanes'] },
+  freeNames: true,
+  lines,
   layout: async (sized) => flowLayout(sized),
 };
 
