@@ -2762,7 +2762,8 @@ button.type-pill:hover {
   transition: opacity 300ms ease;
 }
 .present.idle .present-tools,
-.present.idle .present-help {
+.present.idle .present-help,
+.present.idle .present-focus {
   opacity: 0;
 }
 .present-tools {
@@ -2822,4 +2823,40 @@ button.type-pill:hover {
   inset: 0;
   background: #000;
   cursor: none;
+}
+.present-focus {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 3px 3px 10px;
+  border: 1px solid var(--present-line, var(--border));
+  border-radius: var(--radius);
+  background: var(--present-canvas, var(--surface));
+  color: var(--present-muted, var(--text-muted));
+  font-size: 13px;
+  transition: opacity 300ms ease;
+}
+.present-focus strong {
+  color: var(--present-text, var(--text));
+  font-weight: 600;
+}
+.present-focus button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.present-focus button:hover {
+  color: var(--present-text, var(--text));
+  background: color-mix(in srgb, var(--present-text, var(--text)) 8%, transparent);
 }

@@ -146,6 +146,39 @@ await wait(400);
   check('no chip after Esc', await chip(), '');
 }
 
+// 5b. P keeps the focus set by keys: the presenter draws the neighbourhood and says so; A shows everything and back.
+{
+  const shown = () => page.evaluate(() => [...document.querySelectorAll('.present-frame:last-child [data-node]')].map((n) => n.getAttribute('data-node')).sort().join(' '));
+  const presented = async (what, want) => {
+    try {
+      await page.waitForFunction((want) => [...document.querySelectorAll('.present-frame:last-child [data-node]')].map((n) => n.getAttribute('data-node')).sort().join(' ') === want, want, { timeout: 5000 });
+    } catch {
+      fail(`${what}: expected ${want}, got ${await shown()}`);
+    }
+  };
+  await select('api');
+  await page.keyboard.press('f');
+  await page.keyboard.press('+');
+  await drawn('two hops before presenting', 'api bus customer db mail web');
+  await page.keyboard.press('p');
+  await presented('the presenter keeps the focus', 'api bus customer db mail web');
+  const said = (await page.locator('.present-focus').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  if (!said.includes('Focused on Orders API') || !said.includes('2 hops')) fail('the presenter should say what it is focused on: ' + said);
+  await page.screenshot({ path: `${out}/f2b-present-focus.png` });
+  await page.keyboard.press('a');
+  await presented('A in the presenter shows everything', ALL);
+  if (!(await page.locator('.present-focus').innerText().catch(() => '')).includes('Everything shown')) fail('the presenter should say everything is shown');
+  await page.keyboard.press('a');
+  await presented('A again brings the focus back', 'api bus customer db mail web');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.present', { state: 'detached', timeout: 3000 }).catch(() => fail('Esc did not leave the presenter'));
+  await drawn('the editor still has the focus after presenting', 'api bus customer db mail web');
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await drawn('left the focus after presenting', ALL);
+}
+
 // 6. From the palette, with its keys shown; the export is the neighbourhood on screen.
 {
   await select('db');

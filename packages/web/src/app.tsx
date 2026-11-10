@@ -1896,7 +1896,7 @@ export function App() {
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
-      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view} step={drawn?.step} open={presentOther} onClose={() => setPresenting(false)} />}
+      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette

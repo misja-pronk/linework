@@ -2,7 +2,7 @@
 // order with the steps of each inside it; a linked element drills down and Backspace comes back.
 // Every step is the same drawing in the same place, so stepping reads as one picture building up.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { LayoutSidecar, Link } from '@cartography/core';
+import { focusReach, type LayoutSidecar, type Link } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
 import { useBrand } from './brand.ts';
 import { registerThemeFonts } from './fonts.ts';
@@ -26,6 +26,8 @@ export interface PresentProps {
   /** Where to start: the view and the step open in the editor. */
   view?: string;
   step?: number;
+  /** A focus set in the editor (F, +, −, D) for that view, as render takes it: its slides keep it. */
+  focus?: unknown;
   /** Another diagram, for a link that leads there; nothing when it is not at hand. */
   open?(path: string): PresentDoc | undefined;
   onClose(): void;
@@ -34,6 +36,8 @@ export interface PresentProps {
 interface Slide {
   view?: string;
   step?: number;
+  /** The editor's focus, on the slides of the view it was set in. */
+  focus?: unknown;
 }
 
 interface Deck {
@@ -80,14 +84,17 @@ export function Present(p: PresentProps) {
   /** The linked element that has the keyboard (Tab), as an index into the links on screen. */
   const [ring, setRing] = useState<number>();
   const [ringBox, setRingBox] = useState<{ left: number; top: number; width: number; height: number }>();
+  /** A: the editor's focus set aside, everything drawn; A again brings it back. */
+  const [whole, setWhole] = useState(false);
   useRestoreFocus();
 
   const draw = useCallback(
     (d: Deck, i: number, slide = d.slides[i]!) => {
-      const key = `${d.id}:${i}`;
+      const focus = slide.focus !== undefined && !whole ? { focus: slide.focus } : {};
+      const key = `${d.id}:${i}${focus.focus ? ':focus' : ''}`;
       let hit = cache.current.get(key);
       if (!hit) {
-        hit = render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}` }).then(async (r) => {
+        hit = render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus }).then(async (r) => {
           // A linked diagram can have a theme of its own: the page needs its faces before the slide shows.
           await registerThemeFonts(r.theme);
           return r;
@@ -96,7 +103,7 @@ export function Present(p: PresentProps) {
       }
       return hit;
     },
-    [p.theme, themeOverride, icons],
+    [p.theme, themeOverride, icons, whole],
   );
 
   /** The slides of a diagram: its views in order (as written first), a slide per step where a view has steps. */
@@ -130,6 +137,7 @@ export function Present(p: PresentProps) {
     void outline(p.doc).then((d) => {
       if (!live) return;
       if (!d) return say('Nothing to present yet: fix the problems in the editor first');
+      if (p.focus !== undefined) for (const s of d.slides) if (s.view === p.view) s.focus = p.focus;
       const start = d.slides.findIndex((s) => s.view === p.view && (s.step ?? 1) === (p.step ?? 1));
       setDeck(d);
       setAt(Math.max(0, start >= 0 ? start : d.slides.findIndex((s) => s.view === p.view)));
@@ -246,6 +254,7 @@ export function Present(p: PresentProps) {
     else if (e.key === 'Home') go(0);
     else if (e.key === 'End') go(count - 1);
     else if (e.key === '.' || e.key.toLowerCase() === 'b') setBlank(true);
+    else if (e.key.toLowerCase() === 'a' && focusable) setWhole((w) => !w);
     else if (e.key.toLowerCase() === 'f') {
       windowed.current = !!document.fullscreenElement;
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -307,6 +316,9 @@ export function Present(p: PresentProps) {
   const t = top?.result.theme;
   const colours = t ? ({ '--present-canvas': t.canvas, '--present-text': t.text, '--present-muted': t.textMuted, '--present-faint': t.textFaint, '--present-line': t.border, '--present-accent': t.accent ?? t.tones.blue.fg } as React.CSSProperties) : undefined;
   const linkCount = linked().length;
+  /** This slide has the editor's focus: drawn, or set aside with A. */
+  const focusable = top?.deck.slides[top.at]?.focus != null;
+  const lens = focusable ? top?.result.focus : undefined;
 
   return (
     <div ref={root} className={`present${idle ? ' idle' : ''}`} style={colours} tabIndex={-1} role="dialog" aria-label="Presentation" aria-modal="true" onMouseMove={stir} onClick={onClick}>
@@ -336,6 +348,21 @@ export function Present(p: PresentProps) {
         </>
       )}
       {ringBox && <div className="present-ring" style={ringBox} />}
+      {focusable && (lens || whole) && (
+        <div className="present-focus" onClick={(e) => e.stopPropagation()}>
+          <Icon name="focus" size={14} />
+          {lens && !whole ? (
+            <span>
+              Focused on <strong>{lens.names.join(', ') || lens.on.join(', ')}</strong> · {focusReach(lens)}
+            </span>
+          ) : (
+            <span>Everything shown</span>
+          )}
+          <button onClick={() => setWhole((w) => !w)} title={whole ? 'Back to the focus set in the editor (A)' : 'Show everything (A)'}>
+            {whole ? 'Focus' : 'All'} <kbd>A</kbd>
+          </button>
+        </div>
+      )}
       <div className="present-tools" onClick={(e) => e.stopPropagation()}>
         {trail.length > 0 && (
           <button onClick={back} title="Back to where the link was followed (⌫)">
@@ -354,6 +381,12 @@ export function Present(p: PresentProps) {
       </div>
       <div className="present-help" aria-hidden="true">
         <kbd>→</kbd> <kbd>Space</kbd> next · <kbd>←</kbd> back · number + <kbd>↵</kbd> jump · <kbd>B</kbd> blank
+        {focusable && (
+          <>
+            {' · '}
+            <kbd>A</kbd> {whole ? 'focus' : 'everything'}
+          </>
+        )}
         {linkCount > 0 && (
           <>
             {' · '}
