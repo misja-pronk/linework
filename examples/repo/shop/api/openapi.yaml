@@ -1,0 +1,99 @@
+openapi: 3.1.0
+info:
+  title: Shop API
+  version: 2.14.0
+  description: What the storefront and partners call. Orders, payments, the catalogue and customer accounts.
+servers:
+  - url: https://api.shop.example.com/v2
+    description: Production
+  - url: https://api.staging.shop.example.com/v2
+    description: Staging
+tags:
+  - name: orders
+    description: Placing and following orders
+  - name: payments
+    description: Paying for an order
+  - name: catalog
+    description: Products and prices
+  - name: customers
+    description: Accounts and addresses
+security:
+  - oauth: [orders:read]
+paths:
+  /orders:
+    get: { tags: [orders], operationId: listOrders, summary: List my orders, responses: { '200': { description: ok } } }
+    post: { tags: [orders], operationId: placeOrder, summary: Place an order, responses: { '201': { description: created } } }
+  /orders/{orderId}:
+    get: { tags: [orders], operationId: getOrder, responses: { '200': { description: ok } } }
+    patch: { tags: [orders], operationId: updateOrder, responses: { '200': { description: ok } } }
+    delete: { tags: [orders], operationId: cancelOrder, responses: { '204': { description: cancelled } } }
+  /orders/{orderId}/items:
+    get: { tags: [orders], operationId: listItems, responses: { '200': { description: ok } } }
+  /orders/{orderId}/shipments:
+    get: { tags: [orders], operationId: listShipments, responses: { '200': { description: ok } } }
+  /payments:
+    post:
+      tags: [payments]
+      operationId: createPayment
+      summary: Pay for an order
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId: { type: string }
+                callbackUrl: { type: string, format: uri }
+      responses:
+        '202': { description: accepted, the result follows on the callback }
+      callbacks:
+        paymentResult:
+          '{$request.body#/callbackUrl}':
+            post:
+              summary: The payment succeeded or failed
+              requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/PaymentResult' } } } }
+              responses: { '200': { description: received } }
+  /payments/{paymentId}:
+    get: { tags: [payments], operationId: getPayment, responses: { '200': { description: ok } } }
+  /payments/{paymentId}/refunds:
+    post: { tags: [payments], operationId: refund, responses: { '201': { description: created } } }
+  /products:
+    get: { tags: [catalog], operationId: listProducts, security: [], responses: { '200': { description: ok } } }
+  /products/{sku}:
+    get: { tags: [catalog], operationId: getProduct, security: [], responses: { '200': { description: ok } } }
+  /categories:
+    get: { tags: [catalog], operationId: listCategories, security: [], responses: { '200': { description: ok } } }
+  /prices:
+    get: { tags: [catalog], operationId: listPrices, security: [{ partnerKey: [] }], responses: { '200': { description: ok } } }
+  /customers/me:
+    get: { tags: [customers], operationId: me, responses: { '200': { description: ok } } }
+    put: { tags: [customers], operationId: updateMe, responses: { '200': { description: ok } } }
+  /customers/me/addresses:
+    get: { tags: [customers], operationId: addresses, responses: { '200': { description: ok } } }
+    post: { tags: [customers], operationId: addAddress, responses: { '201': { description: ok } } }
+  /health:
+    get: { operationId: health, security: [], responses: { '200': { description: ok } } }
+webhooks:
+  orderShipped:
+    post:
+      summary: An order left the warehouse
+      responses: { '200': { description: received } }
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.shop.example.com/realms/shop/protocol/openid-connect/auth
+          tokenUrl: https://auth.shop.example.com/realms/shop/protocol/openid-connect/token
+          scopes: { orders:read: read orders, orders:write: place orders }
+    partnerKey:
+      type: apiKey
+      in: header
+      name: X-Partner-Key
+  schemas:
+    PaymentResult:
+      type: object
+      properties:
+        paymentId: { type: string }
+        status: { type: string, enum: [succeeded, failed] }
