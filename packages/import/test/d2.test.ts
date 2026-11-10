@@ -137,12 +137,13 @@ pg: Main {icon: https://icons.terrastruct.com/dev%2Fpostgresql.svg}
     });
   });
 
-  it('class shapes come in as boxes without their fields', () => {
-    const { d, warnings } = one(`
-Order: {shape: class; +id: uuid; +total(): Money}
-`);
-    expect(d.nodes).toMatchObject({ Order: { kind: 'service', label: 'Order' } });
-    expect(warnings.join('\n')).toMatch(/class shapes/);
+  it('class shapes come in as a class diagram with their fields and methods', () => {
+    const [b] = importD2('Order: {shape: class; +id: uuid; -lines: "[]Line"; total(): Money}\nLine: {shape: class}\nOrder -> Line: has\n', 'shop');
+    expect(parse(b!.yaml)).toEqual({ type: 'class', title: 'shop', classes: { Order: { members: [{ '+id': 'uuid' }, '-lines: []Line', '+total(): Money'] }, Line: null }, relations: [{ 'Order --> Line': 'has' }] });
+    // Beside other boxes they are boxes in the architecture, and a class diagram of their own.
+    const both = importD2('web -> api\nOrder: {shape: class; +id: uuid}\n', 'mixed');
+    expect(both.map((x) => x.name)).toEqual(['architecture', 'classes']);
+    expect(both[1]!.yaml).toMatch(/^type: class/);
   });
 });
 

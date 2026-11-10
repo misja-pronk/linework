@@ -439,8 +439,8 @@ function build(src: ClassSource, ctx: BuildContext): Graph {
       if (r.kind === 'realization' && target !== 'interface') ctx.warn(r.path, `${upper} is not an interface: a class extends it (--|>), it does not implement it`);
       if (r.kind === 'generalization' && target === 'interface' && kindOf(lower) !== 'interface') ctx.warn(r.path, `${upper} is an interface: a class implements it (..|>)`);
     }
-    // A dependency says nothing about what stands above what (a repository beside its aggregate); nor does a line that would turn the ranking round.
-    const loose = upper === lower || r.kind === 'dependency' || r.kind === 'link' || reaches(lower, upper, below);
+    // A line that would turn the ranking round says nothing about what stands above what.
+    const loose = upper === lower || reaches(lower, upper, below);
     if (!loose) {
       if (!below.has(upper)) below.set(upper, new Set());
       below.get(upper)!.add(lower);
