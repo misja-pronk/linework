@@ -84,6 +84,19 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'view', label: 'Show it as', kind: 'choice', options: ['Journey map (rows under the steps)', 'Storyboard (a card per step)', 'Service blueprint (frontstage, backstage)', 'Today next to future'], initial: 'Journey map (rows under the steps)' },
     { id: 'rows', label: 'Include', kind: 'chips', options: ['Touchpoints', 'Feeling curve', 'Thoughts', 'Pains', 'Gains', 'Opportunities', 'Metrics'], initial: ['Touchpoints', 'Feeling curve', 'Thoughts', 'Pains', 'Opportunities'] },
   ],
+  process: () => [
+    { ...about, label: 'Which process, from what to what?', placeholder: 'E.g. an access request: from the request by an employee to access granted or refused, with approval by the manager.' },
+    { id: 'lanes', label: 'Who does the work? (a lane each; leave empty for a plain flowchart)', kind: 'text', placeholder: 'Employee, Manager, IT service desk, Identity system' },
+    { id: 'steps', label: 'The steps of the usual way through', kind: 'long', placeholder: 'One per line is enough, in order: ask for access, manager approves, create account, tell the employee…' },
+    { id: 'decisions', label: 'Decisions, and what happens on each answer', kind: 'long', placeholder: 'Approved? no: tell the employee why. Privileged role? yes: security also approves.' },
+    { id: 'include', label: 'Include', kind: 'chips', options: ['Work in parallel', 'Waiting (timer)', 'Messages between lanes', 'What goes wrong (error end)', 'Documents', 'Notes'], initial: ['What goes wrong (error end)'] },
+  ],
+  states: () => [
+    { ...about, label: 'The life of which thing?', placeholder: 'E.g. an order: from placed to delivered, with cancelling and returning.' },
+    { id: 'states', label: 'The states it can be in', kind: 'text', placeholder: 'New, Paid, Packed, Shipped, Delivered, Cancelled, Returned' },
+    { id: 'events', label: 'What moves it from one state to the next', kind: 'long', placeholder: 'One per line is enough: payment received, picked and packed, handed to the carrier, customer cancels (only before shipping)…' },
+    { id: 'include', label: 'Include', kind: 'chips', options: ['Guards (conditions)', 'Actions on a transition', 'A state with states inside', 'Entry and exit actions', 'Choice points', 'Notes'], initial: ['Guards (conditions)'] },
+  ],
   azure: (t) => [
     { ...about, placeholder: 'E.g. an order platform on Container Apps with a public API, events on Service Bus and SQL.' },
     parts(t, 'Which Azure services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),

@@ -32,6 +32,8 @@ describe('type guidance', () => {
     for (const q of ['branching', 'git flow', 'release and hotfix branches', 'trunk-based']) expect(best(q).type.id, q).toBe('gitflow');
     for (const q of ['roadmap', 'timeline', 'gantt', 'migration waves']) expect(best(q).type.id, q).toBe('roadmap');
     for (const q of ['user journey', 'developer onboarding experience', 'service blueprint', 'pain points per step', 'customer experience touchpoints']) expect(best(q).type.id, q).toBe('journey');
+    for (const q of ['flowchart', 'decision tree', 'swimlanes', 'bpmn', 'approval process', 'workflow with gateways']) expect(best(q).type.id, q).toBe('process');
+    for (const q of ['state machine', 'order lifecycle', 'statuses and transitions', 'statechart']) expect(best(q).type.id, q).toBe('states');
   });
 
   it('keeps the order when nothing matches', () => {

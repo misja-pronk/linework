@@ -334,6 +334,7 @@ export const roadmap: DiagramType<RoadmapSource> = {
     { text: 'The order of messages in one flow', use: 'sequence' },
     { text: 'How branches merge and release', use: 'gitflow' },
     { text: 'The steps one person takes, and how they feel', use: 'journey' },
+    { text: 'How the work itself goes, step by step', use: 'process' },
   ],
   keywords: ['roadmap', 'timeline', 'gantt', 'plan', 'planning', 'schedule', 'milestone', 'migration waves', 'waves', 'phases', 'quarter', 'delivery plan', 'workstream', 'now next later', 'deadline', 'project plan'],
   schema,
