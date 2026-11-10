@@ -247,6 +247,8 @@ export interface GraphEdge {
   to: Endpoint;
   label?: string;
   line: 'solid' | 'dashed' | 'dotted';
+  /** A second mark on the line besides its colour, so two styles never differ in colour alone: ticks across it, beads on it, or a cased double line. */
+  pattern?: LinePattern;
   tone?: Tone;
   start: Marker;
   end: Marker;
@@ -269,10 +271,14 @@ export interface GraphEdge {
   path: Path;
 }
 
+/** See GraphEdge.pattern. */
+export type LinePattern = 'ticks' | 'beads' | 'double';
+
 export interface LegendItem {
   label: string;
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
+  pattern?: LinePattern;
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
   swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block';
   /** A block sample (swatch 'block'): a team type, an interaction mode, a place on a heatmap. */

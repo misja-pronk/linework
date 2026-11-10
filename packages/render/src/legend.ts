@@ -3,7 +3,7 @@
 // is that kind's own icon in the theme's tile style, so it also reads without colour.
 import type { Graph, LegendItem } from '@cartography/core';
 import { baselineOffset, chipText, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
-import { chipBack, dashAttr, esc, glyph, iconTile, monoAttr, r1, tagRadius } from './paint.ts';
+import { chipBack, dashAttr, esc, glyph, iconTile, monoAttr, patternOver, patternWidth, r1, tagRadius } from './paint.ts';
 import { drawTags, endStyle, tagsWidth } from './tags.ts';
 import { blockSample } from './block.ts';
 import { drawMarks } from './flow.ts';
@@ -192,6 +192,8 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   }
   if (item.swatch === 'outline')
     return `<rect x="${x0 + 0.5}" y="${cy - 6.5}" width="19" height="13" rx="${Math.min(6.5, theme.radius.chip + 2.5)}" fill="none" stroke="${color}" stroke-opacity="0.7" stroke-dasharray="3 2"/>` + label;
-  const width = theme.stroke.edge * (item.width ?? 1) + 0.4;
-  return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round"${dashAttr(item.line, width, theme)}/>` + label;
+  const width = patternWidth(item.pattern, theme.stroke.edge * (item.width ?? 1) + 0.4);
+  const dash = dashAttr(item.line, width, theme);
+  const d = `M${x0} ${cy}H${x0 + 20}`;
+  return `<path d="${d}" stroke="${color}" stroke-width="${r1(width)}" stroke-linecap="round"${dash}/>` + patternOver(item.pattern, `M${x0 - 1} ${cy}H${x0 + 22}`, color, width, theme, dash) + label;
 }

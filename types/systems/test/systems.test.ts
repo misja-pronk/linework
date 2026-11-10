@@ -30,7 +30,7 @@ describe('systems', () => {
     // The dashed line without a style is drawn too, so the key names it.
     expect(r.graph!.legend).toEqual([
       { label: 'Connection, dashed', line: 'dashed' },
-      { label: 'Data flow', line: 'solid', tone: 'teal' },
+      { label: 'Data flow', line: 'solid', tone: 'teal', pattern: 'ticks' },
     ]);
   });
 

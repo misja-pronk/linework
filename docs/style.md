@@ -43,7 +43,9 @@ colour and font for a brand, and leave the rest.
 10. **One accent.** Rust orange, for the rule and the classification of a title block. Step numbers are ink.
     The accent is never decoration.
 
-Meaning is never carried by colour alone: kinds have their own icon, line types their own dash pattern, and every
+Meaning is never carried by colour alone: kinds have their own icon, line types their own dash pattern (where two
+styles of a type draw the same dash, the later one gets ticks, beads or a double line, the same in every diagram and in
+the key), badges in the key carry the icon of their chips, and every
 text colour passes WCAG AA (4.5:1) on the deepest tint it can land on. The ten inks were checked under
 deuteranopia, protanopia and tritanopia simulation and spread in lightness so neighbours stay apart.
 

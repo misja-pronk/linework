@@ -1,7 +1,7 @@
 // The pieces every drawer shares, drawn the way the theme asks: icon tiles, step numbers, line
 // corners, dashes and arrowheads, the ground behind a label, chips. One place, so the graph renderer,
 // sequence, git, roadmap and matrix drawings all follow the same look.
-import type { Point } from '@cartography/core';
+import type { LinePattern, Point } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { baselineOffset, look, mix, type Theme, type ToneColors } from '@cartography/theme';
 
@@ -128,6 +128,20 @@ export function dashAttr(line: 'solid' | 'dashed' | 'dotted' | undefined, width:
   // Round caps add the line's width to every dash: a dot stays a dot by shrinking its dash as the line thickens.
   return line === 'dashed' ? ` stroke-dasharray="${r1(6 * k)} ${r1(4 * k)}"` : ` stroke-dasharray="${r1(k > 1 ? Math.max(0.1, 1.5 * k - width) : 1.5)} ${r1(3.5 * k)}"`;
 }
+
+/**
+ * The second mark of a line style over its stroke `d`: short ticks across it, beads on it, or a
+ * double line (a light core in a wider stroke). Drawn on top of the line, in its colour.
+ */
+export function patternOver(pattern: LinePattern | undefined, d: string, color: string, width: number, theme: Theme, dash = ''): string {
+  if (!pattern) return '';
+  if (pattern === 'ticks') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 4.5)}" stroke-dasharray="1.3 11" stroke-dashoffset="-5"/>`;
+  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3)}" stroke-dasharray="0 12" stroke-dashoffset="-5" stroke-linecap="round"/>`;
+  return `<path d="${d}" fill="none" stroke="${theme.surface}" stroke-width="${r1(Math.max(1, width * 0.4))}" stroke-linejoin="round"${dash}/>`;
+}
+
+/** A double line is drawn wider, so its light core leaves a line of colour on each side. */
+export const patternWidth = (pattern: LinePattern | undefined, width: number) => (pattern === 'double' ? Math.max(width * 2.4, 3.2) : width);
 
 /** How far a line stops short of its arrowhead's tip, so it does not poke through. */
 export function arrowBack(theme: Theme): number {

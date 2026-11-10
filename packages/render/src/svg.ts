@@ -3,7 +3,7 @@
 import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { arrowBack, arrowHead, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
+import { arrowBack, arrowHead, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
 import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
@@ -539,12 +539,14 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   if (back && e.end === 'arrow') shorten(pts, pts.length - 1, pts.length - 2, back);
   if (back && e.start === 'arrow') shorten(pts, 0, 1, back);
   const opacity = e.tone ? ' stroke-opacity="0.9"' : '';
-  const width = theme.stroke.edge * (e.width ?? 1);
+  const width = patternWidth(e.pattern, theme.stroke.edge * (e.width ?? 1));
   const dash = dashAttr(e.line, width, theme);
   // Square and cut corners are drawn with square joins; a dotted line keeps round dots.
   const round = look(theme).line.corner === 'round';
   const ends = `stroke-linecap="${round || e.line === 'dotted' ? 'round' : 'butt'}" stroke-linejoin="${round ? 'round' : 'miter'}"`;
-  let s = `<path d="${themedPath(pts, theme)}" fill="none" stroke="${color}" stroke-width="${r1(width)}" ${ends}${dash}${opacity}/>`;
+  const d = themedPath(pts, theme);
+  let s = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width)}" ${ends}${dash}${opacity}/>`;
+  s += patternOver(e.pattern, d, color, width, theme, dash);
   s += marker(e.end, points[points.length - 1]!, points[points.length - 2]!, color, theme);
   s += marker(e.start, points[0]!, points[1]!, color, theme);
   return s;
