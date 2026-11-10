@@ -1,0 +1,15 @@
+Pay for an order, with its callback
+
+Sequence diagram. 2 participants and 4 messages.
+
+Participants
+- API client (Service)
+- Shop API (Service)
+
+Message flow
+In order, top to bottom.
+- 1. API client calls Shop API: POST /payments.
+- 2. Shop API replies to API client: 202.
+- 3. Shop API calls API client: POST callback (paymentResult).
+- Note over API client: The payment succeeded or failed
+- 4. API client replies to Shop API: 200.

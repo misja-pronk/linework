@@ -183,7 +183,8 @@ export function importCompose(text: string, opts: ComposeOptions = {}): Imported
     if (kind === 'external' || kind === 'user' || kind === 'users') kind = 'service';
     kinds.set(id(name), kind);
     const caption = (image && product(image)) ?? (hint?.base ? (product(hint.base) ?? (hint.first ? product(hint.first) : undefined)) : undefined) ?? (image ? imageName(image).name : undefined);
-    const entry: Obj = { kind, label: name === id(name) ? undefined : name };
+    // The service's own name is the label: without one, a card would be named after its kind.
+    const entry: Obj = { kind, label: name };
     if (caption) entry.caption = caption;
     const profiles = list(s.profiles);
     if (profiles.length) profiled.set(name, profiles);

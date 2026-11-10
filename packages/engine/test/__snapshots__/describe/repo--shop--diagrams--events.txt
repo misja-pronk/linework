@@ -1,0 +1,21 @@
+Shop events
+
+Architecture diagram: From the AsyncAPI files: who sends what to which channel. 5 elements in 2 groups, with 5 connections.
+
+Groups and elements
+- Orders service (v2.14.0)
+- kafka.shop.internal (kafka)
+  - shop.orders.v1
+- rabbitmq.shop.internal (amqp)
+  - emails
+  - payments.results
+- Payments service (v1.9.0)
+
+Connections
+- Orders service sends OrderPlaced, OrderCancelled to shop.orders.v1 and sends SendEmail to emails.
+- shop.orders.v1 sends OrderPlaced to Payments service.
+- Payments service sends PaymentSucceeded, PaymentFailed to payments.results.
+- payments.results sends PaymentSucceeded, PaymentFailed to Orders service.
+
+Key
+- Dashed violet line: Async message

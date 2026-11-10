@@ -1,0 +1,34 @@
+shop chart 0.7.2
+
+Kubernetes diagram. 10 elements in 2 groups, with 16 connections.
+
+Groups and elements
+- Internet
+- Cluster
+  - default (Namespace)
+    - shop (Ingress · shop.example.com)
+    - shop-web (Service · :80→3000)
+    - shop-api (Service · :80→8000)
+    - shop-web (Deployment · ×2 · web:2.14.0)
+    - shop-api (Deployment · ×2 · orders:2.14.0)
+    - shop-payments (Service · :80→8000)
+    - shop-payments (Deployment · payments:2.14.0)
+    - shop-worker-emails (Deployment · worker:2.14.0)
+    - shop-worker-orders (Deployment · worker:2.14.0)
+
+Connections
+- Internet sends traffic to shop (Ingress) over HTTPS.
+- shop (Ingress) sends traffic to shop-web (Service) (/), sends traffic to shop-api (Service) (/api) and mounts shop-tls.
+- shop-web (Service) sends traffic to shop-web (Deployment).
+- shop-api (Service) sends traffic to shop-api (Deployment).
+- shop-web (Deployment) signs in with shop (ServiceAccount).
+- shop-api (Deployment) mounts shop-config, mounts shop-db and signs in with shop (ServiceAccount).
+- shop-payments (Service) sends traffic to shop-payments (Deployment).
+- shop-payments (Deployment) mounts shop-stripe, mounts shop-config and signs in with shop (ServiceAccount).
+- shop-worker-emails mounts shop-config.
+- shop-worker-orders mounts shop-config.
+
+Key
+- Solid blue line: Traffic
+- Badge: Mounts badge
+- Amber badge: Identity badge

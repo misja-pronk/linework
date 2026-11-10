@@ -395,7 +395,7 @@ describe('scanRepo', () => {
     const first = scanRepo(files, { name: 'shop' });
     const services = first.diagrams.find((d) => d.kind === 'compose')!;
     const edited = services.yaml
-      .replace('  web: { kind: client,', '  web: { kind: client, label: Storefront,')
+      .replace('  web: { kind: client, label: web,', '  web: { kind: client, label: Storefront,')
       .replace('\nedges:\n', '  stripe: { kind: payments, label: Stripe }\n\nedges:\n  - payments -> stripe: charge\n')
       .replace('  redis:', '  # the cache\n  redis:');
     const compose = files.find((f) => f.path === 'compose.yaml')!;

@@ -9,17 +9,17 @@ groups:
   net-backend: { kind: zone, label: backend (internal), tags: [imported] }
 
 nodes:
-  gateway: { kind: gateway, caption: nginx 1.27, tags: [imported] }
-  web: { kind: client, caption: Node.js 20, in: net-frontend, tags: [imported] }
-  orders: { kind: service, caption: Go 1.22, in: net-backend, tags: [imported] }
-  payments: { kind: service, caption: Python 3.12, in: net-backend, tags: [imported] }
-  worker: { kind: worker, caption: Python 3.12, in: net-backend, tags: [imported] }
-  postgres: { kind: database, caption: PostgreSQL 16, in: net-backend, badges: [pgdata], tags: [imported] }
-  redis: { kind: cache, caption: Redis 7, in: net-backend, tags: [imported] }
-  rabbitmq: { kind: queue, caption: RabbitMQ 3.13, in: net-backend, badges: [mqdata], tags: [imported] }
-  keycloak: { kind: identity, caption: Keycloak 25.0, tags: [imported] }
-  mailpit: { kind: email, caption: Mailpit, in: net-backend, badges: [profile dev], tags: [imported] }
-  otel: { kind: monitoring, caption: OpenTelemetry Collector 0.104, in: net-backend, badges: [profile monitoring], tags: [imported] }
+  gateway: { kind: gateway, label: gateway, caption: nginx 1.27, tags: [imported] }
+  web: { kind: client, label: web, caption: Node.js 20, in: net-frontend, tags: [imported] }
+  orders: { kind: service, label: orders, caption: Go 1.22, in: net-backend, tags: [imported] }
+  payments: { kind: service, label: payments, caption: Python 3.12, in: net-backend, tags: [imported] }
+  worker: { kind: worker, label: worker, caption: Python 3.12, in: net-backend, tags: [imported] }
+  postgres: { kind: database, label: postgres, caption: PostgreSQL 16, in: net-backend, badges: [pgdata], tags: [imported] }
+  redis: { kind: cache, label: redis, caption: Redis 7, in: net-backend, tags: [imported] }
+  rabbitmq: { kind: queue, label: rabbitmq, caption: RabbitMQ 3.13, in: net-backend, badges: [mqdata], tags: [imported] }
+  keycloak: { kind: identity, label: keycloak, caption: Keycloak 25.0, tags: [imported] }
+  mailpit: { kind: email, label: mailpit, caption: Mailpit, in: net-backend, badges: [profile dev], tags: [imported] }
+  otel: { kind: monitoring, label: otel, caption: OpenTelemetry Collector 0.104, in: net-backend, badges: [profile monitoring], tags: [imported] }
   outside: { kind: users, label: Outside, caption: published ports, tags: [imported] }
 
 edges:
