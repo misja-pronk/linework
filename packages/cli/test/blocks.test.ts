@@ -56,7 +56,7 @@ describe('carto blocks', () => {
   });
 
   it('inserts it into a file and a group, ids made unique, and refuses a bad parameter', () => {
-    const bad = carto('blocks', 'insert', 'shop-stack', 'into', 'shop.yaml', '--param', 'name=my shop');
+    const bad = carto('blocks', 'insert', 'azure-hub', 'into', 'shop.yaml', '--param', 'name=my shop');
     expect(bad.code).toBe(1);
     expect(bad.err).toContain('--param name: Part of an id');
     const r = carto('blocks', 'insert', 'azure-app-stack', 'into', 'shop.yaml', '--into', 'sub', '--param', 'name=shop');
