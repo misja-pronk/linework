@@ -56,6 +56,13 @@ const helpAll = `carto — architecture diagrams that look good
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--page fit|a4|a3]                   page size (pdf, default fit)
+  carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
+               [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
+               [--layers | --walk "a -> b -> c"]    the caption as a lower third; --layers walks its layers
+               [--hold 2.5] [--transition 0.5]      (the rest faded in place), --walk a route hop by hop;
+               [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
+               [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
+               [--no-captions]                      and the frames as PNG). More: docs/animate.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
@@ -184,6 +191,7 @@ const groups: [string, [string, string][]][] = [
   ['Draw', [
     ['render', 'a diagram to SVG, PNG, PowerPoint or PDF'],
     ['deck', 'several diagrams in one deck'],
+    ['animate', 'steps or layers as a GIF, MP4 or WebM'],
     ['watch', 'render again on every save'],
     ['embed', 'a web page that carries the drawing'],
     ['export-html', 'one HTML file to send, every view inside'],
@@ -261,6 +269,15 @@ const parsed = (() => {
     'all-views': { type: 'boolean' },
     layer: { type: 'string', multiple: true },
     'all-layers': { type: 'boolean' },
+    layers: { type: 'boolean' },
+    walk: { type: 'string' },
+    hold: { type: 'string' },
+    transition: { type: 'string' },
+    'no-transitions': { type: 'boolean' },
+    'draw-lines': { type: 'boolean' },
+    fps: { type: 'string' },
+    size: { type: 'string' },
+    'no-captions': { type: 'boolean' },
     dim: { type: 'boolean' },
     stable: { type: 'boolean' },
     drift: { type: 'boolean' },
@@ -665,6 +682,47 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   }
   if (values.stable) noteLayout(file, runs);
   return ok;
+}
+
+/** carto animate: one diagram's steps, layers or a walk as a GIF, MP4 or WebM. */
+async function animateFile(file: string): Promise<boolean> {
+  const { animate, sizeFlag } = await import('./animate.ts');
+  const num = (name: string, v: string | undefined, min: number, max: number) => {
+    if (v == null) return undefined;
+    const n = Number(v);
+    if (!(n >= min && n <= max)) throw new UsageError(`--${name} is a number from ${min} to ${max}, not "${v}"`);
+    return n;
+  };
+  const warn = (s: string) => console.error(`${file}  ${yellow('warning')}  ${s}`);
+  const opts = optionsFor(file, 'none');
+  let width: number | undefined;
+  try {
+    width = sizeFlag(values.size, warn);
+  } catch (e) {
+    throw new UsageError((e as Error).message);
+  }
+  return animate(
+    fs.readFileSync(file, 'utf8'),
+    opts,
+    {
+      out: values.out!,
+      layers: values.layers,
+      walk: values.walk,
+      hold: num('hold', values.hold, 0.2, 60),
+      transition: values['no-transitions'] ? 0 : num('transition', values.transition, 0, 5),
+      fps: num('fps', values.fps, 5, 60),
+      width,
+      drawLines: values['draw-lines'],
+      captions: !values['no-captions'],
+    },
+    file,
+    {
+      info: (s) => console.log(s),
+      warn,
+      error: (s) => console.error(`${file}  ${red('error')}  ${s}`),
+      diagnostics: (r) => report(file, r.diagnostics),
+    },
+  );
 }
 
 /** carto validate <folder>: what only shows across files (a ref: to nothing, one id two kinds, elements no view shows). */
@@ -1625,6 +1683,10 @@ async function main(): Promise<number> {
     case 'deck':
       if (!files.length) return (console.error(helpFor(command)), 1);
       return (await deck()) ? 0 : 1;
+    case 'animate':
+      if (files.length !== 1 || !values.out) return (console.error(files.length > 1 ? 'carto animate takes one diagram' : helpFor(command)), 1);
+      if (!themeFlag()) return 1;
+      return (await animateFile(files[0]!)) ? 0 : 1;
     case 'watch': {
       if (!themeFlag()) return 1;
       for (const f of files) {
