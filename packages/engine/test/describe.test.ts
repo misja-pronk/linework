@@ -48,6 +48,12 @@ group('the text alternative in the SVG', () => {
     expect(step.svg).toContain('Checkout without waiting, step 3 of 7: Then checkout waits for Finance</title>');
   });
 
+  it('is the same for the drawing as written and the type view it is written for', async () => {
+    const text = fs.readFileSync(path.join(root, 'journey/first-deploy.yaml'), 'utf8');
+    const load = (rel: string) => fs.readFileSync(path.resolve(root, 'journey', rel), 'utf8');
+    expect((await render(text, { fonts: 'none', load, view: 'map' })).svg).toBe((await render(text, { fonts: 'none', load })).svg);
+  });
+
   it('is left to the editor and viewers in an interactive drawing', async () => {
     const r = await render('type: systems\nnodes: { a: service }\n', { fonts: 'none', interactive: true });
     expect(r.svg).not.toContain('role="img"');

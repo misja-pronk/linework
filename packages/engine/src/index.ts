@@ -426,9 +426,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView }));
   // A drawing that leaves the editor carries its text alternative (see docs/describe.md): screen readers
-  // read it wherever the file goes. The editor and the viewers draw their own, beside the drawing.
+  // read it wherever the file goes. The type's own view the file is written for says what the drawing as
+  // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
-    const said = describe({ graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? ownView, name: opts.file });
+    const said = describe({ graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, step ${step} of ${steps.length}${at.title ? `: ${at.title}` : ''}` : said.title;
     const desc = toText(said, { title: false }).trim();
