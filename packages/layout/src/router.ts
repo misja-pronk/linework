@@ -31,6 +31,15 @@ export interface RouteRequest {
   style?: string;
   /** Bends set by hand: the line runs through them in order (corners added where needed), not searched for. */
   via?: Point[];
+  /** The groups holding either end, all the way up (an end that is a group counts itself): the line is at home there. */
+  home?: string[];
+}
+
+/** A group as the router sees it: where it lies and what it lies in. */
+export interface RouteGroup {
+  id: string;
+  box: Box;
+  parent?: string;
 }
 
 export interface RouterInput {
@@ -43,6 +52,10 @@ export interface RouterInput {
   labelZones?: Box[];
   /** Text lines must never cross (group header titles): ports slide clear, the search pays dearly. */
   texts?: Box[];
+  /** Groups: a line pays for running through one that holds neither of its ends, most in its header. */
+  groups?: RouteGroup[];
+  /** Height of the header strip at the top of each group. */
+  header?: number;
   direction: 'right' | 'down';
   edges: RouteRequest[];
   /** Spread lines sharing a corridor after routing (see nudge.ts); on unless false. */
@@ -61,12 +74,17 @@ const PASSES = 3;
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
 const FLOW = 150; // per end on a side across the flow, for a line into a later layer
 const TEXT = 60; // per pixel through header text: a detour of almost any length is cheaper
+const FOREIGN = 1; // per pixel inside a group that holds neither end, for each such group around the line
+const HEADER = 6; // per pixel more in the header strip of such a group
+const ALONG = 3; // per pixel of running along the header strip of a group the line belongs in
+const OUTSIDE = 10; // a track this far outside each group border, to go around the group
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
 export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
-  const sides = chooseSides(input);
+  const strange = strangers(input);
+  const sides = chooseSides(input, strange);
   const trunk = input.trunks === false ? new Map<string, string>() : trunkGroups(input, sides);
   const ports = placePorts(input, sides, trunk);
   // Lines bent by hand lie where they were put. They go on the grid first (their corners are grid
@@ -98,7 +116,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
         // Siblings' lines are cheap to run on, so the lines merge into one trunk.
         const friends = (members.get(trunk.get(e.id) ?? '') ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c);
         for (const c of friends) mark(grid, c, 1, true);
-        const found = search(grid, p);
+        const found = search(grid, p, strange(e));
         for (const c of friends) mark(grid, c, -1, true);
         if (found) {
           mark(grid, found.cells, 1);
@@ -174,7 +192,7 @@ const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2
  * the other end) on an empty grid and keeping the cheapest. The layout direction gets a small
  * preference, so most lines still run left to right.
  */
-function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
+function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined): Map<string, [Side, Side]> {
   const out = new Map<string, [Side, Side]>();
   const options = new Map<string, [Side, Side][]>();
   for (const e of input.edges) options.set(e.id, candidates(e));
@@ -198,13 +216,15 @@ function chooseSides(input: RouterInput): Map<string, [Side, Side]> {
     }
     let best = list[0]!;
     let bestCost = Infinity;
+    // Into a later layer (the other end wholly further along the flow), a line leaves and enters
+    // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
+    const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
     for (const pair of list) {
-      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!);
+      const sideways = pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25);
+      // Only a way cheaper than the best so far is worth finding.
+      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), bestCost - sideways);
       if (!found) continue;
-      // Into a later layer (the other end wholly further along the flow), a line leaves and enters
-      // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
-      const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
-      const cost = found.cost + pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25);
+      const cost = found.cost + sideways;
       if (cost < bestCost) [best, bestCost] = [pair, cost];
     }
     out.set(e.id, best);
@@ -248,10 +268,13 @@ function centrePorts(e: RouteRequest, f: Side, t: Side, texts: Box[] = []): Port
   const at = (r: RouteEnd, side: Side): Point => {
     const b = r.box;
     if (r.rowY != null) return { x: side === 'E' ? b.x + b.width : b.x, y: b.y + r.rowY };
-    return side === 'E' ? { x: b.x + b.width, y: b.y + b.height / 2 }
-      : side === 'W' ? { x: b.x, y: b.y + b.height / 2 }
-      : side === 'N' ? { x: b.x + b.width / 2, y: b.y }
-      : { x: b.x + b.width / 2, y: b.y + b.height };
+    // The middle of the part of the side a line can leave straight from (clear of header text): where its port will be.
+    const [lo, hi] = clearSpan(b, side, texts, 1, reachTo(b, side, (r === e.from ? e.to : e.from).box));
+    const mid = (lo + hi) / 2;
+    return side === 'E' ? { x: b.x + b.width, y: mid }
+      : side === 'W' ? { x: b.x, y: mid }
+      : side === 'N' ? { x: mid, y: b.y }
+      : { x: mid, y: b.y + b.height };
   };
   const from = e.from.rowY != null ? at(e.from, f) : clearOfText(at(e.from, f), f, e.from, texts);
   const to = e.to.rowY != null ? at(e.to, t) : clearOfText(at(e.to, t), t, e.to, texts);
@@ -267,14 +290,14 @@ const REACH = 72;
  * run straight out for REACH without crossing header text, when `n` ports fit there 12px apart;
  * otherwise the whole side.
  */
-function clearSpan(box: Box, side: Side, texts: Box[], n: number): [number, number] {
+function clearSpan(box: Box, side: Side, texts: Box[], n: number, reach = REACH): [number, number] {
   const along = side === 'N' || side === 'S' ? 'x' : 'y';
   const lo = along === 'x' ? box.x + 12 : box.y + 12;
   const hi = along === 'x' ? box.x + box.width - 12 : box.y + box.height - 12;
   if (!texts.length) return [lo, hi];
   const nrm = normal[side];
   const p = side === 'N' ? box.y : side === 'S' ? box.y + box.height : side === 'W' ? box.x : box.x + box.width;
-  const q = p + (along === 'x' ? nrm.y : nrm.x) * REACH;
+  const q = p + (along === 'x' ? nrm.y : nrm.x) * reach;
   const [s0, s1] = [Math.min(p, q), Math.max(p, q)];
   const blocked: [number, number][] = [];
   for (const t of texts) {
@@ -290,6 +313,12 @@ function clearSpan(box: Box, side: Side, texts: Box[], n: number): [number, numb
     at = Math.max(at, b);
   }
   return best && best[1] - best[0] >= 12 * (n - 1) ? best : [lo, hi];
+}
+
+/** How far a line runs straight out from a side: REACH, or as far as the other end when that lies nearer (a group right below, whose title the line never gets to). */
+function reachTo(box: Box, side: Side, other: Box): number {
+  const gap = side === 'N' ? box.y - (other.y + other.height) : side === 'S' ? other.y - (box.y + box.height) : side === 'W' ? box.x - (other.x + other.width) : other.x - (box.x + box.width);
+  return gap > 0 ? Math.min(REACH, gap) : REACH;
 }
 
 /**
@@ -371,7 +400,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const angle = (o: Point) => Math.atan2(along ? o.y - c.y : o.x - c.x, Math.max(1, (o.x - c.x) * n.x + (o.y - c.y) * n.y));
     list.sort((p, q) => angle(p.other) - angle(q.other));
     // Spread over the part of the side clear of header text when the ports fit there.
-    const [lo, hi] = clearSpan(box, side, texts, list.length);
+    const [lo, hi] = clearSpan(box, side, texts, list.length, Math.max(...list.map((s) => reachTo(box, side, s.edge[s.end === 'from' ? 'to' : 'from'].box))));
     const length = hi - lo + 24;
     const room = length - 24;
     const step = Math.min(28, room / Math.max(1, list.length));
@@ -399,7 +428,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const isShared = (end: 'from' | 'to') => shared.has(`${e.id}:${end}`) || [...shared.values()].includes(`${e.id}:${end}`);
     const fixed = (end: 'from' | 'to', side: Side) =>
       e[end].rowY != null ? e[end].box.y + e[end].rowY! : count(e[end].node, side) > 1 || isShared(end) ? pos.get(`${e.id}:${end}`)![along] : undefined;
-    const range = (r: RouteEnd) => clearSpan(r.box, r === e.from ? sf : st, texts, 1);
+    const range = (r: RouteEnd) => clearSpan(r.box, r === e.from ? sf : st, texts, 1, reachTo(r.box, r === e.from ? sf : st, (r === e.from ? e.to : e.from).box));
     const ff = fixed('from', sf);
     const tf = fixed('to', st);
     const set = (end: 'from' | 'to', v: number) => {
@@ -458,6 +487,11 @@ interface Grid {
   vBlocked: Uint8Array;
   hSoft: Float32Array;
   vSoft: Float32Array;
+  /** The innermost group around each grid edge: 0 none, 2i+1 inside group i, 2i+2 in its header strip; and how much of the edge lies there. */
+  hZone: Uint16Array;
+  vZone: Uint16Array;
+  hZoneLen: Float32Array;
+  vZoneLen: Float32Array;
   hUsed: Uint16Array;
   vUsed: Uint16Array;
   /** Usage by siblings of the line being routed (a subset of hUsed/vUsed). */
@@ -499,6 +533,18 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
   };
   addChannels(xset);
   addChannels(yset);
+  // A track just outside each group, so a line that does not belong in it has a way around; only
+  // where no track runs close by already.
+  const track = (set: Set<number>, v: number) => {
+    for (const w of set) if (Math.abs(w - v) < LANE) return;
+    set.add(v);
+  };
+  for (const { box: b } of input.groups ?? []) {
+    track(xset, b.x - OUTSIDE);
+    track(xset, b.x + b.width + OUTSIDE);
+    track(yset, b.y - OUTSIDE);
+    track(yset, b.y + b.height + OUTSIDE);
+  }
   const xs = [...xset].sort((a, b) => a - b);
   const ys = [...yset].sort((a, b) => a - b);
   const W = xs.length;
@@ -515,6 +561,10 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
     vBlocked: new Uint8Array(n),
     hSoft: new Float32Array(n),
     vSoft: new Float32Array(n),
+    hZone: new Uint16Array(n),
+    vZone: new Uint16Array(n),
+    hZoneLen: new Float32Array(n),
+    vZoneLen: new Float32Array(n),
     hUsed: new Uint16Array(n),
     vUsed: new Uint16Array(n),
     hFriend: new Uint16Array(n),
@@ -553,7 +603,67 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
       for (let y = Math.max(0, lowerBound(ys, r.y) - 1); y < H - 1 && ys[y]! < ry1; y++)
         g.vSoft[y * W + x] = g.vSoft[y * W + x]! + cost * Math.max(0, Math.min(ys[y + 1]!, ry1) - Math.max(ys[y]!, r.y));
   }
+  // Which group each grid edge lies in, by its middle: the biggest groups first, so the innermost stays.
+  const groups = input.groups ?? [];
+  const head = input.header ?? 0;
+  const overlap = (a0: number, a1: number, b0: number, b1: number) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+  for (const i of groups.map((_, k) => k).sort((a, b) => groups[b]!.box.width * groups[b]!.box.height - groups[a]!.box.width * groups[a]!.box.height)) {
+    const b = groups[i]!.box;
+    const [x1, y1, yh] = [b.x + b.width, b.y + b.height, b.y + head];
+    for (let y = lowerBound(ys, b.y); y < H && ys[y]! <= y1; y++)
+      for (let x = Math.max(0, lowerBound(xs, b.x) - 1); x < W - 1 && xs[x]! < x1; x++) {
+        const mid = (xs[x]! + xs[x + 1]!) / 2;
+        if (mid <= b.x || mid >= x1) continue;
+        g.hZone[y * W + x] = ys[y]! < yh ? 2 * i + 2 : 2 * i + 1;
+        g.hZoneLen[y * W + x] = overlap(xs[x]!, xs[x + 1]!, b.x, x1);
+      }
+    for (let x = lowerBound(xs, b.x); x < W && xs[x]! <= x1; x++)
+      for (let y = Math.max(0, lowerBound(ys, b.y) - 1); y < H - 1 && ys[y]! < y1; y++) {
+        const mid = (ys[y]! + ys[y + 1]!) / 2;
+        if (mid <= b.y || mid >= y1) continue;
+        const inHead = mid < yh;
+        g.vZone[y * W + x] = inHead ? 2 * i + 2 : 2 * i + 1;
+        g.vZoneLen[y * W + x] = inHead ? overlap(ys[y]!, ys[y + 1]!, b.y, yh) : overlap(ys[y]!, ys[y + 1]!, yh, y1);
+      }
+  }
   return g;
+}
+
+/** What a line pays per pixel in each zone of the grid (see Grid.hZone), running across and running down. */
+interface ZoneCost {
+  h: Float32Array;
+  v: Float32Array;
+}
+
+/**
+ * The price list of each line for the groups it runs through. A group holding neither end costs
+ * per pixel, once for each such group around the line (a subnet in another zone costs more than
+ * that zone alone), and much more in its header strip. In the header of a group the line belongs
+ * in, crossing is free and running along it costs: a line there reads as striking the title out.
+ */
+function strangers(input: RouterInput): (e: RouteRequest) => ZoneCost | undefined {
+  const groups = input.groups ?? [];
+  if (!groups.length) return () => undefined;
+  const index = new Map(groups.map((g, i) => [g.id, i]));
+  const lists = new Map<string, ZoneCost>();
+  return (e) => {
+    const key = (e.home ?? []).join('|');
+    let z = lists.get(key);
+    if (!z) {
+      const home = new Set(e.home ?? []);
+      z = { h: new Float32Array(2 * groups.length + 1), v: new Float32Array(2 * groups.length + 1) };
+      groups.forEach((g, i) => {
+        let away = 0;
+        for (let k: number | undefined = i, n = 0; k != null && n < 64; k = index.get(groups[k]!.parent ?? ''), n++) if (!home.has(groups[k]!.id)) away++;
+        const mine = home.has(g.id);
+        z!.h[2 * i + 1] = z!.v[2 * i + 1] = FOREIGN * away;
+        z!.h[2 * i + 2] = FOREIGN * away + (mine ? ALONG : HEADER);
+        z!.v[2 * i + 2] = FOREIGN * away + (mine ? 0 : HEADER);
+      });
+      lists.set(key, z);
+    }
+    return z;
+  };
 }
 
 /** First index whose value is >= v. */
@@ -610,7 +720,7 @@ interface Found {
   cost: number;
 }
 
-function search(g: Grid, p: Ports): Found | undefined {
+function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found | undefined {
   const { xs, ys, W, H } = g;
   const sx = g.xi.get(p.start.x);
   const sy = g.yi.get(p.start.y);
@@ -645,6 +755,8 @@ function search(g: Grid, p: Ports): Found | undefined {
     // may turn right after leaving one: a port under header text is then reached from the side.
     if (x === gx && y === gy && d !== ((goalDir + 2) & 3)) return unwind(g, k, p, cost[k]!);
     const base = cost[k]!;
+    // Nothing still to come is cheaper than this: a caller that knows a better way already has its answer.
+    if (base + Math.abs(xs[x]! - tx) + Math.abs(ys[y]! - ty) >= limit) return undefined;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === ((d + 2) & 3)) continue; // no U-turns
       const nx: number = x + DX[nd]!;
@@ -657,6 +769,7 @@ function search(g: Grid, p: Ports): Found | undefined {
         const len = Math.abs(xs[nx]! - xs[x]!);
         const f = g.hFriend[e]!;
         c += (f ? len * SHARE : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f);
+        if (strange) c += g.hZoneLen[e]! * strange.h[g.hZone[e]!]!;
         // Crossing a vertical line that runs straight through the point we step onto.
         if (ny > 0 && ny < H - 1 && g.vUsed[(ny - 1) * W + nx]! && g.vUsed[ny * W + nx]!) c += CROSS;
       } else {
@@ -665,6 +778,7 @@ function search(g: Grid, p: Ports): Found | undefined {
         const len = Math.abs(ys[ny]! - ys[y]!);
         const f = g.vFriend[e]!;
         c += (f ? len * SHARE : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f);
+        if (strange) c += g.vZoneLen[e]! * strange.v[g.vZone[e]!]!;
         if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! && g.hUsed[ny * W + nx]!) c += CROSS;
       }
       // Arriving at the goal in the wrong heading costs a bend.

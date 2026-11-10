@@ -165,7 +165,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     if (kept) {
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const sc = score(measure(graph, placed, sized.groupHeader));
+      const sc = score(measure(graph, placed, sized.groupHeader, sized.groupMinWidth));
       const cost = sc + moveCost(kept, prev);
       // Only when it differs: a fresh placement that is exactly the previous one is not "held".
       if (cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
@@ -193,7 +193,8 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   const placed = squeezed ? squeeze(asked, sized, spacing) : asked;
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
-    const start = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+    const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
+    const start = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
     // A label that cannot sit clear of a group border gets room: space is opened just before that
     // border and the lines are drawn again.
     type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
@@ -208,7 +209,7 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
       });
       if (ends.length < 2) return ends[0]!;
       const worth = (e: Drawn) => {
-        const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader);
+        const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader, sized.groupMinWidth);
         return m.crossings * 1000 + score(m);
       };
       return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
@@ -225,12 +226,12 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
     for (const a of aligns) {
       let drawn = finish(base, a);
       const key = `${graph.direction}/${name}/${c ? 'c' : ''}${a ? 'a' : ''}${c || a ? '' : '-'}`;
-      let m = measure(graph, drawn.placed, sized.groupHeader);
+      let m = measure(graph, drawn.placed, sized.groupHeader, sized.groupMinWidth);
       // Closing the gaps can leave two labels of one fan without room beside each other: then the
       // same drawing with dot's own gaps is the better one.
       if (squeezed && m.labelOverlaps > 0) {
         const wide = finish(c ? packed(asked) : asked, a);
-        const wm = measure(graph, wide.placed, sized.groupHeader);
+        const wm = measure(graph, wide.placed, sized.groupHeader, sized.groupMinWidth);
         if (score(wm) < score(m)) [drawn, m] = [wide, wm];
       }
       const sc = score(m);
@@ -252,12 +253,20 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     const rowY = ep.row ? sized.nodes.get(ep.node)?.rowY?.[ep.row] : undefined;
     return { node: ep.node, box, rowY, stub: stubFor(marker) };
   };
+  // The groups around each end, all the way up: a line is at home in those and a stranger in the rest.
+  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
+  const home = (...ends: string[]) => {
+    const out = new Set<string>();
+    for (const id of ends) for (let g = groupParent.has(id) ? id : nodeParent.get(id); g && !out.has(g); g = groupParent.get(g)) out.add(g);
+    return [...out].sort();
+  };
   const edges: RouteRequest[] = [];
   for (const e of graph.edges) {
     const from = end(e.from, e.start);
     const to = end(e.to, e.end);
     // Dotted lines (lookups, management) route last, so the main flow gets the best paths.
-    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id) });
+    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
   }
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);
@@ -281,9 +290,49 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     const w = sized.groupMinWidth.get(g.id);
     if (!b || w == null) return [];
     // As drawn (svg.ts): icon at x + 16, label and kind after it, centred 22px below the top.
-    return [{ x: b.x + 12, y: b.y + 13, width: Math.min(b.width, w) - 32, height: 18 }];
+    return [titleBox(b, w)];
   });
-  return routeEdges({ obstacles: p.nodes, soft, labelZones, texts, direction: graph.direction, edges });
+  const groups = graph.groups.flatMap((g) => (p.groups.has(g.id) ? [{ id: g.id, box: p.groups.get(g.id)!, parent: g.parent }] : []));
+  return routeEdges({ obstacles: p.nodes, soft, labelZones, texts, groups, header: sized.groupHeader, direction: graph.direction, edges });
+}
+
+/** Where a group's title is written, with a little air: `minWidth` is the title's width plus the room size.ts keeps around it. */
+function titleBox(b: Box, minWidth: number): Box {
+  return { x: b.x + 12, y: b.y + 13, width: Math.min(b.width, minWidth) - 52, height: 18 };
+}
+
+/**
+ * Top-down, lines come into a group's first row from above, right where the group's title is
+ * written. A card standing wholly under the title has no spot to drop a line into, so its lines
+ * would loop around the title. Such a card moves along, with everything from its middle on, until
+ * its top has room beside the title for the lines that come down into it: a chimney.
+ */
+function chimneys(p: Placement, sized: Sized): Placement {
+  const { graph } = sized;
+  const centreX = (b: Box) => b.x + b.width / 2;
+  for (let round = 0; round < graph.groups.length; round++) {
+    let cut: Cut | undefined;
+    for (const n of graph.nodes) {
+      const b = p.nodes.get(n.id);
+      const g = p.groups.get(n.parent ?? '');
+      const w = sized.groupMinWidth.get(n.parent ?? '');
+      if (!b || !g || w == null || b.y - g.y > sized.groupHeader + 4) continue;
+      // Lines that reach this card's top: the other end lies wholly above it.
+      const above = (id: string) => {
+        const o = p.nodes.get(id) ?? p.groups.get(id);
+        return !!o && o.y + o.height <= b.y;
+      };
+      const k = graph.edges.filter((e) => (e.to.node === n.id && above(e.from.node)) || (e.from.node === n.id && above(e.to.node))).length;
+      if (!k) continue;
+      const t = titleBox(g, w);
+      // Room for the ports 12px apart, the first one a little in from the corner.
+      const need = t.x + t.width + 8 + 12 * k - (b.x + b.width - 12);
+      if (need > 0 && (!cut || centreX(b) < cut.at)) cut = { axis: 'x', at: centreX(b) - 0.5, by: Math.ceil(need / 8) * 8, group: n.parent! };
+    }
+    if (!cut) break;
+    p = openSpace(p, cut, graph, centreX);
+  }
+  return p;
 }
 
 function borderBands(b: Box, t: number): Box[] {
@@ -339,9 +388,11 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
  * around it): a group that merely reaches past the cut, with nothing in it moved, stays as it was
  * instead of gaining an empty side.
  */
-function openSpace(p: Placement, c: Cut, graph: Sized['graph']): Placement {
+function openSpace(p: Placement, c: Cut, graph: Sized['graph'], nodeAt: (b: Box) => number = (b) => b[c.axis]): Placement {
   const size = c.axis === 'x' ? 'width' : 'height';
   const pushed = (b: Box | undefined) => !!b && b[c.axis] >= c.at;
+  // Nodes may be told apart by another point than their start (their middle: what is lined up stays lined up).
+  const pushedNode = (b: Box | undefined) => !!b && nodeAt(b) >= c.at;
   const move = (b: Box) => (pushed(b) ? { ...b, [c.axis]: b[c.axis] + c.by } : b);
   const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
   const grows = new Set<string>();
@@ -349,10 +400,10 @@ function openSpace(p: Placement, c: Cut, graph: Sized['graph']): Placement {
     for (let g = id; g && !grows.has(g); g = parent.get(g)) grows.add(g);
   };
   mark(c.group);
-  for (const n of graph.nodes) if (pushed(p.nodes.get(n.id))) mark(n.parent);
+  for (const n of graph.nodes) if (pushedNode(p.nodes.get(n.id))) mark(n.parent);
   for (const g of graph.groups) if (pushed(p.groups.get(g.id))) mark(g.parent);
   const grow = (id: string, b: Box) => (pushed(b) ? move(b) : b[c.axis] + b[size] > c.at && grows.has(id) ? { ...b, [size]: b[size] + c.by } : b);
-  const nodes = new Map([...p.nodes].map(([k, b]) => [k, move(b)]));
+  const nodes = new Map([...p.nodes].map(([k, b]) => [k, pushedNode(b) ? { ...b, [c.axis]: b[c.axis] + c.by } : b]));
   const groups = new Map([...p.groups].map(([k, b]) => [k, grow(k, b)]));
   return { nodes, groups, width: p.width + (c.axis === 'x' ? c.by : 0), height: p.height + (c.axis === 'y' ? c.by : 0) };
 }

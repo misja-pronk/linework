@@ -65,7 +65,11 @@ const JOG = 40;
 
 type Seg = [Point, Point];
 
-export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetrics {
+/**
+ * `titles` is the room each group's title takes (its least width, as layout got it); without it
+ * the title's extent is guessed from its text.
+ */
+export function measure(graph: Graph, placed: Placed, header = 44, titles?: Map<string, number>): LayoutMetrics {
   const segs = new Map<string, Seg[]>();
   for (const e of graph.edges) {
     const pts = placed.edges.get(e.id)?.points ?? [];
@@ -107,7 +111,7 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
   const widths = [...placed.nodes.values()].map((b) => b.width).sort((a, b) => a - b);
   const unit = widths[Math.floor(widths.length / 2)] ?? 1;
   const nodeArea = [...placed.nodes.values()].reduce((s, b) => s + b.width * b.height, 0);
-  const beauty = beautyMetrics(graph, placed, segs, header, unit);
+  const beauty = beautyMetrics(graph, placed, segs, header, unit, titles);
   return {
     ...beauty,
     crossings,
@@ -148,6 +152,8 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     m.tightPairs * 6 +
     m.uneven * 4 +
     m.borderHits * 25 +
+    m.headerHits * 10 +
+    m.foreign * 6 +
     m.portCrowding * 8
   );
 }
@@ -180,7 +186,7 @@ function siblings(a: GraphEdge, b: GraphEdge): boolean {
   return (a.from.node === b.from.node || a.to.node === b.to.node) && a.line === b.line && a.tone === b.tone;
 }
 
-function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, header: number, unit: number) {
+function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, header: number, unit: number, titles?: Map<string, number>) {
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const byId = new Map(graph.edges.map((e) => [e.id, e]));
 
@@ -297,12 +303,14 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
       { x: b.x + b.width - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
     ];
     for (const l of labels) if (overlaps(l, head) || bands.some((r) => overlaps(l, r))) borderHits++;
+    // Where the title ends: its least width less the air kept beside it, or about 7px a letter.
+    const end = titles?.has(g.id) ? titles.get(g.id)! - 40 : Math.min(212, 44 + 7 * (g.label.length + (g.caption?.length ?? 0)));
     for (const s of all) {
       const along = s.h ? [b.y, b.y + b.height].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.x + b.width) - Math.max(s.lo, b.x) > 12
         : [b.x, b.x + b.width].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.y + b.height) - Math.max(s.lo, b.y) > 12;
-      // Through the header text: the title is drawn 13 to 31px below the top, from 12px in, and is
-      // rarely wider than 200px (a line passing under it, in a top-down header's lane, is fine).
-      const [t0, t1, a0, a1] = s.h ? [b.x + 12, b.x + Math.min(b.width - 12, 212), b.y + 13, b.y + 31] : [b.y + 13, b.y + 31, b.x + 12, b.x + Math.min(b.width - 12, 212)];
+      // Through the header text: the title is drawn 13 to 31px below the top, from 12px in (a line
+      // passing under it, in a top-down header's lane, or beside it is fine).
+      const [t0, t1, a0, a1] = s.h ? [b.x + 12, b.x + Math.min(b.width - 12, end), b.y + 13, b.y + 31] : [b.y + 13, b.y + 31, b.x + 12, b.x + Math.min(b.width - 12, end)];
       const through = s.at > a0 && s.at < a1 && s.lo < t1 && s.hi > t0;
       if (along || through) borderHits++;
     }
