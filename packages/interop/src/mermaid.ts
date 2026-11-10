@@ -8,9 +8,11 @@
 //   gitflow       gitGraph
 //   journey       journey
 //   roadmap       gantt, or timeline when the roadmap names its periods instead of dates
-import type { FlowShape, GitCommit, GitflowShape, Graph, GraphNode, JourneyShape, Marker, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
+//   class         classDiagram, packages as namespaces
+//   mindmap       mindmap
+import type { BlockShape, FlowShape, GitCommit, GitflowShape, Graph, GraphNode, JourneyShape, Marker, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
 
-export type MermaidKind = 'flowchart' | 'stateDiagram-v2' | 'erDiagram' | 'sequenceDiagram' | 'gitGraph' | 'journey' | 'gantt' | 'timeline';
+export type MermaidKind = 'flowchart' | 'stateDiagram-v2' | 'erDiagram' | 'sequenceDiagram' | 'gitGraph' | 'journey' | 'gantt' | 'timeline' | 'classDiagram' | 'mindmap';
 
 export interface MermaidExport {
   kind: MermaidKind;
@@ -104,6 +106,8 @@ export function toMermaid(d: { graph?: Graph; type?: { id: string } }): MermaidE
     if (s.kind === 'roadmap') return s.scale === 0 ? done('timeline', timeline(s, g.title, sub, notes)) : done('gantt', gantt(s, g.title, sub, notes));
   }
   if (d.type?.id === 'erd') return done('erDiagram', [...front(g.title), ...er(g, sub, notes)]);
+  if (d.type?.id === 'class') return done('classDiagram', [...front(g.title), ...classes(g, sub, notes)]);
+  if (d.type?.id === 'mindmap') return done('mindmap', [...front(g.title), ...mindmap(g, sub, notes)]);
   if (d.type?.id === 'states') return done('stateDiagram-v2', [...front(g.title), ...states(g, sub, notes)]);
   return done('flowchart', [...front(g.title), ...flowchart(g, sub, notes)]);
 }
@@ -294,6 +298,76 @@ function er(g: Graph, sub: string[], notes: Notes): string[] {
     const to = names.of(e.to.node);
     out.push(`  ${from} ${LEFT[e.start]}${e.line === 'solid' ? '--' : '..'}${RIGHT[e.end]} ${to} : ${quoted(e.label ?? '')}`);
   }
+  return out;
+}
+
+// A UML end as Mermaid writes it at the left and at the right of a relation.
+const UML_LEFT: Partial<Record<Marker, string>> = { triangle: '<|', filledDiamond: '*', diamond: 'o', open: '<', arrow: '<' };
+const UML_RIGHT: Partial<Record<Marker, string>> = { triangle: '|>', filledDiamond: '*', diamond: 'o', open: '>', arrow: '>' };
+/** A multiplicity rather than a role name: 1, 0..*, *, many. */
+const MULT = /^([\d*n]+(\.\.[\d*n]+)?|many)$/;
+
+function classes(g: Graph, sub: string[], notes: Notes): string[] {
+  const out = ['classDiagram', ...sub];
+  if (g.direction === 'right') out.push('  direction LR');
+  const names = new Names(['class', 'namespace', 'note', 'direction', 'end']);
+  const boxes = g.nodes.filter((n): n is typeof n & { shape: TableShape } => n.shape.kind === 'table');
+  const write = (n: (typeof boxes)[number], indent: string) => {
+    const s = n.shape;
+    const generic = /<(.+)>$/.exec(s.title)?.[1];
+    const id = names.of(n.id);
+    const label = s.title.replace(/<.+>$/, '');
+    out.push(`${indent}class ${id}${generic ? `~${generic.replace(/[<>]/g, '~')}~` : ''}${label !== n.id ? `["${label.replace(/"/g, "'")}"]` : ''} {`);
+    for (const st of s.caption?.match(/«([^»]+)»/g) ?? []) out.push(`${indent}  <<${st.slice(1, -1)}>>`);
+    for (const r of s.rows) {
+      if (r.kind !== 'row') continue;
+      const [name, type] = r.cells;
+      const text = (name?.text ?? '').replace(/</g, '~').replace(/>/g, '~');
+      const flag = name?.underline ? '$' : name?.italic ? '*' : '';
+      const t = (type?.text ?? '').replace(/</g, '~').replace(/>/g, '~');
+      // A method's result after its brackets, an attribute as "name: Type".
+      out.push(`${indent}  ${r.sign ?? ''}${text.endsWith(')') ? `${text}${flag}${t ? ` ${t}` : ''}` : `${text}${t ? `: ${t}` : ''}${flag}`}`);
+    }
+    out.push(`${indent}}`);
+  };
+  // Mermaid's namespaces do not nest: a package inside another is written at the top.
+  for (const p of g.groups) {
+    const inside = boxes.filter((n) => n.parent === p.id);
+    if (!inside.length) continue;
+    out.push(`  namespace ${names.of(p.id)} {`);
+    for (const n of inside) write(n, '    ');
+    out.push('  }');
+  }
+  if (g.groups.some((p) => p.parent)) notes.once('Packages inside packages are written side by side: Mermaid namespaces do not nest');
+  for (const n of boxes) if (!n.parent || !g.groups.some((p) => p.id === n.parent)) write(n, '  ');
+  const known = new Set(boxes.map((n) => n.id));
+  for (const e of g.edges) {
+    if (!known.has(e.from.node) || !known.has(e.to.node)) continue;
+    const mult = (tags?: string[]) => tags?.find((t) => MULT.test(t));
+    const [a, b] = [mult(e.ends?.from), mult(e.ends?.to)];
+    if ([...(e.ends?.from ?? []), ...(e.ends?.to ?? [])].some((t) => !MULT.test(t))) notes.once('Role names at the ends of a relation are not written: Mermaid has room for multiplicities only');
+    const arrow = `${UML_LEFT[e.start] ?? ''}${e.line === 'solid' ? '--' : '..'}${UML_RIGHT[e.end] ?? ''}`;
+    out.push(`  ${names.of(e.from.node)}${a ? ` "${a}"` : ''} ${arrow}${b ? ` "${b}"` : ''} ${names.of(e.to.node)}${e.label ? ` : ${lineText(e.label)}` : ''}`);
+  }
+  return out;
+}
+
+/** A mind map from its centre out, one indent per level; Mermaid draws its own colours. */
+function mindmap(g: Graph, sub: string[], notes: Notes): string[] {
+  const out = ['mindmap', ...sub];
+  const shape = (id: string) => g.nodes.find((n) => n.id === id)?.shape as BlockShape | undefined;
+  const centre = g.nodes.find((n) => n.shape.kind === 'block' && n.shape.level === 0);
+  if (!centre) return out;
+  // Brackets would be read as a node's shape.
+  const text = (s: string) => s.replace(/[()[\]{}]/g, ' ').replace(/\s+/g, ' ').trim() || '-';
+  const walk = (id: string, indent: string) => {
+    const s = shape(id);
+    if (!s) return;
+    out.push(`${indent}${id === centre.id ? `root((${text(s.label)}))` : text(s.label)}`);
+    if (s.caption || s.icon) notes.once('Notes and icons on topics are not written');
+    for (const e of g.edges) if (e.from.node === id) walk(e.to.node, `${indent}  `);
+  };
+  walk(centre.id, '  ');
   return out;
 }
 
