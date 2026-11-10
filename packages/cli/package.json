@@ -25,7 +25,8 @@
     "fontkit": "^2.0.4",
     "wawoff2": "^2.0.1",
     "yaml": "^2.9.1",
-    "@cartography/diff": "workspace:*"
+    "@cartography/diff": "workspace:*",
+    "@cartography/wizards": "workspace:*"
   },
   "bin": {
     "carto": "./src/main.ts"

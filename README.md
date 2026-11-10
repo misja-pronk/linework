@@ -54,6 +54,8 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 **Share a diagram as a link**: *Copy share link* (or `carto share shop.yaml`) puts the diagram itself in the link's `#fragment`, which never reaches a server; the link opens a read-only viewer with zoom, present and export, and *Open in editor* makes it the reader's own. See [docs/share.md](docs/share.md).
 
+**Wizards**: answer a few questions and get a finished diagram after a vendor's reference architecture: an Azure landing zone (CAF), the AKS baseline, hub and spoke, an AWS three-tier app or multi-account landing zone, a data mesh, a C4 starter, a Git strategy, a Team Topologies setup. No AI needed; the drawing grows as you answer in the start dialog, or `carto new --wizard azure-landing-zone` asks in the terminal. See [docs/wizards.md](docs/wizards.md).
+
 **Steps and presenting**: `steps:` tells a drawing in parts (`- customer -> web -> api: The order comes in`), with what is shown, what stands out and the sentence you say. Press `P` to present it full screen, or export it: one slide per step in PowerPoint, one page per step in PDF, with every shape in the same place. See [docs/steps.md](docs/steps.md).
 
 CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML; `carto import shop.d2` and `carto import flow.puml` do the same for D2 (boxes, sql_tables, sequence diagrams) and PlantUML (sequence, component, deployment, C4-PlantUML, state, activity, entity). A kind guessed from the words (`Orders DB` is a database) gives the icon; its name is not added as a caption the source never had (`caption: ""`). Also imported: Structurizr DSL, Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history, ODPS and ODCS files, Azure / Entra ID access exports (az, Graph, AzureHound), Azure resources (Resource Graph, ARM / Bicep, azurerm Terraform) and GitHub organisations (`gh api`).
@@ -79,6 +81,7 @@ mise install            # Node 24 + pnpm (or bring your own)
 pnpm install
 pnpm carto types                                  # which type for what (add words to rank them)
 pnpm carto new azure my-infra.yaml                # start from a template
+pnpm carto new --wizard azure-landing-zone lz.yaml  # or answer a few questions
 pnpm carto render my-infra.yaml -f png -t dark    # → my-infra.png
 pnpm carto themes                                 # the built-in themes: survey (default), transit, drafting…
 pnpm carto render examples/model/containers.yaml --all-views   # one SVG per view

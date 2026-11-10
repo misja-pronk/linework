@@ -33,7 +33,7 @@ function answerLines(questions: Question[], answers: Answers): string {
     .join('\n');
 }
 
-export function buildPrompt(type: DiagramType, questions: Question[], answers: Answers, example?: string): Prompt {
+export function buildPrompt(type: DiagramType, questions: Question[], answers: Answers, example?: string, draft?: string): Prompt {
   const user = `Make a "${type.name}" diagram (type: ${type.id}). ${type.description}
 
 What the diagram should show:
@@ -47,7 +47,16 @@ ${JSON.stringify(type.schema)}
 A good example of this type, for style and structure (do not copy its content):
 \`\`\`yaml
 ${(example ?? type.template).trim()}
-\`\`\``;
+\`\`\`${
+    draft
+      ? `
+
+Start from this draft, made from the user's answers to a wizard. Keep what it has (ids, comments, steps) and change or add what the answers above ask for:
+\`\`\`yaml
+${draft.trim()}
+\`\`\``
+      : ''
+  }`;
   return { system: SYSTEM, user };
 }
 
