@@ -94,10 +94,22 @@ export function validate(source: Source, schema: object): Diagnostic[] {
   let check = compiled.get(schema);
   if (!check) compiled.set(schema, (check = ajv.compile(schema)));
   if (check(source.data)) return [];
-  return simplify(check.errors ?? []).map((e) => {
+  // A section of its own written two spaces in ("messages:" under "participants:") reads as an entry
+  // of the one above: say so once, rather than what such an entry would need.
+  const sections = new Set(Object.keys((schema as { properties?: object }).properties ?? {}));
+  const indented = new Set<string>();
+  const out: Diagnostic[] = [];
+  for (const e of simplify(check.errors ?? [])) {
     const path = pointerToPath(e.instancePath);
-    return source.at(e.keyword === 'additionalProperties' ? [...path, e.params.additionalProperty] : path, describe(e, path));
-  });
+    const [section, key] = e.keyword === 'additionalProperties' && path.length === 1 ? [path[0], e.params.additionalProperty] : path;
+    if (typeof section === 'string' && typeof key === 'string' && key !== section && sections.has(key)) {
+      if (!indented.has(`${section}/${key}`)) out.push(source.at([section, key], `"${key}" is indented under "${section}": a section of its own starts at the left edge, without the spaces before it`));
+      indented.add(`${section}/${key}`);
+      continue;
+    }
+    out.push(source.at(e.keyword === 'additionalProperties' ? [...path, e.params.additionalProperty] : path, describe(e, path)));
+  }
+  return out;
 }
 
 // anyOf/oneOf produce one error per branch; keep the most specific ones so people see one clear message.

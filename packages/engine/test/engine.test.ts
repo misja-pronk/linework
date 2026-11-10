@@ -96,3 +96,12 @@ describe('empty diagrams', () => {
     }
   });
 });
+
+describe('a section written two spaces in', () => {
+  it('says it is indented, once, instead of what an entry would need', async () => {
+    const r = await render('type: sequence\nparticipants:\n  a: { label: A }\n  b: { label: B }\n  messages:\n    - a -> b: hi\n', { fonts: 'none' });
+    const errors = r.diagnostics.filter((d) => d.severity === 'error');
+    expect(errors.map((d) => d.message)).toEqual(['"messages" is indented under "participants": a section of its own starts at the left edge, without the spaces before it']);
+    expect(errors[0]!.line).toBe(5);
+  });
+});
