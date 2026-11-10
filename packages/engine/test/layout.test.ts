@@ -75,6 +75,8 @@ const crossingBudget: Record<string, number> = {
   'journey/data-product-consumer.yaml': 0,
   'journey/developer-onboarding.yaml': 0,
   'journey/first-deploy.yaml': 0,
+  'matrix/crud-services.yaml': 0,
+  'matrix/raci-migration.yaml': 0,
   'kubernetes/inference.yaml': 0,
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,

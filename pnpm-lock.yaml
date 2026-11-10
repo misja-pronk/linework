@@ -239,6 +239,9 @@ importers:
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
+      '@cartography/matrix':
+        specifier: workspace:*
+        version: link:../../types/matrix
       '@cartography/network':
         specifier: workspace:*
         version: link:../../types/network
@@ -622,6 +625,12 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../../packages/icons
+
+  types/matrix:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
 
   types/network:
     dependencies:
