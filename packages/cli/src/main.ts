@@ -13,6 +13,8 @@ import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@ca
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
+import { runLive, type LiveFlags } from './live.ts';
+import type { Fetched } from '@cartography/import/node';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
 import { accessOf } from '@cartography/github';
@@ -79,6 +81,9 @@ const helpAll = `carto — architecture diagrams that look good
                [--json] [--view name] [--fresh] [--exit-code]
                                                 --fresh lays the newer drawing out from scratch instead of keeping
                                                 what was there in place; --exit-code exits 1 when something changed
+  carto diff --live <k8s|azure|access|github> <saved.yaml>   drift: what changed in the cluster, the estate or
+               [the --live options of carto import] [-o drift.png] [--exit-code]   the organisation since the
+                                                diagram was saved (read live, as carto import --live does)
   carto notes <file.yaml…> [-o notes.md]       the review notes of <file>.notes.json as markdown, open ones
                [--open | --all]                 (default), or resolved ones too
   carto notes --merge-driver <base> <ours> <theirs>
@@ -116,6 +121,14 @@ const helpAll = `carto — architecture diagrams that look good
                                                 writes where the shapes stood to <file>.layout.json as pins
   carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
                                                 a repository's history as a git branching diagram
+  carto import --live k8s [--context c] [--namespace n | --all-namespaces]
+  carto import --live azure [--subscription s] [--rg r] [--with-access]
+  carto import --live access [--subscription s]
+  carto import --live github --org o           read live with your own kubectl, az or gh and its login, read-only:
+               [--into diagram.yaml] [-o out|-]  the commands are shown and asked for first (--yes: not asked;
+               [--yes] [--dry-run] [--timeout 120]  --dry-run: only shown); --into imports over a diagram, your
+               [--keep-raw <dir>]               edits stay; --keep-raw saves the answers (no secret values,
+                                                ever) for carto import <dir>. Allow-list: docs/live-import.md
   carto export <file.yaml…> -o out.drawio|.excalidraw|.mmd|.md
                [--format drawio|excalidraw|mermaid] [--view name] [--theme name]
                                                 the drawing for another tool: draw.io (every view a page) and
@@ -264,6 +277,17 @@ const parsed = (() => {
     subscription: { type: 'string' },
     rg: { type: 'string' },
     base: { type: 'string' },
+    live: { type: 'string' },
+    context: { type: 'string' },
+    namespace: { type: 'string', short: 'n' },
+    'all-namespaces': { type: 'boolean', short: 'A' },
+    'with-access': { type: 'boolean' },
+    org: { type: 'string' },
+    into: { type: 'string' },
+    yes: { type: 'boolean', short: 'y' },
+    'dry-run': { type: 'boolean' },
+    timeout: { type: 'string' },
+    'keep-raw': { type: 'string' },
     notes: { type: 'boolean' },
     open: { type: 'boolean' },
     'merge-driver': { type: 'boolean' },
@@ -789,7 +813,10 @@ function accessMarkdown(name: string, changes: AccessChange[]): string {
 /** carto diff: two files, or files against a git ref. Words (or JSON) on stdout, the picture with -o. */
 async function diffFiles(): Promise<number> {
   const ref = values.git;
-  if (ref ? !files.length : files.length !== 2) return (console.error(ref ? 'Name the diagrams: carto diff --git <ref> <file.yaml…>' : 'Two files: carto diff <before.yaml> <after.yaml>, or carto diff --git <ref> <file.yaml…>'), 1);
+  if (values.live) {
+    if (files.length !== 1) return (console.error('One saved diagram: carto diff --live <source> <saved.yaml>'), 1);
+    if (!fs.existsSync(files[0]!)) return (console.error(`${files[0]}  ${red('error')}  not found`), 1);
+  } else if (ref ? !files.length : files.length !== 2) return (console.error(ref ? 'Name the diagrams: carto diff --git <ref> <file.yaml…>' : 'Two files: carto diff <before.yaml> <after.yaml>, or carto diff --git <ref> <file.yaml…>'), 1);
   const ext = values.out ? path.extname(values.out).slice(1).toLowerCase() : '';
   const format = ext === 'png' || ext === 'svg' ? ext : values.format === 'png' ? 'png' : 'svg';
   const fonts: RenderOptions['fonts'] = format === 'svg' && !values['no-fonts'] ? 'embed' : 'none';
@@ -807,7 +834,7 @@ async function diffFiles(): Promise<number> {
   }
   // Two folders of exports: each imported, the newer over the older so the same things keep their ids.
   // Two Azure export files (a Resource Graph answer, a template, a Terraform state) are compared the same way.
-  const folders = !ref && files.every((f) => isFolder(f) || (/\.json$/i.test(f) && fs.existsSync(f) && exportKind([f]) === 'azure'));
+  const folders = !ref && !values.live && files.every((f) => isFolder(f) || (/\.json$/i.test(f) && fs.existsSync(f) && exportKind([f]) === 'azure'));
   if (folders) {
     const kind = exportKind([files[1]!]) ?? exportKind([files[0]!]);
     if (!kind) return (console.error(`Neither ${files[0]} nor ${files[1]} holds access exports, gh api responses or Azure resources`), 1);
@@ -816,7 +843,18 @@ async function diffFiles(): Promise<number> {
     if (!before || !after) return 1;
     exported = { before: before.yaml, after: after.yaml };
   }
-  const pairs = folders
+  let live: { name: string; yaml: string } | undefined;
+  if (values.live) {
+    const got = await runLive(values.live, liveFlags());
+    if (!got) return values['dry-run'] ? 0 : 1;
+    // Imported over the saved diagram: ids stay and what was drawn by hand is not drift.
+    const r = liveImport(got[0]!, disk(files[0]!));
+    if (!r) return 1;
+    live = { name: `live ${values.live}`, yaml: r.yaml };
+  }
+  const pairs = live
+    ? [{ name: live.name, against: path.basename(files[0]!), before: disk(files[0]!), beforeOptions: optionsFor(files[0]!, fonts), after: live.yaml, afterFile: files[0]! }]
+    : folders
     ? [{ name: files[1]!, against: path.basename(path.resolve(files[0]!)), before: exported!.before, beforeOptions: optionsFor(besideFolder(files[0]!), fonts), after: exported!.after, afterFile: besideFolder(files[1]!) }]
     : ref
     ? files.map((f) => {
@@ -886,6 +924,72 @@ async function diffFiles(): Promise<number> {
   }
   if (values.json) console.log(JSON.stringify(ref ? json : json[0], null, 2));
   return !ok ? 1 : values['exit-code'] && changed ? 1 : 0;
+}
+
+function liveFlags(): LiveFlags {
+  const timeout = values.timeout === undefined ? undefined : Number(values.timeout);
+  if (timeout !== undefined && !(timeout > 0)) throw new UsageError(`--timeout takes seconds, not "${values.timeout}"`);
+  return { context: values.context, namespace: values.namespace, allNamespaces: values['all-namespaces'], subscription: values.subscription, rg: values.rg, org: values.org, withAccess: values['with-access'], yes: values.yes, dryRun: values['dry-run'], timeout, keepRaw: values['keep-raw'] };
+}
+
+/** What a live source answered, imported (over `was` when given): the diagram, what it holds, and whether nothing went wrong. */
+function liveImport(f: Fetched, was: string | undefined): { yaml: string; summary: string; clean: boolean } | undefined {
+  const where = `live ${f.kind}`;
+  if (f.kind === 'kubernetes') {
+    const r = importKubernetes(f.files.map((x) => x.text).join('\n---\n'), values.title ?? f.title ?? 'Kubernetes', { existing: was });
+    for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+    if (!r.yaml) return undefined;
+    const n = Object.keys((parseYaml(r.yaml) as { nodes?: object } | null)?.nodes ?? {}).length;
+    return { yaml: r.yaml, summary: `${n} cards${was ? ', what was added by hand kept' : ''}`, clean: !r.warnings.some((w) => /not changed$/.test(w)) };
+  }
+  const opts = exportOptions();
+  if (typeof opts === 'string') return (console.error(opts), undefined);
+  const r = f.kind === 'azure' ? importAzure(f.files, { ...(opts as Parameters<typeof importAzure>[1]), existing: was }) : f.kind === 'github' ? importGithub(f.files, { ...opts, existing: was }) : importAccess(f.files, { ...opts, existing: was });
+  for (const p of r.problems) console.error(`${where}${p.file ? ` ${p.file}` : ''}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
+  for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
+  if (!r.yaml) return undefined;
+  return { yaml: r.yaml, summary: `${r.summary}${was ? ', what was added by hand kept' : ''}`, clean: !r.problems.some((p) => p.severity === 'error') };
+}
+
+/** carto import --live <source>: the user's own kubectl, az or gh, read-only; --into imports over a diagram, its hand edits kept. */
+async function importLive(): Promise<boolean> {
+  const into = values.into;
+  if (into && !fs.existsSync(into)) return (console.error(`${into}  ${red('error')}  not found: leave out --into to start a new diagram`), false);
+  const stdout = values.out === '-';
+  const name = (f: Fetched) => `${f.kind === 'kubernetes' ? (f.title ?? 'kubernetes').replace(/[^\w.-]+/g, '-') : f.kind === 'github' ? (f.title ?? 'github') : f.kind}.yaml`;
+  // Plan the files before anything runs: an existing one is only written over with --into or --force.
+  const first = into && !values.out ? into : values.out && !stdout && path.extname(values.out) ? values.out : undefined;
+  if (first && first !== into && fs.existsSync(first) && !values.force) return (console.error(`${first} already exists: --into ${first} imports over it (your edits stay), --force starts it over`), false);
+  const got = await runLive(values.live!, liveFlags());
+  if (!got) return !!values['dry-run'];
+  let ok = true;
+  for (const [i, f] of got.entries()) {
+    // The access diagram that --with-access adds goes next to the first: azure.yaml, azure-access.yaml.
+    const main = first ?? path.join(values.out && !stdout ? values.out : '.', name(got[0]!));
+    const out = i === 0 ? main : main.replace(/(\.ya?ml)?$/i, (ext) => `-access${ext || '.yaml'}`);
+    if (!first && !stdout && fs.existsSync(out) && !values.force) {
+      console.error(`${out} already exists: --into ${out} imports over it (your edits stay), --force starts it over`);
+      ok = false;
+      continue;
+    }
+    const over = into && (i === 0 || fs.existsSync(out)) && !values.force ? fs.readFileSync(i === 0 ? into : out, 'utf8') : undefined;
+    const r = liveImport(f, over);
+    if (!r) {
+      ok = false;
+      continue;
+    }
+    const check = await render(r.yaml, { fonts: 'none', load: loaderFor(out) });
+    report(`live ${values.live} (imported)`, check.diagnostics);
+    if (stdout) {
+      process.stdout.write((i ? '---\n' : '') + r.yaml);
+      continue;
+    }
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, r.yaml);
+    console.log(`live ${values.live} → ${out} ${dim(r.summary)}`);
+    ok = r.clean && !check.diagnostics.some((d) => d.severity === 'error') && ok;
+  }
+  return ok;
 }
 
 /** Several diagrams, one file: a slide or page each, in the order given. */
@@ -1333,11 +1437,11 @@ async function main(): Promise<number> {
         const rest = values.view ? [] : await Promise.all((r.views ?? []).map((v) => render(text, { ...opts, view: v.name })));
         const seen = new Set<string>();
         const diagnostics = [r, ...rest].flatMap((x) => x.diagnostics).filter((d) => !seen.has(`${d.line}:${d.column}:${d.message}`) && !!seen.add(`${d.line}:${d.column}:${d.message}`));
-        // Fitted onto a 16:9 slide, the smallest text of each drawing should still be readable.
+        // Fitted onto its page (a 16:9 slide unless aspect: says otherwise), the smallest text of each drawing should still be readable.
         for (const x of [r, ...rest.filter((v) => v.view !== r.view)]) {
-          const pt = x.svg && x.width && x.height ? slideTextPt(x.svg, x.width, x.height) : undefined;
+          const pt = x.svg && x.width && x.height ? slideTextPt(x.svg, x.width, x.height, x.page) : undefined;
           if (pt != null && pt < SLIDE_MIN_PT)
-            diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a 16:9 slide its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
+            diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${x.page?.name ?? '16:9 slide'} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
         }
         report(f, diagnostics);
         await checkNotes(f);
@@ -1354,6 +1458,7 @@ async function main(): Promise<number> {
       return diffFiles();
     case 'import': {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
+      if (values.live) return files.length ? (console.error('carto import --live reads from the tool, not from files: --into <diagram.yaml> imports over one'), 1) : (await importLive()) ? 0 : 1;
       if (!files.length) return (console.error(helpFor(command)), 1);
       // Access exports and gh api responses: a folder (or the files) is one diagram, as a mesh is.
       const kinds = new Map(files.map((f) => [f, isFolder(f) ? (dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? undefined : exportKind([f])) : /\.json$/i.test(f) ? exportKind([f]) : undefined] as const));

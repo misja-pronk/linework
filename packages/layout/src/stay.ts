@@ -37,7 +37,7 @@ const holds = (b: Box, p: Point) => p.x > b.x && p.x < b.x + b.width && p.y > b.
 /** How far a new node looks for room (grid steps each way) and how many spots get the full check. */
 const STEP = 16;
 const REACH = 30;
-const TRIES = 400;
+const TRIES = 1200;
 
 /**
  * The previous drawing with the graph as it is now: nodes that were there stay exactly where they
@@ -45,7 +45,7 @@ const TRIES = 400;
  * free spot to where the fresh placement has them relative to their neighbours. Undefined when that
  * cannot be done cleanly (a box grew into its neighbour, a group would run over another).
  */
-export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory, header: number, pad: number, gap: number, minWidth: Map<string, number>): Placement | undefined {
+export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory, header: number, pad: number, gap: number, minWidth: Map<string, number>, pins?: Map<string, Point>): Placement | undefined {
   const was = prev.nodes;
   if (!was?.size) return undefined;
   const common = [...fresh.nodes.keys()].filter((id) => was.has(id));
@@ -60,6 +60,13 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
     at.set(id, { x: c.x - b.width / 2, y: c.y - b.height / 2, width: b.width, height: b.height });
     offset.set(id, { x: c.x - centre(b).x, y: c.y - centre(b).y });
   }
+  // Placed by hand (pins, top-left): there, whatever was before. What they then run into is for
+  // pins.ts to clear, so they are not held against this placement.
+  for (const [id, p] of pins ?? []) {
+    const b = fresh.nodes.get(id);
+    if (b) at.set(id, { ...b, x: p.x, y: p.y });
+  }
+  const lenient = !!pins?.size;
   const slide = (ids: string[]): Point => ({ x: median(ids.map((id) => offset.get(id)!.x)), y: median(ids.map((id) => offset.get(id)!.y)) });
   const whole = slide(common);
 
@@ -145,7 +152,7 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
   // What was there must still fit as it was (a longer label can have grown a card into its
   // neighbour). An overrun the previous drawing already had is not held against this one.
   const before = overruns(nodes, new Map([...(prev.groups ?? [])].filter(([id]) => fresh.groups.has(id))));
-  if (stacked(nodes) || overruns(nodes, groupsFor(nodes)) > before) return undefined;
+  if (!lenient && (stacked(nodes) || overruns(nodes, groupsFor(nodes)) > before)) return undefined;
 
   const spots: Point[] = [];
   for (let i = -REACH; i <= REACH; i++) for (let j = -REACH; j <= REACH; j++) spots.push({ x: i * STEP, y: j * STEP });
@@ -158,7 +165,7 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
   }
   for (const n of graph.nodes) {
     const f = fresh.nodes.get(n.id);
-    if (!f || was.has(n.id)) continue;
+    if (!f || was.has(n.id) || pins?.has(n.id)) continue;
     // Beside the same neighbours as in the fresh placement: its lines first, then its group, then anything.
     const lines = (linked.get(n.id) ?? []).filter((id) => offset.has(id));
     const siblings = graph.nodes.filter((o) => o.parent === n.parent && offset.has(o.id)).map((o) => o.id);
@@ -166,6 +173,9 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
     const tx = Math.round((f.x + by.x) / 8) * 8;
     const ty = Math.round((f.y + by.y) / 8) * 8;
     let found: Box | undefined;
+    // With pins about, a spot where its group grows over something will do when there is no other:
+    // pins.ts moves what is in the way. A clean spot is still looked for first.
+    let fallback: Box | undefined;
     let tries = 0;
     for (const s of spots) {
       const b = { ...f, x: tx + s.x, y: ty + s.y };
@@ -177,19 +187,24 @@ export function stayPlacement(graph: Graph, fresh: Placement, prev: LayoutMemory
       const groups = groupsFor(nodes);
       // Clear of the groups it is not in, with a little air; and its own group may not grow over anything.
       const air = Math.min(gap, pad) / 2;
-      if (![...groups].some(([gid, gb]) => !mine.get(n.id)!.has(gid) && hit(b, gb, air)) && overruns(nodes, groups) <= before) {
-        found = b;
-        break;
+      if (![...groups].some(([gid, gb]) => !mine.get(n.id)!.has(gid) && hit(b, gb, air))) {
+        if (overruns(nodes, groups) <= before) {
+          found = b;
+          break;
+        }
+        if (lenient) fallback ??= b;
       }
       nodes.delete(n.id);
     }
+    found ??= fallback;
     if (!found) return undefined;
+    nodes.set(n.id, found);
   }
 
   // In the fresh placement's order, so everything after this sees the nodes as it always does.
   const ordered = new Map([...fresh.nodes.keys()].map((id) => [id, nodes.get(id)!]));
   const groups = groupsFor(ordered);
-  if (overruns(ordered, groups) > before) return undefined;
+  if (!lenient && overruns(ordered, groups) > before) return undefined;
   const boxes = [...ordered.values(), ...groups.values()];
   const x0 = Math.min(...boxes.map((b) => b.x));
   const y0 = Math.min(...boxes.map((b) => b.y));

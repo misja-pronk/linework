@@ -151,6 +151,8 @@ export interface RenderResult {
   /** Positions in layout coordinates (after pins); the editor drags from these. */
   placed?: Placed;
   origin?: { x: number; y: number };
+  /** The page the drawing is meant for (aspect: in the YAML, a 16:9 slide by default); none with aspect: auto. */
+  page?: Page;
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
@@ -305,6 +307,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
+  // Two things pinned on top of each other: the newer one was moved clear, and that is said.
+  const named = (id: string) => graph.groups.find((g) => g.id === id)?.label ?? id;
+  for (const id of placed.nudged ?? []) diagnostics.push({ severity: 'warning', message: `${named(id)} was pinned on top of another pinned element: it is drawn beside it. Drag it where it should go, or Tidy` });
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
   const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
@@ -322,6 +327,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     width: out.width,
     height: out.height,
     origin: out.origin,
+    ...(pageFor(aspect) ? { page: pageFor(aspect) } : {}),
     diagnostics,
     type,
     graph,
@@ -345,26 +351,73 @@ const SLIDE = { width: 1280, height: 720 };
 /** Text smaller than this (points) on a slide is hard to read from the back of a room. */
 export const SLIDE_MIN_PT = 9;
 
-/**
- * The smallest text of a drawing, in points, when it is fitted onto a 16:9 slide (13.33 inches
- * wide): what `carto validate` warns about below SLIDE_MIN_PT. Undefined when it has no text.
- */
-export function slideTextPt(svg: string, width: number, height: number): number | undefined {
-  const sizes = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1])).filter((n) => n > 0);
-  if (!sizes.length || !width || !height) return undefined;
-  const scale = Math.min(SLIDE.width / width, SLIDE.height / height);
-  // A pixel is three quarters of a point.
-  return Math.min(...sizes) * scale * 0.75;
+/** A page a drawing is meant for, in CSS pixels (96 to the inch). */
+export interface Page {
+  /** As said to a person: "16:9 slide", "A4 landscape". */
+  name: string;
+  width: number;
+  height: number;
 }
 
-/** `aspect:` as written: "16:9", "4:3", a number (width / height) or "auto". */
+/** Named shapes `aspect:` takes besides a ratio: the sheets and slides people draw for. */
+const NAMED: Record<string, number> = { slide: 16 / 9, a4: 297 / 210, 'a4-landscape': 297 / 210, 'a4-portrait': 210 / 297, a3: 420 / 297, 'a3-landscape': 420 / 297, 'a3-portrait': 297 / 420 };
+const near = (a: number, b: number) => Math.abs(a / b - 1) < 0.01;
+
+/** The page for an aspect: a 16:9 or 4:3 slide (7.5 inches high), an A4 sheet, or a 7.5-inch-high page of that shape; none for auto. */
+export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
+  if (aspect === 'auto') return undefined;
+  const a = aspect ?? 16 / 9;
+  if (near(a, 16 / 9)) return { name: '16:9 slide', ...SLIDE };
+  if (near(a, 4 / 3)) return { name: '4:3 slide', width: 960, height: 720 };
+  if (near(a, 297 / 210)) return { name: 'A4 landscape', width: 1123, height: 794 };
+  if (near(a, 210 / 297)) return { name: 'A4 portrait', width: 794, height: 1123 };
+  if (near(a, 420 / 297)) return { name: 'A3 landscape', width: 1587, height: 1123 };
+  if (near(a, 297 / 420)) return { name: 'A3 portrait', width: 1123, height: 1587 };
+  return { name: `${Math.round(a * 100) / 100}:1 page`, width: Math.round(720 * a), height: 720 };
+}
+
+/** The smallest text size (px) in a drawing's SVG; undefined when it has no text. */
+export function smallestTextPx(svg: string): number | undefined {
+  const sizes = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1])).filter((n) => n > 0);
+  return sizes.length ? Math.min(...sizes) : undefined;
+}
+
+/**
+ * The smallest text of a drawing, in points, when it is fitted onto a page (a 16:9 slide, 13.33
+ * inches wide, unless another is given): what `carto validate` warns about below SLIDE_MIN_PT.
+ * Undefined when it has no text.
+ */
+export function slideTextPt(svg: string, width: number, height: number, page: { width: number; height: number } = SLIDE): number | undefined {
+  const px = smallestTextPx(svg);
+  if (px == null || !width || !height) return undefined;
+  const scale = Math.min(page.width / width, page.height / height);
+  // A pixel is three quarters of a point.
+  return px * scale * 0.75;
+}
+
+/**
+ * The part of the page the drawing can fill with its smallest text still SLIDE_MIN_PT: the page
+ * shrunk (in drawing px) to where the text would be just readable. What lies outside it is too much
+ * for one page: on the canvas it is marked.
+ */
+export function readableArea(svg: string, page: { width: number; height: number }): { width: number; height: number } | undefined {
+  const px = smallestTextPx(svg);
+  if (px == null) return undefined;
+  // At scale s text is px * s * 0.75 pt: readable while s >= SLIDE_MIN_PT / (px * 0.75).
+  const s = SLIDE_MIN_PT / (px * 0.75);
+  return { width: page.width / s, height: page.height / s };
+}
+
+/** `aspect:` as written: "16:9", "4:3", a4, a4-portrait (and the like), a number (width / height) or "auto". */
 export function readAspect(v: unknown, warn: (message: string) => void): number | 'auto' | undefined {
   if (v == null) return undefined;
   if (v === 'auto') return 'auto';
+  const key = typeof v === 'string' ? v.trim().toLowerCase().replace(/\s+/g, '-') : '';
+  if (NAMED[key]) return NAMED[key];
   const m = typeof v === 'string' ? /^\s*(\d+(?:\.\d+)?)\s*[:/x]\s*(\d+(?:\.\d+)?)\s*$/.exec(v) : undefined;
   const n = typeof v === 'number' ? v : m ? Number(m[1]) / Number(m[2]) : NaN;
   if (Number.isFinite(n) && n >= 0.2 && n <= 5) return n;
-  warn('aspect is the shape to aim for: 16:9, 4:3, a number such as 1.5 (width / height), or auto');
+  warn('aspect is the shape to aim for: 16:9, 4:3, a4, a4-portrait, a number such as 1.5 (width / height), or auto');
   return undefined;
 }
 

@@ -37,7 +37,7 @@ await page.addInitScript(
   },
   [text],
 );
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5181/');
+await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="Ingest"]', { timeout: 10000 });
 await wait(500);
 await page.screenshot({ path: `${out}/m1-map.png` });
