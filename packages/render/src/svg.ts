@@ -157,7 +157,8 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     // What stands back lies flat: no shadow, and an official icon fades with it.
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
     const mark = link && shape.kind !== 'matrix' ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
-    out.push(linked(n.links, `<g${data('node', n.id)}>${tip(n.description)}${body}${mark}</g>`, opts));
+    // Marked as standing back in words too: a look without shadows shows it only in its colours.
+    out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${body}${mark}</g>`, opts));
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
