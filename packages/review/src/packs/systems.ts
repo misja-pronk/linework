@@ -1,5 +1,6 @@
 // Systems and C4: what any architecture review asks, whatever runs it: who touches the data, how
 // deep calls go, what everything hangs on, and calls that go round in circles.
+import { listWords } from '@cartography/i18n';
 import { t } from '../nl.ts';
 import type { Hit, Rule } from '../types.ts';
 import type { Line, ReviewModel } from '../model.ts';
@@ -169,7 +170,7 @@ export const systemsRules: Rule[] = [
       const order = [...m.nodes.keys()];
       return sccs.map((c) => {
         const members = c.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-        return { on: { kind: 'node' as const, id: members[0]! }, message: t(m.lang, '{names} call each other in a circle', { names: members.map((id) => m.name(id)).join(', ') }) };
+        return { on: { kind: 'node' as const, id: members[0]! }, message: t(m.lang, '{names} call each other in a circle', { names: m.lang === 'nl' ? listWords(m.lang, members.map((id) => m.name(id))) : members.map((id) => m.name(id)).join(', ') }) };
       });
     },
   },

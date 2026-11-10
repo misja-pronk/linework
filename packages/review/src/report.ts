@@ -62,6 +62,11 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 const live = (r: Report) => r.files.flatMap((f) => f.findings.filter((x) => !x.ignored));
 const ignored = (r: Report) => r.files.flatMap((f) => f.findings.filter((x) => x.ignored));
 
+/** The report's title by default: of one diagram ("Web shop: architecture review"), or of several inputs. */
+export function reportTitle(lang: Lang | undefined, one: string | undefined, inputs: string[]): string {
+  return one !== undefined ? t(lang, '{name}: architecture review', { name: one }) : t(lang, 'Architecture review of {names}', { names: inputs.join(', ') });
+}
+
 /** Counts per pillar and severity. */
 export function pillarTally(findings: Finding[]): { category: Category; counts: Record<Severity, number>; total: number }[] {
   return categories.map((category) => {

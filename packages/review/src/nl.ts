@@ -46,16 +46,18 @@ export const nl = {
   Reason: 'Reden',
   '(no reason given)': '(geen reden opgegeven)',
   'no reason given': 'geen reden opgegeven',
-  'Rules: {count} rule|Rules: {count} rules': 'Regels: {count} regel|Regels: {count} regels',
+  'Rules: {count} rule|Rules: {count} rules': '{count} regel toegepast|{count} regels toegepast',
   ' from {packs}': ' uit {packs}',
   '; settings from {files}': '; instellingen uit {files}',
   '. Each rule, its reason and its fix: docs/review.md.': '. Elke regel met reden en oplossing: docs/review.md.',
   'Architecture review': 'Architectuurreview',
+  '{name}: architecture review': '{name}: architectuurreview',
+  'Architecture review of {names}': 'Architectuurreview van {names}',
   Summary: 'Samenvatting',
   'no findings': 'geen bevindingen',
   '{about}, as drawn': '{about}, zoals getekend',
   'Nothing to report on this diagram.': 'Niets te melden over dit diagram.',
-  '{count} rule ran|{count} rules ran': '{count} regel gedraaid|{count} regels gedraaid',
+  '{count} rule ran|{count} rules ran': '{count} regel toegepast|{count} regels toegepast',
   ', with the settings of {files}': ', met de instellingen van {files}',
   'Made with Cartography: {command}.': 'Gemaakt met Cartography: {command}.',
 
@@ -94,14 +96,14 @@ export const nl = {
     'Lees secrets uit Key Vault met de managed identity van de app (een lijn naar de key-vault, style identity), of maak verbinding met de managed identity zelf (style: identity op de lijn naar de datastore)',
   'Azure Key Vault and managed identities': 'Azure Key Vault en managed identities',
   '{name} connects to {store} and reads no secrets from Key Vault': '{name} maakt verbinding met {store} en haalt geen secrets uit Key Vault',
-  'No Key Vault is drawn, and {count} apps connect to stores that need a secret: {names}': 'Er is geen Key Vault getekend, en {count} apps maken verbinding met datastores die een secret nodig hebben: {names}',
+  'No Key Vault is drawn, and {count} apps connect to stores that need a secret: {names}': 'Er is geen Key Vault getekend en {count} apps maken verbinding met datastores die een secret nodig hebben: {names}',
 
   'Production survives the loss of a zone': 'Productie overleeft het uitvallen van een zone',
   'A production workload in one zone of one region goes down with that datacentre.': 'Een productieworkload in één zone van één regio gaat mee onderuit met dat datacenter.',
   'Set zones: 3 (or zones: redundant) on what must stay up, or draw a second region group for a paired-region setup':
     "Zet zones: 3 (of zones: redundant) op wat in de lucht moet blijven, of teken een tweede regiogroep voor een opzet met gekoppelde regio's",
   'Azure availability zones and multi-region design': "Azure availability zones en ontwerpen over meerdere regio's",
-  'Production is drawn in one region, and nothing in it says it is zone-redundant': 'Productie is in één regio getekend, en niets daarin zegt dat het zone-redundant is',
+  'Production is drawn in one region, and nothing in it says it is zone-redundant': 'Productie is in één regio getekend en niets daarin zegt dat het zone-redundant is',
 
   'Resources send diagnostics to Log Analytics': 'Resources sturen diagnostische gegevens naar Log Analytics',
   'Without logs and metrics in one place nobody sees an outage, an attack or a cost spike until a user does.': 'Zonder logs en metrics op één plek ziet niemand een storing, een aanval of een kostenpiek voordat een gebruiker die ziet.',
@@ -260,7 +262,7 @@ export const nl = {
     'Schrijf een datacontract voor de port (contracts: met velden, SLA en kwaliteit, of file: een ODCS-bestand) en zet contract: op de port',
   'Open Data Contract Standard (ODCS)': 'Open Data Contract Standard (ODCS)',
   '{product}: output port {port} is read by others and has no data contract': '{product}: output port {port} wordt door anderen gelezen en heeft geen datacontract',
-  'No output port has a data contract yet, and {count} are read by others': 'Nog geen enkele output port heeft een datacontract, en {count} worden door anderen gelezen',
+  'No output port has a data contract yet, and {count} are read by others': 'Nog geen enkele output port heeft een datacontract en {count} worden door anderen gelezen',
 
   'Contracts with personal data say how it is classified': 'Contracten met persoonsgegevens zeggen hoe die geclassificeerd zijn',
   'Personal data without a classification gets copied, joined and kept like any other data: a GDPR breach waiting for an audit.':
