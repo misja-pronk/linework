@@ -38,9 +38,11 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 
 ![A folder of ODPS and ODCS files as one map](docs/data-products/mesh.png)
 
+**Who reaches what, from your exports**: `carto render exports/` draws a folder of `az role assignment list`, Microsoft Graph or AzureHound JSON as an access diagram (scopes as a tree, groups and members, access packages, directory roles), and a folder of `gh api` answers as the GitHub organisation (teams, repositories, rulesets, environments, CODEOWNERS). Large tenants stay readable (members folded into groups, a who × where matrix, `--scope`, `--depth`), importing again keeps your edits, and `carto diff march/ june/` says who gained and lost what, in plain words. See [docs/access-import.md](docs/access-import.md).
+
 **Steps and presenting**: `steps:` tells a drawing in parts (`- customer -> web -> api: The order comes in`), with what is shown, what stands out and the sentence you say. Press `P` to present it full screen, or export it: one slide per step in PowerPoint, one page per step in PDF, with every shape in the same place. See [docs/steps.md](docs/steps.md).
 
-CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML.
+CLI: `carto import diagram.mmd` turns Mermaid (or Markdown with mermaid blocks) into Cartography YAML. Also imported: Structurizr DSL, Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history, ODPS and ODCS files, Azure / Entra ID access exports (az, Graph, AzureHound) and GitHub organisations (`gh api`).
 
 **In CI and pull requests**: `carto validate` checks diagrams (`--drift` finds saved positions for things that are gone), `carto diff` shows what changed between two versions as a list and as a marked-up picture, and a GitHub Action puts that picture in one comment on the pull request. An edit keeps the rest of the drawing where it was (`carto render --stable`). See [docs/ci.md](docs/ci.md).
 
