@@ -238,6 +238,22 @@ await wait(400);
 {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/data-products/mesh');
   const files = ['products', 'contracts'].flatMap((d) => fs.readdirSync(path.join(dir, d)).map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, d, f), 'utf8') })));
+  const dropMesh = () => page.evaluate((files) => {
+    const data = new DataTransfer();
+    for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
+    const at = document.querySelector('.app');
+    at.dispatchEvent(new DragEvent('dragover', { dataTransfer: data, bubbles: true, cancelable: true }));
+    at.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
+  }, files);
+  // The open diagram has changes that are in no file: a drop asks before it replaces them, and No keeps them.
+  const unsaved = await yaml();
+  let asked = '';
+  page.once('dialog', (d) => ((asked = d.message()), d.dismiss()));
+  await dropMesh();
+  await wait(800);
+  if (!asked.includes('not saved')) fail('dropping over unsaved changes should ask first: ' + (asked || 'nothing asked'));
+  check('No keeps the unsaved diagram', await yaml(), unsaved);
+  page.once('dialog', (d) => d.accept());
   await page.evaluate((files) => {
     const data = new DataTransfer();
     for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));

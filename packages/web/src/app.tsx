@@ -345,16 +345,19 @@ export function App() {
 
   const focusDrawing = () => requestAnimationFrame(() => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true }));
 
-  const pick = (s: Starter) => {
+  /** Opening something else over unsaved changes (a template, a drop, a file): asked first, as for a folder. */
+  const pick = async (s: Starter) => {
     setModal(undefined);
+    if (!(await leave())) return;
     fileHandle.current = undefined;
     open(s.text, { name: s.file, starter: s.id });
     focusDrawing();
   };
 
   /** From the start dialog: the chosen template or generated YAML, in the chosen way of working. */
-  const start = (o: Opened) => {
+  const start = async (o: Opened) => {
     closeModal();
+    if (!(await leave())) return;
     fileHandle.current = undefined;
     setView(o.view);
     open(o.text, { name: o.name, starter: o.starter }, o.pins, o.blank);
@@ -479,7 +482,7 @@ export function App() {
   const meshNotes = (problems: { file?: string; message: string }[]) => problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message));
 
   /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
-  const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
+  const openTexts = async (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
     // A folder of data products may hold a drawing too: the mesh goes first.
     const other = hasMesh(files) ? undefined : files.find((f) => foreign(f.path, f.text));
     if (other) {
@@ -490,6 +493,7 @@ export function App() {
     const folder = folderOf(files);
     const mesh = meshFrom(files);
     if (mesh?.yaml) {
+      if (!(await leave())) return;
       fileHandle.current = undefined;
       open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`, { title: 'From the data products and contracts', items: meshNotes(mesh.problems) });
       return focusDrawing();
@@ -498,6 +502,7 @@ export function App() {
     // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
     const exported = exportFrom(files);
     if (exported?.yaml) {
+      if (!(await leave())) return;
       fileHandle.current = undefined;
       open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`, { title: 'From the exports', items: exportNotes(exported) });
       return focusDrawing();
@@ -505,6 +510,7 @@ export function App() {
     if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, 'From the exports (nothing drawn)', exportNotes(exported)) });
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
+    if (!(await leave())) return;
     fileHandle.current = files.length === 1 ? handle : undefined;
     open(diagram.text, { name: diagram.path.split('/').pop()! });
   };
@@ -540,7 +546,7 @@ export function App() {
             ],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
-          openTexts(files, hs[0]);
+          await openTexts(files, hs[0]);
         } catch (e) {
           if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
         }
@@ -553,7 +559,7 @@ export function App() {
     input.multiple = true;
     input.onchange = async () => {
       const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));
-      if (files.length) openTexts(files);
+      if (files.length) await openTexts(files);
     };
     input.click();
   };
@@ -1113,7 +1119,7 @@ export function App() {
     const s = starters.find((x) => x.id === `example:${t.path}`);
     if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
     setPicked({ doc: s.id, name: t.view });
-    pick(s);
+    void pick(s);
   };
 
   // ------------------------------------------------------------ views
@@ -1354,7 +1360,7 @@ export function App() {
       label: s.title,
       hint: `${s.kind === 'template' ? 'Template' : 'Example'} · ${typeName(s.type)}`,
       icon: 'layout-template',
-      run: () => pick(s),
+      run: () => void pick(s),
     })),
     ...[...new Set(starters.map((s) => s.type))].map((t) => ({
       id: `blank:${t}`,
