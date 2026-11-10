@@ -36,7 +36,37 @@ interface Run extends Seg {
 const hz = (line: number, a: number, b: number): Seg => ({ hor: true, line, a, b });
 const vt = (line: number, a: number, b: number): Seg => ({ hor: false, line, a, b });
 
-export function flowLayout(sized: Sized): Placed {
+/** The shape a drawing aims for unless the source says otherwise: a slide. */
+const SLIDE = 16 / 9;
+/** Further than this from the target shape (as a log ratio), a long flow is cut into rows. */
+const OFF = Math.log(1.8);
+/** Longer than this many times its breadth, a flow may be cut into rows. */
+const LONG = 3;
+/** How much nearer the target (log ratio) a wrapped drawing has to come to be worth it. */
+const NEARER = 0.2;
+
+/**
+ * A long flow without lanes, drawn far wider (or taller) than the shape it aims for, is cut into
+ * two or three rows (columns, top-down) that read on from the end of one to the start of the next.
+ */
+export function flowLayout(sized: Sized, options: { aspect?: number | 'auto' } = {}): Placed {
+  const one = place(sized, 1);
+  const target = options.aspect === 'auto' ? undefined : (options.aspect ?? SLIDE);
+  if (target == null || sized.graph.groups.some((l) => l.lane)) return one.placed;
+  // The whole picture, as render draws it: the margins, the title above and the key below.
+  const off = (p: Placed) => Math.abs(Math.log((p.width + 80) / (p.height + 125 + (sized.graph.subtitle ? 20 : 0) + (sized.graph.legend?.length ? 55 : 0)) / target));
+  // Only a long flow is cut: one many times longer than it is broad. A top-down flow a little taller than a page reads fine.
+  const long = sized.graph.direction === 'down' ? one.placed.height / Math.max(1, one.placed.width) : one.placed.width / Math.max(1, one.placed.height);
+  if (long < LONG || off(one.placed) <= OFF) return one.placed;
+  let found = one;
+  for (const parts of [2, 3]) {
+    const p = place(sized, parts);
+    if (p.crossings <= one.crossings && off(p.placed) < off(found.placed) - NEARER) found = p;
+  }
+  return found.placed;
+}
+
+function place(sized: Sized, parts: number): { placed: Placed; crossings: number } {
   const g = sized.graph;
   const across = g.direction !== 'down';
   const lanes = g.groups.filter((l) => l.lane);
@@ -132,7 +162,7 @@ export function flowLayout(sized: Sized): Placed {
     if (n.id === mainNodes[0] || !next.length || forward.some((e) => e.to.node === n.id)) continue;
     rank.set(n.id, Math.max(0, Math.min(...next.map((e) => rank.get(e.to.node)! - (soft(e) ? 0 : 1)))));
   }
-  const nCols = Math.max(0, ...rank.values()) + 1;
+  let nCols = Math.max(0, ...rank.values()) + 1;
 
   // ---------------------------------------------------------------- rows
   const track = new Map<string, number>();
@@ -184,6 +214,32 @@ export function flowLayout(sized: Sized): Placed {
     taken.add(key(lane, want, r));
   }
 
+  // Which side of the main line a node stands on, before the flow is cut into rows; which band of rows it went to.
+  const side = new Map(track);
+  const band = new Map(g.nodes.map((n) => [n.id, 0]));
+  // Cut into rows: the columns from each cut on stand in a band of rows of their own under the band
+  // before. Each cut is put where the fewest lines run past it, near an even share.
+  if (parts > 1 && !lanes.length && nCols >= 2 * parts) {
+    const past = (c: number) => forward.filter((e) => rank.get(e.from.node)! < c && rank.get(e.to.node)! >= c).length;
+    const cuts: number[] = [];
+    for (let k = 1; k < parts; k++) {
+      const even = Math.round((k * nCols) / parts);
+      cuts.push([even, even - 1, even + 1].filter((c) => c > (cuts[cuts.length - 1] ?? 0) && c < nCols).sort((a, b) => past(a) - past(b))[0] ?? even);
+    }
+    const starts = [0, ...cuts];
+    const ts = [...track.values()];
+    const lo = Math.min(...ts);
+    const span = Math.max(...ts) - lo + 1;
+    for (const n of g.nodes) {
+      const r = rank.get(n.id)!;
+      const b = starts.filter((c) => c <= r).length - 1;
+      rank.set(n.id, r - starts[b]!);
+      track.set(n.id, track.get(n.id)! - lo + b * span);
+      band.set(n.id, b);
+    }
+    nCols = Math.max(...starts.map((c, i) => (starts[i + 1] ?? nCols) - c));
+  }
+
   // Grid lines across the flow, in order: per lane a channel, a row, a channel, a row, …, a channel.
   const nLanes = Math.max(lanes.length, ...g.nodes.map((n) => laneOf(n.id) + 1), 1);
   const hlines: { lane: number; row?: number; edge: boolean }[] = [];
@@ -201,6 +257,17 @@ export function flowLayout(sized: Sized): Placed {
     hlines.push({ lane, edge: true });
   }
   const rowOf = (id: string) => rowAt.get(`${laneOf(id)}|${track.get(id)}`)!;
+  // The channel right above each band's first row: where a line on to the next band runs back.
+  const gapAt = new Map<number, number>();
+  for (const n of g.nodes) {
+    const b = band.get(n.id)!;
+    const y = rowLine[rowOf(n.id)]! - 1;
+    if (b > 0 && y < (gapAt.get(b) ?? Infinity)) gapAt.set(b, y);
+  }
+  const gaps = (e: GraphEdge) => {
+    const [a, b] = [band.get(e.from.node)!, band.get(e.to.node)!].sort((p, q) => p - q);
+    return [...gapAt].filter(([k]) => k > a! && k <= b!).map(([, y]) => y);
+  };
   const xOf = (id: string) => 2 * rank.get(id)! + 1;
   const yOf = (id: string) => rowLine[rowOf(id)]!;
   const isRow = (y: number) => hlines[y]?.row !== undefined;
@@ -213,11 +280,11 @@ export function flowLayout(sized: Sized): Placed {
   const joins = (id: string) => ins.get(id)!.filter((e) => !soft(e)).length > 1;
   const span = (s: Seg) => [Math.min(s.a, s.b), Math.max(s.a, s.b)] as const;
 
-  const shapes = (xs: number, ys: number, xt: number, yt: number): Seg[][] => {
+  const shapes = (xs: number, ys: number, xt: number, yt: number, extra: number[] = []): Seg[][] => {
     const out: Seg[][] = [];
     const besideX = (x: number) => [x + 1, x - 1];
     const besideY = (y: number) => [y + 1, y - 1];
-    const eitherY = [...new Set([...besideY(ys), ...besideY(yt)])];
+    const eitherY = [...new Set([...besideY(ys), ...besideY(yt), ...extra])];
     if (ys === yt) out.push([hz(ys, xs, xt)]);
     if (xs === xt) out.push([vt(xs, ys, yt)]);
     if (xs !== xt && ys !== yt) {
@@ -225,8 +292,10 @@ export function flowLayout(sized: Sized): Placed {
       for (const k of new Set([...besideX(xt), ...besideX(xs)])) out.push([hz(ys, xs, k), vt(k, ys, yt), hz(yt, k, xt)]);
     }
     if (xs !== xt) for (const j of eitherY) out.push([vt(xs, ys, j), hz(j, xs, xt), vt(xt, j, yt)]);
-    for (const k of besideX(xs)) for (const j of besideY(yt)) out.push([hz(ys, xs, k), vt(k, ys, j), hz(j, k, xt), vt(xt, j, yt)]);
-    for (const j of besideY(ys)) for (const k of besideX(xt)) out.push([vt(xs, ys, j), hz(j, xs, k), vt(k, j, yt), hz(yt, k, xt)]);
+    for (const k of besideX(xs)) for (const j of [...besideY(yt), ...extra]) out.push([hz(ys, xs, k), vt(k, ys, j), hz(j, k, xt), vt(xt, j, yt)]);
+    // On to another band, any channel across may take the line down to the row it goes to.
+    const drops = extra.length ? Array.from({ length: nCols + 1 }, (_, k) => 2 * k) : besideX(xt);
+    for (const j of [...besideY(ys), ...extra]) for (const k of drops) out.push([vt(xs, ys, j), hz(j, xs, k), vt(k, j, yt), hz(yt, k, xt)]);
     for (const k1 of besideX(xs)) for (const k2 of besideX(xt)) for (const j of eitherY) out.push([hz(ys, xs, k1), vt(k1, ys, j), hz(j, k1, k2), vt(k2, j, yt), hz(yt, k2, xt)]);
     return out.filter((segs) => segs.every((s) => s.a !== s.b));
   };
@@ -236,6 +305,9 @@ export function flowLayout(sized: Sized): Placed {
     const t = e.to.node;
     const loop = back.has(e.id);
     let c = (segs.length - 1) * 20;
+    // On to the next band, a line runs back through the channel between the bands, not between rows of one.
+    const between = loop ? [] : gaps(e);
+    if (between.length) for (const seg of segs) if (seg.hor && !isRow(seg.line) && !between.includes(seg.line)) c += 200;
     for (const [i, seg] of segs.entries()) {
       const [lo, hi] = span(seg);
       c += hi - lo;
@@ -267,19 +339,20 @@ export function flowLayout(sized: Sized): Placed {
     // A way out to another row does not set off away from it: rather two lines from one point than one over the top and around.
     if (gate(s) && !e.label && !loop && !first.hor && yOf(s) !== yOf(t) && Math.sign(first.b - first.a) !== Math.sign(yOf(t) - yOf(s))) c += 80;
     // A loop goes back along the outside: over the main line, under a branch below it.
-    if (loop && segs.length === 3 && !first.hor && yOf(s) === yOf(t)) c += (track.get(s)! > 0 ? first.b > first.a : first.b < first.a) ? -2 : 0;
+    if (loop && segs.length === 3 && !first.hor && yOf(s) === yOf(t)) c += (side.get(s)! > 0 ? first.b > first.a : first.b < first.a) ? -2 : 0;
     return c;
   };
 
   const length = (e: GraphEdge) => Math.abs(xOf(e.to.node) - xOf(e.from.node)) + Math.abs(yOf(e.to.node) - yOf(e.from.node));
   const queue = [
     ...edges.filter((e) => main.has(e.id)),
-    ...edges.filter((e) => !main.has(e.id) && !back.has(e.id) && !soft(e)).sort((a, b) => length(a) - length(b)),
+    // A gateway's ways out first: each needs a point of its own, while a join can still come in beside another line.
+    ...edges.filter((e) => !main.has(e.id) && !back.has(e.id) && !soft(e)).sort((a, b) => +gate(b.from.node) - +gate(a.from.node) || length(a) - length(b)),
     ...edges.filter((e) => !main.has(e.id) && back.has(e.id) && !soft(e)),
     ...edges.filter((e) => !main.has(e.id) && soft(e)),
   ];
   for (const e of queue) {
-    const options = shapes(xOf(e.from.node), yOf(e.from.node), xOf(e.to.node), yOf(e.to.node));
+    const options = shapes(xOf(e.from.node), yOf(e.from.node), xOf(e.to.node), yOf(e.to.node), gaps(e));
     let best = options[0]!;
     let bestCost = Infinity;
     for (const o of options) {
@@ -295,6 +368,16 @@ export function flowLayout(sized: Sized): Placed {
     routes.set(e.id, mine);
     runs.push(...mine);
   }
+
+  // Lines that cross, counted on the grid: a wrapped drawing may not have more than the drawing in one row.
+  let crossings = 0;
+  for (const [i, p] of runs.entries())
+    for (const q of runs.slice(i + 1)) {
+      if (p.hor === q.hor || p.edge === q.edge) continue;
+      const [plo, phi] = span(p);
+      const [qlo, qhi] = span(q);
+      if (plo < q.line && q.line < phi && qlo < p.line && p.line < qhi) crossings++;
+    }
 
   // Lines that share a channel each get a place in it: short ones nearest the side they came from, so they nest instead of cross.
   const channels = new Map<string, { low: number; high: number }>();
@@ -357,6 +440,12 @@ export function flowLayout(sized: Sized): Placed {
     const n = byId.get(e.from.node)!;
     return !!e.label && n.shape.kind === 'flow' && (n.shape.form === 'gateway' || (n.shape.form === 'pseudo' && n.shape.mark === 'choice'));
   };
+  // How far a gateway's name over or under it reaches past its points: a label on a way out starts beyond it.
+  const nameOver = (id: string) => {
+    const l = beside(id);
+    const at = nameAt.get(id);
+    return l && (at === 'N' || at === 'S') ? Math.max(0, l.u / 2 - su(id) / 2) : 0;
+  };
   const chanW = Array.from({ length: nCols + 1 }, (_, k) => {
     const n = lineCount(false, 2 * k);
     const lines = n ? 2 * GAP.margin + (n - 1) * GAP.line : 0;
@@ -372,7 +461,7 @@ export function flowLayout(sized: Sized): Placed {
     const k = forwards ? c + 1 : c;
     const inside = (colW[c]! - su(e.from.node)) / 2;
     const bends = list.length > 1 && list[1]!.line === 2 * k;
-    const need = l.u + (exitLabel(e) ? 22 : 30) - inside + (bends ? lineCount(false, 2 * k) * GAP.line + GAP.margin : 0);
+    const need = l.u + (exitLabel(e) ? 22 + nameOver(e.from.node) : 30) - inside + (bends ? lineCount(false, 2 * k) * GAP.line + GAP.margin : 0);
     chanW[k] = Math.max(chanW[k]!, need);
     void id;
   }
@@ -488,7 +577,7 @@ export function flowLayout(sized: Sized): Placed {
       if (exitLabel(e)) {
         // Right at the way out: "no" belongs to the gateway, not to the middle of the line.
         const d = { u: Math.sign(q.u - p.u), v: Math.sign(q.v - p.v) };
-        c = { u: p.u + d.u * (8 + l.u / 2), v: p.v + d.v * (6 + l.v / 2) };
+        c = { u: p.u + d.u * (8 + nameOver(e.from.node) + l.u / 2), v: p.v + d.v * (6 + l.v / 2) };
       } else {
         // On the middle of its longest piece, of those long enough to hold it: a label wider than
         // the piece it lies along would hide the arrowhead, and crosses a piece the other way instead.
@@ -525,5 +614,5 @@ export function flowLayout(sized: Sized): Placed {
     const l = labelOf(e);
     placed.edges.set(e.id, { points: pts.map(point), ...(l ? { label: box({ u: c.u - l.u / 2, v: top - 18 - l.v / 2, du: l.u, dv: l.v }) } : {}) });
   }
-  return placed;
+  return { placed, crossings };
 }

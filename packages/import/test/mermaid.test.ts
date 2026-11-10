@@ -33,8 +33,8 @@ flowchart LR
   it('maps shapes and words to kinds, subgraphs to groups, links to styles', async () => {
     const { yaml, warnings } = importMermaid(shop);
     const d = parse(yaml);
-    expect(d).toMatchObject({ type: 'systems', title: 'Checkout' });
-    expect(d.direction).toBeUndefined();
+    // The direction is written even where it is the default, so an edit later cannot turn the drawing.
+    expect(d).toMatchObject({ type: 'systems', title: 'Checkout', direction: 'right' });
     expect(d.groups).toEqual({ backend: { kind: 'group', label: 'Backend services' } });
     expect(d.nodes).toEqual({
       U: { kind: 'user', label: 'Customer', caption: '' },
@@ -146,6 +146,7 @@ flowchart TD
     expect(parse(yaml)).toEqual({
       type: 'process',
       title: 'Password reset',
+      direction: 'down',
       nodes: { 'Forgot password': 'start', 'Link used in time': 'decision', Done: 'end' },
       flow: [
         'Forgot password -> Enter email -> Known address? -yes-> Send reset link -> Link used in time -yes-> Set new password -> Done',
@@ -180,6 +181,7 @@ flowchart TD
     expect(parse(yaml)).toEqual({
       type: 'process',
       title: 'Imported diagram',
+      direction: 'right',
       lanes: { emp: 'Employee', mgr: 'Manager', it: 'IT' },
       nodes: { start: 'emp', 'Ask for access': 'emp', 'Approve?': 'mgr', 'Grant access': { in: 'it', kind: 'subprocess' }, 'Tell the employee': 'it' },
       flow: [
@@ -399,6 +401,7 @@ describe('stateDiagram', () => {
     expect(parse(yaml)).toEqual({
       type: 'states',
       title: 'Imported diagram',
+      direction: 'right',
       states: {
         New: { note: 'Stock is reserved for 30 minutes' },
         Fulfilment: { states: { Picking: null, Packed: null } },

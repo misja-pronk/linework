@@ -4,7 +4,8 @@
 // Flow logic keeps its shapes: {…}, {{…}} and questions become decisions, ([…]) and ((…)) at the
 // ends of the flow start and end; in such a process flow every other box is a plain step.
 // A flowchart is a process when it decides something: at least one decision, and decisions, starts
-// and ends together are two or more and at least a quarter of its nodes. Then it lands as
+// and ends together are two or more and at least a quarter of its nodes, or every other node is a
+// plain step (nothing in its words names a part of a system). Then it lands as
 // `type: process` (subgraphs become lanes); an architecture with one stray question stays systems.
 import { processYaml, type FlowLink, type FlowNode } from './process.ts';
 import { guessGroupKind, guessKind, systemsYaml, type SysDiagram, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
@@ -58,6 +59,8 @@ const LINK = /([<ox]?)(-{2,}>|-\.+->|={2,}>|-{2,}[ox](?=\s)|={2,}[ox](?=\s)|-\.+
 export function importFlowchart(body: string[], header: string, title: string | undefined, warn: Warnings): string {
   const dir = /^(?:flowchart|graph)\s+(\w+)/i.exec(header)?.[1]?.toUpperCase() ?? 'TD';
   if (dir === 'RL' || dir === 'BT') warn.onceFor('dir', `Direction ${dir} is drawn as ${dir === 'RL' ? 'LR' : 'TD'}: Cartography reads left to right or top to bottom`);
+  // The way the source runs is written down, default or not: an edit later must not turn the drawing.
+  const direction = dir === 'LR' || dir === 'RL' ? 'right' : 'down';
 
   const nodes = new Map<string, Node>();
   const groups = new Map<string, { source: string; label: string; parent?: string }>();
@@ -126,7 +129,9 @@ export function importFlowchart(body: string[], header: string, title: string | 
   // Where decisions and terminals are a good part of the drawing it is a process: its boxes are
   // steps, whatever their words suggest. One stray question in an architecture changes nothing.
   const logic = [...kinds.values()].filter((k) => k === 'decision' || k === 'start' || k === 'end').length;
-  const process = logic >= 2 && logic * 4 >= kinds.size;
+  // So it is where everything else is a plain step: nothing in their words names a part of a system.
+  const plainSteps = [...kinds.values()].every((k) => k === 'decision' || k === 'start' || k === 'end' || k === 'step');
+  const process = logic >= 2 && (logic * 4 >= kinds.size || plainSteps);
   // A process that decides something is drawn as one, unless a line ends on a subgraph: a lane is
   // not something a flow can point at.
   const visible = links.filter((l) => l.link.line !== 'invisible');
@@ -151,7 +156,7 @@ export function importFlowchart(body: string[], header: string, title: string | 
           const [x, y] = link.start && !link.end ? [b, a] : [a, b];
           flowLinks.push({ from: x, to: y, ...(link.label ? { label: link.label } : {}), message: link.line === 'dotted' });
         }
-    return processYaml({ title, lanes: [...groups.values()].filter((g) => !g.parent).map((g) => ({ id: ids.get(g.source), label: g.label })), nodes: flowNodes, links: flowLinks });
+    return processYaml({ title, direction, lanes: [...groups.values()].filter((g) => !g.parent).map((g) => ({ id: ids.get(g.source), label: g.label })), nodes: flowNodes, links: flowLinks });
   }
   const nodeList: SysNode[] = [];
   for (const [n, kind] of kinds) {
@@ -174,7 +179,7 @@ export function importFlowchart(body: string[], header: string, title: string | 
       }
   }
 
-  const d: SysDiagram = { title, direction: dir === 'LR' || dir === 'RL' ? 'right' : 'down', groups: groupList, nodes: nodeList, edges };
+  const d: SysDiagram = { title, direction, explicit: true, groups: groupList, nodes: nodeList, edges };
   return systemsYaml(d);
 }
 
