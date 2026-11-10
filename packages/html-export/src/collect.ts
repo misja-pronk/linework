@@ -264,7 +264,10 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       // What each shape is, and where it leads.
       const graph = light.graph;
       const said = describe(graph);
+      // A matrix, a sequence, a git graph, a roadmap or a journey is one shape: the drawing, not an element of it.
+      const whole = new Set(graph.nodes.filter((x) => ['matrix', 'sequence', 'gitflow', 'roadmap', 'journey', 'journey-part'].includes(x.shape.kind)).map((x) => `n:${x.id}`));
       for (const shape of drawnShapes(light.svg)) {
+        if (whole.has(shape)) continue;
         const ei = elementFor(file, viewName, shape, graph, said);
         drawing.shapes[shape] = ei;
         const el = elements[ei]!;

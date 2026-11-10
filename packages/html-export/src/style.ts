@@ -177,7 +177,7 @@ table.index{width:100%;border-collapse:collapse;background:var(--canvas);border:
 .index th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--line);background:var(--paper)}
 .index td{padding:8px 14px;border-bottom:1px solid var(--line);vertical-align:top}
 .index tr:last-child td{border-bottom:0}
-.index td.mono{font-size:12px;color:var(--muted)}
+.index td.mono{font-size:12px;color:var(--muted);white-space:nowrap}
 .index a{color:var(--text);text-decoration:none;font-weight:500}
 .index a:hover{text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px}
 .overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--text) 22%,transparent);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh;z-index:10}

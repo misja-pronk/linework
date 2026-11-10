@@ -236,6 +236,14 @@ function sidebar() {
 }
 
 /** A drawing's name under its file: the diagram as written is its overview. */
+/** A drawing's name where it stands alone (a list, a search hit): a short view name says which diagram it is of. */
+function longTitle(i: number): string {
+  const d = data.drawings[i]!;
+  const f = data.files.find((x) => x.path === d.file);
+  if (!f || !d.view || f.drawings.length < 2 || d.title.includes(' — ') || d.title.includes(f.title)) return d.view || !f ? d.title : f.title;
+  return `${f.title}: ${d.title}`;
+}
+
 function shortTitle(d: PDrawing, file: string): string {
   if (d.view) return d.title === file ? d.view : d.title;
   const siblings = data.files.find((f) => f.path === d.file)?.drawings.map((i) => data.drawings[i]!) ?? [];
@@ -278,7 +286,7 @@ function homePage() {
     .sort((a, b) => a.label.localeCompare(b.label))
     .map((e) => {
       const [d, s] = e.where[0]!;
-      const places = [...new Set(e.where.map(([x]) => data.drawings[x]!.title))];
+      const places = [...new Set(e.where.map(([x]) => longTitle(x)))];
       return h(
         'tr',
         {},
@@ -389,7 +397,7 @@ function show(d: number, step: number, shape?: string) {
   const label = els.notesBtn.querySelector('span');
   if (label) label.textContent = drawing.notes?.length ? `Notes ${drawing.notes.length}` : '';
   if (panelFor === 'notes') drawing.notes?.length ? showNotes() : closePanel();
-  document.title = `${drawing.title} · ${data.title}`;
+  document.title = `${longTitle(d)} · ${data.title}`;
   markSidebar();
   if (shape && drawing.shapes[shape] !== undefined) {
     select(shape, true);
@@ -821,7 +829,7 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
     el.technology ? h('span', { class: 'kind' }, el.technology) : null,
     el.owner ? h('span', { class: 'kind' }, `owner ${el.owner}`) : null,
     el.description ? h('p', { class: 'desc' }, el.description) : null,
-    drill !== undefined ? h('a', { class: 'btn primary open-btn', href: hrefOf(drill) }, icon('down'), `Open ${data.drawings[drill]!.title}`) : null,
+    drill !== undefined ? h('a', { class: 'btn primary open-btn', href: hrefOf(drill) }, icon('down'), `Open ${longTitle(drill)}`) : null,
     el.tags?.length ? h('div', { class: 'tags' }, ...el.tags.map((t) => h('span', {}, t))) : null,
     h('section', {}, h('span', { class: 'caps' }, 'Properties'), h('dl', {}, ...facts.flatMap(([k, v]) => [h('dt', {}, k), h('dd', {}, v)]))),
     parent
@@ -850,7 +858,7 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
         'ul',
         {},
         ...where.map(([d, s]) => {
-          const a = h('a', { href: hrefOf(d, 0, s) }, data.drawings[d]!.title, h('small', {}, data.drawings[d]!.kind));
+          const a = h('a', { href: hrefOf(d, 0, s) }, longTitle(d), h('small', {}, data.drawings[d]!.kind));
           if (d === here?.d) a.setAttribute('aria-current', 'true');
           return h('li', {}, a);
         }),
@@ -932,11 +940,11 @@ function find(query: string): Hit[] {
     if (!s) continue;
     const mine = here ? e.where.find(([d]) => d === here!.d) : undefined;
     const [d, shape] = mine ?? e.where[0]!;
-    hits.push({ title: e.label, detail: [e.kind, e.technology].filter(Boolean).join(' · ') || data.drawings[d]!.title, href: hrefOf(d, 0, shape), score: s + 10, group: 'Elements' });
+    hits.push({ title: e.label, detail: [e.kind, e.technology].filter(Boolean).join(' · ') || longTitle(d), href: hrefOf(d, 0, shape), score: s + 10, group: 'Elements' });
   }
   for (const [i, d] of data.drawings.entries()) {
-    const s = score([[d.title, 1], [d.view, 0.8], [d.kind, 0.5], [d.file, 0.6]]);
-    if (s) hits.push({ title: d.title, detail: d.kind, href: hrefOf(i), score: s, group: 'Drawings' });
+    const s = score([[longTitle(i), 1], [d.view, 0.8], [d.kind, 0.5], [d.file, 0.6]]);
+    if (s) hits.push({ title: longTitle(i), detail: d.kind, href: hrefOf(i), score: s, group: 'Drawings' });
   }
   const best = (g: Hit['group']) => hits.filter((x) => x.group === g).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
   // Elements first unless a drawing is clearly what was meant.
@@ -1152,7 +1160,7 @@ function buildPrint() {
         h('span', { class: 'caps' }, 'Architecture'),
         h('h1', {}, data.title),
         h('div', { class: 'caps' }, data.made),
-        h('ol', {}, ...data.files.flatMap((f) => f.drawings.map((d) => h('li', {}, data.drawings[d]!.title)))),
+        h('ol', {}, ...data.files.flatMap((f) => f.drawings.map((d) => h('li', {}, longTitle(d))))),
       ),
     );
   for (const f of data.files)
@@ -1162,7 +1170,7 @@ function buildPrint() {
       if (!svg) continue;
       svg.removeAttribute('width');
       svg.removeAttribute('height');
-      pages.push(h('section', { class: 'page', 'data-d': d }, h('header', {}, h('b', {}, dr.title), h('span', { class: 'caps' }, dr.kind), h('span', { class: 'caps' }, data.title)), h('div', { class: 'fig' }, svg)));
+      pages.push(h('section', { class: 'page', 'data-d': d }, h('header', {}, h('b', {}, longTitle(d)), h('span', { class: 'caps' }, dr.kind), h('span', { class: 'caps' }, data.title)), h('div', { class: 'fig' }, svg)));
     }
   els.print.replaceChildren(...pages);
   document.body.dataset.print = 'ready';
