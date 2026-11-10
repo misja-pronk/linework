@@ -32,41 +32,127 @@
   },
   "contributes": {
     "commands": [
-      { "command": "cartography.showPreview", "title": "Open Preview to the Side", "category": "Cartography", "icon": "$(open-preview)" },
-      { "command": "cartography.present", "title": "Present", "category": "Cartography", "icon": "$(play)" },
-      { "command": "cartography.newDiagram", "title": "New Diagram from Template…", "category": "Cartography" },
-      { "command": "cartography.exportSvg", "title": "Export as SVG…", "category": "Cartography" },
-      { "command": "cartography.exportPng", "title": "Export as PNG…", "category": "Cartography" },
-      { "command": "cartography.exportPptx", "title": "Export as PowerPoint (.pptx)…", "category": "Cartography" },
-      { "command": "cartography.import", "title": "Import from Mermaid, draw.io, Excalidraw or Structurizr…", "category": "Cartography" },
-      { "command": "cartography.copyShareLink", "title": "Copy Share Link", "category": "Cartography" },
-      { "command": "cartography.openInEditor", "title": "Open in Cartography Editor", "category": "Cartography" },
-      { "command": "cartography.clearPins", "title": "Clear Pins of This View", "category": "Cartography" }
+      {
+        "command": "cartography.showPreview",
+        "title": "Open Preview to the Side",
+        "category": "Cartography",
+        "icon": "$(open-preview)"
+      },
+      {
+        "command": "cartography.present",
+        "title": "Present",
+        "category": "Cartography",
+        "icon": "$(play)"
+      },
+      {
+        "command": "cartography.newDiagram",
+        "title": "New Diagram from Template…",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.exportSvg",
+        "title": "Export as SVG…",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.exportPng",
+        "title": "Export as PNG…",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.exportPptx",
+        "title": "Export as PowerPoint (.pptx)…",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.import",
+        "title": "Import from Mermaid, draw.io, Excalidraw or Structurizr…",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.copyShareLink",
+        "title": "Copy Share Link",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.openInEditor",
+        "title": "Open in Cartography Editor",
+        "category": "Cartography"
+      },
+      {
+        "command": "cartography.clearPins",
+        "title": "Clear Pins of This View",
+        "category": "Cartography"
+      }
     ],
     "menus": {
       "editor/title": [
-        { "command": "cartography.showPreview", "when": "cartography.isDiagram", "group": "navigation" }
+        {
+          "command": "cartography.showPreview",
+          "when": "cartography.isDiagram",
+          "group": "navigation"
+        }
       ],
       "editor/title/context": [
-        { "command": "cartography.showPreview", "when": "cartography.isDiagram" }
+        {
+          "command": "cartography.showPreview",
+          "when": "cartography.isDiagram"
+        }
       ],
       "explorer/context": [
-        { "command": "cartography.import", "when": "resourceExtname =~ /^\\.(mmd|mermaid|drawio|dio|excalidraw|dsl)$/", "group": "navigation@90" },
-        { "command": "cartography.showPreview", "when": "resourceFilename =~ /\\.carto\\.ya?ml$/", "group": "navigation@91" }
+        {
+          "command": "cartography.import",
+          "when": "resourceExtname =~ /^\\.(mmd|mermaid|drawio|dio|excalidraw|dsl)$/",
+          "group": "navigation@90"
+        },
+        {
+          "command": "cartography.showPreview",
+          "when": "resourceFilename =~ /\\.carto\\.ya?ml$/",
+          "group": "navigation@91"
+        }
       ],
       "commandPalette": [
-        { "command": "cartography.showPreview", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.present", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.exportSvg", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.exportPng", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.exportPptx", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.copyShareLink", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.openInEditor", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
-        { "command": "cartography.clearPins", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" }
+        {
+          "command": "cartography.showPreview",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.present",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.exportSvg",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.exportPng",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.exportPptx",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.copyShareLink",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.openInEditor",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        },
+        {
+          "command": "cartography.clearPins",
+          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+        }
       ]
     },
     "keybindings": [
-      { "command": "cartography.showPreview", "key": "ctrl+k v", "mac": "cmd+k v", "when": "editorTextFocus && cartography.isDiagram" }
+      {
+        "command": "cartography.showPreview",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorTextFocus && cartography.isDiagram"
+      }
     ],
     "configuration": {
       "title": "Cartography",
@@ -127,9 +213,12 @@
     "@cartography/interop": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",
+    "@types/markdown-it": "^14.2.0",
     "@types/vscode": "1.90.0",
+    "ajv": "^8.20.0",
     "esbuild": "^0.28.2",
     "fflate": "0.8.3",
+    "markdown-it": "^15.0.3",
     "yaml": "^2.9.1"
   }
 }

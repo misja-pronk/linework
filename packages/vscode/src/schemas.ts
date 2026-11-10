@@ -39,18 +39,31 @@ export function editorSchema(id: string): Json | undefined {
 /** Every `type:` there is a schema for. */
 export const schemaIds = () => [...types.map((t) => t.id), 'model'];
 
-/** One schema for every diagram: the type key picks the rest (for `*.carto.yaml` before the extension runs). */
+/** A schema's own `$ref`s, pointed at its definitions under a prefix, so several fit in one file. */
+function prefixed(schema: unknown, id: string): unknown {
+  if (Array.isArray(schema)) return schema.map((x) => prefixed(x, id));
+  if (!schema || typeof schema !== 'object') return schema;
+  return Object.fromEntries(
+    Object.entries(schema as Json).map(([k, v]) => [k, k === '$ref' && typeof v === 'string' ? v.replace(/^#\/(\$defs|definitions)\//, `#/$defs/${id}.`).replace(/^#$/, `#/$defs/${id}`) : prefixed(v, id)]),
+  );
+}
+
+/** One schema for every diagram: the type key picks the rest (for tools that take one schema file). */
 export function combinedSchema(): Json {
   const ids = schemaIds();
+  const defs: Json = {};
+  for (const id of ids) {
+    const { $schema: _, $defs, definitions, ...body } = editorSchema(id)! as Json & { $defs?: Json; definitions?: Json };
+    for (const [name, d] of Object.entries({ ...(definitions ?? {}), ...($defs ?? {}) })) defs[`${id}.${name}`] = prefixed(d, id);
+    defs[id] = prefixed(body, id);
+  }
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'Cartography diagram',
     type: 'object',
     properties: { type: { enum: ids, description: 'What kind of diagram this is' } },
-    allOf: ids.map((id) => {
-      const { $schema: _, ...s } = editorSchema(id)!;
-      return { if: { properties: { type: { const: id } }, required: ['type'] }, then: s };
-    }),
+    allOf: ids.map((id) => ({ if: { properties: { type: { const: id } }, required: ['type'] }, then: { $ref: `#/$defs/${id}` } })),
+    $defs: defs,
   };
 }
 
