@@ -376,6 +376,9 @@ importers:
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cartography/layout':
+        specifier: workspace:*
+        version: link:../layout
 
   packages/interop:
     dependencies:

@@ -64,14 +64,15 @@ A flowchart that decides something imports as a `process`, not as an architectur
 three of its nine nodes are diamonds and two are terminals. Questions, `{…}` and plain `{{…}}` shapes
 become decisions (a small diamond with the question beside it), `([…])` at the start a start event,
 the other boxes tasks. The first chain of the source is the happy path: drawn straight and a little
-heavier, and named in the key. Each "no" leaves its diamond downwards with its label at the exit, and
-the two ways back (retry, skip MFA) run under the row, nested, without crossing.
+heavier, and named in the key. The source says `flowchart TD`, and the import writes `direction: down`:
+the flow runs down the page as in Mermaid, the happy "yes" straight down the left, the sign-in
+steps in a column beside it. Each answer leaves its diamond at its own point with its label at the
+exit, and the two ways back (retry, skip MFA) run down the right side, nested, without crossing.
+Where Mermaid's picture is a strip six times as tall as it is wide, ours fits a page.
 
-What changed against Mermaid's own picture, and may not be what you wanted: the source says
-`flowchart TD` and the import runs it left to right, as every process (`direction: down` in the YAML
-brings it back); and "Show home screen" was a pill at the end in Mermaid and is a task here, because
-a second line leads into it. Mermaid's big diamonds with the question inside are the more familiar
-flowchart at first sight, and its drawing is narrower: ours is a banner that wants the width of a slide.
+What changed against Mermaid's own picture, and may not be what you wanted: "Show home screen" was
+a pill at the end in Mermaid and is a task here, because a second line leads into it. Mermaid's big
+diamonds with the question inside are the more familiar flowchart at first sight.
 
 ## Leave request (flowchart with subgraphs)
 

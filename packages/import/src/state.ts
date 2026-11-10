@@ -123,7 +123,8 @@ export function importState(body: string[], title: string | undefined, warn: War
 
   const out = ['type: states'];
   if (title) out.push(`title: ${scalar(title)}`);
-  if (direction === 'TB' || direction === 'TD' || direction === 'BT') out.push('direction: down');
+  // Written either way, as the source has it (Mermaid's own default is top to bottom).
+  out.push(`direction: ${direction === 'LR' || direction === 'RL' ? 'right' : 'down'}`);
   if (direction === 'RL' || direction === 'BT') warn.onceFor('dir', `Direction ${direction} is drawn as ${direction === 'RL' ? 'LR' : 'TB'}: Cartography reads left to right or top to bottom`);
 
   // Under states: only what the transitions cannot say: what holds states, a choice, a note, a state nothing touches.

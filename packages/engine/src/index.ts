@@ -267,7 +267,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // A type that places things itself gets the drawing before this one as well, to keep what it can.
-  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout))) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
