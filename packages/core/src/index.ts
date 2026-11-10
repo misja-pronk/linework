@@ -25,3 +25,4 @@ export * from './notes.ts';
 export * from './layers.ts';
 export * from './yaml-print.ts';
 export * from './decisions.ts';
+export * from './place-refs.ts';
