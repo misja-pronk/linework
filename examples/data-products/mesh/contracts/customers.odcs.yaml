@@ -1,0 +1,46 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+apiVersion: v3.1.0
+kind: DataContract
+id: 0d2b7e11-customers
+name: customers
+version: 1.4.0
+status: active
+domain: Customer
+dataProduct: Customers
+description:
+  purpose: One row per customer account.
+schema:
+  - id: customers_tbl
+    name: customers
+    physicalType: table
+    properties:
+      - id: customer_id_pk
+        name: customer_id
+        logicalType: string
+        physicalType: uuid
+        primaryKey: true
+        required: true
+      - name: email
+        logicalType: string
+        physicalType: varchar(254)
+        required: true
+        classification: confidential
+        tags: [pii]
+      - name: name
+        logicalType: string
+        physicalType: varchar(120)
+        classification: confidential
+        tags: [pii]
+      - name: country
+        logicalType: string
+        physicalType: char(2)
+      - name: created_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+slaProperties:
+  - property: latency
+    value: 24
+    unit: h
+team:
+  name: CRM team

@@ -295,6 +295,12 @@ importers:
 
   packages/import:
     dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/data-products':
+        specifier: workspace:*
+        version: link:../../types/data-products
       '@cartography/roadmap':
         specifier: workspace:*
         version: link:../../types/roadmap

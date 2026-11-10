@@ -112,7 +112,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
-    out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}</g>`, opts));
+    out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${g.focused ? focusRing(box, theme.radius.group, theme) : ''}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}</g>`, opts));
   }
   const badges = chips(graph);
   const badged = new Set([...badges.values()].flat().map((c) => c.edge));
@@ -158,7 +158,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
     const mark = link && shape.kind !== 'matrix' ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
     // Marked as standing back in words too: a look without shadows shows it only in its colours.
-    out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${body}${mark}</g>`, opts));
+    out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${n.focused ? focusRing(box, theme.radius.card, theme) : ''}${body}${mark}</g>`, opts));
   }
   // Labels last, so lines never cross them.
   for (const e of graph.edges) {
@@ -282,6 +282,13 @@ export function byDepth(groups: GraphGroup[]): GraphGroup[] {
   const byId = new Map(groups.map((g) => [g.id, g]));
   const depth = (g: GraphGroup): number => (g.parent && byId.get(g.parent) ? 1 + depth(byId.get(g.parent)!) : 0);
   return [...groups].sort((a, b) => depth(a) - depth(b));
+}
+
+/** What a focus view is about: a ring in the accent colour just outside the shape, with a soft glow under it. */
+function focusRing(b: Box, radius: number, theme: Theme): string {
+  const colour = theme.accent ?? theme.tones.blue.fg;
+  const at = (d: number) => `x="${r1(b.x - d)}" y="${r1(b.y - d)}" width="${r1(b.width + 2 * d)}" height="${r1(b.height + 2 * d)}" rx="${r1(radius + d)}" fill="none" stroke="${colour}"`;
+  return `<rect ${at(4)} stroke-opacity="0.2" stroke-width="7"/><rect ${at(4)} stroke-width="2"/>`;
 }
 
 function drawGroup(g: GraphGroup, b: Box, theme: Theme, depth = 0, link = false, img?: string): string {
@@ -456,8 +463,9 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   const titleY = shape.caption ? b.y + head / 2 - 7 : b.y + head / 2;
   s += img ? image(img, b.x + t.padX - 1, titleY - 9, 18, 18) : drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
   s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text);
+  // A table as wide as its caption was rounded to whole pixels: half a pixel short is not a reason to cut it.
   if (shape.caption)
-    s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX), theme.size.caption, 400, theme.textMuted);
+    s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX + 1), theme.size.caption, 400, theme.textMuted);
 
   let y = b.y + head;
   const marks = markWidth(shape);

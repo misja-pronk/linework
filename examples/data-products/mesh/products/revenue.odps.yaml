@@ -1,0 +1,26 @@
+# Open Data Product Standard v1 — https://bitol-io.github.io/open-data-product-standard/
+apiVersion: v1.0.0
+kind: DataProduct
+id: 2e8d7a19-revenue
+name: Revenue
+version: 1.2.0
+status: active
+domain: Finance
+description:
+  purpose: Revenue per day and country in euros, for the monthly close and the board report.
+inputPorts:
+  - name: orders
+    version: 2.1.0
+    contractId: 5c1e9f20-orders
+  - name: settled payments
+    version: 3.2.0
+    contractId: 7f2c1d4e-payments
+  - name: exchange rates
+    version: 1.0.0
+    contractId: fx-daily-rates
+outputPorts:
+  - name: revenue by day
+    type: REST API
+    version: 1.2.0
+team:
+  name: Finance data

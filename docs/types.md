@@ -12,6 +12,8 @@ carto new erd orders.yaml      # start from a type's template
 
 Whatever the type, a drawing can be told in parts for an audience: `steps:` says what is shown and what stands out at each step, for the presenter in the editor and for one slide per step in PowerPoint. See [steps.md](steps.md).
 
+A big drawing of boxes and lines can be cut down to one thing and what is around it: `focus: orders` in the YAML, `carto render --focus orders --hops 2`, or `F` on a selection in the editor. See [the focus view](data-products.md#the-focus-view).
+
 ## Decision table
 
 | You want to show… | Type | `type:` |
@@ -259,7 +261,7 @@ Examples: [examples/github](../examples/github)
 
 `type: data-products` · data mesh: domains, products, their ports, contracts and consumers.
 
-Use it to show which data products feed which through which input and output ports, to link data contracts (ODCS files next to the diagram) to the ports they describe, or to map who consumes a product: reports, models, apps.
+Use it to show which data products feed which through which input and output ports, to link data contracts (ODCS files next to the diagram) to the ports they describe, to map who consumes a product (reports, models, apps), or to draw a folder of ODPS and ODCS files as one data mesh map: `carto render <folder>`.
 
 Not for: the tables inside one database (use `erd`), ETL jobs and services as boxes (use `systems`).
 
@@ -272,7 +274,7 @@ products:
   customers: { label: Customers, domain: sales }
 ```
 
-Examples: [examples/data-products](../examples/data-products)
+Guide: [data-products.md](data-products.md) (the mesh map from ODPS and ODCS files, lineage from one product). Examples: [examples/data-products](../examples/data-products)
 
 ## Sequence
 

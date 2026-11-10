@@ -101,6 +101,7 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
       groupIds.has(e.to.node) ? `lhead=${q('cluster_' + e.to.node)}` : '',
       // Weak lines (dotted: management, lookups) should not pull the layout around.
       weak(e) ? 'weight=0' : e.line === 'dashed' || e.line === 'dotted' ? 'weight=1' : 'weight=2',
+      e.loose ? 'constraint=false' : '',
     ].filter(Boolean);
     lines.push(`  ${q(a)}${pa} -> ${q(b)}${pb} [${attrs.join(', ')}];`);
   }

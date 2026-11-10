@@ -17,13 +17,15 @@ export interface ExportInput {
   previous?: LayoutMemory;
   /** The step on screen: SVG and PNG show it; PowerPoint and PDF get every step, one per slide or page. */
   step?: number;
+  /** The focus set in the editor: the export is the neighbourhood on screen, and says so under its title. */
+  focus?: unknown;
 }
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, fonts: 'embed' as const });
+const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, icons: brand().icons, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, options(input));

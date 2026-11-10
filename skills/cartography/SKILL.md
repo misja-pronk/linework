@@ -69,7 +69,12 @@ packages | roles` picks the drawing (graph, who × where matrix, packages matrix
 **data-products**: products have `class: source-aligned | aggregate | consumer-aligned`, `domain:`,
 `inputs: [source, product, product.port]` and `outputs:` (ports, optionally with `contract:`).
 `view: overview | detailed`; `detail: [id]` shows only some products in detail. A contract may point
-to an ODCS file with `file:` (relative to the diagram).
+to an ODCS file with `file:` (relative to the diagram). A folder of ODPS and ODCS files is drawn as
+one map with `carto render <folder>`, or made into a diagram with `carto import <folder>`.
+
+**Focus** (every type of boxes and lines): `focus: orders`, or `focus: { on: [orders, tag:pii],
+hops: 2 | all, direction: both | upstream | downstream }`, at the top or inside a view, draws only
+that and what is within so many lines of it. Use it for lineage and impact questions in a big diagram.
 
 ## 3. The loop: validate → fix → render
 
@@ -122,6 +127,8 @@ pnpm carto new systems diagram.yaml            # template to a file (stdout with
 pnpm carto validate diagram.yaml               # file:line:col  error  message; exit 1 on errors
 pnpm carto render diagram.yaml -f png -t dark  # → diagram.png (svg default; -o out path or dir)
 pnpm carto import flow.mmd -o flow.yaml        # Mermaid (or .md with mermaid blocks) → YAML
+pnpm carto render diagram.yaml --focus api --hops 2   # only api and what is within two lines of it
+pnpm carto render mesh/ -o mesh.png            # a folder of ODPS/ODCS files as one data mesh map
 ```
 
 The CLI has no layout-quality report: render a PNG and look at it instead. Schemas are in
