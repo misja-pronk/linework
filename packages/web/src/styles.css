@@ -555,6 +555,11 @@ kbd {
   padding-top: 12vh;
   animation: fade 120ms ease-out;
 }
+/* Every dialog ends above the bottom of the window, whatever it holds: the part that grows (a diff,
+   a list) scrolls inside it, the header and the buttons stay in view (review 3: Rename everywhere at 900 px). */
+.overlay > [role='dialog'] {
+  max-height: calc(100vh - 12vh - 16px);
+}
 @keyframes fade {
   from {
     opacity: 0;

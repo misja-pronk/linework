@@ -151,6 +151,35 @@ await step('where used', async () => {
   if ((await selectedId()) !== 'api') fail(`selected from where used: ${await selectedId()}`);
 });
 
+// Review 3: renaming the ledger (12 places in 5 files) made the dialog taller than the window; its
+// button was cut off. The diff scrolls, the buttons stay in view, at 1512×900 and at 1280×800.
+await step('rename everywhere fits the window', async () => {
+  await page.click('.files .file:has-text("context.yaml")');
+  await waitFile('context.yaml');
+  await settle();
+  await page.click('.drawing [data-node="ledger"]');
+  await page.keyboard.press('Shift+F2');
+  await page.waitForSelector('.rename-everywhere');
+  await page.keyboard.type('ledger-core');
+  await page.waitForTimeout(300);
+  if (!/in [4-9] files/.test(await page.locator('.rename-actions button.primary').innerText())) fail(`ledger is in several files: ${await page.locator('.rename-actions button.primary').innerText()}`);
+  for (const viewport of [{ width: 1512, height: 900 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    await page.waitForTimeout(300);
+    const box = await page.locator('.rename-everywhere').boundingBox();
+    const button = await page.locator('.rename-actions button.primary').boundingBox();
+    if (!box || box.y + box.height > viewport.height) fail(`rename dialog ends at ${box && Math.round(box.y + box.height)} in a ${viewport.height} px window`);
+    if (!button || button.y + button.height > viewport.height) fail(`the rename button is cut off at ${viewport.width}×${viewport.height}`);
+    await page.screenshot({ path: `${out}/workspace-5-rename-${viewport.height}.png` });
+  }
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1512, height: 900 });
+  await settle();
+  await page.click('.files .file:has-text("deployment.yaml")');
+  await waitFile('deployment.yaml');
+  await settle();
+});
+
 await step('rename everywhere', async () => {
   const before = { model: await disk('model.yaml'), deployment: await disk('deployment.yaml'), pins: await disk('containers.layout.json') };
   await page.click('.drawing [data-node="engine"]');
