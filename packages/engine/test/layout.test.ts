@@ -87,6 +87,7 @@ const crossingBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 2, // Orders' confirmation line passes its own OrderPlaced line: the lower drawing with one crossing scores a hair worse
   'systems/saas-platform.yaml': 2,
+  'systems/threat-model.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 

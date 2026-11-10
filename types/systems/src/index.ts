@@ -20,7 +20,7 @@ export const config: GraphTypeConfig = {
     system: { label: 'System', icon: 'boxes', tone: 'blue' },
     boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
     zone: { label: 'Zone', icon: 'shield', tone: 'teal', border: 'dashed', keywords: ['network', 'dmz', 'vpc', 'subnet'] },
-    'trust-boundary': { label: 'Trust boundary', icon: 'shield-alert', tone: 'rose', border: 'dashed', keywords: ['threat model', 'security', 'stride', 'internet'] },
+    'trust-boundary': { label: 'Trust boundary', icon: 'shield', tone: 'rose', border: 'dashed', keywords: ['threat model', 'security', 'stride', 'internet'] },
     team: { label: 'Team', icon: 'users', tone: 'violet', border: 'dashed', keywords: ['owner'] },
     domain: { label: 'Domain', icon: 'layers', tone: 'indigo', border: 'dashed', keywords: ['bounded context', 'layer'] },
     cluster: { label: 'Cluster', icon: 'boxes', tone: 'sky', keywords: ['kubernetes', 'k8s'] },

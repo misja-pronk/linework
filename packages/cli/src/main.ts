@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | new | import | export | icons | themes | types
+// carto render | deck | watch | validate | diff | new | import | export | threats | share | icons | themes | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -17,6 +17,7 @@ import { accessChanges, type AccessChange, type AccessSource } from '@cartograph
 import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
+import { threatMarkdown } from '@cartography/core';
 import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const help = `carto — architecture diagrams that look good
@@ -47,6 +48,11 @@ const help = `carto — architecture diagrams that look good
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
+  carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
+               [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
+  carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
+                                                travels in the link's #fragment, never to a server (default base
+                                                http://localhost:5173/)
   carto validate <file.yaml…>                   check files and each of their views, print problems
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
@@ -151,6 +157,7 @@ const { positionals, values } = parseArgs({
     'collapse-above': { type: 'string' },
     'group-by': { type: 'string' },
     as: { type: 'string' },
+    base: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -1007,6 +1014,36 @@ async function main(): Promise<number> {
       else if (r.ok || values.fragment) fs.writeFileSync(out, r.html);
       if (out && r.ok) console.error(`${f} → ${out}`);
       return r.ok ? 0 : 1;
+    }
+    case 'threats': {
+      const [f] = files;
+      if (!f) return (console.error(help), 1);
+      const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view });
+      report(f, r.diagnostics);
+      if (!r.graph) return 1;
+      if (!r.graph.threats) {
+        console.error(`${f}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)`);
+        return 1;
+      }
+      const md = threatMarkdown(r.graph);
+      if (!values.out) process.stdout.write(md);
+      else {
+        fs.writeFileSync(values.out, md);
+        console.error(`${f} → ${values.out}  ${dim(`${r.graph.threats.length} threats`)}`);
+      }
+      return r.diagnostics.some((d) => d.severity === 'error') ? 1 : 0;
+    }
+    case 'share': {
+      const [f] = files;
+      if (!f) return (console.error(help), 1);
+      const { shareLink, SHARE_LIMIT } = await import('@cartography/core');
+      const link = await shareLink({ yaml: fs.readFileSync(f, 'utf8'), name: path.basename(f), layout: sidecarFor(f) }, values.base ?? 'http://localhost:5173/');
+      if (link.length > SHARE_LIMIT) {
+        console.error(`${f}: the link would be ${Math.ceil(link.length / 1000)} kB, over the ${SHARE_LIMIT / 1000} kB a link can safely carry. Share the file itself instead.`);
+        return 1;
+      }
+      console.log(link);
+      return 0;
     }
     case 'validate': {
       let ok = true;
