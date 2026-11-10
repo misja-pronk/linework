@@ -396,8 +396,10 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   // that reads best with text too small weighed double wins. One whose boxes alone cannot come out above
   // the bar (either way of weighing) is not routed.
   const beat = than ? [best, than] : [best];
-  const floor = Math.max(...beat.map((b) => Math.min(readsAs(b, target, 0), readsAs(b, target)))) + WRAP_GAIN;
-  const bar = () => (found ? Math.max(floor, readsAs(found, target)) : floor);
+  // Each way of weighing has its own bar (readsBetter): a cut is routed when its boxes could clear either.
+  const bars = (k: number) => Math.max(...beat.map((b) => readsAs(b, target, k))) + WRAP_GAIN;
+  const [plainBar, smallBar] = [bars(0), bars(SMALL_COST)];
+  const could = (c: { bound: number; reach: number }) => c.bound > plainBar - 1e-9 || c.reach > smallBar - 1e-9;
   // A bigger diagram tries the plain cuts only.
   const small = s.graph.nodes.length <= WRAP_ALL;
   const scopes: (string | undefined)[] = [undefined, ...(small ? wrapScopes(best.p, s.graph) : [])];
@@ -428,7 +430,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
           const sb = pageScale(b.placed, s.graph, target);
           return sb < READABLE_SCALE && (sq >= LARGER * sb || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
         });
-        cuts.push({ q, parts, opts, bound: plain, reach: weighed ? Math.max(plain, smallText - SHAPE_COST * outOfBand(q, s.graph, target)) : plain, i: cuts.length });
+        cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, i: cuts.length });
       }
   // The most promising first, so the bar rises early and the rest need not be routed; on a tie the
   // one tried first in the order above wins, as it always did.
@@ -436,7 +438,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   let routed = 0;
   for (const c of cuts) {
     if (routed >= WRAP_ROUTED) break;
-    if (c.reach < bar() - 1e-9) continue;
+    if (!could(c) || (found && Math.max(c.bound, c.reach) < readsAs(found, target) - 1e-9)) continue;
     routed++;
     const choice = rewrapped(best, spacing, c.q, c.parts, c.opts);
     const ok = beat.every((b) => readsBetter(choice, b, target));
