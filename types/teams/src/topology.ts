@@ -29,7 +29,7 @@ export function topologyLayout(sized: Sized): Placed {
   const partners = (id: string) => ties.flatMap((e) => (e.from.node === id ? [e.to.node] : e.to.node === id ? [e.from.node] : []));
 
   const rowH = Math.max(64, ...[...S, ...C].map((n) => size(n.id).height));
-  const ws = Math.max(340, ...S.map((n) => size(n.id).width));
+  let ws = Math.max(340, ...S.map((n) => size(n.id).width));
   const we = Math.max(118, ...E.map((n) => size(n.id).width));
   const wc = Math.max(156, ...C.map((n) => size(n.id).width));
   const ph = Math.max(58, ...P.map((n) => size(n.id).height));
@@ -66,6 +66,16 @@ export function topologyLayout(sized: Sized): Placed {
   const xS = columns.length * (we + GAP);
   const rowY = (r: number) => top + r * (rowH + GAP);
   const bottom = rows ? rowY(rows) - GAP : top;
+  // The streams take the width a 16:9 slide leaves (title and key around the drawing), up to a point:
+  // a tall view gets long bars, as the book draws them, instead of a narrow column.
+  if (S.length) {
+    const height = bottom + (P.length ? GAP + ph : 0);
+    const frame = { width: 80, height: (g.title ? 64 : 0) + (g.legend?.length ? 100 : 0) + 80 };
+    const most = Math.max(0, ...[...new Set(C.map((c) => cRow.get(c.id)!))].map((r) => C.filter((c) => cRow.get(c.id) === r).length));
+    const others = xS + (most ? GAP + most * (wc + GAP) - GAP : 0);
+    const want = (16 / 9) * (height + frame.height) - frame.width - others;
+    ws = Math.round(Math.min(Math.max(ws, want), Math.max(ws, 680)));
+  }
   const boxes = new Map<string, Box>();
   // The innermost column stands next to the streams.
   const eX = (k: number) => xS - (k + 1) * (we + GAP);
