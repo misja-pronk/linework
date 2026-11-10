@@ -17,6 +17,7 @@ import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
+import { exportFrom, exportKind, exportRemark } from './exports.ts';
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -161,6 +162,8 @@ export function App() {
   );
   /** The open folder holds data products or data contracts (ODPS, ODCS): it can be drawn as one map. */
   const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
+  /** The open folder holds access exports or gh api responses: they can be drawn as one access or GitHub diagram. */
+  const exportInWs = useMemo(() => (ws && !meshInWs ? exportKind([...ws.files].map(([path, f]) => ({ path, text: f.text }))) : undefined), [ws, meshInWs]);
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -399,7 +402,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
-      else if (meshInFolder(next)) return;
+      else if (meshInFolder(next) || exportInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -431,6 +434,23 @@ export function App() {
     focusDrawing();
     return true;
   };
+  /** access.yaml or github.yaml in the open folder: its exports as one diagram, made or brought up to date. False: the folder has none. */
+  const exportInFolder = (w: Workspace): boolean => {
+    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
+    const kind = exportKind(files);
+    if (!kind) return false;
+    const path = `${kind}.yaml`;
+    const was = w.files.get(path)?.text;
+    if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    const r = exportFrom(files.filter((f) => f.path !== path), was != null ? { existing: was } : {});
+    if (!r?.yaml) return (notify(`Nothing to draw in ${w.name}${r ? exportRemark(r) : ''}`, { tone: 'error' }), true);
+    fileHandle.current = undefined;
+    open(r.yaml, { name: path, path }, readSidecar(w, path));
+    setSavedText(was ?? null);
+    notify(`${r.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${exportRemark(r)}`, r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    focusDrawing();
+    return true;
+  };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
     problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
 
@@ -444,6 +464,14 @@ export function App() {
       return focusDrawing();
     }
     if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error' });
+    // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
+    const exported = exportFrom(files);
+    if (exported?.yaml) {
+      fileHandle.current = undefined;
+      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`);
+      return focusDrawing();
+    }
+    if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error' });
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
     fileHandle.current = files.length === 1 ? handle : undefined;
@@ -475,7 +503,7 @@ export function App() {
         try {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
-            types: [{ description: 'Cartography diagram, or data products and contracts (ODPS, ODCS)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } }],
+            types: [{ description: 'Cartography diagram, data products and contracts, or access and GitHub exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } }],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
           openTexts(files, hs[0]);
@@ -1117,11 +1145,12 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
       : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open YAML file…', hint: 'a diagram, or data products and contracts (ODPS, ODCS)', icon: 'folder-open', shortcut: '⌘O', run: openFile },
+    { id: 'open', group: 'File', label: 'Open YAML file…', hint: 'a diagram; data products and contracts (ODPS, ODCS); az, Graph, AzureHound or gh api JSON', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
+    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: exportInWs === 'github' ? `GitHub organisation of ${ws.name}` : `Who reaches what in ${ws.name}`, hint: exportInWs === 'github' ? 'its gh api responses in github.yaml' : 'its az, Graph or AzureHound exports in access.yaml', icon: exportInWs === 'github' ? 'folder-git-2' : 'shield-user', run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
@@ -1772,7 +1801,7 @@ export function App() {
           <div>
             <Icon name="folder-open" size={22} />
             <strong>Drop to open</strong>
-            <span>A diagram, or data product and data contract files (ODPS, ODCS) and folders of them: they become one data mesh map</span>
+            <span>A diagram; data products and contracts (ODPS, ODCS); or a folder of az, Graph, AzureHound or gh api JSON: it becomes one diagram</span>
           </div>
         </div>
       )}
