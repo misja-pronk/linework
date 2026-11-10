@@ -4,6 +4,7 @@ import { parseNotes, type Decision, type LayoutSidecar, type NotesFile } from '@
 import { brand } from './brand.ts';
 import { iconOptions } from './icon-packs.ts';
 import { diagrams, type Workspace } from './files.ts';
+import { t } from './i18n/index.ts';
 
 export interface PageInput {
   /** The diagram open in the editor: its path in the folder, or its name. */
@@ -55,6 +56,6 @@ export async function exportPage(input: PageInput): Promise<string> {
     ...(input.decisions?.length ? { decisions: input.decisions } : {}),
     render: { themeOverride: brand().theme, ...iconOptions() },
   });
-  if (!r.stats.drawings) throw new Error(r.problems[0]?.message ?? 'nothing to draw');
+  if (!r.stats.drawings) throw new Error(r.problems[0]?.message ?? t('nothing to draw'));
   return r.html;
 }

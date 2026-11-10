@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PaletteItem } from '@cartography/core';
 import { Icon } from './icon.tsx';
 import { score } from './palette.tsx';
+import { t } from './i18n/index.ts';
 
 export const PALETTE_MIME = 'application/x-cartography-palette';
 
@@ -25,12 +26,12 @@ export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[
   }, [index]);
 
   return (
-    <div className={inline ? 'add-menu inline' : 'add-menu'} role={inline ? undefined : 'dialog'} aria-label="Add to diagram" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+    <div className={inline ? 'add-menu inline' : 'add-menu'} role={inline ? undefined : 'dialog'} aria-label={t('Add to diagram')} onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
       <div className="palette-input">
         <Icon name="search" />
         <input
           autoFocus={!inline}
-          placeholder={inline ? 'Search shapes…' : 'Add a shape…'}
+          placeholder={inline ? t('Search shapes…') : t('Add a shape…')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -47,7 +48,7 @@ export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[
         />
       </div>
       <div className="add-list" id="add-list" role="listbox" ref={list}>
-        {shown.length === 0 && <div className="palette-empty">Nothing matches “{query}”</div>}
+        {shown.length === 0 && <div className="palette-empty">{t('Nothing matches “{query}”', { query })}</div>}
         {shown.map(({ item, i }, n) => (
           <div key={i}>
             {!query && (n === 0 || shown[n - 1]!.item.collection !== item.collection) && <div className="palette-group">{titleCase(item.collection)}</div>}
@@ -64,7 +65,7 @@ export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[
               }}
               onMouseMove={() => setIndex(n)}
               onClick={() => onAdd(item)}
-              title="Click to add, or drag onto the drawing"
+              title={t('Click to add, or drag onto the drawing')}
             >
               <span className={`tile tone-${item.tone}`}>
                 <Icon name={item.icon} size={15} />
