@@ -15,7 +15,7 @@ people:
   hana: { name: Hana Sato, role: Engineering manager, reports: cem, team: search }
   ivo: { name: Ivo de Boer, role: Data science lead, reports: cem, team: ranking }
   open-sre: { role: SRE coach, reports: cem, vacant: true, team: enablement }
-  jade: { name: Jade Lin, role: Product designer, reports: dewi, dotted: dana }
+  jade: { name: Jade Lin, role: Product designer, reports: dewi }
   kai: { name: Kai Vermeer, role: UX researcher, reports: dewi }
 
 teams:

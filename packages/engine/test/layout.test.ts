@@ -9,6 +9,12 @@ import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
+  'capabilities/e-commerce.yaml': 0,
+  'capabilities/enterprise.yaml': 0,
+  'capabilities/retail-bank.yaml': 0,
+  'teams/consultancy-team.yaml': 2, // the dotted lines from the client side cross the consultancy's reporting lines: that is what they say
+  'teams/platform-org.yaml': 0,
+  'teams/product-org.yaml': 0,
   'access/engineering.yaml': 0,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
