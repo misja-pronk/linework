@@ -307,7 +307,8 @@ layers:
     const bad = carto('render', 'layered.yaml', '--layer', 'nope');
     expect(bad.code).not.toBe(0);
     expect(bad.err).toContain('There is no layer "nope"');
-  });
+    // Five runs of the command line.
+  }, 60_000);
 });
 
 describe('threats and share', () => {
