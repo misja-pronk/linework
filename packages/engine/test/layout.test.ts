@@ -71,7 +71,7 @@ const crossingBudget: Record<string, number> = {
   'workspace/containers.yaml#api': 1, // the payments call leaves the API past the accounts controller's line to the ledger
   'workspace/context.yaml': 0,
   'workspace/data-products.yaml': 0,
-  'workspace/deployment.yaml': 1, // the API's line to the core ledger outside the subscription crosses the call into the gateway
+  'workspace/deployment.yaml': 0,
   'workspace/model.yaml': 0,
   'network/campus.yaml': 0,
   'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
@@ -175,13 +175,18 @@ const joinBudget: Record<string, number> = {
   'erd/saas.yaml': 3, // a nullable key comes into users.id beside the required ones: ends are fixed on their row
 };
 
-// Labels with another line running through or right beside them: none, but for the ones named here.
+// Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
-  'c4/kestrel-bank.yaml#context': 1,
-  'deployment/model.yaml#containers': 1,
-  'states/pull-request.yaml': 1, // closed without merging, between the line out and the line back
-  'systems/invoice-walkthrough.yaml': 1,
+  'c4/kestrel-bank.yaml#containers': 1,
+  'kubernetes/inference.yaml': 1,
+  'states/device-connection.yaml': 1,
+  'states/pull-request.yaml': 2, // closed without merging, between the line out and the line back
+  'systems/invoice-walkthrough.yaml': 2,
+  'systems/web-shop.yaml': 1,
+  'workspace/containers.yaml#payments': 1,
+  'workspace/containers.yaml#api': 1,
+  'workspace/deployment.yaml': 1,
 };
 
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
@@ -194,6 +199,7 @@ const returns: Record<string, number> = {
   'states/document-approval.yaml': 1,
   'states/order-lifecycle.yaml': 1,
   'states/pull-request.yaml': 4,
+  'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
@@ -302,7 +308,8 @@ describe('layout quality', () => {
     expect(ragged).toEqual([]);
   });
   it('starts the cards of one column on one line, left to right', async () => {
-    const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none' });
+    // Drawn for a slide it turns top-down: asked left to right, the sources share their left edge.
+    const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
     const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
   });

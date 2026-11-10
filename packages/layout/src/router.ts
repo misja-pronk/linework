@@ -77,7 +77,8 @@ const CROSS = 70;
 const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
-const LABEL_AIR = 4; // a label keeps this far from every other line
+const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it seems to belong to that one
+const STRUCK = 56; // a label wider than this on a vertical line reads as crossed out: beside the line is better
 const PART = 48; // siblings part at least this far from the end they do not share
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
 const FLOW = 150; // per end on a side across the flow, for a line into a later layer
@@ -86,6 +87,7 @@ const FOREIGN = 1; // per pixel inside a group that holds neither end, for each 
 const HEADER = 6; // per pixel more in the header strip of such a group
 const ALONG = 3; // per pixel of running along the header strip of a group the line belongs in
 const OUTSIDE = 10; // a track this far outside each group border, to go around the group
+const MEETS = 30; // a line out of the side another comes in at (see chooseSides)
 const SLIDE = 40; // a step aside shorter than this, right out of a card, is taken out by sliding the line's end
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
@@ -96,6 +98,61 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   const sides = chooseSides(input, strange);
   const trunk = input.trunks === false ? new Map<string, string>() : trunkGroups(input, sides);
   const ports = placePorts(input, sides, trunk);
+  const out = routeWith(input, sides, trunk, ports, strange);
+  // Two lines out of (or into) one side that cross each other: their ports were put in the wrong
+  // order (the line that turns away first leaves on the inside). Swapped, and drawn again; kept
+  // when that crosses less.
+  const swaps = crossedPorts(input, out, sides, trunk);
+  if (!swaps.length) return out;
+  const swapped = new Map(ports);
+  for (const [a, b, end] of swaps) {
+    const [pa, pb] = [swapped.get(a)!, swapped.get(b)!];
+    if (end === 'from') {
+      swapped.set(a, { ...pa, from: pb.from, start: pb.start });
+      swapped.set(b, { ...pb, from: pa.from, start: pa.start });
+    } else {
+      swapped.set(a, { ...pa, to: pb.to, goal: pb.goal });
+      swapped.set(b, { ...pb, to: pa.to, goal: pa.goal });
+    }
+  }
+  const again = routeWith(input, sides, trunk, swapped, strange);
+  return crossings(again) < crossings(out) ? again : out;
+}
+
+/** Pairs of lines that leave (or reach) one node side on ports of their own and cross each other: each pair once. */
+function crossedPorts(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>): [string, string, 'from' | 'to'][] {
+  const out: [string, string, 'from' | 'to'][] = [];
+  const used = new Set<string>();
+  const list = input.edges.filter((e) => routes.has(e.id) && !e.via?.length && e.from.node !== e.to.node && !trunk.has(e.id));
+  for (const [i, a] of list.entries())
+    for (const b of list.slice(i + 1)) {
+      if (used.has(a.id) || used.has(b.id)) continue;
+      const end = (['from', 'to'] as const).find((k) => a[k].node === b[k].node && a[k].rowY == null && b[k].rowY == null && sides.get(a.id)![k === 'from' ? 0 : 1] === sides.get(b.id)![k === 'from' ? 0 : 1]);
+      if (!end || !crossEach(routes.get(a.id)!.points, routes.get(b.id)!.points)) continue;
+      out.push([a.id, b.id, end]);
+      used.add(a.id).add(b.id);
+    }
+  return out;
+}
+
+function crossEach(p: Point[], q: Point[]): boolean {
+  for (let i = 1; i < p.length; i++) for (let j = 1; j < q.length; j++) if (properCross(p[i - 1]!, p[i]!, q[j - 1]!, q[j]!)) return true;
+  return false;
+}
+
+function crossings(routes: Map<string, PlacedEdge>): number {
+  const all = [...routes.values()].map((r) => r.points);
+  let n = 0;
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) for (let a = 1; a < all[i]!.length; a++) for (let b = 1; b < all[j]!.length; b++) if (properCross(all[i]![a - 1]!, all[i]![a]!, all[j]![b - 1]!, all[j]![b]!)) n++;
+  return n;
+}
+
+function properCross(a: Point, b: Point, c: Point, d: Point): boolean {
+  const o = (p: Point, q: Point, r: Point) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+}
+
+function routeWith(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: Map<string, string>, ports: Map<string, Ports>, strange: (e: RouteRequest) => ZoneCost | undefined): Map<string, PlacedEdge> {
   // Lines bent by hand lie where they were put. They go on the grid first (their corners are grid
   // points), so every other line pays for running along one or crossing it, as for any line that
   // is already there: the others go around a hand-bent line instead of over it.
@@ -138,7 +195,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
         points = found?.points ?? fallback(p);
         if (found) loose.add(e.id);
       }
-      out.set(e.id, { points: simplify(points) });
+      out.set(e.id, { points: unloop(simplify(points)) });
     }
   slideEnds(input, out, sides, trunk, loose);
   if (input.nudge !== false) {
@@ -281,8 +338,17 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // Into a later layer (the other end wholly further along the flow), a line leaves and enters
     // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
     const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
+    // A line that runs mostly across the flow (to a card far below, in a left-to-right drawing) and not
+    // on to a later layer leaves and enters across it: out of the side along the flow it would start
+    // right beside where the line before it came in, and read as that line running on.
+    const [ca, cb] = [centre(e.from.box), centre(e.to.box)];
+    const crosswise = !later && (input.direction === 'right' ? Math.abs(cb.y - ca.y) > 2 * Math.abs(cb.x - ca.x) : Math.abs(cb.x - ca.x) > 2 * Math.abs(cb.y - ca.y));
+    // A line out of the side another line comes in at (or into the side another leaves from) starts
+    // right beside that one's end: the two read as one line running on through the card.
+    const meets = (pair: [Side, Side]) =>
+      input.edges.filter((o) => out.has(o.id) && ((o.to.node === e.from.node && out.get(o.id)![1] === pair[0]) || (o.from.node === e.to.node && out.get(o.id)![0] === pair[1]))).length;
     for (const pair of list) {
-      const sideways = pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25);
+      const sideways = meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
       // Only a way cheaper than the best so far is worth finding.
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways);
       if (!found) continue;
@@ -1031,6 +1097,24 @@ function fallback(p: Ports): Point[] {
 }
 
 /** Drop duplicate and collinear points. */
+/**
+ * A line that crosses itself (a small loop taken to reach a straight end) is cut short where it
+ * crosses: the loop goes, and the end is the stretch past the crossing, when that is still long
+ * enough for an arrowhead.
+ */
+export function unloop(pts: Point[]): Point[] {
+  for (let i = 1; i < pts.length; i++)
+    for (let j = i + 2; j < pts.length; j++) {
+      const [a, b, c, d] = [pts[i - 1]!, pts[i]!, pts[j - 1]!, pts[j]!];
+      if (!properCross(a, b, c, d)) continue;
+      const x = a.x === b.x ? { x: a.x, y: c.y } : { x: c.x, y: a.y };
+      const room = (p: Point, q: Point) => Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
+      if ((i === 1 && room(a, x) < 12) || (j === pts.length - 1 && room(x, d) < 12)) continue;
+      return unloop([...pts.slice(0, i), x, ...pts.slice(j)]);
+    }
+  return pts;
+}
+
 export function simplify(pts: Point[]): Point[] {
   const out: Point[] = [];
   for (const p of pts) {
@@ -1056,7 +1140,14 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
   for (const [id, r] of routes) for (let i = 1; i < r.points.length; i++) lines.push({ edge: id, box: grow(segmentBox(r.points[i - 1]!, r.points[i]!), LABEL_AIR) });
   const overlap = (r: Box, t: Box) => r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height;
   let own = new Set<string>();
-  const hits = (r: Box) => taken.some((t) => overlap(r, t)) || lines.some((l) => !own.has(l.edge) && overlap(r, l.box));
+  // How much a spot covers: nothing (0), or a box, header or label (each counts 25) and other lines (each 1),
+  // so where no spot is clear the label goes where it covers least.
+  const hits = (r: Box) => {
+    let n = 0;
+    for (const t of taken) if (overlap(r, t)) n += 25;
+    for (const id of new Set(lines.filter((l) => !own.has(l.edge) && overlap(r, l.box)).map((l) => l.edge))) n += 1;
+    return n ? 1000 + 40 * n : 0;
+  };
   for (const e of input.edges) {
     const route = routes.get(e.id);
     if (!e.label || !route) continue;
@@ -1106,7 +1197,9 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
           if (len >= (horizontal ? width + 16 : height + 16)) {
             const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
             const covers = horizontal && alone && len < width + 28 ? 100 : 0;
-            found.push({ box, score: (horizontal ? 0 : 60) + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
+            // Words across a vertical line read as struck through: a short label may sit on it, a long one goes beside it.
+            const struck = horizontal ? 0 : Math.max(0, width - STRUCK) * 0.5;
+            found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
           }
           // Above or below a horizontal line too short for a pill on it (a short hop between layers),
           // or with no room on it: two lines close together get their labels on the far sides.
@@ -1115,14 +1208,14 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
             for (const side of [-1, 1]) {
               const y = side < 0 ? c.y - 3 - height : c.y + 3;
               const box = { x: c.x - width / 2, y, width, height };
-              found.push({ box, score: (short ? 95 : 110) + middle * 10 + Math.abs(t - 0.5) * 40 + (side > 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+              found.push({ box, score: (short ? 95 : 110) + middle * 10 + Math.abs(t - 0.5) * 40 + (side > 0 ? 5 : 0) + hits(box) });
             }
           // Beside a vertical line, when it is too short or crowded for a pill on it.
           if (!horizontal && len >= height + 8)
             for (const side of [1, -1]) {
               const x = side > 0 ? c.x + 3 : c.x - 3 - width;
               const box = { x, y: c.y - height / 2, width, height };
-              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + hits(box) });
             }
         }
       });
