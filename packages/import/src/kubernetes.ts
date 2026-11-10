@@ -5,7 +5,17 @@
 // specs name their ConfigMaps, Secrets, claims and service account.
 import { parseAllDocuments } from 'yaml';
 import { scalar, slug, Warnings } from './text.ts';
+import { Kept, isObj, type Obj as Entry } from './keep.ts';
 import type { Imported } from './index.ts';
+
+export interface KubernetesOptions {
+  /**
+   * The diagram an earlier import made, to import over: what the cluster says follows it, what was
+   * written by hand stays (labels, comments, views, entries and lines of your own). With options at
+   * all, imported entries carry the tag `imported`, so the next import knows them.
+   */
+  existing?: string;
+}
 
 type Obj = Record<string, any>;
 
@@ -39,7 +49,7 @@ export function isKubernetes(text: string): boolean {
   }
 }
 
-export function importKubernetes(text: string, fallbackTitle?: string): Imported {
+export function importKubernetes(text: string, fallbackTitle?: string, opts?: KubernetesOptions): Imported {
   const warn = new Warnings();
   const objects: Obj[] = [];
   const add = (o: unknown) => {
@@ -298,6 +308,8 @@ export function importKubernetes(text: string, fallbackTitle?: string): Imported
   nodes.sort((a, b) => rank(a.kind) - rank(b.kind));
   edges.sort((a, b) => rank(kindOf.get(a.from)) - rank(kindOf.get(b.from)));
 
+  if (opts) return { yaml: over(opts.existing, fallbackTitle ?? 'Kubernetes', [...namespaces, ...objects.filter((o) => o.kind === 'Namespace').map((o) => o.metadata.name as string)], nodes, edges, policies, warn), warnings: warn.list };
+
   const out: string[] = ['type: kubernetes', `title: ${scalar(fallbackTitle ?? 'Kubernetes')}`, '', 'groups:', '  cluster: { kind: cluster, label: Cluster }'];
   for (const o of objects) if (o.kind === 'Namespace') namespaces.add(o.metadata.name);
   const nsList = [...namespaces].sort();
@@ -324,3 +336,85 @@ export function importKubernetes(text: string, fallbackTitle?: string): Imported
 
 // Namespace ids carry a prefix: "monitoring" the namespace and "monitoring" the deployment are common.
 const nsId = (ns: string) => `ns-${slug(ns).toLowerCase()}`;
+
+const IMPORTED = 'imported';
+const FIELDS = ['replicas', 'image', 'ports', 'host', 'schedule', 'size', 'serviceType'];
+const ARROW = /^\s*([A-Za-z0-9_.-]+)\s*(?:<->|-->|\.\.>|->|--)\s*([A-Za-z0-9_.-]+)\s*$/;
+
+/**
+ * The import written over an earlier one with keep.ts: an entry tagged `imported` follows the
+ * cluster (and goes when it is gone), anything else is yours. An entry of the same id and kind
+ * without the tag, from a diagram a file import made, is taken to be the same thing; one you renamed
+ * is found by its label, kind and namespace.
+ */
+function over(existing: string | undefined, title: string, namespaces: string[], nodes: Node[], edges: { from: string; to: string; label?: string }[], policies: boolean, warn: Warnings): string {
+  const kept = Kept.open('kubernetes', existing, { title, ...(policies ? { badges: ['mounts', 'identity', 'scales', 'policy'] } : {}) });
+  if (typeof kept === 'string') {
+    warn.add(kept);
+    return existing ?? '';
+  }
+  if (kept.fresh && policies) (kept.doc.get('badges', true) as { flow: boolean }).flow = true;
+  const made = (e: Entry | undefined) => !!e && Array.isArray(e.tags) && e.tags.includes(IMPORTED);
+  const before = { groups: kept.before('groups'), nodes: kept.before('nodes') };
+  const wanted: { at: 'groups' | 'nodes'; id: string; value: Entry; name: string }[] = [
+    { at: 'groups', id: 'cluster', value: { kind: 'cluster', label: 'Cluster' }, name: 'Cluster' },
+    ...[...new Set(namespaces)].sort().map((ns) => ({ at: 'groups' as const, id: nsId(ns), value: { kind: 'namespace', label: ns, in: 'cluster' }, name: ns })),
+    ...nodes.map((n) => ({
+      at: 'nodes' as const,
+      id: n.id,
+      name: n.label,
+      value: { kind: n.kind, ...(n.label !== n.id && n.kind !== 'internet' ? { label: n.label } : {}), in: n.ns ? nsId(n.ns) : n.kind !== 'internet' && n.kind !== 'external' ? 'cluster' : undefined, ...Object.fromEntries(n.fields) },
+    })),
+  ];
+  // Which id each wanted entry has in the diagram: its own, or the one it was renamed to.
+  const idOf = new Map<string, string>();
+  const claimed = new Set<string>();
+  const ref = (id: string | undefined) => (id === undefined ? undefined : (idOf.get(`groups:${id}`) ?? id));
+  for (const w of wanted) {
+    const same = (id: string, e: Entry) => e.kind === w.value.kind && !claimed.has(id);
+    const old = before[w.at][w.id];
+    let id = old && same(w.id, old) ? w.id : undefined;
+    // Renamed by hand: the tag, the kind, the name it carries and where it is.
+    id ??= Object.entries(before[w.at]).find(([k, e]) => made(e) && same(k, e) && (e.label ?? k) === w.name && e.in === ref(w.value.in as string | undefined))?.[0];
+    if (!id) {
+      id = w.id;
+      // The id is taken by something else: of yours, or another kind.
+      for (let i = 2; (before.groups[id] || before.nodes[id] || claimed.has(id)) && !(before[w.at][id] && same(id, before[w.at][id]!)); i++) id = `${w.id}-${i}`;
+    }
+    claimed.add(id);
+    idOf.set(`${w.at}:${w.id}`, id);
+  }
+  const nodeRef = (id: string) => idOf.get(`nodes:${id}`) ?? id;
+  const gone = new Set<string>();
+  for (const at of ['nodes', 'groups'] as const) for (const [id, e] of Object.entries(before[at])) if (made(e) && !claimed.has(id)) (kept.drop(at, id), gone.add(id));
+  for (const w of wanted) {
+    const id = idOf.get(`${w.at}:${w.id}`)!;
+    const old = before[w.at][id];
+    const tags = [...new Set([IMPORTED, ...(Array.isArray(old?.tags) ? old.tags.map(String) : [])])];
+    const value = { ...w.value, in: ref(w.value.in as string | undefined), tags };
+    // `internet: internet` is written short; with options it carries its tag like the rest.
+    kept.put(w.at, id, value, ['kind', 'in', 'tags', ...(w.at === 'nodes' ? FIELDS : [])]);
+  }
+
+  // Lines between imported entries follow the cluster; one with an end of yours stays as it is.
+  const fresh = edges.map((e) => {
+    const key = `${nodeRef(e.from)} -> ${nodeRef(e.to)}`;
+    return e.label ? { [key]: e.label } : key;
+  });
+  const endsOf = (e: unknown) => ARROW.exec(typeof e === 'string' ? e : isObj(e) ? (Object.keys(e)[0] ?? '') : '');
+  const imported = new Set([...idOf.values()]);
+  const old = Array.isArray(kept.old.edges) ? kept.old.edges : [];
+  const now = new Set(fresh.map((e) => JSON.stringify(e)));
+  // In the order they were, new ones after.
+  const stay = old.filter((e) => {
+    const m = endsOf(e);
+    if (!m) return true;
+    if (gone.has(m[1]!) || gone.has(m[2]!)) return false;
+    return !(imported.has(m[1]!) && imported.has(m[2]!)) || now.has(JSON.stringify(e));
+  });
+  const had = new Set(stay.map((e) => JSON.stringify(e)));
+  kept.list('edges', [...stay, ...fresh.filter((e) => !had.has(JSON.stringify(e)))]);
+  kept.tidy(['groups', 'nodes']);
+  // A labelled line the way the file import writes it: `- a -> b: HTTPS`, not `- { a -> b: HTTPS }`.
+  return kept.text().replace(/^(\s*- )\{ ([\w.-]+ -> [\w.-]+: [^{}[\]]*) \}$/gm, '$1$2');
+}
