@@ -1,9 +1,9 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, linkHref, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
+import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { arrowBack, arrowHead, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
+import { arrowBack, arrowHead, endMarker as marker, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
 import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
@@ -48,7 +48,8 @@ export interface SvgResult {
   origin: Point;
 }
 
-export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOptions = {}): SvgResult {
+export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOptions = {}): SvgResult {
+  const graph = withBadgeIcons(source);
   // A framed sheet keeps the title and the drawing clear of its frame.
   const pad = theme.space.pad + sheetPad(theme);
   const id = opts.idPrefix ?? 'carto';
@@ -538,12 +539,14 @@ function drawEdge(e: GraphEdge, points: Point[], theme: Theme): string {
   if (back && e.end === 'arrow') shorten(pts, pts.length - 1, pts.length - 2, back);
   if (back && e.start === 'arrow') shorten(pts, 0, 1, back);
   const opacity = e.tone ? ' stroke-opacity="0.9"' : '';
-  const width = theme.stroke.edge * (e.width ?? 1);
+  const width = patternWidth(e.pattern, theme.stroke.edge * (e.width ?? 1));
   const dash = dashAttr(e.line, width, theme);
   // Square and cut corners are drawn with square joins; a dotted line keeps round dots.
   const round = look(theme).line.corner === 'round';
   const ends = `stroke-linecap="${round || e.line === 'dotted' ? 'round' : 'butt'}" stroke-linejoin="${round ? 'round' : 'miter'}"`;
-  let s = `<path d="${themedPath(pts, theme)}" fill="none" stroke="${color}" stroke-width="${r1(width)}" ${ends}${dash}${opacity}/>`;
+  const d = themedPath(pts, theme);
+  let s = `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width)}" ${ends}${dash}${opacity}/>`;
+  s += patternOver(e.pattern, d, color, width, theme, dash);
   s += marker(e.end, points[points.length - 1]!, points[points.length - 2]!, color, theme);
   s += marker(e.start, points[0]!, points[1]!, color, theme);
   return s;
@@ -604,43 +607,6 @@ function shorten(pts: Point[], end: number, prev: number, by: number) {
 
 /** Orthogonal polyline with rounded corners. */
 export const roundedPath = (pts: Point[], radius: number): string => linePath(pts, radius, 'round');
-
-/** Arrowheads and crow's-foot ends, drawn at `tip` pointing away from `from`. */
-function marker(kind: Marker, tip: Point, from: Point, color: string, theme: Theme): string {
-  if (kind === 'none') return '';
-  const len = Math.hypot(tip.x - from.x, tip.y - from.y) || 1;
-  const d = { x: (tip.x - from.x) / len, y: (tip.y - from.y) / len };
-  const n = { x: -d.y, y: d.x };
-  const at = (back: number, side = 0) => ({ x: tip.x - d.x * back + n.x * side, y: tip.y - d.y * back + n.y * side });
-  const P = (p: Point) => `${r1(p.x)} ${r1(p.y)}`;
-  const line = (a: Point, b: Point) =>
-    `<path d="M${P(a)}L${P(b)}" stroke="${color}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" fill="none"/>`;
-  const bar = (back: number) => line(at(back, -6), at(back, 6));
-  const circle = (back: number) => {
-    const c = at(back);
-    return `<circle cx="${r1(c.x)}" cy="${r1(c.y)}" r="4" fill="${theme.surface}" stroke="${color}" stroke-width="${theme.stroke.edge}"/>`;
-  };
-  const crow = () => line(at(12), at(0, -7)) + line(at(12), at(0, 7)) + line(at(12), at(0));
-
-  switch (kind) {
-    case 'arrow':
-      return arrowHead(tip, from, color, theme);
-    case 'one':
-      return bar(8) + bar(13);
-    case 'zeroOrOne':
-      return bar(8) + circle(17);
-    case 'many':
-      return crow();
-    case 'oneOrMany':
-      return crow() + bar(16);
-    case 'zeroOrMany':
-      return crow() + circle(20);
-    case 'slash':
-      // A default flow: a short stroke across the line, just past where it leaves.
-      return `<path d="M${P(at(12, -5))}L${P(at(6, 5))}" stroke="${color}" stroke-width="${r1(theme.stroke.edge * 1.2)}" stroke-linecap="round" fill="none"/>`;
-  }
-}
-
 
 /** A label lying over the arrowhead is slid back along its line until the head shows. */
 function offHead(points: Point[], b: Box): Box {

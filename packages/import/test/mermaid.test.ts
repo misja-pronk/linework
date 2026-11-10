@@ -37,15 +37,15 @@ flowchart LR
     expect(d.direction).toBeUndefined();
     expect(d.groups).toEqual({ backend: { kind: 'group', label: 'Backend services' } });
     expect(d.nodes).toEqual({
-      U: { kind: 'user', label: 'Customer' },
-      W: { kind: 'client', label: 'Web shop' },
+      U: { kind: 'user', label: 'Customer', caption: '' },
+      W: { kind: 'client', label: 'Web shop', caption: '' },
       GW: { kind: 'gateway', label: 'API Gateway', in: 'backend' },
       O: { kind: 'service', label: 'Order Service', in: 'backend' },
-      P: { kind: 'payments', label: 'Payment Service', in: 'backend' },
-      DB: { kind: 'database', label: 'Orders', in: 'backend' },
+      P: { kind: 'payments', label: 'Payment Service', caption: '', in: 'backend' },
+      DB: { kind: 'database', label: 'Orders', caption: '', in: 'backend' },
       Q: { kind: 'queue', label: 'order-events queue', in: 'backend' },
       M: { kind: 'worker', label: 'Mailer worker', in: 'backend' },
-      S: { kind: 'payments', label: 'Stripe' },
+      S: { kind: 'payments', label: 'Stripe', caption: '' },
       C: { kind: 'cache', label: 'Redis cache' },
     });
     expect(d.edges).toEqual([
@@ -81,11 +81,11 @@ flowchart LR
 `);
     const d = parse(yaml);
     expect(d.direction).toBe('down');
-    expect(d.nodes.A).toEqual({ kind: 'mobile', label: 'Mobile app (iOS & Android)' });
+    expect(d.nodes.A).toEqual({ kind: 'mobile', label: 'Mobile app (iOS & Android)', caption: '' });
     expect(d.nodes.B).toBe('load-balancer');
-    expect(d.nodes.C1).toEqual({ kind: 'server', label: 'App server 1' });
-    expect(d.nodes.D).toEqual({ kind: 'database', label: 'Postgres primary' });
-    expect(d.nodes.X).toEqual({ kind: 'external', label: 'External CRM' });
+    expect(d.nodes.C1).toEqual({ kind: 'server', label: 'App server 1', caption: '' });
+    expect(d.nodes.D).toEqual({ kind: 'database', label: 'Postgres primary', caption: '' });
+    expect(d.nodes.X).toEqual({ kind: 'external', label: 'External CRM', caption: '' });
     expect(d.nodes['D-backup']).toEqual({ kind: 'step', label: 'D.backup' });
     expect(d.nodes.F).toEqual({ kind: 'decision', label: 'Is cached?' });
     expect(d.edges).toContainEqual({ 'A -> B': 'HTTPS' });
@@ -115,8 +115,8 @@ flowchart LR
   api -.->|metrics| graf
 `);
     const d = parse(yaml);
-    expect(d.groups).toEqual({ aws: { kind: 'cloud', label: 'AWS eu-west-1' }, vpc: { kind: 'zone', label: 'Private VPC', in: 'aws' }, 'Ops-team': { kind: 'team', label: 'Ops team' } });
-    expect(d.nodes.db).toEqual({ kind: 'database', label: 'orders', in: 'vpc' });
+    expect(d.groups).toEqual({ aws: { kind: 'cloud', label: 'AWS eu-west-1', caption: '' }, vpc: { kind: 'zone', label: 'Private VPC', caption: '', in: 'aws' }, 'Ops-team': { kind: 'team', label: 'Ops team' } });
+    expect(d.nodes.db).toEqual({ kind: 'database', label: 'orders', caption: '', in: 'vpc' });
     expect(d.nodes.api).toEqual({ kind: 'api', label: 'Orders API', in: 'vpc' });
     expect(d.edges).toEqual(['user -> aws', 'api -> db', { 'api -> graf': { label: 'metrics', style: 'dotted' } }]);
     await clean(yaml);
@@ -215,16 +215,16 @@ flowchart TD
 
   it('keeps word kinds in architectures, and pills mid-flow are boxes', () => {
     const d = parse(importMermaid('flowchart LR\n  u((Customer)) --> g{{API Gateway}} --> s([Billing]) --> db[(Ledger)]\n').yaml);
-    expect(d.nodes).toEqual({ u: { kind: 'user', label: 'Customer' }, g: { kind: 'gateway', label: 'API Gateway' }, s: { kind: 'step', label: 'Billing' }, db: { kind: 'database', label: 'Ledger' } });
+    expect(d.nodes).toEqual({ u: { kind: 'user', label: 'Customer', caption: '' }, g: { kind: 'gateway', label: 'API Gateway' }, s: { kind: 'step', label: 'Billing' }, db: { kind: 'database', label: 'Ledger', caption: '' } });
     expect(d.title).toBe('Imported diagram');
   });
 
-  it('imports untitled subgraphs as neutral groups without a caption', async () => {
+  it('imports subgraphs without a caption: neutral groups, or a guessed kind that only gives the icon', async () => {
     const { yaml } = importMermaid('flowchart LR\n  subgraph s [Sources]\n    a[CRM]\n  end\n  subgraph p [Payment platform]\n    b[Ledger service]\n  end\n  a --> b\n');
     const d = parse(yaml);
-    expect(d.groups).toEqual({ s: { kind: 'group', label: 'Sources' }, p: { kind: 'system', label: 'Payment platform' } });
+    expect(d.groups).toEqual({ s: { kind: 'group', label: 'Sources' }, p: { kind: 'system', label: 'Payment platform', caption: '' } });
     const r = await clean(yaml);
-    expect(r.graph!.groups.map((g) => g.caption)).toEqual([undefined, 'System']);
+    expect(r.graph!.groups.map((g) => g.caption || undefined)).toEqual([undefined, undefined]);
     // "Ledger service" already says what it is.
     expect(r.graph!.nodes[1]!.shape).toMatchObject({ label: 'Ledger service', caption: undefined });
   });
@@ -252,13 +252,13 @@ describe('architecture-beta', () => {
 `);
     const d = parse(yaml);
     expect(d.direction).toBeUndefined();
-    expect(d.groups).toEqual({ api: { kind: 'cloud', label: 'API' }, private: { kind: 'zone', label: 'Private network', in: 'api' } });
+    expect(d.groups).toEqual({ api: { kind: 'cloud', label: 'API', caption: '' }, private: { kind: 'zone', label: 'Private network', caption: '', in: 'api' } });
     expect(d.nodes).toEqual({
       db: { kind: 'database', in: 'private' },
-      disk1: { kind: 'storage', label: 'Storage', in: 'private' },
+      disk1: { kind: 'storage', label: 'Storage', caption: '', in: 'private' },
       server: { kind: 'server', in: 'api' },
-      gateway: { kind: 'gateway', label: 'Gateway' },
-      fn: { kind: 'function', label: 'Resize', in: 'api' },
+      gateway: { kind: 'gateway', label: 'Gateway', caption: '' },
+      fn: { kind: 'function', label: 'Resize', caption: '', in: 'api' },
     });
     expect(d.edges).toEqual(['db -- server', 'disk1 -- server', 'gateway -> server', 'server -- fn', 'server -- db']);
     expect(warnings).toEqual(['Junctions are replaced by direct lines between what they join']);

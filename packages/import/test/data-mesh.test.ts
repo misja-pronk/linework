@@ -123,7 +123,7 @@ describe('importDataMesh', () => {
       outputs: { orders: { kind: 'table', contract: 'orders' }, 'order-placed': { kind: 'topic', label: 'order placed' } },
     });
     // What it reads comes from outside the folder: a source stands for it.
-    expect(doc.sources).toEqual({ 'webshop-order-events': { label: 'webshop order events', caption: 'Outside these files' } });
+    expect(doc.sources).toEqual({ 'webshop-order-events': { label: 'webshop order events', caption: 'Outside the mesh' } });
     expect(doc.contracts).toEqual({ orders: { file: 'contracts/orders.yaml' } });
   });
 
@@ -244,7 +244,7 @@ describe('importDataMesh', () => {
     // The contract is still there, and stands for a product of its own now; what only the product file knew goes.
     expect(doc.products.orders).toEqual({ class: 'source-aligned', file: 'contracts/orders.yaml', outputs: { orders: { contract: 'orders' } } });
     expect(doc.products.revenue.inputs).toEqual([{ from: 'orders', name: 'sales orders' }, 'c-rates']);
-    expect(doc.sources).toEqual({ shop: 'database', 'c-rates': { label: 'c-rates', caption: 'Outside these files' } });
+    expect(doc.sources).toEqual({ shop: 'database', 'c-rates': { label: 'c-rates', caption: 'Outside the mesh' } });
     expect(yaml).not.toContain('webshop');
     expect(doc.domains).toEqual({ finance: { label: 'Finance' } });
     // And back: the source that stood for the missing product goes again.

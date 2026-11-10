@@ -76,7 +76,7 @@ export const config: GraphTypeConfig = {
   edgeStyles: {
     ethernet: { label: 'Ethernet', line: 'solid' },
     fiber: { label: 'Fibre', line: 'solid', tone: 'orange' },
-    trunk: { label: 'Trunk', line: 'solid', tone: 'indigo' },
+    trunk: { label: 'Trunk', line: 'solid', tone: 'indigo', pattern: 'double' },
     wan: { label: 'WAN', line: 'solid', tone: 'sky' },
     circuit: { label: 'Private circuit', line: 'solid', tone: 'teal' },
     vpn: { label: 'VPN tunnel', line: 'dashed', tone: 'teal' },
@@ -356,6 +356,8 @@ function graphView(src: NetworkSource, ctx: BuildContext): Graph {
     const w = STYLE_EXTRA[id ?? '']?.width;
     if (w && !l.swatch) l.width = w;
   }
+  // A heavier line says the link is aggregated (2×10G): the key says so too.
+  if (graph.legend.length && extras.some((x) => x?.width === LAG_WIDTH)) graph.legend.push({ label: 'Aggregated link (2× or more)', line: 'solid', width: LAG_WIDTH });
   return graph;
 }
 

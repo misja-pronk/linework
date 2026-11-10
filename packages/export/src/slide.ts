@@ -501,7 +501,7 @@ class SlideDrawing {
     rows.push({
       height: this.L(MATRIX.HEAD),
       cells: [
-        { paras: [para(m.corner ? [this.run(m.corner, t.size.caption, 500, t.textFaint)] : [])], fill: { color: head }, inset, bottom: rule },
+        { paras: [para(m.corner ? [m.plain ? this.run(m.corner, t.size.cell, 600, t.text) : this.run(m.corner, t.size.caption, 500, t.textFaint)] : [])], fill: { color: head }, inset, bottom: rule },
         ...m.columns.map((c) => ({
           paras: [para([this.run(c.label, t.size.cell, 600, t.text)], center ? 'ctr' : 'l'), ...(c.caption ? [para([this.run(c.caption, t.size.caption, 400, t.textFaint)], center ? 'ctr' : 'l')] : [])],
           fill: { color: head },
@@ -557,7 +557,7 @@ class SlideDrawing {
     const pr = Math.max(0, t.radius.card - 0.5);
     if (paper) items.push(this.sp({ name: 'Header', frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5), geom: { prst: 'round2SameRect', adj: { adj1: (pr / Math.min(b.width - 1, HEAD - 0.5)) * 100000, adj2: 0 } }, fill: { color: paper }, line: null }));
     items.push(this.hline(b.x, b.x + b.width, b.y + HEAD, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
-    if (m.corner) items.push(this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
+    if (m.corner) items.push(m.plain ? this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.cell, 600, t.text) : this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
       const w = g.columns[j]!;
@@ -578,7 +578,7 @@ class SlideDrawing {
     for (const [i, row] of m.rows.entries()) {
       const cy = y + g.rowHeight / 2;
       // A row without a label continues the one above: the rule skips its header.
-      if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
+      if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
       let tx = b.x + PAD;
       if (row.icon) {
@@ -906,7 +906,7 @@ class SlideDrawing {
     if (item.swatch === 'badge') {
       const arrow = this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) });
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { color: t.surface }, { color: tone.fg, alpha: 0.55, width: this.L(1) }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { color: tone.bg }, null);
-      return [back, arrow];
+      return [back, item.icon ? this.icon(item.icon, x + 4, cy - 6, 12, tone.fg, 1.6) : arrow];
     }
     if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
       // A kind of element: its own icon, treated as on the cards. Shape tells the kinds apart, colour only helps.
@@ -923,6 +923,7 @@ class SlideDrawing {
       const line: Line = { color: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, width: this.L(1.2), dash: 'dashed' };
       return [box(19, 15, Math.min(4, t.radius.group), paper ? { color: paper } : null, line, 0.5)];
     }
+    if (item.swatch === 'glyph') return [this.icon(item.icon, x + 3, cy - 7, 14, tone.fg, 1.75)];
     if (item.swatch === 'trust') return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color: t.tones.rose.fg, width: this.L(1.8), dash: 'dashed' } })];
     if (item.swatch === 'mark' && item.tag && item.tone) {
       const w = Math.max(20, measureText(item.tag, chipText(t), 600) + 12);

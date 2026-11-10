@@ -101,7 +101,9 @@ const crossingBudget: Record<string, number> = {
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
-const headerBudget: Record<string, number> = {};
+const headerBudget: Record<string, number> = {
+  'deployment/aws.yaml#prod': 1, // one load balancer now (main): the OrderPlaced line from zone 1a, labelled and so on its own, runs over the top of zone 1b on its way to the queue
+};
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
@@ -113,6 +115,7 @@ const jogBudget: Record<string, number> = {
   'data-products/customer-detailed.yaml': 1, // the same as customer.yaml
   'data-products/customer-focus.yaml': 2, // the same, twice
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
+  'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
   'kubernetes/platform.yaml': 2, // /api goes under storefront
@@ -140,6 +143,9 @@ const orderBudget: Record<string, number> = {
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way
   'cloud/multi-cloud.yaml': 1,
+  // One load balancer across both zones (as AWS runs it) no longer pins zone a to the left: zone b lands first.
+  'deployment/aws.yaml': 1,
+  'deployment/aws.yaml#prod': 1,
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
@@ -211,7 +217,7 @@ describe('layout quality', () => {
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
     const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev' });
-    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb-a')!;
+    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
   it('writes each label on its own line where lines that say the same run into one target', async () => {

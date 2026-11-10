@@ -9,18 +9,26 @@
 //     - web -> db: { label: SQL, style: private }
 import { edgeItemSchema, edgeReferences, parseEdge } from './edges.ts';
 import { idPattern, type BuildContext, type KindTable, type Reference } from './diagram-type.ts';
-import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, Path, Tone } from './model.ts';
+import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, LinePattern, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
 import type { Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
 import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
 
+export interface EdgeStyle {
+  label: string;
+  line: GraphEdge['line'];
+  tone?: Tone;
+  /** Its second mark besides colour; left out, stylePatterns picks one where another style draws the same line. */
+  pattern?: LinePattern;
+}
+
 export interface GraphTypeConfig {
   nodeKinds: KindTable;
   groupKinds: Record<string, KindTable[string] & { border?: GraphGroup['border'] }>;
   /** Named edge styles (e.g. public, private); used ones end up in the legend. */
-  edgeStyles?: Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
+  edgeStyles?: Record<string, EdgeStyle>;
   /** Legend name of a solid line without a style, listed when the legend explains other lines too. */
   plainEdge?: string;
   /** Model kinds this type draws as one of its own, e.g. database → sql-database. Unknown kinds become a plain card. */
@@ -30,6 +38,26 @@ export interface GraphTypeConfig {
    * `true` lets the rules find outside parties and data stores by the usual kind names.
    */
   threats?: ThreatKinds | true;
+}
+
+/**
+ * A pattern per edge style, so no two coloured styles of a type are told apart by colour alone: a
+ * style may name its own; of the others, the first coloured style of each line (solid, dashed,
+ * dotted) is drawn plain, the next ones with ticks, beads, then a double line, skipping what is
+ * taken. Fixed per type, so a style looks the same in every diagram.
+ */
+export function stylePatterns(styles: Record<string, EdgeStyle> = {}): Record<string, LinePattern | undefined> {
+  const out: Record<string, LinePattern | undefined> = {};
+  const taken = new Map<string, Set<LinePattern | undefined>>();
+  const list = Object.entries(styles).filter(([, s]) => s.tone);
+  for (const [k, s] of list) if (s.pattern) taken.set(s.line, (taken.get(s.line) ?? new Set()).add((out[k] = s.pattern)));
+  for (const [k, s] of list) {
+    if (s.pattern) continue;
+    const used = taken.get(s.line) ?? new Set();
+    out[k] = ([undefined, 'ticks', 'beads', 'double'] as const).find((p) => !used.has(p));
+    taken.set(s.line, used.add(out[k]));
+  }
+  return out;
 }
 
 /** The kind's name as caption, unless the kind is quiet or the label already says it ("Order service"). */
@@ -238,10 +266,12 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   const edges: GraphEdge[] = [];
   // Styles drawn as lines and as badges, apart: the legend shows a sample of each.
   const usedStyles = new Set<string>();
-  let plainLines = false;
+  // Lines without a style, by how they are drawn (solid, dashed, dotted): each needs a name in the key too.
+  const plainLines = new Set<GraphEdge['line']>();
   const badgeStyles = new Set<string>();
   const badgeList = new Set(src.badges ?? []);
   const nodeIds = new Set(nodeEntries.map(([id]) => id));
+  const patterns = stylePatterns(cfg.edgeStyles);
   for (const [i, item] of (src.edges ?? []).entries()) {
     const path = origin?.edges[i]?.path ?? ['edges', i];
     const spec = parseEdge(item, path);
@@ -266,15 +296,17 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       if (spec.props.badge === true) ctx.warn(path, 'Only a connection from a node can be a badge; drawn as a line');
       badge = false;
     }
+    const line = spec.props.line ? spec.line : (style?.line ?? spec.line);
     if (style) (badge ? badgeStyles : usedStyles).add(styleId!);
-    else if (!badge && spec.line === 'solid') plainLines = true;
+    else if (!badge) plainLines.add(line);
     const step = typeof spec.props.step === 'number' ? spec.props.step : undefined;
     edges.push({
       id: origin?.edges[i]?.id ?? `e${i}`,
       from: spec.from,
       to: spec.to,
       label: spec.label,
-      line: spec.props.line ? spec.line : (style?.line ?? spec.line),
+      line,
+      ...(style && !spec.props.line && patterns[styleId!] ? { pattern: patterns[styleId!] } : {}),
       tone: style?.tone,
       start: spec.start,
       end: spec.end,
@@ -291,11 +323,16 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     .map((e) => ({ n: e.step!, edge: e.id, from: e.from.node, to: e.to.node, ...(e.label ? { label: e.label } : {}), path: e.path }));
 
   const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {}).flatMap(([k, s]) => [
-    ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone }] : []),
-    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone }] : []),
+    ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone, ...(patterns[k] ? { pattern: patterns[k] } : {}) }] : []),
+    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone}] : []),
   ]);
-  // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing.
-  if (cfg.plainEdge && plainLines && legend.length) legend.unshift({ label: cfg.plainEdge, line: 'solid' });
+  // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing:
+  // each way a line without a style is drawn gets an entry, once the key explains anything else.
+  if (legend.length || plainLines.size > 1) {
+    const plain = cfg.plainEdge ?? 'Connection';
+    const named = { solid: plain, dashed: `${plain}, dashed`, dotted: `${plain}, dotted` } as const;
+    legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
+  }
 
   const graph: Graph = { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
   if (!cfg.threats) return graph;

@@ -89,7 +89,7 @@ describe('what is drawn', () => {
     expect(r.graph!.walk!.map((b) => b.edges)).toEqual([[], ['flow0'], ['flow0.1'], ['flow0.2'], ['flow0.3']]);
     // It is drawn heavier and named in the key, unless the source says every way weighs the same.
     expect(r.graph!.edges.filter((e) => e.width).map((e) => e.id)).toEqual(['flow0', 'flow0.1', 'flow0.2', 'flow0.3']);
-    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Happy path', 'Message']);
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Happy path', 'Other paths', 'Message']);
     const even = await draw(leave.replace('title: Leave', 'title: Leave\nhappy: false'));
     expect(even.r.graph!.edges.filter((e) => e.width)).toEqual([]);
     expect(even.r.graph!.legend!.map((l) => l.label)).toEqual(['Message']);
@@ -297,7 +297,8 @@ describe('the layout', () => {
   });
 
   it('lets the branches of a split set off towards where they go, two from one point when it must', async () => {
-    const { r, at } = await boxes(example('onboarding'));
+    // The manager's branch starts at the split too: three ways out of one gateway.
+    const { r, at } = await boxes(example('onboarding').replace('  - Plan the first week -> All ready', '  - Prepare -> Plan the first week -> All ready'));
     const fork = at('Prepare');
     for (const to of ['Order laptop', 'Plan the first week']) {
       const e = r.graph!.edges.find((x) => x.from.node === 'Prepare' && x.to.node === to)!;

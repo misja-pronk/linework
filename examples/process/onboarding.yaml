@@ -1,6 +1,6 @@
 type: process
 title: Onboard a new colleague
-subtitle: HR, IT and the manager prepare at the same time, so day one starts with a laptop and a plan
+subtitle: HR and IT prepare at the same time and the manager plans once the accounts exist, so day one starts with a laptop and a plan
 
 lanes:
   hr: HR
@@ -23,8 +23,8 @@ nodes:
 
 flow:
   - Contract signed -> Prepare -> Register in HR system -> All ready -> First day -> Welcome and hand over laptop -> Onboarded
-  - Prepare -> Order laptop -> Create accounts -> All ready
-  - Prepare -> Plan the first week -> All ready
-  # A message: it tells the manager, it does not hand the work on.
-  - Create accounts --> Plan the first week: accounts ready
+  # Lanes of one pool hand work on with a sequence flow; a message (-->) is for another organisation.
+  - Prepare -> Order laptop -> Create accounts
+  - Create accounts -> Plan the first week: accounts ready
+  - Plan the first week -> All ready
   - Buddy -> Plan the first week

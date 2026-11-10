@@ -1,5 +1,6 @@
 // The common target of flowchart and architecture imports: a `type: systems` diagram. Kinds are
 // guessed from words in the label ("Orders DB" is a database) and then from the Mermaid shape.
+import { kindCaption } from '@cartography/core';
 import { config } from '@cartography/systems';
 import { flow, scalar } from './text.ts';
 
@@ -103,17 +104,19 @@ export function systemsYaml(d: SysDiagram): string {
   const out: string[] = ['type: systems'];
   if (d.title) out.push(`title: ${scalar(d.title)}`);
   if (d.direction === 'down') out.push('direction: down');
-  const entry = (id: string, kind: string, label: string | undefined, parent: string | undefined, known: Record<string, string>) => {
+  // The kind is a guess from the words: it gives the icon, but its name is not put under a label the source wrote.
+  const entry = (id: string, kind: string, label: string | undefined, parent: string | undefined, known: Record<string, string>, table: typeof config.nodeKinds) => {
     const l = label === known[kind] || label === undefined ? undefined : label;
-    return l === undefined && parent === undefined ? `  ${id}: ${kind}` : `  ${id}: ${flow([['kind', kind], ['label', l], ['in', parent]])}`;
+    const caption = l !== undefined && kindCaption(l, table[kind]) ? '' : undefined;
+    return l === undefined && parent === undefined ? `  ${id}: ${kind}` : `  ${id}: ${flow([['kind', kind], ['label', l], ['caption', caption], ['in', parent]])}`;
   };
   if (d.groups.length) {
     out.push('', 'groups:');
-    for (const g of d.groups) out.push(entry(g.id, g.kind, g.label, g.parent, groupLabels));
+    for (const g of d.groups) out.push(entry(g.id, g.kind, g.label, g.parent, groupLabels, config.groupKinds));
   }
   if (d.nodes.length) {
     out.push('', 'nodes:');
-    for (const n of d.nodes) out.push(entry(n.id, n.kind, n.label, n.parent, kindLabels));
+    for (const n of d.nodes) out.push(entry(n.id, n.kind, n.label, n.parent, kindLabels, config.nodeKinds));
   }
   if (d.edges.length) {
     out.push('', 'edges:');
