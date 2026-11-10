@@ -29,7 +29,8 @@ export interface ComposeOptions {
   text?: string;
 }
 
-const SCALARS = new Set(['type', 'title', 'subtitle', 'direction']);
+// What a file says about itself: an included file's title, direction, focus or steps stay its own.
+const SCALARS = new Set(['type', 'title', 'subtitle', 'direction', 'focus', 'steps']);
 
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 

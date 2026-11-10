@@ -9,7 +9,7 @@ import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
-import { GIT_LOG_FORMAT, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
+import { GIT_LOG_FORMAT, importDataMesh, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
@@ -24,6 +24,10 @@ const help = `carto — architecture diagrams that look good
                                                 next render after an edit keeps them there
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
+               [--focus orders] [--hops 2]      only that element (an id, a group, tag:x, kind:x) and what is within
+               [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
+  carto render <folder> [-o mesh.svg]           a folder of data product and data contract files (ODPS, ODCS) as one
+               [--write mesh.yaml]              data mesh map; --write keeps the diagram, and updates it the next time
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
@@ -51,8 +55,10 @@ const help = `carto — architecture diagrams that look good
                                                 Mermaid (flowchart, architecture-beta,
                                                 erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
                                                 .md: every mermaid block; Kubernetes manifests: all files in one diagram;
-                                                .csv inventory or NetBox JSON: a network diagram
-                                                terraform show -json (state or plan, AWS and Google Cloud): a cloud diagram
+                                                .csv inventory or NetBox JSON: a network diagram;
+                                                terraform show -json (state or plan, AWS and Google Cloud): a cloud diagram;
+                                                a folder (or files) of data products and contracts (ODPS, ODCS):
+                                                one data mesh diagram, <folder>.yaml; again updates it, your edits stay
   carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
                                                 a repository's history as a git branching diagram
   carto icons import <folder|file.zip> --pack azure
@@ -91,6 +97,11 @@ const { positionals, values } = parseArgs({
     step: { type: 'string' },
     'all-steps': { type: 'boolean' },
     'no-steps': { type: 'boolean' },
+    focus: { type: 'string', multiple: true },
+    hops: { type: 'string' },
+    upstream: { type: 'boolean' },
+    downstream: { type: 'boolean' },
+    write: { type: 'string' },
     title: { type: 'string' },
     subtitle: { type: 'string' },
     aspect: { type: 'string', default: '16:9' },
@@ -215,6 +226,13 @@ function themeFlag(): boolean {
   return true;
 }
 
+/** --focus orders --hops 2 --upstream, as the focus: of a diagram would say it; undefined without --focus. */
+function focusFlag(): RenderOptions['focus'] {
+  if (!values.focus?.length) return undefined;
+  const hops = values.hops === 'all' ? 'all' : values.hops != null && Number(values.hops) >= 0 ? Math.floor(Number(values.hops)) : 1;
+  return { on: values.focus, hops, direction: values.upstream && !values.downstream ? 'upstream' : values.downstream && !values.upstream ? 'downstream' : 'both' };
+}
+
 type Format = 'svg' | 'png' | 'pptx' | 'pdf';
 const formats: Format[] = ['svg', 'png', 'pptx', 'pdf'];
 
@@ -237,6 +255,7 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     file: path.basename(file),
     view: values.view,
     step: values.step ? Number(values.step) || 1 : undefined,
+    focus: focusFlag(),
   };
 }
 
@@ -258,9 +277,9 @@ function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResu
   return toPdf(drawings, { theme: t, page, fonts: interTtf(), families: themeTtf(typeof t === 'object' ? t : themes[t]), title: values.title, steps: stepsFlag() });
 }
 
-async function renderFile(file: string): Promise<boolean> {
+/** `text`: the diagram when it is not (or not yet) what the file holds; `shown`: what it is called in messages. */
+async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), shown = file): Promise<boolean> {
   const format = formatFor();
-  const text = fs.readFileSync(file, 'utf8');
   // resvg reads fonts from files; embedding them in the SVG only makes the PNG step slower.
   const opts = optionsFor(file, values['no-fonts'] || format !== 'svg' ? 'none' : 'embed');
   const first = await render(text, opts);
@@ -269,12 +288,12 @@ async function renderFile(file: string): Promise<boolean> {
   let ok = true;
   for (const [i, result] of runs.entries()) {
     const view = i ? result.view : values.view;
-    report(view && i ? `${file}#${view}` : file, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
+    report(view && i ? `${shown}#${view}` : shown, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
     if (!result.svg) {
       ok = false;
       continue;
     }
-    if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${file}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
+    if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const shots = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
@@ -287,12 +306,83 @@ async function renderFile(file: string): Promise<boolean> {
         : format === 'svg' ? shot.svg
         : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
       fs.writeFileSync(out, data);
-      console.log(`${file}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${out} ${dim(`${shot.width}×${shot.height}`)}`);
+      console.log(`${shown}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${out} ${dim(`${shot.width}×${shot.height}`)}`);
     }
     if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
   }
   if (values.stable) noteLayout(file, runs);
   return ok;
+}
+
+const isFolder = (f: string) => fs.existsSync(f) && fs.statSync(f).isDirectory();
+
+/** Every YAML and JSON file under a folder, where data products and contracts are looked for; not hidden folders, node_modules or layout notes. */
+function dataFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...dataFiles(p));
+    else if (/\.(ya?ml|json)$/i.test(e.name) && !/\.layout\.json$/i.test(e.name)) out.push(p);
+  }
+  return out;
+}
+
+/** The diagram of a folder lives next to it, under its name: mesh/ → mesh.yaml. */
+function besideFolder(folder: string): string {
+  const clean = path.normalize(folder).replace(/[\\/]+$/, '');
+  return (clean === '.' || path.basename(clean) === '..' ? path.resolve(folder) : clean) + '.yaml';
+}
+
+/**
+ * Data product and data contract files (ODPS, ODCS), and folders of them → the data-products diagram
+ * at `diagram`. What that file holds already stays where the data files say nothing about it ("merge");
+ * "fresh" starts over, "if-mesh" only builds on it when it is such a diagram.
+ */
+function meshOf(inputs: string[], diagram: string, existing: 'merge' | 'if-mesh' | 'fresh'): { yaml: string; summary: string; clean: boolean } | undefined {
+  const from = path.dirname(diagram);
+  const list = inputs.flatMap((f) => (isFolder(f) ? dataFiles(f) : [f])).filter((f) => path.resolve(f) !== path.resolve(diagram));
+  let was = existing !== 'fresh' && fs.existsSync(diagram) ? fs.readFileSync(diagram, 'utf8') : undefined;
+  if (existing === 'if-mesh' && was && !/^type:\s*data-products\s*$/m.test(was)) was = undefined;
+  // Contracts are read from where the diagram is, so that is how the files are named in it.
+  const r = importDataMesh(list.map((f) => ({ path: path.relative(from, f).split(path.sep).join('/'), text: fs.readFileSync(f, 'utf8') })), { title: values.title, existing: was });
+  for (const p of r.problems) {
+    const where = p.file ? `${path.join(from, p.file)}${p.line ? `:${p.line}:${p.column}` : ''}` : r.products || !was ? inputs.join(', ') : diagram;
+    console.error(`${where}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
+  }
+  if (!r.yaml) return undefined;
+  const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
+  // A file that could not be read is drawn around, and still fails the run.
+  return { yaml: r.yaml, summary: `${count(r.products, 'data product')}, ${count(r.contracts, 'contract')}${was ? ', what was added by hand kept' : ''}`, clean: !r.problems.some((p) => p.severity === 'error') };
+}
+
+/** carto render <folder>: its data products and contracts as one map. --write keeps the diagram it is drawn from. */
+async function renderMesh(folder: string): Promise<boolean> {
+  const diagram = values.write ?? besideFolder(folder);
+  const mesh = meshOf([folder], diagram, values.write ? 'merge' : 'if-mesh');
+  if (!mesh) return false;
+  if (!values.write) return (await renderFile(diagram, mesh.yaml, folder)) && mesh.clean;
+  fs.mkdirSync(path.dirname(diagram), { recursive: true });
+  fs.writeFileSync(diagram, mesh.yaml);
+  console.log(`${folder} → ${diagram} ${dim(mesh.summary)}`);
+  return (await renderFile(diagram)) && mesh.clean;
+}
+
+/** carto import <folder | data product and contract files>: one data-products diagram, updated when it is there already. */
+async function importMesh(inputs: string[]): Promise<boolean> {
+  const folder = inputs.length === 1 && isFolder(inputs[0]!) ? inputs[0]! : undefined;
+  const stdout = values.out === '-';
+  const out = values.out && !stdout ? (path.extname(values.out) ? values.out : path.join(values.out, 'data-mesh.yaml')) : folder && !stdout ? besideFolder(folder) : path.join(stdout ? '.' : path.dirname(inputs[0]!), 'data-mesh.yaml');
+  const mesh = meshOf(inputs, out, stdout || values.force ? 'fresh' : 'merge');
+  if (!mesh) return false;
+  const where = inputs.length === 1 ? inputs[0]! : `${inputs.length} data product and contract files`;
+  const check = await render(mesh.yaml, { fonts: 'none', load: loaderFor(out) });
+  report(`${where} (imported)`, check.diagnostics);
+  if (stdout) return (process.stdout.write(mesh.yaml), mesh.clean);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, mesh.yaml);
+  console.log(`${where} → ${out} ${dim(mesh.summary)}`);
+  return mesh.clean && !check.diagnostics.some((d) => d.severity === 'error');
 }
 
 /** carto diff: two files, or files against a git ref. Words (or JSON) on stdout, the picture with -o. */
@@ -610,22 +700,26 @@ async function main(): Promise<number> {
     case 'import': {
       if (values.git) return (await importGit(values.git)) ? 0 : 1;
       if (!files.length) return (console.error(help), 1);
+      // Data products and their contracts are one mesh, however many files and folders they are in.
+      const mesh = files.filter((f) => isFolder(f) || (/\.(ya?ml|json)$/i.test(f) && isDataMeshFile(fs.readFileSync(f, 'utf8'))));
       // Manifests are read together: a platform is spread over many files, but it is one drawing.
       // terraform show -json, of a state or a saved plan: read from the file, never from the cloud.
-      const plans = files.filter((f) => /\.json$/i.test(f) && isTerraform(fs.readFileSync(f, 'utf8')));
-      const manifests = files.filter((f) => !plans.includes(f) && /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
-      const inventories = files.filter((f) => /\.csv$/i.test(f) || (/\.json$/i.test(f) && !plans.includes(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8'))));
-      let ok = manifests.length ? await importManifests(manifests) : true;
+      const plans = files.filter((f) => !mesh.includes(f) && /\.json$/i.test(f) && isTerraform(fs.readFileSync(f, 'utf8')));
+      const manifests = files.filter((f) => !mesh.includes(f) && !plans.includes(f) && /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
+      const inventories = files.filter((f) => !mesh.includes(f) && (/\.csv$/i.test(f) || (/\.json$/i.test(f) && !plans.includes(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8')))));
+      let ok = mesh.length ? await importMesh(mesh) : true;
+      if (manifests.length) ok = (await importManifests(manifests)) && ok;
       for (const f of plans) ok = (await importInventory(f, importTerraform)) && ok;
       for (const f of inventories) ok = (await importInventory(f)) && ok;
-      for (const f of files) if (!plans.includes(f) && !manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
+      for (const f of files) if (!mesh.includes(f) && !plans.includes(f) && !manifests.includes(f) && !inventories.includes(f)) ok = (await importFile(f)) && ok;
       return ok ? 0 : 1;
     }
     case 'render': {
       if (!files.length) return (console.error(help), 1);
       if (!themeFlag()) return 1;
       let ok = true;
-      for (const f of files) ok = (await renderFile(f)) && ok;
+      if (values.write && !(files.length === 1 && isFolder(files[0]!))) return (console.error('--write keeps the diagram of one folder of data product files: carto render <folder> --write mesh.yaml'), 1);
+      for (const f of files) ok = (await (isFolder(f) ? renderMesh(f) : renderFile(f))) && ok;
       return ok ? 0 : 1;
     }
     case 'deck':

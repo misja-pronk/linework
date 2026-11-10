@@ -53,6 +53,8 @@ export interface GraphGroup {
   /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
   kind?: string;
   tags?: string[];
+  /** What a focus view is about (see focus.ts): drawn with a ring. */
+  focused?: boolean;
   path: Path;
 }
 
@@ -71,6 +73,8 @@ export interface GraphNode {
   folded?: boolean;
   /** Layer hint: nodes with the same rank line up across groups (network tiers: edge, core, access). */
   rank?: number;
+  /** What a focus view is about (see focus.ts): drawn with a ring. */
+  focused?: boolean;
   /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
   pack?: string;
 }
@@ -189,6 +193,8 @@ export interface GraphEdge {
   icon?: string;
   /** Its number in a dynamic view, drawn in a small circle on the line. */
   step?: number;
+  /** Says nothing about what comes before what (a key between two contracts): the layout does not rank by it. */
+  loose?: boolean;
   path: Path;
 }
 

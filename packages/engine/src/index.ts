@@ -3,11 +3,15 @@
 import {
   compose,
   filterGraph,
+  focusGraph,
+  focusReach,
+  focusSchema,
   impliedSteps,
   modelKeys,
   modelProperties,
   modelSchema,
   parseSource,
+  readFocus,
   resolveSteps,
   stepsSchema,
   validate,
@@ -15,6 +19,7 @@ import {
   withoutBadges,
   type Diagnostic,
   type DiagramType,
+  type FocusSpec,
   type Graph,
   type LayoutMemory,
   type LayoutSidecar,
@@ -49,10 +54,11 @@ export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
 }
 
-/** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting. Editors complete from this. */
+/** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  return 'steps' in (schema.properties ?? {}) ? schema : { ...schema, properties: { ...schema.properties, steps: stepsSchema } };
+  const shared = { steps: stepsSchema, focus: focusSchema };
+  return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
 export interface RenderOptions extends SvgOptions {
@@ -86,6 +92,12 @@ export interface RenderOptions extends SvgOptions {
   step?: number;
   /** Leave the step's title, caption and "3 / 7" out of the drawing (a presenter shows them itself). */
   stepCaption?: boolean;
+  /**
+   * Draw only an element and its neighbourhood: a selector, a list of them, or { on, hops, direction }
+   * as `focus:` in a diagram takes it (--focus, the editor's "Focus on this"). It wins over the
+   * diagram's own focus and says so in the subtitle; null draws everything, whatever the diagram says.
+   */
+  focus?: unknown;
 }
 
 export interface RenderResult {
@@ -112,12 +124,17 @@ export interface RenderResult {
   stepsImplied?: boolean;
   /** The theme it was drawn with (PNG export needs its font files). */
   theme?: Theme;
+  /** The focus drawn: what it is about (as labelled), how far it reaches, and how much of the diagram that left. */
+  focus?: FocusSpec & { names: string[]; kept: number; total: number; written: boolean };
+  /** The diagram (or the view drawn) has a `focus:` of its own, whether or not it was drawn. */
+  focusWritten?: boolean;
 }
 
 /** Keys that are not something drawn, to tell a diagram that only has views. */
 const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges']);
 /** Model keys checked for types whose schema does not list them (ERD, access, …). */
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
+const focusOnly = { type: 'object', properties: { focus: focusSchema } };
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
@@ -145,6 +162,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
   const stepsRef = 'steps' in props ? undefined : rest.steps;
   if (!('steps' in props)) delete rest.steps;
+  // So is a focus: any diagram of elements and lines can be cut down to a neighbourhood.
+  const focusRef = 'focus' in props ? undefined : rest.focus;
+  if (!('focus' in props)) delete rest.focus;
   const own: Source = { ...source, data: rest };
   const listed = 'views' in props;
   const keys = modelKeys.filter((k) => listed || !(k in props));
@@ -152,9 +172,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const plain = Object.fromEntries(Object.entries(rest).filter(([k]) => !isModelKey(k)));
   const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelOnly(keys))];
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
+  if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
+  // An included diagram of this type may have what this one may: the model keys, and a focus and steps of its own (only read past here).
+  const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, ...modelOnly(keys).properties, ...props } };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
@@ -165,7 +188,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const ownView = opts.view && ownViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
   if (ownView) opts = { ...opts, view: undefined };
   if (Object.keys(rest).some(isModelKey)) {
-    const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : type.schema), report, self: opts.file, text });
+    const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : included), report, self: opts.file, text });
     built = isModel ? { ...composed.data, type: type.id } : composed.data;
     origin = composed.origin;
     includes = composed.files;
@@ -193,6 +216,18 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     model,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
+  const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
+  const focusOwn = model?.view ? model.view.focus : focusRef;
+  const asked = opts.focus !== undefined;
+  const focusSpec = opts.focus === null ? undefined : readFocus(asked ? opts.focus : focusOwn);
+  if (asked && opts.focus !== null && !focusSpec) report([], 'Focus needs something to focus on: an id, a group, tag:x or kind:x');
+  const focused = focusSpec ? focusGraph(graph, focusSpec, (message, severity) => report(asked ? [] : focusAt, asked && !message.startsWith('Focus') ? `Focus: ${message}` : message, severity)) : undefined;
+  if (focused) {
+    graph = focused.graph;
+    // Asked for from outside, the picture itself says it is a part: nobody takes an export for the whole landscape.
+    if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}, ${focusReach(focusSpec!)}`].filter(Boolean).join(' · ');
+  }
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
     // (['include', 0, 'model.yaml']), never a path it could take for one of this file's entries.
@@ -223,6 +258,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
   const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
+  if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
   const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
@@ -246,6 +282,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(steps.length ? { steps } : {}),
     ...(steps.length && !told ? { stepsImplied: true } : {}),
     ...(step ? { step } : {}),
+    ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
+    ...(focusOwn != null ? { focusWritten: true } : {}),
   };
 }
 

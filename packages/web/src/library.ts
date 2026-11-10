@@ -23,7 +23,8 @@ const same = new Set(templates.map((t) => t.text.trim()));
 export const starters: Starter[] = [
   ...templates,
   ...Object.entries(raw)
-    .filter(([p, text]) => !p.includes('/contracts/') && !same.has(text.trim()))
+    // Data contracts and data products (ODCS, ODPS) lie next to the examples that draw them: read, not opened.
+    .filter(([p, text]) => !p.includes('/contracts/') && typeOf(text) && !same.has(text.trim()))
     .map(([p, text]): Starter => {
       const rel = p.replace(/^.*\/examples\//, '');
       return { id: `example:${rel}`, type: typeOf(text), title: titleOf(text) ?? rel, kind: 'example', file: rel.split('/').pop()!, text };

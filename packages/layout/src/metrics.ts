@@ -89,7 +89,7 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
     for (const [a, b] of segs.get(e.id)!) length += Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
     const s = pts[0];
     const t = pts[pts.length - 1];
-    if (s && t && (graph.direction === 'down' ? t.y < s.y - 1 : t.x < s.x - 1)) backward++;
+    if (!e.loose && s && t && (graph.direction === 'down' ? t.y < s.y - 1 : t.x < s.x - 1)) backward++;
   }
 
   const widths = [...placed.nodes.values()].map((b) => b.width).sort((a, b) => a - b);

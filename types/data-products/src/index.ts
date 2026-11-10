@@ -29,9 +29,9 @@ import {
   type TableRow,
   type Tone,
 } from '@cartography/core';
-import { readOdcs, type ContractModel } from './odcs.ts';
+import { findField, readOdcs, type ContractModel } from './odcs.ts';
 
-export { readOdcs, type ContractModel } from './odcs.ts';
+export { isOdcs, readOdcs, type ContractModel, type ContractRelation } from './odcs.ts';
 
 export const classes: KindTable = {
   'source-aligned': { label: 'Source-aligned', icon: 'package', tone: 'teal', keywords: ['raw', 'operational'] },
@@ -74,6 +74,7 @@ export const consumerKinds: KindTable = {
 const styles = {
   flow: { label: 'Data flow', line: 'solid' },
   contract: { label: 'Data contract', line: 'dashed', tone: 'violet' },
+  relation: { label: 'Foreign key', line: 'solid', tone: 'violet' },
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
 
 const CONTRACT_TONE: Tone = 'violet';
@@ -96,6 +97,10 @@ interface Product extends Named {
   domain?: string;
   owner?: string;
   version?: string | number;
+  /** Where it is in its life when that is worth saying: draft, proposed, deprecated, retired. */
+  status?: string;
+  /** The data product file (ODPS) it was imported from; importing again updates it from there. */
+  file?: string;
   detail?: boolean;
   inputs?: Ref[];
   outputs?: Record<string, string | Port | null>;
@@ -209,7 +214,8 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   for (const [id, p] of products) {
     const k = classes[p.class ?? ''] ?? classes['source-aligned']!;
     usedClasses.add(p.class ?? 'source-aligned');
-    const caption = p.caption ?? [k.label, p.owner, p.version != null && `v${p.version}`].filter(Boolean).join(' · ');
+    // The status comes early: a long owner may push the end of a caption off the card.
+    const caption = p.caption ?? [k.label, p.status, p.owner, p.version != null && `v${p.version}`].filter(Boolean).join(' · ');
     const parent = domainOf(p.domain, ['products', id, 'domain']);
     if (!detailed.has(id)) {
       nodes.push({ id, parent, shape: { kind: 'card', label: p.label ?? id, caption, icon: k.icon, tone: k.tone }, path: ['products', id] });
@@ -300,7 +306,9 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       if (label && !same.label?.split(', ').includes(label)) same.label = same.label ? `${same.label}, ${label}` : label;
       return;
     }
-    const e: GraphEdge = { id: `e${edges.length}`, from, to, label, line: s.line, tone: s.tone, start: 'none', end: style === 'contract' ? 'none' : 'arrow', path };
+    // A foreign key reads as in an ERD: many rows here point at one row there.
+    const [start, end]: [GraphEdge['start'], GraphEdge['end']] = style === 'relation' ? ['zeroOrMany', 'one'] : ['none', style === 'contract' ? 'none' : 'arrow'];
+    const e: GraphEdge = { id: `e${edges.length}`, from, to, label, line: s.line, tone: s.tone, start, end, path };
     edges.push(e);
     if (key) merged.set(key, e);
   };
@@ -338,6 +346,37 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       edge({ node: id, row: `out:${pid}` }, { node: `contract:${o.contract}` }, 'contract', undefined, path);
     }
 
+  // Foreign keys of the contracts (ODCS relationships): field to field, inside a contract and between two that are both drawn.
+  const rowOf = (contract: string, at: { schema: number; field: string }): Endpoint => {
+    const node = nodes.find((n) => n.id === `contract:${contract}`)!;
+    const rows = node.shape.kind === 'table' ? node.shape.rows : [];
+    const has = (id: string) => rows.some((r) => r.kind === 'row' && r.id === id);
+    // A field past "+ n more" is spoken for by that row.
+    return has(`field:${at.schema}:${at.field}`) ? { node: node.id, row: `field:${at.schema}:${at.field}` } : has('field:more') ? { node: node.id, row: 'field:more' } : { node: node.id };
+  };
+  for (const id of shown) {
+    const model = models.get(id)!;
+    for (const r of model.relations ?? []) {
+      const path = ['contracts', id, 'file'];
+      const other = r.to.file ? contractAt(contracts, contracts.get(id)!.file!, r.to.file) : id;
+      const written = `${r.from.field} → ${r.to.file ? `${r.to.file}#` : ''}${r.to.schema}.${r.to.field}`;
+      // Another contract that is not in this diagram: the key mark on the field is all there is to say.
+      if (!other) continue;
+      const target = findField(models.get(other)?.schemas ?? [], r.to.schema, r.to.field);
+      if (!target) {
+        ctx.warn(path, `${contracts.get(id)!.file}: relationship ${written} points at a field that ${other === id ? 'this contract' : `"${other}"`} does not have`);
+        continue;
+      }
+      if (!shown.has(other)) continue;
+      const [from, to] = [rowOf(id, r.from), rowOf(other, target)];
+      // With the fields hidden there is nothing in one card to draw a line between.
+      if (from.node === to.node && (!from.row || !to.row || from.row === to.row)) continue;
+      edge(from, to, 'relation', r.label, path);
+      // A contract stands by its product; a key to another contract does not move it.
+      if (from.node !== to.node) edges.at(-1)!.loose = true;
+    }
+  }
+
   const legend: LegendItem[] = [
     ...Object.keys(classes)
       .filter((c) => usedClasses.has(c))
@@ -370,10 +409,13 @@ function contractModel(c: Contract, path: (string | number)[], ctx: BuildContext
     const read = readOdcs(parsed.data);
     if (typeof read === 'string') return ctx.error(at, `${c.file}: ${read}`), undefined;
     m = read;
+    for (const note of m.notes ?? []) ctx.warn(at, `${c.file}: ${note}`);
   }
   const fields = Object.entries(c.fields ?? {});
   const sla = Object.entries(c.sla ?? {});
   return {
+    // Fields written in the diagram replace the file's, and its relationships with them.
+    ...(m.relations && !fields.length ? { relations: m.relations } : {}),
     label: c.label ?? m.label,
     version: c.version != null ? String(c.version) : m.version,
     classification: c.classification ?? m.classification,
@@ -381,6 +423,23 @@ function contractModel(c: Contract, path: (string | number)[], ctx: BuildContext
     sla: sla.length ? sla.map(([k, v]) => [k, String(v)]) : m.sla,
     quality: c.quality ?? m.quality,
   };
+}
+
+/** The contract (by id) whose file a reference in another contract file names: relative to that file, else by file name. */
+function contractAt(contracts: Map<string, Contract>, from: string, ref: string): string | undefined {
+  const clean = ref.replace(/^file:\/\//, '');
+  const parts: string[] = [];
+  for (const p of [...from.split('/').slice(0, -1), ...clean.split('/')]) {
+    if (p === '..') parts.pop();
+    else if (p && p !== '.') parts.push(p);
+  }
+  const files = [...contracts].filter(([, c]) => c.file);
+  const norm = (f: string) => f.replace(/^\.\//, '');
+  const exact = files.find(([, c]) => norm(c.file!) === parts.join('/'));
+  if (exact) return exact[0];
+  const base = clean.split('/').pop();
+  const named = files.filter(([, c]) => c.file!.split('/').pop() === base);
+  return named.length === 1 ? named[0]![0] : undefined;
 }
 
 function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number): GraphNode['shape'] {
@@ -462,6 +521,8 @@ const schema = {
             domain: { type: 'string' },
             owner: { type: 'string' },
             version: { type: ['string', 'number'] },
+            status: { type: 'string', description: 'Shown after the class, e.g. draft or deprecated' },
+            file: { type: 'string', description: 'The data product file (ODPS) it was imported from; carto import updates it from there' },
             detail: { type: 'boolean', description: 'Show this product in detail in the overview' },
             inputs: { type: 'array', items: ref, description: 'Input ports: where the data comes from' },
             outputs: ids({
@@ -521,12 +582,13 @@ export const dataProducts: DiagramType<DataProductSource> = {
     'Which data products feed which, through which ports',
     'Link data contracts (ODCS) to the ports they describe',
     'Who consumes a product: reports, models, apps',
+    'A folder of ODPS and ODCS files as one data mesh map',
   ],
   notFor: [
     { text: 'The tables inside one database', use: 'erd' },
     { text: 'ETL jobs and services as boxes', use: 'systems' },
   ],
-  keywords: ['data product', 'data mesh', 'domain', 'contract', 'odcs', 'port', 'lineage', 'consumer', 'dataset', 'dashboard', 'report', 'analytics', 'warehouse', 'lakehouse', 'sla'],
+  keywords: ['data product', 'data mesh', 'domain', 'contract', 'odcs', 'odps', 'port', 'lineage', 'consumer', 'dataset', 'dashboard', 'report', 'analytics', 'warehouse', 'lakehouse', 'sla'],
   schema,
   palette,
   build,

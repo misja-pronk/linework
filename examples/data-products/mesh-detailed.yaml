@@ -1,0 +1,8 @@
+# The mesh of mesh.yaml, cut down to one product and what it reads, with ports and contracts written out.
+# The lines between fields are the relationships of the contracts (ODCS 3.1).
+type: data-products
+title: Customer 360 and what it reads
+subtitle: Ports, contracts and the keys between them
+view: detailed
+focus: { on: customer-360, hops: 2, direction: upstream }
+include: [mesh.yaml]

@@ -33,6 +33,16 @@ const groups: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Focus',
+    [
+      ['F', 'Only the selection and what is around it'],
+      ['+ / −', 'One hop more / fewer'],
+      ['D', 'Both ways, upstream, downstream'],
+      ['Tab, then F', 'Walk on to a neighbour'],
+      ['Esc', 'Back to the whole drawing'],
+    ],
+  ],
+  [
     'Arrange',
     [
       ['⌥A / ⌥H / ⌥D', 'Align left / centre / right'],

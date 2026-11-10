@@ -50,6 +50,8 @@ Examples: [systems/invoice-walkthrough.yaml](../examples/systems/invoice-walkthr
 
 `focus`, `path`, `show` and `hide` take one selector or a list.
 
+A step's `focus` dims what is around. To leave the rest out of the drawing altogether, a diagram or a view has a `focus:` of its own: see [the focus view](data-products.md#the-focus-view).
+
 ## Selectors
 
 | Selector | Picks |
