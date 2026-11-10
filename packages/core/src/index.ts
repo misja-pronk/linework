@@ -19,3 +19,4 @@ export * from './steps.ts';
 export * from './focus.ts';
 export * from './threats.ts';
 export * from './share.ts';
+export * from './notes.ts';

@@ -17,6 +17,8 @@ export interface Selection {
 export interface PreviewControl {
   fit(): void;
   zoomToSelection(): void;
+  /** The middle of what is in view, in pin space (where a note without an element goes). */
+  centre(): Point | undefined;
 }
 
 /** What a label editor can be opened on: an element, or the diagram's title and subtitle. */
@@ -75,6 +77,10 @@ interface Props {
   /** What a screen reader hears for the focused element. */
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
+  /** Drawn on the stage, over the drawing, at the zoom given (review note markers). */
+  overlay?(scale: number): React.ReactNode;
+  /** Right-click (or a two-finger click): what is under the pointer, and the point in pin space. */
+  onContextMenu?(s: Selection | undefined, at: Point, client: { x: number; y: number }): void;
   children?: React.ReactNode;
 }
 
@@ -326,7 +332,22 @@ export function Preview(p: Props) {
     if (!f || !boxes.length) return fit();
     setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { bottom: BAR, max: 2, min: MIN }));
   };
-  useImperativeHandle(p.control, () => ({ fit, zoomToSelection }));
+  /** A point of the pane (client pixels) in pin space. */
+  const pinAt = (cx: number, cy: number): Point | undefined => {
+    const f = frame.current;
+    if (!f || !result?.origin) return undefined;
+    const r = f.getBoundingClientRect();
+    const sh = result.placed?.shift ?? { x: 0, y: 0 };
+    return { x: (cx - r.left - view.x) / view.scale - result.origin.x + sh.x, y: (cy - r.top - view.y) / view.scale - result.origin.y + sh.y };
+  };
+  useImperativeHandle(p.control, () => ({
+    fit,
+    zoomToSelection,
+    centre: () => {
+      const r = frame.current?.getBoundingClientRect();
+      return r && pinAt(r.left + r.width / 2, r.top + (r.height - BAR) / 2);
+    },
+  }));
 
   // When the pane changes size (inspector opens, splitter moves): a drawing that was wholly in view
   // fits again, so opening the inspector never crops it; otherwise the centre stays where it was.
@@ -856,6 +877,17 @@ export function Preview(p: Props) {
         setGhost(undefined);
       }}
       onDrop={onDrop}
+      onContextMenu={(e) => {
+        if (!p.onContextMenu || stale || !result?.svg) return;
+        const t = (document.elementFromPoint(e.clientX, e.clientY) ?? (e.target as Element)) as Element;
+        if (!t.closest('.stage')) return;
+        const at = pinAt(e.clientX, e.clientY);
+        if (!at) return;
+        e.preventDefault();
+        const hit = t.closest('[data-node],[data-group],[data-edge]') as HTMLElement | null;
+        const s: Selection | undefined = !hit ? undefined : hit.dataset.node != null ? { kind: 'node', id: hit.dataset.node } : hit.dataset.group != null ? { kind: 'group', id: hit.dataset.group } : { kind: 'edge', id: hit.dataset.edge! };
+        p.onContextMenu(s, at, { x: e.clientX, y: e.clientY });
+      }}
       onDoubleClick={(e) => {
         if (stale) return;
         // The title and subtitle are the drawing's first texts, before the layout's group.
@@ -979,6 +1011,7 @@ export function Preview(p: Props) {
           {pinnedBoxes.length > 0 && <PinBadges boxes={pinnedBoxes} scale={view.scale} />}
           {line && <BendHandles points={line.points.map((q) => ({ x: q.x + o.x, y: q.y + o.y }))} scale={view.scale} bent={!!p.bent?.has(selected!.id)} />}
           {snap && <Guides snap={snap} at={pinToStage} scale={view.scale} />}
+          {p.overlay?.(view.scale)}
         </div>
       )}
       {marquee && (
