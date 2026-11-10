@@ -62,7 +62,6 @@ describe('packing', () => {
   });
 
   it('carries the viewer as built from its source', async () => {
-    // @ts-expect-error: a plain .mjs build script
     const { viewerModule, generated } = await import('../build.mjs');
     expect(fs.readFileSync(generated, 'utf8'), 'run: node packages/html-export/build.mjs').toBe(await viewerModule());
   });
