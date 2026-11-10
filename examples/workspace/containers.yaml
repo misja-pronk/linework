@@ -1,0 +1,9 @@
+# One level down: the containers of the two systems, and the components of the banking API.
+# Double-click a container in the editor to go a level deeper; ⌘[ comes back.
+type: c4
+include: [model.yaml]
+
+views:
+  online: { kind: container, of: online, title: Harbour Online — containers }
+  payments: { kind: container, of: payments, title: Payments hub — containers }
+  api: { kind: component, of: online.api, title: Banking API — components }

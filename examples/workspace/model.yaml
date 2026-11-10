@@ -1,0 +1,62 @@
+# Harbour Bank (fictional), described once. Every diagram in this folder includes this file and
+# names its elements by id; open the folder in the editor and ⌘P finds any of them everywhere.
+type: model
+title: Harbour Bank
+
+elements:
+  customer: { kind: person, label: Retail customer, description: Banks online and on the phone, external: true }
+  advisor: { kind: person, label: Branch advisor, description: Helps customers in the branch }
+  online:
+    kind: software-system
+    label: Harbour Online
+    description: Balances, transfers and cards for retail customers
+    owner: team-digital
+    elements:
+      web: { kind: web-app, label: Web banking, technology: React }
+      app: { kind: mobile-app, label: Mobile app, technology: Swift and Kotlin }
+      api:
+        kind: container
+        label: Banking API
+        technology: Spring Boot
+        description: Serves accounts and payments as JSON
+        elements:
+          signin: { kind: component, label: Sign-in controller, technology: Spring MVC }
+          accounts: { kind: component, label: Accounts controller, technology: Spring MVC }
+          transfers: { kind: component, label: Transfers controller, technology: Spring MVC }
+      db: { kind: database, label: Customer store, technology: PostgreSQL 16, tags: [pii] }
+  payments:
+    kind: software-system
+    label: Payments hub
+    description: Checks, routes and settles every payment
+    owner: team-payments
+    elements:
+      gateway: { kind: container, label: Payment gateway, technology: Go }
+      engine: { kind: container, label: Settlement engine, technology: Java 21 }
+      events: { kind: queue, label: Payment events, technology: Kafka }
+  ledger: { kind: software-system, label: Core ledger, description: Holds every account and books every transaction, owner: team-core }
+  desk: { kind: software-system, label: Advisor desk, description: Customer records and cases for branch staff }
+  lake: { kind: software-system, label: Data platform, description: Reporting and analytics on bank data, owner: team-data }
+  swift: { kind: software-system, label: SWIFT network, external: true, description: Interbank payments }
+
+relations:
+  - customer -> online.web: { label: Banks online, technology: HTTPS }
+  - customer -> online.app: Banks on the phone
+  - advisor -> desk: Looks up customers
+  - online.web -> online.api: { label: Calls, technology: JSON/HTTPS }
+  - online.app -> online.api: { label: Calls, technology: JSON/HTTPS }
+  - online.web -> online.api.signin: Signs in
+  - online.app -> online.api.transfers: Submits transfers
+  - online.web -> online.api.accounts: Gets accounts
+  - online.api.signin -> online.db: { label: Reads logins, technology: JDBC }
+  - online.api.accounts -> ledger: Reads balances
+  - online.api.transfers -> payments.gateway: { label: Submits payments, technology: gRPC }
+  - payments.gateway -> payments.engine: Routes
+  - payments.engine -> ledger: Books
+  - payments.engine -> swift: { label: Sends interbank payments, technology: ISO 20022 }
+  - payments.engine -> payments.events: { label: Publishes, style: async }
+  - payments.events -> lake: { label: Streams, style: async }
+  - desk -> ledger: Reads accounts
+  - ledger -> lake: Nightly extract
+
+views:
+  landscape: { kind: landscape, title: Harbour Bank — system landscape, enterprise: Harbour Bank }

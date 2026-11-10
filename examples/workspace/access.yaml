@@ -1,0 +1,24 @@
+# Who may touch what: the systems of the model are the resources here, by the same ids.
+type: access
+title: Harbour Bank access
+include: [model.yaml]
+
+principals:
+  digital: { kind: group, label: sg-team-digital }
+  payments-team: { kind: group, label: sg-team-payments }
+  auditors: { kind: group, label: sg-auditors }
+
+resources:
+  online: { kind: app, label: Harbour Online }
+  payments: { kind: app, label: Payments hub }
+  ledger: { kind: app, label: Core ledger }
+
+roles:
+  reader: { label: Reader, permissions: [read] }
+  operator: { label: Operator, inherits: reader, permissions: [deploy] }
+
+assignments:
+  - digital is operator on online
+  - payments-team is operator on payments
+  - auditors is reader on ledger
+  - auditors is reader on payments
