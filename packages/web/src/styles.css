@@ -301,6 +301,33 @@ kbd {
   color: var(--text-faint);
   font-size: 11px;
 }
+.menu-heading {
+  padding: 8px 9px 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.menu details > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--text-muted);
+}
+.menu details > summary::-webkit-details-marker {
+  display: none;
+}
+.menu details > summary:hover {
+  background: var(--bg);
+}
+.menu details[open] > summary .icon:last-child {
+  rotate: 180deg;
+}
 .menu hr {
   border: none;
   border-top: 1px solid var(--border);
@@ -3214,11 +3241,11 @@ button.type-pill:hover {
 }
 .present-stage {
   position: absolute;
-  inset: 5vh 5vw 19vh;
+  inset: 3vh 2.5vw 17vh;
 }
 /* No words under the drawing in this deck: the drawing takes that room too. */
 .present.no-band .present-stage {
-  inset: 6vh 3vw 7vh;
+  inset: 3vh 2vw 6vh;
 }
 .present-frame {
   position: absolute;

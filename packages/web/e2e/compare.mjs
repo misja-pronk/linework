@@ -100,8 +100,10 @@ const download = async (menuItem) => {
   await page.waitForSelector('.compare .cmp-count', { timeout: 15000 });
   await wait(400);
   const c = await counts();
-  // Added: the cache and its line; removed: the VM and its line; changed: nothing else.
-  check('counts in the toolbar', JSON.stringify(c), JSON.stringify({ added: 2, changed: 0, removed: 2 }));
+  // Counted as the list says them: added the cache and its line (two sentences); removed the VM with
+  // its connection (one sentence, so one removed, not two); changed: nothing else.
+  check('counts in the toolbar', JSON.stringify(c), JSON.stringify({ added: 2, changed: 0, removed: 1 }));
+  check('removed as many as the list says', (await page.locator('.cmp-sign').allInnerTexts()).filter((x) => x === '−').length, c.removed);
   const said = await items();
   for (const s of ['Added Redis cache (cache for Redis) in rg-shop', 'Orders API now connects to Redis cache (“TLS”)', 'Removed Legacy VM from rg-shop (and its connection)']) if (!said.includes(s)) fail(`change list lacks "${s}": ${JSON.stringify(said)}`);
   if (!(await page.locator('.cmp-pane[data-pane="overlay"] [data-diff="removed"][data-node="vm"]').count())) fail('no ghost of the removed VM in the overlay');
@@ -254,7 +256,7 @@ const download = async (menuItem) => {
   await pick('First shop');
   await page.waitForFunction(() => document.querySelector('.cmp-against strong')?.textContent !== 'HEAD');
   await wait(400);
-  check('against the first commit', JSON.stringify(await counts()), JSON.stringify({ added: 3, changed: 0, removed: 2 }));
+  check('against the first commit', JSON.stringify(await counts()), JSON.stringify({ added: 3, changed: 0, removed: 1 }));
   await page.locator('.compare').focus();
   await page.keyboard.press('Escape');
 

@@ -287,7 +287,8 @@ export function App() {
   }, [pins, draft]);
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
-  const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
+  // The file name people see (and Claude is told): a template is "sequence.yaml", never its id "template:sequence".
+  const docFile = (doc.path ?? (doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined) ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
   const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked);
@@ -1884,25 +1885,13 @@ export function App() {
             </button>
             {menu && (
               <Menu onClose={() => setMenu(false)}>
+                <div className="menu-heading">Image</div>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>⌘E</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
-                  <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
+                  <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
                 </button>
-                <button role="menuitem" onClick={saveSlide}>
-                  <Icon name="monitor" /> PNG on the page ({pageName})
-                </button>
-                <button role="menuitem" onClick={savePageSvg}>
-                  <Icon name="monitor" /> SVG on the page ({pageName})
-                </button>
-                <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> {written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)'}
-                </button>
-                <button role="menuitem" onClick={savePdf}>
-                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
-                </button>
-                <hr />
                 <button role="menuitem" onClick={copyPng}>
                   <Icon name="copy" /> Copy as PNG
                 </button>
@@ -1921,26 +1910,43 @@ export function App() {
                 >
                   <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
                 </button>
-                <hr />
-                <button role="menuitem" onClick={saveDrawio}>
-                  <Icon name="workflow" /> draw.io (.drawio)
+                <div className="menu-heading">Document, on the page ({pageName})</div>
+                <button role="menuitem" onClick={savePptx}>
+                  <Icon name="layout-template" /> {written ? 'PowerPoint, a slide per step (.pptx)' : 'PowerPoint (.pptx)'}
                 </button>
-                <button role="menuitem" onClick={saveExcalidraw}>
-                  <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                <button role="menuitem" onClick={savePdf}>
+                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
                 </button>
-                <button role="menuitem" onClick={saveMermaid}>
-                  <Icon name="file-code" /> Mermaid (.mmd)
+                <button role="menuitem" onClick={saveSlide}>
+                  <Icon name="monitor" /> PNG of the page
                 </button>
-                <button role="menuitem" onClick={copyMermaid}>
-                  <Icon name="copy" /> Copy as Mermaid
+                <button role="menuitem" onClick={savePageSvg}>
+                  <Icon name="monitor" /> SVG of the page
                 </button>
-                <hr />
+                <div className="menu-heading">Share</div>
                 <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
                   <Icon name="link" /> Copy share link
                 </button>
+                <details onClick={(e) => e.stopPropagation()}>
+                  <summary>
+                    <Icon name="workflow" /> Other tools: draw.io, Excalidraw, Mermaid <Icon name="chevron-down" size={14} />
+                  </summary>
+                  <button role="menuitem" onClick={saveDrawio}>
+                    <Icon name="workflow" /> draw.io (.drawio)
+                  </button>
+                  <button role="menuitem" onClick={saveExcalidraw}>
+                    <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                  </button>
+                  <button role="menuitem" onClick={saveMermaid}>
+                    <Icon name="file-code" /> Mermaid (.mmd)
+                  </button>
+                  <button role="menuitem" onClick={copyMermaid}>
+                    <Icon name="copy" /> Copy as Mermaid
+                  </button>
+                </details>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
-                  <Icon name="save" /> Save <kbd>⌘S</kbd>
+                  <Icon name="save" /> Save <kbd>{keyHint('save')}</kbd>
                 </button>
                 <button role="menuitem" onClick={downloadYaml}>
                   <Icon name="download" /> Download YAML

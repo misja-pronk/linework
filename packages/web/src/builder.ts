@@ -283,7 +283,39 @@ function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string 
   return str(doc);
 }
 
-/** Copies an entry under a new id next to it. */
+/** Every label written in the document, to name a copy apart from what it copies. */
+function labelsIn(doc: Document): Set<string> {
+  const out = new Set<string>();
+  const walk = (v: unknown) => {
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object')
+      for (const [k, x] of Object.entries(v)) {
+        if (k === 'label' && typeof x === 'string') out.add(x);
+        else walk(x);
+      }
+  };
+  walk(doc.toJS());
+  return out;
+}
+
+/** "Key Vault copy", then "Key Vault copy 2": a copy that reads as one, not a second Key Vault. */
+export function copyLabel(label: string, taken: Set<string>): string {
+  const base = `${label.replace(/ copy( \d+)?$/, '')} copy`;
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base} ${n}`)) n++;
+  return `${base} ${n}`;
+}
+
+/** A copied value with its label told apart from the original's. */
+function relabel(value: unknown, taken: Set<string>): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || typeof (value as { label?: unknown }).label !== 'string') return value;
+  const label = copyLabel((value as { label: string }).label, taken);
+  taken.add(label);
+  return { ...value, label };
+}
+
+/** Copies an entry under a new id next to it; its label says it is the copy. */
 function duplicateEntryUnsafe(text: string, path: Path, type?: DiagramType): Added | undefined {
   const doc = parse(text);
   if (!doc || typeof path.at(-1) === 'number') return undefined;
@@ -291,7 +323,7 @@ function duplicateEntryUnsafe(text: string, path: Path, type?: DiagramType): Add
   const value = doc.getIn(path, true) as Node | undefined;
   if (!isMap(parentNode) || value === undefined) return undefined;
   const id = type?.freeNames ? uniqueName(doc, type, String(path.at(-1))) : uniqueId(doc, String(path.at(-1)));
-  const copy = doc.createNode(doc.getIn(path) ?? null, { flow: isMap(value) ? value.flow : undefined });
+  const copy = doc.createNode(relabel(isMap(value) ? value.toJSON() : (doc.getIn(path) ?? null), labelsIn(doc)), { flow: isMap(value) ? value.flow : undefined });
   const index = parentNode.items.findIndex((p) => String((p.key as { value?: unknown }).value) === String(path.at(-1)));
   parentNode.items.splice(index + 1, 0, doc.createPair(id, copy) as Pair);
   return { text: str(doc), id, path: [...path.slice(0, -1), id] };
@@ -403,13 +435,14 @@ function pasteEntriesUnsafe(text: string, type: DiagramType, clip: Clip): Pasted
   const ids = new Map<string, string>();
   const fresh = new Set<string>();
   const paths: Path[] = [];
+  const taken = labelsIn(doc);
   for (const e of clip.entries) {
     if (!doc.has(e.collection) || doc.get(e.collection) == null) doc.set(e.collection, doc.createNode({}));
     const collection = doc.get(e.collection);
     if (!isMap(collection)) return undefined;
     if (collection.flow) collection.flow = false;
     const id = uniqueId(doc, e.id);
-    collection.set(id, doc.createNode(e.value, { flow: e.flow ?? true }));
+    collection.set(id, doc.createNode(relabel(e.value, taken), { flow: e.flow ?? true }));
     ids.set(`${e.collection}\0${e.id}`, id);
     fresh.add(JSON.stringify([e.collection, id]));
     paths.push([e.collection, id]);
@@ -481,6 +514,8 @@ const fieldName = (key: string) => NAMES[key] ?? titleCase(key);
 /** The first clause of a description: short enough to show under a field. */
 const shortHint = (d?: string) => {
   if (!d) return undefined;
+  // Written for the schema ("Id of the group this sits in"); read in the form as people say it.
+  d = d.replace(/^Ids? of (the |an? )?/i, (_, a: string | undefined) => (a ? `${a[0]!.toUpperCase()}${a.slice(1)}` : 'The '));
   const cut = [', e.g.', '; ', ': ', '. '].map((m) => d.indexOf(m)).filter((n) => n > 0);
   return (cut.length ? d.slice(0, Math.min(...cut)) : d).replace(/\.$/, '');
 };

@@ -68,7 +68,7 @@ await open(example('cloud/aws-data-lake.yaml'), 'aws-data-lake.yaml');
   await page.screenshot({ path: `${out}/s2-too-full.png` });
   // The page export: an SVG of the page's shape.
   await page.click('button:has-text("Export")');
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[role="menuitem"]:has-text("SVG on the page")')]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[role="menuitem"]:has-text("SVG of the page")')]);
   const svg = fs.readFileSync(await dl.path(), 'utf8');
   const [, w, h] = /<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/.exec(svg) ?? [];
   if (!w || Math.abs(Number(w) / Number(h) - 16 / 9) > 0.01) fail(`the page SVG is not 16:9: ${w}×${h}`);

@@ -103,7 +103,7 @@ export function Inspector(p: InspectorProps) {
   );
   const moreCount = rest.length + (p.renamable && !p.freeName ? 1 : 0);
   const field = (f: Field) => (
-    <label key={f.key} className={f.kind === 'toggle' ? 'field toggle' : 'field'} title={f.hint} data-key={f.key}>
+    <label key={f.key} className={f.kind === 'toggle' ? 'field toggle' : 'field'} title={`${f.key}: in the YAML${f.hint ? ` · ${f.hint}` : ''}`} data-key={f.key}>
       <span>{f.label}</span>
       {f.kind === 'text' || f.kind === 'number' ? (
         <TextInput

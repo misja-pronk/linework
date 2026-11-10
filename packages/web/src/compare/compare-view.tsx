@@ -131,7 +131,12 @@ export function CompareView(p: Props) {
   const steps = useMemo(() => sentences.filter((s) => s.item), [sentences]);
   const [at, setAt] = useState<number>();
   const current = at !== undefined ? steps[at] : undefined;
-  const counts = cmp?.c.diff.counts;
+  // Counted as the list says them: a line removed with its node is part of that node's sentence, not a change of its own.
+  const counts = useMemo(() => {
+    if (!cmp) return undefined;
+    const of = (st: 'added' | 'changed' | 'removed') => steps.filter((x) => x.item!.status === st).length;
+    return { added: of('added'), changed: of('changed') + sentences.filter((x) => !x.item).length, removed: of('removed') };
+  }, [cmp, steps, sentences]);
 
   // ------------------------------------------------------------ pan and zoom, one for both panes
 
