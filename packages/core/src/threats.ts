@@ -161,6 +161,8 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
     const t = entryOf('groups', g.id).trust;
     if (t || trustList.includes(g.id) || g.kind === 'trust-boundary') {
       g.trust = true;
+      // Its icon in the colour of its line, so a zone does not look like two things at once.
+      g.tone = 'rose';
       trusted.set(g.id, typeof t === 'string' && t ? t : g.label);
       if (typeof t === 'string' && t && t !== g.label) g.caption = t;
       else if (!g.caption || ['Zone', 'Boundary', 'Trust boundary'].includes(g.caption)) g.caption = 'Trust boundary';
