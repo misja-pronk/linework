@@ -941,6 +941,27 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>, trunk 
     own = new Set(group);
     const { width, height } = e.label;
     const pts = route.points;
+    // Where on a piece the label lies clear of everything: per free stretch, the spot nearest the
+    // middle. A long line through a few groups has little room between their borders, and the
+    // fixed spots below would miss it.
+    const clearSpots = (a: Point, b: Point): number[] => {
+      const [along, size, across, thick] = a.y === b.y ? (['x', 'width', 'y', 'height'] as const) : (['y', 'height', 'x', 'width'] as const);
+      const half = e.label![size] / 2;
+      const [c0, c1] = [a[across] - e.label![thick] / 2, a[across] + e.label![thick] / 2];
+      const [lo, hi] = [Math.min(a[along], b[along]) + half + 8, Math.max(a[along], b[along]) - half - 8];
+      const shut = [...taken, ...lines.filter((l) => !own.has(l.edge)).map((l) => l.box)]
+        .filter((t) => t[across] < c1 && t[across] + t[thick] > c0)
+        .map((t) => [t[along] - half, t[along] + t[size] + half] as const)
+        .sort((p, q) => p[0] - q[0]);
+      const middle = (a[along] + b[along]) / 2;
+      const out: number[] = [];
+      let from = lo;
+      for (const [start, end] of [...shut, [hi, Infinity] as const]) {
+        if (from <= Math.min(start, hi)) out.push(Math.min(Math.max(middle, from), Math.min(start, hi)));
+        from = Math.max(from, end);
+      }
+      return out.map((v) => (v - a[along]) / (b[along] - a[along]));
+    };
     // Where the label could go on these pieces of the line, each with how bad it is there.
     const spots = (pieces: [Point, Point][], alone: boolean) => {
       const found: { box: Box; score: number }[] = [];
@@ -949,7 +970,7 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>, trunk 
         const horizontal = a.y === b.y;
         const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
         const middle = Math.abs(k + 0.5 - total / 2);
-        for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+        for (const t of [0.5, 0.35, 0.65, 0.2, 0.8, ...clearSpots(a, b)]) {
           const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
           // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
           // some line visible either side, or the line would seem to end in the label.

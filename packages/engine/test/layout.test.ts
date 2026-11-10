@@ -84,6 +84,12 @@ const headerBudget: Record<string, number> = {
   'deployment/aws.yaml#dev': 1,
 };
 
+// Labels sitting on a corner of their line: none, but for the ones named here.
+const bendBudget: Record<string, number> = {
+  'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
+  'deployment/azure.yaml#test': 1, // OrderPlaced fits between the subnet's border and the turn, to the pixel
+};
+
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
 // where the lines between the groups say otherwise.
 const orderBudget: Record<string, number> = {
@@ -112,6 +118,7 @@ describe('layout quality', () => {
       expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward, overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
       expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
+      expect(m.labelOnBend).toBeLessThanOrEqual(bendBudget[key] ?? 0);
       expect(disorder({ ...r.graph!, direction: r.placed!.direction ?? r.graph!.direction }, r.placed!.groups)).toBeLessThanOrEqual(orderBudget[key] ?? 0);
     });
 
