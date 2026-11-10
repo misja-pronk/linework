@@ -17,7 +17,7 @@ export function Menu({ onClose, children }: { onClose(): void; children: React.R
   }, [onClose]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    const items = [...(el.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const items = [...(el.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     const i = items.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'Escape') onClose();
     else if (e.key === 'ArrowDown') items[(i + 1) % items.length]?.focus();

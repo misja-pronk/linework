@@ -33,7 +33,7 @@ export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | u
     fixed.add(id);
   }
   makeRoom(nodes, fixed, graph.direction === 'down', gap);
-  return { ...p, nodes, groups: growGroups(graph, nodes, groups, header, pad) };
+  return { ...p, nodes, groups: growGroups(graph, nodes, groups, header, pad, new Set(pins.map(([id]) => id))) };
 }
 
 /**
@@ -67,7 +67,7 @@ function descendantGroups(graph: Graph, id: string): string[] {
   return [...kids, ...kids.flatMap((k) => descendantGroups(graph, k))];
 }
 
-export function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, header: number, pad: number) {
+export function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, header: number, pad: number, pinned?: Set<string>) {
   const byId = new Map(graph.groups.map((g) => [g.id, g]));
   const depth = (id: string): number => {
     const parent = byId.get(id)?.parent;
@@ -82,6 +82,17 @@ export function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<st
       ...graph.groups.filter((c) => c.parent === g.id).map((c) => groups.get(c.id)),
     ].filter((b): b is Box => !!b);
     if (!kids.length) continue;
+    // Every node in it placed by hand (a drawing imported with its positions): it fits around them,
+    // not around where the layout would have put them.
+    const inside = new Set([g.id, ...descendantGroups(graph, g.id)]);
+    const own = graph.nodes.filter((n) => n.parent && inside.has(n.parent) && nodes.has(n.id));
+    if (pinned && own.length && own.every((n) => pinned.has(n.id))) {
+      const fit = { x: Math.min(...kids.map((k) => k.x - pad)), y: Math.min(...kids.map((k) => k.y - header)) };
+      const x1 = Math.max(...kids.map((k) => k.x + k.width + pad));
+      const y1 = Math.max(...kids.map((k) => k.y + k.height + pad));
+      groups.set(g.id, { x: fit.x, y: fit.y, width: x1 - fit.x, height: y1 - fit.y });
+      continue;
+    }
     const x0 = Math.min(box.x, ...kids.map((k) => k.x - pad));
     const y0 = Math.min(box.y, ...kids.map((k) => k.y - header));
     const x1 = Math.max(box.x + box.width, ...kids.map((k) => k.x + k.width + pad));

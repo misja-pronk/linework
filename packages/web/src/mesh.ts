@@ -3,6 +3,8 @@
 import { importDataMesh, isDataMeshFile, type ImportedMesh, type MeshFile } from '@cartography/import';
 
 const TEXT = /\.(ya?ml|json)$/i;
+/** What a drop reads: these, and drawings from draw.io, Excalidraw and Mermaid, which the editor imports. */
+const READ = /\.(ya?ml|json|drawio|dio|xml|excalidraw|mmd|mermaid)$/i;
 const NOTE = /\.layout\.json$/i;
 const MAX_FILES = 400;
 const MAX_BYTES = 2_000_000;
@@ -47,7 +49,7 @@ export async function dropped(data: DataTransfer): Promise<MeshFile[]> {
   const items = [...data.items].filter((i) => i.kind === 'file').map((i) => i.webkitGetAsEntry?.() ?? i.getAsFile());
   const out: MeshFile[] = [];
   const add = async (path: string, f: File) => {
-    if (TEXT.test(f.name) && f.size <= MAX_BYTES && out.length < MAX_FILES) out.push({ path, text: await f.text() });
+    if (READ.test(f.name) && f.size <= MAX_BYTES && out.length < MAX_FILES) out.push({ path, text: await f.text() });
   };
   const walk = async (e: FileSystemEntry, prefix: string, depth: number): Promise<void> => {
     if (e.isFile) return add(prefix + e.name, await new Promise<File>((ok, fail) => (e as FileSystemFileEntry).file(ok, fail)));
