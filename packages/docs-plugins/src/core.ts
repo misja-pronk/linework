@@ -267,7 +267,7 @@ const pageFaces = (o: CartographyOptions) => {
   return facesOf(themes[name] ?? themes.light).filter((f) => PAGE_FACES.includes(f));
 };
 /** Names the page's copy of each bundled typeface first in a font stack. */
-const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono)'?\s*(?=,|$)/g;
+const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono|Kalam)'?\s*(?=,|$)/g;
 const ownFaces = (stack: string) => stack.replace(BUNDLED, (_, lead: string, family: string) => `${lead}${faceName(family)}, ${/\s/.test(family) ? `'${family}'` : family}`);
 
 /** The engine's SVG, cleaned, made to fit the page's width, and with the links a static page can honour. */

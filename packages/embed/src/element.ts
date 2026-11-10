@@ -95,7 +95,7 @@ function addFont(family: string, weight: number | string, style: string, base64:
 }
 
 /** Names the private copy of each bundled face first in a font stack, so the drawing is set in the faces it was measured in. */
-const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono)'?\s*(?=,|$)/g;
+const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono|Kalam)'?\s*(?=,|$)/g;
 const ownFaces = (stack: string) => stack.replace(BUNDLED, "$1'Carto $2','$2'");
 
 /** A link written as an href (a sequence diagram's ref): the same three kinds as `links:`. */

@@ -3,7 +3,7 @@
 import { tones as toneSlots, type Tone } from '@cartography/core';
 import { contrast, ensureContrast, fromHsl, hex, isColor, isDark, mix, parseColor, toHsl } from './color.ts';
 import { bundledFamilies, bundledFamily } from './fonts.ts';
-import { classic, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';
+import { classic, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type SketchLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';
 
 type FontFiles = string[] | Record<string, string>;
 const RADIUS_KEYS = ['card', 'group', 'tile', 'chip', 'corner'] as const;
@@ -48,6 +48,8 @@ export interface ThemeSpec {
   cardLine?: Theme['cardLine'];
   title?: TitleLook;
   background?: { dots?: boolean | { step?: number; r?: number; color?: string } };
+  /** Drawn by hand (true, or { roughness, fill, double }); false makes a sketch theme ruled again. */
+  sketch?: boolean | SketchLook;
   /** high: borders and outlines get 3:1 against what they sit on, faint text 4.5:1. */
   contrast?: 'normal' | 'high';
   /** Pull the tones nobody chose towards the brand's saturation (default true). */
@@ -60,7 +62,7 @@ export interface ThemeWarning {
 }
 
 const COLOR_KEYS = ['primary', 'accent', 'canvas', 'surface', 'border', 'text', 'muted', 'faint', 'edge'] as const;
-const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'iconSize', 'cardBar', 'titleBlock', 'legend', 'legendStyle', 'harmonize', 'group', 'edgeLabel', 'edgeLabelInk', 'edgeLabelCaps', 'lines', 'sheet', 'tableHead', 'number', 'chip', 'cardLine', 'title', 'background', 'contrast'];
+const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'iconSize', 'cardBar', 'titleBlock', 'legend', 'legendStyle', 'harmonize', 'group', 'edgeLabel', 'edgeLabelInk', 'edgeLabelCaps', 'lines', 'sheet', 'tableHead', 'number', 'chip', 'cardLine', 'title', 'background', 'sketch', 'contrast'];
 const BLOCK_KEYS = ['logo', 'client', 'project', 'version', 'date', 'classification', 'footer', 'imprint'];
 const RADIUS = { sharp: 0.35, soft: 1, round: 1.4 };
 /** Every tone slot can be given. */
@@ -246,6 +248,13 @@ export function parseThemeSpec(v: unknown, warn: (w: ThemeWarning) => void): The
       spec.background = { dots: clean({ step: num(['background', 'dots', 'step'], d.step, 6, 64), r: num(['background', 'dots', 'r'], d.r, 0.2, 3), color: isColor(d.color) ? d.color : undefined }) };
     }
   }
+  if (o.sketch != null) {
+    if (typeof o.sketch === 'boolean') spec.sketch = o.sketch;
+    else {
+      const k = block('sketch', o.sketch, ['roughness', 'fill', 'double']);
+      if (k) spec.sketch = clean({ roughness: num(['sketch', 'roughness'], k.roughness, 0, 3), fill: k.fill == null ? undefined : (pick(['sketch', 'fill'], k.fill, ['hachure', 'solid']) as SketchLook['fill']), double: flag(['sketch', 'double'], k.double) });
+    }
+  }
   if (o.cardBar != null) spec.cardBar = !!o.cardBar;
   if (o.harmonize != null) spec.harmonize = !!o.harmonize;
   if (o.legend != null) {
@@ -422,6 +431,7 @@ export function deriveTheme(base: Theme, spec: ThemeSpec, extras: DeriveExtras =
     ...(spec.chip ? { chip: spec.chip } : {}),
     ...(spec.cardLine ? { cardLine: spec.cardLine } : {}),
     ...(spec.title ? { title: { ...base.title, ...spec.title } } : {}),
+    ...(spec.sketch === false ? { sketch: undefined } : spec.sketch ? { sketch: { ...base.sketch, ...(spec.sketch === true ? {} : spec.sketch) } } : {}),
     background,
   };
 }

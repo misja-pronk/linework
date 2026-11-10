@@ -18,6 +18,7 @@ import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.
 import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
+import { sketchSvg } from './sketch.ts';
 
 export { legendItems, legendWidth } from './legend.ts';
 
@@ -209,7 +210,9 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   if (column) out.push(column.draw(origin.x + placed.width + margin.right + 40, origin.y));
   if (footer) out.push(drawFooter(block!, theme, pad, width, height - pad));
   out.push('</svg>');
-  return { svg: out.join(''), width, height, origin };
+  // The sketch look redraws the finished drawing by hand; every other look is drawn as it is.
+  const hand = look(theme).sketch;
+  return { svg: hand ? sketchSvg(out.join(''), theme, hand) : out.join(''), width, height, origin };
 }
 
 /** A subtle link icon: this element leads somewhere (a URL, its detailed diagram). */
