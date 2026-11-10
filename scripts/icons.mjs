@@ -24,6 +24,7 @@ const names = `
   align-start-vertical align-center-vertical align-end-vertical align-start-horizontal align-center-horizontal align-end-horizontal
   align-horizontal-distribute-center align-vertical-distribute-center lock-open grid-3x3 map magnet focus
   arrow-right
+  hand diamond diamond-plus square-plus circle triangle rows-3 sticky-note file refresh-cw
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);
