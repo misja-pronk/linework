@@ -110,6 +110,14 @@ export interface TitleLook {
   tracking?: number;
 }
 
+export interface PptxLook {
+  template: string;
+  /** Layout of the diagram slides, by name. */
+  layout?: string;
+  /** Draw in this theme rather than in one made from the template's colours and fonts. */
+  keepLook?: boolean;
+}
+
 export interface Theme {
   /** light, dark, a built-in brand theme or the name in a theme file. */
   name: string;
@@ -159,6 +167,8 @@ export interface Theme {
   /** Brand colour for the title rule and other details; absent in the plain themes. */
   accent?: string;
   titleBlock?: TitleBlock;
+  /** A PowerPoint template decks are made in (docs/powerpoint-templates.md): the path relative to the diagram. */
+  pptx?: PptxLook;
   legend?: LegendPosition;
   /** Icon tiles: soft tint (default), solid tone with a light icon, an outline for print, bare, disc or ring. */
   tile?: TileStyle;

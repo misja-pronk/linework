@@ -32,7 +32,8 @@ edges:
   - shop-app -> shop-db: SQL
 `;
 
-describe('carto blocks', () => {
+// Each case starts the CLI (tsx) one or more times: room for a machine busy with other work.
+describe('carto blocks', { timeout: 60_000 }, () => {
   it('lists the starters, and shows one with its parameters', () => {
     const l = carto('blocks', 'list');
     expect(l.code).toBe(0);

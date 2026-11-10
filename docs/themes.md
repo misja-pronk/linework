@@ -245,6 +245,8 @@ Per export:
   .pptx. Where a face is not installed, PowerPoint and Keynote pick a sans-serif (or a fixed-pitch face for the
   monospace text) from the hints in the file. `carto render --format pptx --font Arial` names another typeface
   for the whole deck.
+- **In a client's PowerPoint template:** `pptx: template.potx` in a theme file makes every deck in that template,
+  its layouts, master, colours and fonts; see [powerpoint-templates.md](powerpoint-templates.md).
 
 ## Icon packs (bring your own)
 
