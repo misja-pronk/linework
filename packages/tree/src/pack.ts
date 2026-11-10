@@ -90,11 +90,16 @@ export function pack(roots: PackItem[], o: PackOptions = {}): Packed {
   const options: (Packed & { score: number })[] = [];
   // Top items in rows (each row as tall as its tallest) or, for columns, in lanes of their own height.
   const tops: ('rows' | 'lanes')[] = mode === 'columns' ? ['rows', 'lanes'] : ['rows'];
+  // Lanes drawn before keep the areas they had: "columns-lanes:3.1.1@0,2,5" names where each lane started.
+  const [prevName, prevCuts] = (o.previous ?? '').split('@');
+  const cuts = prevCuts?.split(',').map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < roots.length) ?? [];
   const combos = (i: number, acc: number[]) => {
     if (i === fixed.length) {
       for (const top of tops) {
         if (top === 'lanes' && (acc[0] === 1 || acc[0] === roots.length)) continue;
-        const p = arrange(roots, levels, acc, { mode, top, gap, outer, pad });
+        const name = `${mode}${top === 'lanes' ? '-lanes' : ''}:${acc.join('.')}`;
+        const keep = top === 'lanes' && name === prevName && cuts.length === acc[0] && cuts.every((c, k) => (k === 0 ? c === 0 : c > cuts[k - 1]!)) ? cuts : undefined;
+        const p = arrange(roots, levels, acc, { mode, top, gap, outer, pad, starts: keep });
         const leafArea = levels.reduce((s, l) => s + l.items.filter((it) => !it.children?.length).reduce((a, it) => a + (p.boxes.get(it.id)?.width ?? 0) * (p.boxes.get(it.id)?.height ?? 0), 0), 0);
         // Fitting the slide comes first; among drawings that fit about as well, the one with the least empty paper.
         const fill = leafArea / Math.max(1, p.width * p.height);
@@ -110,7 +115,7 @@ export function pack(roots: PackItem[], o: PackOptions = {}): Packed {
 }
 
 /** One combination of columns, laid out. */
-function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 'columns' | 'bands'; top: 'rows' | 'lanes'; gap: number; outer: number; pad: number }): Packed {
+function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 'columns' | 'bands'; top: 'rows' | 'lanes'; gap: number; outer: number; pad: number; starts?: number[] }): Packed {
   const { mode, gap, pad } = o;
   const depthOf = new Map<string, number>();
   for (const [d, l] of levels.entries()) for (const it of l.items) depthOf.set(it.id, d);
@@ -174,7 +179,7 @@ function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 
     }
   };
   const across = Math.min(cols[0] ?? 1, roots.length);
-  const top = o.top === 'lanes' ? balanced(roots.map(heightOf), across, o.outer) : rows(roots.map(heightOf), across, o.outer);
+  const top = o.top === 'lanes' ? balanced(roots.map(heightOf), across, o.outer, o.starts) : rows(roots.map(heightOf), across, o.outer);
   // In lanes the last item of each runs down to the foot of the tallest, so the map ends on one line.
   if (o.top === 'lanes')
     for (let k = 0; k < across; k++) {
@@ -185,12 +190,14 @@ function arrange(roots: PackItem[], levels: Level[], cols: number[], o: { mode: 
     const cell = top.cells[i]!;
     place(r, cell.col * (width[0]! + o.outer), cell.y, cell.height);
   }
-  return { boxes, width: across * width[0]! + (across - 1) * o.outer, height: top.height, variant: `${mode}${o.top === 'lanes' ? '-lanes' : ''}:${cols.join('.')}`, columns: cols };
+  return { boxes, width: across * width[0]! + (across - 1) * o.outer, height: top.height, variant: `${mode}${o.top === 'lanes' ? `-lanes:${cols.join('.')}@${top.starts!.join(',')}` : `:${cols.join('.')}`}`, columns: cols };
 }
 
 interface Grid {
   cells: { col: number; y: number; height: number }[];
   height: number;
+  /** Where each column starts, in reading order (balanced grids). */
+  starts?: number[];
 }
 
 /** Row by row, `c` to a row; a row is as tall as its tallest, and each cell is stretched to it. */
@@ -210,8 +217,9 @@ function rows(heights: number[], c: number, gap: number): Grid {
  * Down the columns, in reading order: the items split into `c` runs that are as even as they can
  * be (the tallest column as short as it can be), each run one column.
  */
-function balanced(heights: number[], c: number, gap: number): Grid {
+function balanced(heights: number[], c: number, gap: number, given?: number[]): Grid {
   const n = heights.length;
+  if (given) return columnsFrom(heights, given, gap);
   const span = (a: number, b: number) => heights.slice(a, b).reduce((s, h) => s + h, 0) + Math.max(0, b - a - 1) * gap;
   // best[k][i]: the tallest column when the first i items fill k columns; cut[k][i]: where the last column starts.
   const best: number[][] = [Array.from({ length: n + 1 }, (_, i) => (i === 0 ? 0 : Infinity))];
@@ -237,6 +245,13 @@ function balanced(heights: number[], c: number, gap: number): Grid {
     starts.unshift(j);
     i = j;
   }
+  return columnsFrom(heights, starts, gap);
+}
+
+/** Columns that start at the given items. */
+function columnsFrom(heights: number[], starts: number[], gap: number): Grid {
+  const n = heights.length;
+  const c = starts.length;
   const cells: Grid['cells'] = [];
   let height = 0;
   for (let k = 0; k < c; k++) {
@@ -247,5 +262,5 @@ function balanced(heights: number[], c: number, gap: number): Grid {
     }
     height = Math.max(height, y - gap);
   }
-  return { cells, height: Math.max(0, height) };
+  return { cells, height: Math.max(0, height), starts };
 }
