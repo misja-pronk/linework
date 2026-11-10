@@ -161,6 +161,15 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
   for (const t of teams) for (const [repo, p] of own(org, t)) if (shown.has(repo)) access.push({ from: `team:${t.slug}`, repo, label: p });
   const direct = new Set<string>();
   for (const r of repos) for (const [who, p] of org.collaborators.get(r.key) ?? []) (direct.add(who), access.push({ from: `user:${who}`, repo: r.key, label: p }));
+  // Who holds the same on every repository says so on itself: seven lines that all say admin cross everything else.
+  const everywhere = new Map<string, string>();
+  if (repos.length >= 3)
+    for (const from of new Set(access.map((a) => a.from))) {
+      const held = access.filter((a) => a.from === from);
+      if (held.length === repos.length && new Set(held.map((a) => a.repo)).size === repos.length && new Set(held.map((a) => a.label)).size === 1) everywhere.set(from, held[0]!.label);
+    }
+  for (let i = access.length - 1; i >= 0; i--) if (everywhere.has(access[i]!.from)) access.splice(i, 1);
+  const onAll = (key: string) => (everywhere.has(key) ? `${everywhere.get(key)} on every repository` : undefined);
 
   // ---- repositories nothing is drawn in and that are reached in exactly the same way, as one.
   const same = new Map<string, string>();
@@ -216,10 +225,10 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
   for (const t of teams) {
     // A team with teams in it is drawn around them: what it reaches, they reach.
     const group = parents.has(t.slug);
-    items.push({ key: `team:${t.slug}`, group, cls: 'team', name: t.slug, else: 'team', kind: group ? 'team-group' : 'team', label: t.name, caption: size(t), in: t.parent && drawnTeams.has(t.parent) ? `team:${t.parent}` : ORG });
+    items.push({ key: `team:${t.slug}`, group, cls: 'team', name: t.slug, else: 'team', kind: group ? 'team-group' : 'team', label: t.name, caption: fit([onAll(`team:${t.slug}`), size(t)]), in: t.parent && drawnTeams.has(t.parent) ? `team:${t.parent}` : ORG });
     if (!fold) for (const m of t.members ?? []) edges.push({ from: `user:${m}`, to: `team:${t.slug}`, style: 'member' });
   }
-  for (const p of people) items.push({ key: `user:${p.login.toLowerCase()}`, group: false, cls: 'user', name: p.login, else: 'user', kind: p.outside ? 'outside-collaborator' : 'user', label: p.login, in: p.outside ? undefined : ORG });
+  for (const p of people) items.push({ key: `user:${p.login.toLowerCase()}`, group: false, cls: 'user', name: p.login, else: 'user', kind: p.outside ? 'outside-collaborator' : 'user', label: p.login, caption: onAll(`user:${p.login.toLowerCase()}`), in: p.outside ? undefined : ORG });
   const words = (r: GhRepo) => [r.visibility && r.visibility !== 'private' ? r.visibility : undefined, r.archived ? 'archived' : undefined].filter(Boolean).join(' · ') || undefined;
   for (const r of repos) if (!same.has(r.key)) items.push({ key: `repo:${r.key}`, group: inside(r), cls: 'repo', name: r.name, else: 'repo', kind: 'repo', label: r.name, caption: words(r), in: ORG });
   for (const m of merged) items.push({ key: `repo:${m.key}`, group: false, cls: 'repo', name: m.name, else: 'repos', kind: 'repo', label: m.name, caption: m.caption, in: ORG });

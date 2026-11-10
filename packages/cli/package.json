@@ -9,11 +9,13 @@
     "./fonts": "./src/fonts.ts"
   },
   "dependencies": {
+    "@cartography/access": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/docs-plugins": "workspace:*",
     "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
+    "@cartography/github": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/theme": "workspace:*",
@@ -21,6 +23,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "fontkit": "^2.0.4",
     "wawoff2": "^2.0.1",
+    "yaml": "^2.9.1",
     "@cartography/diff": "workspace:*"
   },
   "bin": {

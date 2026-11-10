@@ -53,6 +53,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@cartography/access':
+        specifier: workspace:*
+        version: link:../../types/access
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
@@ -71,6 +74,9 @@ importers:
       '@cartography/export':
         specifier: workspace:*
         version: link:../export
+      '@cartography/github':
+        specifier: workspace:*
+        version: link:../../types/github
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
@@ -92,6 +98,9 @@ importers:
       wawoff2:
         specifier: ^2.0.1
         version: 2.0.1
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
     devDependencies:
       '@playwright/test':
         specifier: ^1.65.0
