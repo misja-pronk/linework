@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { deflateSync, strToU8 } from 'fflate';
 import { render, type RenderResult } from '@cartography/engine';
+import type { GraphNode, LayoutSidecar } from '@cartography/core';
 import { importMermaid } from '@cartography/import';
 import { findAll, parseXml, type XmlNode } from '../src/xml.ts';
 import { base64Bytes } from '../src/text.ts';
@@ -18,7 +19,7 @@ async function example(file: string, view?: string): Promise<RenderResult> {
   return r;
 }
 
-async function clean(yaml: string, sidecar?: Parameters<typeof render>[1]['sidecar']) {
+async function clean(yaml: string, sidecar?: LayoutSidecar) {
   const r = await render(yaml, { fonts: 'none', sidecar });
   expect(r.diagnostics.filter((d) => d.severity === 'error'), yaml).toEqual([]);
   expect(r.svg).toBeTruthy();
@@ -29,14 +30,18 @@ async function clean(yaml: string, sidecar?: Parameters<typeof render>[1]['sidec
 function content(r: RenderResult) {
   const g = r.graph!;
   return {
-    nodes: g.nodes.map((n) => `${n.id}<${n.group ?? ''}`).sort(),
+    nodes: g.nodes.map((n) => `${n.id}<${n.parent ?? ''}`).sort(),
     groups: g.groups.map((n) => `${n.id}<${n.parent ?? ''}`).sort(),
     edges: g.edges.map((e) => `${e.from.node}>${e.to.node}|${e.label ?? ''}|${e.line}`).sort(),
   };
 }
 
+/** The words a node is known by: a card's label, a table's title. */
+const labelOf = (n: GraphNode) => ('label' in n.shape ? n.shape.label : 'title' in n.shape ? n.shape.title : undefined) as string | undefined;
+
 /** The cells of a draw.io page, each with the attributes of its mxCell and the wrapping object's data. */
-function cells(model: XmlNode) {
+type Cell = { id: string; data: Record<string, string>; geometry?: XmlNode; parent?: string; style?: string; vertex?: string; edge?: string; source?: string; target?: string };
+function cells(model: XmlNode): Cell[] {
   const top = findAll(model, 'root')[0]!;
   return top.children.map((el) => {
     const mx = el.name === 'object' ? el.children.find((c) => c.name === 'mxCell')! : el;
@@ -66,9 +71,11 @@ describe('draw.io export', () => {
     expect(nodes.length).toBe(r.graph!.nodes.length);
     const groups = new Map(list.filter((c) => c.data.carto === 'group').map((c) => [c.data.cartoId, c]));
     expect(groups.size).toBe(r.graph!.groups.length);
-    for (const n of r.graph!.nodes.filter((n) => n.group)) {
+    const inGroups = r.graph!.nodes.filter((n) => n.parent);
+    expect(inGroups.length).toBeGreaterThan(3);
+    for (const n of inGroups) {
       const cell = nodes.find((c) => c.data.cartoId === n.id)!;
-      expect(cell.parent, n.id).toBe(groups.get(n.group!)!.id);
+      expect(cell.parent, n.id).toBe(groups.get(n.parent!)!.id);
     }
     for (const g of groups.values()) expect(g.style, g.id).toMatch(/container=1/);
     // Every line is attached at both ends, with the route as waypoints; a line folded into a badge is the badge.
@@ -275,7 +282,7 @@ describe('Mermaid export', () => {
   it('an ERD is an erDiagram with its columns and relations', async () => {
     const { a, b } = await roundTrip('erd/orders.yaml', 'erDiagram');
     expect(b.graph!.nodes.map((n) => n.id).sort()).toEqual(a.graph!.nodes.map((n) => n.id).sort());
-    const rows = (r: RenderResult) => r.graph!.nodes.map((n) => `${n.id}:${(n.rows ?? []).map((row) => row.id).join(',')}`).sort();
+    const rows = (r: RenderResult) => r.graph!.nodes.map((n) => `${n.id}:${n.shape.kind === 'table' ? n.shape.rows.map((row) => (row.kind === 'row' ? row.id : '')).join(',') : ''}`).sort();
     expect(rows(b)).toEqual(rows(a));
     expect(b.graph!.edges.length).toBe(a.graph!.edges.length);
   });
@@ -303,7 +310,10 @@ describe('Office-safe SVG', () => {
       expect(safe).not.toMatch(/var\(--|<style|filter=|<foreignObject|marker-end=/);
       expect(() => parseXml(safe)).not.toThrow();
       // The words are all still there, in a font every machine has.
-      for (const n of r.graph!.nodes) if (n.label) expect(safe, `${file} ${n.id}`).toContain(n.label.replace(/&/g, '&amp;').split('\n')[0]!);
+      for (const n of r.graph!.nodes) {
+        const label = labelOf(n);
+        if (label) expect(safe, `${file} ${n.id}`).toContain(label.replace(/&/g, '&amp;').split('\n')[0]!);
+      }
       expect(safe).toMatch(/font-family="Arial/);
     }
   });

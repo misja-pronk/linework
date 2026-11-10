@@ -8,7 +8,8 @@ import { Preview, type LabelTarget, type PreviewControl, type Selection } from '
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
 import { ArrangeBar, arrangeCommands, arrangeKey, craftKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
-import { Start, type Opened, type View } from './start.tsx';
+import { Start, type Incoming, type Opened, type View } from './start.tsx';
+import { isDrawio, isExcalidraw } from '@cartography/interop';
 import { Inspector } from './inspector.tsx';
 import { AddMenu } from './add-menu.tsx';
 import { Menu } from './menu.tsx';
@@ -412,16 +413,40 @@ export function App() {
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
   };
 
+  /** A file from another tool goes through the Import panel: pages, positions and what was left out are shown first. */
+  const [incoming, setIncoming] = useState<Incoming>();
+  const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
+  const openText = (name: string, text: string, handle?: FileSystemFileHandle) => {
+    if (foreign(name, text)) {
+      setIncoming({ name, text });
+      setModal('templates');
+      return;
+    }
+    fileHandle.current = handle;
+    open(text, { name });
+  };
+  /** A file dropped on the window: a diagram opens, a drawing from draw.io, Excalidraw or Mermaid is imported. */
+  const onFileDrop = (e: React.DragEvent) => {
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    e.preventDefault();
+    e.stopPropagation();
+    void f.text().then((t) => openText(f.name, t));
+  };
+  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid'] };
+
   const openFile = () => {
     if ('showOpenFilePicker' in window) {
       void (async () => {
         try {
           const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
-            types: [{ description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+            types: [
+              { description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } },
+              { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
+            ],
           });
           const f = await h!.getFile();
-          fileHandle.current = h;
-          open(await f.text(), { name: f.name });
+          openText(f.name, await f.text(), h);
         } catch (e) {
           if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
         }
@@ -430,10 +455,10 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,text/yaml';
+    input.accept = '.yaml,.yml,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid';
     input.onchange = async () => {
       const f = input.files?.[0];
-      if (f) open(await f.text(), { name: f.name });
+      if (f) openText(f.name, await f.text());
     };
     input.click();
   };
@@ -1047,7 +1072,7 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
       : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open YAML file…', icon: 'folder-open', shortcut: '⌘O', run: openFile },
+    { id: 'open', group: 'File', label: 'Open file…', hint: 'YAML, or draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
@@ -1183,6 +1208,7 @@ export function App() {
 
   const closeModal = () => {
     setModal(undefined);
+    setIncoming(undefined);
     setGuiding(false);
     store.set('started', true);
   };
@@ -1194,7 +1220,17 @@ export function App() {
   }
   const typeId = type?.id;
   return (
-    <div className="app" style={{ ['--split' as string]: `${split * 100}%` }}>
+    <div
+      className="app"
+      style={{ ['--split' as string]: `${split * 100}%` }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      // Before the editor or the drawing take it: a file dropped anywhere is opened, not pasted in.
+      onDropCapture={(e) => e.dataTransfer.types.includes('Files') && onFileDrop(e)}
+    >
       <header className="topbar">
         <div className="brand">
           <span className="logo" aria-hidden="true" />
@@ -1689,7 +1725,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
-      {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
+      {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
           placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}

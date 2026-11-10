@@ -89,11 +89,17 @@ const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick:
  * `current` is the type of the open diagram: marked on its card, so the dialog doubles as the guide
  * the editor's type pill points to.
  */
-export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'light' | 'dark'; initial?: Starter; current?: string; onOpen(o: Opened): void; onClose(): void }) {
+/** A file from another tool, opened or dropped: it starts in the Import panel. */
+export interface Incoming {
+  text: string;
+  name: string;
+}
+
+export function Start({ theme, initial, incoming, current, onOpen, onClose }: { theme: 'light' | 'dark'; initial?: Starter; incoming?: Incoming; current?: string; onOpen(o: Opened): void; onClose(): void }) {
   const [starter, setStarter] = useState<Starter | undefined>(initial);
   /** The chosen type, or 'all' to browse every template. */
   const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
-  const [step, setStep] = useState<Step>(initial ? 'mode' : 'type');
+  const [step, setStep] = useState<Step>(incoming ? 'import' : initial ? 'mode' : 'type');
   useRestoreFocus();
 
   // Esc goes one step back, then closes.
@@ -181,7 +187,7 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
             }}
           />
         )}
-        {step === 'import' && <Import theme={theme} onOpen={onOpen} />}
+        {step === 'import' && <Import theme={theme} incoming={incoming} onOpen={onOpen} />}
         {step === 'mode' && starter && (
           <Mode
             starter={starter}
@@ -820,9 +826,9 @@ interface Imported {
 }
 
 /** Paste Mermaid (or Markdown with mermaid blocks), or a draw.io or Excalidraw file, and see it as Cartography right away. */
-function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
-  const [text, setText] = useState('');
-  const [file, setFile] = useState<string>();
+function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming?: Incoming; onOpen(o: Opened): void }) {
+  const [text, setText] = useState(incoming?.text ?? '');
+  const [file, setFile] = useState<string | undefined>(incoming?.name);
   const [block, setBlock] = useState(0);
   const [keep, setKeep] = useState(false);
   // A drawing from another tool: XML of draw.io (packed or not) or the JSON of Excalidraw.
@@ -903,7 +909,7 @@ function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened):
           {shown.svg && current?.yaml ? (
             <div dangerouslySetInnerHTML={{ __html: shown.svg }} />
           ) : (
-            <p className="fine">{text.trim() ? 'Nothing to draw: see the problem below.' : 'The Cartography version appears here as you paste.'}</p>
+            <p className="fine">{current?.yaml ? (shown.errors[0] ?? 'Drawing…') : text.trim() ? 'Nothing to draw: see the problem below.' : 'The Cartography version appears here as you paste.'}</p>
           )}
         </div>
         {current && current.warnings.length > 0 && (
