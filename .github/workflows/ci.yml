@@ -1,0 +1,69 @@
+# Checks every push and pull request: types, tests, licences, what npm would get, the docs site, and
+# every template and example opened in the built web app. Publishes nothing.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test, licences, packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm licences
+      - run: pnpm pack:check
+
+  site:
+    name: Docs site and templates e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cartography/web exec playwright install --with-deps chromium
+      # Builds the web app, then the site with the app inside it.
+      - run: pnpm docs:build
+      - name: Every template and example in the built web app
+        run: |
+          pnpm --filter @cartography/web exec vite preview --port 5191 --strictPort &
+          PREVIEW=$!
+          for i in $(seq 1 60); do curl -sf http://localhost:5191/ > /dev/null && break; sleep 1; done
+          CARTO_URL=http://localhost:5191/ ONLY_FAILURES=1 node packages/web/e2e/templates.mjs e2e-out
+          kill $PREVIEW
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docs-site
+          path: docs/site/dist
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-failures
+          path: e2e-out
+          retention-days: 7

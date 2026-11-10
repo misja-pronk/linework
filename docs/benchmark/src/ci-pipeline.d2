@@ -1,0 +1,33 @@
+title: Delivery pipeline {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+push: Push {shape: oval}
+lint: Lint
+unit: Unit tests
+build: Build image
+scan: Image scan
+gate: All green? {shape: diamond}
+staging: Deploy to staging
+fix: Fix and push again
+e2e: End-to-end tests
+approve: Approved? {shape: diamond}
+prod: Deploy to production
+smoke: Smoke tests
+rollback: Roll back
+
+push -> lint
+push -> unit
+push -> build
+build -> scan
+lint -> gate
+unit -> gate
+scan -> gate
+gate -> staging: yes
+gate -> fix: no
+fix -> push
+staging -> e2e
+e2e -> approve
+approve -> prod: yes
+approve -> fix: no
+prod -> smoke
+smoke -> rollback: fails

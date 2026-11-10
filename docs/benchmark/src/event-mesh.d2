@@ -1,0 +1,32 @@
+title: Event mesh {near: top-center; shape: text; style.font-size: 24}
+direction: right
+
+orders: Order service
+payments: Payment service
+inventory: Inventory service
+shipping: Shipping service
+ordersTopic: orders topic {shape: queue}
+paymentsTopic: payments topic {shape: queue}
+stockTopic: stock topic {shape: queue}
+shipmentsTopic: shipments topic {shape: queue}
+analytics: Analytics
+notify: Notifications
+ledger: Ledger
+search: Search index
+
+orders -> ordersTopic
+payments -> paymentsTopic
+inventory -> stockTopic
+shipping -> shipmentsTopic
+ordersTopic -> payments
+ordersTopic -> inventory
+ordersTopic -> analytics
+ordersTopic -> notify
+paymentsTopic -> orders
+paymentsTopic -> ledger
+paymentsTopic -> analytics
+stockTopic -> orders
+stockTopic -> search
+shipmentsTopic -> orders
+shipmentsTopic -> notify
+shipmentsTopic -> analytics

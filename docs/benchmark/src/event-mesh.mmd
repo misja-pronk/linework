@@ -1,0 +1,20 @@
+---
+title: Event mesh
+---
+flowchart LR
+    orders[Order service] --> ordersTopic[[orders topic]]
+    payments[Payment service] --> paymentsTopic[[payments topic]]
+    inventory[Inventory service] --> stockTopic[[stock topic]]
+    shipping[Shipping service] --> shipmentsTopic[[shipments topic]]
+    ordersTopic --> payments
+    ordersTopic --> inventory
+    ordersTopic --> analytics[Analytics]
+    ordersTopic --> notify[Notifications]
+    paymentsTopic --> orders
+    paymentsTopic --> ledger[Ledger]
+    paymentsTopic --> analytics
+    stockTopic --> orders
+    stockTopic --> search[Search index]
+    shipmentsTopic --> orders
+    shipmentsTopic --> notify
+    shipmentsTopic --> analytics
