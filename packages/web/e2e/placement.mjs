@@ -146,13 +146,18 @@ const b0 = await boxes();
   const b = await boxes();
   for (const id of ['users']) for (const g of ['sub', 'rg']) if (overlaps(b[id], b[g])) fail(`after Tidy ${id} overlaps ${g}`);
   await page.screenshot({ path: `${out}/p3-tidied.png` });
+  // ⇧T is no key any more (one Shift from T, it unpinned everything): Tidy all is a button, with Undo in its message.
   await page.keyboard.press('Shift+T');
+  await wait(500);
+  if (!(await pins()).nodes) fail('⇧T still unpins everything');
+  await page.click('.canvas-tools button[aria-label="Tidy all"]');
   await wait(800);
   const all = await pins();
   if (all.nodes || all.groups) fail('Tidy all left pins: ' + JSON.stringify(all));
-  await page.keyboard.press('Meta+z');
+  await page.click('.toast button:has-text("Undo")');
   await wait(800);
-  if (!(await pins()).nodes) fail('⌘Z did not bring the pins back after Tidy all');
+  if (!(await pins()).nodes) fail('Undo in the message did not bring the pins back after Tidy all');
+  await page.locator('.preview').focus();
 }
 
 // 6. A line: drag a segment across (kept in the sidecar), then double-click its bend to take it out.

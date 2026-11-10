@@ -1,6 +1,6 @@
 // The Wizard mode of the start dialog: type → template → "Answer questions" → one question at a time with
-// the drawing redrawn as you answer, by keyboard and by clicking; Finish opens the diagram; "Refine with
-// Claude" starts the AI mode from the wizard's drawing (the API is mocked). node e2e/wizard.mjs <outDir>
+// the drawing redrawn as you answer, by keyboard and by clicking; Finish opens the diagram; "Ask Claude to refine
+// it" starts the AI mode from the wizard's drawing (the API is mocked). node e2e/wizard.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
 const browser = await chromium.launch();
@@ -92,8 +92,19 @@ await shows('3 regions', 'arrow right adds a region');
 await wait(600);
 await page.screenshot({ path: `${out}/4-number.png` });
 
-// 7. Refine with Claude: the AI mode with the wizard's drawing in the prompt.
-await page.locator('button', { hasText: 'Refine with Claude' }).click();
+// One way to finish (the primary button, or ⌘↵), with how it opens as a choice; the preview reads at full size on a click.
+const finishes = await page.locator('.wizard .button.primary').count();
+if (finishes !== 1) fail(`${finishes} finish buttons in the wizard`);
+const fitted = await page.locator('.wizard-preview .mode-preview > div > svg').boundingBox();
+await page.locator('.wizard-preview .mode-preview').click();
+await wait(200);
+const full = await page.locator('.wizard-preview .mode-preview > div > svg').boundingBox();
+if (!(full.width > fitted.width * 1.3)) fail(`the preview did not open at full size: ${Math.round(fitted.width)} → ${Math.round(full.width)}`);
+await page.screenshot({ path: `${out}/4b-preview-full.png` });
+await page.locator('.wizard-preview .mode-preview').click();
+
+// 7. Ask Claude to refine it: the AI mode with the wizard's drawing in the prompt.
+await page.locator('button', { hasText: 'Ask Claude to refine it' }).click();
 await page.waitForSelector('.ask-form');
 await page.fill('.ask-run input[type=password]', 'sk-ant-test');
 await page.locator('.ask-run .button', { hasText: 'Generate' }).click();

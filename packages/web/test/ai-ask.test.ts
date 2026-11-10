@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { findType, render } from '@cartography/engine';
 import { applyOperations, checkCall, TOOLS } from '../src/ai/edit-tools.ts';
-import { contextMessage, followUpMessage, isReview, layoutReport, resolveRef, splitRefs, type AskContext } from '../src/ai/ask-prompt.ts';
+import { contextMessage, followUpMessage, includedFiles, isReview, layoutReport, resolveRef, sentList, splitRefs, type AskContext } from '../src/ai/ask-prompt.ts';
 import { renamePins, settle, tryCall } from '../src/ai/ask.ts';
 import { lineDiff } from '../src/ai/line-diff.ts';
 
@@ -175,5 +175,33 @@ describe('Ask: after the answer', () => {
     expect(d.filter((l) => l.kind === 'add').map((l) => 'text' in l && l.text)).toEqual(['line ten']);
     expect(d[0]).toEqual({ kind: 'fold', count: 7 });
     expect(d.at(-1)).toEqual({ kind: 'fold', count: 6 });
+  });
+});
+
+describe('what Ask sends from a folder', () => {
+  const files: Record<string, string> = {
+    'model.yaml': 'type: c4\ninclude: [people.yaml]\nsystems:\n  online: { label: Online }\n',
+    'people.yaml': 'type: c4\npeople:\n  customer: { label: Customer }\n',
+  };
+  const load = (f: string) => {
+    if (!(f in files)) throw new Error(`no ${f}`);
+    return files[f]!;
+  };
+  const view = 'type: c4\ninclude: [model.yaml, missing.yaml]\nviews:\n  context: { kind: context, of: online }\n';
+
+  it('reads the included files, and what they include, once each', () => {
+    expect(includedFiles(view, load).map((f) => f.file)).toEqual(['model.yaml', 'people.yaml']);
+    expect(includedFiles('type: c4\n', load)).toEqual([]);
+  });
+
+  it('puts them in the message, and says so exactly', async () => {
+    const { types } = await import('@cartography/engine');
+    const type = types.find((t) => t.id === 'c4')!;
+    const c = { text: view, type, file: 'context.yaml', included: includedFiles(view, load), selection: [{ kind: 'node' as const, id: 'online', label: 'Online' }], problems: [] };
+    const m = contextMessage(c, 'what is this');
+    expect(m).toContain('<included file="model.yaml">\ntype: c4');
+    expect(m).toContain('<included file="people.yaml">');
+    expect(m.indexOf('<included')).toBeLessThan(m.indexOf('<diagram'));
+    expect(sentList(c)).toBe('the YAML of context.yaml, the included files model.yaml, people.yaml, the C4 model schema and description, the id and label of what is selected, the problem list and your question');
   });
 });

@@ -10,7 +10,7 @@ import { Icon } from '../icon.tsx';
 import { store } from '../store.ts';
 import { failure, MODELS, type ModelId } from './claude.ts';
 import { ask, newConversation, type AskProgress, type Conversation, type Proposal } from './ask.ts';
-import { contextMessage, followUpMessage, isReview, layoutReport, type AskContext } from './ask-prompt.ts';
+import { contextMessage, followUpMessage, includedFiles, isReview, layoutReport, sentList, type AskContext } from './ask-prompt.ts';
 import { Answer, type Ref } from './answer.tsx';
 import { lineDiff } from './line-diff.ts';
 import { applyOperations } from './edit-tools.ts';
@@ -51,6 +51,8 @@ export interface AskPanelProps {
   onAccept(yaml: string, renames: Map<string, string>): void;
   onRef(r: Ref): void;
   onClose(): void;
+  /** Behind another tab of the side panel: kept, conversation and all, but out of sight and keys. */
+  hidden?: boolean;
 }
 
 export function AskPanel(p: AskPanelProps) {
@@ -80,7 +82,7 @@ export function AskPanel(p: AskPanelProps) {
     setProgress(undefined);
   }, [p.docKey]);
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => box.current?.focus(), []);
+  useEffect(() => void (!p.hidden && box.current?.focus()), [p.hidden]);
   useEffect(() => {
     if (!p.seed) return;
     setQuestion(p.seed.text);
@@ -90,11 +92,14 @@ export function AskPanel(p: AskPanelProps) {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [turns, progress?.text, proposal]);
 
+  // The files the diagram includes (a folder's model): Claude needs them to know what the drawing shows.
+  const included = useMemo(() => includedFiles(p.text, p.load), [p.text, p.load]);
   const ctx = (q: string): AskContext | undefined =>
     p.type && {
       text: p.text,
       type: p.type,
       file: p.file,
+      included,
       selection: p.selection.map((s) => ({ ...s, label: labelIn(p.graph, s) })),
       problems: p.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? `line ${d.line}: ${d.message}` : d.message)),
       ...(isReview(q) ? { layout: layoutReport(p.graph, p.placed) } : {}),
@@ -176,6 +181,7 @@ export function AskPanel(p: AskPanelProps) {
   // ⏎ accepts and Esc rejects an open proposal from anywhere but a text field; Esc also stops a run.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (p.hidden) return;
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
       if (e.key === 'Escape' && busy) {
         cancel();
@@ -197,7 +203,7 @@ export function AskPanel(p: AskPanelProps) {
 
   const what = ctx(question);
   return (
-    <aside className="ask-panel" ref={panel} aria-label="Ask Claude" onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
+    <aside className="ask-panel" ref={panel} aria-label="Ask Claude" hidden={p.hidden} onKeyDown={(e) => e.key === 'Escape' && !busy && !proposal && (e.stopPropagation(), p.onClose())}>
       <header>
         <Icon name="sparkles" size={16} />
         <strong>Ask Claude</strong>
@@ -353,13 +359,6 @@ const stop = (e: KeyboardEvent) => {
   e.stopPropagation();
 };
 
-function sentList(c: AskContext): string {
-  const parts = ['the YAML', `the ${c.type.name} schema and description`];
-  if (c.selection.length) parts.push(`${c.selection.length} selected id${c.selection.length > 1 ? 's' : ''}`);
-  parts.push(c.problems.length ? `${c.problems.length} problem${c.problems.length > 1 ? 's' : ''}` : 'the problem list');
-  if (c.layout) parts.push('the layout report');
-  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
-}
 
 function labelIn(graph: Graph | undefined, s: { kind: string; id: string }): string | undefined {
   if (!graph) return undefined;

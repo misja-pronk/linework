@@ -1,5 +1,6 @@
 // The drawing: the engine's SVG with pan and zoom, click to select, drag to move (pins), drop into a
 // group to nest, and drops from the add palette.
+import { is } from './keys.ts';
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
@@ -19,6 +20,12 @@ export interface PreviewControl {
   zoomToSelection(): void;
   /** The middle of what is in view, in pin space (where a note without an element goes). */
   centre(): Point | undefined;
+  /** Fit once the next drawing is in (after a tidy: it may land anywhere). */
+  fitNext(): void;
+  /** Whether the whole drawing is in view now. */
+  wholly(): boolean;
+  /** After the next drawing: one that was wholly in view (`was`) and no longer is (a long drag) fits again. */
+  keepInView(was: boolean): void;
 }
 
 /** What a label editor can be opened on: an element, or the diagram's title and subtitle. */
@@ -248,12 +255,32 @@ export function Preview(p: Props) {
     const top = Math.max(pad, tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0);
     const w = f.clientWidth - 2 * pad;
     const h = f.clientHeight - top - BAR;
-    const scale = clamp(Math.min(w / result.width, h / result.height, 1.25));
-    const next = { scale, x: (f.clientWidth - result.width * scale) / 2, y: top + Math.max(0, (h - result.height * scale) / 2) };
+    // With the page shown, the page (and its label) is what fits and is centred: it is wider or taller
+    // than the drawing. Where it stands is read off the screen and taken back into drawing units with
+    // the stage's transform at this very moment (a glide may be under way).
+    const fr = p.page ? f.querySelector<HTMLElement>('.page-frame') : null;
+    const stageEl = f.querySelector<HTMLElement>('.stage');
+    let [x0, y0, x1, y1] = [0, 0, result.width, result.height];
+    if (fr?.offsetWidth && stageEl) {
+      const m = new DOMMatrix(getComputedStyle(stageEl).transform);
+      const pr = f.getBoundingClientRect();
+      const r = fr.getBoundingClientRect();
+      const svg = f.querySelector('.drawing svg')?.getBoundingClientRect();
+      // The drawing's top left on screen is the origin of drawing units.
+      const ox = svg ? svg.left : pr.left + m.e;
+      const oy = svg ? svg.top : pr.top + m.f;
+      const k = m.a || 1;
+      const fx = (r.left - ox) / k;
+      const fy = (r.top - oy) / k;
+      [x0, y0, x1, y1] = [Math.min(x0, fx), Math.min(y0, fy), Math.max(x1, fx + r.width / k), Math.max(y1, fy + r.height / k)];
+    }
+    const label = fr?.offsetWidth ? 22 : 0;
+    const scale = clamp(Math.min(w / (x1 - x0), (h - label) / (y1 - y0), 1.25));
+    const next = { scale, x: (f.clientWidth - (x1 - x0) * scale) / 2 - x0 * scale, y: top + Math.max(0, (h - label - (y1 - y0) * scale) / 2) - y0 * scale };
     fittedView.current = next;
     setEasing(ease);
     setView(next);
-  }, [result?.width, result?.height]);
+  }, [result?.width, result?.height, p.page]);
   /** A view change that keeps a fitted view fitted (it follows the drawing or the pane, not people). */
   const carry = (v: View, next: View) => {
     if (v === fittedView.current) fittedView.current = next;
@@ -342,9 +369,32 @@ export function Preview(p: Props) {
     const sh = result.placed?.shift ?? { x: 0, y: 0 };
     return { x: (cx - r.left - view.x) / view.scale - result.origin.x + sh.x, y: (cy - r.top - view.y) / view.scale - result.origin.y + sh.y };
   };
+  const wholly = () => {
+    const f = frame.current;
+    if (!f || !result?.width || !result.height) return false;
+    return view.x >= -1 && view.y >= -1 && view.x + result.width * view.scale <= f.clientWidth + 1 && view.y + result.height * view.scale <= f.clientHeight - BAR / 2 + 1;
+  };
+  /** How far (px) the drawing runs past the pane's edges, at the most. */
+  const outOfView = () => {
+    const f = frame.current;
+    if (!f || !result?.width || !result.height) return 0;
+    return Math.max(0, -view.x, -view.y, view.x + result.width * view.scale - f.clientWidth, view.y + result.height * view.scale - (f.clientHeight - BAR / 2));
+  };
+  const refit = useRef<{ always: boolean; was: boolean } | null>(null);
+  useEffect(() => {
+    const r = refit.current;
+    if (!r || !result?.svg) return;
+    refit.current = null;
+    // A drag that took a real part of it out of sight (not a few pixels past the edge: that would
+    // make the drawing jump under a careful placement).
+    if (r.always || (r.was && outOfView() > 48)) requestAnimationFrame(() => fit(true));
+  }, [result]);
   useImperativeHandle(p.control, () => ({
     fit,
     zoomToSelection,
+    fitNext: () => void (refit.current = { always: true, was: true }),
+    wholly,
+    keepInView: (was: boolean) => void (refit.current = { always: false, was }),
     centre: () => {
       const r = frame.current?.getBoundingClientRect();
       return r && pinAt(r.left + r.width / 2, r.top + (r.height - BAR) / 2);
@@ -396,12 +446,11 @@ export function Preview(p: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const f = frame.current;
-      if (e.defaultPrevented || e.altKey || !(navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey)) return;
+      if (e.defaultPrevented || !is(e, 'zoom')) return;
       if (!hovered.current && !f?.contains(document.activeElement)) return;
       if (e.key === '0') fit();
-      else if (e.key === '=' || e.key === '+') zoomAt(1.2);
       else if (e.key === '-') zoomAt(1 / 1.2);
-      else return;
+      else zoomAt(1.2);
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
@@ -866,6 +915,12 @@ export function Preview(p: Props) {
       aria-roledescription="drawing"
       aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
       aria-label="Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes."
+      // The pane pans by its transform, never by scrolling: a browser that scrolls it to bring a focused
+      // link into view (after an edit, a click on a linked element did) would shift everything off its place.
+      onScroll={(e) => {
+        e.currentTarget.scrollTop = 0;
+        e.currentTarget.scrollLeft = 0;
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(e) => end(e, false)}
@@ -932,9 +987,9 @@ export function Preview(p: Props) {
         }
         if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
         // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
-        if (e.target === e.currentTarget && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && (e.code === 'Digit1' || e.code === 'Digit2')) {
+        if (e.target === e.currentTarget && (is(e, 'fit') || is(e, 'zoom-selection'))) {
           e.preventDefault();
-          return e.code === 'Digit1' ? fit() : zoomToSelection();
+          return is(e, 'fit') ? fit() : zoomToSelection();
         }
         p.onKeyDown(e);
       }}

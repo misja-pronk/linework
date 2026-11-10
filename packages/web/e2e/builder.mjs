@@ -168,7 +168,8 @@ const rel = async () => {
 const web = await rel();
 await page.mouse.move(g.x + 60, g.y + 10);
 await page.mouse.down();
-for (let i = 1; i <= 6; i++) await page.mouse.move(g.x + 60 + i * 5, g.y + 10 + i * 8);
+// Up and to the right: down, the group would land on the pinned Function App at some pane widths.
+for (let i = 1; i <= 6; i++) await page.mouse.move(g.x + 60 + i * 5, g.y + 10 - i * 4);
 await page.mouse.up();
 await wait(400);
 const after = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';

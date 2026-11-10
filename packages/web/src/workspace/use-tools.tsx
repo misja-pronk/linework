@@ -12,6 +12,7 @@ import { lineOffset, useWorkspaceIndex, type Place } from './use-workspace.ts';
 import { useHistory } from './history.ts';
 import { WorkspaceSearch, placeName } from './search.tsx';
 import { WhereUsed } from './where-used.tsx';
+import { keyHint, shortcutFor } from '../keys.ts';
 import { Crumbs, crumbsOf, upFrom } from './crumbs.tsx';
 import { RenameEverywhere } from './rename.tsx';
 import './workspace.css';
@@ -214,15 +215,17 @@ export function useWorkspaceTools(h: Host) {
 
   // ------------------------------------------------------------ keys, commands, panels
 
-  const onKey = (e: KeyboardEvent, mod: boolean, typing: boolean): boolean => {
-    const k = e.key.toLowerCase();
-    if (mod && !e.altKey && (k === 'p' && !e.shiftKey || k === 'f' && e.shiftKey)) return setDialog('search'), true;
-    if (e.key === 'F2' && e.shiftKey && !mod) return rename(), true;
-    if (!mod || e.altKey || e.shiftKey || typing) return false;
-    if (e.key === '[') return history.back() || h.notify('Nothing to go back to'), true;
-    if (e.key === ']') return history.forward() || h.notify('Nothing to go forward to'), true;
-    if (e.key === 'ArrowDown' && here.node) return drill(here.node) || h.notify('Nothing below this one'), true;
-    if (e.key === 'ArrowUp') return up(), true;
+  /** The folder's keys (keys.ts): search and rename also while typing, the rest only outside text. ⌘P is the browser's without a folder. */
+  const onKey = (e: KeyboardEvent, typing: boolean): boolean => {
+    const id = shortcutFor(e, typing ? ['folder-anywhere'] : ['folder', 'folder-anywhere']);
+    // One file: its own elements and views are searched with ⇧⌘F; ⌘P prints.
+    if (!h.ws) return id === 'search' && e.shiftKey ? (setDialog('search'), true) : false;
+    if (id === 'search') return setDialog('search'), true;
+    if (id === 'rename-everywhere') return rename(), true;
+    if (id === 'back') return history.back() || h.notify('Nothing to go back to'), true;
+    if (id === 'forward') return history.forward() || h.notify('Nothing to go forward to'), true;
+    if (id === 'drill' && here.node) return drill(here.node) || h.notify('Nothing below this one'), true;
+    if (id === 'up') return up(), true;
     return false;
   };
 
@@ -237,12 +240,12 @@ export function useWorkspaceTools(h: Host) {
   }));
 
   const commands: Command[] = [
-    { id: 'ws-search', group: 'Workspace', label: `Search ${scope}…`, hint: 'elements, views, files, technology, owners', icon: 'search', shortcut: '⌘P', run: () => setDialog('search') },
-    ...(selectedElement ? [{ id: 'ws-rename', group: 'Workspace', label: `Rename ${selectedElement} everywhere…`, hint: 'every file that names it, previewed first', icon: 'tag', shortcut: '⇧F2', run: () => rename() }] : []),
-    ...(selectedElement ? [{ id: 'ws-drill', group: 'Workspace', label: 'Go down into the selection', hint: 'its containers, its components, or where it is modelled', icon: 'layers', shortcut: '⌘↓', run: () => void (drill(here.node) || h.notify('Nothing below this one')) }] : []),
-    { id: 'ws-up', group: 'Workspace', label: 'Go up a level', icon: 'layers', shortcut: '⌘↑', run: up },
-    ...(history.canBack ? [{ id: 'ws-back', group: 'Workspace', label: 'Back', hint: history.previous && placeName(history.previous), icon: 'arrow-left', shortcut: '⌘[', run: () => void history.back() }] : []),
-    ...(history.canForward ? [{ id: 'ws-forward', group: 'Workspace', label: 'Forward', hint: history.next && placeName(history.next), icon: 'arrow-right', shortcut: '⌘]', run: () => void history.forward() }] : []),
+    { id: 'ws-search', group: 'Workspace', label: `Search ${scope}…`, hint: 'elements, views, files, technology, owners', icon: 'search', shortcut: h.ws ? keyHint('search') : '⇧⌘F', run: () => setDialog('search') },
+    ...(selectedElement ? [{ id: 'ws-rename', group: 'Workspace', label: `Rename ${selectedElement} everywhere…`, hint: 'every file that names it, previewed first', icon: 'tag', shortcut: keyHint('rename-everywhere'), run: () => rename() }] : []),
+    ...(selectedElement ? [{ id: 'ws-drill', group: 'Workspace', label: 'Go down into the selection', hint: 'its containers, its components, or where it is modelled', icon: 'layers', shortcut: keyHint('drill'), run: () => void (drill(here.node) || h.notify('Nothing below this one')) }] : []),
+    { id: 'ws-up', group: 'Workspace', label: 'Go up a level', icon: 'layers', shortcut: keyHint('up'), run: up },
+    ...(history.canBack ? [{ id: 'ws-back', group: 'Workspace', label: 'Back', hint: history.previous && placeName(history.previous), icon: 'arrow-left', shortcut: keyHint('back'), run: () => void history.back() }] : []),
+    ...(history.canForward ? [{ id: 'ws-forward', group: 'Workspace', label: 'Forward', hint: history.next && placeName(history.next), icon: 'arrow-right', shortcut: keyHint('forward'), run: () => void history.forward() }] : []),
     ...(undoRename.current ? [{ id: 'ws-undo-rename', group: 'Workspace', label: 'Undo rename', hint: 'every file it changed', icon: 'undo-2', run: () => void undoRename.current?.() }] : []),
   ];
 
@@ -260,5 +263,9 @@ export function useWorkspaceTools(h: Host) {
     </>
   );
 
-  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, dialogs, go, open: dialog !== undefined };
+  /** Where the selected element is defined, when that is another file than this one (an included model). */
+  const definedUse = selectedElement ? (index.uses.get(selectedElement) ?? []).find((u) => u.how === 'defined') : undefined;
+  const definedElsewhere = definedUse && definedUse.file !== h.file ? { file: definedUse.file, line: definedUse.line, kind: index.elements.get(selectedElement!)?.[0]?.kind, open: () => void go({ file: definedUse.file, line: definedUse.line }) } : undefined;
+
+  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, definedElsewhere, dialogs, go, open: dialog !== undefined };
 }

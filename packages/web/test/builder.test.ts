@@ -67,6 +67,13 @@ describe('builder edits', () => {
     expect(r.text).toMatch(/web: \{ kind: app-service, in: rg \}\n  web-2: \{ kind: app-service, in: rg \}/);
   });
 
+  it('names a duplicate apart from its original: "Key Vault copy", then "Key Vault copy 2"', () => {
+    const t = 'type: azure\nnodes:\n  kv: { kind: key-vault, label: Key Vault }\n';
+    const once = duplicateEntry(t, ['nodes', 'kv'])!;
+    expect(once.text).toContain('kv-2: { kind: key-vault, label: Key Vault copy }');
+    expect(duplicateEntry(once.text, ['nodes', 'kv'])!.text).toContain('label: Key Vault copy 2 }');
+  });
+
   it('builds a typed form from the schema', () => {
     const f = fieldsFor(shop, azure, ['nodes', 'web']);
     expect(f[0]).toMatchObject({ key: 'label', kind: 'text' });
@@ -216,7 +223,7 @@ describe('copy, paste and delete several', () => {
     const clip = copyEntries(shop, azure, [['groups', 'rg'], ['nodes', 'web'], ['nodes', 'db']])!;
     expect(clip.items.length).toBe(2);
     const r = pasteEntries(shop, azure, clip)!;
-    expect(r.text).toContain('rg-2: { kind: resource-group, label: Production }');
+    expect(r.text).toContain('rg-2: { kind: resource-group, label: Production copy }');
     expect(r.text).toContain('web-2: { kind: app-service, in: rg-2 }');
     expect(r.text).toContain('- web-2 -> db-2: SQL');
     expect(r.text).toContain('- db-2 -> web-2');

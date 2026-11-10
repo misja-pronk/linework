@@ -1,14 +1,16 @@
 // What the Ask panel sends: a fixed system prompt (cached between questions) and, per question, the
-// open diagram: its YAML, its type's schema and short description, what is selected, the problems the
-// engine reports and, for a review, the layout report. Nothing else leaves the browser.
+// open diagram: its YAML and the files it includes (a folder's model), its type's schema and short
+// description, what is selected, the problems the engine reports and, for a review, the layout report.
+// Nothing else leaves the browser; sentList says exactly that in the panel.
 import type { DiagramType, Graph, Placed } from '@cartography/core';
 import { withoutBadges } from '@cartography/core';
 import { measure, score } from '@cartography/layout';
 import { schemaOf } from '@cartography/engine';
+import { parse } from 'yaml';
 
 export const ASK_SYSTEM = `You help people with diagrams in Cartography, a diagrams-as-code editor. A diagram is one YAML file, validated against its type's JSON Schema and laid out automatically: positions never go in the YAML.
 
-Each message gives you the open diagram: the YAML, its type and JSON Schema, which elements the user has selected (their ids), the problems the editor reports and sometimes a layout report. Then the user asks something.
+Each message gives you the open diagram: the YAML, the files it includes (when it has include:, as <included> blocks: read them to know the elements it draws, but change only the open diagram), its type and JSON Schema, which elements the user has selected (their ids), the problems the editor reports and sometimes a layout report. Then the user asks something.
 
 When the user asks for a change, call a tool: edit_diagram for edits by path (the usual case: small or local changes, everything else keeps its exact text), or replace_diagram when most of the file changes. Never write the changed YAML in your text. The change is shown to the user as a diff to accept or reject, and you get back problems to fix if it does not validate. Write a short sentence before the tool call only when something needs saying (an assumption, a choice you made).
 - Follow the schema exactly; unknown keys are errors. Ids are short, lowercase, kebab-case, and stay the same for things that stay the same: the drawing keeps their places and the user's pins.
@@ -22,6 +24,8 @@ export interface AskContext {
   text: string;
   type: DiagramType;
   file?: string;
+  /** The files the diagram includes (include:, and what those include), with their text. */
+  included?: { file: string; text: string }[];
   /** Ids of the selected elements, by kind. */
   selection: { kind: 'node' | 'group' | 'edge'; id: string; label?: string }[];
   problems: string[];
@@ -52,6 +56,7 @@ export function followUpMessage(c: AskContext, question: string, changed: boolea
 
 function diagramBlock(c: AskContext, withSchema: boolean): string {
   const parts = [
+    ...(c.included ?? []).map((f) => `<included file="${f.file}">\n${f.text.trimEnd()}\n</included>`),
     `<diagram${c.file ? ` file="${c.file}"` : ''}>\n${c.text.trimEnd()}\n</diagram>`,
     ...(withSchema ? [`<type>\n${typeDocs(c.type)}\n</type>`, `<schema>\n${JSON.stringify(schemaOf(c.type))}\n</schema>`] : []),
     situation(c),
@@ -113,4 +118,51 @@ export function resolveRef(ref: string, graph: Graph | undefined): { kind: 'node
 function nameOf(graph: Graph, id: string): string {
   const s = graph.nodes.find((n) => n.id === id)?.shape;
   return (s?.kind === 'card' ? s.label : s?.kind === 'table' ? s.title : undefined) || id;
+}
+
+/** Included files are sent up to this size each; a bigger one is named, its text left out. */
+const INCLUDED_MAX = 200_000;
+
+/**
+ * The files a diagram includes, and what they include in turn, read with the editor's loader: the
+ * model a folder's views draw from. Each once, in the order met.
+ */
+export function includedFiles(text: string, load: ((file: string) => string) | undefined): { file: string; text: string }[] {
+  if (!load) return [];
+  const out: { file: string; text: string }[] = [];
+  const seen = new Set<string>();
+  const walk = (t: string, depth: number) => {
+    let inc: unknown;
+    try {
+      inc = (parse(t) as { include?: unknown } | null)?.include;
+    } catch {
+      return;
+    }
+    for (const f of (Array.isArray(inc) ? inc : inc ? [inc] : []).filter((x): x is string => typeof x === 'string')) {
+      if (seen.has(f) || out.length >= 20) continue;
+      seen.add(f);
+      let body: string;
+      try {
+        body = load(f);
+      } catch {
+        continue;
+      }
+      out.push({ file: f, text: body.length > INCLUDED_MAX ? `# ${f} is ${Math.round(body.length / 1000)} kB: too big to send; only its name is here.\n` : body });
+      if (depth < 4) walk(body, depth + 1);
+    }
+  };
+  walk(text, 0);
+  return out;
+}
+
+/** Exactly what a question sends, in words, for the line under the Ask box. */
+export function sentList(c: AskContext): string {
+  const parts = [c.file ? `the YAML of ${c.file}` : 'the YAML'];
+  if (c.included?.length) parts.push(`the included ${c.included.length === 1 ? 'file' : 'files'} ${c.included.map((f) => f.file).join(', ')}`);
+  parts.push(`the ${c.type.name} schema and description`);
+  if (c.selection.length) parts.push(`the ${c.selection.length === 1 ? 'id and label' : 'ids and labels'} of what is selected`);
+  parts.push(c.problems.length ? `${c.problems.length} problem${c.problems.length > 1 ? 's' : ''}` : 'the problem list');
+  if (c.layout) parts.push('the layout report');
+  parts.push('your question');
+  return `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
 }
