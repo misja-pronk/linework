@@ -172,3 +172,14 @@ dashed line. This is the import as is, so it only has what Mermaid can say: thou
 pains, gains and opportunities are rows the YAML adds (see [examples/journey](../../examples/journey)),
 as are the storyboard, blueprint and today-next-to-future views. Mermaid's picture is more compact,
 and its coloured dots show at a glance who is in which task.
+
+## Capability maps, org charts and Team Topologies (no side by side)
+
+These have no import, so there is no column of the same source drawn three ways; what the others offer, briefly:
+
+- **Mermaid** has no capability map and no org chart. A `mindmap` holds the outline of a capability map but draws it as a radial tree: no levels as columns, no equal widths, no heatmap. An org chart is a `flowchart TD` by hand: dagre places it, wide levels run off the slide, and there are no lists under a manager, vacancies or dotted lines that avoid the cards.
+- **D2** can nest containers and lay out `grid-columns`, which gets close to a capability map, but every grid is fixed by hand (D2 does not choose columns to fit a slide), and a heatmap is a `style.fill` per box with a legend drawn by hand. An org chart in D2 is a `direction: down` graph, with the same limits as Mermaid's.
+- **PlantUML** has `@startwbs` and `@startmindmap` (outlines as trees) and no Team Topologies shapes.
+- **Team Topologies** shapes exist as draw.io and Miro libraries from the book's authors: drawn by hand, with zones placed and resized by hand.
+
+Cartography draws all three from a short YAML file, fits them to 16:9 by itself, keeps a heatmap readable without colour (a value in every box, patterns for categories), and exports native PowerPoint shapes. See [capabilities.md](../capabilities.md) and [teams.md](../teams.md) for the pictures.

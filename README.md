@@ -2,7 +2,7 @@
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
-Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, network, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts), sequence, git branching, roadmap and journey map. Not sure which one you need? See [Which diagram type do I need?](docs/types.md)
+Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, network, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts), sequence, git branching, roadmap, journey map, capability map (with heatmaps) and teams (org chart and Team Topologies). Not sure which one you need? See [Which diagram type do I need?](docs/types.md)
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
