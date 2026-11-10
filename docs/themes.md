@@ -1,8 +1,8 @@
-# Brand themes and icon packs
+# Brand themes
 
 Diagrams for a client should look like the client's deck. A **theme** sets colours, font, corners, line weight,
-legend position and a title block (logo, client, version, footer). **Icon packs** put the official Azure, AWS or
-GCP icons you downloaded yourself on the cards.
+legend position and a title block (logo, client, version, footer). The vendors' official icons, which you
+download yourself, are in [icons.md](icons.md).
 
 ## Built-in themes
 
@@ -248,58 +248,7 @@ Per export:
 
 ## Icon packs (bring your own)
 
-Cartography ships only its own line icons. Official cloud icons stay with their owners; you download them and
-point Cartography at them. They are drawn **as-is**: scaled into the card's icon tile on a neutral background,
-never recoloured, never stretched, and never copied into your repository or the npm package.
-
-### Import a download once
-
-```sh
-carto icons import ~/Downloads/Azure_Public_Service_Icons_V21.zip --pack azure
-carto icons import ~/Downloads/Architecture-Service-Icons_07312025 --pack aws
-carto icons list
-```
-
-The importer copies the SVGs into your config dir (`~/.config/cartography/icons/<pack>`, or `$XDG_CONFIG_HOME`,
-`%APPDATA%` on Windows, `CARTO_CONFIG_DIR` to override) and maps file names to kind ids by their words:
-`10245-icon-service-Key-Vaults.svg` → `key-vault`, `Arch_Amazon-Simple-Storage-Service_64.svg` → `storage`.
-It prints the kinds it could not match; `index.json` next to the pack lists every icon by name.
-
-### Use it
-
-```sh
-carto render shop.yaml --pack azure
-```
-
-or in the diagram:
-
-```yaml
-icons:
-  pack: azure                       # from your config dir (CLI)
-  front-door: ./icons/afd.svg       # any kind → an SVG file, relative to the diagram
-```
-
-`icons:` can also name a pack file kept next to your diagrams, for teams that keep icons in a private repo:
-
-```yaml
-# azure.icons.yaml
-name: azure
-root: ../azure-icons               # relative to this file
-icons:
-  key-vault: security/10245-icon-service-Key-Vaults.svg
-```
-
-In the editor, **Export → Icon folder…** picks the unzipped folder once; the browser remembers it and asks for
-permission again after a reload.
-
-### Licences
-
-- **Microsoft Azure icons**: Microsoft allows using its Azure architecture icons in architecture diagrams,
-  training material and documentation; it does not allow modifying them or redistributing the set. Download them
-  from the Azure Architecture Center ("Azure icons") yourself. Cartography never bundles, edits or recolours them.
-- **AWS Architecture Icons**: AWS provides them for architecture diagrams; follow AWS's terms and trademark
-  guidelines (no changes to the icons, no implied endorsement).
-- **Google Cloud icons**: likewise from Google's architecture diagramming page, under Google's terms.
-
-The terms are the vendors'; check the current text when you download. Because the icons never leave your machine
-(or your client's repository), Cartography itself stays MIT with only ISC (Lucide) and OFL (the bundled fonts) assets.
+The official Azure, AWS, Google Cloud and Kubernetes icons are downloaded by you and imported once, in the editor
+(theme menu → **Official icons…**) or with `carto icons import <zip>`; a diagram then uses them with
+`icons: official`. Where to download each set, how matching and hand mapping work, how they look in each theme
+and in each export, and what may be shared: [icons.md](icons.md).

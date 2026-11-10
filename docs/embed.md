@@ -36,7 +36,7 @@ Build it with `pnpm --filter @cartography/embed build`; `packages/embed/dist` th
 | --- | --- | --- | --- |
 | `carto-diagram.js` | 26 kB | 10 kB | The element. This is what the page loads. |
 | `carto-engine.js` | 1.9 MB | 1.1 MB | Parser, layout (Graphviz as WebAssembly), renderer, icons and the faces of the default look (Instrument Sans, Geist Mono) and of the classic one (Inter). Loaded by the element when the first diagram comes near the screen, once per page however many diagrams it has. Keep it next to `carto-diagram.js`. |
-| `carto-font-barlow.js`, `carto-font-ibm-plex-sans.js`, `carto-font-ibm-plex-mono.js` | 137, 293 and 136 kB | 95, 206 and 99 kB | The faces of Transit (Barlow) and Drafting (IBM Plex). Fetched only when a diagram uses that look; keep them next to the engine. Without them such a diagram still draws, in the fonts of the page. |
+| `carto-font-barlow.js`, `carto-font-ibm-plex-sans.js`, `carto-font-ibm-plex-mono.js`, `carto-font-kalam.js` | 137, 293, 136 and about 90 kB | 95, 206, 99 and about 60 kB | The faces of Transit (Barlow), Drafting (IBM Plex) and Sketch (Kalam). Fetched only when a diagram uses that look; keep them next to the engine. Without them such a diagram still draws, in the fonts of the page. |
 | `carto-diagram.standalone.js` | 2.5 MB | 1.5 MB | Everything in one file, for a page that has to be a single file. |
 
 The engine is big because it is the whole tool: most of it is Graphviz (WebAssembly), the fonts and the icon set. A page with only static drawings from the plugins loads none of it.

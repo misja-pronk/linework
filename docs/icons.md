@@ -94,7 +94,7 @@ stay visible. Labels, captions and lines keep the look's own colours and contras
 | SVG, PNG, PDF | Each icon once per kind, embedded as a `data:image/svg+xml;base64` image. A vendor icon is 2–10 kB, a third more as base64: a diagram with 15 different services grows by about 50–150 kB. |
 | Office-safe SVG (`--svg-safe`) | The same images; PowerPoint, Word and Keynote show them. |
 | PowerPoint | Each icon a picture on the slide (SVG, with a PNG fallback from the CLI), shared by all slides. |
-| Web pages (`carto embed`, docs plugins) | In the static drawing, and taken along (only the icons used) for the live, zoomable one. |
+| Web pages (`carto embed`; the docs plugins with their `iconPack` and `icons` options) | In the static drawing, and taken along (only the icons used) for the live, zoomable one. |
 | Share links | Not included: a share link carries only the YAML. Whoever opens it sees line icons unless they imported the set too. |
 
 ## What may be shared
