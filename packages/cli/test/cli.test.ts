@@ -362,7 +362,8 @@ describe('carto errors and help', () => {
     const top = carto('--help');
     expect(top.code).toBe(0);
     expect(top.out).toMatch(/Draw:\n {2}render/);
-    expect(top.out.split('\n').length).toBeLessThan(35);
+    // One line per command: 36 since `carto animate` joined the Draw group.
+    expect(top.out.split('\n').length).toBeLessThan(36);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');
