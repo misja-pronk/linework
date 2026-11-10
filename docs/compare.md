@@ -43,7 +43,7 @@ Lines that went with a removed element are counted with it, not listed one by on
 
 | Key | |
 |---|---|
-| **N** / **P** | Next / previous change (J and K too) |
+| **]** / **[** | Next / previous change (**J** and **K** too) |
 | **↵** or double-click | Back to editing, with that element selected |
 | **M** | Overlay or side by side |
 | **0** / **+** / **−** | Fit / zoom in / zoom out; pinch or ⌘-scroll zooms, two fingers or a drag pan |
