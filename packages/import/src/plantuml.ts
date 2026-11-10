@@ -148,11 +148,11 @@ function kindOf(lines: string[], includes: string[]): Kind {
   const any = (r: RegExp) => lines.some((l) => r.test(l));
   if (includes.some((i) => /c4[_-]/i.test(i)) || any(C4_MACRO)) return 'c4';
   if (any(/^\(\*\)/)) return 'old-activity';
-  if (any(/^(start|stop|end)$/) || any(/^:[\s\S]*[;|<>/\]}]$/) || any(/^:[^:]*$/) || any(/^if\s*\(.*\)\s*then\b/) || any(/^\|[^|]+\|(\s*[^|]+\|)?$/) || any(/^(fork|repeat|endwhile|endif|end fork|end split)\b/)) return 'activity';
+  if (any(/^(start|stop)$/) || any(/^:[\s\S]*[;|<>/\]}]$/) || any(/^:[^:]*$/) || any(/^if\s*\(.*\)\s*then\b/) || any(/^\|[^|]+\|(\s*[^|]+\|)?$/) || any(/^(fork|repeat|endwhile|endif|end fork|end split)\b/)) return 'activity';
   if (any(/\[\*\]/) || any(/^state\s/)) return 'state';
-  if (any(/^(abstract\s+)?(class|enum|annotation|abstract)\s/) || any(/<\|--|--\|>|\*--|--\*|o--|--o\b/)) return 'class';
   if (any(/^entity\s+.*\{\s*$/)) return 'er';
-  if (any(/^(usecase|\(.+\)\s*as\b)/) || any(/(^|\s)\([^)]+\)\s*$/)) return 'usecase';
+  if (any(/^(abstract\s+)?(class|enum|annotation|abstract)\s/) || any(/<\|--|--\|>|\*--|--\*|\bo--|--o\b(?!\{)/)) return 'class';
+  if (any(/^usecase\b/) || any(/^\([^)]+\)/) || any(/(-|>)\s*\([^)]+\)\s*(:.*)?$/)) return 'usecase';
   const sequence = any(/^(participant|activate|deactivate|autonumber|alt|loop|opt|par|break|critical|group|return|ref over|destroy|create)\b/) || any(/^==.*==$/) || any(/^\.\.\..*$/) || any(/^note (over|across)\b/);
   if (!sequence && (any(/^(component|node|cloud|package|frame|folder|rectangle|artifact|storage|card|file|interface|agent|stack|hexagon|port|portin|portout)\b/) || any(/^\[[^\]]+\]/) || any(/^\(\)/) || any(/\{$/))) return 'component';
   if (any(/^(component|node|cloud|package|frame|folder|rectangle|artifact|storage|card|file|interface)\b/) && !any(/^(participant|activate|alt|loop|autonumber|return)\b/)) return 'component';
@@ -340,7 +340,7 @@ function component(lines: string[], title: string, direction: 'right' | 'down' |
   const parent = () => stack.findLast((x) => x !== undefined);
 
   const add = (keyword: string, id: string, label: string, open: boolean) => {
-    const our = ids.get(id, slug(id));
+    const our = ids.get(id, slug(id).toLowerCase());
     byName.set(id, our);
     byName.set(label, our);
     if (open && GROUPING.has(keyword)) {
@@ -353,7 +353,6 @@ function component(lines: string[], title: string, direction: 'right' | 'down' |
     const guess = guessKind(label);
     let kind = LEAF[keyword] && !['cloud', 'node', 'artifact', 'folder'].includes(keyword) ? LEAF[keyword]! : (guess ?? LEAF[keyword] ?? 'service');
     if (keyword === 'database' && guess && ['cache', 'warehouse', 'search', 'storage'].includes(guess)) kind = guess;
-    if (keyword === 'queue' && guess === 'topic') kind = 'topic';
     if ((keyword === 'actor' || keyword === 'person') && guess === 'users') kind = 'users';
     if (keyword === 'usecase') warn.onceFor('usecase', 'Use cases come in as boxes: there is no use case type');
     nodes.push({ id: our, label, kind, parent: parent() });
@@ -431,7 +430,7 @@ function component(lines: string[], title: string, direction: 'right' | 'down' |
     if (/^(skinparam|hide|show|sprite)\b/i.test(s)) continue;
     warn.onceFor(`skip:${s}`, `Skipped: ${s}`);
   }
-  return systemsYaml({ title, direction: direction ?? 'right', groups, nodes, edges });
+  return systemsYaml({ title, direction: direction ?? 'right', explicit: !!direction, groups, nodes, edges });
 }
 
 // ---------------------------------------------------------------- C4-PlantUML
@@ -617,7 +616,7 @@ function c4(lines: string[], includes: string[], title: string, warn: Warnings):
         from, to,
         ...(label ? { label } : {}),
         ...((technology ?? techn) ? { technology: technology ?? techn } : {}),
-        ...(/_Back$/.test(macro!) ? { back: true } : {}),
+        ...(/_Back/.test(macro!) ? { back: true } : {}),
         ...(/^Bi/.test(macro!) ? { both: true } : {}),
         ...(indexed && Number.isFinite(Number(a.pos[0])) ? { index: Number(a.pos[0]) } : {}),
       });
@@ -790,7 +789,8 @@ function activity(lines: string[], title: string, warn: Warnings): string {
     } else if (/^start$/i.test(s)) add('start', 'start');
     else if (/^(stop|end|kill|detach)$/i.test(s)) {
       if (/^(kill|detach)$/i.test(s)) warn.onceFor('detach', 'kill and detach end the flow, as stop does');
-      add('end', 'end');
+      // A second end has no name to show: "end 2" would be read as its label.
+      add('end', 'end', nodes.some((x) => x.kind === 'end'));
       tails = [];
     } else if ((m = /^(#\w+\s*)?:([\s\S]*)$/.exec(s))) {
       // :text; over one line or several, ended by ; | < > / ] or }.

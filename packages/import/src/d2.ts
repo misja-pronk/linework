@@ -674,7 +674,7 @@ function systemsOf(b: Board, title: string, warn: Warnings, hidden: (o: Obj) => 
 
   const direction = b.direction === 'down' || b.direction === 'up' ? 'down' : 'right';
   if (b.direction === 'up' || b.direction === 'left') warn.onceFor('dir', `direction: ${b.direction} is drawn ${b.direction === 'up' ? 'down' : 'right'}: Cartography reads left to right or top to bottom`);
-  let yaml = systemsYaml({ title, direction, groups, nodes, edges });
+  let yaml = systemsYaml({ title, direction, explicit: !!b.direction, groups, nodes, edges });
   if (provider) yaml = yaml.replace(/^type: systems\n/, `type: cloud\nprovider: ${provider}\n`);
 
   // Steps: the main board first, then what each step adds. Scenarios: one view each.
