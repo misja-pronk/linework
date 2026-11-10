@@ -296,7 +296,7 @@ export interface LegendItem {
   /** A line sample's end, for a key of crow's feet; a glyph sample ('glyph') is its icon alone, in its tone, as in a table row. */
   end?: Marker;
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block' | 'glyph' | 'message';
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block' | 'glyph' | 'message' | 'focus';
   /** The arrow of a message sample ('message'), drawn as the sequence draws it. */
   arrow?: SequenceArrow;
   /** A block sample (swatch 'block'): a team type, an interaction mode, a place on a heatmap. */

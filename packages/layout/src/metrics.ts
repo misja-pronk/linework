@@ -50,6 +50,10 @@ export interface LayoutMetrics {
   jogs: number;
   /** Labels lying on a bend of their own line. */
   labelOnBend: number;
+  /** Labels with another line running through or right along them (labelMetrics). */
+  labelTouching: number;
+  /** Long labels a vertical line runs right through, their own or another: the words read as crossed out (labelMetrics). */
+  labelStruck: number;
   /** How ragged sibling groups of one kind are: per pair lying side by side, how far their starts and ends are apart. */
   siblingSpread: number;
   /** Pairs of groups in one parent standing side by side against the order they are written in. */
@@ -114,8 +118,11 @@ export function measure(graph: Graph, placed: Placed, header = 44, titles?: Map<
   const unit = widths[Math.floor(widths.length / 2)] ?? 1;
   const nodeArea = [...placed.nodes.values()].reduce((s, b) => s + b.width * b.height, 0);
   const beauty = beautyMetrics(graph, placed, segs, header, unit, titles);
+  const { labelTouching, labelStruck } = labelMetrics(graph, placed);
   return {
     ...beauty,
+    labelTouching,
+    labelStruck,
     crossings,
     edgeThroughNode,
     labelOverlaps,
@@ -153,6 +160,8 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     (1 - m.aligned) * 12 +
     m.tightPairs * 6 +
     m.uneven * 4 +
+    m.labelTouching * 8 +
+    m.labelStruck * 0 +
     m.borderHits * 25 +
     m.headerHits * 10 +
     m.foreign * 6 +
@@ -202,13 +211,15 @@ export function boxOverlaps(graph: Graph, placed: Pick<Placed, 'nodes' | 'groups
 }
 
 /** A label nearer than this to another line seems to belong to it. */
-const LABEL_AIR = 4;
+const LABEL_AIR = 6;
+/** Wider than this, a label with a vertical line right through it reads as crossed out. */
+const STRUCK = 56;
 
 /**
  * Labels that read wrong: `far` sit clear of their own line (more than a few pixels from every piece
  * of it), `touching` have another line running through them or right along them.
  */
-export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { labelFar: number; labelTouching: number } {
+export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { labelFar: number; labelTouching: number; labelStruck: number } {
   const grow = (b: Box, by: number): Box => ({ x: b.x - by, y: b.y - by, width: b.width + 2 * by, height: b.height + 2 * by });
   const hits = (b: Box, [p, q]: Seg) =>
     Math.max(p.x, q.x) >= b.x && Math.min(p.x, q.x) <= b.x + b.width && Math.max(p.y, q.y) >= b.y && Math.min(p.y, q.y) <= b.y + b.height;
@@ -218,15 +229,21 @@ export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { lab
   };
   let labelFar = 0;
   let labelTouching = 0;
+  let labelStruck = 0;
+  // A vertical piece right through a long label, top to bottom, away from its ends.
+  const through = (b: Box, [p, q]: Seg) =>
+    p.x === q.x && p.x > b.x + 6 && p.x < b.x + b.width - 6 && Math.min(p.y, q.y) < b.y + 2 && Math.max(p.y, q.y) > b.y + b.height - 2;
+  const lines = graph.edges.map((o) => segsOf(o.id));
   for (const e of graph.edges) {
     const box = placed.edges.get(e.id)?.label;
     if (!box) continue;
+    if (box.width > STRUCK && lines.some((l) => l.some((s) => through(box, s)))) labelStruck++;
     if (!segsOf(e.id).some((s) => hits(grow(box, LABEL_AIR), s))) labelFar++;
     const near = grow(box, LABEL_AIR - 1);
     // Lines that share this line's ends run into the same card beside it: only lines that pass count.
     if (graph.edges.some((o) => o.id !== e.id && segsOf(o.id).some((s) => hits(near, s) && !endsAt(s, placed.edges.get(e.id)!.points)))) labelTouching++;
   }
-  return { labelFar, labelTouching };
+  return { labelFar, labelTouching, labelStruck };
 }
 
 /** A piece that starts or ends where the line does (a sibling leaving the same port). */
@@ -287,6 +304,88 @@ export function falseJoins(graph: Graph, placed: Pick<Placed, 'edges'>): string[
       if (sa.some((x) => sb.some((y) => track(x, y)))) out.push(`${a.id}+${b.id}`);
     }
   return out;
+}
+
+/** Two ends with a mark nearer than this (and not on one spot) draw their arrowheads over each other. */
+const HEADS = 12;
+/** A crossing this near a line's end, or a line in and one out this near on one side, sits right at the card. */
+const NEAR_END = 24;
+
+/**
+ * Lines that are drawn in a way that misleads, each counted once per line (or pair):
+ * - `loops`: a line that crosses itself (a small loop before its end);
+ * - `hooks`: two lines that cross right at one's end (a hook out of the card over its neighbour),
+ *   or a line that leaves, turns and comes back on itself within a lane (a U at its end);
+ * - `heads`: marked ends into one node side so near that their arrowheads lie on each other, or two
+ *   lines that are not one trunk coming into one spot from different ways (one arrowhead for two);
+ * - `continuations`: a line into a node side and another out of that side right beside it, or two
+ *   lines meeting end to start on a straight track, so one seems to run on into the other.
+ */
+export function lineFaults(graph: Graph, placed: Pick<Placed, 'edges'>): { loops: number; hooks: number; heads: number; continuations: number } {
+  const ptsOf = (id: string) => placed.edges.get(id)?.points ?? [];
+  const segsOf = (pts: Point[]) => pts.slice(1).map((p, i) => [pts[i]!, p] as Seg);
+  const edges = graph.edges.filter((e) => ptsOf(e.id).length >= 2 && e.from.node !== e.to.node);
+  const dist = (a: Point, b: Point) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  const way = (a: Point, b: Point) => (a.x === b.x ? (b.y > a.y ? 'S' : 'N') : b.x > a.x ? 'E' : 'W');
+  let loops = 0;
+  let hooks = 0;
+  let heads = 0;
+  let continuations = 0;
+  for (const e of edges) {
+    const pts = ptsOf(e.id);
+    const segs = segsOf(pts);
+    if (segs.some((a, i) => segs.slice(i + 2).some((b) => properCross(a, b)))) loops++;
+    // A U at an end: out, a short step aside, and straight back past where it started.
+    for (const q of [pts, [...pts].reverse()]) {
+      if (q.length < 4) continue;
+      const [a, b, c, d] = q as [Point, Point, Point, Point];
+      if (dist(b, c) < NEAR_END && way(a, b) !== way(b, c) && way(c, d) === ({ N: 'S', S: 'N', E: 'W', W: 'E' } as const)[way(a, b)]) hooks++;
+    }
+  }
+  for (const [i, a] of edges.entries())
+    for (const b of edges.slice(i + 1)) {
+      const pa = ptsOf(a.id);
+      const pb = ptsOf(b.id);
+      const ends = [pa[0]!, pa[pa.length - 1]!, pb[0]!, pb[pb.length - 1]!];
+      // Crossing right at an end.
+      const sa = segsOf(pa);
+      const sb = segsOf(pb);
+      if (sa.some((x) => sb.some((y) => properCross(x, y) && ends.some((p) => dist(p, crossAt(x, y)) < NEAR_END)))) hooks++;
+      // Ends with marks into one node.
+      for (const [ea, ia] of [[a.end, 'to'], [a.start, 'from']] as const)
+        for (const [eb, ib] of [[b.end, 'to'], [b.start, 'from']] as const) {
+          if (a[ia].node !== b[ib].node || (ea === 'none' && eb === 'none')) continue;
+          const p = ia === 'to' ? pa[pa.length - 1]! : pa[0]!;
+          const q = ib === 'to' ? pb[pb.length - 1]! : pb[0]!;
+          const d = dist(p, q);
+          const inA = ia === 'to' ? way(pa[pa.length - 2]!, p) : way(pa[1]!, p);
+          const inB = ib === 'to' ? way(pb[pb.length - 2]!, q) : way(pb[1]!, q);
+          if (inA !== inB) continue;
+          if (d > 0.5 && d < HEADS && ea !== 'none' && eb !== 'none') heads++;
+          // On one spot: one arrowhead for two lines that do not share their last stretch (one comes in from the side).
+          else if (d <= 0.5 && ea === eb && ea !== 'none') {
+            const lastA = ia === 'to' ? pa[pa.length - 2]! : pa[1]!;
+            const lastB = ib === 'to' ? pb[pb.length - 2]! : pb[1]!;
+            if (!(a.line === b.line && a.tone === b.tone && plainLine(a) && plainLine(b)) || dist(lastA, lastB) > 0.5 && Math.min(dist(lastA, p), dist(lastB, q)) < NEAR_END) heads++;
+          }
+        }
+      // One in and one out beside each other on one side of a node.
+      for (const [x, px, y, py] of [[a, pa, b, pb], [b, pb, a, pa]] as const) {
+        if (x.to.node !== y.from.node || x.from.node === y.to.node) continue;
+        const p = px[px.length - 1]!;
+        const q = py[0]!;
+        const inWay = way(px[px.length - 2]!, p);
+        const outWay = way(q, py[1]!);
+        const sameSide = ({ N: 'S', S: 'N', E: 'W', W: 'E' } as const)[inWay] === outWay;
+        if (sameSide && dist(p, q) < NEAR_END && dist(p, q) > 0.5) continuations++;
+      }
+    }
+  return { loops, hooks, heads, continuations };
+}
+
+/** Where two crossing pieces (one level, one upright) meet. */
+function crossAt([p, q]: Seg, [r, t]: Seg): Point {
+  return p.y === q.y ? { x: r.x, y: p.y } : { x: p.x, y: r.y };
 }
 
 /** Lines that may share ink: same start or same end, drawn alike (a trunk that branches). */

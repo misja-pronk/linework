@@ -56,7 +56,7 @@ await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label
   if (!(await page.locator('.page-frame').count())) fail('shift-P did not bring the page back');
 }
 
-// 2. A big drawing: the frame says its text is under 9 pt, shows the readable part and flags what lies outside it.
+// 2. A big drawing: the frame says its text is under 6 pt (SLIDE_MIN_PT), shows the readable part and flags what lies outside it.
 await page.context().close();
 await open(example('cloud/aws-data-lake.yaml'), 'aws-data-lake.yaml');
 {
@@ -64,7 +64,7 @@ await open(example('cloud/aws-data-lake.yaml'), 'aws-data-lake.yaml');
   if (!f?.small) fail(`a drawing far too big for a slide is not flagged: ${JSON.stringify(f)}`);
   if (!(await page.locator('.page-readable').count())) fail('no readable part shown on a page that is too full');
   if (!(await page.locator('[data-overflow]').count())) fail('nothing flagged outside the readable part');
-  if (!/under 9 pt/.test(f?.label ?? '')) fail(`the frame does not say the text is under 9 pt: "${f?.label}"`);
+  if (!/under 6 pt/.test(f?.label ?? '')) fail(`the frame does not say the text is under 6 pt: "${f?.label}"`);
   await page.screenshot({ path: `${out}/s2-too-full.png` });
   // The page export: an SVG of the page's shape.
   await page.click('button:has-text("Export")');

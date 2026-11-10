@@ -26,6 +26,8 @@ import {
   type FocusSpec,
   type Graph,
   type LayoutMemory,
+  type LegendItem,
+  type LinePattern,
   type LayoutSidecar,
   type ModelContext,
   type Path,
@@ -289,6 +291,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   }
   // The key shows each badge style as its chips look on the cards.
   graph = withBadgeIcons(graph);
+  graph = apartInMoreThanColour(graph);
+  // A ring in the accent colour is a mark like any other: the key says what it means.
+  if (graph.nodes.some((n) => n.focused) || graph.groups.some((g) => g.focused)) graph = { ...graph, legend: [...(graph.legend ?? []), { label: 'In focus', swatch: 'focus' }] };
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
     // (['include', 0, 'model.yaml']), never a path it could take for one of this file's entries.
@@ -314,8 +319,33 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
+  // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
+  // before it, nothing pinned) that shows mostly what the first view shows is drawn the way that one
+  // was (direction, columns, rows), as if it were the drawing before it.
+  const firstView = model?.views.size ? [...model.views.keys()][0] : ownViews?.length ? ownViews[0]!.name : undefined;
+  const thisView = model?.view?.name ?? ownView ?? (model ? undefined : firstView);
+  const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
+  let seed: LayoutMemory | undefined;
+  // A table (an access matrix) is not laid out: nothing to share.
+  const table = (name: string | undefined) => !!ownViews?.find((v) => v.name === name)?.table;
+  // Views of different kinds (a C4 context and a component view) are different pictures.
+  const kindOf = (name: string) => model?.views.get(name)?.kind;
+  if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
+    if (!seeds.has(seedKey)) {
+      const first = await render(text, { ...opts, view: firstView, fonts: 'none', step: undefined, focus: undefined });
+      seeds.set(seedKey, { variant: first.placed?.memory?.variant, nodes: new Set(first.graph?.nodes.map((n) => n.id)) });
+    }
+    const s = seeds.get(seedKey)!;
+    const shared = graph.nodes.filter((n) => s.nodes.has(n.id)).length;
+    if (s.variant && shared >= SAME_VIEW * Math.max(graph.nodes.length, s.nodes.size)) seed = { variant: s.variant };
+  }
+  const previous = opts.previous !== undefined ? opts.previous : seed;
   // A type that places things itself gets the drawing before this one as well, to keep what it can.
-  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  const placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus) {
+    if (seeds.size > 64) seeds.clear();
+    seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });
+  }
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Two things pinned on top of each other: the newer one was moved clear, and that is said.
@@ -361,10 +391,66 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   };
 }
 
+/** The second marks a line can carry besides its colour, in the order they are handed out. */
+const PATTERNS: LinePattern[] = ['ticks', 'beads', 'double'];
+
+/**
+ * Kinds of line in the key that differ in colour alone (solid grey Connection and solid blue
+ * Request, Ethernet and Fibre) get a second mark, so they read apart without colour (printed in
+ * grey, or for a reader who cannot tell the two colours apart): the most used kind stays plain, the
+ * others get a pattern no kind of that line uses yet, on their lines and in the key alike.
+ */
+export function apartInMoreThanColour(graph: Graph): Graph {
+  const items = (graph.legend ?? []).filter((l) => !l.swatch && !l.end);
+  if (items.length < 2) return graph;
+  const like = (a: { line?: string; pattern?: string; tone?: string }, b: { line?: string; pattern?: string; tone?: string }) => (a.line ?? 'solid') === (b.line ?? 'solid') && (a.pattern ?? '') === (b.pattern ?? '') && (a.tone ?? '') === (b.tone ?? '');
+  const used = (item: LegendItem) => graph.edges.filter((e) => !e.badge && like(e, item)).length;
+  const set = new Map<LegendItem, LinePattern>();
+  const groups = new Map<string, LegendItem[]>();
+  for (const item of items) {
+    const k = `${item.line ?? 'solid'}|${item.pattern ?? ''}`;
+    if (!groups.get(k)?.some((o) => (o.tone ?? '') === (item.tone ?? ''))) groups.set(k, [...(groups.get(k) ?? []), item]);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const line = list[0]!.line ?? 'solid';
+    const free = PATTERNS.filter((p) => !items.some((i) => (i.line ?? 'solid') === line && i.pattern === p));
+    const [, ...rest] = [...list].sort((a, b) => used(b) - used(a));
+    for (const item of rest) {
+      const p = free.shift();
+      if (p) set.set(item, p);
+    }
+  }
+  if (!set.size) return graph;
+  const edges = graph.edges.map((e) => {
+    for (const [item, p] of set) if (!e.badge && like(e, item)) return { ...e, pattern: p };
+    return e;
+  });
+  return { ...graph, edges, legend: graph.legend!.map((l) => (set.has(l) ? { ...l, pattern: set.get(l)! } : l)) };
+}
+
+/** The way each model's first view was drawn (LayoutMemory.variant), by source: the other views start from it. */
+const seeds = new Map<string, { variant?: string; nodes: Set<string> }>();
+/** A view that shares this share of its cards with the first view (of the two, the larger) is drawn its way. */
+const SAME_VIEW = 0.6;
+
+/** FNV-1a over a source text, 32 bits. */
+function hashText(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(36) + text.length;
+}
+
 /** A 16:9 slide, 13.33 by 7.5 inches, in CSS pixels (96 to the inch). */
 const SLIDE = { width: 1280, height: 720 };
-/** Text smaller than this (points) on a slide is hard to read from the back of a room. */
-export const SLIDE_MIN_PT = 9;
+/**
+ * The words a reader needs (card names, line labels: the text slideTextPt measures) smaller than
+ * this (points) on a slide are hard to read from the back of a room. Line labels are drawn at 10 px,
+ * 7.5 pt at full size: under 6 pt the drawing is shrunk to less than four fifths, too much for one page.
+ */
+export const SLIDE_MIN_PT = 6;
+/** Text smaller than this (px) is detail (a tag, a count, a badge): it may get small before the drawing is too big for a page. */
+const DETAIL_PX = 10;
 
 /** A page a drawing is meant for, in CSS pixels (96 to the inch). */
 export interface Page {
@@ -391,9 +477,17 @@ export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
   return { name: `${Math.round(a * 100) / 100}:1 page`, width: Math.round(720 * a), height: 720 };
 }
 
-/** The smallest text size (px) in a drawing's SVG; undefined when it has no text. */
+/**
+ * The smallest size (px) of the text a reader needs in a drawing's SVG: the words on cards, lines and
+ * groups, not the asides (the word KEY, the imprint, a map sheet's grid letters, marked data-aside)
+ * nor the details under DETAIL_PX (tags, counts, badges).
+ * Undefined when it has no such text.
+ */
 export function smallestTextPx(svg: string): number | undefined {
-  const sizes = [...svg.matchAll(/font-size="([\d.]+)"/g)].map((m) => Number(m[1])).filter((n) => n > 0);
+  const sizes = [...svg.matchAll(/<text\b[^>]*>/g)]
+    .filter((m) => !m[0].includes('data-aside'))
+    .map((m) => Number(/font-size="([\d.]+)"/.exec(m[0])?.[1]))
+    .filter((n) => n >= DETAIL_PX);
   return sizes.length ? Math.min(...sizes) : undefined;
 }
 
@@ -406,8 +500,8 @@ export function slideTextPt(svg: string, width: number, height: number, page: { 
   const px = smallestTextPx(svg);
   if (px == null || !width || !height) return undefined;
   const scale = Math.min(page.width / width, page.height / height);
-  // A pixel is three quarters of a point.
-  return px * scale * 0.75;
+  // A pixel is three quarters of a point; said to a tenth, and compared as said.
+  return Math.round(px * scale * 0.75 * 10) / 10;
 }
 
 /**

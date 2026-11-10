@@ -18,6 +18,7 @@ import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
+import { SLIDE_MIN_PT } from '@cartography/engine';
 import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
 
 /** The command palette's entry for the exports in the open folder, by what they are. */
@@ -768,7 +769,7 @@ export function App() {
     const { blob, small } = await exportPptx(exportInput(), yamlName(doc.name));
     download(`${baseName(doc.name)}.pptx`, blob);
     // Every slide is checked for text too small to read from the back of a room.
-    if (small.length) notify(`${count(small.length, 'slide')} with text under 9 pt (${small.map((t) => `slide ${t.slide}: ${t.smallestPt} pt`).join(', ')}): split into views, or Tidy for the page`, { tone: 'error' });
+    if (small.length) notify(`${count(small.length, 'slide')} with text under ${SLIDE_MIN_PT} pt (${small.map((t) => `slide ${t.slide}: ${t.smallestPt} pt`).join(', ')}): split into views, or Tidy for the page`, { tone: 'error' });
   });
   const pageName = (result?.page ?? drawn?.page)?.name ?? '16:9 slide';
   const savePageSvg = attempt('Export', async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));

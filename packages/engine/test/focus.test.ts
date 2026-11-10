@@ -167,8 +167,9 @@ describe('focus', () => {
     const load = (rel: string) => example(`data-products/${rel}`);
     const labels = async (focus?: unknown) => (await render(mesh, { fonts: 'none', load, ...(focus ? { focus } : {}) })).graph!.legend!.map((l) => l.label);
     expect(await labels()).toEqual(['Source-aligned', 'Aggregate', 'Consumer-aligned', 'Data flow']);
-    expect(await labels({ on: 'revenue', hops: 'all', direction: 'upstream' })).toEqual(['Source-aligned', 'Consumer-aligned', 'Data flow']);
-    expect(await labels({ on: 'exchange-rates', hops: 0 })).toEqual(['Source-aligned']);
+    // And the ring around what the focus is about.
+    expect(await labels({ on: 'revenue', hops: 'all', direction: 'upstream' })).toEqual(['Source-aligned', 'Consumer-aligned', 'Data flow', 'In focus']);
+    expect(await labels({ on: 'exchange-rates', hops: 0 })).toEqual(['Source-aligned', 'In focus']);
   });
 
   it('a drawing that is one shape is shown whole, with a note', async () => {
