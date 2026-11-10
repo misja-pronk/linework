@@ -21,6 +21,8 @@ export interface InGroup {
   kind?: string;
   caption?: string;
   parent?: string;
+  /** The colour it was given, by name (blue, teal); written where the type takes one. */
+  tone?: string;
   box?: Box;
 }
 
@@ -56,6 +58,7 @@ export interface InColumn {
 export interface InTable {
   id: string;
   label: string;
+  caption?: string;
   /** The schema it is in: one of the groups. */
   parent?: string;
   columns: InColumn[];
@@ -229,7 +232,8 @@ export function writeImported(d: InDiagram, opts: ImportOptions = {}): ImportedD
   if (d.type === 'erd') {
     if (d.groups.length) {
       out.push('', 'schemas:');
-      for (const g of d.groups) out.push(`  ${g.id}: ${flow([['label', g.label === g.id ? undefined : g.label], ['caption', g.caption]])}`);
+      // "Schema" is what a schema is called when it has no caption of its own.
+      for (const g of d.groups) out.push(`  ${g.id}: ${flow([['label', g.label === g.id ? undefined : g.label], ['caption', g.caption === 'Schema' ? undefined : g.caption], ['tone', g.tone]])}`);
     }
     const schemas = new Set(d.groups.map((g) => g.id));
     out.push('', 'tables:');
@@ -258,13 +262,16 @@ export function writeImported(d: InDiagram, opts: ImportOptions = {}): ImportedD
     for (const t of d.tables) {
       out.push(`  ${t.id}:`);
       if (t.label !== t.id) out.push(`    label: ${scalar(t.label)}`);
+      if (t.caption) out.push(`    caption: ${scalar(t.caption)}`);
       if (t.parent && schemas.has(t.parent)) out.push(`    schema: ${t.parent}`);
       out.push('    columns:');
       if (!t.columns.length) out[out.length - 1] = '    columns: {}';
       for (const c of t.columns) {
         const target = fk.get(`${t.id}.${c.id}`);
         const marks = c.marks.filter((m) => m !== 'fk' || !target).map((m) => (m === 'fk' ? undefined : m)).filter(Boolean);
-        const words = [c.type ?? 'text', ...marks, ...(target ? [`fk ${target}`] : [])].join(' ');
+        // A nullable column is drawn as "uuid?"; the mark says it once.
+        const type = c.type && c.marks.includes('null') ? c.type.replace(/\?$/, '') : c.type;
+        const words = [type || 'text', ...marks, ...(target ? [`fk ${target}`] : [])].join(' ');
         out.push(`      ${/^[A-Za-z_][\w-]*$/.test(c.id) ? c.id : JSON.stringify(c.id)}: ${scalar(words)}`);
       }
     }

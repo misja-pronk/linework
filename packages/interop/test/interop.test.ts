@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { deflateSync, strToU8 } from 'fflate';
 import { render, type RenderResult } from '@cartography/engine';
 import type { GraphNode, LayoutSidecar } from '@cartography/core';
@@ -8,6 +8,9 @@ import { importMermaid } from '@cartography/import';
 import { findAll, parseXml, type XmlNode } from '../src/xml.ts';
 import { base64Bytes } from '../src/text.ts';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, unsafeConstructs } from '../src/index.ts';
+
+// Whole examples are drawn, written out and drawn again: slower than a unit test, and slower still beside the others.
+vi.setConfig({ testTimeout: 30_000 });
 
 const root = path.resolve(import.meta.dirname, '../../..');
 const fixture = (name: string) => fs.readFileSync(path.join(import.meta.dirname, 'fixtures', name), 'utf8');
@@ -107,6 +110,15 @@ describe('draw.io export', () => {
     expect(edges.length).toBeGreaterThan(0);
     for (const e of edges) expect(list.find((c) => c.id === e.source)?.parent, e.id).toBeTruthy();
     expect(edges.some((e) => /Arrow=ER/.test(e.style!))).toBe(true);
+  });
+
+  it('brings an ERD back with its schema colours, table captions and nullable columns as written', async () => {
+    const a = await example('erd/shop-schemas.yaml');
+    const [back] = importDrawio(toDrawio([toScene(a)]));
+    expect(back!.yaml).toMatch(/sales: \{ tone: blue \}/);
+    expect(back!.yaml).toContain('caption: People who buy');
+    expect(back!.yaml).toContain('category_id: uuid null fk categories.id');
+    expect(back!.yaml).not.toContain('uuid?');
   });
 
   it('makes every view a page', async () => {

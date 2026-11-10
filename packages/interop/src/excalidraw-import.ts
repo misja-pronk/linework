@@ -76,12 +76,12 @@ function readOwn(shapes: Shape[]): InDiagram {
     if (!k || !what) continue;
     const box = boxOf(s);
     const parent = str(k.in);
-    if (what === 'group' && id) d.groups.push({ id, label: str(k.label) ?? id, kind: str(k.kind), caption: str(k.caption), parent, box });
+    if (what === 'group' && id) d.groups.push({ id, label: str(k.label) ?? id, kind: str(k.kind), caption: str(k.caption), tone: str(k.tone), parent, box });
     else if ((what === 'node' || what === 'participant') && id && !seen.has(id)) {
       seen.add(id);
       if (type === 'erd') {
         const rows = shapes.filter((r) => r.customData?.carto === 'row' && r.customData.in === id);
-        d.tables.push({ id, label: str(k.label) ?? id, parent, columns: rows.map((r) => ({ id: str(r.customData!.id) ?? 'column', type: str(r.customData!.type), marks: (str(r.customData!.marks) ?? '').split(' ').filter(Boolean) })), box });
+        d.tables.push({ id, label: str(k.label) ?? id, caption: str(k.caption), parent, columns: rows.map((r) => ({ id: str(r.customData!.id) ?? 'column', type: str(r.customData!.type), marks: (str(r.customData!.marks) ?? '').split(' ').filter(Boolean) })), box });
       } else d.nodes.push({ id, label: str(k.label) ?? id, kind: str(k.kind), caption: str(k.caption), parent, box });
     } else if ((what === 'edge' || what === 'badge') && str(k.from) && str(k.to)) {
       d.edges.push({

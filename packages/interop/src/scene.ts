@@ -401,7 +401,7 @@ class SceneBuilder {
       body,
       under: [],
       parts: pic ? [pic] : [],
-      data: { carto: 'group', id: g.id, label: g.label, ...(g.kind ? { kind: g.kind } : {}), ...(g.caption ? { caption: g.caption } : {}) },
+      data: { carto: 'group', id: g.id, label: g.label, ...(g.kind ? { kind: g.kind } : {}), ...(g.caption ? { caption: g.caption } : {}), ...(g.tone ? { tone: g.tone } : {}) },
     };
   }
 

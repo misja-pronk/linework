@@ -171,10 +171,10 @@ function readOwn(name: string, root: Cell, cells: Map<string, Cell>): InDiagram 
     const box = absolute(c);
     if ((k.carto === 'node' || k.carto === 'participant') && seen.has(k.cartoId!)) continue;
     if (k.carto === 'node' || k.carto === 'participant') seen.add(k.cartoId!);
-    if (k.carto === 'group') d.groups.push({ id: k.cartoId!, label: k.cartoLabel ?? k.cartoId!, kind: k.cartoKind, caption: k.cartoCaption, parent: groupOf(c), ...(box ? { box } : {}) });
+    if (k.carto === 'group') d.groups.push({ id: k.cartoId!, label: k.cartoLabel ?? k.cartoId!, kind: k.cartoKind, caption: k.cartoCaption, tone: k.cartoTone, parent: groupOf(c), ...(box ? { box } : {}) });
     else if (k.carto === 'node' || k.carto === 'participant') {
       const rows = c.children.filter((r) => r.data.carto === 'row');
-      if (type === 'erd') d.tables.push({ id: k.cartoId!, label: k.cartoLabel ?? k.cartoId!, parent: groupOf(c), columns: rows.map((r) => ({ id: r.data.cartoId!, type: r.data.cartoType, marks: (r.data.cartoMarks ?? '').split(' ').filter(Boolean) })), ...(box ? { box } : {}) });
+      if (type === 'erd') d.tables.push({ id: k.cartoId!, label: k.cartoLabel ?? k.cartoId!, caption: k.cartoCaption, parent: groupOf(c), columns: rows.map((r) => ({ id: r.data.cartoId!, type: r.data.cartoType, marks: (r.data.cartoMarks ?? '').split(' ').filter(Boolean) })), ...(box ? { box } : {}) });
       else d.nodes.push({ id: k.cartoId!, label: k.cartoLabel ?? k.cartoId!, kind: k.cartoKind, caption: k.cartoCaption, parent: groupOf(c), ...(box ? { box } : {}) });
     } else if (k.carto === 'edge' || k.carto === 'badge') {
       d.edges.push({
