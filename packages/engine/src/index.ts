@@ -165,7 +165,7 @@ export interface RenderOptions extends SvgOptions {
 /** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
 export interface LayersInfo {
   /** Every layer the diagram defines, in order. */
-  list: Pick<LayerSpec, 'name' | 'title' | 'tags' | 'dim' | 'caption'>[];
+  list: (Pick<LayerSpec, 'name' | 'title' | 'tags' | 'dim' | 'caption'> & { /** Elements on it in this drawing (with what they need). */ count: number })[];
   /** The layers drawn (none while a focus waits them out). */
   active: string[];
   mode: LayerMode;
@@ -338,6 +338,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   }
   // Layers after the focus: a view of the drawing by tag, laid out on its own or faded in place.
   const lens = applyLayers(graph, layersRef, built, model, opts, !!focused, report);
+  // Steps are written for the whole drawing: a layer that leaves some of it out does not make them wrong.
+  const whole = graph;
   graph = lens.graph;
   // The key shows each badge style as its chips look on the cards.
   graph = withBadgeIcons(graph);
@@ -381,7 +383,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
-  const steps = told ? resolveSteps(told, graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
+  const steps = told ? resolveSteps(told, lens.info?.active.length && lens.info.mode === 'only' ? { ...whole, legend: graph.legend } : graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   // No step asked for: the drawing as the steps leave it, not every step's lines on top of each other.
   const end = !step && told ? finalState(steps, !!opts.interactive) : undefined;
@@ -447,7 +449,7 @@ function applyLayers(
     for (const [j, t] of l.tags.entries())
       if (!tags.has(t)) report(Array.isArray((raw as Record<string, { tags?: unknown }>)[l.name]?.tags) ? [...l.at, 'tags', j] : l.at, `Nothing here has the tag "${t}": add tags: [${t}] to what is on layer ${l.name}`, 'warning');
   const picked = pickLayers(names, defined, (message, i) => report(asked ? [] : view && Array.isArray(view.layers) ? ['views', view.name, 'layers', i] : [], asked ? `Layers: ${message}` : message, asked ? 'error' : 'warning'));
-  const list = defined.map(({ name, title, tags: t, dim, caption }) => ({ name, ...(title ? { title } : {}), tags: t, dim, ...(caption ? { caption } : {}) }));
+  const list = defined.map(({ name, title, tags: t, dim, caption }) => ({ name, ...(title ? { title } : {}), tags: t, dim, ...(caption ? { caption } : {}), count: layerGraph(graph, t, 'dim').kept }));
   const base = { list, written: !asked, tags: [...tags].sort(), total: graph.nodes.length, kept: graph.nodes.length };
   const mode = opts.layerMode ?? modeOf(picked);
   if (!picked.length) return { graph, info: { ...base, active: [], mode } };

@@ -2,7 +2,7 @@
 // the space under the slide title, speaker notes from the title and subtitle. Written as plain
 // OOXML zipped with fflate, so it runs the same in Node and the browser.
 import { zipSync, strToU8 } from 'fflate';
-import type { Graph, Placed, StepState } from '@cartography/core';
+import type { Faded, Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { wrap } from '@cartography/render';
 import { inThemeFonts, look, themes, type Theme } from '@cartography/theme';
@@ -25,6 +25,8 @@ export interface Drawing {
   stepsImplied?: boolean;
   /** Official icons (BYO packs) by node and group id, as render() returns them: pictures on the slide, as they are. */
   images?: SlideImages;
+  /** What a layer drawn with dim-others leaves faded, as render() returns it: faded on every slide or page of the drawing. */
+  faded?: Faded;
   /** Review notes, a line each: added to the speaker notes when an export asks for them. */
   remarks?: string[];
   /** Draws on the finished SVG before it goes on the page (review note markers in a PDF). */

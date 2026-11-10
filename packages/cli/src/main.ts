@@ -611,7 +611,8 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     for (const r of runs) report(r === first ? shown : `${shown}@${named(r, runs.indexOf(r))}`, r === first ? r.diagnostics : r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)));
     if (!drawn.length) return false;
     const out = values.out === '-' ? '-' : outputPath(file, format, values.view);
-    const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file) })), first.theme);
+    // A layer is one slide (its steps are the whole drawing's story, told on its own slides), unless every step is asked for.
+    const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(r !== first && !values['all-steps'] ? { steps: undefined } : {}) })), first.theme);
     if (out === '-') process.stdout.write(data);
     else fs.writeFileSync(out, data);
     console.log(`${shown} → ${out === '-' ? 'standard output' : out} ${dim(`${drawn.length} drawings: the whole and ${drawn.length - 1} ${drawn.length === 2 ? 'layer' : 'layers'}`)}`);
@@ -653,7 +654,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
         : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
       if (stdout) process.stdout.write(data);
       else fs.writeFileSync(out, data);
-      (stdout ? console.error : console.log)(`${shown}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${stdout ? 'standard output' : out} ${dim(`${shot.width}×${shot.height}`)}`);
+      (stdout ? console.error : console.log)(`${shown}${view ? `${layered.includes(result) ? '@' : '#'}${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${stdout ? 'standard output' : out} ${dim(`${shot.width}×${shot.height}`)}`);
     }
   }
   if (values.stable) noteLayout(file, runs);
