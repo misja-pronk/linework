@@ -1,0 +1,29 @@
+Data centre exit
+
+Azure infrastructure diagram: From the VMware racks in Amsterdam to an Azure landing zone in three stages. 10 elements in 3 groups, with 7 connections.
+
+Groups and elements
+- Customers (Users)
+- Front Door
+- Landing zone (Subscription)
+  - rg-orders (Resource group)
+    - Web shop (App Service)
+    - Order service (Container App)
+    - Orders (SQL Database)
+    - Secrets (Key Vault)
+    - File shares (Storage account)
+  - Hub network (Virtual network)
+    - Azure Firewall
+- Staff (User)
+- Entra ID
+
+Connections
+- Customers connect to Front Door over HTTPS.
+- Front Door connects to Web shop.
+- Web shop connects to Order service (REST).
+- Order service connects to Orders (SQL) and signs in with Secrets (secrets).
+- Staff connects to File shares over SMB over VPN and connects to Entra ID (sign-in).
+
+Key
+- Solid line: Connection
+- Dotted amber line: Identity
