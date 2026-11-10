@@ -167,6 +167,55 @@ describe('tidy', () => {
     expect(total / 6).toBeLessThan(0.35);
   });
 
+  const centres = (t: { boxes: Map<string, Box> }) => new Map([...t.boxes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }]));
+
+  it('follows the drawing before card by card: a report added, removed or given a report moves only what is beside it', () => {
+    // Wrapped into two rows, lists under every manager: the big org's shape.
+    const big = org(24, (i) => 3 + ((i * 5) % 6));
+    const before = tidy([big], { fixed: { list: 2, pairs: false, wrap: 2 } });
+    const shares: Record<string, number[]> = { add: [], remove: [], first: [] };
+    for (let i = 0; i < 24; i += 3) {
+      const add = structuredClone(big);
+      add.children[i]!.children.push({ id: 'new', width: 200, height: 64, children: [] });
+      const remove = structuredClone(big);
+      remove.children[i]!.children.splice(1, 1);
+      const first = structuredClone(big);
+      first.children[i]!.children[1]!.children.push({ id: 'new', width: 200, height: 64, children: [] });
+      for (const [k, t] of Object.entries({ add, remove, first })) shares[k]!.push(moved(before.boxes, tidy([t], { previous: before.variant, before: centres(before) }).boxes));
+    }
+    const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+    // Knowing only the variant, a first report moved 0.39 of the cards (worst 0.5): the list turned into a row. Now 0.13 (0.23).
+    expect(mean(shares.add!)).toBeLessThan(0.03);
+    expect(mean(shares.remove!)).toBeLessThan(0.05);
+    expect(mean(shares.first!)).toBeLessThan(0.16);
+    expect(Math.max(...shares.add!, ...shares.remove!, ...shares.first!)).toBeLessThan(0.28);
+  });
+
+  it('keeps someone who gains a report in their list, with the report hung under them', () => {
+    const base = org(3, () => 5);
+    const before = tidy([base], { fixed: { list: 2, pairs: false, wrap: 1 } });
+    const more = structuredClone(base);
+    more.children[1]!.children[0]!.children.push({ id: 'new', width: 200, height: 64, children: [] });
+    const after = tidy([more], { previous: before.variant, before: centres(before) });
+    const b = (id: string) => after.boxes.get(id)!;
+    expect(b('m1p1').x).toBe(b('m1p0').x);
+    expect(b('new').x).toBeGreaterThan(b('m1p0').x);
+    expect(b('new').y).toBeGreaterThan(b('m1p0').y + b('m1p0').height);
+    expect(b('m1p1').y).toBeGreaterThan(b('new').y + b('new').height);
+    const all = [...after.boxes.values()];
+    for (const [i, a] of all.entries()) for (const c of all.slice(i + 1)) expect(hit(a, c)).toBe(false);
+  });
+
+  it('hangs reports without reports in a list beside reports with reports of their own', () => {
+    const card = (id: string, children: TidyNode[] = []): TidyNode => ({ id, width: 200, height: 64, children });
+    const t = tidy([card('top', [card('a'), card('b', [card('b1'), card('b2')]), card('c'), card('d')])], { fixed: { list: 2, pairs: false, wrap: 1 } });
+    const x = (id: string) => t.boxes.get(id)!.x;
+    expect(new Set(['a', 'c', 'd'].map(x)).size).toBe(1);
+    expect(x('b')).toBeGreaterThan(x('a') + 200);
+    const all = [...t.boxes.values()];
+    for (const [i, a] of all.entries()) for (const c of all.slice(i + 1)) expect(hit(a, c)).toBe(false);
+  });
+
   it('places 150 people fast', () => {
     const big = org(30, (i) => 3 + (i % 3));
     expect(nodes(big).length).toBeGreaterThan(140);
