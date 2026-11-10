@@ -147,7 +147,7 @@ if (!asked.some((m) => m.includes('azure.yaml has changes'))) fail('opening the 
 await page.emulateMedia({ colorScheme: 'light' });
 await page.getByRole('button', { name: 'New' }).click();
 if (await page.locator('.template-card', { hasText: /^Empty/ }).count()) fail('the picker still shows Empty cards');
-await page.locator('.type-main', { hasText: 'Architecture' }).click();
+await page.locator('.type-main').filter({ has: page.getByText('Architecture', { exact: true }) }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.getByRole('button', { name: /start blank/ }).click();
 await wait(800);
