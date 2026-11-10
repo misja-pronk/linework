@@ -34,11 +34,12 @@ Build it with `pnpm --filter @cartography/embed build`; `packages/embed/dist` th
 
 | File | Size | Gzip | What |
 | --- | --- | --- | --- |
-| `carto-diagram.js` | 24 kB | 9 kB | The element. This is what the page loads. |
-| `carto-engine.js` | 1.45 MB | 0.88 MB | Parser, layout (Graphviz as WebAssembly), renderer, icons, Inter. Loaded by the element when the first diagram comes near the screen, once per page however many diagrams it has. Keep it next to `carto-diagram.js`. |
-| `carto-diagram.standalone.js` | 1.48 MB | 0.89 MB | Both in one file, for a page that has to be a single file. |
+| `carto-diagram.js` | 26 kB | 10 kB | The element. This is what the page loads. |
+| `carto-engine.js` | 1.9 MB | 1.1 MB | Parser, layout (Graphviz as WebAssembly), renderer, icons and the faces of the default look (Instrument Sans, Geist Mono) and of the classic one (Inter). Loaded by the element when the first diagram comes near the screen, once per page however many diagrams it has. Keep it next to `carto-diagram.js`. |
+| `carto-font-barlow.js`, `carto-font-ibm-plex-sans.js`, `carto-font-ibm-plex-mono.js` | 137, 293 and 136 kB | 95, 206 and 99 kB | The faces of Transit (Barlow) and Drafting (IBM Plex). Fetched only when a diagram uses that look; keep them next to the engine. Without them such a diagram still draws, in the fonts of the page. |
+| `carto-diagram.standalone.js` | 2.5 MB | 1.5 MB | Everything in one file, for a page that has to be a single file. |
 
-The engine is big because it is the whole tool: most of it is Graphviz (WebAssembly) and the icon set. A page with only static drawings from the plugins loads none of it.
+The engine is big because it is the whole tool: most of it is Graphviz (WebAssembly), the fonts and the icon set. A page with only static drawings from the plugins loads none of it.
 
 ### Attributes
 
@@ -68,7 +69,7 @@ Inline YAML goes in a `<script type="text/yaml">` child. More files can ride alo
 
 ### Fonts
 
-Diagrams are measured and drawn in the typefaces of their theme, as in the editor and the CLI: Instrument Sans and Geist Mono for the default look, Inter for classic, Barlow or IBM Plex for Transit and Drafting (see [themes](themes.md)). The component registers the faces that ship inside the engine under names of their own (`Carto Instrument Sans`, `Carto Geist Mono`), so labels fit their boxes whatever the page uses, and the page's own fonts are left alone. A brand theme's fonts are loaded the same way. With `fonts="page"` the text falls back to a face of that name on the page, then to system fonts; labels may then be a little wider or narrower than their boxes.
+Diagrams are measured and drawn in the typefaces of their theme, as in the editor and the CLI: Instrument Sans and Geist Mono for the default look, Inter for classic, Barlow or IBM Plex for Transit and Drafting (see [themes](themes.md)). The component registers the faces that ship with the engine under names of their own (`Carto Instrument Sans`, `Carto Geist Mono`), so labels fit their boxes whatever the page uses, and the page's own fonts are left alone. A brand theme's fonts are loaded the same way. With `fonts="page"` the text falls back to a face of that name on the page, then to system fonts; labels may then be a little wider or narrower than their boxes.
 
 ## Build-time plugins
 
@@ -171,8 +172,8 @@ extra_javascript:
 Use the component directly ([examples/docs/static](../examples/docs/static/index.html)), or let the CLI write the HTML:
 
 ```sh
-carto embed shop.yaml                 # → shop.html: one file with the drawing, zoom and drill-down (about 1.6 MB)
-carto embed shop.yaml --static        # the drawing alone, light and dark, no script (about 125 kB, most of it Inter)
+carto embed shop.yaml                 # → shop.html: one file with the drawing, zoom and drill-down (about 2.8 MB)
+carto embed shop.yaml --static        # the drawing alone, light and dark, no script (about 225 kB, most of it the fonts)
 carto embed shop.yaml --fragment      # only the <figure>, to paste into a page of your own
 carto embed --css                     # the stylesheet that goes with fragments
 cat shop.yaml | carto embed - --fragment --static

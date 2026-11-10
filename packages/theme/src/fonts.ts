@@ -56,7 +56,12 @@ export const bundledFont = (family: string | undefined): BundledFont | undefined
 export async function loadFonts(families: (string | undefined)[]): Promise<void> {
   for (const f of families) {
     if (!f || loaded.has(f) || !optional[f]) continue;
-    loaded.set(f, (await optional[f]!()).font);
+    try {
+      loaded.set(f, (await optional[f]!()).font);
+    } catch {
+      // The face is a file of its own in some builds and that file may not be there: the text is then
+      // measured by the default table and drawn in the family's fallback.
+    }
   }
 }
 
