@@ -389,6 +389,8 @@ export interface DeliveryGeometry {
   rows: { p: GitPipeline; y: number }[];
   cells: { box: Box; label: string; icon: string; tone: Tone; stage: string }[];
   arrows: { x1: number; x2: number; y: number; tone: Tone; gate?: { box: Box; label: string } }[];
+  /** A row handing over to the one it merges into: out of its last step, through the gap between the rows, into the other's first. */
+  merges: { d: string; tone: Tone; tip: { x: number; y: number; dy: number }; at: { x: number; y: number } }[];
   bands: Box[];
 }
 
@@ -441,6 +443,24 @@ function placeDelivery(shape: GitflowShape, theme: Theme): GitflowGeometry {
       prev = box;
     }
   }
+  const merges: DeliveryGeometry['merges'] = [];
+  for (const [r, p] of shape.pipelines.entries()) {
+    const t = p.into ? shape.pipelines.findIndex((q) => q.label === p.into) : -1;
+    const last = p.steps.at(-1);
+    const first = shape.pipelines[t]?.steps[0];
+    if (t < 0 || !last || !first) continue;
+    const dir = t < r ? -1 : 1;
+    const x1 = cx(idx.get(last.stage)!);
+    const x2 = cx(idx.get(first.stage)!);
+    const y1 = rowY(r) + (dir * D.cell.h) / 2;
+    const y2 = rowY(t) - (dir * D.cell.h) / 2;
+    // The elbow runs halfway between this row and the next one towards the target.
+    const ym = (rowY(r) + rowY(r + dir)) / 2;
+    const R = 8;
+    const sx = Math.sign(x2 - x1) || 1;
+    const d = `M${r1(x1)} ${r1(y1)}V${r1(ym - dir * R)}Q${r1(x1)} ${r1(ym)} ${r1(x1 + sx * R)} ${r1(ym)}H${r1(x2 - sx * R)}Q${r1(x2)} ${r1(ym)} ${r1(x2)} ${r1(ym + dir * R)}V${r1(y2 - dir * 6)}`;
+    merges.push({ d, tone: p.tone, tip: { x: x2, y: y2, dy: dir }, at: { x: (x1 + x2) / 2, y: ym } });
+  }
   const bottom = rowY(shape.pipelines.length - 1) + D.row / 2 + 6;
   const bands = stages.map((_, i) => ({ x: cx(i) - widths[i]! / 2 - D.bandPad, y: 0, width: widths[i]! + 2 * D.bandPad, height: bottom }));
   const width = Math.ceil(Math.max(...bands.map((b) => b.x + b.width)) + 4);
@@ -461,6 +481,7 @@ function placeDelivery(shape: GitflowShape, theme: Theme): GitflowGeometry {
       rows: shape.pipelines.map((p, r) => ({ p, y: rowY(r) })),
       cells,
       arrows,
+      merges,
       bands,
     },
   };
@@ -624,6 +645,12 @@ function drawDelivery(g: GitflowGeometry, theme: Theme, shadowId: string): strin
       const gb = a.gate.box;
       out.push(pill(theme, gb.x + gb.width / 2, a.y, a.gate.label, 'shield-check', theme.tones.amber.bg, theme.tones.amber.line, theme.text, theme.tones.amber.fg));
     }
+  }
+  for (const m of d.merges) {
+    const t = tone(m.tone);
+    out.push(`<path d="${m.d}" fill="none" stroke="${t.fg}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`);
+    out.push(arrowHead({ x: m.tip.x, y: m.tip.y }, { x: m.tip.x, y: m.tip.y - m.tip.dy }, t.fg, theme, 1.8));
+    out.push(pill(theme, m.at.x, m.at.y, 'merge', 'git-merge', theme.canvas, t.line, theme.text, t.fg));
   }
   for (const c of d.cells) {
     const t = tone(c.tone);
