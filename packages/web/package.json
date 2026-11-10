@@ -12,11 +12,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
     "@cartography/core": "workspace:*",
+    "@cartography/diff": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/interop": "workspace:*",
+    "@cartography/layout": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",
