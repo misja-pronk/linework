@@ -73,7 +73,7 @@ export function coerce(q: Question, v: unknown): Answer | undefined {
     case 'yesno': {
       if (typeof v === 'boolean') return v;
       const s = String(v).trim().toLowerCase();
-      return ['y', 'yes', 'true', '1', 'on', 'ja'].includes(s) ? true : ['n', 'no', 'false', '0', 'off', 'nee'].includes(s) ? false : undefined;
+      return ['y', 'yes', 'true', '1', 'on', 'j', 'ja'].includes(s) ? true : ['n', 'no', 'false', '0', 'off', 'nee'].includes(s) ? false : undefined;
     }
     case 'text':
       return q.list ? names(v as Answer).join(', ') : String(v).trim();
