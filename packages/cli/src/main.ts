@@ -81,6 +81,9 @@ const helpAll = `carto — architecture diagrams that look good
                [the --live options of carto import] [-o drift.png] [--exit-code]   the organisation since the
                                                 diagram was saved (read live, as carto import --live does)
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
+  carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
+               [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
+                                                names them; --answers or -y: no questions, the rest default
   carto import <file.mmd|.d2|.puml|.md|.dsl|.yaml…> [-o out|-] [--force]
                                                 Mermaid (flowchart, architecture-beta, stateDiagram,
                                                 erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
@@ -278,6 +281,8 @@ const parsed = (() => {
     'dry-run': { type: 'boolean' },
     timeout: { type: 'string' },
     'keep-raw': { type: 'string' },
+    wizard: { type: 'string' },
+    answers: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
     });
@@ -1261,6 +1266,10 @@ async function main(): Promise<number> {
       return (console.error(helpFor(command)), 1);
     }
     case 'new': {
+      if (values.wizard) {
+        const { newFromWizard } = await import('./wizard.ts');
+        return newFromWizard(values.wizard, files[0], { answers: values.answers, yes: values.yes });
+      }
       const [id, target] = files;
       // Without a type, help picking one instead of an error.
       if (!id) return (typeGuide(), 0);

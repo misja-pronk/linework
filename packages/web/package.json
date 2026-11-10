@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^1.6.0",
     "@cartography/core": "workspace:*",
     "@cartography/diff": "workspace:*",
+    "@cartography/wizards": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/icons": "workspace:*",
