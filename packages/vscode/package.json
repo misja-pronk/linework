@@ -1,0 +1,135 @@
+{
+  "name": "@cartography/vscode",
+  "displayName": "Cartography",
+  "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, export, import, and ```cartography blocks in the Markdown preview",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "publisher": "cartography",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "architecture",
+    "diagram",
+    "yaml",
+    "c4"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onWebviewPanel:cartography.preview"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "package": "node build.mjs && node package.mjs",
+    "e2e": "node e2e/webview.mjs"
+  },
+  "contributes": {
+    "commands": [
+      { "command": "cartography.showPreview", "title": "Open Preview to the Side", "category": "Cartography", "icon": "$(open-preview)" },
+      { "command": "cartography.present", "title": "Present", "category": "Cartography", "icon": "$(play)" },
+      { "command": "cartography.newDiagram", "title": "New Diagram from Template…", "category": "Cartography" },
+      { "command": "cartography.exportSvg", "title": "Export as SVG…", "category": "Cartography" },
+      { "command": "cartography.exportPng", "title": "Export as PNG…", "category": "Cartography" },
+      { "command": "cartography.exportPptx", "title": "Export as PowerPoint (.pptx)…", "category": "Cartography" },
+      { "command": "cartography.import", "title": "Import from Mermaid, draw.io, Excalidraw or Structurizr…", "category": "Cartography" },
+      { "command": "cartography.copyShareLink", "title": "Copy Share Link", "category": "Cartography" },
+      { "command": "cartography.openInEditor", "title": "Open in Cartography Editor", "category": "Cartography" },
+      { "command": "cartography.clearPins", "title": "Clear Pins of This View", "category": "Cartography" }
+    ],
+    "menus": {
+      "editor/title": [
+        { "command": "cartography.showPreview", "when": "cartography.isDiagram", "group": "navigation" }
+      ],
+      "editor/title/context": [
+        { "command": "cartography.showPreview", "when": "cartography.isDiagram" }
+      ],
+      "explorer/context": [
+        { "command": "cartography.import", "when": "resourceExtname =~ /^\\.(mmd|mermaid|drawio|dio|excalidraw|dsl)$/", "group": "navigation@90" },
+        { "command": "cartography.showPreview", "when": "resourceFilename =~ /\\.carto\\.ya?ml$/", "group": "navigation@91" }
+      ],
+      "commandPalette": [
+        { "command": "cartography.showPreview", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.present", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.exportSvg", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.exportPng", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.exportPptx", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.copyShareLink", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.openInEditor", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" },
+        { "command": "cartography.clearPins", "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'" }
+      ]
+    },
+    "keybindings": [
+      { "command": "cartography.showPreview", "key": "ctrl+k v", "mac": "cmd+k v", "when": "editorTextFocus && cartography.isDiagram" }
+    ],
+    "configuration": {
+      "title": "Cartography",
+      "properties": {
+        "cartography.preview.theme": {
+          "type": "string",
+          "default": "auto",
+          "markdownDescription": "The look of the preview. `auto`: the diagram's own `theme:`, else light or dark as VS Code is. Any other name wins over the diagram's theme: `light`, `dark`, or a built-in theme (`carto themes` lists them)."
+        },
+        "cartography.preview.debounce": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "description": "Milliseconds to wait after typing before the preview and the problems are drawn again."
+        },
+        "cartography.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the engine's problems (the same as `carto validate`) in the Problems panel, with quick fixes where the message names the fix."
+        },
+        "cartography.yamlSchemas": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Give each diagram's type schema to the YAML extension (`redhat.vscode-yaml`), when it is installed, for completion and hover. Unknown and missing keys are left to Cartography's own problems, so each is reported once."
+        },
+        "cartography.markdown.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Draw ` ```cartography ` blocks (and images that point at a diagram `.yaml`) in VS Code's Markdown preview."
+        },
+        "cartography.shareBase": {
+          "type": "string",
+          "default": "http://localhost:5173/",
+          "markdownDescription": "The address of the Cartography web editor that share links and **Open in Cartography Editor** point at (`pnpm web` serves it at the default). The diagram travels in the link's `#fragment`, which a browser never sends to the server."
+        },
+        "cartography.export.pngScale": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0.5,
+          "maximum": 8,
+          "description": "Pixels per drawing unit in PNG exports (2 is sharp on most screens and slides)."
+        },
+        "cartography.present.fullScreen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Present also turns VS Code full screen (and back when the presentation closes)."
+        }
+      }
+    },
+    "markdown.markdownItPlugins": true
+  },
+  "devDependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/docs-plugins": "workspace:*",
+    "@cartography/engine": "workspace:*",
+    "@cartography/export": "workspace:*",
+    "@cartography/import": "workspace:*",
+    "@cartography/interop": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "@playwright/test": "^1.65.0",
+    "@types/vscode": "1.90.0",
+    "esbuild": "^0.28.2",
+    "fflate": "0.8.3",
+    "yaml": "^2.9.1"
+  }
+}
