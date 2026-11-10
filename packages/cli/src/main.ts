@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | notes | new | import | export | threats | share | icons | themes | types
+// carto render | deck | watch | validate | diff | notes | decisions | new | import | export | threats | share | icons | themes | types
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -14,6 +14,7 @@ import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, t
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { runLive, type LiveFlags } from './live.ts';
+import { decisionsCommand, withDecisionMarks, workspaceFiles } from './decisions.ts';
 import type { Fetched } from '@cartography/import/node';
 import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
@@ -42,6 +43,9 @@ const helpAll = `carto — architecture diagrams that look good
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
                [--notes]                        with the open review notes of <file>.notes.json: numbered markers
                                                 and the notes under the drawing (pptx: in the speaker notes)
+               [--decisions]                    with the architecture decisions of the folder (decisions/): a
+                                                numbered page marker on what each is about, and a key and the
+                                                decisions under the drawing (pptx: in the speaker notes)
   carto render <folder> [-o mesh.svg]           a folder of data product and data contract files (ODPS, ODCS) as one
                [--write mesh.yaml]              data mesh map; --write keeps the diagram, and updates it the next time
   carto render <folder> [-o access.svg]         a folder of saved az / Graph / AzureHound JSON as who reaches what,
@@ -98,6 +102,11 @@ const helpAll = `carto — architecture diagrams that look good
   carto notes --merge-driver <base> <ours> <theirs>
                                                 git's merge driver for notes files: merges two people's notes by
                                                 thread; set up once, see docs/notes.md
+  carto decisions [folder] [-o log.md]         the architecture decisions (decisions/, doc/adr, docs/adr, .adr-dir)
+               [-o decisions.svg|png|pptx|pdf]  as a decision log in markdown, or drawn as the Decisions table
+  carto decisions new "title" [--concerns a,b] [--supersedes 3] [--into folder]
+                                                the next decision from the template (MADR with front matter);
+                                                --supersedes marks that one superseded by it. More: docs/decisions.md
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
                [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
@@ -192,6 +201,7 @@ const groups: [string, [string, string][]][] = [
     ['diff', 'what changed between two versions'],
     ['threats', 'the threat table as markdown'],
     ['notes', 'review notes as markdown'],
+    ['decisions', 'architecture decisions: log, table, new'],
   ]],
   ['Start and convert', [
     ['new', 'start from a template'],
@@ -306,6 +316,10 @@ const parsed = (() => {
     wizard: { type: 'string' },
     answers: { type: 'string' },
     notes: { type: 'boolean' },
+    decisions: { type: 'boolean' },
+    concerns: { type: 'string' },
+    supersedes: { type: 'string' },
+    status: { type: 'string' },
     open: { type: 'boolean' },
     'merge-driver': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
@@ -610,7 +624,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
-    const shots = plain.map((r) => annotated(r, notes));
+    const shots = plain.map((r) => (values.decisions ? withDecisionMarks(annotated(r, notes), file) : annotated(r, notes)));
     if (stdout && runs.length + shots.length > 2) throw new UsageError('-o - writes one picture to standard output: give a folder for --all-views or --all-steps');
     // A drawing with errors is not what was asked for: nothing is written, the errors say why.
     if (result.diagnostics.some((d) => d.severity === 'error')) {
@@ -639,7 +653,8 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
 
 /** carto validate <folder>: what only shows across files (a ref: to nothing, one id two kinds, elements no view shows). */
 function validateWorkspace(dir: string): boolean {
-  const files = dataFiles(dir).map((f) => [path.relative(dir, f).split(path.sep).join('/'), fs.readFileSync(f, 'utf8')] as [string, string]);
+  // Diagrams, and the decisions folder with what says where it is (decisions concern elements by id).
+  const files = workspaceFiles(dir);
   const ix = indexWorkspace(files);
   for (const p of ix.problems) console.error(`${path.join(dir, p.file)}${p.line ? `:${p.line}` : ''}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
   const n = ix.files.size;
@@ -1539,6 +1554,23 @@ async function main(): Promise<number> {
     }
     case 'notes':
       return notesCommand();
+    case 'decisions':
+      if (!themeFlag()) return 1;
+      return decisionsCommand({
+        args: files,
+        out: values.out,
+        concerns: values.concerns,
+        supersedes: values.supersedes,
+        into: values.into,
+        title: values.title,
+        status: values.status,
+        render: { themeOverride: forced, fontScale, fonts: values.out?.endsWith('.svg') ? 'embed' : 'none' },
+        write: async (r, out) => {
+          const format = formatFor();
+          const data = format === 'png' ? toPng(r.svg!, Number(values.scale) || 2, await ttfFiles(r.theme?.font.faces ?? [])) : format === 'svg' ? r.svg! : await document(format, [{ ...r, name: 'decisions' } as Drawing], r.theme);
+          fs.writeFileSync(out, data);
+        },
+      });
     case 'diff':
       if (!themeFlag()) return 1;
       return diffFiles();

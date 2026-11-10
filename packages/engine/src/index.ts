@@ -550,3 +550,21 @@ export { drift, type DriftItem, type DriftResult } from './drift.ts';
 export type { IconPackFile, IconMode };
 /** Review notes drawn on an export ("with review notes"); see packages/core/src/notes.ts. */
 export { noteMarker, noteSpots, withReviewNotes, type NoteSpot } from '@cartography/render';
+/** Architecture decisions drawn on an export ("with decisions"); see packages/core/src/decisions.ts. */
+export { decisionInk, decisionLines, decisionLook, decisionMarker, decisionSpots, targetName, withDecisions, type DecisionSpot, type DrawingAt } from '@cartography/render';
+
+/**
+ * A drawing of a graph made outside a diagram file (the Decisions view, a table of the decisions
+ * folder): sized, laid out and drawn as render() draws one, in the theme asked for.
+ */
+export async function renderGraph(graph: Graph, opts: RenderOptions = {}): Promise<RenderResult> {
+  const theme = named(opts.themeOverride) ?? named(opts.theme) ?? themes.light;
+  const brandFaces = theme.font.faces?.filter((f) => !f.mono);
+  const fonts = themeTextFonts(theme, brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined);
+  await loadFonts([fonts.sans, fonts.mono]);
+  const measured = withTextFonts(fonts, () => size(graph, theme));
+  const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
+  const placed = await layout({ ...measured, graph: withoutBadges(graph), near: badgePairs(graph) }, spacing, undefined, {});
+  const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, opts));
+  return { svg: out.svg, width: out.width, height: out.height, origin: out.origin, diagnostics: [], graph, placed, theme, ...(isEmpty(graph) ? { empty: true } : {}) };
+}

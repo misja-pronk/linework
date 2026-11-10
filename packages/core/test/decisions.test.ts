@@ -109,7 +109,7 @@ const graph = (nodes: string[], groups: string[] = [], edges: [string, string][]
   direction: 'down',
   nodes: nodes.map((id) => ({ id, shape: { kind: 'card', label: id, tone: 'slate' }, path: [] })),
   groups: groups.map((id) => ({ id, label: id, tone: 'slate', border: 'solid', path: [] })),
-  edges: edges.map(([a, b], i) => ({ id: `e${i}`, from: { node: a }, to: { node: b }, path: [] })) as Graph['edges'],
+  edges: edges.map(([a, b], i) => ({ id: `e${i}`, from: { node: a }, to: { node: b }, path: [] })) as unknown as Graph['edges'],
   legend: [],
 });
 

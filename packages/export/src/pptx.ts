@@ -27,6 +27,8 @@ export interface Drawing {
   images?: SlideImages;
   /** Review notes, a line each: added to the speaker notes when an export asks for them. */
   remarks?: string[];
+  /** Architecture decisions the drawing shows, a line each: added to the speaker notes when an export asks for them. */
+  decisions?: string[];
   /** Draws on the finished SVG before it goes on the page (review note markers in a PDF). */
   annotate?(drawn: { svg: string; width: number; height: number; origin: { x: number; y: number } }): { svg: string; width: number; height: number };
 }
@@ -178,6 +180,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     // What the presenter says at this step leads the speaker notes.
     const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `Step ${view.index + 1} of ${view.states.length} — ${about[0]}${d.name ? `, from ${d.name}` : ''}.`] : [...about, '', `${nodes} elements, ${graph.edges.length} connections${d.name ? `, from ${d.name}` : ''}.`];
     if (d.remarks?.length) notes.push('', 'Review notes:', ...d.remarks);
+    if (d.decisions?.length) notes.push('', 'Decisions:', ...d.decisions);
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes });
   }
 
