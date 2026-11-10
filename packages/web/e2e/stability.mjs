@@ -94,7 +94,7 @@ if (!down(start)) fail('the chain was not drawn top-down: ' + JSON.stringify(sta
   await page.screenshot({ path: `${out}/s2-reloaded.png` });
 
   // Unpinned again: everything is where it started.
-  await page.locator('[aria-label="Reset layout"]').click();
+  await page.locator('[aria-label="Tidy all"]').click();
   await wait(600);
   const back = await corners();
   if (moved(start, back).length || Math.abs(back.d.x - back.a.x) > 1) fail('reset did not put the chain back');
@@ -143,7 +143,7 @@ if (!down(start)) fail('the chain was not drawn top-down: ' + JSON.stringify(sta
   const jumped = moved(before, after);
   if (jumped.length) fail(`adding a line moved ${jumped.length} of ${Object.keys(before).length} nodes: ${jumped.join(', ')}`);
   // Kept from the drawing before, so there is something to reset to; from scratch it differs.
-  const reset = page.locator('[aria-label="Reset layout"]');
+  const reset = page.locator('[aria-label="Tidy all"]');
   if (await reset.count()) {
     await reset.click();
     await wait(700);

@@ -349,7 +349,7 @@ button.crumb:hover {
 .defined-in {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px 8px;
   margin: 0;
   padding: 9px 10px;
@@ -366,6 +366,11 @@ button.crumb:hover {
 .defined-in > span {
   flex: 1;
   min-width: 0;
+}
+.defined-in > .link {
+  flex-basis: 100%;
+  padding-left: 22px;
+  text-align: left;
 }
 .inspector .where-used {
   margin: 4px 0 0;

@@ -197,8 +197,6 @@ export function App() {
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
   /** The first-visit hint, until it is dismissed once. */
   const [hint, setHint] = useState(() => !store.get('hinted'));
-  /** The hint's height: a toast stands clear above it (see .with-hint .toast). */
-  const [hintHeight, setHintHeight] = useState(72);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);
@@ -1784,8 +1782,7 @@ export function App() {
   const typeId = type?.id;
   return (
     <div
-      className={hint && !adding && !modal ? 'app with-hint' : 'app'}
-      style={{ ['--split' as string]: `${split * 100}%`, ['--hint-h' as string]: `${hintHeight}px` }}
+      className="app"
       onDragOverCapture={onDragFiles}
       onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
       onDropCapture={onDropFiles}
@@ -1928,8 +1925,9 @@ export function App() {
                 <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
                   <Icon name="link" /> Copy share link
                 </button>
-                <details onClick={(e) => e.stopPropagation()}>
-                  <summary>
+                <details>
+                  {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
+                  <summary onClick={(e) => e.stopPropagation()}>
                     <Icon name="workflow" /> Other tools: draw.io, Excalidraw, Mermaid <Icon name="chevron-down" size={14} />
                   </summary>
                   <button role="menuitem" onClick={saveDrawio}>
@@ -2163,7 +2161,7 @@ export function App() {
                 <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
               </button>
               <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={`Ask Claude for a change or about the diagram (${keyHint('ask')})`} aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> <span className="tool-label">Ask Claude</span> <kbd>{keyHint('ask')}</kbd>
+                <Icon name="sparkles" /> <span className="tool-label">Ask</span> <kbd>{keyHint('ask')}</kbd>
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
                 <Icon name="message-square" />
@@ -2207,7 +2205,7 @@ export function App() {
             )}
             </div>
             {hint && !adding && !modal && (
-              <div className="hint" role="note" ref={(el) => void (el && el.offsetHeight !== hintHeight && setHintHeight(el.offsetHeight))}>
+              <div className="hint" role="note">
                 <span>
                   {view === 'visual' ? (
                     <>
@@ -2340,7 +2338,7 @@ export function App() {
             id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : wsTools.definedElsewhere ? `${(wsTools.definedElsewhere.kind ?? 'element').replace(/-/g, ' ')} · from ${wsTools.definedElsewhere.file}` : kindLabel(selectedPath)}
+            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : wsTools.definedElsewhere ? (wsTools.definedElsewhere.kind ?? 'element').replace(/-/g, ' ') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
             freeName={!!type.freeNames}
