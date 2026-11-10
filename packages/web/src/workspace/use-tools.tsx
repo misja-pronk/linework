@@ -265,5 +265,5 @@ export function useWorkspaceTools(h: Host) {
     </>
   );
 
-  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, dialogs, open: dialog !== undefined };
+  return { index, onKey, onDrill, commands, problemCommands, folderProblems, crumbBar, wherePanel, dialogs, go, open: dialog !== undefined };
 }
