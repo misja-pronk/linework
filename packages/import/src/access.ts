@@ -29,6 +29,8 @@ export interface AccessOptions {
   scopesAbove?: number;
   /** `access`: groups and service principals that reach exactly the same are drawn as one; `none`: never. Not given: as one once more than `collapseAbove` identities are drawn. */
   groupBy?: 'access' | 'none';
+  /** The number of identities above which a new diagram opens as the who × where matrix. 20 when not given. */
+  matrixAbove?: number;
 }
 
 export interface ImportedExport {
@@ -258,7 +260,10 @@ export function drawAccess(warn: Warnings, { dir, read, skipped, problems }: Pic
   if (nameless.length) warn.add(`${plural(nameless.length, 'role is', 'roles are')} known by id only: add az role definition list -o json for their names`);
 
   // ---- the diagram
-  const kept = Kept.open('access', opts.existing, { title: opts.title ?? (dir.tenant ? `${dir.tenant}: who reaches what` : 'Who reaches what') });
+  // Many identities, each with lines to many scopes, are a tangle as a graph; the who × where matrix reads row by row. Only for a new diagram: a view chosen by hand stays.
+  const matrix = principals.length > (opts.matrixAbove ?? 20);
+  const kept = Kept.open('access', opts.existing, { title: opts.title ?? (dir.tenant ? `${dir.tenant}: who reaches what` : 'Who reaches what'), ...(matrix ? { view: 'access' } : {}) });
+  if (matrix && typeof kept !== 'string' && kept.fresh) warn.add(`${plural(principals.length, 'identity', 'identities')} are drawn as the who × where matrix (view: access); --view graph draws the lines, --focus <id> one identity or scope with what it reaches`);
   if (typeof kept === 'string') return { ...nothing(kept), problems: [...problems, { message: kept, severity: 'error' }] };
 
   // Ids: readable, from the name; what an earlier import called something stays, so pins and hand edits hold.

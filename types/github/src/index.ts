@@ -81,7 +81,8 @@ export function accessOf(src: GraphSource) {
     const [, from, to] = m as unknown as [string, string, string];
     if (v?.style === 'member' && team(to)) join(from, to);
     else if (v?.style === 'access' && v.label && kind(to) === 'repo' && (team(from) || PEOPLE.includes(kind(from) ?? ''))) {
-      const role = v.label.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+      // "read · 3 of 8" on a family of repositories: read, on what stands for them.
+      const role = v.label.split(' · ')[0]!.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
       roles.add(role);
       assignments.push(`${from} is ${role} on ${to}`);
       who.add(from);

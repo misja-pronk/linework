@@ -203,6 +203,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
       model.view = model.views.get(names[0]!);
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
+  // A focus asked for is about elements and lines: a diagram that opens as one of its tables (view: access) is focused in the type's first view, its graph.
+  else if (opts.focus != null && ownViews?.length && typeof built.view === 'string' && built.view !== ownViews[0]!.name) built = { ...built, view: ownViews[0]!.name };
 
   // Problems in entries that came from another file point at its include entry.
   const where = (path: Path, message: string): [Path, string] => {

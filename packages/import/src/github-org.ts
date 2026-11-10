@@ -171,7 +171,8 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
   for (let i = access.length - 1; i >= 0; i--) if (everywhere.has(access[i]!.from)) access.splice(i, 1);
   const onAll = (key: string) => (everywhere.has(key) ? `${everywhere.get(key)} on every repository` : undefined);
 
-  // ---- repositories nothing is drawn in and that are reached in exactly the same way, as one.
+  // ---- many repositories: those of one family (shop-api, shop-web: shop-*) as one, with what each team holds on how many of them.
+  // Asked for (--group-by access): those that are reached in exactly the same way, as one.
   const same = new Map<string, string>();
   const merged: { key: string; name: string; caption: string }[] = [];
   const inside = (r: GhRepo) => deep && has(r);
@@ -179,7 +180,7 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
     const alike = new Map<string, GhRepo[]>();
     for (const r of repos) {
       if (inside(r)) continue;
-      const sign = [r.archived ? 'archived' : '', ...access.filter((a) => a.repo === r.key).map((a) => `${a.from} ${a.label}`).sort()].join('\n');
+      const sign = opts.groupBy === 'access' ? [r.archived ? 'archived' : '', ...access.filter((a) => a.repo === r.key).map((a) => `${a.from} ${a.label}`).sort()].join('\n') : r.name.split(/[-_.]/)[0]!.toLowerCase();
       alike.set(sign, [...(alike.get(sign) ?? []), r]);
     }
     const said: string[] = [];
@@ -188,11 +189,14 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
       const key = `${list[0]!.key}+${list.length - 1}`;
       const name = pattern(list.map((r) => r.name)) ?? `${list[0]!.name} and ${list.length - 1} more`;
       for (const r of list) same.set(r.key, key);
-      merged.push({ key, name, caption: `${list.length} repositories${list[0]!.archived ? ' · archived' : ''}` });
+      const archived = list.filter((r) => r.archived).length;
+      merged.push({ key, name, caption: [`${list.length} repositories`, archived ? (archived === list.length ? 'archived' : `${archived} archived`) : undefined].filter(Boolean).join(' · ') });
       said.push(`${name} (${list.length})`);
     }
-    if (same.size) warn.add(`${same.size} repositories that are reached in exactly the same way are drawn as ${said.length === 1 ? 'one' : said.length}: ${some(said, 8)}. --group-by none draws each of them`);
+    if (same.size) warn.add(`${same.size} repositories ${opts.groupBy === 'access' ? 'that are reached in exactly the same way' : 'are many for one picture: those whose names start the same'} are drawn as ${said.length === 1 ? 'one' : said.length}: ${some(said, 8)}. A line says on how many of them a team holds a role; --group-by none draws each, --scope <prefix> one family, --as access the matrix`);
   }
+  const familySize = new Map<string, number>();
+  for (const k of same.values()) familySize.set(k, (familySize.get(k) ?? 0) + 1);
   const repoKey = (key: string) => `repo:${same.get(key) ?? key}`;
 
   // ---- people: those who hold something themselves always; members of teams as long as they are few.
@@ -232,7 +236,17 @@ export function importGithub(files: ExportFile[], opts: GithubOptions = {}): Imp
   const words = (r: GhRepo) => [r.visibility && r.visibility !== 'private' ? r.visibility : undefined, r.archived ? 'archived' : undefined].filter(Boolean).join(' · ') || undefined;
   for (const r of repos) if (!same.has(r.key)) items.push({ key: `repo:${r.key}`, group: inside(r), cls: 'repo', name: r.name, else: 'repo', kind: 'repo', label: r.name, caption: words(r), in: ORG });
   for (const m of merged) items.push({ key: `repo:${m.key}`, group: false, cls: 'repo', name: m.name, else: 'repos', kind: 'repo', label: m.name, caption: m.caption, in: ORG });
-  for (const a of access) edges.push({ from: a.from, to: repoKey(a.repo), label: a.label, style: 'access' });
+  // One line for each role a team holds on a family, saying on how many of them when not on all.
+  const held = new Map<string, { from: string; to: string; label: string; n: number }>();
+  for (const a of access) {
+    const to = repoKey(a.repo);
+    const k = `${a.from} ${to} ${a.label}`;
+    held.set(k, { from: a.from, to, label: a.label, n: (held.get(k)?.n ?? 0) + 1 });
+  }
+  for (const h of held.values()) {
+    const all = familySize.get(h.to.slice('repo:'.length));
+    edges.push({ from: h.from, to: h.to, label: all && h.n < all ? `${h.label} · ${h.n} of ${all}` : h.label, style: 'access' });
+  }
 
   const refs = (list: string[] | undefined) => (list ?? []).map((p) => (p === '~DEFAULT_BRANCH' ? 'default branch' : p === '~ALL' ? 'all branches' : p.replace(/^refs\/heads\//, ''))).join(', ');
   const named = (place: string, list: { name: string }[], kind: 'secret' | 'variable', into: string) => {
