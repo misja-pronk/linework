@@ -186,7 +186,15 @@ function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string
 
   const out: string[] = [];
   const placedGhosts = new Map<string, Box>();
+  // Ghosts that stand right where the card stood: only those keep the old route of a line that is gone.
+  const inPlace = new Set<string>();
   const row: Ghost[] = [];
+  // What a ghost must not cover: the cards, lines and line labels of the newer drawing.
+  const lines = [...after.placed.edges.values()].flatMap((r) => [
+    ...r.points.slice(1).map((q, i) => ({ x: Math.min(q.x, r.points[i]!.x), y: Math.min(q.y, r.points[i]!.y), width: Math.abs(q.x - r.points[i]!.x), height: Math.abs(q.y - r.points[i]!.y) })),
+    ...(r.label ? [r.label] : []),
+  ]);
+  const free = (b: Box) => ![...after.placed.nodes.values(), ...placedGhosts.values()].some((o) => hit(b, o, 6)) && !lines.some((l) => hit({ ...b, y: b.y - TAG / 2, height: b.height + TAG / 2 }, l, 6));
   let bounds: Box | undefined;
   const grow = (b: Box) => {
     const x0 = Math.min(bounds?.x ?? b.x, b.x);
@@ -209,10 +217,17 @@ function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string
   for (const n of diff.nodes) {
     const was = before.placed.nodes.get(n.id);
     if (n.status !== 'removed' || !was) continue;
-    const b = shift ? moved(was) : undefined;
-    const free = b && ![...after.placed.nodes.values(), ...placedGhosts.values()].some((o) => hit(b, o, 6));
-    if (b && free) {
+    // Where it stood, or the nearest clear spot up to its own size away: a line that now runs there
+    // would otherwise seem to go through it.
+    const stood = shift ? moved(was) : undefined;
+    const steps = stood ? [0, ...Array.from({ length: Math.ceil(Math.max(stood.width, stood.height) / 16) }, (_, i) => (i + 1) * 16)] : [];
+    const b = steps
+      .flatMap((d) => (d ? [{ x: 0, y: d }, { x: 0, y: -d }, { x: d, y: 0 }, { x: -d, y: 0 }] : [{ x: 0, y: 0 }]).filter((o) => Math.abs(o.x) <= stood!.width && Math.abs(o.y) <= stood!.height))
+      .map((o) => ({ ...stood!, x: stood!.x + o.x, y: stood!.y + o.y }))
+      .find(free);
+    if (b) {
       placedGhosts.set(n.id, b);
+      if (b.x === stood!.x && b.y === stood!.y) inPlace.add(n.id);
       grow({ x: b.x - 5, y: b.y - 5 - TAG / 2, width: b.width + 10, height: b.height + 10 + TAG / 2 });
       out.push(ghostCard(theme, n.id, label(n.id), b));
     } else row.push({ id: n.id, label: label(n.id), box: was });
@@ -225,7 +240,7 @@ function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string
     if (!old || old.badge) continue;
     const end = (id: string): { box: Box; still: boolean } | undefined => {
       const ghost = placedGhosts.get(id);
-      if (ghost) return { box: ghost, still: true };
+      if (ghost) return { box: ghost, still: inPlace.has(id) };
       const [now, was] = [after.placed.nodes.get(id), before.placed.nodes.get(id)];
       if (!now || !was) return undefined;
       return { box: now, still: Math.abs(now.x - was.x - shift.x) < 2 && Math.abs(now.y - was.y - shift.y) < 2 };
