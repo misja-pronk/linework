@@ -1,5 +1,6 @@
 // Systems and C4: what any architecture review asks, whatever runs it: who touches the data, how
 // deep calls go, what everything hangs on, and calls that go round in circles.
+import { t } from '../nl.ts';
 import type { Hit, Rule } from '../types.ts';
 import type { Line, ReviewModel } from '../model.ts';
 
@@ -52,7 +53,7 @@ export const systemsRules: Rule[] = [
     check(m) {
       return m.lines
         .filter((l) => !l.badge && m.outsider(l.from) && !m.outsider(l.to) && STORES.includes(m.el(l.to)?.kind ?? ''))
-        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: `${m.name(l.from)} reaches ${m.name(l.to)} directly` }));
+        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: t(m.lang, '{from} reaches {to} directly', { from: m.name(l.from), to: m.name(l.to) }) }));
     },
   },
   {
@@ -94,7 +95,7 @@ export const systemsRules: Rule[] = [
         const key = chain.slice(1).join('>');
         if (hops <= max || said.has(key)) continue;
         said.add(key);
-        hits.push({ on: { kind: 'node', id: start }, message: `${hops} synchronous calls in a row: ${chain.map((id) => m.name(id)).join(' → ')}` });
+        hits.push({ on: { kind: 'node', id: start }, message: t(m.lang, '{count} synchronous calls in a row: {chain}', { count: hops, chain: chain.map((id) => m.name(id)).join(' → ') }) });
       }
       return hits;
     },
@@ -119,7 +120,7 @@ export const systemsRules: Rule[] = [
         const n = instances(m, e.id);
         if (n !== undefined ? n > 1 : !counted) continue;
         const dependents = new Set(m.in(e.id).filter((l) => !m.outsider(l.from) && !l.badge && !m.async(l)).map((l) => l.from));
-        if (dependents.size >= min) hits.push({ on: { kind: 'node', id: e.id }, message: `${e.label} runs once and ${dependents.size} elements depend on it` });
+        if (dependents.size >= min) hits.push({ on: { kind: 'node', id: e.id }, message: t(m.lang, '{name} runs once and {count} elements depend on it', { name: e.label, count: dependents.size }) });
       }
       return hits;
     },
@@ -168,7 +169,7 @@ export const systemsRules: Rule[] = [
       const order = [...m.nodes.keys()];
       return sccs.map((c) => {
         const members = c.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-        return { on: { kind: 'node' as const, id: members[0]! }, message: `${members.map((id) => m.name(id)).join(', ')} call each other in a circle` };
+        return { on: { kind: 'node' as const, id: members[0]! }, message: t(m.lang, '{names} call each other in a circle', { names: members.map((id) => m.name(id)).join(', ') }) };
       });
     },
   },

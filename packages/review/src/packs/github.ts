@@ -1,5 +1,6 @@
 // GitHub: what an organisation review asks first, the same questions `carto import` asks of an
 // export (packages/import github-org.ts), here of a drawing.
+import { t } from '../nl.ts';
 import type { Hit, Rule } from '../types.ts';
 
 const pack = 'github';
@@ -30,7 +31,7 @@ export const githubRules: Rule[] = [
           const ruled = m.inside(r.id).some((e) => e.kind === 'ruleset') || m.lines.some((l) => parts.has(l.to) && (l.style === 'protects' || m.el(l.from)?.kind === 'ruleset'));
           return !ruled && !m.tagged(r.id, 'protected');
         })
-        .map((r) => ({ on: { kind: r.group ? 'group' : 'node', id: r.id }, message: `${r.label} has no ruleset or branch protection on its default branch` }));
+        .map((r) => ({ on: { kind: r.group ? 'group' : 'node', id: r.id }, message: t(m.lang, '{name} has no ruleset or branch protection on its default branch', { name: r.label }) }));
     },
   },
   {
@@ -54,7 +55,7 @@ export const githubRules: Rule[] = [
         reach.set(l.from, (reach.get(l.from) ?? 0) + (n ? Number(n[1] ?? n[2]) : 1));
       }
       const hits: Hit[] = [];
-      for (const [who, n] of reach) if (n > above && m.el(who)) hits.push({ on: { kind: m.el(who)!.group ? 'group' : 'node', id: who }, message: `${m.name(who)} is admin on ${n} repositories` });
+      for (const [who, n] of reach) if (n > above && m.el(who)) hits.push({ on: { kind: m.el(who)!.group ? 'group' : 'node', id: who }, message: t(m.lang, '{name} is admin on {count} repositories', { name: m.name(who), count: n }) });
       return hits;
     },
   },
@@ -70,7 +71,7 @@ export const githubRules: Rule[] = [
     check(m) {
       return m.lines
         .filter((l) => m.el(l.from)?.kind === 'outside-collaborator' && ADMIN.test(l.label))
-        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: `Outside collaborator ${m.name(l.from)} is admin on ${m.name(l.to)}` }));
+        .map((l) => ({ on: { kind: 'edge', id: l.id }, message: t(m.lang, 'Outside collaborator {name} is admin on {repo}', { name: m.name(l.from), repo: m.name(l.to) }) }));
     },
   },
 ];

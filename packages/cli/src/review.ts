@@ -180,7 +180,9 @@ export async function reviewCommand(flags: ReviewFlags): Promise<number> {
 
   const ran = [...new Map(reviewed.flatMap((x) => x.rules).map((r) => [r.id, r])).values()];
   const title = flags.title ?? (reviewed.length === 1 ? `${reviewed[0]!.file.title ?? reviewed[0]!.file.file}: architecture review` : `Architecture review of ${inputs.map((i) => path.basename(path.resolve(i))).join(', ')}`);
-  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date() };
+  // The report's own words in the drawings' language when they all have the same one.
+  const langs = new Set(reviewed.flatMap((x) => x.results.map(({ r }) => r.lang ?? 'en')));
+  const report: Report = { title, files: reviewed.map((x) => x.file), rules: ran, config: [...shownConfig], ...(flags.packs ? { packs: flags.packs } : {}), date: new Date(), ...(langs.size === 1 && langs.has('nl') ? { lang: 'nl' as const } : {}) };
 
   if (flags.json) {
     const json = JSON.stringify({ title, summary: { ...tally(report.files.flatMap((f) => f.findings)), ignored: report.files.flatMap((f) => f.findings).filter((f) => f.ignored).length }, files: report.files.map((f) => ({ file: f.file, type: f.type, problems: f.problems, findings: f.findings.map(({ rule, ...rest }) => ({ ...rest, rule: rule.id, title: rule.title, category: rule.category, fix: rule.fix })) })) }, null, 2);

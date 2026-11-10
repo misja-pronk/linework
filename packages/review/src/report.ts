@@ -5,6 +5,8 @@
 import type { Graph, MatrixCell, MatrixHeader, Path, Tone } from '@cartography/core';
 import { categories, categoryLabel, severities, severityLabel, type Category, type Finding, type RuleInfo, type Severity } from './types.ts';
 import { tally } from './review.ts';
+import { say, t } from './nl.ts';
+import type { Lang } from '@cartography/i18n';
 
 export interface ReportDrawing {
   view?: string;
@@ -40,9 +42,14 @@ export interface Report {
   config: string[];
   packs?: string[];
   date?: Date;
+  /** The language of the report's own words; findings and rules are said in their drawing's. */
+  lang?: Lang;
 }
 
-const plural = (n: number, w: string, ws = `${w}s`) => `${n} ${n === 1 ? w : ws}`;
+/** A severity's or pillar's name, one or many ("Errors"), in the report's language. */
+const sev = (l: Lang | undefined, s: Severity) => say(l, severityLabel[s]);
+const sevs = (l: Lang | undefined, s: Severity) => (s === 'error' ? t(l, 'Errors') : s === 'warn' ? t(l, 'Warnings') : t(l, 'Info'));
+const pillar = (l: Lang | undefined, c: Category) => say(l, categoryLabel[c]);
 /** The severity's shape as on the drawing (an octagon, a triangle, a circle), inline in the page's text. */
 const glyph: Record<Severity, string> = {
   error: '<svg class="g" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3.5 1h5L11 3.5v5L8.5 11h-5L1 8.5v-5Z" fill="currentColor"/><path d="M6 3.4v3.3M6 8.4v.2" stroke="var(--surface)" stroke-width="1.6" stroke-linecap="round"/></svg>',
@@ -66,50 +73,53 @@ export function pillarTally(findings: Finding[]): { category: Category; counts: 
 /** One sentence: "7 findings in 3 of 5 diagrams: 1 error, 4 warnings, 2 info." */
 export function summaryLine(r: Report): string {
   const all = live(r);
-  const t = tally(all);
+  const n = tally(all);
   const files = r.files.filter((f) => f.findings.some((x) => !x.ignored)).length;
-  if (!all.length) return `No findings in ${plural(r.files.length, 'diagram')}${ignored(r).length ? ` (${ignored(r).length} set aside)` : ''}.`;
-  const parts = [t.error && plural(t.error, 'error'), t.warn && plural(t.warn, 'warning'), t.info && `${t.info} info`].filter(Boolean).join(', ');
-  return `${plural(all.length, 'finding')} in ${r.files.length > 1 ? `${files} of ${r.files.length} diagrams` : 'the diagram'}: ${parts}${ignored(r).length ? `; ${ignored(r).length} set aside` : ''}.`;
+  const l = r.lang;
+  const aside = ignored(r).length;
+  if (!all.length) return `${t(l, 'No findings in {count} diagram|No findings in {count} diagrams', { count: r.files.length })}${aside ? t(l, ' ({count} set aside)', { count: aside }) : ''}.`;
+  const parts = [n.error && t(l, '{count} error|{count} errors', { count: n.error }), n.warn && t(l, '{count} warning|{count} warnings', { count: n.warn }), n.info && t(l, '{count} info', { count: n.info })].filter(Boolean).join(', ');
+  return `${t(l, '{count} finding|{count} findings', { count: all.length })} ${r.files.length > 1 ? t(l, 'in {files} of {count} diagrams', { files, count: r.files.length }) : t(l, 'in the diagram')}: ${parts}${aside ? t(l, '; {count} set aside', { count: aside }) : ''}.`;
 }
 
 const where = (f: Finding, file: string) => `${file}${f.line ? `:${f.line}` : ''}`;
 const md = (s: string) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 export function markdownReport(r: Report): string {
-  const out = [`# ${r.title}`, '', `${summaryLine(r)}${r.date ? ` Reviewed ${day(r.date)}.` : ''}`, ''];
+  const l = r.lang;
+  const out = [`# ${r.title}`, '', `${summaryLine(r)}${r.date ? t(l, ' Reviewed {date}.', { date: day(r.date) }) : ''}`, ''];
   const tallies = pillarTally(live(r)).filter((p) => p.total);
   if (tallies.length) {
-    out.push('| Pillar | Errors | Warnings | Info |', '| --- | ---: | ---: | ---: |');
-    for (const p of tallies) out.push(`| ${categoryLabel[p.category]} | ${p.counts.error || '–'} | ${p.counts.warn || '–'} | ${p.counts.info || '–'} |`);
+    out.push(`| ${t(l, 'Pillar')} | ${sevs(l, 'error')} | ${sevs(l, 'warn')} | ${sevs(l, 'info')} |`, '| --- | ---: | ---: | ---: |');
+    for (const p of tallies) out.push(`| ${pillar(l, p.category)} | ${p.counts.error || '–'} | ${p.counts.warn || '–'} | ${p.counts.info || '–'} |`);
     out.push('');
   }
   for (const file of r.files) {
     const found = file.findings.filter((x) => !x.ignored);
     out.push(`## ${file.title ? `${file.title} (${file.file})` : file.file}`, '');
-    if (file.off) out.push('Not reviewed: the file says `review: off`.', '');
+    if (file.off) out.push(t(l, 'Not reviewed: the file says {off}.', { off: '`review: off`' }), '');
     for (const p of file.problems) out.push(`> ${p}`, '');
-    if (!file.off && !file.problems.length && !found.length) out.push('No findings.', '');
-    for (const d of file.drawings) if (d.image && found.length) out.push(`![${md(d.title ?? file.file)}${d.view ? ` (${d.view})` : ''}, with the findings marked](${d.image})`, '');
+    if (!file.off && !file.problems.length && !found.length) out.push(t(l, 'No findings.'), '');
+    for (const d of file.drawings) if (d.image && found.length) out.push(`![${t(l, '{title}, with the findings marked', { title: `${md(d.title ?? file.file)}${d.view ? ` (${d.view})` : ''}` })}](${d.image})`, '');
     for (const c of categories) {
       const list = found.filter((x) => x.rule.category === c);
       if (!list.length) continue;
-      out.push(`### ${categoryLabel[c]}`, '');
+      out.push(`### ${pillar(l, c)}`, '');
       for (const f of list) {
-        out.push(`**${f.id} ${severityLabel[f.severity]}: ${md(f.rule.title)}** — ${md(f.message)}  `);
-        out.push(`About ${md(f.about)}${f.view ? ` in view ${f.view}` : ''} · \`${where(f, file.file)}\` · \`${f.rule.id}\`  `);
-        out.push(`*Why:* ${md(f.rule.why)}  `);
-        out.push(`*Fix:* ${md(f.rule.fix)}${f.rule.docs ? `  \n*Read:* ${md(f.rule.docs)}` : ''}`, '');
+        out.push(`**${f.id} ${sev(l, f.severity)}: ${md(f.rule.title)}** — ${md(f.message)}  `);
+        out.push(`${t(l, 'About {about}', { about: md(f.about) })}${f.view ? t(l, ' in view {view}', { view: f.view }) : ''} · \`${where(f, file.file)}\` · \`${f.rule.id}\`  `);
+        out.push(`*${t(l, 'Why')}:* ${md(f.rule.why)}  `);
+        out.push(`*${t(l, 'Fix')}:* ${md(f.rule.fix)}${f.rule.docs ? `  \n*${t(l, 'Read')}:* ${md(f.rule.docs)}` : ''}`, '');
       }
     }
     const aside = file.findings.filter((x) => x.ignored);
     if (aside.length) {
-      out.push('### Set aside', '', '| Rule | About | Reason |', '| --- | --- | --- |');
-      for (const f of aside) out.push(`| \`${f.rule.id}\` | ${md(f.about)} | ${md(f.ignored!.reason ?? '(no reason given)')} |`);
+      out.push(`### ${t(l, 'Set aside')}`, '', `| ${t(l, 'Rule')} | ${t(l, 'About')} | ${t(l, 'Reason')} |`, '| --- | --- | --- |');
+      for (const f of aside) out.push(`| \`${f.rule.id}\` | ${md(f.about)} | ${md(f.ignored!.reason ?? t(l, '(no reason given)'))} |`);
       out.push('');
     }
   }
-  out.push('---', '', `Rules: ${plural(r.rules.length, 'rule')}${r.packs?.length ? ` from ${r.packs.join(', ')}` : ''}${r.config.length ? `; settings from ${r.config.join(', ')}` : ''}. Each rule, its reason and its fix: docs/review.md.`, '');
+  out.push('---', '', `${t(l, 'Rules: {count} rule|Rules: {count} rules', { count: r.rules.length })}${r.packs?.length ? t(l, ' from {packs}', { packs: r.packs.join(', ') }) : ''}${r.config.length ? t(l, '; settings from {files}', { files: r.config.join(', ') }) : ''}${t(l, '. Each rule, its reason and its fix: docs/review.md.')}`, '');
   return out.join('\n');
 }
 
@@ -131,31 +141,32 @@ function shareable(svg: string, key: string): { full: string; ref: string } {
 /** One self-contained HTML page: summary, then each diagram with its drawing, findings and crops. */
 export function htmlReport(r: Report): string {
   const all = live(r);
-  const t = tally(all);
+  const n = tally(all);
   const tallies = pillarTally(all);
+  const l = r.lang;
   const parts: string[] = [];
-  parts.push(`<header><p class="eyebrow">Architecture review${r.date ? ` · ${day(r.date)}` : ''}</p><h1>${esc(r.title)}</h1><p class="lead">${esc(summaryLine(r))}</p></header>`);
+  parts.push(`<header><p class="eyebrow">${t(l, 'Architecture review')}${r.date ? ` · ${day(r.date)}` : ''}</p><h1>${esc(r.title)}</h1><p class="lead">${esc(summaryLine(r))}</p></header>`);
   parts.push(
-    `<section class="summary" aria-label="Summary"><div class="tiles">${severities.map((s) => `<div class="tile sev-${s}"><span class="glyph">${glyph[s]}</span><strong>${t[s]}</strong><span>${s === 'info' ? 'Info' : `${severityLabel[s]}s`}</span></div>`).join('')}</div>` +
-      `<table class="pillars"><thead><tr><th scope="col">Pillar</th>${severities.map((s) => `<th scope="col" class="num">${s === 'info' ? 'Info' : `${severityLabel[s]}s`}</th>`).join('')}</tr></thead><tbody>${tallies.map((p) => `<tr${p.total ? '' : ' class="quiet"'}><th scope="row">${esc(categoryLabel[p.category])}</th>${severities.map((s) => `<td class="num">${p.counts[s] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></section>`,
+    `<section class="summary" aria-label="${t(l, 'Summary')}"><div class="tiles">${severities.map((s) => `<div class="tile sev-${s}"><span class="glyph">${glyph[s]}</span><strong>${n[s]}</strong><span>${sevs(l, s)}</span></div>`).join('')}</div>` +
+      `<table class="pillars"><thead><tr><th scope="col">${t(l, 'Pillar')}</th>${severities.map((s) => `<th scope="col" class="num">${sevs(l, s)}</th>`).join('')}</tr></thead><tbody>${tallies.map((p) => `<tr${p.total ? '' : ' class="quiet"'}><th scope="row">${esc(pillar(l, p.category))}</th>${severities.map((s) => `<td class="num">${p.counts[s] || '–'}</td>`).join('')}</tr>`).join('')}</tbody></table></section>`,
   );
   for (const [fi, file] of r.files.entries()) {
     const found = file.findings.filter((x) => !x.ignored);
-    const head = `<h2>${esc(file.title ?? file.file)}</h2><p class="file"><code>${esc(file.file)}</code>${file.type ? ` · ${esc(file.type)}` : ''} · ${found.length ? plural(found.length, 'finding') : 'no findings'}</p>`;
+    const head = `<h2>${esc(file.title ?? file.file)}</h2><p class="file"><code>${esc(file.file)}</code>${file.type ? ` · ${esc(file.type)}` : ''} · ${found.length ? t(l, '{count} finding|{count} findings', { count: found.length }) : t(l, 'no findings')}</p>`;
     const body: string[] = [];
-    if (file.off) body.push('<p class="note">Not reviewed: the file says <code>review: off</code>.</p>');
+    if (file.off) body.push(`<p class="note">${t(l, 'Not reviewed: the file says {off}.', { off: '<code>review: off</code>' })}</p>`);
     for (const p of file.problems) body.push(`<p class="note problem">${esc(p)}</p>`);
     const shared = new Map<number, { full: string; ref: string }>();
     for (const [di, d] of file.drawings.entries()) {
       if (!found.some((f) => (f.view ?? '') === (d.view ?? ''))) continue;
       const s = shareable(d.svg, `f${fi}d${di}`);
       shared.set(di, s);
-      body.push(`<figure class="whole"><div class="sheet">${s.full}</div><figcaption>${esc(d.title ?? file.title ?? file.file)}${d.view ? ` · view ${esc(d.view)}` : ''}, with the findings marked</figcaption></figure>`);
+      body.push(`<figure class="whole"><div class="sheet">${s.full}</div><figcaption>${t(l, '{title}, with the findings marked', { title: `${esc(d.title ?? file.title ?? file.file)}${d.view ? t(l, ' · view {view}', { view: esc(d.view) }) : ''}` })}</figcaption></figure>`);
     }
     for (const c of categories) {
       const list = found.filter((x) => x.rule.category === c);
       if (!list.length) continue;
-      body.push(`<h3>${esc(categoryLabel[c])}</h3>`);
+      body.push(`<h3>${esc(pillar(l, c))}</h3>`);
       for (const f of list) {
         const di = file.drawings.findIndex((d) => (d.view ?? '') === (f.view ?? ''));
         const d = file.drawings[di];
@@ -167,25 +178,25 @@ export function htmlReport(r: Report): string {
           const h = Math.min(d.height, Math.max(180, box.height + 80));
           const x = Math.max(0, Math.min(d.width - w, box.x + box.width / 2 - w / 2));
           const y = Math.max(0, Math.min(d.height - h, box.y + box.height / 2 - h / 2));
-          return `<div class="crop"><svg viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" role="img" aria-label="${esc(`${f.about}, as drawn`)}"><use href="#${s.ref}"/></svg></div>`;
+          return `<div class="crop"><svg viewBox="${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" role="img" aria-label="${esc(t(l, '{about}, as drawn', { about: f.about }))}"><use href="#${s.ref}"/></svg></div>`;
         })() : '';
         body.push(
           `<article class="finding sev-${f.severity}" id="${esc(`${file.file}-${f.id}`)}">${crop}<div class="text">` +
-            `<p class="meta"><span class="badge">${glyph[f.severity]} ${f.id} · ${severityLabel[f.severity]}</span> <code>${esc(f.rule.id)}</code> <span class="at">${esc(where(f, file.file))}</span></p>` +
+            `<p class="meta"><span class="badge">${glyph[f.severity]} ${f.id} · ${sev(l, f.severity)}</span> <code>${esc(f.rule.id)}</code> <span class="at">${esc(where(f, file.file))}</span></p>` +
             `<h4>${esc(f.rule.title)}</h4><p class="what">${esc(f.message)}</p>` +
-            `<dl><dt>Why</dt><dd>${esc(f.rule.why)}</dd><dt>Fix</dt><dd>${esc(f.rule.fix)}</dd>${f.rule.docs ? `<dt>Read</dt><dd>${esc(f.rule.docs)}</dd>` : ''}</dl></div></article>`,
+            `<dl><dt>${t(l, 'Why')}</dt><dd>${esc(f.rule.why)}</dd><dt>${t(l, 'Fix')}</dt><dd>${esc(f.rule.fix)}</dd>${f.rule.docs ? `<dt>${t(l, 'Read')}</dt><dd>${esc(f.rule.docs)}</dd>` : ''}</dl></div></article>`,
         );
       }
     }
     const aside = file.findings.filter((x) => x.ignored);
     if (aside.length)
-      body.push(`<h3>Set aside</h3><table class="aside"><thead><tr><th scope="col">Rule</th><th scope="col">About</th><th scope="col">Reason</th></tr></thead><tbody>${aside.map((f) => `<tr><td><code>${esc(f.rule.id)}</code></td><td>${esc(f.about)}</td><td>${f.ignored!.reason ? esc(f.ignored!.reason) : '<em>no reason given</em>'}</td></tr>`).join('')}</tbody></table>`);
-    if (!file.off && !file.problems.length && !found.length) body.push('<p class="note ok">Nothing to report on this diagram.</p>');
+      body.push(`<h3>${t(l, 'Set aside')}</h3><table class="aside"><thead><tr><th scope="col">${t(l, 'Rule')}</th><th scope="col">${t(l, 'About')}</th><th scope="col">${t(l, 'Reason')}</th></tr></thead><tbody>${aside.map((f) => `<tr><td><code>${esc(f.rule.id)}</code></td><td>${esc(f.about)}</td><td>${f.ignored!.reason ? esc(f.ignored!.reason) : `<em>${t(l, 'no reason given')}</em>`}</td></tr>`).join('')}</tbody></table>`);
+    if (!file.off && !file.problems.length && !found.length) body.push(`<p class="note ok">${t(l, 'Nothing to report on this diagram.')}</p>`);
     parts.push(`<section class="diagram">${head}${body.join('')}</section>`);
   }
-  parts.push(`<footer><p>${plural(r.rules.length, 'rule')} ran${r.packs?.length ? ` (${esc(r.packs.join(', '))})` : ''}${r.config.length ? `, with the settings of ${r.config.map((c) => `<code>${esc(c)}</code>`).join(', ')}` : ''}. Made with Cartography: <code>carto review</code>.</p></footer>`);
+  parts.push(`<footer><p>${t(l, '{count} rule ran|{count} rules ran', { count: r.rules.length })}${r.packs?.length ? ` (${esc(r.packs.join(', '))})` : ''}${r.config.length ? t(l, ', with the settings of {files}', { files: r.config.map((c) => `<code>${esc(c)}</code>`).join(', ') }) : ''}. ${t(l, 'Made with Cartography: {command}.', { command: '<code>carto review</code>' })}</p></footer>`);
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(r.title)}</title>
+<html lang="${l ?? 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(r.title)}</title>
 <style>${CSS}</style></head><body><main>${parts.join('\n')}</main></body></html>
 `;
 }
@@ -221,8 +232,8 @@ export function summaryGraph(r: Report): Graph {
   const all = live(r);
   const tallies = pillarTally(all);
   const tone: Record<Severity, Tone> = { error: 'rose', warn: 'amber', info: 'sky' };
-  const rows: MatrixHeader[] = tallies.map((p) => ({ label: categoryLabel[p.category] }));
-  const columns: MatrixHeader[] = severities.map((s) => ({ label: s === 'info' ? 'Info' : `${severityLabel[s]}s` }));
+  const rows: MatrixHeader[] = tallies.map((p) => ({ label: pillar(r.lang, p.category) }));
+  const columns: MatrixHeader[] = severities.map((s) => ({ label: sevs(r.lang, s) }));
   const cells: (MatrixCell | undefined)[][] = tallies.map((p) => severities.map((s) => (p.counts[s] ? { text: String(p.counts[s]), tone: tone[s] } : { text: '–' })));
   const path: Path = [];
   return {
@@ -230,7 +241,7 @@ export function summaryGraph(r: Report): Graph {
     subtitle: summaryLine(r),
     direction: 'right',
     groups: [],
-    nodes: [{ id: 'summary', shape: { kind: 'matrix', corner: 'Pillar', plain: true, table: true, rows, columns, cells }, path }],
+    nodes: [{ id: 'summary', shape: { kind: 'matrix', corner: t(r.lang, 'Pillar'), plain: true, table: true, rows, columns, cells }, path }],
     edges: [],
     legend: [],
   };
