@@ -11,3 +11,4 @@ export { cardStroke, labelInk, labelString, tagRadius } from './paint.ts';
 export * from './journey.ts';
 export * from './steps.ts';
 export * from './flow.ts';
+export * from './tags.ts';

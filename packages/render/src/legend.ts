@@ -4,6 +4,7 @@
 import type { Graph, LegendItem } from '@cartography/core';
 import { baselineOffset, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
 import { dashAttr, esc, glyph, iconTile, monoAttr, r1 } from './paint.ts';
+import { drawTags } from './tags.ts';
 
 /** Sample, gap, label, then the gap to the next item. */
 const SAMPLE = 28;
@@ -165,6 +166,8 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
     if (paper) return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="${Math.min(4, theme.radius.group)}" fill="${paper}" stroke="${groupLine(theme, theme.tones.slate) ?? theme.textFaint}" stroke-width="1.2" stroke-dasharray="${lk.group.dash}"/>` + label;
     return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="4" fill="none" stroke="${theme.textFaint}" stroke-width="1.2" stroke-dasharray="3 2.5"/>` + label;
   }
+  if (item.swatch === 'trust') return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${theme.tones.rose.fg}" stroke-width="1.8" stroke-dasharray="5 3"/>` + label;
+  if (item.swatch === 'mark') return drawTags(theme, ['T1'], x0, cy) + label;
   if (item.swatch === 'fill') return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="${Math.min(7, theme.radius.chip + 3)}" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
   if (item.swatch === 'check' || item.swatch === 'check-outline') {
     // The same filled or dashed check circle as the matrix cells.

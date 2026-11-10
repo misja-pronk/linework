@@ -269,7 +269,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')));
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView: step ? { index: step - 1, states: steps, caption: opts.stepCaption } : undefined }));
-  const views = model?.views.size ? [...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })) : ownViews?.length ? ownViews : undefined;
+  // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
+  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(ownViews?.slice(1) ?? [])] : ownViews?.length ? ownViews : undefined;
   return {
     svg: out.svg,
     width: out.width,
