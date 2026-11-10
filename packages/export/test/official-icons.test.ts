@@ -3,7 +3,9 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { render } from '@cartography/engine';
 import { themes } from '@cartography/theme';
-import { toPptx } from '../src/index.ts';
+import fs from 'node:fs';
+import { fontFiles } from '@cartography/theme/node';
+import { toPdf, toPptx } from '../src/index.ts';
 
 const vendor = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><rect width="18" height="18" fill="#0A7"/></svg>';
 const shop = `type: azure
@@ -23,6 +25,16 @@ describe('slides', () => {
     const media = Object.keys(files).filter((f) => f.startsWith('ppt/media/') && f.endsWith('.svg')).map((f) => strFromU8(files[f]!));
     expect(media).toContain(vendor);
     expect(strFromU8(files['ppt/slides/slide1.xml']!)).toContain('name="Icon Official icon"');
+  });
+
+  it('PDF pages draw them as vectors, dimmed where a step stands them back', async () => {
+    const gradient = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><defs><linearGradient id="a"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs><rect width="18" height="18" fill="url(#a)"/></svg>';
+    const r = await render(shop + 'steps:\n  - { show: [app] }\n  - { show: [app, kv], focus: [kv] }\n', { fonts: 'none', iconPacks: { azure: { 'key-vault': gradient, 'app-service': gradient } } });
+    const [a, b, c] = fontFiles.map((u) => fs.readFileSync(decodeURIComponent(u.pathname)));
+    const pdf = Buffer.from(await toPdf(r, { fonts: { 400: a!, 500: b!, 600: c! }, compress: false, steps: true })).toString('latin1');
+    // The vendor's gradient arrives as a PDF shading; nothing is left as an image it could not open.
+    expect(pdf).toMatch(/\/ShadingType/);
+    expect(pdf).not.toMatch(/\/Subtype \/Image/);
   });
 
   it('in the sketch look name its handwriting face', async () => {
