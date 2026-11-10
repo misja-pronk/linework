@@ -1,0 +1,9 @@
+[
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "cac68ea8-ad10-9886-fede-a922b49aa031",
+    "displayName": "Greta Lind (Northwind)",
+    "userPrincipalName": "greta.lind_northwind.example#EXT#@kestrel.example",
+    "userType": "Guest"
+  }
+]

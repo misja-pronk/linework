@@ -104,6 +104,8 @@ interface Role {
   tone?: Tone;
   /** The role definition's id, for imports. */
   'role-id'?: string;
+  /** Held somewhere inside the scope, not on all of it: what an import writes for scopes it folded away. */
+  part?: boolean;
 }
 
 interface Catalog {
@@ -626,7 +628,8 @@ function check(m: Model, ctx: BuildContext) {
     const kind = m.principal(a.principal)?.kind;
     const what = `${m.label(a.role)} on ${m.label(a.scope)}`;
     if (kind === 'unknown') ctx.warn(a.path, `${what} is held by an identity that no longer exists (${m.label(a.principal)}): the assignment can go`);
-    if (kind === 'user' || kind === 'guest') {
+    // A role held in part says nothing about which part: two of them need not be the same.
+    if ((kind === 'user' || kind === 'guest') && !m.role(a.role)?.part) {
       const group = m.assignments.find((x) => x.role === a.role && x.scope === a.scope && GROUPS.includes(m.principal(x.principal)?.kind ?? ''));
       if (group) ctx.warn(a.path, `${m.label(a.principal)} is ${what} directly, where ${m.label(group.principal)} holds the same role: membership of the group would do`);
     }
@@ -635,7 +638,7 @@ function check(m: Model, ctx: BuildContext) {
     if (p.kind !== 'guest') continue;
     for (const [scope, reach] of m.reach(id)) {
       const scopeKind = m.resource(scope)?.kind ?? '';
-      const top = reach.find((r) => !r.from && OWNER_LEVEL.test(r.text));
+      const top = reach.find((r) => !r.from && OWNER_LEVEL.test(r.text) && !(r.role && m.role(r.role)?.part));
       if (top && BROAD.includes(scopeKind))
         ctx.warn(['principals', id], `Guest ${m.label(id)} is ${top.text} on ${resourceKinds[scopeKind]!.label.toLowerCase()} ${m.label(scope)}${top.via ? ` (via ${top.via})` : ''}: an owner-level role on a broad scope for someone from outside`);
     }
@@ -809,6 +812,7 @@ export const access: DiagramType<AccessSource> = {
                 permissions: { type: 'array', items: { type: 'string' } },
                 tone: { enum: tones },
                 'role-id': { type: 'string', description: 'The role definition id, for imports' },
+                part: { type: 'boolean', description: 'Held somewhere inside the scope, not on all of it' },
               },
               additionalProperties: false,
             },

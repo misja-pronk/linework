@@ -1,0 +1,23 @@
+[
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "77217cb7-228d-4680-2dad-ed4032ec1a10",
+    "displayName": "Alice Jansen",
+    "userPrincipalName": "alice.jansen@kestrel.example",
+    "userType": "Member"
+  },
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "3fddb1af-a0ed-ca6b-e838-f1ec700577ee",
+    "displayName": "Bram de Vries",
+    "userPrincipalName": "bram.de.vries@kestrel.example",
+    "userType": "Member"
+  },
+  {
+    "@odata.type": "#microsoft.graph.user",
+    "id": "c3256242-4f04-d2da-f7ec-8b91802497b7",
+    "displayName": "Hugo Smit",
+    "userPrincipalName": "hugo.smit@kestrel.example",
+    "userType": "Member"
+  }
+]

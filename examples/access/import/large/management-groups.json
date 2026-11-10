@@ -1,0 +1,51 @@
+{
+  "id": "/providers/Microsoft.Management/managementGroups/kestrel",
+  "name": "kestrel",
+  "displayName": "Kestrel Logistics",
+  "type": "Microsoft.Management/managementGroups",
+  "tenantId": "7495f255-9e21-fe55-4594-841b37aae6ba",
+  "children": [
+    {
+      "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd",
+      "name": "3923ca09-b88c-3a36-dcf8-1c9451fd5edd",
+      "displayName": "Kestrel Production",
+      "type": "/subscriptions",
+      "children": null
+    },
+    {
+      "id": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e",
+      "name": "921439db-07ab-b032-0fa9-59d4df7bc03e",
+      "displayName": "Kestrel Test",
+      "type": "/subscriptions",
+      "children": null
+    },
+    {
+      "id": "/subscriptions/d1469fbe-654c-d7f4-b322-d1783c84c2af",
+      "name": "d1469fbe-654c-d7f4-b322-d1783c84c2af",
+      "displayName": "Kestrel Shared Services",
+      "type": "/subscriptions",
+      "children": null
+    },
+    {
+      "id": "/subscriptions/3a036c1e-cf42-90f7-5a8c-2d08d376468e",
+      "name": "3a036c1e-cf42-90f7-5a8c-2d08d376468e",
+      "displayName": "Kestrel Data",
+      "type": "/subscriptions",
+      "children": null
+    },
+    {
+      "id": "/subscriptions/867d3fc3-7135-a687-29bf-db046185a7f5",
+      "name": "867d3fc3-7135-a687-29bf-db046185a7f5",
+      "displayName": "Kestrel Sandbox",
+      "type": "/subscriptions",
+      "children": null
+    },
+    {
+      "id": "/subscriptions/0ec360c5-aec0-97db-7255-4aa714d56515",
+      "name": "0ec360c5-aec0-97db-7255-4aa714d56515",
+      "displayName": "Kestrel Network",
+      "type": "/subscriptions",
+      "children": null
+    }
+  ]
+}

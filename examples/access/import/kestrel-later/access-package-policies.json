@@ -1,0 +1,129 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#identityGovernance/entitlementManagement/assignmentPolicies(accessPackage())",
+  "value": [
+    {
+      "id": "49f027f8-7c3a-adbf-5949-240dd82e001f",
+      "displayName": "Developer access: initial policy",
+      "allowedTargetScope": "specificDirectoryUsers",
+      "specificAllowedTargets": [
+        {
+          "@odata.type": "#microsoft.graph.groupMembers",
+          "groupId": "4b744098-6f60-7a65-c5f3-632e82469001",
+          "description": "All Engineering"
+        }
+      ],
+      "expiration": {
+        "type": "afterDuration",
+        "duration": "P180D"
+      },
+      "requestApprovalSettings": {
+        "isApprovalRequiredForAdd": true,
+        "stages": [
+          {
+            "durationBeforeAutomaticDenial": "P14D",
+            "primaryApprovers": [
+              {
+                "@odata.type": "#microsoft.graph.requestorManager",
+                "managerLevel": 1
+              }
+            ]
+          },
+          {
+            "durationBeforeAutomaticDenial": "P14D",
+            "primaryApprovers": [
+              {
+                "@odata.type": "#microsoft.graph.groupMembers",
+                "groupId": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+                "description": "sg-platform-admins"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewSettings": {
+        "isEnabled": true,
+        "schedule": {
+          "recurrence": {
+            "pattern": {
+              "type": "absoluteMonthly",
+              "interval": 3
+            }
+          }
+        }
+      },
+      "accessPackage": {
+        "id": "27a742a5-3ce8-0030-b0f4-f088eaf992e9"
+      }
+    },
+    {
+      "id": "b595cf57-cb92-4a16-2e1c-b1bfeca0e2bd",
+      "displayName": "Data platform access: initial policy",
+      "allowedTargetScope": "specificDirectoryUsers",
+      "specificAllowedTargets": [
+        {
+          "@odata.type": "#microsoft.graph.groupMembers",
+          "groupId": "f1997d55-a4c7-9409-1b10-3c60944853f7",
+          "description": "sg-developers"
+        }
+      ],
+      "expiration": {
+        "type": "afterDuration",
+        "duration": "P90D"
+      },
+      "requestApprovalSettings": {
+        "isApprovalRequiredForAdd": true,
+        "stages": [
+          {
+            "durationBeforeAutomaticDenial": "P14D",
+            "primaryApprovers": [
+              {
+                "@odata.type": "#microsoft.graph.groupMembers",
+                "groupId": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+                "description": "sg-platform-admins"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewSettings": null,
+      "accessPackage": {
+        "id": "4274bb58-05ff-75ea-6e3c-8db12d76d19d"
+      }
+    },
+    {
+      "id": "e7899dcf-d9e0-c4fe-11d5-8e66ae98dc4b",
+      "displayName": "Partner audit: initial policy",
+      "allowedTargetScope": "specificConnectedOrganizationUsers",
+      "specificAllowedTargets": [
+        {
+          "@odata.type": "#microsoft.graph.connectedOrganizationMembers",
+          "connectedOrganizationId": "b72add65-c380-c5f6-d181-6ccea557db59",
+          "description": "Northwind Audit"
+        }
+      ],
+      "expiration": {
+        "type": "afterDuration",
+        "duration": "P30D"
+      },
+      "requestApprovalSettings": {
+        "isApprovalRequiredForAdd": true,
+        "stages": [
+          {
+            "durationBeforeAutomaticDenial": "P14D",
+            "primaryApprovers": [
+              {
+                "@odata.type": "#microsoft.graph.groupMembers",
+                "groupId": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+                "description": "sg-platform-admins"
+              }
+            ]
+          }
+        ]
+      },
+      "reviewSettings": null,
+      "accessPackage": {
+        "id": "2db4795b-8fd5-c4af-7b97-b1847b36bd2a"
+      }
+    }
+  ]
+}

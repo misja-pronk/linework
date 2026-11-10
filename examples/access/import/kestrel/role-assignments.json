@@ -1,0 +1,112 @@
+[
+  {
+    "id": "/providers/Microsoft.Management/managementGroups/kestrel/providers/Microsoft.Authorization/roleAssignments/326a1370-a27c-0b10-157e-3bc3db7338f6",
+    "name": "326a1370-a27c-0b10-157e-3bc3db7338f6",
+    "principalId": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+    "principalName": "sg-platform-admins",
+    "principalType": "Group",
+    "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+    "roleDefinitionName": "Owner",
+    "scope": "/providers/Microsoft.Management/managementGroups/kestrel",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/providers/Microsoft.Management/managementGroups/kestrel/providers/Microsoft.Authorization/roleAssignments/2dd4054e-83d5-6076-d6c4-c585234196f1",
+    "name": "2dd4054e-83d5-6076-d6c4-c585234196f1",
+    "principalId": "2f43c348-d4ae-78b9-1c8b-e9c0ee6f8d56",
+    "principalName": "sg-auditors",
+    "principalType": "Group",
+    "roleDefinitionId": "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "roleDefinitionName": "Reader",
+    "scope": "/providers/Microsoft.Management/managementGroups/kestrel",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleAssignments/b17b6ae1-4194-d0f7-8679-7b961d3a5f65",
+    "name": "b17b6ae1-4194-d0f7-8679-7b961d3a5f65",
+    "principalId": "f1997d55-a4c7-9409-1b10-3c60944853f7",
+    "principalName": "sg-developers",
+    "principalType": "Group",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "roleDefinitionName": "Reader",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e/providers/Microsoft.Authorization/roleAssignments/0d388a09-dd1a-c5f3-997c-d870f25258dd",
+    "name": "0d388a09-dd1a-c5f3-997c-d870f25258dd",
+    "principalId": "f1997d55-a4c7-9409-1b10-3c60944853f7",
+    "principalName": "sg-developers",
+    "principalType": "Group",
+    "roleDefinitionId": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+    "roleDefinitionName": "Contributor",
+    "scope": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod/providers/Microsoft.Authorization/roleAssignments/d4374c8c-94d9-55be-add5-93b111fcebce",
+    "name": "d4374c8c-94d9-55be-add5-93b111fcebce",
+    "principalId": "f1997d55-a4c7-9409-1b10-3c60944853f7",
+    "principalName": "sg-developers",
+    "principalType": "Group",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/d3421385-7229-716d-7f23-725724da7eec",
+    "roleDefinitionName": "Shop Operator",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod/providers/Microsoft.Authorization/roleAssignments/31d1a874-95bb-9f61-d2fc-9849503ad871",
+    "name": "31d1a874-95bb-9f61-d2fc-9849503ad871",
+    "principalId": "2ddfbd94-4b12-8ed8-1e28-76f9b9eb431d",
+    "principalName": "2e235cdc-8e2f-9569-d7a3-9f1806812b8b",
+    "principalType": "ServicePrincipal",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+    "roleDefinitionName": "Contributor",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod/providers/Microsoft.KeyVault/vaults/kv-shop-prod/providers/Microsoft.Authorization/roleAssignments/d4b905e1-b6d0-1717-71f7-a7de8dc65f0c",
+    "name": "d4b905e1-b6d0-1717-71f7-a7de8dc65f0c",
+    "principalId": "268e97b0-bf62-e893-56a6-fe4a5e920e05",
+    "principalName": "dc0ac674-b809-babc-827e-d5749923370c",
+    "principalType": "ServicePrincipal",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+    "roleDefinitionName": "Key Vault Secrets User",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-shop-prod/providers/Microsoft.KeyVault/vaults/kv-shop-prod",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-data-prod/providers/Microsoft.Storage/storageAccounts/stkestreldata/providers/Microsoft.Authorization/roleAssignments/2d52621d-b63c-b0f9-1ad6-22dbab56c1a1",
+    "name": "2d52621d-b63c-b0f9-1ad6-22dbab56c1a1",
+    "principalId": "9bbb809c-907f-c391-df3c-e91b68047f12",
+    "principalName": "sg-data-engineers",
+    "principalType": "Group",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "roleDefinitionName": "Storage Blob Data Contributor",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-data-prod/providers/Microsoft.Storage/storageAccounts/stkestreldata",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e/providers/Microsoft.Authorization/roleAssignments/2964117e-0761-1586-98f5-b9b2f0ac7a38",
+    "name": "2964117e-0761-1586-98f5-b9b2f0ac7a38",
+    "principalId": "157dfeb1-3ded-621f-9ac0-d7fd6e81cdfd",
+    "principalName": "emre.yilmaz@kestrel.example",
+    "principalType": "User",
+    "roleDefinitionId": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+    "roleDefinitionName": "Contributor",
+    "scope": "/subscriptions/921439db-07ab-b032-0fa9-59d4df7bc03e",
+    "type": "Microsoft.Authorization/roleAssignments"
+  },
+  {
+    "id": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-data-prod/providers/Microsoft.Authorization/roleAssignments/9d625889-4f6b-11c5-db62-761da667ae7f",
+    "name": "9d625889-4f6b-11c5-db62-761da667ae7f",
+    "principalId": "71698059-5e39-f9bf-d970-7b23d678fa1f",
+    "principalName": "",
+    "principalType": "User",
+    "roleDefinitionId": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "roleDefinitionName": "Reader",
+    "scope": "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd/resourceGroups/rg-data-prod",
+    "type": "Microsoft.Authorization/roleAssignments"
+  }
+]

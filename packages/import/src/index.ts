@@ -8,6 +8,7 @@
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
 //   importDataMesh(files)  data product files (ODPS) and data contracts (ODCS) → data-products
 //   importTerraform(text)  `terraform show -json` of a state or a plan (AWS, Google Cloud) → cloud
+//   importAccess(files)    az role assignments, Graph JSON (groups, directory roles, access packages), AzureHound → access
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
@@ -29,6 +30,7 @@ export { importNetwork, isNetworkInventory, networkKind } from './network.ts';
 export { importStructurizr, isStructurizr } from './structurizr.ts';
 export { dataFileKind, importDataMesh, isDataMeshFile, type DataFileKind, type ImportedMesh, type MeshFile, type MeshOptions, type MeshProblem } from './data-mesh.ts';
 export { importTerraform, isTerraform } from './terraform.ts';
+export { importAccess, isAccessExport, type AccessOptions, type ExportFile, type ImportedExport } from './access.ts';
 export { GIT_LOG_FORMAT, importGitLog, type GitLogOptions } from './git.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
