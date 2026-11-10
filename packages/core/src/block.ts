@@ -44,6 +44,8 @@ export interface BlockShape {
   caption?: string;
   tone: Tone;
   heat?: BlockHeat;
+  /** On a heatmap, has no value: drawn as the key's "No value" at every depth. */
+  blank?: boolean;
   /** Holds other blocks, placed inside it: its label is a header, its own heat a tag beside it. */
   container?: boolean;
   /** The block it stands in (a capability's parent, by node id): the tree engine places it there. */

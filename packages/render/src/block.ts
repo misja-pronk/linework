@@ -63,7 +63,7 @@ export function heatColors(theme: Theme, heat: BlockHeat): HeatColors {
   const fg = theme.tones[tone].fg;
   const dark = theme.mode === 'dark';
   // A sequential scale runs from a wash to most of the colour, so neighbouring steps stay apart.
-  const k = heat.scale === 'sequential' ? 0.08 + 0.8 * at : heat.scale === 'diverging' ? 0.2 + 0.3 * Math.abs(2 * at - 1) : 0.3;
+  const k = heat.scale === 'sequential' ? 0.08 + 0.72 * at : heat.scale === 'diverging' ? 0.2 + 0.3 * Math.abs(2 * at - 1) : 0.3;
   const fill = mix(fg, theme.surface, dark ? k * 0.85 : k);
   const ink = contrast(theme.text, fill) >= contrast(theme.canvas, fill) ? theme.text : theme.canvas;
   const tagInk = contrast(theme.surface, fg) >= contrast(theme.text, fg) ? theme.surface : theme.text;
@@ -192,7 +192,8 @@ export function blockMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
     case 'capability': {
       const c = BLOCK.capability;
       const leafHeat = !s.container && heat;
-      const fill = leafHeat ? heat.fill : theme.surface;
+      // Without a value on a heatmap: the paper tint of the key's "No value", as a chip without one.
+      const fill = leafHeat ? heat.fill : s.blank ? (paperTint(theme, 1) ?? theme.tones.slate.bg) : theme.surface;
       m.push({ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: theme.radius.card, fill, stroke: leafHeat ? mix(heat.tag, heat.fill, 0.45) : theme.border, sw: theme.stroke.card, name: s.label });
       if (leafHeat && s.heat?.pattern) pattern(b.x, b.y, b.width, b.height, s.heat.pattern, heat.line, theme.radius.card);
       const room = b.width - 2 * c.padX - tagRoom(s);
