@@ -11,6 +11,7 @@
     "@cartography/cloud": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/github": "workspace:*",
+    "@cartography/i18n": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/kubernetes": "workspace:*",

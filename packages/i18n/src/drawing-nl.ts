@@ -1,0 +1,23 @@
+// The Dutch of a drawing's own words (see ./drawing.ts), by English text.
+export const nl = {
+  KEY: 'LEGENDA',
+  LEGEND: 'LEGENDA',
+  'In focus': 'In focus',
+  'everything connected': 'alles wat ermee verbonden is',
+  '{count} hop|{count} hops': '{count} stap ver|{count} stappen ver',
+  upstream: 'stroomopwaarts',
+  downstream: 'stroomafwaarts',
+  ' or ': ' of ',
+  Layer: 'Laag',
+  '{layer}: what is tagged {tags}; the rest faded': '{layer}: wat de tag {tags} heeft; de rest vervaagd',
+  '{layer}: what is tagged {tags}': '{layer}: wat de tag {tags} heeft',
+  '{label} badge': '{label} (badge)',
+  '{label}, dashed': '{label}, gestreept',
+  '{label}, dotted': '{label}, gestippeld',
+  'Only in the environments named; unmarked: in all ({names})': 'Alleen in de genoemde omgevingen; zonder tag: in alle ({names})',
+  'Focus on {names} and their branch': 'Focus op {names} en hun tak',
+  'Focus on {names}, {reach}': 'Focus op {names}, {reach}',
+  'step {n} of {count}': 'stap {n} van {count}',
+  '{names} layer|{names} layers': 'laag {names}|lagen {names}',
+  Legend: 'Legenda',
+} as const satisfies Record<string, string>;

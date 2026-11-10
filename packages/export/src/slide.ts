@@ -4,6 +4,7 @@
 import { chips, type BlockShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
 import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, markStyle, type TagStyle } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
+import { tr } from '@cartography/i18n/drawing';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 /** EMU per CSS pixel at 96 dpi. */
@@ -917,7 +918,7 @@ class SlideDrawing {
     const first = lay.key ? top + 40 : top + 26;
     if (lay.key) {
       items.push(this.hline(0, Math.max(this.placed.width, lay.width), top + 16, t.border));
-      items.push(this.text(0, first, 'KEY', 9.5, 600, t.textFaint, 'start', 'Legend', { tracking: 1.2 }));
+      items.push(this.text(0, first, tr(t.lang, 'KEY'), 9.5, 600, t.textFaint, 'start', 'Legend', { tracking: 1.2 }));
     }
     for (const [i, row] of lay.rows.entries())
       for (const { item, x } of row) {

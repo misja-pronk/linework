@@ -11,6 +11,7 @@ import { edgeItemSchema, edgeReferences, parseEdge } from './edges.ts';
 import { idPattern, type BuildContext, type KindTable, type Reference } from './diagram-type.ts';
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, LinePattern, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
+import { term, tr } from '@cartography/i18n/drawing';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
 import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
@@ -344,19 +345,19 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
 
   const legend: LegendItem[] = Object.entries(cfg.edgeStyles ?? {}).flatMap(([k, s]) => [
     ...(usedStyles.has(k) ? [{ label: s.label, line: s.line, tone: s.tone, ...(patterns[k] ? { pattern: patterns[k] } : {}) }] : []),
-    ...(badgeStyles.has(k) ? [{ label: `${s.label} badge`, swatch: 'badge' as const, tone: s.tone}] : []),
+    ...(badgeStyles.has(k) ? [{ label: tr(ctx.lang, '{label} badge', { label: term(ctx.lang, s.label) }), swatch: 'badge' as const, tone: s.tone}] : []),
   ]);
   // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing:
   // each way a line without a style is drawn gets an entry, once the key explains anything else.
   if (legend.length || plainLines.size > 1) {
-    const plain = cfg.plainEdge ?? 'Connection';
-    const named = { solid: plain, dashed: `${plain}, dashed`, dotted: `${plain}, dotted` } as const;
+    const plain = term(ctx.lang, cfg.plainEdge ?? 'Connection');
+    const named = { solid: plain, dashed: tr(ctx.lang, '{label}, dashed', { label: plain }), dotted: tr(ctx.lang, '{label}, dotted', { label: plain }) } as const;
     legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
   }
 
   for (const x of [...groups, ...nodes, ...edges]) for (const t of x.marks ?? []) marked.add(t);
   const environments = envNames.filter((n) => marked.has(n));
-  if (environments.length) legend.push({ label: `Only in the environments named; unmarked: in all (${environments.join(', ')})`, swatch: 'mark', tag: environments[0] });
+  if (environments.length) legend.push({ label: tr(ctx.lang, 'Only in the environments named; unmarked: in all ({names})', { names: environments.join(', ') }), swatch: 'mark', tag: environments[0] });
 
   const graph: Graph = {
     title: src.title,

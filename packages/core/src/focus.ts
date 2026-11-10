@@ -11,6 +11,8 @@
 // (a network link, a contract, an ERD relation) counts both ways.
 import type { Graph, GraphEdge, GraphNode, LegendItem } from './model.ts';
 import { selectorsOf } from './steps.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr } from '@cartography/i18n/drawing';
 
 export type FocusDirection = 'both' | 'upstream' | 'downstream';
 
@@ -45,9 +47,9 @@ export function readFocus(raw: unknown): FocusSpec | undefined {
 }
 
 /** "2 hops upstream", as a subtitle or a chip says it. */
-export function focusReach(spec: Pick<FocusSpec, 'hops' | 'direction'>): string {
-  const far = spec.hops === Infinity ? 'everything connected' : `${spec.hops} ${spec.hops === 1 ? 'hop' : 'hops'}`;
-  return spec.direction === 'both' ? far : `${far} ${spec.direction}`;
+export function focusReach(spec: Pick<FocusSpec, 'hops' | 'direction'>, lang?: Lang): string {
+  const far = spec.hops === Infinity ? tr(lang, 'everything connected') : tr(lang, '{count} hop|{count} hops', { count: spec.hops });
+  return spec.direction === 'both' ? far : `${far} ${spec.direction === 'upstream' ? tr(lang, 'upstream') : tr(lang, 'downstream')}`;
 }
 
 /** Drawings that are one shape: there is nothing in them to walk from. */

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@cartography/core": "workspace:*",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@cartography/i18n": "workspace:*"
   }
 }

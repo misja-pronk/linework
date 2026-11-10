@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*"
+    "@cartography/core": "workspace:*",
+    "@cartography/i18n": "workspace:*"
   }
 }

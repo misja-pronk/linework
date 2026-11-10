@@ -15,6 +15,7 @@
     "@cartography/describe": "workspace:*",
     "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",
+    "@cartography/i18n": "workspace:*",
     "@cartography/render": "workspace:*",
     "@cartography/theme": "workspace:*",
     "fflate": "0.8.3",

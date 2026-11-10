@@ -9,5 +9,8 @@
   "devDependencies": {
     "@cartography/engine": "workspace:*",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@cartography/i18n": "workspace:*"
   }
 }

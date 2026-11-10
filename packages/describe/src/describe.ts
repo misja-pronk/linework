@@ -6,9 +6,12 @@
 import { strideNames, type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@cartography/core';
 import type { BlockShape, GitflowShape, JourneyShape, JourneyStep, MatrixShape, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
 import type { Description, Item, Section } from './text.ts';
+import type { Lang } from '@cartography/i18n';
 
 /** What render() returns, or anything else that carries a built graph: describe(result) works as is. */
 export interface DescribeInput {
+  /** The language to tell it in: the diagram's `lang:` (render's). English by default. */
+  lang?: Lang;
   graph?: Graph;
   /** The diagram type: its name says what kind of drawing it is. */
   type?: { id: string; name: string };
