@@ -141,10 +141,13 @@ export function App() {
     [],
   );
   // A first visit starts with choosing what to make and how.
+  // The start dialog only until it has been left once (by any way: a template, a file, Esc).
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
   // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
+  // Once the start dialog is left, by whatever way, it is not shown at the next launch.
   useEffect(() => {
     if (modal) setToast(undefined);
+    else store.set('started', true);
   }, [modal]);
   /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
   // A first visit shows the builder: the friendliest way in.
