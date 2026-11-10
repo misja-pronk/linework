@@ -22,3 +22,4 @@ export * from './share.ts';
 export * from './workspace.ts';
 export * from './workspace-rename.ts';
 export * from './notes.ts';
+export * from './decisions.ts';
