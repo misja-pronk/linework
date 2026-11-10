@@ -16,6 +16,8 @@
 // the elements as small tags, so the drawing and the table point at each other without colour.
 import type { BuildContext, KindTable } from './diagram-type.ts';
 import type { Graph, GraphEdge, GraphNode, LegendItem, MatrixCell, MatrixHeader, Path, Tone } from './model.ts';
+import { listWords, type Lang } from '@cartography/i18n';
+import { tr, type DrawingMessage } from '@cartography/i18n/drawing';
 
 export type Stride = 'S' | 'T' | 'R' | 'I' | 'D' | 'E';
 export type ThreatStatus = 'open' | 'mitigated' | 'accepted' | 'transferred' | 'suggested';
@@ -233,10 +235,12 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
 
   // Rules: what a reviewer asks first. A target that lists its threats (even none) was looked at; a
   // category it already names is not suggested again.
-  type Found = { t: Target; stride: Stride[]; title: string; mitigation: string; path: Path };
+  // Said in English in the warnings (as every message about the YAML), in the diagram's language in the table.
+  type Said = (lang?: Lang) => string;
+  type Found = { t: Target; stride: Stride[]; title: Said; mitigation: Said; path: Path };
   const found: Found[] = [];
   if (rules !== 'off') {
-    const suggest = (t: Target, stride: Stride[], title: string, mitigation: string, path: Path) => {
+    const suggest = (t: Target, stride: Stride[], title: Said, mitigation: Said, path: Path) => {
       if (t.reviewed) return;
       const named = new Set(t.written.flatMap((w) => w.stride));
       const left = stride.filter((s) => !named.has(s));
@@ -252,17 +256,17 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
       const b = zones(e.to.node);
       const crossed = [...a.filter((z) => !b.includes(z)), ...b.filter((z) => !a.includes(z))];
       const t = target(`e:${e.id}`, { edge: e });
-      const boundary = crossed.length ? `the trust ${crossed.length > 1 ? 'boundaries' : 'boundary'} ${crossed.map((z) => `"${trusted.get(z)}"`).join(' and ')}` : '';
+      const zonesCrossed = (lang?: Lang) => ({ names: listWords(lang, crossed.map((z) => `"${trusted.get(z)}"`)), count: crossed.length });
       const fromOutside = external(e.from.node) && !external(e.to.node);
-      if (crossed.length && !encrypted) suggest(t, ['T', 'I'], `Data crosses ${boundary} unencrypted`, 'Encrypt in transit (TLS); then mark the line encrypted: true', e.path);
+      if (crossed.length && !encrypted) suggest(t, ['T', 'I'], (l) => tr(l, 'Data crosses the trust boundary {names} unencrypted|Data crosses the trust boundaries {names} unencrypted', zonesCrossed(l)), (l) => tr(l, 'Encrypt in transit (TLS); then mark the line encrypted: true'), e.path);
       if ((crossed.length || fromOutside) && !auth)
-        suggest(t, ['S'], fromOutside ? `${name(e.from.node)} reaches ${name(e.to.node)} without authentication` : `The caller is not authenticated across ${boundary}`, 'Authenticate the caller (OAuth2/OIDC, mTLS or a signed token); then set auth:', e.path);
-      if (external(e.from.node) && store(e.to.node)) suggest(t, ['T', 'I'], `${name(e.from.node)} writes to a data store directly`, 'Put a service in front of the store that checks what comes in', e.path);
+        suggest(t, ['S'], fromOutside ? (l) => tr(l, '{from} reaches {to} without authentication', { from: name(e.from.node), to: name(e.to.node) }) : (l) => tr(l, 'The caller is not authenticated across the trust boundary {names}|The caller is not authenticated across the trust boundaries {names}', zonesCrossed(l)), (l) => tr(l, 'Authenticate the caller (OAuth2/OIDC, mTLS or a signed token); then set auth:'), e.path);
+      if (external(e.from.node) && store(e.to.node)) suggest(t, ['T', 'I'], (l) => tr(l, '{from} writes to a data store directly', { from: name(e.from.node) }), (l) => tr(l, 'Put a service in front of the store that checks what comes in'), e.path);
     }
     for (const n of graph.nodes) {
       if (!store(n.id)) continue;
       const encrypted = entryOf('nodes', n.id).encrypted === true || tagged(n.id, 'encrypted');
-      if (!encrypted) suggest(target(`n:${n.id}`, { node: n.id }), ['I'], 'Data at rest is not encrypted', 'Encrypt at rest (disk, TDE or KMS keys); then mark it encrypted: true', n.path);
+      if (!encrypted) suggest(target(`n:${n.id}`, { node: n.id }), ['I'], (l) => tr(l, 'Data at rest is not encrypted'), (l) => tr(l, 'Encrypt at rest (disk, TDE or KMS keys); then mark it encrypted: true'), n.path);
     }
   }
 
@@ -286,8 +290,8 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
   rows.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
   for (const f of found) {
     const cats = f.stride.join(', ');
-    ctx.warn(f.path, `Suggested threat (${cats}) on ${f.t.edge ? lineName(f.t.edge) : name(f.t.node!)}: ${f.title}. ${f.mitigation}, list the threat under threats:, or write threats: [] when it was reviewed`);
-    if (rules === 'table') rows.push({ id: next(), stride: f.stride, title: f.title, mitigation: f.mitigation, status: 'suggested', ...where(f.t), suggested: true, path: f.path });
+    ctx.warn(f.path, `Suggested threat (${cats}) on ${f.t.edge ? lineName(f.t.edge) : name(f.t.node!)}: ${f.title('en')}. ${f.mitigation('en')}, list the threat under threats:, or write threats: [] when it was reviewed`);
+    if (rules === 'table') rows.push({ id: next(), stride: f.stride, title: f.title(ctx.lang), mitigation: f.mitigation(ctx.lang), status: 'suggested', ...where(f.t), suggested: true, path: f.path });
   }
 
   // Marks on the drawing.
@@ -316,26 +320,27 @@ export function threatViews(src: Record<string, unknown>): { name: string; title
 }
 
 export const statusTone: Record<ThreatStatus, Tone> = { open: 'rose', mitigated: 'green', accepted: 'amber', transferred: 'slate', suggested: 'slate' };
-const statusLabel: Record<ThreatStatus, string> = { open: 'Open', mitigated: 'Mitigated', accepted: 'Accepted', transferred: 'Transferred', suggested: 'Suggested' };
+const statusLabel = { open: 'Open@threat', mitigated: 'Mitigated', accepted: 'Accepted@threat', transferred: 'Transferred', suggested: 'Suggested' } as const satisfies Record<ThreatStatus, DrawingMessage>;
+const statusSaid = (s: ThreatStatus, lang?: Lang) => tr(lang, statusLabel[s]);
 
 /** The threat table as a drawing: one row per threat, its number as on the drawing. */
-export function threatTable(graph: Graph): Graph {
+export function threatTable(graph: Graph, lang?: Lang): Graph {
   const rows = graph.threats ?? [];
-  const columns: MatrixHeader[] = [{ label: 'Element or flow' }, { label: 'STRIDE' }, { label: 'Threat' }, { label: 'Mitigation' }, { label: 'Status' }];
+  const columns: MatrixHeader[] = [{ label: tr(lang, 'Element or flow') }, { label: 'STRIDE' }, { label: tr(lang, 'Threat') }, { label: tr(lang, 'Mitigation') }, { label: tr(lang, 'Status') }];
   const cells: (MatrixCell | undefined)[][] = rows.map((r) => [
     { text: r.on, strong: true },
     { text: r.stride.map((s) => strideNames[s]).join(', ') },
     { text: r.title ?? '–' },
     { text: r.mitigation ?? '–' },
-    { text: statusLabel[r.status], tone: statusTone[r.status] },
+    { text: statusSaid(r.status, lang), tone: statusTone[r.status] },
   ]);
   const used = [...new Set(rows.map((r) => r.status))];
   const node: GraphNode = rows.length
     ? { id: 'threats', shape: { kind: 'matrix', corner: 'ID', plain: true, wrap: 260, table: true, rows: rows.map((r) => ({ label: r.id })), columns, cells }, path: [] }
-    : { id: 'threats', shape: { kind: 'card', label: 'No threats yet', caption: 'Add threats: to elements and lines, or a trust boundary', icon: 'shield-check', tone: 'green' }, path: [] };
-  const counts = (['open', 'mitigated', 'accepted', 'transferred', 'suggested'] as const).filter((s) => used.includes(s)).map((s) => `${rows.filter((r) => r.status === s).length} ${s}`);
+    : { id: 'threats', shape: { kind: 'card', label: tr(lang, 'No threats yet'), caption: tr(lang, 'Add threats: to elements and lines, or a trust boundary'), icon: 'shield-check', tone: 'green' }, path: [] };
+  const counts = (['open', 'mitigated', 'accepted', 'transferred', 'suggested'] as const).filter((s) => used.includes(s)).map((s) => `${rows.filter((r) => r.status === s).length} ${statusSaid(s, lang).toLowerCase()}`);
   return {
-    title: graph.title ? `${graph.title} — threats` : 'Threats',
+    title: graph.title ? tr(lang, '{title} — threats', { title: graph.title }) : tr(lang, 'Threats'),
     subtitle: [graph.subtitle, counts.join(', ')].filter(Boolean).join(' · ') || undefined,
     direction: 'right',
     groups: [],
@@ -347,15 +352,15 @@ export function threatTable(graph: Graph): Graph {
 }
 
 /** The threat table as markdown, for a design document or a ticket. */
-export function threatMarkdown(graph: Graph, title = graph.title): string {
+export function threatMarkdown(graph: Graph, title = graph.title, lang?: Lang): string {
   const rows = graph.threats ?? [];
   const cell = (s: string | undefined) => (s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ') || '–';
-  const out = [`# ${title ? `${title} — threats` : 'Threats'}`, ''];
-  if (!rows.length) return [...out, 'No threats are listed yet.', ''].join('\n');
+  const out = [`# ${title ? tr(lang, '{title} — threats', { title }) : tr(lang, 'Threats')}`, ''];
+  if (!rows.length) return [...out, tr(lang, 'No threats are listed yet.'), ''].join('\n');
   const tally = (['open', 'mitigated', 'accepted', 'transferred', 'suggested'] as const).map((s) => [s, rows.filter((r) => r.status === s).length] as const).filter(([, n]) => n);
-  out.push(tally.map(([s, n]) => `${n} ${s}`).join(', ') + '.', '');
-  out.push('| ID | Element or flow | STRIDE | Threat | Mitigation | Status |', '| --- | --- | --- | --- | --- | --- |');
-  for (const r of rows) out.push(`| ${cell(r.id)} | ${cell(r.on)} | ${r.stride.map((s) => strideNames[s]).join(', ')} | ${cell(r.title)} | ${cell(r.mitigation)} | ${statusLabel[r.status]} |`);
+  out.push(tally.map(([s, n]) => `${n} ${statusSaid(s, lang).toLowerCase()}`).join(', ') + '.', '');
+  out.push(`| ID | ${tr(lang, 'Element or flow')} | STRIDE | ${tr(lang, 'Threat')} | ${tr(lang, 'Mitigation')} | ${tr(lang, 'Status')} |`, '| --- | --- | --- | --- | --- | --- |');
+  for (const r of rows) out.push(`| ${cell(r.id)} | ${cell(r.on)} | ${r.stride.map((s) => strideNames[s]).join(', ')} | ${cell(r.title)} | ${cell(r.mitigation)} | ${statusSaid(r.status, lang)} |`);
   out.push('', 'STRIDE: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege.', '');
   return out.join('\n');
 }

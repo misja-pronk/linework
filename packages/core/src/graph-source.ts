@@ -372,7 +372,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   };
   if (!cfg.threats) return graph;
   applyThreats(graph, src as Record<string, unknown>, cfg.threats === true ? threatKindsOf(cfg.nodeKinds) : cfg.threats, ctx);
-  return src.view === 'threats' ? threatTable(graph) : graph;
+  return src.view === 'threats' ? threatTable(graph, ctx.lang) : graph;
 }
 
 function breakCycles(groups: GraphGroup[], ctx: BuildContext) {
