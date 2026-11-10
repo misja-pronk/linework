@@ -65,6 +65,14 @@ const crossingBudget: Record<string, number> = {
   'model/context.yaml': 0,
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
+  'workspace/access.yaml': 0,
+  'workspace/containers.yaml': 0,
+  'workspace/containers.yaml#payments': 0,
+  'workspace/containers.yaml#api': 1, // the payments call leaves the API past the accounts controller's line to the ledger
+  'workspace/context.yaml': 0,
+  'workspace/data-products.yaml': 0,
+  'workspace/deployment.yaml': 1, // the API's line to the core ledger outside the subscription crosses the call into the gateway
+  'workspace/model.yaml': 0,
   'network/campus.yaml': 0,
   'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
   'network/office-ip-plan.yaml': 0,
@@ -111,6 +119,10 @@ const headerBudget: Record<string, number> = {
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
+  // The Harbour Bank workspace example (examples/workspace), as drawn when it was added.
+  'workspace/containers.yaml#api': 2,
+  'workspace/context.yaml': 1,
+  'workspace/data-products.yaml': 2,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
@@ -165,6 +177,7 @@ const joinBudget: Record<string, number> = {
 
 // Labels with another line running through or right beside them: none, but for the ones named here.
 const touchBudget: Record<string, number> = {
+  'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
   'c4/kestrel-bank.yaml#context': 1,
   'deployment/model.yaml#containers': 1,
   'states/pull-request.yaml': 1, // closed without merging, between the line out and the line back
@@ -173,6 +186,7 @@ const touchBudget: Record<string, number> = {
 
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
 const returns: Record<string, number> = {
+  'workspace/containers.yaml': 2, // customer → web and app, drawn above the boundary they enter
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
   'process/release-with-gate.yaml': 1,
@@ -195,7 +209,7 @@ const returns: Record<string, number> = {
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
   // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
-  const views = files.filter((f) => f.startsWith('c4/') || f.startsWith('deployment/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
+  const views = files.filter((f) => f.startsWith('c4/') || f.startsWith('deployment/') || f.startsWith('workspace/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
   it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).filter((k) => !k.includes('#')).sort()));
 
   for (const key of [...files, ...views])
