@@ -32,7 +32,7 @@ export const kinds: Record<string, Kind> = {
   state: { label: 'State', icon: 'square', tone: 'slate', keywords: ['status', 'phase', 'mode'] },
   choice: { label: 'Choice', icon: 'diamond', tone: 'amber', mark: 'choice', keywords: ['decision', 'guard', 'if', 'branch', 'condition'] },
   final: { label: 'Final state', icon: 'circle-dot', tone: 'slate', mark: 'final', keywords: ['end', 'done', 'terminal'] },
-  history: { label: 'History', icon: 'history', tone: 'slate', mark: 'history', keywords: ['resume', 'where it left off'] },
+  history: { label: 'History', icon: 'undo-2', tone: 'slate', mark: 'history', keywords: ['resume', 'where it left off'] },
 };
 const kindOf = (name: unknown): string | undefined => (typeof name === 'string' && Object.hasOwn(kinds, name) ? name : undefined);
 

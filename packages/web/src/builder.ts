@@ -398,7 +398,7 @@ export type Field =
   | { key: string; kind: 'number'; label: string; value: string; hint?: string }
   | { key: string; kind: 'select'; label: string; value: string; options: string[]; hint?: string; allowEmpty: boolean; labels?: Record<string, string> }
   | { key: string; kind: 'toggle'; label: string; value: boolean; hint?: string }
-  | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string }
+  | { key: string; kind: 'list'; label: string; value: string[]; options?: string[]; hint?: string; one?: true }
   | { key: string; kind: 'yaml'; label: string; summary: string; hint?: string };
 
 const titleCase = (k: string) => k.charAt(0).toUpperCase() + k.slice(1).replace(/-/g, ' ');
@@ -432,6 +432,8 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
     const label = titleCase(key);
     const enumAlt = alts.find((a) => Array.isArray(a.enum));
     const refs = refsOf(type, key);
+    const words = (a?: Schema) => a?.type === 'string' || (Array.isArray(a?.type) && a.type.includes('string'));
+    const either = alts.some(words) && alts.some((a) => a.type === 'array' && words(a.items));
     if (enumAlt && !alts.some((a) => a.type === 'object')) {
       // Kinds read as their names ("Key Vault"), from the palette of this collection.
       const names = Object.fromEntries(type.palette.filter((p) => p.collection === collection).map((p) => [p.kind, p.label]));
@@ -451,8 +453,9 @@ export function fieldsFor(text: string, type: DiagramType, path: Path): Field[] 
         }
       fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options, hint, allowEmpty: true, labels });
     } else if (alts.some((a) => a.type === 'boolean')) fields.push({ key, kind: 'toggle', label, value: v === true, hint });
-    else if (alts.some((a) => a.type === 'array') && (v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
-      fields.push({ key, kind: 'list', label, value: (v as string[] | undefined) ?? [], hint });
+    else if (alts.some((a) => a.type === 'array') && (v == null || (either && typeof v !== 'object') || (Array.isArray(v) && v.every((x) => typeof x === 'string'))))
+      // One thing or a list of them ("entry: lock" or "entry: [lock, log]"): one stays written as one.
+      fields.push({ key, kind: 'list', label, value: v == null ? [] : Array.isArray(v) ? (v as string[]) : [String(v)], hint, ...(either && !Array.isArray(v) ? { one: true as const } : {}) });
     else if (alts.some((a) => a.type === 'object' || a.type === 'array'))
       fields.push({ key, kind: 'yaml', label, summary: summary(v), hint });
     else if (alts.some((a) => a.type === 'integer' || a.type === 'number') && !alts.some((a) => a.type === 'string' || (Array.isArray(a.type) && a.type.includes('string'))))

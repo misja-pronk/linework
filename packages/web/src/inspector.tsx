@@ -144,15 +144,13 @@ export function Inspector(p: InspectorProps) {
                 // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
                 value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
                 placeholder="a, b, c"
-                onCommit={(v) =>
-                  p.onField(
-                    f.key,
-                    v
-                      .split(v.includes(';') ? ';' : ',')
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  )
-                }
+                onCommit={(v) => {
+                  const items = v
+                    .split(v.includes(';') ? ';' : ',')
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  p.onField(f.key, f.one && items.length === 1 ? items[0] : items);
+                }}
               />
             ) : (
               <button type="button" className="field-yaml" onClick={p.onReveal}>

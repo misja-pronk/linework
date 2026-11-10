@@ -198,6 +198,15 @@ describe('builder on a state machine', () => {
     expect(await clean(renamed)).toEqual([]);
   });
 
+  it('offers what a state does as a line to edit: one thing stays one, a list stays a list', () => {
+    const entry = (text: string, id: string) => fieldsFor(text, states, ['states', id]).find((f) => f.key === 'entry');
+    expect(entry(door, 'Closed')).toMatchObject({ kind: 'list', value: ['lock'], one: true });
+    expect(fieldsFor(door, states, ['states', 'Closed']).find((f) => f.key === 'exit')).toMatchObject({ kind: 'list', value: [], one: true });
+    const two = entry(door.replace('entry: lock', 'entry: [lock, log]'), 'Closed');
+    expect(two).toMatchObject({ kind: 'list', value: ['lock', 'log'] });
+    expect(two).not.toHaveProperty('one');
+  });
+
   it('deletes a composite state with the states inside it and their transitions', async () => {
     const text = deleteEntry(door, states, ['states', 'Open']);
     expect(text).not.toContain('Ajar');
