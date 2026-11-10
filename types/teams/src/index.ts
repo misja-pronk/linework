@@ -462,6 +462,6 @@ interactions:
     return hasPeople(src) && hasTeams(src) ? [{ name: 'org', title: 'Org chart' }, { name: 'topology', title: 'Team Topologies' }] : [];
   },
   async layout(sized, _pins, previous) {
-    return sized.graph.tree ? orgLayout(sized, previous?.variant) : topologyLayout(sized);
+    return sized.graph.tree ? orgLayout(sized, previous) : topologyLayout(sized);
   },
 };
