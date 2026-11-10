@@ -1,5 +1,6 @@
 type: process
 title: Sign-in flow
+direction: down
 
 nodes:
   User opens app: start

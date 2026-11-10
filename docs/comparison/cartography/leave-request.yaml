@@ -1,5 +1,6 @@
 type: process
 title: Leave request
+direction: right
 
 lanes:
   Employee: Employee

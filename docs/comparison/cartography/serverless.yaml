@@ -2,9 +2,9 @@ type: systems
 title: Photo uploads
 
 groups:
-  aws: { kind: cloud, label: AWS }
-  api: { kind: zone, label: API tier, in: aws }
-  storage: { kind: zone, label: Storage tier, in: aws }
+  aws: { kind: cloud, label: AWS, caption: "" }
+  api: { kind: zone, label: API tier, caption: "", in: aws }
+  storage: { kind: zone, label: Storage tier, caption: "", in: aws }
 
 nodes:
   users: users
@@ -12,8 +12,8 @@ nodes:
   gateway: { kind: gateway, label: API Gateway, in: api }
   upload: { kind: function, label: Upload function, in: api }
   resize: { kind: function, label: Resize function, in: api }
-  bucket: { kind: storage, label: S3 photos bucket, in: storage }
-  meta: { kind: database, label: DynamoDB metadata, in: storage }
+  bucket: { kind: storage, label: S3 photos bucket, caption: "", in: storage }
+  meta: { kind: database, label: DynamoDB metadata, caption: "", in: storage }
   queue: { kind: queue, label: SQS resize queue, in: api }
 
 edges:
