@@ -172,13 +172,41 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     if (kept) {
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const sc = score(measure(graph, placed, sized.groupHeader, sized.groupMinWidth));
+      const m = measure(graph, placed, sized.groupHeader, sized.groupMinWidth);
+      const sc = score(m);
       const cost = sc + moveCost(kept, prev);
+      // Staying put never turns a line against the reading direction: a line drawn between two nodes
+      // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
+      const against = upstream(graph, kept) > upstream(graph, best!.p);
       // Only when it differs: a fresh placement that is exactly the previous one is not "held".
-      if (cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
+      if (!against && cost < best!.cost - 1e-9) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
     }
   }
   return best!;
+}
+
+/**
+ * Lines whose far end comes before their near end in reading order: back along the flow, or, with
+ * both ends in one layer, up (left in a top-down drawing). Only lines with an end that has no other
+ * line: that end was placed with nothing to go by, so where it stands says nothing worth keeping.
+ */
+function upstream(graph: Graph, p: Placement): number {
+  const down = graph.direction === 'down';
+  const degree = new Map<string, number>();
+  for (const e of graph.edges) for (const id of [e.from.node, e.to.node]) degree.set(id, (degree.get(id) ?? 0) + 1);
+  let n = 0;
+  for (const e of graph.edges) {
+    if (degree.get(e.from.node)! > 1 && degree.get(e.to.node)! > 1) continue;
+    const a = p.nodes.get(e.from.node);
+    const b = p.nodes.get(e.to.node);
+    if (e.loose || !a || !b || e.from.node === e.to.node) continue;
+    const [along, across] = down ? (['y', 'x'] as const) : (['x', 'y'] as const);
+    const size = down ? 'height' : 'width';
+    const before = b[along] + b[size] <= a[along];
+    const level = b[along] < a[along] + a[size] && a[along] < b[along] + b[size];
+    if (before || (level && b[across] < a[across] - 1)) n++;
+  }
+  return n;
 }
 
 function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
