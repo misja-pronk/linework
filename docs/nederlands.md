@@ -7,7 +7,7 @@ wordt alleen wat Cartography zelf toevoegt of laat zien.
 
 | Waar | Hoe |
 | --- | --- |
-| De editor | Standaard de taal van je browser. Kies een andere in het menu Instellingen (tandwiel) onder **Taal**; de keuze blijft bewaard in deze browser. |
+| De editor | Standaard de taal van je browser. Kies een andere in het themamenu in de werkbalk onder **Language / Taal**; de keuze blijft bewaard in deze browser. |
 | De tekening | Zet `lang: nl` bovenaan het diagram. Dan staan de legenda, de namen van soorten, stappentellers, review en beschrijving in het Nederlands, ook in elke export. Een nieuw diagram uit de Nederlandstalige editor krijgt `lang: nl` vanzelf. |
 | De CLI | `carto --lang nl …` of `CARTO_LANG=nl`. Zonder die twee volgt de CLI `LC_ALL`, `LC_MESSAGES` of `LANG`. Optienamen blijven Engels (`--view`, `--out`). Een `--lang` geldt ook voor tekeningen zonder eigen `lang:`. |
 
