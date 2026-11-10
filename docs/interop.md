@@ -49,7 +49,7 @@ Lost on the way: Excalidraw has one font size and colour per text and no letter-
 
 | Cartography | Mermaid |
 |---|---|
-| architecture, C4, Azure, cloud, Kubernetes, network, GitHub, access | `flowchart`, groups as subgraphs, lines with their label and style (dashed, dotted, thick) |
+| architecture, C4, Azure, cloud, Kubernetes, network, GitHub, access (an access matrix is left out) | `flowchart`, groups as subgraphs, lines with their label and style (dashed, dotted, thick) |
 | ERD | `erDiagram` with columns, PK/FK/UK, and relations with their cardinality |
 | sequence | `sequenceDiagram`: participants, messages, notes, alt/opt/loop/par frames |
 | git branching | `gitGraph` |
