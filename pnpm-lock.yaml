@@ -631,6 +631,10 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
 
   types/network:
     dependencies:

@@ -250,7 +250,7 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
       const b = zones(e.to.node);
       const crossed = [...a.filter((z) => !b.includes(z)), ...b.filter((z) => !a.includes(z))];
       const t = target(`e:${e.id}`, { edge: e });
-      const boundary = crossed.length ? `the trust boundary ${crossed.map((z) => `"${trusted.get(z)}"`).join(' and ')}` : '';
+      const boundary = crossed.length ? `the trust ${crossed.length > 1 ? 'boundaries' : 'boundary'} ${crossed.map((z) => `"${trusted.get(z)}"`).join(' and ')}` : '';
       const fromOutside = external(e.from.node) && !external(e.to.node);
       if (crossed.length && !encrypted) suggest(t, ['T', 'I'], `Data crosses ${boundary} unencrypted`, 'Encrypt in transit (TLS); then mark the line encrypted: true', e.path);
       if ((crossed.length || fromOutside) && !auth)
