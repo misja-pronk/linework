@@ -104,8 +104,13 @@ export function isAccessExport(text: string): boolean {
 
 export function importAccess(files: ExportFile[], opts: AccessOptions = {}): ImportedExport {
   const warn = new Warnings();
-  const { dir, read, skipped, problems } = parse(files, warn);
+  return drawAccess(warn, parse(files, warn), opts);
+}
+
+/** What was read, as an access diagram. Also for what is not Azure (a GitHub organisation) once it is put as principals, scopes and roles. */
+export function drawAccess(warn: Warnings, { dir, read, skipped, problems }: Pick<ImportedExport, 'read' | 'skipped' | 'problems'> & { dir: Directory }, opts: AccessOptions = {}): ImportedExport {
   const nothing = (message: string): ImportedExport => ({ yaml: '', warnings: [...warn.list, message], problems, read, skipped, summary: '' });
+  const ladder = (key: string): string | undefined => dir.roles.get(key)?.inherits ?? LADDER[key];
   if (!dir.assignments.size && !dir.packages.size) return nothing('No role assignments or access packages in these files: nothing to draw');
 
   // ---- which scopes
@@ -279,11 +284,14 @@ export function importAccess(files: ExportFile[], opts: AccessOptions = {}): Imp
   }
   const principalId = ids(principals, earlier('principals', 'object-id'), taken, (p) => ({ key: p.key, name: p.name, else: [p.key.slice(0, 4), p.key.slice(0, 8)] }));
   const resources = [...drawn].map((k) => scopes.get(k)!);
-  const resourceId = ids(resources, earlier('resources', 'resource-id'), taken, (s) => ({ key: s.id.toLowerCase(), name: s.name, else: [...(s.parent ? [scopes.get(s.parent)!.name] : []), s.kind] }));
+  const resourceId = ids(resources, earlier('resources', 'resource-id'), taken, (s) => ({ key: s.id.toLowerCase(), name: s.name, else: s.kind === 'repo' ? ['repo'] : [...(s.parent ? [scopes.get(s.parent)!.name] : []), s.kind] }));
   const packageId = ids(packages, earlier('packages', 'object-id'), taken, (p) => ({ key: p.key, name: p.name ?? `Package ${p.key.slice(0, 8)}`, else: ['package', p.key.slice(0, 4)] }));
   const catalogs = [...new Set(packages.flatMap((p) => p.catalog ?? []))].map((k) => dir.catalogs.get(k) ?? { key: k });
   const catalogId = ids(catalogs, earlier('catalogs', 'object-id', 'label'), taken, (c) => ({ key: c.key, name: c.name ?? `Catalog ${c.key.slice(0, 8)}`, else: ['catalog', c.key.slice(0, 4)] }));
-  const roles = [...new Set([...roleKeys, ...roleKeys.map((k) => LADDER[k]).filter((k) => k && dir.roles.has(k))])].map((k) => dir.roles.get(k!)!);
+  // A role with the ones below it on its ladder, so "write holds read" can be written down.
+  const withBelow = new Set(roleKeys);
+  for (const k of roleKeys) for (let b = ladder(k); b && dir.roles.has(b) && !withBelow.has(b); b = ladder(b)) withBelow.add(b);
+  const roles = [...withBelow].map((k) => dir.roles.get(k)!);
   const roleId = ids(roles, earlier('roles', 'role-id'), new Set(Object.keys(kept.before('roles'))), (r) => ({ key: r.key, name: r.name ?? `Role ${r.key.slice(0, 8)}`, else: [r.key.slice(0, 4)] }));
   const rid = (s: DirScope) => resourceId.get(s.id.toLowerCase())!;
 
@@ -334,9 +342,10 @@ export function importAccess(files: ExportFile[], opts: AccessOptions = {}): Imp
   walk(undefined);
   for (const s of tree) kept.put('resources', rid(s), { kind: s.kind, label: s.name === rid(s) ? undefined : s.name, caption: s.caption, in: s.parent && drawn.has(s.parent) ? rid(scopes.get(s.parent)!) : undefined, 'resource-id': s.id }, ['kind', 'in', 'resource-id']);
   sweep('roles', 'role-id', new Set(roleId.values()));
-  const rank = (key: string): number => (LADDER[key] && dir.roles.has(LADDER[key]) ? 1 + rank(LADDER[key]) : 0);
-  for (const r of roles.sort((a, b) => Number(!(a.key in LADDER || Object.values(LADDER).includes(a.key))) - Number(!(b.key in LADDER || Object.values(LADDER).includes(b.key))) || rank(a.key) - rank(b.key) || byName(a, b)))
-    kept.put('roles', roleId.get(r.key)!, { label: r.name ?? `Role ${r.key.slice(0, 8)}`, inherits: LADDER[r.key] && roleId.get(LADDER[r.key]!), permissions: r.permissions?.length ? r.permissions : undefined, part: r.key.endsWith('#part') || undefined, 'role-id': r.key }, ['inherits', 'permissions', 'part', 'role-id']);
+  const rank = (key: string, seen = new Set<string>()): number => (ladder(key) && withBelow.has(ladder(key)!) && !seen.has(key) ? 1 + rank(ladder(key)!, seen.add(key)) : 0);
+  const onLadder = (key: string) => Number(!(ladder(key) || roles.some((r) => ladder(r.key) === key)));
+  for (const r of roles.sort((a, b) => onLadder(a.key) - onLadder(b.key) || rank(a.key) - rank(b.key) || byName(a, b)))
+    kept.put('roles', roleId.get(r.key)!, { label: r.name ?? `Role ${r.key.slice(0, 8)}`, inherits: ladder(r.key) && roleId.get(ladder(r.key)!), permissions: r.permissions?.length ? r.permissions : undefined, part: r.key.endsWith('#part') || undefined, 'role-id': r.key }, ['inherits', 'permissions', 'part', 'role-id']);
 
   // Assignments: those between what the export speaks for follow it; one that names something made by hand stays.
   const at = new Map(tree.map((s, i) => [s.key, i]));

@@ -1,0 +1,50 @@
+[
+  {
+    "login": "dev-064",
+    "id": 1248,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-076",
+    "id": 1260,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-101",
+    "id": 1285,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-127",
+    "id": 1311,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-150",
+    "id": 1334,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-199",
+    "id": 1383,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-235",
+    "id": 1419,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-294",
+    "id": 1478,
+    "type": "User",
+    "site_admin": false
+  }
+]

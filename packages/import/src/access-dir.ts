@@ -32,6 +32,8 @@ export interface DirRole {
   key: string;
   name?: string;
   permissions?: string[];
+  /** The key of the role this one holds everything of (write holds read), where the export's own world has such a ladder. */
+  inherits?: string;
 }
 
 export interface DirPolicy {

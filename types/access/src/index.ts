@@ -46,6 +46,7 @@ export const resourceKinds: KindTable = {
   storage: { label: 'Storage', icon: 'archive', tone: 'teal' },
   app: { label: 'Application', icon: 'app-window', tone: 'blue' },
   'sharepoint-site': { label: 'SharePoint site', icon: 'book-open', tone: 'teal' },
+  organization: { label: 'Organisation', icon: 'building', tone: 'slate' },
   repo: { label: 'Repository', icon: 'folder-git-2', tone: 'slate' },
   'directory-role': { label: 'Directory role', icon: 'shield-user', tone: 'violet' },
 };
@@ -619,7 +620,7 @@ export function effectiveAccess(source: AccessSource): { principal: string; scop
 // ---------------------------------------------------------------- checks
 
 const OWNER_LEVEL = /\b(owner|user access administrator|role based access control administrator|global administrator|privileged role administrator)\b/i;
-const BROAD = ['tenant', 'management-group', 'subscription'];
+const BROAD = ['tenant', 'management-group', 'subscription', 'organization'];
 const GROUPS = ['group', 'role-assignable-group', 'm365-group', 'dynamic-group'];
 
 /** Things worth a second look. Warnings only: the picture stays as it is. */

@@ -1,0 +1,40 @@
+[
+  {
+    "id": 1007,
+    "name": "shop",
+    "full_name": "kestrel-logistics/shop",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": "The web shop",
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": false,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "triage"
+  },
+  {
+    "id": 1010,
+    "name": "infra",
+    "full_name": "kestrel-logistics/infra",
+    "private": true,
+    "visibility": "internal",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": false,
+      "triage": false,
+      "pull": true
+    },
+    "role_name": "read"
+  }
+]

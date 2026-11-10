@@ -39,6 +39,7 @@ export const config: GraphTypeConfig = {
   },
   edgeStyles: {
     access: { label: 'Repository access', line: 'solid', tone: 'indigo' },
+    member: { label: 'Member of', line: 'dotted', tone: 'slate' },
     trigger: { label: 'Triggers', line: 'dashed', tone: 'green' },
     deploy: { label: 'Deploys', line: 'solid', tone: 'amber' },
     uses: { label: 'Uses', line: 'dotted', tone: 'slate' },

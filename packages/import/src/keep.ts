@@ -110,7 +110,14 @@ export class Kept {
     if (equal(this.old[name] ?? [], items)) return;
     if (!items.length) return void root.delete(name);
     const node = this.doc.createNode(items) as Node;
-    if (isSeq(node)) for (const item of node.items) if (isMap(item)) item.flow = true;
+    // An edge (`a -> b: { label: write }`) keeps its arrow in front; any other map is one line whole.
+    if (isSeq(node))
+      for (const item of node.items)
+        if (isMap(item)) {
+          const only = item.items.length === 1 ? item.items[0]!.value : undefined;
+          if (isMap(only)) only.flow = true;
+          else item.flow = true;
+        }
     if (root.has(name)) root.set(name, node);
     else {
       const pair = this.doc.createPair(name, node);

@@ -1,0 +1,16 @@
+[
+  {
+    "login": "ivo-extern",
+    "id": 1021,
+    "type": "User",
+    "site_admin": false,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  }
+]

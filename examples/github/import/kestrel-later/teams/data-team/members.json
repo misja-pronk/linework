@@ -1,0 +1,14 @@
+[
+  {
+    "login": "eva-smit",
+    "id": 1018,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "farid-haddou",
+    "id": 1019,
+    "type": "User",
+    "site_admin": false
+  }
+]

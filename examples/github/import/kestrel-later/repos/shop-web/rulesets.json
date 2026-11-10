@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1022,
+    "name": "Default branches",
+    "target": "branch",
+    "source_type": "Organization",
+    "source": "kestrel-logistics",
+    "enforcement": "active"
+  }
+]
