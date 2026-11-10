@@ -1,0 +1,285 @@
+/* Architecture decisions: the Decisions panel and the page markers on the drawing (decisions-panel.tsx).
+   Violet, apart from the amber of notes and the rose of threats; the status is in the outline:
+   filled accepted, dashed proposed, struck through superseded, deprecated or rejected. */
+:root {
+  --adr: #7655c1;
+  --adr-soft: #f0e9f5;
+}
+:root[data-theme='dark'] {
+  --adr: #cd92d9;
+  --adr-soft: #3a2c49;
+}
+
+.adr-mark {
+  flex: none;
+  overflow: visible;
+}
+.adr-mark .page {
+  fill: var(--surface);
+  stroke: var(--adr);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.adr-mark .fold {
+  fill: none;
+  stroke: var(--adr);
+  stroke-width: 1.1;
+}
+.adr-mark text {
+  font: 600 10px var(--font);
+  fill: var(--adr);
+}
+.adr-mark.filled .page {
+  fill: var(--adr);
+}
+.adr-mark.filled .fold {
+  stroke: var(--surface);
+}
+.adr-mark.filled text {
+  fill: var(--surface);
+}
+.adr-mark.dashed .page {
+  stroke-dasharray: 2.6 1.8;
+}
+.adr-mark.struck .page,
+.adr-mark.struck .fold,
+.adr-mark.struck .strike {
+  stroke: var(--text-muted);
+}
+.adr-mark.struck text {
+  fill: var(--text-muted);
+}
+.adr-mark .strike {
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+
+/* On the drawing: the marker's bottom-right corner is the spot, as in exports. */
+.decision-marker {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  translate: -100% -100%;
+  transform-origin: 100% 100%;
+  z-index: 3;
+  line-height: 0;
+  filter: drop-shadow(0 0 1.5px var(--surface)) drop-shadow(0 0 1px var(--surface));
+}
+.decision-marker.active,
+.decision-marker:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.tool-count.decisions {
+  background: var(--adr-soft);
+  color: var(--adr);
+}
+
+.decisions-panel .inspector-icon {
+  background: var(--adr-soft);
+  color: var(--adr);
+}
+.decisions-panel .inspector-title span {
+  text-transform: none;
+}
+.decisions-panel .segmented button {
+  padding-inline: 7px;
+}
+.decision-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.decision-row:hover {
+  border-color: var(--border-strong);
+}
+.decision-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.decision-row.here {
+  border-left: 3px solid var(--adr);
+}
+.decision-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.decision-row-text strong {
+  font-size: 13px;
+  color: var(--text);
+}
+.decision-row-summary {
+  color: var(--text-faint);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.decision-open,
+.decision-new {
+  gap: 8px;
+}
+/* A scrolling column: its parts keep their height instead of shrinking to make room. */
+.decision-open > *,
+.decision-new > * {
+  flex-shrink: 0;
+}
+.decision-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+}
+.decision-title {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.decision-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.decision-status .note-go {
+  font-weight: 500;
+  color: var(--adr);
+}
+.decision-label,
+.decision-new label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.decision-new-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.decision-concerns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.decision-concern {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  font-size: 12.5px;
+}
+.decision-concern button {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.decision-concern button:disabled {
+  cursor: default;
+}
+.decision-concern.elsewhere {
+  color: var(--text-faint);
+  border-style: dashed;
+}
+.decision-unlink {
+  display: inline-flex;
+  padding: 2px !important;
+  border-radius: 4px;
+  color: var(--text-faint) !important;
+}
+.decision-unlink:hover {
+  background: var(--bg);
+  color: var(--text) !important;
+}
+.decision-mode {
+  align-self: flex-start;
+}
+.decision-source {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  font: 12.5px/1.5 var(--mono);
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.decision-file {
+  margin-left: auto;
+  font: 11px var(--mono);
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adr-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.adr-text h3 {
+  margin: 14px 0 4px;
+  font-size: 13.5px;
+}
+.adr-text h4 {
+  margin: 10px 0 2px;
+  font-size: 12.5px;
+}
+.adr-text p,
+.adr-text ul,
+.adr-text ol {
+  margin: 4px 0;
+}
+.adr-text ul,
+.adr-text ol {
+  padding-left: 20px;
+}
+.adr-text pre {
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: auto;
+  font-size: 12px;
+}
+.adr-text blockquote {
+  margin: 6px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+.where-row .adr-mark {
+  margin-right: 2px;
+}
