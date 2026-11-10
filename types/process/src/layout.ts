@@ -13,7 +13,7 @@
 // same drawing with the two swapped at the end.
 import type { Box, GraphEdge, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
 
-const GAP = { col: 44, row: 22, line: 12, margin: 16, lanePad: 14, lane: 8, label: 26 } as const;
+const GAP = { col: 36, row: 18, line: 12, margin: 16, lanePad: 14, lane: 8, label: 26 } as const;
 
 interface Seg {
   hor: boolean;
