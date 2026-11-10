@@ -380,6 +380,12 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
 
+  packages/tree:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/web:
     dependencies:
       '@anthropic-ai/sdk':

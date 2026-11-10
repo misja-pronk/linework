@@ -241,7 +241,7 @@ export function drawMarks(marks: JourneyMark[], theme: Theme, shadow: string): s
       const x = m.align === 'c' ? m.x + m.w / 2 : m.align === 'r' ? m.x + m.w : m.x;
       const anchor = m.align === 'c' ? ' text-anchor="middle"' : m.align === 'r' ? ' text-anchor="end"' : '';
       for (const [i, l] of m.lines.entries())
-        s += `<text x="${r1(x)}" y="${r1(m.y + m.lh * i + m.lh / 2 + baselineOffset(m.size))}" font-size="${m.size}" font-weight="${m.weight}" fill="${m.fill}"${anchor}${m.tracking ? ` letter-spacing="${m.tracking}"` : ''}>${esc(l)}</text>`;
+        s += `<text x="${r1(x)}" y="${r1(m.y + m.lh * i + m.lh / 2 + baselineOffset(m.size, m.mono ? 'mono' : 'sans'))}" font-size="${m.size}" font-weight="${m.weight}" fill="${m.fill}"${anchor}${m.tracking ? ` letter-spacing="${m.tracking}"` : ''}${m.mono ? ` font-family="${esc(theme.font.mono)}"` : ''}>${esc(l)}</text>`;
     }
   }
   return s;

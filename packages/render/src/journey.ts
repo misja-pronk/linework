@@ -16,7 +16,7 @@ export type JourneySeg = ['M', number, number] | ['L', number, number] | ['C', n
 
 export type JourneyMark =
   | { t: 'rect'; x: number; y: number; w: number; h: number; r?: number; fill?: string; stroke?: string; sw?: number; dash?: boolean; shadow?: boolean; name?: string }
-  | { t: 'text'; x: number; y: number; w: number; lines: string[]; size: number; weight: Weight; fill: string; align: 'l' | 'c' | 'r'; lh: number; tracking?: number }
+  | { t: 'text'; x: number; y: number; w: number; lines: string[]; size: number; weight: Weight; fill: string; align: 'l' | 'c' | 'r'; lh: number; tracking?: number; mono?: boolean }
   | { t: 'path'; d: JourneySeg[]; fill?: string; stroke?: string; sw?: number; dash?: boolean; name?: string }
   | { t: 'circle'; cx: number; cy: number; r: number; fill?: string; stroke?: string; sw?: number }
   | { t: 'icon'; name: string; x: number; y: number; size: number; color: string; sw: number };
