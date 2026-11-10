@@ -15,8 +15,9 @@ export function tidy(p: Placement, graph: Graph, header: number, pad: number, ga
   const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
   const down = graph.direction === 'down';
 
-  const clear = (id: string, b: Box, room = gap) => {
-    for (const [other, o] of nodes) if (other !== id && hit(b, o, room)) return false;
+  // `from` is where the node stood: what was already nearer than `room` there does not stop the move.
+  const clear = (id: string, b: Box, room = gap, from?: Box) => {
+    for (const [other, o] of nodes) if (other !== id && hit(b, o, room) && !(from && hit(from, o, room) && !hit(b, o, 0))) return false;
     // Not into a group the node is not in, and below its own group's header.
     const mine = new Set<string>();
     for (let g = parentOf.get(id); g; g = groupParent.get(g)) mine.add(g);
@@ -91,7 +92,7 @@ export function tidy(p: Placement, graph: Graph, header: number, pad: number, ga
         if (b[axis] - start < 0.5) continue;
         if (edges.some((e) => (e.from.node === id && inLayer.has(e.to.node)) || (e.to.node === id && inLayer.has(e.from.node)))) continue;
         const moved = { ...b, [axis]: start };
-        if (clear(id, moved, gap - GRID / 2)) nodes.set(id, moved);
+        if (clear(id, moved, gap - GRID / 2, b)) nodes.set(id, moved);
       }
     }
   }
