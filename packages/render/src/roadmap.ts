@@ -349,7 +349,9 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
   for (const m of g.marks) {
     const t = tone(m.tone);
     out.push(diamond(m.x, m.y, K.diamond, `fill="${t.fg}" stroke="${theme.canvas}" stroke-width="2"`));
-    out.push(text(m.x + K.diamond + 6, m.y, m.label, K.label.size, 600, theme.text, undefined, ` stroke="${theme.canvas}" stroke-width="4" paint-order="stroke"`));
+    // Its name after the diamond, or before it where it would run past the end of the timeline.
+    const past = m.x + K.diamond + 6 + measureText(m.label, K.label.size, 600) > right;
+    out.push(text(past ? m.x - K.diamond - 6 : m.x + K.diamond + 6, m.y, m.label, K.label.size, 600, theme.text, past ? 'end' : undefined, ` stroke="${theme.canvas}" stroke-width="4" paint-order="stroke"`));
   }
 
   if (g.today) {
@@ -363,7 +365,7 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
 
   // Legend of the statuses in use, in the bars' own style.
   let lx = g.gutter;
-  if (g.legend.items.length && g.gutter >= 60 && look(theme).legend === 'key') out.push(text(0, g.legend.y, 'KEY', 9.5, 600, theme.textFaint, undefined, ' letter-spacing="1.2"'));
+  if (g.legend.items.length && g.gutter >= 60 && look(theme).legend === 'key') out.push(text(0, g.legend.y, 'KEY', 9.5, 600, theme.textFaint, undefined, ' letter-spacing="1.2" data-aside=""'));
   for (const s of g.legend.items) {
     const st = STATUS[s];
     out.push(drawBar({ it: { id: '', label: '', start: 0, end: 0, milestone: false, status: s, after: [], path: [] }, box: { x: lx, y: g.legend.y - 8, width: 26, height: 16 }, tone: st.tone, inside: true, label: '', labelX: 0 }, theme, true));

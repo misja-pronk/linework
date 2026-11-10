@@ -93,7 +93,7 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
   const imprint = where === 'bottom' ? imprintOf(theme) : undefined;
   if (!items.length && !imprint) return NONE;
   const mark = (x: number, cy: number) =>
-    `<text x="${r1(x)}" y="${r1(cy + baselineOffset(IMPRINT.size, 'mono'))}" font-size="${IMPRINT.size}" font-weight="500" letter-spacing="${IMPRINT.tracking}" fill="${theme.textFaint}" text-anchor="end"${monoAttr(theme)}>${esc(imprint ?? '')}</text>`;
+    `<text x="${r1(x)}" y="${r1(cy + baselineOffset(IMPRINT.size, 'mono'))}" font-size="${IMPRINT.size}" font-weight="500" letter-spacing="${IMPRINT.tracking}" fill="${theme.textFaint}" text-anchor="end"${monoAttr(theme)} data-aside="">${esc(imprint ?? '')}</text>`;
   if (look(theme).legend !== 'key') {
     const placed = legendItems({ legend: items }, theme);
     const row = legendWidth({ legend: items }, theme);
@@ -117,7 +117,7 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
     const first = where === 'bottom' ? y0 + 40 : y0 + 8;
     const rule = where === 'bottom' ? y0 + 16 : y0 + 8 + (count - 1) * ROW + 20;
     let s = `<rect x="${r1(x0)}" y="${r1(rule)}" width="${r1(total)}" height="1" fill="${theme.border}"/>`;
-    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(9.5))}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}">KEY</text>`;
+    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(9.5))}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}" data-aside="">KEY</text>`;
     for (const [i, row] of rows.entries()) for (const p of row) s += legendItem(p.item, theme, x0 + p.x, first + i * ROW);
     if (imprint) s += mark(x0 + total, first + (count - 1) * ROW);
     return s;
@@ -173,6 +173,11 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
   }
   if (item.swatch === 'message') return messageSample(item.arrow ?? 'sync', x0, cy, theme) + label;
   if (item.swatch === 'glyph') return glyph(item.icon, x0 + 3, cy - 7, 14, theme.tones[item.tone ?? 'slate'].fg, 1.75) + label;
+  if (item.swatch === 'focus') {
+    // What a focus is about: a card with the ring it gets in the drawing.
+    const ring = theme.accent ?? theme.tones.blue.fg;
+    return `<rect x="${x0 - 1.5}" y="${cy - 9}" width="23" height="18" rx="6" fill="none" stroke="${ring}" stroke-opacity="0.25" stroke-width="4"/><rect x="${x0 - 1.5}" y="${cy - 9}" width="23" height="18" rx="6" fill="none" stroke="${ring}" stroke-width="1.6"/><rect x="${x0 + 1.5}" y="${cy - 6}" width="17" height="12" rx="3.5" fill="${theme.surface}" stroke="${theme.border}" stroke-width="1"/>` + label;
+  }
   if (item.swatch === 'trust') return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${theme.tones.rose.fg}" stroke-width="1.8" stroke-dasharray="5 3"/>` + label;
   if (item.swatch === 'mark' && item.tag && item.tone) {
     // A matrix value: its letter in a pill of its tone, as in the cells.
