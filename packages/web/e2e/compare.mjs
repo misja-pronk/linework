@@ -129,6 +129,7 @@ const download = async (menuItem) => {
   if (await page.locator('.present').count()) fail('P presented instead of stepping back');
   await page.locator('.cmp-item').first().click();
   check('a click picks a change', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
+  await wait(400);
   await page.screenshot({ path: `${out}/c2-stepped.png` });
 
   // 3. Live: an edit while comparing shows up in the comparison.

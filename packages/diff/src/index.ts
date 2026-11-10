@@ -6,3 +6,4 @@ export * from './text.ts';
 export * from './overlay.ts';
 export * from './compare.ts';
 export * from './explain.ts';
+export * from './snapshots.ts';

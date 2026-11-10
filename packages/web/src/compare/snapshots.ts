@@ -3,6 +3,9 @@
 // <name>.snapshots/<label>.yaml (and <label>.layout.json when it has pins), plain files that git can
 // keep and `carto diff --snapshot <label>` reads. A snapshot in the folder wins over the browser's copy.
 import type { LayoutSidecar } from '@cartography/core';
+import { isSnapshotPath, snapshotDir, snapshotPath, snapshotSlug as slug } from '@cartography/diff';
+
+export { isSnapshotPath, slug, snapshotDir, snapshotPath };
 
 export interface Snapshot {
   label: string;
@@ -20,27 +23,8 @@ export interface SnapshotBackend {
   put(doc: string, list: Snapshot[]): Promise<void>;
 }
 
-/** A label as a file name: letters, digits, dot, dash and underscore; the rest becomes a dash. */
-export function slug(label: string): string {
-  return (
-    label
-      .trim()
-      .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^\w.-]+/g, '-')
-      .replace(/^[-.]+|-+$/g, '')
-      .slice(0, 80) || 'snapshot'
-  );
-}
-
 /** Two labels name the same snapshot when their files would (folders on a Mac ignore case). */
 const key = (label: string) => slug(label).toLowerCase();
-
-/** The folder of a diagram's snapshots: shop.yaml → shop.snapshots/ (next to it). */
-export const snapshotDir = (diagram: string) => diagram.replace(/\.ya?ml$/i, '') + '.snapshots/';
-export const snapshotPath = (diagram: string, label: string) => `${snapshotDir(diagram)}${slug(label)}.yaml`;
-/** A path inside some diagram's snapshots folder: not a diagram of its own in the file list. */
-export const isSnapshotPath = (path: string) => /(^|\/)[^/]+\.snapshots\//.test(path);
 
 /** Snapshots written in the folder, read from the folder's files (path → text). */
 export function folderSnapshots(diagram: string, files: Map<string, { text: string }>): Snapshot[] {

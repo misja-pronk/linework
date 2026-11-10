@@ -48,8 +48,8 @@ function names(before: Graph | undefined, after: Graph | undefined): Names {
 function field(c: Change): string {
   const long = (v: unknown) => typeof v === 'string' && v.length > 40;
   if (long(c.before) || long(c.after)) return `${c.field} ${c.before === undefined ? 'added' : c.after === undefined ? 'removed' : 'changed'}`;
-  if (c.before === undefined) return `${c.field} ${c.after === true ? 'set' : quote(c.after)}`;
-  if (c.after === undefined) return `no ${c.field} ${c.before === true ? '' : quote(c.before)}`.trimEnd();
+  if (c.before === undefined) return c.after === true ? `${c.field} set` : `${c.field} now ${quote(c.after)}`;
+  if (c.after === undefined) return c.before === true ? `${c.field} unset` : `no ${c.field} (was ${quote(c.before)})`;
   return `${c.field} ${quote(c.before)} → ${quote(c.after)}`;
 }
 

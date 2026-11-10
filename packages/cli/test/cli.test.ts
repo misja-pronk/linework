@@ -160,6 +160,22 @@ describe('carto diff', () => {
     expect(none.err).toContain('not found');
   }, 60_000);
 
+  it('compares with a snapshot the editor wrote, and says the changes in sentences', () => {
+    write('snap.yaml', grown);
+    fs.mkdirSync(path.join(tmp, 'snap.snapshots'), { recursive: true });
+    write('snap.snapshots/Q3-review.yaml', shop);
+    const r = carto('diff', '--snapshot', 'Q3 review', 'snap.yaml', '--json');
+    expect(r.code).toBe(0);
+    const [json] = JSON.parse(r.out);
+    expect(json).toMatchObject({ file: 'snap.yaml', against: 'snapshot Q3 review', counts: { added: 2, removed: 1, changed: 1 } });
+    expect(json.explained).toEqual(['Added Cache for Redis in rg', 'App Service now connects to Cache for Redis', 'Renamed “Key Vault” to “Secrets”; its kind now “Key Vault”', 'App Service no longer connects to Key Vault']);
+    expect(carto('diff', '--snapshot', 'Q3 review', 'snap.yaml', '-o', 'snap.md').code).toBe(0);
+    expect(read('snap.md')).toMatch(/^## Changes to snap.yaml since snapshot Q3 review\n\n2 added, 1 removed, 1 changed\.\n\n- Added /);
+    const missing = carto('diff', '--snapshot', 'nope', 'snap.yaml');
+    expect(missing.code).toBe(1);
+    expect(missing.err).toContain('there are: Q3-review');
+  }, 60_000);
+
   it('compares the working tree with a commit, through included files too', () => {
     const repo = path.join(tmp, 'repo');
     fs.mkdirSync(path.join(repo, 'docs'), { recursive: true });
@@ -197,6 +213,8 @@ relations:
     expect(r.err).not.toContain('error');
     expect(r.code).toBe(0);
     const [ctx, shp, fresh] = JSON.parse(r.out);
+    // --since says the same as --git.
+    expect(JSON.parse(run('diff', '--since', 'HEAD', 'shop.yaml', '--json').out)[0]).toMatchObject({ against: 'HEAD', counts: { added: 2, removed: 1, changed: 1 } });
     expect(ctx).toMatchObject({ file: 'context.yaml', against: 'HEAD', counts: { added: 0, removed: 0, changed: 2 } });
     expect(ctx.nodes).toEqual([{ kind: 'node', id: 'mail', status: 'changed', label: 'Postmark', changes: [{ field: 'label', before: 'SendGrid', after: 'Postmark' }] }]);
     expect(ctx.edges[0]).toMatchObject({ id: 'shop -> mail', status: 'changed', changes: [{ field: 'label', before: 'Sends receipts', after: 'Sends mail' }] });

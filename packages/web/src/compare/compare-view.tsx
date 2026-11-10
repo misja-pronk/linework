@@ -240,7 +240,8 @@ export function CompareView(p: Props) {
     const scale = stage.offsetWidth ? s.width / stage.offsetWidth : t.k;
     const box = { x: (r.left - s.left) / scale, y: (r.top - s.top) / scale, w: r.width / scale, h: r.height / scale };
     const [w, h] = [pane.clientWidth, pane.clientHeight];
-    const k = Math.min(2, Math.max(fitT().k, Math.min(scale, (w * 0.6) / Math.max(box.w, 1), (h * 0.6) / Math.max(box.h, 1))));
+    // Close enough to read (100 %), unless the change is too big for that; never further out than now.
+    const k = Math.min(2, Math.max(scale, Math.min(1, (w * 0.6) / Math.max(box.w, 1), (h * 0.6) / Math.max(box.h, 1))));
     glide({ k, x: w / 2 - (box.x + box.w / 2) * k, y: h / 2 - (box.y + box.h / 2) * k });
     document.querySelector(`.cmp-list [data-step="${at}"]`)?.scrollIntoView({ block: 'nearest' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
