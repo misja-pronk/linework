@@ -842,9 +842,9 @@ export const access: DiagramType<AccessSource> = {
   build,
   views: () => [
     { name: 'graph', title: 'Who gets what, as a graph' },
-    { name: 'access', title: 'Who × where' },
-    { name: 'packages', title: 'Packages × grants' },
-    { name: 'roles', title: 'Roles × permissions' },
+    { name: 'access', title: 'Who × where', table: true },
+    { name: 'packages', title: 'Packages × grants', table: true },
+    { name: 'roles', title: 'Roles × permissions', table: true },
   ],
   references(src) {
     const out: Reference[] = [];

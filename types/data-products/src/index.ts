@@ -616,6 +616,9 @@ export const dataProducts: DiagramType<DataProductSource> = {
     (src.detail ?? []).forEach((id, i) => out.push({ path: ['detail', i], id, start: 0, collection: 'products' }));
     return out;
   },
+  views(src) {
+    return src.products && Object.keys(src.products).length ? [{ name: 'overview', title: 'Overview' }, { name: 'detailed', title: 'Detailed' }] : [];
+  },
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
     const product = src.products?.[from];

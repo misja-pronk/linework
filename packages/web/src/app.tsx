@@ -1067,6 +1067,7 @@ export function App() {
     else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
     else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
     else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
+    else if (e.key === 'v' && !mod(e) && !e.altKey) nextView();
     else if (e.key === 'ArrowLeft') nudge(-step, 0);
     else if (e.key === 'ArrowRight') nudge(step, 0);
     else if (e.key === 'ArrowUp') nudge(0, -step);
@@ -1101,6 +1102,36 @@ export function App() {
     if (!s) return notify(`There is no example ${t.path}`, { tone: 'error' });
     setPicked({ doc: s.id, name: t.view });
     pick(s);
+  };
+
+  // ------------------------------------------------------------ views
+
+  /** The views to pick from, in the picker's order: as written first where there is such a drawing. */
+  const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
+  const viewTitle = (name?: string) => (name === undefined ? 'as written' : (drawn?.views?.find((v) => v.name === name)?.title ?? name));
+  const showView = (name: string | undefined) => {
+    setPicked({ doc: docId, name });
+    notify(`View: ${viewTitle(name)}`);
+  };
+  /**
+   * V: the next view of the diagram; the YAML stays as it is. Views the type draws itself (data products
+   * overview and detailed) go round without "as written", which is one of them: the one in `view:`.
+   */
+  const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews;
+  /** The view drawn: one picked, else for a type with views of its own the one in its `view:` (or its first). */
+  const viewNow = () => viewName ?? (ownViews ? (drawn!.views!.find((v) => v.name === /^view:[ \t]*([\w-]+)/m.exec(textNow())?.[1]) ?? drawn!.views![0]!).name : undefined);
+  const nextView = () => {
+    const list = ownViews ? viewList().slice(1) : viewList();
+    if (list.length < 2) return notify('This diagram has one view');
+    const now = viewNow();
+    showView(list[(list.indexOf(now) + 1) % list.length]);
+  };
+  /** A view the type draws itself (data products overview or detailed) written as the diagram's `view:`. */
+  const ownView = !!viewName && !!type?.views && !!(type.schema as { properties?: Record<string, unknown> }).properties?.view && drawn?.view === viewName;
+  const keepView = () => {
+    if (!type || !viewName) return;
+    apply(setField(textNow(), type, [], 'view', viewName));
+    setPicked(undefined);
   };
 
   // ------------------------------------------------------------ focus
@@ -1275,6 +1306,11 @@ export function App() {
     { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
     { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
+    ...viewList()
+      .filter((v) => v !== viewName)
+      .map((v) => ({ id: `view-${v ?? 'as-written'}`, group: 'View', label: v === undefined ? 'Show the diagram as written' : `Show the ${viewTitle(v)} view`, hint: 'the YAML stays as it is', icon: 'layers', run: () => showView(v) })),
+    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: 'V', run: nextView }] : []),
+    ...(ownView ? [{ id: 'view-keep', group: 'View', label: `Write view: ${viewName} into the YAML`, hint: 'so it opens like this', icon: 'save', run: keepView }] : []),
     { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
     { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: 'F', run: focusOnSelection },
     ...(drawn?.focus
@@ -1896,7 +1932,7 @@ export function App() {
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
-      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
+      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette

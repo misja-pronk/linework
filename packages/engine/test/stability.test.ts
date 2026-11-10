@@ -10,7 +10,8 @@ const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 describe('stability', () => {
   it('an added line or element moves under a tenth of what was there', async () => {
     const rows = summary(await lab(files, { edges: 3, nodes: 2 }));
-    expect(rows.map((r) => r.drawing)).toEqual(files.map((f) => f.replace('examples/', '')));
+    // Each file, and the views a file has (data products: overview and detailed) after it.
+    expect([...new Set(rows.map((r) => r.drawing.split('#')[0]))]).toEqual(files.map((f) => f.replace('examples/', '')));
     for (const kind of ['edge', 'node'] as const) {
       const tried = rows.filter((r) => r[kind].n);
       expect(tried.length).toBeGreaterThanOrEqual(6);

@@ -13,7 +13,7 @@ export interface ViewPickerProps {
 export function ViewPicker({ views, value, asWritten, onChange }: ViewPickerProps) {
   if (!views?.length) return null;
   return (
-    <label className="tool view-picker" title="Views of this diagram (pins are kept per view)">
+    <label className="tool view-picker" title="Views of this diagram (V: next view; pins are kept per view)">
       <Icon name="layers" />
       <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} aria-label="View">
         {asWritten && <option value="">As written</option>}

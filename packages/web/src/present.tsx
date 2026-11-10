@@ -112,7 +112,8 @@ export function Present(p: PresentProps) {
       const d: Deck = { id: ++decks, doc, slides: [] };
       const whole = (view?: string) => render(doc.text, { theme: p.theme, themeOverride, icons, sidecar: doc.sidecar, load: doc.load, file: doc.file, view, fonts: 'none' });
       const first = await whole();
-      const views = first.views?.length ? [...(first.onlyViews ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
+      // A type's own views (data products overview and detailed) are all there is: as written is one of them.
+      const views = first.views?.length ? [...(first.onlyViews || first.type?.views ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
       for (const view of views) {
         const r = view === first.view ? first : await whole(view);
         if (!r.svg) continue;

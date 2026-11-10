@@ -41,9 +41,10 @@ export interface DiagramType<Source = any> {
   layout?(sized: Sized, sidecar?: LayoutSidecar, previous?: LayoutMemory): Promise<Placed>;
   /**
    * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
-   * and the editor's view picker choose one; build gets it as the source's `view`.
+   * and the editor's view picker choose one; build gets it as the source's `view`. `table`: the view is
+   * not elements and lines, so a focus asked for is drawn in the first view instead.
    */
-  views?(source: Source): { name: string; title?: string }[];
+  views?(source: Source): { name: string; title?: string; table?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */

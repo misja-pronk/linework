@@ -261,13 +261,24 @@ await wait(400);
   await page.screenshot({ path: `${out}/f6-mesh-lineage.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // The detailed view reads the contracts that came with the drop.
-  await page.keyboard.press('Meta+Backslash');
-  await page.click('.cm-content');
-  await page.keyboard.press('Meta+End');
-  await page.keyboard.type('\nview: detailed');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the detailed view did not read the dropped contracts'));
+  // The detailed view reads the contracts that came with the drop: V shows it without touching the YAML.
+  const before = await yaml();
+  await page.locator('.preview').focus();
+  await page.keyboard.press('v');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the dropped contracts'));
+  if ((await page.locator('.view-picker select').inputValue().catch(() => '')) !== 'detailed') fail('the view picker should say Detailed');
+  check('V leaves the YAML as it is', await yaml(), before);
+  await page.keyboard.press('v');
+  await page.waitForFunction(() => !document.querySelector('.drawing [data-node^="contract:"]'), null, { timeout: 5000 }).catch(() => fail('V again should go back to the overview'));
+  // From the palette, then kept in the YAML on request.
+  await palette('show the detailed view');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show the detailed view'));
+  check('the palette leaves the YAML as it is', await yaml(), before);
+  await palette('write view: detailed');
   await wait(600);
+  if (!/^view: detailed/m.test(await yaml())) fail('writing the view should put view: detailed in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
+  if (!(await page.locator('.drawing [data-node^="contract:"]').count())) fail('the drawing should stay detailed once the view is written');
+  await page.keyboard.press('Meta+Backslash');
   await page.screenshot({ path: `${out}/f7-mesh-detailed.png` });
   // After a reload the contracts are still there: they are kept with the document.
   await page.reload();
