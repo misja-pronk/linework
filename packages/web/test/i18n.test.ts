@@ -7,6 +7,8 @@ import { setUiLang, t, withUiLang } from '../src/i18n/index.ts';
 const catalog: Record<string, string> = nl;
 /** Text keys.ts holds and the sheet looks up with say(). */
 const fromTable = new Set(SHORTCUTS.flatMap((s) => [s.what, s.group, ...(s.show ? [s.show] : [])]));
+/** A field name in the inspector: a YAML key in title case ("Technology"), shown with say(). */
+const fieldName = (id: string) => /^[A-Z][a-z]+$/.test(id);
 
 describe("the editor's Dutch", () => {
   it('has every shortcut and every heading of the sheet', () => {
@@ -18,7 +20,7 @@ describe("the editor's Dutch", () => {
   });
   it('has no message the editor no longer says', () => {
     const source = sourceText(['packages/web/src'], (f) => f.includes('/i18n/'));
-    expect(unusedIds(nl, source, (id) => fromTable.has(id))).toEqual([]);
+    expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id))).toEqual([]);
   });
   it('switches, and gives a new diagram lang: nl in Dutch', () => {
     setUiLang('nl');

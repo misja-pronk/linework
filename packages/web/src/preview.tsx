@@ -5,6 +5,7 @@ import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, u
 import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
+import { t } from './i18n/index.ts';
 import { PALETTE_MIME } from './add-menu.tsx';
 import { BLOCK_MIME } from './blocks/blocks-panel.tsx';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
@@ -921,7 +922,7 @@ export function Preview(p: Props) {
   // The overview only earns its place when the drawing does not fit the pane.
   const f = frame.current;
   const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);
-  const announce = selected ? (p.describe?.(selected) ?? selected.id) : selection.length > 1 ? `${selection.length} selected` : '';
+  const announce = selected ? (p.describe?.(selected) ?? selected.id) : selection.length > 1 ? t('{count} selected', { count: selection.length }) : '';
 
   return (
     <div
@@ -931,7 +932,7 @@ export function Preview(p: Props) {
       role="application"
       aria-roledescription="drawing"
       aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
-      aria-label="Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes."
+      aria-label={t('Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes.')}
       // The pane pans by its transform, never by scrolling: a browser that scrolls it to bring a focused
       // link into view (after an edit, a click on a linked element did) would shift everything off its place.
       onScroll={(e) => {
@@ -1014,19 +1015,19 @@ export function Preview(p: Props) {
       {empty ? (
         <div className="preview-empty">
           <Icon name="triangle-exclamation-point" size={20} />
-          <p>Nothing to draw yet. Fix the problems in the editor, or start from a template.</p>
+          <p>{t('Nothing to draw yet. Fix the problems in the editor, or start from a template.')}</p>
         </div>
       ) : (
         <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
           <div className="drawing" ref={drawingEl} dangerouslySetInnerHTML={{ __html: result!.svg! }} />
           {target && (
             <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }}>
-              {ghost && <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>Into {groupName(dropTarget!)}</span>}
+              {ghost && <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>{t('Into {group}', { group: groupName(dropTarget!) })}</span>}
             </div>
           )}
           {refusedBox && (
             <div className="drop-ring refused" style={{ left: refusedBox.x + o.x, top: refusedBox.y + o.y, width: refusedBox.width, height: refusedBox.height, borderWidth: 2 / view.scale }}>
-              <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>Cannot go in {groupName(ghost!.refused!)}</span>
+              <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>{t('Cannot go in {group}', { group: groupName(ghost!.refused!) })}</span>
             </div>
           )}
           {ghost && !ghost.refused && (
@@ -1049,8 +1050,8 @@ export function Preview(p: Props) {
             <button
               className="connect-handle"
               data-handle={hover}
-              title="Drag to another element to connect"
-              aria-label={`Connect ${hover}`}
+              title={t('Drag to another element to connect')}
+              aria-label={t('Connect {id}', { id: hover! })}
               tabIndex={-1}
               style={{ left: hoverBox.x + hoverBox.width + o.x, top: hoverBox.y + hoverBox.height / 2 + o.y, transform: `translate(-50%, -50%) scale(${1 / view.scale})` }}
             />
@@ -1122,29 +1123,29 @@ export function Preview(p: Props) {
         />
       )}
       <div className="zoom" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-        <button onClick={() => zoomAt(1 / 1.2)} title="Zoom out (⌘−)" aria-label="Zoom out">
+        <button onClick={() => zoomAt(1 / 1.2)} title={t('Zoom out (⌘−)')} aria-label={t('Zoom out')}>
           <Icon name="minus" />
         </button>
-        <button className="zoom-level" onClick={() => setView((v) => ({ ...v, scale: 1 }))} title="Actual size" aria-label={`Zoom ${Math.round(view.scale * 100)}%, click for actual size`}>
+        <button className="zoom-level" onClick={() => setView((v) => ({ ...v, scale: 1 }))} title={t('Actual size')} aria-label={t('Zoom {percent}%, click for actual size', { percent: Math.round(view.scale * 100) })}>
           {Math.round(view.scale * 100)}%
         </button>
-        <button onClick={() => zoomAt(1.2)} title="Zoom in (⌘+)" aria-label="Zoom in">
+        <button onClick={() => zoomAt(1.2)} title={t('Zoom in (⌘+)')} aria-label={t('Zoom in')}>
           <Icon name="plus" />
         </button>
-        <button onClick={() => fit()} title="Fit to screen (⇧1 or ⌘0)" aria-label="Fit to screen">
+        <button onClick={() => fit()} title={t('Fit to screen (⇧1 or ⌘0)')} aria-label={t('Fit to screen')}>
           <Icon name="maximize" />
         </button>
-        <button onClick={zoomToSelection} title="Zoom to selection (⇧2)" aria-label="Zoom to selection" disabled={!selection.length}>
+        <button onClick={zoomToSelection} title={t('Zoom to selection (⇧2)')} aria-label={t('Zoom to selection')} disabled={!selection.length}>
           <Icon name="focus" />
         </button>
         <span className="zoom-sep" />
-        <button className={p.grid ? 'on' : ''} onClick={() => p.onToggle?.('grid')} title="Snap to the 8px grid (⇧G)" aria-label="Snap to grid" aria-pressed={!!p.grid}>
+        <button className={p.grid ? 'on' : ''} onClick={() => p.onToggle?.('grid')} title={t('Snap to the 8px grid (⇧G)')} aria-label={t('Snap to grid')} aria-pressed={!!p.grid}>
           <Icon name="grid-3x3" />
         </button>
-        <button className={p.minimap ? 'on' : ''} onClick={() => p.onToggle?.('minimap')} title="Overview when the drawing does not fit (⇧M)" aria-label="Minimap" aria-pressed={!!p.minimap}>
+        <button className={p.minimap ? 'on' : ''} onClick={() => p.onToggle?.('minimap')} title={t('Overview when the drawing does not fit (⇧M)')} aria-label={t('Minimap')} aria-pressed={!!p.minimap}>
           <Icon name="map" />
         </button>
-        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={`The page it is for${result?.page ? `, a ${result.page.name}` : ''}, and text too small on it (⇧P)`} aria-label="Page" aria-pressed={!!p.page}>
+        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('The page it is for, a {page}, and text too small on it (⇧P)', { page: result.page.name }) : t('The page it is for, and text too small on it (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
           <Icon name="monitor" />
         </button>
       </div>
@@ -1164,7 +1165,7 @@ function LabelEditor(p: { text: string; left: number; top: number; width: number
   return (
     <input
       className="label-editor"
-      aria-label="Label"
+      aria-label={t('Label')}
       autoFocus
       onFocus={(e) => e.currentTarget.select()}
       value={text}

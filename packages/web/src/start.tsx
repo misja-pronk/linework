@@ -16,6 +16,7 @@ import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 import { wizardsFor } from '@cartography/wizards';
 import { WizardSteps } from './wizard.tsx';
+import { say, t } from './i18n/index.ts';
 
 export type View = 'visual' | 'code';
 
@@ -41,7 +42,7 @@ function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f
   useEffect(() => {
     if (!text) return;
     let stop = false;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const r = await render(text, {
         theme,
         fonts: 'none',
@@ -51,11 +52,11 @@ function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f
       }).catch(() => undefined);
       if (stop || !r) return;
       if (r.svg) setSvg(r.svg);
-      setErrors(r.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? `Line ${d.line}: ${d.message}` : d.message)));
+      setErrors(r.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? t('Line {line}: {message}', { line: d.line, message: d.message }) : d.message)));
     }, 250);
     return () => {
       stop = true;
-      clearTimeout(t);
+      clearTimeout(timer);
     };
   }, [text, theme, load, sidecar]);
   return { svg, errors };
@@ -147,38 +148,38 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className={`templates start step-${step}`} role="dialog" aria-label="Start a diagram" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`templates start step-${step}`} role="dialog" aria-label={t('Start a diagram')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           {step !== 'type' && (
-            <button className="icon-button" onClick={back} aria-label="Back" title="Back (Esc)">
+            <button className="icon-button" onClick={back} aria-label={t('Back')} title={t('Back (Esc)')}>
               <Icon name="arrow-left" />
             </button>
           )}
           <h2>
             {step === 'type'
-              ? 'What do you want to draw?'
+              ? t('What do you want to draw?')
               : step === 'pick'
                 ? typeId === 'all'
-                  ? 'All templates and examples'
-                  : `${typeName(typeId)}: pick a start`
+                  ? t('All templates and examples')
+                  : t('{type}: pick a start', { type: typeName(typeId) })
                 : step === 'import'
-                  ? 'Import from Mermaid, D2, PlantUML, draw.io or Excalidraw'
+                  ? t('Import from Mermaid, D2, PlantUML, draw.io or Excalidraw')
                   : step === 'mode'
                     ? `${starter!.title}`
                     : step === 'wizard'
-                      ? `Answer questions · ${typeName(starter!.type)}`
-                      : `Ask Claude · ${typeName(starter!.type)}`}
+                      ? t('Answer questions · {type}', { type: typeName(starter!.type) })
+                      : t('Ask Claude · {type}', { type: typeName(starter!.type) })}
           </h2>
           {step !== 'import' && (
-            <ol className="steps" aria-label="Steps">
+            <ol className="steps" aria-label={t('Steps')}>
               {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : step === 'wizard' ? ['Questions'] : [])].map((s, i) => (
                 <li key={s} aria-current={i === ['type', 'pick', 'mode', step === 'wizard' ? 'wizard' : 'ask'].indexOf(step)}>
-                  {s}
+                  {say(s)}
                 </li>
               ))}
             </ol>
           )}
-          <button className="icon-button" onClick={onClose} aria-label="Close">
+          <button className="icon-button" onClick={onClose} aria-label={t('Close')}>
             <Icon name="x" />
           </button>
         </header>
@@ -342,58 +343,58 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onSearchKey}
-            placeholder="Describe what you want to show"
-            aria-label="Describe what you want to show"
+            placeholder={t('Describe what you want to show')}
+            aria-label={t('Describe what you want to show')}
             spellCheck={false}
           />
         </label>
-        <button className="chip import-chip" onClick={() => onChoose('all')} title="Every template and example, of every type">
-          <Icon name="layout-grid" size={13} /> All templates
+        <button className="chip import-chip" onClick={() => onChoose('all')} title={t('Every template and example, of every type')}>
+          <Icon name="layout-grid" size={13} /> {t('All templates')}
         </button>
-        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid, D2 or PlantUML diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
-          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, D2, PlantUML, draw.io or Excalidraw
+        <button className="chip import-chip" onClick={onImport} title={t('Paste a Mermaid, D2 or PlantUML diagram, or open a draw.io or Excalidraw file, and get it back as Cartography')}>
+          <Icon name="clipboard-paste" size={13} /> {t('Import from Mermaid, D2, PlantUML, draw.io or Excalidraw')}
         </button>
       </div>
       <p className="type-hint" role="status">
         {!query ? (
           <>
-            Try “tables and keys” or “who has access”. Not sure? <strong>Architecture</strong> fits most systems.
+            {t('Try “tables and keys” or “who has access”. Not sure?')} <strong>Architecture</strong> {t('fits most systems.')}
           </>
         ) : matched ? (
           <>
-            Best match: <strong>{ranked[0]!.type.name}</strong>. <kbd>↵</kbd> opens it.
+            {t('Best match:')} <strong>{ranked[0]!.type.name}</strong>. <kbd>↵</kbd> {t('opens it.')}
           </>
         ) : (
-          <>No type matches those words. Architecture fits most systems.</>
+          <>{t('No type matches those words. Architecture fits most systems.')}</>
         )}
       </p>
       <div className="type-grid" ref={grid} onKeyDown={onGridKey}>
-        {ranked.map(({ type: t, score }, i) => {
-          const s = typeTemplates.find((x) => x.type === t.id);
+        {ranked.map(({ type: ty, score }, i) => {
+          const s = typeTemplates.find((x) => x.type === ty.id);
           const svg = s && thumb(s, { w: 222, h: 80 });
-          const notFor = t.notFor ?? [];
-          const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === t.id && 'flash', t.id === current && 'current'];
+          const notFor = ty.notFor ?? [];
+          const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === ty.id && 'flash', ty.id === current && 'current'];
           return (
-            <div key={t.id} className={cls.filter(Boolean).join(' ')} data-type={t.id}>
-              <button className="type-main" onClick={() => onChoose(t.id)}>
+            <div key={ty.id} className={cls.filter(Boolean).join(' ')} data-type={ty.id}>
+              <button className="type-main" onClick={() => onChoose(ty.id)}>
                 <span className="type-thumb" aria-hidden="true">
                   {svg ? <span dangerouslySetInnerHTML={{ __html: svg }} /> : <span className="thumb-wait" />}
                 </span>
                 <span className="type-head">
                   <span className="type-icon">
-                    <Icon name={t.icon ?? 'layout-template'} size={17} />
+                    <Icon name={ty.icon ?? 'layout-template'} size={17} />
                   </span>
-                  <span className="type-name">{t.name}</span>
-                  {matched && i === 0 ? <span className="type-badge">Best match</span> : t.id === current ? <span className="type-badge quiet">This diagram</span> : null}
+                  <span className="type-name">{ty.name}</span>
+                  {matched && i === 0 ? <span className="type-badge">{t('Best match')}</span> : ty.id === current ? <span className="type-badge quiet">{t('This diagram')}</span> : null}
                 </span>
                 <span className="type-tagline">
-                  <code className="type-yaml" title="What the YAML says">type: {t.id}</code>
-                  {t.tagline && <> · {t.tagline}</>}
+                  <code className="type-yaml" title={t('What the YAML says')}>type: {ty.id}</code>
+                  {ty.tagline && <> · {ty.tagline}</>}
                 </span>
-                {!!t.useWhen?.length && (
-                  <span className="type-use" title={t.useWhen.length > 2 ? t.useWhen.join('\n') : undefined}>
-                    <span className="type-label">Use when</span>
-                    {t.useWhen.slice(0, 2).map((u) => (
+                {!!ty.useWhen?.length && (
+                  <span className="type-use" title={ty.useWhen.length > 2 ? ty.useWhen.join('\n') : undefined}>
+                    <span className="type-label">{t('Use when')}</span>
+                    {ty.useWhen.slice(0, 2).map((u) => (
                       <span key={u} className="type-bullet">
                         {u}
                       </span>
@@ -405,7 +406,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                 {/* Where to go instead, as links; what each is for is in its tooltip. Compact, so more types fit. */}
                 {notFor.some((n) => pointsTo(n.use)) && (
                   <div className="type-not">
-                    <span className="type-label">Not for this? Try</span>
+                    <span className="type-label">{t('Not for this? Try')}</span>
                     <span className="type-not-links">
                       {notFor.map((n) => {
                         const use = pointsTo(n.use);
@@ -421,7 +422,7 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
                   </div>
                 )}
                 <span className="type-count">
-                  {typeCount(t.id)} {typeCount(t.id) === 1 ? 'start' : 'starts'}
+                  {t('{count} start|{count} starts', { count: typeCount(ty.id) })}
                 </span>
               </div>
             </div>
@@ -447,12 +448,12 @@ function TypeSummary({ type, onType }: { type: DiagramType; onType(id: string): 
         </p>
         {!!type.useWhen?.length && (
           <p className="type-facts">
-            <span className="type-label">Use when</span> {type.useWhen.join(' · ')}
+            <span className="type-label">{t('Use when')}</span> {type.useWhen.join(' · ')}
           </p>
         )}
         {notFor.length > 0 && (
           <p className="type-facts">
-            <span className="type-label">Not for</span>{' '}
+            <span className="type-label">{t('Not for')}</span>{' '}
             {notFor.map((n, i) => (
               <span key={n.text}>
                 {i > 0 && ' · '}
@@ -492,7 +493,7 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
         <TypeSummary type={type} onType={onType} />
       ) : (
         <nav className="chips">
-          <div className="chip-row" role="group" aria-label="Diagram type">
+          <div className="chip-row" role="group" aria-label={t('Diagram type')}>
             {types.map((t) => (
               <button key={t.id} className="chip" onClick={() => onType(t.id)} title={t.tagline}>
                 {t.name}
@@ -517,8 +518,8 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
                   {twin && <span className="template-twin"> · {s.subtitle}</span>}
                 </span>
                 <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
-                  {s.kind === 'template' ? 'Template' : 'Example'}
-                  {type ? (s.kind === 'template' ? ': the smallest start' : ` · ${s.file}`) : ` · ${typeName(s.type)}`}
+                  {s.kind === 'template' ? t('Template') : t('Example')}
+                  {type ? (s.kind === 'template' ? t(': the smallest start') : ` · ${s.file}`) : ` · ${typeName(s.type)}`}
                 </span>
               </div>
             </button>
@@ -546,16 +547,16 @@ function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 
   return (
     <div className="mode-step">
       <div className="mode-preview">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
-      <div className="modes" role="group" aria-label="How do you want to work?">
-        <p className="modes-intro">How do you want to work?</p>
+      <div className="modes" role="group" aria-label={t('How do you want to work?')}>
+        <p className="modes-intro">{t('How do you want to work?')}</p>
         {modes.map((m, i) => (
           <button key={m.view} className={`mode-card mode-${m.view}`} onClick={() => onChoose(m.view)} autoFocus={i === 0}>
             <span className="mode-icon">
               <Icon name={m.icon} size={20} />
             </span>
             <span className="mode-text">
-              <strong>{m.title}</strong>
-              <span>{m.text}</span>
+              <strong>{say(m.title)}</strong>
+              <span>{say(m.text)}</span>
             </span>
             <kbd>{m.key}</kbd>
           </button>
@@ -563,7 +564,7 @@ function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 
         <button className="blank-start" onClick={onBlank}>
           <Icon name="file-plus" size={16} />
           <span>
-            Or <strong>start blank</strong>: an empty {typeName(starter.type).toLowerCase()} in the builder
+            {t('Or')} <strong>{t('start blank')}</strong>{t(': an empty {type} in the builder', { type: typeName(starter.type).toLowerCase() })}
           </span>
           <kbd>B</kbd>
         </button>
@@ -588,7 +589,7 @@ function ChipGroup({ label, options, on, toggle }: { label: string; options: str
       ))}
       {options.length > shown.length && (
         <button type="button" className="chip more" onClick={() => setAll(true)}>
-          {options.length - shown.length} more…
+          {t('{count} more…', { count: options.length - shown.length })}
         </button>
       )}
     </div>
@@ -724,17 +725,17 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
         </form>
         <aside className="ask-run">
           <h3>
-            <Icon name="sparkles" size={16} /> Generate with Claude
+            <Icon name="sparkles" size={16} /> {t('Generate with Claude')}
           </h3>
           <label className="ask-field">
-            <span className="ask-label">Anthropic API key</span>
+            <span className="ask-label">{t('Anthropic API key')}</span>
             <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" autoComplete="off" spellCheck={false} />
           </label>
           <label className="check">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember in this browser
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> {t('Remember in this browser')}
           </label>
           <label className="ask-field">
-            <span className="ask-label">Model</span>
+            <span className="ask-label">{t('Model')}</span>
             <select value={model} onChange={(e) => setModel(e.target.value as ModelId)}>
               {MODELS.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -745,29 +746,29 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
           </label>
           {!hasKey && (
             <p className="fine">
-              No key?{' '}
+              {t('No key?')}{' '}
               <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-                Get a key ↗
+                {t('Get a key ↗')}
               </a>{' '}
-              or copy the prompt into any chat assistant below.
+              {t('or copy the prompt into any chat assistant below.')}
             </p>
           )}
-          <button className={hasKey ? 'button primary wide' : 'button ghost wide'} onClick={() => void run()} disabled={!hasKey} title={hasKey ? undefined : 'Enter an API key first'}>
-            <Icon name="sparkles" /> Generate <kbd>⌘↵</kbd>
+          <button className={hasKey ? 'button primary wide' : 'button ghost wide'} onClick={() => void run()} disabled={!hasKey} title={hasKey ? undefined : t('Enter an API key first')}>
+            <Icon name="sparkles" /> {t('Generate')} <kbd>⌘↵</kbd>
           </button>
-          <p className="fine">Your answers and key go only to api.anthropic.com, and only when you press Generate. Everything else stays in this browser.</p>
+          <p className="fine">{t('Your answers and key go only to api.anthropic.com, and only when you press Generate. Everything else stays in this browser.')}</p>
           {phase.at === 'failed' && (
             <p className="callout error" role="alert">
               <Icon name="circle-exclamation-point" size={14} /> <span>{phase.message}</span>
             </p>
           )}
           <div className="or">
-            <span>or use any chat assistant</span>
+            <span>{t('or use any chat assistant')}</span>
           </div>
           <button className={hasKey ? 'button ghost wide' : 'button primary wide'} onClick={() => void copy()}>
-            <Icon name="copy" /> Copy the prompt
+            <Icon name="copy" /> {t('Copy the prompt')}
           </button>
-          {!hasKey && <p className="fine">Paste it into Claude or another assistant, then paste its answer back here.</p>}
+          {!hasKey && <p className="fine">{t('Paste it into Claude or another assistant, then paste its answer back here.')}</p>}
           <KeyHint onRun={() => (hasKey ? void run() : document.querySelector<HTMLInputElement>('.ask-run input[type=password]')?.focus())} />
         </aside>
       </div>
@@ -779,19 +780,19 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
         <div className="ask-stream-head">
           {busy ? (
             <>
-              <span className="pulse" /> {phase.attempt > 1 ? `Fixing ${phase.attempt - 1 === 1 ? 'a problem' : 'problems'}…` : 'Claude is drawing…'}
+              <span className="pulse" /> {phase.attempt > 1 ? (phase.attempt - 1 === 1 ? t('Fixing a problem…') : t('Fixing problems…')) : t('Claude is drawing…')}
             </>
           ) : phase.at === 'paste' ? (
             <>
-              <Icon name="clipboard-paste" size={14} /> {copied ? 'Prompt copied. ' : ''}Paste the answer here
+              <Icon name="clipboard-paste" size={14} /> {copied ? t('Prompt copied. Paste the answer here') : t('Paste the answer here')}
             </>
           ) : phase.errors.length ? (
             <>
-              <Icon name="triangle-exclamation-point" size={14} /> Almost: {phase.errors.length} problem{phase.errors.length > 1 ? 's' : ''} left to fix in the editor
+              <Icon name="triangle-exclamation-point" size={14} /> {t('Almost: {count} problem left to fix in the editor|Almost: {count} problems left to fix in the editor', { count: phase.errors.length })}
             </>
           ) : (
             <>
-              <Icon name="check" size={14} /> Ready
+              <Icon name="check" size={14} /> {t('Ready')}
             </>
           )}
         </div>
@@ -801,7 +802,7 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
             autoFocus
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
-            placeholder="Paste the whole answer; the YAML is taken out of it."
+            placeholder={t('Paste the whole answer; the YAML is taken out of it.')}
             spellCheck={false}
           />
         ) : (
@@ -815,7 +816,7 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
           {drawing.svg ? (
             <div dangerouslySetInnerHTML={{ __html: drawing.svg }} />
           ) : !busy && shown && drawing.errors.length ? (
-            <p className="fine">Nothing to draw until the problem below is fixed. Open it in YAML to fix it there.</p>
+            <p className="fine">{t('Nothing to draw until the problem below is fixed. Open it in YAML to fix it there.')}</p>
           ) : (
             <div className="thumb-wait" />
           )}
@@ -824,19 +825,19 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
         <footer>
           {busy ? (
             <button className="button ghost" onClick={() => abort.current?.abort()}>
-              <Icon name="circle-stop" /> Stop
+              <Icon name="circle-stop" /> {t('Stop')}
             </button>
           ) : (
             <>
               <button className="button ghost" onClick={() => setPhase({ at: 'form' })}>
-                <Icon name="arrow-left" /> Change answers
+                <Icon name="arrow-left" /> {t('Change answers')}
               </button>
               <span className="spacer" />
               <button className="button ghost" disabled={!shown} onClick={() => shown && open(shown, 'code')}>
-                <Icon name="code" /> Open in YAML
+                <Icon name="code" /> {t('Open in YAML')}
               </button>
               <button className="button primary" disabled={!shown} onClick={() => shown && open(shown, 'visual')}>
-                <Icon name="mouse-pointer-2" /> Open in builder
+                <Icon name="mouse-pointer-2" /> {t('Open in builder')}
               </button>
             </>
           )}
@@ -928,7 +929,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste Mermaid, D2 or PlantUML, or open a draw.io or Excalidraw file
+          <Icon name="clipboard-paste" size={14} /> {t('Paste Mermaid, D2 or PlantUML, or open a draw.io or Excalidraw file')}
         </div>
         <textarea
           className="paste mono"
@@ -942,27 +943,27 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
           spellCheck={false}
         />
         <div style={{ display: 'flex', gap: 8, margin: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd, .d2, .puml or .md file from your computer; it is read here, in the browser">
-            <Icon name="folder-open" /> Choose a file…
+          <button className="button ghost" onClick={choose} title={t('A .drawio, .excalidraw, .mmd, .d2, .puml or .md file from your computer; it is read here, in the browser')}>
+            <Icon name="folder-open" /> {t('Choose a file…')}
           </button>
           {!text && (
             <button className="button ghost" onClick={() => setText(MERMAID_SAMPLE)}>
-              Try the example
+              {t('Try the example')}
             </button>
           )}
           {drawing && (
-            <label className="fine" title="Pins every shape where it stood in the drawing. Off, Cartography lays it out itself.">
-              <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep the positions from {drawing}
+            <label className="fine" title={t('Pins every shape where it stood in the drawing. Off, Cartography lays it out itself.')}>
+              <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> {t('Keep the positions from {tool}', { tool: drawing })}
             </label>
           )}
         </div>
       </div>
       <div className="ask-preview">
         {blocks.length > 1 && (
-          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Diagram'}>
+          <div className="segmented" role="radiogroup" aria-label={drawing ? t('Page') : t('Diagram')}>
             {blocks.map((b, i) => (
               <button key={i} role="radio" aria-checked={i === block} className={i === block ? 'active' : ''} onClick={() => setBlock(i)}>
-                {b.name ?? `${drawing ? 'Page' : 'Block'} ${i + 1}`}
+                {b.name ?? (drawing ? t('Page {n}', { n: i + 1 }) : t('Block {n}', { n: i + 1 }))}
               </button>
             ))}
           </div>
@@ -971,7 +972,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
           {shown.svg && current?.yaml ? (
             <div dangerouslySetInnerHTML={{ __html: shown.svg }} />
           ) : (
-            <p className="fine">{current?.yaml ? (shown.errors[0] ?? 'Drawing…') : text.trim() ? 'Nothing to draw: see the problem below.' : 'The Cartography version appears here as you paste.'}</p>
+            <p className="fine">{current?.yaml ? (shown.errors[0] ?? t('Drawing…')) : text.trim() ? t('Nothing to draw: see the problem below.') : t('The Cartography version appears here as you paste.')}</p>
           )}
         </div>
         {current && current.warnings.length > 0 && (
@@ -980,16 +981,16 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
             <div>
               <strong>
                 {!current.yaml
-                  ? 'This could not be imported:'
+                  ? t('This could not be imported:')
                   : drawing
-                    ? `Read from ${drawing}:`
-                    : `${current.warnings.length === 1 ? 'One thing was' : `${current.warnings.length} things were`} left out or changed:`}
+                    ? t('Read from {tool}:', { tool: drawing })
+                    : t('One thing was left out or changed:|{count} things were left out or changed:', { count: current.warnings.length })}
               </strong>
               <ul className="warnings">
                 {current.warnings.slice(0, drawing ? 6 : 4).map((w) => (
                   <li key={w}>{sentence(w)}</li>
                 ))}
-                {current.warnings.length > (drawing ? 6 : 4) && <li>…and {current.warnings.length - (drawing ? 6 : 4)} more</li>}
+                {current.warnings.length > (drawing ? 6 : 4) && <li>{t('…and {count} more', { count: current.warnings.length - (drawing ? 6 : 4) })}</li>}
               </ul>
             </div>
           </div>
@@ -997,10 +998,10 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
         <footer>
           <span className="spacer" />
           <button className="button ghost" disabled={!current?.yaml} onClick={() => open('code')}>
-            <Icon name="code" /> Open in YAML
+            <Icon name="code" /> {t('Open in YAML')}
           </button>
           <button className="button primary" disabled={!current?.yaml} onClick={() => open('visual')}>
-            <Icon name="mouse-pointer-2" /> Open in builder
+            <Icon name="mouse-pointer-2" /> {t('Open in builder')}
           </button>
         </footer>
       </div>
