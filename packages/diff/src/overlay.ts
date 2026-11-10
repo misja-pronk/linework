@@ -181,9 +181,9 @@ function leave(b: Box, to: Point): Point {
 function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string; bounds: Box | undefined; row: Ghost[]; boxes: Box[]; at: Map<string, Box> } {
   const theme = after.theme;
   const both = [...after.placed.nodes].filter(([id]) => before.placed.nodes.has(id));
-  const shift = both.length
-    ? { x: median(both.map(([id, b]) => b.x - before.placed.nodes.get(id)!.x)), y: median(both.map(([id, b]) => b.y - before.placed.nodes.get(id)!.y)) }
-    : undefined;
+  // With nothing in common there is nothing to line the two up by: the older one stands where it was
+  // drawn (two stages of one diagram share their placement, so that is exactly where it stood).
+  const shift = both.length ? { x: median(both.map(([id, b]) => b.x - before.placed.nodes.get(id)!.x)), y: median(both.map(([id, b]) => b.y - before.placed.nodes.get(id)!.y)) } : { x: 0, y: 0 };
   const moved = (b: Box): Box => ({ ...b, x: b.x + shift!.x, y: b.y + shift!.y });
   const label = (id: string) => diff.nodes.find((n) => n.id === id)?.label ?? diff.groups.find((g) => g.id === id)?.label ?? id;
 

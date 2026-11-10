@@ -51,7 +51,10 @@ export async function compareStages(text: string, a: string | number, b: string 
 }
 
 /** The removal of the old and the addition of the new, told as one sentence: "Replaced File server by File shares". */
-function tellReplaced(told: Explained[], pairs: { from: string; to: string }[], before?: RenderResult, after?: RenderResult): Explained[] {
+export function tellReplaced(told: Explained[], all: { from: string; to: string }[], before?: RenderResult, after?: RenderResult): Explained[] {
+  // Only where the one went and the other came in this comparison.
+  const said = (id: string, status: string) => told.some((t) => t.item?.kind === 'node' && t.item.id === id && t.item.status === status);
+  const pairs = all.filter((p) => said(p.from, 'removed') && said(p.to, 'added'));
   if (!pairs.length) return told;
   const byNew = new Map<string, string[]>();
   for (const p of pairs) byNew.set(p.to, [...(byNew.get(p.to) ?? []), p.from]);

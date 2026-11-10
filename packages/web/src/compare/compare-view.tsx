@@ -7,7 +7,7 @@ import { shortcutFor } from '../keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutSidecar } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
-import { compare, countTold, explain, type Comparison, type Explained, type ItemDiff, type Picture } from '@cartography/diff';
+import { compare, countTold, explain, tellReplaced, type Comparison, type Explained, type ItemDiff, type Picture } from '@cartography/diff';
 import { useBrand } from '../brand.ts';
 import { useIconOptions } from '../icon-packs.ts';
 import { registerThemeFonts } from '../fonts.ts';
@@ -79,7 +79,7 @@ export function CompareView(p: Props) {
   const icons = useIconOptions();
   const { baseline, now, theme, mode } = p;
   const options = useCallback(
-    (side: { sidecar?: LayoutSidecar; load?: (f: string) => string }) => ({ theme, themeOverride, ...icons, sidecar: side.sidecar, load: side.load ?? now.load, file: now.file, fonts: 'none' as const }),
+    (side: { sidecar?: LayoutSidecar; load?: (f: string) => string; stage?: string }) => ({ theme, themeOverride, ...icons, sidecar: side.sidecar, load: side.load ?? now.load, file: now.file, fonts: 'none' as const, ...(side.stage ? { stage: side.stage } : {}) }),
     [theme, themeOverride, icons, now.load, now.file],
   );
 
@@ -112,13 +112,13 @@ export function CompareView(p: Props) {
   useEffect(() => {
     if (!before || before.key !== beforeKey) return;
     let live = true;
-    void compare(baseline.text, text, { before: options(baseline), after: { ...options(now) }, ...(now.view ? { view: now.view } : {}), ...(before.r ? { drawnBefore: before.r } : {}) })
+    void compare(baseline.text, text, { before: options(baseline), after: { ...options({ ...now, ...(baseline.toStage ? { stage: baseline.toStage } : {}) }) }, ...(now.view ? { view: now.view } : {}), ...(before.r ? { drawnBefore: before.r } : {}) })
       .then(async (cmp) => {
         await registerThemeFonts(cmp.after?.theme ?? cmp.before?.theme);
         if (!live) return;
         setFailed(cmp.failed && !cmp.after?.svg ? cmp.diagnostics.find((d) => d.severity === 'error')?.message : undefined);
         if (cmp.failed && !cmp.after?.svg) return;
-        setC({ key: beforeKey, c: cmp, pictures: { overlay: cmp.picture({ against: baseline.name }), before: cmp.side('before'), after: cmp.side('after') } });
+        setC({ key: beforeKey, c: cmp, pictures: { overlay: cmp.picture({ against: baseline.name, ...(baseline.replaces ? { replaces: baseline.replaces } : {}) }), before: cmp.side('before'), after: cmp.side('after') } });
       })
       .catch((e: unknown) => live && setFailed(e instanceof Error ? e.message : String(e)));
     return () => {
@@ -127,7 +127,7 @@ export function CompareView(p: Props) {
   }, [before, beforeKey, baseline, text, options, now.sidecar, now.view]);
 
   const cmp = c?.key === beforeKey ? c : undefined;
-  const sentences = useMemo<Explained[]>(() => (cmp ? explain(cmp.c.diff, cmp.c.before?.graph, cmp.c.after?.graph) : []), [cmp]);
+  const sentences = useMemo<Explained[]>(() => (cmp ? tellReplaced(explain(cmp.c.diff, cmp.c.before?.graph, cmp.c.after?.graph), baseline.replaces ?? [], cmp.c.before, cmp.c.after) : []), [cmp]);
   const steps = useMemo(() => sentences.filter((s) => s.item), [sentences]);
   const [at, setAt] = useState<number>();
   const current = at !== undefined ? steps[at] : undefined;

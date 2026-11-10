@@ -33,6 +33,7 @@ import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
 import { useLayers } from './layers-control.tsx';
+import { useStages } from './stages/use-stages.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
 import { renamePins } from './ai/ask.ts';
@@ -309,7 +310,10 @@ export function App() {
   const [fresh, setFresh] = useState(0);
   /** Layers switched on here (layers-control.tsx), on top of what the YAML says. */
   const layering = useLayers(docId, viewName);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, layering.options);
+  // Stages (stages/): the one picked on the timeline is drawn, on the placement of everything.
+  const staging = useStages(docId, viewName);
+  const lenses = useMemo(() => (staging.options ? { ...layering.options, ...staging.options } : layering.options), [layering.options, staging.options]);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, lenses);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -798,7 +802,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...layering.options, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -1080,7 +1084,7 @@ export function App() {
     if (!r) return apply(undefined);
     // Dropped at a point: it stays there, pinned as a node or, for a new group, by its top-left.
     const drawnAt = at && drawnAs(r.text, type, r.path);
-    apply(r.text, at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
+    apply(stages.onAdd(r.text, r.path), at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
     // The label is what people change first: selected and focused once it is drawn.
     setPendingPath(JSON.stringify(r.path));
   };
@@ -1089,6 +1093,8 @@ export function App() {
   const remove = (sel: Selection | undefined = selected) => {
     const path = pathOf(sel);
     if (!path || !sel || !type || !ready()) return;
+    // While a later stage is picked, deleting records that it goes in that stage.
+    if (stages.onRemove([sel])) return;
     // One arrow of a chain ("a -> b -> c"): the chain is cut there, the rest of it stays.
     if (sel.kind === 'edge' && isChainLine(textNow(), type, sel.id)) {
       const next = editChainLine(textNow(), type, sel.id);
@@ -1104,7 +1110,7 @@ export function App() {
       if (e) editor.current?.reveal(e.from, e.to);
       return;
     }
-    const next = deleteEntry(textNow(), type, path);
+    const next = stages.tidy(deleteEntry(textNow(), type, path));
     const pinned = sel.kind === 'node' ? vpins?.nodes?.[sel.id] : sel.kind === 'group' ? vpins?.groups?.[sel.id] : undefined;
     apply(next, pinned ? withPin(sel.id, undefined, sel.kind === 'group') : undefined);
     if (next != null && sel === selected) setSelected(undefined);
@@ -1125,6 +1131,7 @@ export function App() {
   /** Deletes everything selected as one step; parts of larger entries stay (they are changed in the YAML). */
   const removeAll = () => {
     if (!type || !ready()) return;
+    if (stages.onRemove(selection)) return;
     const t = textNow();
     const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(t, type, s.id));
     const rest = selection.filter((s) => !chain.includes(s));
@@ -1147,7 +1154,7 @@ export function App() {
     const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
     const unpinned = vpins && selection.some((s) => (s.kind === 'node' ? vpins.nodes?.[s.id] : s.kind === 'group' ? vpins.groups?.[s.id] : undefined));
     const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
-    apply(next, nextPins);
+    apply(stages.tidy(next), nextPins);
     if (next != null) {
       setSelection([]);
       if (paths.length < rest.length) notify(`Deleted ${paths.length + chain.length}; ${rest.length - paths.length} that are part of larger entries stayed`);
@@ -1418,6 +1425,7 @@ export function App() {
       case 'page': craft.toggle(id); break;
       case 'nearest': focusToward(e.key.slice(5).toLowerCase() as Direction); break;
       case 'step-by': stepBy(e.key === ']' ? 1 : -1); break;
+      case 'stage-by': if (!stages.onKey(e)) return; break;
       case 'step': addStepFromSelection(); break;
       case 'next-view': nextView(); break;
       case 'nudge': nudge(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0); break;
@@ -1795,6 +1803,15 @@ export function App() {
     onSelect: (s) => select(s),
   });
   const layers = layering.ui(drawn, comparing.active);
+  const stages = staging.ui({
+    drawn,
+    textNow,
+    apply: (next) => apply(next),
+    notify,
+    compare: comparing.stages,
+    openDoc: (next, name, said) => void leave().then((ok) => ok && (open(next, { name }, undefined, false, said), focusDrawing())),
+    name: doc.name,
+  });
 
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
@@ -1851,6 +1868,7 @@ export function App() {
       : []),
     ...comparing.commands,
     ...layers.commands,
+    ...stages.commands,
     { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
     { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
     { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
@@ -2277,7 +2295,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}${reviewMode ? ' review-mode' : ''}`} aria-label="Drawing">
+        <section className={`pane canvas-pane${stepList.length || stages.active ? ' with-steps' : ''}${reviewMode ? ' review-mode' : ''}`} aria-label="Drawing">
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -2477,6 +2495,7 @@ export function App() {
             )}
           </Preview>
           {comparing.view}
+          {stages.strip}
           {stepList.length > 0 && (
             <StepsStrip
               steps={stepList}
