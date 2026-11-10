@@ -120,6 +120,15 @@ describe('layout quality', () => {
     expect(said.length).toBeGreaterThan(1);
     expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(1);
   });
+  it('keeps what one card names in a badge by that card', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'azure/web-shop.yaml'), 'utf8'), { fonts: 'none' });
+    const at = (id: string) => r.placed!.nodes.get(id)!;
+    // The key vault has no line of its own: it stands past the API that names it, not at the far end of the resource group.
+    expect(at('vault').x).toBeGreaterThan(at('api').x);
+    // And the way in runs straight: nothing stretches the resource group out in front of the web shop.
+    const middle = (id: string) => at(id).y + at(id).height / 2;
+    expect(new Set(['users', 'edge', 'web'].map(middle)).size).toBe(1);
+  });
   it('starts the cards of one row on one line, top-down', async () => {
     const r = await render(c4, { fonts: 'none', view: 'containers' });
     expect(r.placed!.memory!.variant).toMatch(/^down\//);

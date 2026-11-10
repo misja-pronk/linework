@@ -247,6 +247,8 @@ export interface Sized {
   groupHeader: number;
   /** Width a group needs at least to show its label. */
   groupMinWidth: Map<string, number>;
+  /** Pairs that belong together without a line between them (a relation shown as a badge). */
+  near?: [string, string][];
 }
 
 export interface NodeSize {

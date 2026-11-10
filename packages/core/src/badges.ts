@@ -45,6 +45,12 @@ export function withoutBadges(graph: Graph): Graph {
   return { ...graph, edges, ...(folded.size ? { nodes: graph.nodes.filter((n) => !n.folded) } : {}) };
 }
 
+/** The ends of the badged edges: layout draws no line there, but what a card names in a badge still belongs near it. */
+export function badgePairs(graph: Graph): [string, string][] {
+  const nodes = byId(graph);
+  return graph.edges.filter((e) => isChip(e, nodes) && !nodes.get(e.from.node)?.folded && !nodes.get(e.to.node)?.folded).map((e) => [e.from.node, e.to.node]);
+}
+
 const byId = (graph: Graph) => new Map(graph.nodes.map((n) => [n.id, n]));
 
 function isChip(e: GraphEdge, nodes: Map<string, GraphNode>): boolean {
