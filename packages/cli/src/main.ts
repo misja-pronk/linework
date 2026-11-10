@@ -100,6 +100,7 @@ const helpAll = `carto — architecture diagrams that look good
   carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, threats
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
+               [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
   carto export-md <file.yaml|folder> -o dir/    a Markdown page with each view as SVG and PNG, its description
                [--title "…"] [--no-steps]       under it and steps as sections; a folder gets README.md as its
@@ -1799,6 +1800,18 @@ async function main(): Promise<number> {
       const ext = values.out && values.out !== '-' ? path.extname(values.out).slice(1).toLowerCase() : '';
       const asked = values.format === 'markdown' ? 'md' : values.format;
       const format = asked === 'text' || asked === 'md' || asked === 'html' ? asked : ext === 'md' || ext === 'markdown' ? 'md' : ext === 'html' || ext === 'htm' ? 'html' : 'text';
+      if (values.stages) {
+        // The stages in words: what each one changes against the one before, a replacement told as one.
+        const { stageStory, storyMarkdown, storyText } = await import('@cartography/diff');
+        const opts = optionsFor(f, 'none');
+        const story = await stageStory(fs.readFileSync(f, 'utf8'), opts);
+        if (!story.length) return (console.error(`${f}: this diagram has no stages: (see docs/transitions.md)`), 1);
+        const title = (await render(fs.readFileSync(f, 'utf8'), { ...opts, stage: 'overview' })).graph?.title ?? path.basename(f);
+        const said = format === 'md' ? storyMarkdown(title, story) : storyText(title, story);
+        if (!values.out || values.out === '-') process.stdout.write(said);
+        else fs.writeFileSync(values.out, said);
+        return 0;
+      }
       const { describeFile } = await import('./wiki.ts');
       const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
       for (const p of r.problems) console.error(`${f}  ${red('error')}  ${p}`);

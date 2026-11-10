@@ -213,3 +213,16 @@ export async function stagesRoadmap(text: string, opts: RenderOptions = {}, how:
   }
   return `# Made by carto from the stages of the diagram: edit the stages there, or this roadmap on its own.\n${doc.toString({ lineWidth: 0, flowCollectionPadding: true })}`;
 }
+
+/** The story in plain sentences, a paragraph per stage: "In Landing zone (2026-Q2) the File server and … are replaced by …". */
+export function storyText(title: string, story: { stage: StageInfo; told: Explained[] }[]): string {
+  // Only the verb is lowered: a name stays as the drawing writes it.
+  const lower = (s: string) => (/^(Added|Removed|Replaced|Moved|Renamed|Titled|Subtitle) /.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s);
+  const out = [title, ''];
+  for (const [k, { stage, told }] of story.entries()) {
+    const when = `${stage.title}${stage.when ? ` (${stage.when})` : ''}`;
+    const said = told.map((t, i) => (i ? lower(t.text) : t.text));
+    out.push(k === 0 ? `${when} is where it starts.${stage.description ? ` ${stage.description}` : ''}` : `In ${when}: ${said.length ? `${said.join('; ')}.` : 'nothing changes in what is drawn.'}${stage.description ? ` ${stage.description}` : ''}`, '');
+  }
+  return out.join('\n');
+}
