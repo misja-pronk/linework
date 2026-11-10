@@ -53,6 +53,7 @@ import { useTrace } from './trace/use-trace.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { useDecisionsTool } from './decisions-panel.tsx';
+import { AnimateDialog } from './animate-dialog.tsx';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -209,6 +210,7 @@ export function App() {
   const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const [more, setMore] = useState(false);
   /** The drawing's tools that fold into ⋯ when the pane is narrow. */
   const [toolsMore, setToolsMore] = useState(false);
@@ -1712,6 +1714,7 @@ export function App() {
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'animate', group: 'Export', label: 'Animation (GIF / MP4)…', hint: 'the steps or layers, a short blend between them', icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
     { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
     ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
@@ -2012,6 +2015,9 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={() => saveHtml()} title="One file to send: every view and step, zoom, search, drill-down">
                   <Icon name="globe" /> Interactive HTML (.html)
+                </button>
+                <button role="menuitem" onClick={() => setAnimating(true)} title="The steps or layers, a short blend between them">
+                  <Icon name="circle-play" /> Animation (GIF / MP4)
                 </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
@@ -2584,6 +2590,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
       {trace.dialog}
       {noteMenu && (

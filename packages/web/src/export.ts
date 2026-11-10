@@ -63,7 +63,7 @@ function notedDrawing(r: RenderResult, input: ExportInput) {
 const MAX_PIXELS = 16_000_000;
 
 /** What every export renders with: the editor's theme pick (fonts embedded) and icon folder win. */
-const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), ...(input.layers ? { layers: input.layers, layerMode: input.layerMode } : {}), fonts: 'embed' as const });
+export const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), ...(input.layers ? { layers: input.layers, layerMode: input.layerMode } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, options(input)), input);
