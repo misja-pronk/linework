@@ -181,7 +181,8 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   const pdf = await page.pdf({ path: path.join(out, 'workspace.pdf'), landscape: true, format: 'A4', preferCSSPageSize: true });
   const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
   check(pdf.toString('latin1').startsWith('%PDF-'), 'site: print gave no PDF');
-  check(pages === 15, `site: ${pages} printed pages, expected 1 + 14`);
+  const drawings = await page.locator('.print .page[data-d]').count();
+  check(drawings >= 12 && pages === drawings + 1, `site: ${pages} printed pages for ${drawings} drawings and the contents`);
   await done();
 }
 

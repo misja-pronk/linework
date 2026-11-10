@@ -234,6 +234,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         for (const d of light.diagnostics) if (d.severity === 'error') problems.push({ file: `${file}${view ? `#${view}` : ''}`, line: d.line, message: d.message });
         continue;
       }
+      // A view that picks nothing is left out, as --all-views and decks leave it out.
+      if (light.empty) continue;
       const viewName = light.view ?? view;
       const dark = await render(text, { ...common, theme: 'dark', view: viewName, idPrefix });
       addTheme(light.theme);
