@@ -285,6 +285,15 @@ describe('access import: a large tenant', () => {
     expect(r.diagnostics.map((w) => w.message).join('\n')).not.toContain('(in part)');
   });
 
+  it('opens as the who × where matrix, and a focus draws the graph around one scope', async () => {
+    expect(out.yaml).toMatch(/^view: access$/m);
+    expect(out.warnings.join('\n')).toContain('23 identities are drawn as the who × where matrix');
+    const r = await render(out.yaml, { fonts: 'none', focus: { on: ['kestrel-production'], hops: 1, direction: 'upstream' } });
+    expect(r.graph!.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(['kestrel-production', 'sg-auditors']));
+    // A small tenant stays a graph.
+    expect(importAccess(folder('kestrel')).yaml).not.toMatch(/^view:/m);
+  });
+
   it('draws everyone and everything when asked', () => {
     const all = importAccess(folder('large'), { principals: 'all', depth: 9, groupBy: 'none' });
     const a = doc(all.yaml);
