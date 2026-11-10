@@ -147,6 +147,18 @@ describe('the guided flow', () => {
     expect(readPack('azure')!.manual).toEqual({});
   });
 
+  it('a page made with carto embed takes the official icons along to its live drawing', async () => {
+    const { embed } = await import('../src/embed.ts');
+    const file = path.join(tmp, 'shop.yaml');
+    fs.writeFileSync(file, 'type: azure\nicons: official\nnodes:\n  kv: { kind: key-vault, label: Secrets }\n');
+    const r = await embed(file, { fragment: true });
+    expect(r.ok).toBe(true);
+    expect(r.html).toContain('<image');
+    expect(r.html).toMatch(/&quot;icons&quot;:\{&quot;key-vault&quot;/);
+    const plain = await embed(file, { fragment: true, icons: 'lucide' });
+    expect(plain.html).not.toContain('<image');
+  });
+
   it('asks for a name when the files are nobody’s', () => {
     const dir = path.join(tmp, 'mystery');
     put(dir, ['a/thing.svg']);

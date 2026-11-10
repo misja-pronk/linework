@@ -38,6 +38,10 @@ export interface CartographyOptions {
   root?: string;
   /** Put the small stylesheet (light or dark, the typefaces) in each page with a diagram (the default). Off when the site's own CSS has `pageCss()`. */
   pageStyle?: boolean;
+  /** Finds an imported official icon set by name (`carto embed` looks in the config dir), for `icons: official`. */
+  iconPack?: RenderOptions['pack'];
+  /** official or lucide, over what the diagrams say. */
+  icons?: RenderOptions['iconsOverride'];
 }
 
 /** One diagram to draw. Plain data, so it can cross to a worker. */
@@ -152,6 +156,8 @@ export async function build(job: Job): Promise<Built> {
       file: name,
       sidecar: side?.data,
       fonts: toFile ? 'embed' : 'none',
+      pack: o.iconPack,
+      iconsOverride: o.icons,
       interactive: !toFile,
       hints: false,
       idPrefix: `c${key}${suffix}`,
@@ -220,9 +226,22 @@ export async function build(job: Job): Promise<Built> {
   for (const [f, t] of texts) files[f] = t;
   if (side) files[posix(path.relative(job.dir, side.path))] = side.text;
   linked(text, '', files, job.dir, read, new Set([name]));
-  const bundle = { main: name, files, ...(assets.size ? { assets: Object.fromEntries([...assets].map(([f, b]) => [f, Buffer.from(b).toString('base64')])) } : {}) };
+  const icons = officialIcons(light);
+  const bundle = { main: name, files, ...(assets.size ? { assets: Object.fromEntries([...assets].map(([f, b]) => [f, Buffer.from(b).toString('base64')])) } : {}), ...(icons ? { icons } : {}) };
   const live = el('carto-diagram', { 'data-bundle': JSON.stringify(bundle), ...(light.view ? { view: light.view } : {}), ...(theme !== 'auto' ? { theme } : {}) }, figure);
   return { figure: live, problems, ok: true, written };
+}
+
+/** The official icons a drawing used, kind → SVG, so the live drawing has them without the pack. */
+function officialIcons(r: RenderResult): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  const add = (id: string, kind: string | undefined, map: Map<string, string> | undefined) => {
+    const href = map?.get(id);
+    if (kind && href?.startsWith('data:image/svg+xml;base64,')) out[kind] = Buffer.from(href.slice(26), 'base64').toString('utf8');
+  };
+  for (const n of r.graph?.nodes ?? []) add(n.id, n.kind, r.images?.nodes);
+  for (const g of r.graph?.groups ?? []) add(g.id, g.kind, r.images?.groups);
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Follows links (and includes) from one diagram to the next and adds their text, so drill-down works offline. */

@@ -149,6 +149,8 @@ export class CartoDiagram extends HTMLElement {
   #given = new Map<string, string>();
   /** Pictures and fonts given the same way, base64. */
   #givenBytes = new Map<string, string>();
+  /** Official icons from the bundle, kind → SVG. */
+  #icons: Record<string, string> | undefined;
   // The drawing's size, and how it sits in the stage: scale and offset in CSS pixels.
   #w = 0;
   #h = 0;
@@ -254,12 +256,14 @@ export class CartoDiagram extends HTMLElement {
     const src = this.getAttribute('src');
     this.#given.clear();
     this.#givenBytes.clear();
+    this.#icons = undefined;
     // Generated pages (the docs plugins, carto embed) carry the diagram and what it reads in one attribute.
     const bundle = this.#bundle();
     if (bundle) {
       const start = new URL(bundle.main, document.baseURI).href;
       for (const [k, v] of Object.entries(bundle.files)) this.#given.set(new URL(k, start).href, String(v));
       for (const [k, v] of Object.entries(bundle.assets ?? {})) this.#givenBytes.set(new URL(k, start).href, String(v));
+      this.#icons = bundle.icons;
       return { url: start, view };
     }
     const base = src ? new URL(src, document.baseURI).href : main?.dataset.file ? new URL(main.dataset.file, document.baseURI).href : document.baseURI;
@@ -270,13 +274,13 @@ export class CartoDiagram extends HTMLElement {
     return undefined;
   }
 
-  #bundle(): { main: string; files: Record<string, string>; assets?: Record<string, string> } | undefined {
+  #bundle(): { main: string; files: Record<string, string>; assets?: Record<string, string>; icons?: Record<string, string> } | undefined {
     const text = this.getAttribute('data-bundle');
     if (!text) return undefined;
     try {
       const b = JSON.parse(text) as { main?: unknown; files?: unknown; assets?: unknown };
       if (typeof b.main !== 'string' || !b.files || typeof b.files !== 'object') return undefined;
-      return b as { main: string; files: Record<string, string>; assets?: Record<string, string> };
+      return b as { main: string; files: Record<string, string>; assets?: Record<string, string>; icons?: Record<string, string> };
     } catch {
       return undefined;
     }
@@ -357,6 +361,7 @@ export class CartoDiagram extends HTMLElement {
         theme: name === 'auto' ? undefined : name,
         sidecar,
         idPrefix: this.#id,
+        icons: this.#icons,
         read: (f) => this.#text(new URL(f, entry.url).href),
         bytes: async (f) => {
           const url = new URL(f, entry.url).href;

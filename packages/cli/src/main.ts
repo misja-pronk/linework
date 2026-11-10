@@ -1182,7 +1182,7 @@ async function main(): Promise<number> {
       if (values.css) return (process.stdout.write(embedCss()), 0);
       const [f] = files;
       if (!f) return (console.error(helpFor(command)), 1);
-      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static });
+      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static, icons: iconsFlag() });
       report(f === '-' ? 'stdin' : f, r.problems);
       // A fragment, or a page made from standard input, goes to standard output unless -o says where.
       // With errors a fragment is still written: it is the message a reader of the page should see.
