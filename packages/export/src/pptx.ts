@@ -205,8 +205,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     else if (top > room.y) top += 0.1 * INCH;
     // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
     const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, room.w / PX - 80).map((text) => ({ text, title: false })) : [])];
-    const ownCaption = told && !captionPh;
-    const below = ownCaption ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
+    // With a caption placeholder only the step number needs a row of its own.
+    const below = !told ? 0 : captionPh ? Math.round(CAPTION.row * INCH) : Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH);
     let smallest = Infinity;
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
     const area = { x: room.x, y: top, w: room.w, h: room.y + room.h - top - below };
@@ -233,7 +233,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y, w: room.w - INCH, h: below - 0.18 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
     }
     if (told && state) {
-      const y = captionPh ? room.y + room.h - CAPTION.row * INCH : room.y + room.h - below + 0.18 * INCH;
+      const y = room.y + room.h - below + (captionPh ? 0 : 0.18 * INCH);
       tree += shape({ id: next(), name: 'Step number', textBox: true, frame: { x: room.x + room.w - INCH, y, w: INCH, h: CAPTION.row * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ align: 'r', runs: [{ text: `${view.index + 1} / ${view.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
     }
     // The template's footer and slide number, as its layout shows them.
