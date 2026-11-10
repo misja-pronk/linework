@@ -29,6 +29,10 @@ import { blankText, exampleLoader, starters, typeName, type Starter } from './li
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
+import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
+import { themes } from '@cartography/theme';
+import { brand } from './brand.ts';
+import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -327,6 +331,23 @@ export function App() {
     [text, doc, pins, notify, savedText, savedPins],
   );
 
+  // "Open in editor" from a share link's viewer: the diagram becomes a document of this browser's own,
+  // with an undo back to what was open; the link data leaves the address bar.
+  const openShared = useRef(false);
+  useEffect(() => {
+    const m = new RegExp(`^#${OPEN_KEY}=([A-Za-z0-9_-]+)$`).exec(location.hash);
+    if (!m || openShared.current) return;
+    openShared.current = true;
+    history.replaceState(null, '', location.pathname + location.search);
+    void decodeShare(m[1]!).then((d) => {
+      if (!d) notify('That link does not hold a diagram: it may have been cut short', { tone: 'error' });
+      else {
+        setModal(undefined);
+        open(d.yaml, { name: d.name ?? 'shared.yaml' }, d.layout, false, `Opened the shared diagram as ${d.name ?? 'shared.yaml'}`);
+      }
+    });
+  }, [open, notify]);
+
   /** Before replacing the document: save it where it lives, or ask. False keeps it open. */
   const leave = async (): Promise<boolean> => {
     if (!dirty) return true;
@@ -587,6 +608,17 @@ export function App() {
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await svgNow());
     notify('SVG copied');
+  });
+  // A share link carries the diagram in its #fragment, which never reaches a server.
+  const copyShare = attempt('Share', async () => {
+    const link = await shareLink({ yaml: editor.current?.text() ?? text, name: doc.name, layout: pins, ...(brand().choice && themes[brand().choice] ? { theme: brand().choice } : {}) }, location.origin + location.pathname);
+    if (link.length > SHARE_LIMIT) {
+      notify(`Too large for a link: ${Math.ceil(link.length / 1000)} kB where ${SHARE_LIMIT / 1000} kB is the most links safely carry. Share the YAML file instead.`, { tone: 'error' });
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    const away = result?.includes?.length ? ` It does not carry ${result.includes.length === 1 ? 'the included file' : `the ${result.includes.length} included files`}.` : '';
+    notify(`Share link copied: it opens read-only, and the diagram travels in the link itself, nothing was uploaded.${away}`);
   });
   const copyPng = attempt('Copy', async () => {
     // Safari wants the ClipboardItem created right in the click, with the PNG still on its way.
@@ -1252,6 +1284,7 @@ export function App() {
     { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
     { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
+    { id: 'share', group: 'Export', label: 'Copy share link', hint: 'read-only, the diagram travels in the link', icon: 'link', run: copyShare },
     { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
     { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
     ...(type && !drawn?.stepsImplied
@@ -1540,6 +1573,10 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copyMermaid}>
                   <Icon name="copy" /> Copy as Mermaid
+                </button>
+                <hr />
+                <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
+                  <Icon name="link" /> Copy share link
                 </button>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
