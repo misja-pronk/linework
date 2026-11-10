@@ -57,6 +57,14 @@ await page.waitForSelector('.drawing svg');
   await wait();
   const listed = await page.locator('.palette-list').innerText().catch(() => '');
   for (const f of ['broken.json', 'cut-off.json', 'other.json']) if (!listed.includes(f)) fail(`the problems list should name ${f}: ${listed}`);
+  // The highlighted row is read in full, however long; the others keep to one line.
+  await page.keyboard.type('broken');
+  await wait();
+  const cut = await page.evaluate(() => {
+    const l = document.querySelector('.palette [aria-selected="true"] .palette-label');
+    return l ? l.scrollWidth > l.clientWidth + 1 || !l.textContent.includes('position 2 (line 1 column 3)') : true;
+  });
+  if (cut) fail('the highlighted import note is cut off');
   await page.screenshot({ path: `${out}/access-1b-notes.png` });
   await page.keyboard.press('Escape');
   // Still there from the palette while this diagram is open.

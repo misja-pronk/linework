@@ -553,6 +553,10 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A long line (a problem, an import note) is read in full where the keys are. */
+.palette-item[aria-selected='true'] .palette-label {
+  white-space: normal;
+}
 .palette-hint {
   margin-left: auto;
   font-size: 12px;
