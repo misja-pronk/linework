@@ -378,7 +378,7 @@ async function notesCommand(): Promise<number> {
     parts.push(notesMarkdown(notes, { graph, views, title: graph?.title ?? path.basename(f), all: !!values.all && !values.open }));
   }
   const md = parts.join('\n');
-  if (!values.out) process.stdout.write(md);
+  if (!values.out || values.out === '-') process.stdout.write(md);
   else if (md) {
     fs.writeFileSync(values.out, md);
     console.error(`${files.join(', ')} → ${values.out}`);
@@ -584,10 +584,14 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   const opts = optionsFor(file, values['no-fonts'] || safe || format !== 'svg' ? 'none' : 'embed');
   const first = await render(text, opts);
   // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
-  const runs = values['all-views'] && first.views?.length ? [first, ...(await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))))] : [first];
+  const views = values['all-views'] && first.views?.length ? await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))) : [];
+  // A view with nothing in it is no picture: said, not written.
+  for (const v of views) if (v.empty) console.error(`${shown}#${v.view}  ${dim('empty: nothing to draw, not written')}`);
+  const runs = [first, ...views.filter((v) => !v.empty)];
   const notes = values.notes ? notesFor(file) : undefined;
   if (values.notes && !notes) console.error(`${shown}  ${yellow('warning')}  --notes: there is no ${notesPath(file)}`);
   let ok = true;
+  const stdout = values.out === '-' || (shown === 'stdin' && !values.out);
   for (const [i, result] of runs.entries()) {
     const view = i ? result.view : values.view;
     report(view && i ? `${shown}#${view}` : shown, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
@@ -600,20 +604,27 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
     const shots = plain.map((r) => annotated(r, notes));
+    if (stdout && runs.length + shots.length > 2) throw new UsageError('-o - writes one picture to standard output: give a folder for --all-views or --all-steps');
+    // A drawing with errors is not what was asked for: nothing is written, the errors say why.
+    if (result.diagnostics.some((d) => d.severity === 'error')) {
+      console.error(`${shown}${view ? `#${view}` : ''}  ${red('error')}  nothing written`);
+      ok = false;
+      continue;
+    }
     const faces = result.theme?.font.faces ?? [];
     const outline = safe && values['outline-text'] ? await (await import('./outline.ts')).outliner(result.theme) : undefined;
     for (const shot of shots) {
       if (!shot.svg) continue;
-      const out = outputPath(file, format, view, each || values.step ? shot.step : undefined);
+      const out = stdout ? '-' : outputPath(file, format, view, each || values.step ? shot.step : undefined);
       const data =
         format === 'png' ? toPng(shot.svg, Number(values.scale) || 2, await ttfFiles(faces))
         : safe ? toSafeSvg(shot.svg, { outline })
         : format === 'svg' ? shot.svg
         : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
-      fs.writeFileSync(out, data);
-      console.log(`${shown}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${out} ${dim(`${shot.width}×${shot.height}`)}`);
+      if (stdout) process.stdout.write(data);
+      else fs.writeFileSync(out, data);
+      (stdout ? console.error : console.log)(`${shown}${view ? `#${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${stdout ? 'standard output' : out} ${dim(`${shot.width}×${shot.height}`)}`);
     }
-    if (result.diagnostics.some((d) => d.severity === 'error')) ok = false;
   }
   if (values.stable) noteLayout(file, runs);
   return ok;
@@ -932,18 +943,20 @@ async function diffFiles(): Promise<number> {
     if (changes?.length) changed = true;
     if (values.json) json.push({ file: p.name, ...(values.view ? { view: values.view } : {}), against: p.against, ...(state ? { state } : {}), summary: summary(c.diff), explained: explain(c.diff, c.before?.graph, c.after?.graph).map((x) => x.text), ...c.diff, ...(changes ? { access: changes } : {}) });
     else {
-      console.log(`${bold(p.name)}${values.view ? `#${values.view}` : ''} ${dim(`against ${p.against}`)}: ${state ? `${state}, ` : ''}${summary(c.diff)}`);
-      if (!c.diff.same) console.log(formatDiff(c.diff));
-      if (changes?.length) for (const x of changes) console.log(`  ${x.kind === 'gained' ? '+' : x.kind === 'lost' ? '-' : '~'} ${x.text}`);
+      // With -o - the picture or the text is standard output: the summary goes to stderr.
+      const say = values.out === '-' ? console.error : console.log;
+      say(`${bold(p.name)}${values.view ? `#${values.view}` : ''} ${dim(`against ${p.against}`)}: ${state ? `${state}, ` : ''}${summary(c.diff)}`);
+      if (!c.diff.same) say(formatDiff(c.diff));
+      if (changes?.length) for (const x of changes) say(`  ${x.kind === 'gained' ? '+' : x.kind === 'lost' ? '-' : '~'} ${x.text}`);
     }
     if (!values.out) continue;
     const single = pairs.length === 1 && !!ext;
     if (markdown) {
       const text = changes ? accessMarkdown(path.basename(p.name), changes) : explainMarkdown(c.diff, c.before?.graph, c.after?.graph, { name: path.basename(p.name), against: p.against });
-      const out = single ? values.out : path.join(values.out, path.basename(p.name).replace(/\.ya?ml$/, '') + '.diff.md');
-      fs.mkdirSync(path.dirname(out), { recursive: true });
-      fs.writeFileSync(out, text);
-      console.error(`${p.name} → ${out}`);
+      const out = values.out === '-' ? '-' : single ? values.out : path.join(values.out, path.basename(p.name).replace(/\.ya?ml$/, '') + '.diff.md');
+      if (out !== '-') fs.mkdirSync(path.dirname(out), { recursive: true });
+      put(out, text);
+      if (out !== '-') console.error(`${p.name} → ${out}`);
       continue;
     }
     const overlay = { against: p.against, labels: { before: p.against, after: ref ? 'Working tree' : path.basename(p.name) } };
@@ -955,10 +968,10 @@ async function diffFiles(): Promise<number> {
       picture = r.svg && r.width !== undefined && r.height !== undefined ? { svg: r.svg, width: r.width, height: r.height } : undefined;
     } else picture = values['side-by-side'] ? c.sideBySide(overlay) : c.picture(overlay);
     if (!picture) continue;
-    const out = single ? values.out : path.join(values.out, path.basename(p.name).replace(/\.ya?ml$/, '') + (values.view ? `-${values.view}` : '') + `.diff.${format}`);
-    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const out = values.out === '-' ? '-' : single ? values.out : path.join(values.out, path.basename(p.name).replace(/\.ya?ml$/, '') + (values.view ? `-${values.view}` : '') + `.diff.${format}`);
+    if (out !== '-') fs.mkdirSync(path.dirname(out), { recursive: true });
     const faces = (c.after ?? c.before)?.theme?.font.faces ?? [];
-    fs.writeFileSync(out, format === 'png' ? toPng(picture.svg, Number(values.scale) || 2, await ttfFiles(faces)) : picture.svg);
+    put(out, format === 'png' ? toPng(picture.svg, Number(values.scale) || 2, await ttfFiles(faces)) : picture.svg);
     console.error(`${p.name} → ${out} ${dim(`${picture.width}×${picture.height}`)}`);
   }
   if (values.json) console.log(JSON.stringify(ref || snap ? json : json[0], null, 2));
@@ -1228,6 +1241,9 @@ async function importDrawing(file: string): Promise<boolean> {
 type Interop = 'drawio' | 'excalidraw' | 'mermaid' | 'md';
 const interopExt: Record<string, Interop> = { drawio: 'drawio', dio: 'drawio', xml: 'drawio', excalidraw: 'excalidraw', mmd: 'mermaid', mermaid: 'mermaid', md: 'md', markdown: 'md' };
 
+/** Writes a file, or standard output for `-`. */
+const put = (out: string, data: string | Uint8Array) => (out === '-' ? process.stdout.write(data) : fs.writeFileSync(out, data));
+
 /** carto export: the drawing in another tool's format. What the format cannot hold is said on stderr. */
 async function exportFile(file: string): Promise<boolean> {
   const ext = values.out && files.length === 1 ? path.extname(values.out).slice(1).toLowerCase() : '';
@@ -1243,6 +1259,7 @@ async function exportFile(file: string): Promise<boolean> {
   };
   const outExt = format === 'mermaid' ? 'mmd' : format;
   const target = (view?: string) => {
+    if (values.out === '-') return '-';
     const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + '.' + outExt;
     if (!values.out) return path.join(path.dirname(file), base);
     if (files.length === 1 && !view && path.extname(values.out)) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), values.out);
@@ -1252,7 +1269,8 @@ async function exportFile(file: string): Promise<boolean> {
   // draw.io has pages: every view goes into the one file. The others hold one drawing: the view asked
   // for, or with --all-views a file per view.
   const each = !values.view && first.views?.length && (format === 'drawio' || values['all-views']) ? first.views.map((v) => v.name) : undefined;
-  const drawn: RenderResult[] = each ? await Promise.all(each.map((v) => render(text, { ...opts, view: v }))) : [first];
+  if (values.out === '-' && each && format !== 'drawio') throw new UsageError('-o - writes one drawing to standard output: give a folder for --all-views');
+  const drawn: RenderResult[] = each ? (await Promise.all(each.map((v) => render(text, { ...opts, view: v })))).filter((r) => !r.empty) : [first];
   let ok = !first.diagnostics.some((d) => d.severity === 'error');
   if (format === 'drawio') {
     const scenes: Scene[] = [];
@@ -1268,8 +1286,8 @@ async function exportFile(file: string): Promise<boolean> {
     }
     if (!scenes.length) return false;
     const out = target();
-    fs.writeFileSync(out, toDrawio(scenes));
-    console.log(`${file} → ${out} ${dim(scenes.length > 1 ? `${scenes.length} pages` : `${scenes[0]!.elements.length} shapes, ${scenes[0]!.connectors.length} connectors`)}`);
+    put(out, toDrawio(scenes));
+    (out === '-' ? console.error : console.log)(`${file} → ${out} ${dim(scenes.length > 1 ? `${scenes.length} pages` : `${scenes[0]!.elements.length} shapes, ${scenes[0]!.connectors.length} connectors`)}`);
     return ok;
   }
   for (const r of drawn) {
@@ -1283,13 +1301,13 @@ async function exportFile(file: string): Promise<boolean> {
     if (format === 'excalidraw') {
       const scene = toScene(r);
       warn(view, scene.warnings);
-      fs.writeFileSync(out, toExcalidraw(scene));
-      console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${scene.elements.length} shapes, ${scene.connectors.length} arrows`)}`);
+      put(out, toExcalidraw(scene));
+      (out === '-' ? console.error : console.log)(`${file}${view ? `#${view}` : ''} → ${out} ${dim(`${scene.elements.length} shapes, ${scene.connectors.length} arrows`)}`);
     } else {
       const m = toMermaid(r);
       warn(view, m.warnings);
-      fs.writeFileSync(out, format === 'md' ? mermaidBlock(m.text) : m.text);
-      console.log(`${file}${view ? `#${view}` : ''} → ${out} ${dim(m.kind)}`);
+      put(out, format === 'md' ? mermaidBlock(m.text) : m.text);
+      (out === '-' ? console.error : console.log)(`${file}${view ? `#${view}` : ''} → ${out} ${dim(m.kind)}`);
     }
   }
   return ok;
@@ -1364,7 +1382,8 @@ async function main(): Promise<number> {
       try {
         if (sub === 'show') {
           const { svg, coverage: cov } = packSheet(a);
-          if (values.out) {
+          if (values.out === '-') process.stdout.write(svg);
+          else if (values.out) {
             fs.writeFileSync(values.out, /\.png$/i.test(values.out) ? toPng(svg, 2) : svg);
             console.log(`${a}: ${cov.have} of ${cov.of} kinds → ${values.out}`);
           } else {
@@ -1402,7 +1421,7 @@ async function main(): Promise<number> {
     case 'new': {
       if (values.wizard) {
         const { newFromWizard } = await import('./wizard.ts');
-        return newFromWizard(values.wizard, files[0], { answers: values.answers, yes: values.yes });
+        return newFromWizard(values.wizard, files[0] === '-' ? undefined : files[0], { answers: values.answers, yes: values.yes });
       }
       const [id, target] = files;
       // Without a type, help picking one instead of an error.
@@ -1412,7 +1431,8 @@ async function main(): Promise<number> {
         console.error(`Unknown type "${id ?? ''}". Types: ${types.map((t) => t.id).join(', ')}`);
         return 1;
       }
-      if (!target) {
+      // `-` is standard output, as everywhere a file is named.
+      if (!target || target === '-') {
         process.stdout.write(type.template);
         return 0;
       }
@@ -1433,7 +1453,7 @@ async function main(): Promise<number> {
       report(f === '-' ? 'stdin' : f, r.problems);
       // A fragment, or a page made from standard input, goes to standard output unless -o says where.
       // With errors a fragment is still written: it is the message a reader of the page should see.
-      const out = values.out ?? (values.fragment || f === '-' ? undefined : f.replace(/\.ya?ml$/i, '') + '.html');
+      const out = values.out === '-' ? undefined : values.out ?? (values.fragment || f === '-' ? undefined : f.replace(/\.ya?ml$/i, '') + '.html');
       if (!out) process.stdout.write(r.html);
       else if (r.ok || values.fragment) fs.writeFileSync(out, r.html);
       if (out && r.ok) console.error(`${f} → ${out}`);
@@ -1450,7 +1470,7 @@ async function main(): Promise<number> {
         return 1;
       }
       const md = threatMarkdown(r.graph);
-      if (!values.out) process.stdout.write(md);
+      if (!values.out || values.out === '-') process.stdout.write(md);
       else {
         fs.writeFileSync(values.out, md);
         console.error(`${f} → ${values.out}  ${dim(`${r.graph.threats.length} threats`)}`);
@@ -1539,7 +1559,9 @@ async function main(): Promise<number> {
       if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
       for (const f of files) {
         const kind = isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? exportKind([f]) : /\.json$/i.test(f) && exportKind([f]) === 'azure' ? 'azure' : undefined;
-        ok = (await (kind ? renderExport(f, kind) : isFolder(f) ? renderMesh(f) : renderFile(f))) && ok;
+        // `-` reads the diagram from standard input; the picture then goes to standard output unless -o says where.
+        if (f === '-') ok = (await renderFile(path.resolve('stdin.yaml'), fs.readFileSync(0, 'utf8'), 'stdin')) && ok;
+        else ok = (await (kind ? renderExport(f, kind) : isFolder(f) ? renderMesh(f) : renderFile(f))) && ok;
       }
       return ok ? 0 : 1;
     }
