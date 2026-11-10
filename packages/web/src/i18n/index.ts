@@ -17,6 +17,9 @@ let current: Lang = store.get<Lang>(KEY) === 'nl' || store.get<Lang>(KEY) === 'e
 const listeners = new Set<() => void>();
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
+/** What was picked in the menu: a language, or `undefined` for the browser's. */
+export const uiLangChoice = (): Lang | undefined => (store.get<Lang>(KEY) === 'nl' || store.get<Lang>(KEY) === 'en' ? store.get<Lang>(KEY)! : undefined);
+
 /** The editor's language now. */
 export const uiLang = () => current;
 

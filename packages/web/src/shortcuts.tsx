@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
 import { sheetKeys, SHORTCUTS, type KeyContext } from './keys.ts';
+import { say, t, useUiLang } from './i18n/index.ts';
 
 /** The sheet's sections in reading order, each with where its keys work. */
 const GROUPS: [string, string][] = [
@@ -19,6 +20,8 @@ const GROUPS: [string, string][] = [
   ['Presenting', 'full screen'],
   ['Comparing versions', ''],
   ['Folder (one model)', 'with a folder open'],
+  ['Blocks', ''],
+  ['Trace a request', ''],
   ['YAML editor', 'when the YAML has focus'],
   ['Mouse and trackpad', ''],
 ];
@@ -27,6 +30,7 @@ const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip',
 
 export function Shortcuts({ onClose }: { onClose(): void }) {
   useRestoreFocus();
+  const lang = useUiLang();
   const [query, setQuery] = useState('');
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,20 +44,20 @@ export function Shortcuts({ onClose }: { onClose(): void }) {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     return GROUPS.map(([title, note]) => {
       const rows = SHORTCUTS.filter((s) => s.group === title)
-        .map((s) => ({ id: s.id, keys: sheetKeys(s), what: WHERE[s.context] ? `${s.what} (${WHERE[s.context]})` : s.what }))
-        .filter((r) => words.every((w) => `${r.keys} ${r.what} ${title}`.toLowerCase().includes(w)));
-      return { title, note, rows };
+        .map((s) => ({ id: s.id, keys: sheetKeys({ ...s, show: s.show && say(s.show) }), what: WHERE[s.context] ? `${say(s.what)} (${say(WHERE[s.context]!)})` : say(s.what) }))
+        .filter((r) => words.every((w) => `${r.keys} ${r.what} ${say(title)} ${title}`.toLowerCase().includes(w)));
+      return { title: say(title), note: note && say(note), rows };
     }).filter((g) => g.rows.length);
-  }, [query]);
+  }, [query, lang]);
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="shortcuts" role="dialog" aria-label="Keyboard shortcuts" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts" role="dialog" aria-label={t('Keyboard shortcuts')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
-            <Icon name="keyboard" /> Shortcuts
+            <Icon name="keyboard" /> {t('Shortcuts')}
           </h2>
-          <input className="shortcuts-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a key or what it does…" aria-label="Find a shortcut" autoFocus />
-          <button className="icon-button" onClick={onClose} aria-label="Close">
+          <input className="shortcuts-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('Find a key or what it does…')} aria-label={t('Find a shortcut')} autoFocus />
+          <button className="icon-button" onClick={onClose} aria-label={t('Close')}>
             <Icon name="x" />
           </button>
         </header>
@@ -76,7 +80,7 @@ export function Shortcuts({ onClose }: { onClose(): void }) {
               </dl>
             </section>
           ))}
-          {!sections.length && <p className="shortcuts-none">No shortcut for “{query}”. The command palette (⌘K) has every command.</p>}
+          {!sections.length && <p className="shortcuts-none">{t('No shortcut for “{query}”. The command palette (⌘K) has every command.', { query })}</p>}
         </div>
       </div>
     </div>
