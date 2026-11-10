@@ -217,3 +217,41 @@ relations:
     expect(bad.err).toContain('"no-such-ref" is not a commit, branch or tag here');
   }, 120_000);
 });
+
+describe('carto import and diff of access and GitHub exports', () => {
+  const az = (name: string) => path.join(root, 'examples/access/import', name);
+  const gh = (name: string) => path.join(root, 'examples/github/import', name);
+
+  it('imports a folder of az and Graph JSON beside it, and again keeps what was changed by hand', () => {
+    fs.cpSync(az('kestrel'), path.join(tmp, 'tenant'), { recursive: true });
+    const first = carto('import', 'tenant');
+    expect(first.code).toBe(0);
+    expect(first.out).toContain('16 identities, 12 role assignments on 9 scopes, 3 access packages');
+    write('tenant.yaml', read('tenant.yaml').replace('sg-developers: { kind: group,', 'sg-developers: { kind: group, label: Developers,'));
+    const again = carto('import', 'tenant');
+    expect(again.out).toContain('what was added by hand kept');
+    expect(read('tenant.yaml')).toContain('label: Developers');
+  }, 60_000);
+
+  it('says a flag it does not know, and stops', () => {
+    const r = carto('import', az('kestrel'), '--principals', 'some', '-o', '-');
+    expect(r.code).toBe(1);
+    expect(r.err).toContain('--principals is one of auto, all, groups, not "some"');
+  }, 60_000);
+
+  it('tells who gained and lost what between two folders, as markdown with -o x.md', () => {
+    const r = carto('diff', az('kestrel'), az('kestrel-later'), '-o', 'june.md', '--exit-code');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('+ Hugo Smit gained Owner on Kestrel Logistics (via sg-platform-admins)');
+    const md = read('june.md');
+    expect(md).toContain('### Gained (4)');
+    expect(md).toContain('- Emre Yilmaz lost Reader on Kestrel Production (via sg-developers)');
+  }, 60_000);
+
+  it('does the same for a GitHub organisation, and draws the matrix with --view access', () => {
+    const r = carto('diff', gh('kestrel'), gh('kestrel-later'), '--view', 'access', '-o', 'gh.svg');
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('Developers gained write on route-planner, and with it Data, Shop');
+    expect(read('gh.svg')).toContain('was write');
+  }, 60_000);
+});

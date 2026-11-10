@@ -1,0 +1,26 @@
+[
+  {
+    "login": "dev-206",
+    "id": 1390,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-220",
+    "id": 1404,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-261",
+    "id": 1445,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "dev-262",
+    "id": 1446,
+    "type": "User",
+    "site_admin": false
+  }
+]

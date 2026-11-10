@@ -1,0 +1,215 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#groups",
+  "value": [
+    {
+      "id": "ac5928d5-6a96-efe4-28bd-f631d3485992",
+      "displayName": "sg-shop-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "3c712859-0266-0dd0-465c-3fa7791b8074",
+      "displayName": "sg-shop-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "ee01cd14-2346-ca5d-e7ca-32e5a814b897",
+      "displayName": "sg-shop-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "c63d6007-fb7f-8965-ffd2-8e7b7d8c3b70",
+      "displayName": "sg-data-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "6c057b4d-76b0-1cd5-e8b6-9ebc316799c1",
+      "displayName": "sg-data-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "55e70b0f-0047-c9c9-9be1-681b903c45ce",
+      "displayName": "sg-data-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "2fd37117-c705-e5ac-2608-02cb89282e19",
+      "displayName": "sg-billing-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "021a78dd-8d64-8419-0e31-5b4561e124c6",
+      "displayName": "sg-billing-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "8e2f15f6-be2a-c1d4-3aa0-b4060cf51e7d",
+      "displayName": "sg-billing-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "2e972866-f1f5-063c-21e0-dac23748caca",
+      "displayName": "sg-routing-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "5dd884f8-3497-0cdf-02de-1feab9859cf0",
+      "displayName": "sg-routing-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "3721631c-a226-2004-0bd3-329c70205c6f",
+      "displayName": "sg-routing-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "b38e32f8-e3e9-6f11-0875-4b4976913506",
+      "displayName": "sg-fleet-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "30654d25-537b-aafc-da16-9984e3a58da1",
+      "displayName": "sg-fleet-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "0d145b46-f961-ac43-be4e-56b11dc1354b",
+      "displayName": "sg-fleet-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "3db0fa87-08e8-b5cb-139d-4e6ff1cd8bc9",
+      "displayName": "sg-portal-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "3004f63c-d528-7fc5-584a-189bc2ca92d2",
+      "displayName": "sg-portal-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "d5335042-b020-434b-101b-05366bb31c82",
+      "displayName": "sg-portal-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "ef6bd3a6-fa11-6812-8223-5614d11b0de7",
+      "displayName": "sg-platform-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "4cda2b11-249b-fd43-be27-38d0fe7c37c3",
+      "displayName": "sg-platform-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "9503c256-fdfc-4c01-d091-b329d828a151",
+      "displayName": "sg-platform-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "2cdaa1a6-7ebe-bf7c-49ab-4cfd1b051a30",
+      "displayName": "sg-security-developers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "2d61d7b6-ff79-f13b-2c72-b0754c4b79be",
+      "displayName": "sg-security-operators",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "b3f63558-9a45-5e39-2908-05d69291a3bd",
+      "displayName": "sg-security-readers",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "a6ba93a4-1fc4-1fbb-825e-1276e79c844a",
+      "displayName": "sg-platform-admins",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": true
+    },
+    {
+      "id": "2f43c348-d4ae-78b9-1c8b-e9c0ee6f8d56",
+      "displayName": "sg-auditors",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "c4fe5cc9-d38e-8ee0-0dd0-440cc6b39910",
+      "displayName": "sg-finance",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "95c5eba3-d5f5-2868-4819-b42260b871bc",
+      "displayName": "sg-support",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "d2d9efc5-34e8-b102-e385-6e965c7d8c84",
+      "displayName": "sg-contractors",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    },
+    {
+      "id": "6860c6bf-a4af-af44-63af-900c0c58fa9b",
+      "displayName": "sg-everyone",
+      "securityEnabled": true,
+      "groupTypes": [],
+      "isAssignableToRole": null
+    }
+  ]
+}

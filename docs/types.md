@@ -64,6 +64,8 @@ Look-alikes that trip people up:
 
 Use it for any system overview: services, clients, queues, databases and external systems in nestable groups (system, zone, cloud, region). It is cloud-neutral, so it suits design docs and onboarding, and it is what a Mermaid import becomes.
 
+Groups that end up side by side are drawn in the order they are written: the first one left, or on top in a left-to-right drawing. Move a group up in the file to move it to the front. Where the lines between two groups pull the other way, the lines win. This holds for every type made of nodes and groups (`azure`, `cloud`, `network`, `kubernetes`, …).
+
 Not for: what runs in which Azure subnet (use `azure`), table columns (use `erd`), who may access what (use `access`).
 
 ```yaml
@@ -137,7 +139,7 @@ Use it for a VPC across availability zones with its subnet tiers, a data platfor
 
 - **Containers** nest the way the clouds do: `organization`, `region`, `vpc`, `zone`, `subnet`, `on-premises` and `boundary` for both; `aws`, `ou`, `account`, `security-group`, `auto-scaling-group`, `ecs-cluster`, `eks-cluster` for AWS; `gcp`, `folder`, `project`, `instance-group`, `gke-cluster`, `service-perimeter` for Google Cloud. `cidr`, `account`, `project`, `region` and `zone` go in the caption.
 - **Services** are named the way you say them: `ec2`, `ecs`, `eks`, `lambda`, `s3`, `rds`, `aurora`, `dynamodb`, `redshift`, `glue`, `kinesis`, `sqs`, `sns`, `eventbridge`, `api-gateway`, `cloudfront`, `route53`, `alb`, `nat-gateway`, `transit-gateway`, `iam-role`, `kms`, `cloudwatch`, `bedrock`, … (59 for AWS) and `compute-engine`, `gke`, `cloud-run`, `cloud-functions`, `gcs`, `cloud-sql`, `spanner`, `bigquery`, `dataflow`, `pubsub`, `cloud-load-balancing`, `cloud-nat`, `service-account`, `cloud-kms`, `vertex-ai`, … (51 for Google Cloud), plus `internet`, `users`, `client`, `server`, `external` and the like. The palette in the editor lists them all by category. `size`, `zone` and `exposure: public | internal` go in the caption.
-- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. A node outside the subnets joins a row with `tier:` as well.
+- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. The zones stand in the order they are written. A node outside the subnets joins a row with `tier:` as well.
 - **Mixing providers**: one file may hold AWS, Google Cloud and Azure. A service's provider follows from its kind; a container's from its kind, `provider:` or what it sits in. Every Azure kind works here too; the four that are also general words are `azure-storage`, `azure-load-balancer`, `azure-dns` and `azure-firewall`.
 - **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
 - **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.

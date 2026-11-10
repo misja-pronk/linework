@@ -1,0 +1,36 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    { "id": "user", "type": "ellipse", "x": 40, "y": 160, "width": 120, "height": 70, "strokeStyle": "solid", "groupIds": [], "frameId": null, "isDeleted": false, "boundElements": [{ "id": "user-text", "type": "text" }, { "id": "a1", "type": "arrow" }] },
+    { "id": "user-text", "type": "text", "x": 70, "y": 182, "width": 60, "height": 25, "text": "Customer", "originalText": "Customer", "containerId": "user", "groupIds": [], "frameId": null, "isDeleted": false },
+
+    { "id": "api", "type": "rectangle", "x": 300, "y": 120, "width": 160, "height": 70, "strokeStyle": "solid", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": [{ "id": "api-text", "type": "text" }, { "id": "a1", "type": "arrow" }, { "id": "a2", "type": "arrow" }, { "id": "a3", "type": "arrow" }] },
+    { "id": "api-text", "type": "text", "x": 330, "y": 130, "width": 100, "height": 50, "text": "Order API\nNode.js", "originalText": "Order API\nNode.js", "containerId": "api", "groupIds": [], "frameId": "backend", "isDeleted": false },
+    { "id": "check", "type": "diamond", "x": 300, "y": 260, "width": 160, "height": 100, "strokeStyle": "solid", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": [{ "id": "check-text", "type": "text" }, { "id": "a2", "type": "arrow" }] },
+    { "id": "check-text", "type": "text", "x": 345, "y": 297, "width": 70, "height": 25, "text": "In stock?", "originalText": "In stock?", "containerId": "check", "groupIds": [], "frameId": "backend", "isDeleted": false },
+    { "id": "backend", "type": "frame", "x": 260, "y": 80, "width": 560, "height": 320, "name": "Backend", "groupIds": [], "frameId": null, "isDeleted": false },
+
+    { "id": "stores", "type": "rectangle", "x": 560, "y": 100, "width": 230, "height": 280, "strokeStyle": "dashed", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": null },
+    { "id": "stores-title", "type": "text", "x": 575, "y": 108, "width": 90, "height": 25, "text": "Data stores", "originalText": "Data stores", "containerId": null, "groupIds": [], "frameId": "backend", "isDeleted": false },
+    { "id": "db", "type": "rectangle", "x": 590, "y": 150, "width": 170, "height": 70, "strokeStyle": "solid", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": [{ "id": "a3", "type": "arrow" }] },
+    { "id": "db-text", "type": "text", "x": 620, "y": 172, "width": 110, "height": 25, "text": "Orders database", "originalText": "Orders database", "containerId": null, "groupIds": [], "frameId": "backend", "isDeleted": false },
+    { "id": "queue", "type": "rectangle", "x": 590, "y": 280, "width": 170, "height": 70, "strokeStyle": "solid", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": [{ "id": "queue-text", "type": "text" }] },
+    { "id": "queue-text", "type": "text", "x": 630, "y": 302, "width": 90, "height": 25, "text": "Event queue", "originalText": "Event queue", "containerId": "queue", "groupIds": [], "frameId": "backend", "isDeleted": false },
+
+    { "id": "a1", "type": "arrow", "x": 162, "y": 190, "width": 136, "height": 30, "points": [[0, 0], [136, -30]], "strokeStyle": "solid", "startBinding": { "elementId": "user", "focus": 0, "gap": 2 }, "endBinding": { "elementId": "api", "focus": 0, "gap": 2 }, "startArrowhead": null, "endArrowhead": "arrow", "groupIds": [], "frameId": null, "isDeleted": false, "boundElements": [{ "id": "a1-text", "type": "text" }] },
+    { "id": "a1-text", "type": "text", "x": 200, "y": 165, "width": 60, "height": 20, "text": "places\norder", "originalText": "places order", "containerId": "a1", "groupIds": [], "frameId": null, "isDeleted": false },
+    { "id": "a2", "type": "arrow", "x": 380, "y": 192, "width": 0, "height": 66, "points": [[0, 0], [0, 66]], "strokeStyle": "solid", "startBinding": { "elementId": "api", "focus": 0, "gap": 2 }, "endBinding": { "elementId": "check", "focus": 0, "gap": 2 }, "startArrowhead": null, "endArrowhead": "triangle", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": null },
+    { "id": "a3", "type": "arrow", "x": 462, "y": 160, "width": 126, "height": 20, "points": [[0, 0], [126, 20]], "strokeStyle": "dashed", "startBinding": { "elementId": "api", "focus": 0, "gap": 2 }, "endBinding": { "elementId": "db", "focus": 0, "gap": 2 }, "startArrowhead": "arrow", "endArrowhead": "arrow", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": null },
+    { "id": "a4", "type": "arrow", "x": 458, "y": 312, "width": 130, "height": 4, "points": [[0, 0], [130, 4]], "strokeStyle": "dotted", "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow", "groupIds": [], "frameId": "backend", "isDeleted": false, "boundElements": null },
+    { "id": "a5", "type": "arrow", "x": 100, "y": 420, "width": 80, "height": 40, "points": [[0, 0], [80, 40]], "strokeStyle": "solid", "startBinding": null, "endBinding": null, "startArrowhead": null, "endArrowhead": "arrow", "groupIds": [], "frameId": null, "isDeleted": false, "boundElements": null },
+
+    { "id": "note", "type": "text", "x": 40, "y": 30, "width": 260, "height": 25, "text": "Sketch from the whiteboard, 12 May", "originalText": "Sketch from the whiteboard, 12 May", "containerId": null, "groupIds": [], "frameId": null, "isDeleted": false },
+    { "id": "blob", "type": "rectangle", "x": 40, "y": 300, "width": 60, "height": 40, "strokeStyle": "solid", "groupIds": [], "frameId": null, "isDeleted": false, "boundElements": null },
+    { "id": "scribble", "type": "freedraw", "x": 60, "y": 380, "width": 40, "height": 20, "points": [[0, 0], [20, 10], [40, 20]], "groupIds": [], "frameId": null, "isDeleted": false },
+    { "id": "gone", "type": "rectangle", "x": 900, "y": 100, "width": 100, "height": 60, "strokeStyle": "solid", "groupIds": [], "frameId": null, "isDeleted": true, "boundElements": null }
+  ],
+  "appState": { "gridSize": null, "viewBackgroundColor": "#ffffff" },
+  "files": {}
+}

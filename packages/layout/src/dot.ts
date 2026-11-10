@@ -106,6 +106,13 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
     ].filter(Boolean);
     lines.push(`  ${q(a)}${pa} -> ${q(b)}${pb} [${attrs.join(', ')}];`);
   }
+  // What only a badge names (a key vault no line runs to) would stand anywhere, and stretch its
+  // group to get there: an unseen link keeps it by the card that names it. Named by several cards
+  // it is shared, and belongs with none of them.
+  const lined = new Set(graph.edges.flatMap((e) => [e.from.node, e.to.node]));
+  const placedIds = new Set(graph.nodes.map((n) => n.id));
+  const near = (sized.near ?? []).filter(([a, b]) => a !== b && placedIds.has(a) && placedIds.has(b) && !lined.has(b));
+  for (const [a, b] of near) if (near.filter(([, other]) => other === b).length === 1) lines.push(`  ${q(a)} -> ${q(b)} [style=invis, weight=1];`);
   lines.push('}');
 
   const gv = await load();

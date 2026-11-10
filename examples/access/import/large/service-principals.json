@@ -1,0 +1,125 @@
+{
+  "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#servicePrincipals",
+  "value": [
+    {
+      "id": "2ddfbd94-4b12-8ed8-1e28-76f9b9eb431d",
+      "appId": "2e235cdc-8e2f-9569-d7a3-9f1806812b8b",
+      "displayName": "github-deploy-shop",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "268e97b0-bf62-e893-56a6-fe4a5e920e05",
+      "appId": "dc0ac674-b809-babc-827e-d5749923370c",
+      "displayName": "id-shop-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "c7c2781f-f409-b237-ba8b-60b8f9c09cf0",
+      "appId": "2b20d07d-82ae-b97e-136c-3abe1ee792ed",
+      "displayName": "github-deploy-data",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "93f6b77b-146a-1ec6-5905-e0b5f91b3c12",
+      "appId": "2ef9fee4-849d-fc4b-b385-7b32c68c4837",
+      "displayName": "id-data-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "a1325586-b7b0-35ea-36b9-cd6266e3234e",
+      "appId": "a4cd098e-a00e-130f-deed-d67d5b44c32b",
+      "displayName": "github-deploy-billing",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "46868717-defa-5c2f-3d90-96e37d177d25",
+      "appId": "fcfc0e0f-ec0e-0191-d7ac-cbb4fde9cf13",
+      "displayName": "id-billing-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "b378a500-8ecc-f3f3-2cea-7d88ea859e7b",
+      "appId": "99ab1f5b-4111-9e8c-d0c2-8e59d81cfb9f",
+      "displayName": "github-deploy-routing",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "e46dc7ec-3fa4-ace9-8ecb-6df1cf26d01b",
+      "appId": "fd80cfef-2b41-5058-d7da-d74d9c99131b",
+      "displayName": "id-routing-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "d5477416-7c50-72fa-5cf3-d49f5c1fede6",
+      "appId": "3fec855a-7f0b-5756-3308-90957f72c8bd",
+      "displayName": "github-deploy-fleet",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "3c70345b-5cd9-a67a-64d8-03c414d9639c",
+      "appId": "c16c369a-cd41-32c5-30a0-8fad0874760e",
+      "displayName": "id-fleet-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "b44d1f41-a510-807e-df1e-8960b7df658c",
+      "appId": "bd0237c8-f056-c7b0-c4f2-c86215320de3",
+      "displayName": "github-deploy-portal",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "9b3b7de3-cd31-9e1b-e521-634149a92546",
+      "appId": "4c24b058-5ca6-d699-6d93-c0644e850051",
+      "displayName": "id-portal-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "71725cd6-c627-764d-c546-29a1c13bd74d",
+      "appId": "7e03533e-d594-d5df-324d-62607c3add1f",
+      "displayName": "github-deploy-platform",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "8d2f5535-dc19-d3b7-78c1-0989295cf52d",
+      "appId": "7ba33a83-aa2c-a50b-d99b-652950ddcef1",
+      "displayName": "id-platform-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "b00982e6-0375-b779-11ce-57a019326fba",
+      "appId": "da2b6c1b-0185-2eae-ac52-6045718f5dcc",
+      "displayName": "github-deploy-security",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "87f578c6-4721-8f62-1b10-6b72db1b9af3",
+      "appId": "b68d79ff-92fb-c49a-435a-00ade9d3a510",
+      "displayName": "id-security-api",
+      "servicePrincipalType": "ManagedIdentity"
+    },
+    {
+      "id": "ba9b240d-0546-e1bb-1bfd-3b997f6a4cc6",
+      "appId": "3fa27fe2-cf85-1830-5afd-1df90b142f98",
+      "displayName": "terraform-platform",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "30d846c1-2bd3-20b1-f108-9c77287fb5ff",
+      "appId": "551d795f-561f-1a69-4f1e-b81cd4280836",
+      "displayName": "backup-runner",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "25feb369-e473-8931-203b-e8ab7dba6302",
+      "appId": "90c37ea3-75b0-c551-c4e3-ac6bffbe110d",
+      "displayName": "grafana",
+      "servicePrincipalType": "Application"
+    },
+    {
+      "id": "24c7cb26-df3c-2cc8-9f44-41bda087eb07",
+      "appId": "5762614d-b598-260f-53a0-fbba683c4858",
+      "displayName": "cost-export",
+      "servicePrincipalType": "Application"
+    }
+  ]
+}

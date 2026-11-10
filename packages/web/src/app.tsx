@@ -8,7 +8,8 @@ import { Preview, type LabelTarget, type PreviewControl, type Selection } from '
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
 import { ArrangeBar, arrangeCommands, arrangeKey, craftKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
-import { Start, type Opened, type View } from './start.tsx';
+import { Start, type Incoming, type Opened, type View } from './start.tsx';
+import { isDrawio, isExcalidraw } from '@cartography/interop';
 import { Inspector } from './inspector.tsx';
 import { AddMenu } from './add-menu.tsx';
 import { Menu } from './menu.tsx';
@@ -17,6 +18,7 @@ import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
+import { exportFrom, exportKind, exportRemark } from './exports.ts';
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -24,7 +26,7 @@ import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-ed
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
-import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
+import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
@@ -92,6 +94,12 @@ export function App() {
   const [text, setText] = useState(saved?.text ?? firstStarter.text);
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
   const [pins, setPins] = useState<LayoutSidecar | undefined>(saved?.pins);
+  const [safeSvg, setSafeSvg] = useState(() => store.get<boolean>('svg-safe') ?? false);
+  const toggleSafeSvg = () =>
+    setSafeSvg((on) => {
+      store.set('svg-safe', !on);
+      return !on;
+    });
   /** A node being dragged: its pin before it is committed to the history. */
   const [draft, setDraft] = useState<{ nodes?: Record<string, Point>; groups?: Record<string, Point>; edges?: Record<string, EdgeOverride> }>();
   const [docKey, setDocKey] = useState(0);
@@ -161,6 +169,8 @@ export function App() {
   );
   /** The open folder holds data products or data contracts (ODPS, ODCS): it can be drawn as one map. */
   const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
+  /** The open folder holds access exports or gh api responses: they can be drawn as one access or GitHub diagram. */
+  const exportInWs = useMemo(() => (ws && !meshInWs ? exportKind([...ws.files].map(([path, f]) => ({ path, text: f.text }))) : undefined), [ws, meshInWs]);
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -338,7 +348,7 @@ export function App() {
     closeModal();
     fileHandle.current = undefined;
     setView(o.view);
-    open(o.text, { name: o.name, starter: o.starter }, undefined, o.blank);
+    open(o.text, { name: o.name, starter: o.starter }, o.pins, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -399,7 +409,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
-      else if (meshInFolder(next)) return;
+      else if (meshInFolder(next) || exportInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -416,6 +426,11 @@ export function App() {
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
   };
 
+  /** A file from another tool goes through the Import panel: pages, positions and what was left out are shown first. */
+  const [incoming, setIncoming] = useState<Incoming>();
+  const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
+  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid'] };
+
   /** data-mesh.yaml in the open folder: its data products and contracts as one map, made or brought up to date. False: the folder has none. */
   const meshInFolder = (w: Workspace): boolean => {
     const path = 'data-mesh.yaml';
@@ -431,11 +446,35 @@ export function App() {
     focusDrawing();
     return true;
   };
+  /** access.yaml or github.yaml in the open folder: its exports as one diagram, made or brought up to date. False: the folder has none. */
+  const exportInFolder = (w: Workspace): boolean => {
+    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
+    const kind = exportKind(files);
+    if (!kind) return false;
+    const path = `${kind}.yaml`;
+    const was = w.files.get(path)?.text;
+    if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    const r = exportFrom(files.filter((f) => f.path !== path), was != null ? { existing: was } : {});
+    if (!r?.yaml) return (notify(`Nothing to draw in ${w.name}${r ? exportRemark(r) : ''}`, { tone: 'error' }), true);
+    fileHandle.current = undefined;
+    open(r.yaml, { name: path, path }, readSidecar(w, path));
+    setSavedText(was ?? null);
+    notify(`${r.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${exportRemark(r)}`, r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    focusDrawing();
+    return true;
+  };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
     problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
 
-  /** Files picked or dropped. Data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
+  /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
   const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
+    // A folder of data products may hold a drawing too: the mesh goes first.
+    const other = hasMesh(files) ? undefined : files.find((f) => foreign(f.path, f.text));
+    if (other) {
+      setIncoming({ name: other.path.split('/').pop()!, text: other.text });
+      setModal('templates');
+      return;
+    }
     const folder = folderOf(files);
     const mesh = meshFrom(files);
     if (mesh?.yaml) {
@@ -444,6 +483,14 @@ export function App() {
       return focusDrawing();
     }
     if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error' });
+    // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
+    const exported = exportFrom(files);
+    if (exported?.yaml) {
+      fileHandle.current = undefined;
+      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`);
+      return focusDrawing();
+    }
+    if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error' });
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
     fileHandle.current = files.length === 1 ? handle : undefined;
@@ -475,7 +522,10 @@ export function App() {
         try {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
-            types: [{ description: 'Cartography diagram, or data products and contracts (ODPS, ODCS)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } }],
+            types: [
+              { description: 'Cartography diagram, data products and contracts, or access and GitHub exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
+              { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
+            ],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
           openTexts(files, hs[0]);
@@ -487,7 +537,7 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,.json,text/yaml';
+    input.accept = '.yaml,.yml,.json,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid';
     input.multiple = true;
     input.onchange = async () => {
       const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));
@@ -504,13 +554,38 @@ export function App() {
   const saveYaml = () => void save();
   const downloadYaml = () => download(yamlName(doc.name), editor.current?.text() ?? text, 'text/yaml');
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
-  const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await exportSvg(exportInput()), 'image/svg+xml'));
+  // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
+  const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
+  const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
+  /** Another tool's file is there; what it could not hold is said, not hidden. */
+  const handed = (what: string, h: Handed) =>
+    h.warnings.length ? notify(`${what}. ${h.warnings[0]}${h.warnings.length > 1 ? `, and ${h.warnings.length - 1} more left out` : ''}`, { action: { label: 'OK', run: () => {} } }) : notify(what);
+  const saveDrawio = attempt('Export', async () => {
+    const h = await exportDrawio(exportInput());
+    download(`${baseName(doc.name)}.drawio`, h.data, 'application/xml');
+    handed('Saved for draw.io', h);
+  });
+  const saveExcalidraw = attempt('Export', async () => {
+    const h = await exportExcalidraw(exportInput());
+    download(`${baseName(doc.name)}.excalidraw`, h.data, 'application/json');
+    handed('Saved for Excalidraw', h);
+  });
+  const saveMermaid = attempt('Export', async () => {
+    const h = await exportMermaid(exportInput());
+    download(`${baseName(doc.name)}.mmd`, h.data, 'text/plain');
+    handed('Saved as Mermaid', h);
+  });
+  const copyMermaid = attempt('Copy', async () => {
+    const h = await exportMermaid(exportInput());
+    await navigator.clipboard.writeText('```mermaid\n' + h.data + '```\n');
+    handed('Mermaid copied, paste it into a README', h);
+  });
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const savePptx = attempt('Export', async () => download(`${baseName(doc.name)}.pptx`, await exportPptx(exportInput(), yamlName(doc.name))));
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const copySvg = attempt('Copy', async () => {
-    await navigator.clipboard.writeText(await exportSvg(exportInput()));
+    await navigator.clipboard.writeText(await svgNow());
     notify('SVG copied');
   });
   const copyPng = attempt('Copy', async () => {
@@ -1161,11 +1236,12 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
       : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open YAML file…', hint: 'a diagram, or data products and contracts (ODPS, ODCS)', icon: 'folder-open', shortcut: '⌘O', run: openFile },
+    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
+    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: exportInWs === 'github' ? `GitHub organisation of ${ws.name}` : `Who reaches what in ${ws.name}`, hint: exportInWs === 'github' ? 'its gh api responses in github.yaml' : 'its az, Graph or AzureHound exports in access.yaml', icon: exportInWs === 'github' ? 'folder-git-2' : 'shield-user', run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
@@ -1175,6 +1251,11 @@ export function App() {
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
+    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
+    { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
+    { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
+    { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
+    { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
     { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
     ...(type && !drawn?.stepsImplied
       ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
@@ -1302,6 +1383,7 @@ export function App() {
 
   const closeModal = () => {
     setModal(undefined);
+    setIncoming(undefined);
     setGuiding(false);
     store.set('started', true);
   };
@@ -1416,7 +1498,7 @@ export function App() {
             {menu && (
               <Menu onClose={() => setMenu(false)}>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> SVG <kbd>⌘E</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>⌘E</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
@@ -1436,6 +1518,31 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copySvg}>
                   <Icon name="copy" /> Copy as SVG
+                </button>
+                <button
+                  role="menuitemcheckbox"
+                  aria-checked={safeSvg}
+                  title="SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node"
+                  onClick={(e) => {
+                    // A switch: the menu stays open, the SVG rows above follow it.
+                    e.stopPropagation();
+                    toggleSafeSvg();
+                  }}
+                >
+                  <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
+                </button>
+                <hr />
+                <button role="menuitem" onClick={saveDrawio}>
+                  <Icon name="workflow" /> draw.io (.drawio)
+                </button>
+                <button role="menuitem" onClick={saveExcalidraw}>
+                  <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                </button>
+                <button role="menuitem" onClick={saveMermaid}>
+                  <Icon name="file-code" /> Mermaid (.mmd)
+                </button>
+                <button role="menuitem" onClick={copyMermaid}>
+                  <Icon name="copy" /> Copy as Mermaid
                 </button>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
@@ -1804,7 +1911,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
-      {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
+      {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
           placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}
@@ -1827,7 +1934,7 @@ export function App() {
           <div>
             <Icon name="folder-open" size={22} />
             <strong>Drop to open</strong>
-            <span>A diagram, or data product and data contract files (ODPS, ODCS) and folders of them: they become one data mesh map</span>
+            <span>A diagram; data products and contracts (ODPS, ODCS); or a folder of az, Graph, AzureHound or gh api JSON: it becomes one diagram</span>
           </div>
         </div>
       )}

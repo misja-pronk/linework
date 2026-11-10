@@ -1,0 +1,44 @@
+[
+  {
+    "login": "anna-visser",
+    "id": 1014,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "bram-dekker",
+    "id": 1015,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "chloe-jansen",
+    "id": 1016,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "daan-bakker",
+    "id": 1017,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "eva-smit",
+    "id": 1018,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "farid-haddou",
+    "id": 1019,
+    "type": "User",
+    "site_admin": false
+  },
+  {
+    "login": "gijs-mulder",
+    "id": 1020,
+    "type": "User",
+    "site_admin": false
+  }
+]

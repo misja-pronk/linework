@@ -1,0 +1,97 @@
+[
+  {
+    "id": 1011,
+    "name": "docs",
+    "full_name": "kestrel-logistics/docs",
+    "private": false,
+    "visibility": "public",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1013,
+    "name": "sandbox",
+    "full_name": "kestrel-logistics/sandbox",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1037,
+    "name": "route-planner",
+    "full_name": "kestrel-logistics/route-planner",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": false,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "write"
+  },
+  {
+    "id": 1007,
+    "name": "shop",
+    "full_name": "kestrel-logistics/shop",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": "The web shop",
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  },
+  {
+    "id": 1008,
+    "name": "shop-web",
+    "full_name": "kestrel-logistics/shop-web",
+    "private": true,
+    "visibility": "private",
+    "archived": false,
+    "fork": false,
+    "default_branch": "main",
+    "description": null,
+    "permissions": {
+      "admin": false,
+      "maintain": true,
+      "push": true,
+      "triage": true,
+      "pull": true
+    },
+    "role_name": "maintain"
+  }
+]

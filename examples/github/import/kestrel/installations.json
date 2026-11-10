@@ -1,0 +1,29 @@
+{
+  "total_count": 2,
+  "installations": [
+    {
+      "id": 1033,
+      "app_id": 1034,
+      "app_slug": "kestrel-deploy",
+      "target_type": "Organization",
+      "repository_selection": "selected",
+      "permissions": {
+        "contents": "read",
+        "deployments": "write",
+        "metadata": "read"
+      }
+    },
+    {
+      "id": 1035,
+      "app_id": 1036,
+      "app_slug": "dependency-bot",
+      "target_type": "Organization",
+      "repository_selection": "all",
+      "permissions": {
+        "contents": "write",
+        "pull_requests": "write",
+        "metadata": "read"
+      }
+    }
+  ]
+}

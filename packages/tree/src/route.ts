@@ -39,8 +39,44 @@ function port(b: Box, side: Side, at: number): Point {
   return { x: b.x + b.width, y: b.y + b.height * at };
 }
 
-/** A square route from one box to another around `obstacles` (the two ends may be among them); undefined when there is none. */
+/** A piece shorter than this between two pieces that run the same way reads as a jog. */
+const JOG = 40;
+
+/** How many jogs a route makes. */
+export function jogs(pts: Point[]): number {
+  let n = 0;
+  for (let i = 1; i + 2 < pts.length; i++) {
+    const [a, b, c, d] = [pts[i - 1]!, pts[i]!, pts[i + 1]!, pts[i + 2]!];
+    const same = Math.sign(b.x - a.x) === Math.sign(d.x - c.x) && Math.sign(b.y - a.y) === Math.sign(d.y - c.y);
+    if (Math.abs(c.x - b.x) + Math.abs(c.y - b.y) < JOG && same) n++;
+  }
+  return n;
+}
+
+const length = (pts: Point[]) => pts.slice(1).reduce((s, p, i) => s + Math.abs(p.x - pts[i]!.x) + Math.abs(p.y - pts[i]!.y), 0);
+
+/**
+ * A square route from one box to another around `obstacles` (the two ends may be among them); undefined
+ * when there is none. A route with a small step in it is tried again without the sides it used, and the
+ * other way wins when it is not much longer.
+ */
 export function route(obstacles: Box[], from: RouteEnd, to: RouteEnd, o: RouteOptions = {}): Point[] | undefined {
+  const first = routeOnce(obstacles, from, to, o);
+  if (!first || !jogs(first)) return first;
+  const sideOf = (b: Box, p: Point): Side => (Math.abs(p.y - b.y) < 0.5 ? 'N' : Math.abs(p.y - b.y - b.height) < 0.5 ? 'S' : Math.abs(p.x - b.x) < 0.5 ? 'W' : 'E');
+  const all: Side[] = ['N', 'E', 'S', 'W'];
+  const a = sideOf(from.box, first[0]!);
+  const b = sideOf(to.box, first.at(-1)!);
+  let best = first;
+  for (const [f, t] of [[[a], (to.sides ?? all).filter((s) => s !== b)], [(from.sides ?? all).filter((s) => s !== a), [b]], [(from.sides ?? all).filter((s) => s !== a), (to.sides ?? all).filter((s) => s !== b)]] as Side[][][]) {
+    if (!f!.length || !t!.length) continue;
+    const r = routeOnce(obstacles, { ...from, sides: f }, { ...to, sides: t }, o);
+    if (r && jogs(r) < jogs(best) && length(r) < length(first) * 1.25 + 40) best = r;
+  }
+  return best;
+}
+
+function routeOnce(obstacles: Box[], from: RouteEnd, to: RouteEnd, o: RouteOptions): Point[] | undefined {
   const m = o.margin ?? 12;
   const bendCost = o.bend ?? 40;
   const sidesA = from.sides ?? (['N', 'E', 'S', 'W'] as Side[]);

@@ -1,0 +1,40 @@
+{
+  "total_count": 2,
+  "environments": [
+    {
+      "id": 1024,
+      "name": "staging",
+      "protection_rules": [],
+      "deployment_branch_policy": null
+    },
+    {
+      "id": 1025,
+      "name": "production",
+      "protection_rules": [
+        {
+          "id": 1026,
+          "type": "required_reviewers",
+          "reviewers": [
+            {
+              "type": "Team",
+              "reviewer": {
+                "id": 1002,
+                "slug": "platform",
+                "name": "Platform"
+              }
+            }
+          ]
+        },
+        {
+          "id": 1027,
+          "type": "wait_timer",
+          "wait_timer": 10
+        }
+      ],
+      "deployment_branch_policy": {
+        "protected_branches": true,
+        "custom_branch_policies": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+[
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+    "name": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+    "roleName": "Owner",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+    "name": "b24988ac-6180-42a0-ab88-20f7382dd24c",
+    "roleName": "Contributor",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "name": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+    "roleName": "Reader",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*/read"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+    "name": "4633458b-17de-408a-b874-0445c86b69e6",
+    "roleName": "Key Vault Secrets User",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "name": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "roleName": "Storage Blob Data Contributor",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/de139f84-1756-47ae-9be6-808fbbe84772",
+    "name": "de139f84-1756-47ae-9be6-808fbbe84772",
+    "roleName": "Website Contributor",
+    "roleType": "BuiltInRole",
+    "description": "",
+    "assignableScopes": [
+      "/"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "*"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  },
+  {
+    "id": "/providers/Microsoft.Authorization/roleDefinitions/d3421385-7229-716d-7f23-725724da7eec",
+    "name": "d3421385-7229-716d-7f23-725724da7eec",
+    "roleName": "Shop Operator",
+    "roleType": "CustomRole",
+    "description": "Restart and look at the shop, change nothing else",
+    "assignableScopes": [
+      "/subscriptions/3923ca09-b88c-3a36-dcf8-1c9451fd5edd"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "Microsoft.Web/sites/restart/action",
+          "Microsoft.Web/sites/read",
+          "Microsoft.Insights/metrics/read"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ],
+    "type": "Microsoft.Authorization/roleDefinitions"
+  }
+]
