@@ -1,0 +1,38 @@
+type: class
+title: Strategy pattern
+subtitle: Shipping cost, one calculation per carrier
+
+classes:
+  Checkout:
+    members:
+      - -strategy: ShippingCost
+      - "+setStrategy(s: ShippingCost): void"
+      - +shippingTotal(): Money
+  ShippingCost:
+    kind: interface
+    members:
+      - "+cost(parcel: Parcel): Money"
+  FlatRate:
+    implements: ShippingCost
+    members:
+      - -amount: Money
+      - "+cost(parcel: Parcel): Money"
+  ByWeight:
+    implements: ShippingCost
+    members:
+      - -perKilo: Money
+      - "+cost(parcel: Parcel): Money"
+  FreeAbove:
+    implements: ShippingCost
+    members:
+      - -threshold: Money
+      - "+cost(parcel: Parcel): Money"
+  Parcel:
+    kind: record
+    members:
+      - +weight: Kilograms
+      - +value: Money
+
+relations:
+  - Checkout o--> ShippingCost: { role: strategy }
+  - ShippingCost ..> Parcel: uses

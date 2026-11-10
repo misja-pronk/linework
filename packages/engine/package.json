@@ -30,7 +30,9 @@
     "@cartography/states": "workspace:*",
     "@cartography/matrix": "workspace:*",
     "@cartography/capabilities": "workspace:*",
-    "@cartography/teams": "workspace:*"
+    "@cartography/teams": "workspace:*",
+    "@cartography/class": "workspace:*",
+    "@cartography/mindmap": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

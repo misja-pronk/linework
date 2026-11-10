@@ -1,3 +1,4 @@
+import os from 'node:os';
 import { render } from '../src/index.ts';
 // A large, realistic diagram: 10 resource groups × 18 services, chained with cross links.
 export function big(groups = 10, per = 18): string {
@@ -25,6 +26,29 @@ export async function timed(text: string, opts: Parameters<typeof render>[1] = {
   }
   return { ms: best, result };
 }
+/**
+ * A time budget for this machine as busy as it is now: the budget for an idle machine, stretched by
+ * how far the load is above the number of cores (the test suite runs files side by side, other work
+ * shares the machine). A tight budget on a busy machine fails for the wrong reason.
+ */
+export function budget(ms: number): number {
+  return ms * Math.max(1, os.loadavg()[0]! / os.cpus().length);
+}
+
+/** Milliseconds for two kinds of render taken in turns, best of a few each: load slows both alike. */
+export async function race(a: () => Promise<unknown>, b: () => Promise<unknown>, runs = 3): Promise<[number, number]> {
+  let [ta, tb] = [Infinity, Infinity];
+  for (let i = 0; i < runs; i++) {
+    let t = performance.now();
+    await a();
+    ta = Math.min(ta, performance.now() - t);
+    t = performance.now();
+    await b();
+    tb = Math.min(tb, performance.now() - t);
+  }
+  return [ta, tb];
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   await render(big(2, 5), { fonts: 'none' });
   for (const [g, n] of [[2, 10], [5, 12], [10, 20]] as const) {

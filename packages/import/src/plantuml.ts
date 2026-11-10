@@ -12,10 +12,13 @@
 //   activity (new)       start/stop, :action;, if/elseif/else, while, repeat, fork, split, switch,
 //                        |swimlanes|                                                               → process
 //   entity               entity X { … } with crow's feet                                           → erd
+//   class                class, abstract, interface, enum, record, members, packages, relations    → class
+//   @startmindmap        * / + / - topics, left side, :multi-line;                               → mindmap
 //
-// Class, use case, mindmap and wbs diagrams are named in a warning, not imported. skinparam, !theme,
+// Use case and wbs diagrams are named in a warning, not imported. skinparam, !theme,
 // colours and stereotypes are left out: the theme draws each kind its own way.
 import { importEr } from './er.ts';
+import { importPlantUmlClass, importPlantUmlMindmap } from './uml.ts';
 import { importState } from './state.ts';
 import { processYaml, type FlowLink, type FlowNode } from './process.ts';
 import { participantKind, sequenceYaml, type Participant, type Step } from './sequence.ts';
@@ -51,13 +54,16 @@ export function importPlantUml(text: string, fallbackTitle = 'Imported diagram')
 }
 
 const PLANNED: Record<string, string> = {
-  mindmap: 'Mindmaps cannot be imported yet: a mind map type is planned',
   wbs: 'Work breakdown structures (wbs) cannot be imported yet: a tree type is planned',
   gantt: 'PlantUML Gantt charts cannot be imported: write them as a roadmap (type: roadmap), or import a Mermaid gantt',
 };
 
 function importUml(tag: string, raw: string[], fallbackTitle: string): { yaml: string; warnings: string[]; title?: string } {
   const warn = new Warnings();
+  if (tag === 'mindmap') {
+    const r = importPlantUmlMindmap(raw, fallbackTitle, warn);
+    return { yaml: r, warnings: r ? warn.list : [...warn.list, 'The mind map is empty'] };
+  }
   if (tag !== 'uml') return { yaml: '', warnings: [PLANNED[tag] ?? `@start${tag} is not a diagram Cartography can import`] };
   const pre = preprocess(raw, warn);
   const title = pre.title ?? fallbackTitle;
@@ -70,7 +76,7 @@ function importUml(tag: string, raw: string[], fallbackTitle: string): { yaml: s
   else if (kind === 'er') yaml = er(body, title, warn);
   else if (kind === 'component') yaml = component(body, title, pre.direction, warn);
   else if (kind === 'sequence') yaml = sequence(body, title, warn);
-  else if (kind === 'class') warn.add('Class diagrams cannot be imported yet: a class diagram type is planned');
+  else if (kind === 'class') yaml = importPlantUmlClass(body, title, warn);
   else if (kind === 'usecase') warn.add('Use case diagrams cannot be imported: Cartography has no use case type');
   else if (kind === 'old-activity') warn.add('Activity diagrams in the old syntax ((*) --> "step") cannot be imported: the new syntax (start, :step;, stop) can');
   else warn.add(body.some((l) => l.trim()) ? 'This PlantUML diagram is not one Cartography can read: sequence, component, deployment, C4, state, activity and entity diagrams can' : 'The PlantUML text is empty');
@@ -151,7 +157,7 @@ function kindOf(lines: string[], includes: string[]): Kind {
   if (any(/^(start|stop)$/) || any(/^:[\s\S]*[;|<>/\]}]$/) || any(/^:[^:]*$/) || any(/^if\s*\(.*\)\s*then\b/) || any(/^\|[^|]+\|(\s*[^|]+\|)?$/) || any(/^(fork|repeat|endwhile|endif|end fork|end split)\b/)) return 'activity';
   if (any(/\[\*\]/) || any(/^state\s/)) return 'state';
   if (any(/^entity\s+.*\{\s*$/)) return 'er';
-  if (any(/^(abstract\s+)?(class|enum|annotation|abstract)\s/) || any(/<\|--|--\|>|\*--|--\*|\bo--|--o\b(?!\{)/)) return 'class';
+  if (any(/^(abstract\s+)?(class|enum|annotation|abstract|record)\s/) || any(/^interface\s+\S+.*\{\s*\}?$/) || any(/<\|--|--\|>|<\|\.\.|\.\.\|>|\*--|--\*|\bo--|--o\b(?!\{)/)) return 'class';
   if (any(/^usecase\b/) || any(/^\([^)]+\)/) || any(/(-|>)\s*\([^)]+\)\s*(:.*)?$/)) return 'usecase';
   const sequence = any(/^(participant|activate|deactivate|autonumber|alt|loop|opt|par|break|critical|group|return|ref over|destroy|create)\b/) || any(/^==.*==$/) || any(/^\.\.\..*$/) || any(/^note (over|across)\b/);
   if (!sequence && (any(/^(component|node|cloud|package|frame|folder|rectangle|artifact|storage|card|file|interface|agent|stack|hexagon|port|portin|portout)\b/) || any(/^\[[^\]]+\]/) || any(/^\(\)/) || any(/\{$/))) return 'component';

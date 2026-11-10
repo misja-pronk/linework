@@ -6,7 +6,7 @@
 import { chips, type BlockShape, type Box, type CardShape, type FlowShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type SequenceShape, type TableShape } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { kinds as sequenceKinds } from '@cartography/sequence';
-import { besideShortLine, blockMarks, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
+import { besideShortLine, blockMarks, joinDot, rowHeight, sectionHeight, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
 
 /** What the engine's `render` returns; only what is drawn from is asked for. */
@@ -509,7 +509,15 @@ class SceneBuilder {
     });
     let y = b.y + head;
     const marks = markWidth(s);
+    const rh = rowHeight(s, t);
     for (const [i, row] of s.rows.entries()) {
+      if (row.kind === 'section' && !row.label) {
+        // The rule between a class's attributes and its operations.
+        const sh = sectionHeight(row, t);
+        this.elements.push({ id: `section:${n.id}:${i}`, role: 'row', parent: id, body: this.rect('Compartment', { x: b.x, y, width: b.width, height: sh }, 0, {}, { label: { lines: [[this.run('', 10, 400, t.textFaint)]], align: 'left', valign: 'middle', inset: { left: ts.padX, right: ts.padX, top: 0, bottom: 0 } } }), under: [], parts: [this.line('Rule', [{ x: b.x, y: y + sh / 2 }, { x: b.x + b.width, y: y + sh / 2 }], t.border, 1)], data: { carto: 'section' } });
+        y += sh;
+        continue;
+      }
       if (row.kind === 'section') {
         const box = { x: b.x, y, width: b.width, height: ts.section };
         this.elements.push({
@@ -524,11 +532,12 @@ class SceneBuilder {
         y += ts.section;
         continue;
       }
-      const box = { x: b.x, y, width: b.width, height: ts.row };
-      const cy = y + ts.row / 2;
+      const box = { x: b.x, y, width: b.width, height: rh };
+      const cy = y + rh / 2;
       const [name, type] = row.cells;
       const parts: Part[] = [];
-      if (i > 0 && s.rows[i - 1]?.kind === 'row') parts.push(this.line('Rule', [{ x: b.x + ts.padX, y }, { x: b.x + b.width - ts.padX, y }], t.border, 1, { opacity: 0.6 }));
+      if (row.sign) parts.push(this.text('Visibility', b.x + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, 'start', { mono: true }));
+      if (i > 0 && s.rows[i - 1]?.kind === 'row' && s.form !== 'class') parts.push(this.line('Rule', [{ x: b.x + ts.padX, y }, { x: b.x + b.width - ts.padX, y }], t.border, 1, { opacity: 0.6 }));
       for (const [k, m] of rowMarks(row).entries()) {
         const p = this.picture(m.icon, b.x + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75);
         if (p) parts.push(p);
@@ -542,9 +551,9 @@ class SceneBuilder {
         body: this.rect(`Row: ${name?.text ?? row.id}`, box, 0, {}, { label: { lines: [[this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text)]], align: 'left', valign: 'middle', inset: { left: ts.padX + marks, right: ts.padX, top: 0, bottom: 0 } } }),
         under: [],
         parts,
-        data: { carto: 'row', id: row.id, marks: (row.marks ?? []).join(' '), ...(type?.text ? { type: type.text } : {}) },
+        data: { carto: 'row', id: row.id, marks: row.sign ?? (row.marks ?? []).join(' '), ...(type?.text ? { type: type.text } : {}) },
       });
-      y += ts.row;
+      y += rh;
     }
   }
 
@@ -712,7 +721,7 @@ class SceneBuilder {
     const l = look(this.theme).line;
     for (const [i, a] of edges.entries())
       for (const b of edges.slice(i + 1)) {
-        if (a.line !== b.line || a.tone !== b.tone) continue;
+        if (a.line !== b.line || a.tone !== b.tone || !joinDot(a) || !joinDot(b)) continue;
         const pa = this.placed.edges.get(a.id)!.points;
         const pb = this.placed.edges.get(b.id)!.points;
         const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;

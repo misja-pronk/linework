@@ -1,0 +1,30 @@
+type: mindmap
+title: What could the data platform offer?
+subtitle: Capability brainstorm, two levels shown
+depth: 2
+
+center: Data platform
+topics:
+  Ingest:
+    - Batch loads: [Files from SFTP, Database snapshots]
+    - Streaming: [Change data capture, Event topics]
+    - SaaS connectors
+  Store:
+    - Lakehouse tables
+    - Feature store
+    - Archive: [Cold storage, Retention rules]
+  Serve:
+    - SQL warehouse
+    - APIs on data products
+    - Reverse ETL
+  Govern:
+    - Catalogue and lineage
+    - Access requests
+    - Data contracts: [Schema checks, Freshness SLOs, Owners]
+  Learn:
+    - Notebooks
+    - Model training
+    - Experiment tracking
+  Observe:
+    - Pipeline health
+    - Cost per product

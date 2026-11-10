@@ -1,5 +1,6 @@
 // What the drawing shows on top for precise work: smart guides and equal gaps while dragging, the handles of
-// a selected line's segments, small locks on locked elements, and the minimap. All in stage (SVG) coordinates.
+// a selected line's segments, small locks and pins on elements placed by hand, the page the drawing is
+// for, and the minimap. All in stage (SVG) coordinates.
 import { useRef } from 'react';
 import type { Box, Placed, Point } from '@cartography/core';
 import type { Snap } from './craft.ts';
@@ -59,6 +60,51 @@ export function BendHandles({ points, scale, bent }: { points: Point[]; scale: n
           />
         );
       })}
+    </>
+  );
+}
+
+/** A tiny pin on the top-right corner of each element placed by hand (pinned, not locked). */
+export function PinBadges({ boxes, scale }: { boxes: Box[]; scale: number }) {
+  return (
+    <>
+      {boxes.map((b, i) => (
+        <span key={i} className="lock-badge pin-badge" style={{ left: b.x + b.width, top: b.y, transform: `translate(-50%, -50%) scale(${1 / scale})` }} aria-hidden="true">
+          <Icon name="pin" size={11} stroke={2.25} />
+        </span>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The page the drawing is for (a 16:9 slide unless aspect: says otherwise), fitted around it: a thin
+ * frame with its name and the size the smallest text comes out at. Under the readable size the frame
+ * says so, the part of the page where text would still be readable shows dashed, and what lies
+ * outside that part is marked: it is what makes the page too full.
+ */
+export function PageFrame(p: { width: number; height: number; page: { name: string; width: number; height: number }; pt: number; minPt: number; readable?: { width: number; height: number }; boxes: Box[]; scale: number }) {
+  const a = p.page.width / p.page.height;
+  const w = Math.max(p.width, p.height * a);
+  const h = w / a;
+  const x = (p.width - w) / 2;
+  const y = (p.height - h) / 2;
+  const small = p.pt < p.minPt;
+  // The readable part, centred on the drawing as the page is.
+  const r = small && p.readable ? { x: (p.width - p.readable.width) / 2, y: (p.height - p.readable.height) / 2, ...p.readable } : undefined;
+  const out = r ? p.boxes.filter((b) => b.x < r.x || b.y < r.y || b.x + b.width > r.x + r.width || b.y + b.height > r.y + r.height) : [];
+  const line = 1 / p.scale;
+  return (
+    <>
+      <div className={small ? 'page-frame small' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
+        <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
+          {p.page.name} · {p.pt.toFixed(1)} pt{small ? `, under ${p.minPt} pt` : ''}
+        </span>
+      </div>
+      {r && <div className="page-readable" style={{ left: r.x, top: r.y, width: r.width, height: r.height, borderWidth: line }} aria-hidden="true" />}
+      {out.map((b, i) => (
+        <div key={i} className="page-overflow" data-overflow style={{ left: b.x - 3, top: b.y - 3, width: b.width + 6, height: b.height + 6, borderWidth: 1.5 * line }} aria-hidden="true" />
+      ))}
     </>
   );
 }

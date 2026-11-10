@@ -123,11 +123,11 @@ export function Inspector(p: InspectorProps) {
       ) : f.kind === 'list' ? (
         <TextInput
           // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
-          value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
-          placeholder={f.note ? `${f.note} (a, b, c)` : 'a, b, c'}
+          value={f.value.join(f.semi || f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
+          placeholder={f.semi ? 'a; b; c' : f.note ? `${f.note} (a, b, c)` : 'a, b, c'}
           onCommit={(v) => {
             const items = v
-              .split(v.includes(';') ? ';' : ',')
+              .split(f.semi || v.includes(';') ? ';' : ',')
               .map((x) => x.trim())
               .filter(Boolean);
             p.onField(f.key, f.one && items.length === 1 ? items[0] : items);

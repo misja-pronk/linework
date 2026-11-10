@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -22,6 +22,8 @@ export interface Placement {
   k: number;
   x: number;
   y: number;
+  /** Told the size (points) of every text set, so the smallest on a slide can be checked. */
+  onText?(pt: number): void;
 }
 
 interface Item {
@@ -112,6 +114,7 @@ class SlideDrawing {
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
+    if (text.trim()) this.at.onText?.(this.pt(size));
     return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
 
@@ -263,9 +266,9 @@ class SlideDrawing {
     for (const e of edges) {
       if (!e.ends) continue;
       const pts = toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node);
-      for (const [list, tip, from] of [[e.ends.from, pts[0]!, pts[1]!], [e.ends.to, pts.at(-1)!, pts.at(-2)!]] as const) {
+      for (const [list, tip, from, marker] of [[e.ends.from, pts[0]!, pts[1]!, e.start], [e.ends.to, pts.at(-1)!, pts.at(-2)!, e.end]] as const) {
         if (!list?.length) continue;
-        const at = endTagAt(list, tip, from, taken);
+        const at = endTagAt(list, tip, from, taken, marker);
         if (at) out.push(...this.tags(list, at.x, at.cy, endStyle).map((i) => i.xml));
       }
     }
@@ -443,15 +446,19 @@ class SlideDrawing {
     if (s.caption) items.push(this.text(b.x + ts.padX, b.y + titleY + 17, fitText(s.caption, t.size.caption, 400, b.width - 2 * ts.padX), t.size.caption, 400, t.textMuted));
     let y = b.y + head;
     const marks = markWidth(s);
+    const rh = rowHeight(s, t);
     for (const [i, row] of s.rows.entries()) {
       if (row.kind === 'section') {
-        items.push(this.text(b.x + ts.padX, y + ts.section / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint));
-        y += ts.section;
+        const sh = sectionHeight(row, t);
+        // Without a label: the rule between a class's attributes and its operations.
+        items.push(row.label ? this.text(b.x + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(b.x, b.x + b.width, y + sh / 2, t.border));
+        y += sh;
         continue;
       }
-      const cy = y + ts.row / 2;
-      if (i > 0 && s.rows[i - 1]?.kind === 'row') items.push(this.hline(b.x + ts.padX, b.x + b.width - ts.padX, y, t.border, 0.6));
+      const cy = y + rh / 2;
+      if (i > 0 && s.rows[i - 1]?.kind === 'row' && s.form !== 'class') items.push(this.hline(b.x + ts.padX, b.x + b.width - ts.padX, y, t.border, 0.6));
       for (const [k, m] of rowMarks(row).entries()) items.push(this.icon(m.icon, b.x + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75));
+      if (row.sign) items.push(this.text(b.x + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, undefined, 'Visibility', { mono: true }));
       const [name, type] = row.cells;
       // The name sits in a box as wide as the table: its left and right sites are where row-bound
       // lines attach. The type is a box of its own, right-aligned (Keynote ignores tab stops).
@@ -459,7 +466,7 @@ class SlideDrawing {
         this.sp({
           id: this.idFor(`row:${n.id}:${row.id}`),
           name: `Row: ${name?.text ?? row.id}`,
-          frame: this.frame(b.x, y, b.width, ts.row),
+          frame: this.frame(b.x, y, b.width, rh),
           geom: { prst: 'rect' },
           fill: null,
           line: null,
@@ -468,7 +475,7 @@ class SlideDrawing {
       );
       // The type column is set in the monospace face where the theme asks, a step smaller.
       if (type?.text) items.push(lk.mono.type ? this.text(b.x + b.width - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(b.x + b.width - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
-      y += ts.row;
+      y += rh;
     }
     return this.group(`Table: ${s.title}`, items);
   }
@@ -669,9 +676,9 @@ class SlideDrawing {
     let box = this.placed.nodes.get(node);
     let key = `node:${node}`;
     if (row && shape?.kind === 'table') {
-      const y = shape.rows.reduce<{ at?: number; y: number }>((acc, r) => (r.kind === 'row' && r.id === row ? { at: acc.y, y: acc.y } : { ...acc, y: acc.y + (r.kind === 'row' ? this.theme.space.table.row : this.theme.space.table.section) }), { y: tableHeader(shape, this.theme) }).at;
+      const y = shape.rows.reduce<{ at?: number; y: number }>((acc, r) => (r.kind === 'row' && r.id === row ? { at: acc.y, y: acc.y } : { ...acc, y: acc.y + (r.kind === 'row' ? rowHeight(shape, this.theme) : sectionHeight(r, this.theme)) }), { y: tableHeader(shape, this.theme) }).at;
       if (box && y !== undefined) {
-        box = { ...box, y: box.y + y, height: this.theme.space.table.row };
+        box = { ...box, y: box.y + y, height: rowHeight(shape, this.theme) };
         key = `row:${node}:${row}`;
       }
     }
@@ -738,6 +745,20 @@ class SlideDrawing {
     const d = { x: (tip.x - from.x) / len, y: (tip.y - from.y) / len };
     const nrm = { x: -d.y, y: d.x };
     const at = (back: number, side = 0) => ({ x: tip.x - d.x * back + nrm.x * side, y: tip.y - d.y * back + nrm.y * side });
+    if (kind === 'triangle' || kind === 'diamond' || kind === 'filledDiamond' || kind === 'open') {
+      // UML ends: the outline the SVG draws, closed and filled where it is a triangle or a diamond.
+      const u = umlEnd(kind);
+      const pts = u.points.map(([back, side]) => at(back, side));
+      const line: Line = { color, width: this.L(this.theme.stroke.edge) };
+      if (!u.closed) return [this.freeform('End', pts.map((p, i) => ({ op: i ? 'l' : 'm', pts: [p] }) as PxCmd), line)];
+      const xs = pts.map((p) => p.x);
+      const ys = pts.map((p) => p.y);
+      const x0 = Math.min(...xs);
+      const y0 = Math.min(...ys);
+      const L = (p: Point): [number, number] => [this.L(p.x - x0), this.L(p.y - y0)];
+      const path: PathCmd[] = pts.map((p, i) => (i ? { l: L(p) } : { m: L(p) }));
+      return [this.sp({ name: 'End', frame: this.frame(x0, y0, Math.max(...xs) - x0, Math.max(...ys) - y0), geom: { path, closed: true }, fill: { color: u.filled ? color : this.theme.surface }, line })];
+    }
     const segs: [Point, Point][] = [];
     const circles: Point[] = [];
     const bar = (back: number) => segs.push([at(back, -6), at(back, 6)]);
@@ -848,7 +869,7 @@ class SlideDrawing {
     const dots = new Map<string, Item>();
     for (const [i, a] of edges.entries())
       for (const b of edges.slice(i + 1)) {
-        if (a.line !== b.line || a.tone !== b.tone) continue;
+        if (a.line !== b.line || a.tone !== b.tone || !joinDot(a) || !joinDot(b)) continue;
         const pa = this.placed.edges.get(a.id)!.points;
         const pb = this.placed.edges.get(b.id)!.points;
         const at = a.from.node === b.from.node ? split(pa, pb) : a.to.node === b.to.node ? split([...pa].reverse(), [...pb].reverse()) : undefined;

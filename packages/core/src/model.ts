@@ -163,7 +163,11 @@ export type FlowForm = 'task' | 'subprocess' | 'event' | 'gateway' | 'state' | '
 /** Header + rows, with a connection point per row: tables, data products in detail. */
 export interface TableShape {
   kind: 'table';
+  /** A UML class box: rows close together without rules between them, an empty section a rule between compartments. */
+  form?: 'class';
   title: string;
+  /** The title set in italics: an abstract class. */
+  italic?: boolean;
   caption?: string;
   icon?: string;
   tone: Tone;
@@ -219,9 +223,10 @@ export interface MatrixCell {
   change?: 'added' | 'removed' | 'changed';
 }
 
+/** A section with an empty label is a rule across the box: the line between a class's attributes and its operations. A row's `sign` stands in the mark column in the monospace face: a member's visibility (+ - # ~). */
 export type TableRow =
   | { kind: 'section'; label: string }
-  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[]; icon?: string; tone?: Tone };
+  | { kind: 'row'; id: string; cells: Cell[]; marks?: RowMark[]; icon?: string; tone?: Tone; sign?: string };
 
 export type RowMark = 'pk' | 'fk' | 'unique' | 'null' | 'pii';
 
@@ -230,10 +235,17 @@ export interface Cell {
   muted?: boolean;
   mono?: boolean;
   strong?: boolean;
+  /** Abstract (UML): in italics. */
+  italic?: boolean;
+  /** Static (UML): underlined. */
+  underline?: boolean;
 }
 
 /** `slash` is a process's default flow: a stroke across the line where it leaves the gateway. */
-export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany' | 'slash';
+export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany' | 'slash' | UmlMarker;
+
+/** UML ends: a hollow triangle (generalization, realization), a hollow or a filled diamond (aggregation, composition), an open arrowhead (navigability, dependency) whatever the theme's arrows look like. */
+export type UmlMarker = 'triangle' | 'diamond' | 'filledDiamond' | 'open';
 
 export interface Endpoint {
   node: string;
@@ -324,6 +336,8 @@ export interface Placed {
   labels?: Map<string, Box>;
   /** What to remember of this drawing so the next one stays close to it: how it was made and where things are, before pins. */
   memory?: LayoutMemory;
+  /** Pinned nodes or groups moved off their pin because they would have lain on another pinned one (the newer pin gives way). */
+  nudged?: string[];
 }
 
 export interface PlacedEdge {
@@ -385,6 +399,8 @@ export interface LayoutNote {
    * "id@x,y;…;#group@x,y,w,h" (centres of nodes, boxes of groups, pin space). Only written when asked for.
    */
   at?: string;
+  /** What the drawing was made of (shapeOf in layout), written with the positions: the same shape is drawn the same way again without trying the others. */
+  shape?: string;
 }
 
 /** The previous drawing of a view, as the layout uses it. */
@@ -398,6 +414,12 @@ export interface LayoutMemory {
   groups?: Map<string, Box>;
   /** How many pairs of groups stood against the order they were written in (not kept in the sidecar). */
   disorder?: number;
+  /**
+   * What the drawing was made of, without sizes or words (its nodes, groups and lines, in source
+   * order, its direction and page): while it stays the same, the way it was drawn is kept and the
+   * others are not tried again. Editing a label or moving a pin does not change it.
+   */
+  shape?: string;
 }
 
 /** Manual tweaks stored next to the diagram as <name>.layout.json. */

@@ -37,7 +37,7 @@ const NAV: { title: string; items: [string, string?][] }[] = [
   },
   {
     title: 'Diagram types',
-    items: [['c4.md', 'C4 model'], ['process.md', 'Processes'], ['states.md', 'State machines'], ['capabilities.md', 'Capability maps'], ['teams.md', 'Teams and org charts'], ['context-map.md', 'Context maps'], ['matrix.md', 'Matrices'], ['data-products.md', 'Data products'], ['threats.md', 'Threat models']],
+    items: [['c4.md', 'C4 model'], ['process.md', 'Processes'], ['states.md', 'State machines'], ['capabilities.md', 'Capability maps'], ['teams.md', 'Teams and org charts'], ['class.md', 'Class diagrams'], ['mindmap.md', 'Mind maps'], ['context-map.md', 'Context maps'], ['matrix.md', 'Matrices'], ['data-products.md', 'Data products'], ['threats.md', 'Threat models']],
   },
   { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['steps.md', 'Steps'], ['share.md', 'Share links']] },
   { title: 'Import and export', items: [['azure-import.md', 'Azure import'], ['access-import.md', 'Access import'], ['interop.md', 'draw.io, Excalidraw, Office']] },

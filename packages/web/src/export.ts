@@ -1,9 +1,9 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And the drawing for other tools: draw.io, Excalidraw, Mermaid, and an SVG that Office takes whole.
-import { render, themes } from '@cartography/engine';
+import { render, SLIDE_MIN_PT, themes } from '@cartography/engine';
 import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
-import type { FamilyBytes } from '@cartography/export';
+import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
 
@@ -54,12 +54,22 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
 }
 
-/** A 1920×1080 slide: the drawing centred on the theme's background, with a margin. */
+/** The SVG on its page (aspect: in the YAML, a 16:9 slide by default): the canvas grown to the page's shape, the drawing centred. */
+export async function exportPageSvg(input: ExportInput): Promise<string> {
+  const r = await render(input.text, options(input));
+  if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
+  if (!r.page) return r.svg;
+  const { svgOnPage } = await import('@cartography/export');
+  return svgOnPage(r.svg, r.width, r.height, r.page.width / r.page.height, r.theme?.canvas ?? themes[input.theme].canvas).svg;
+}
+
+/** A 1920 px wide picture of the page (a 1920×1080 slide by default): the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
   const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error('Nothing to export: fix the problems first');
-  const W = 1920;
-  const H = 1080;
+  const page = r.page ?? { width: 1280, height: 720 };
+  const W = page.width >= page.height ? 1920 : Math.round((1920 * page.width) / page.height);
+  const H = Math.round((W * page.height) / page.width);
   const margin = 72;
   const scale = Math.min((W - 2 * margin) / r.width, (H - 2 * margin) / r.height, 3);
   const img = new Image();
@@ -79,13 +89,23 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The browser could not make the PNG'))), 'image/png'));
 }
 
-/** A slide with native, editable shapes (one per step when the drawing has steps); icon PNG fallbacks drawn by the browser's canvas. */
-export async function exportPptx(input: ExportInput, name?: string): Promise<Blob> {
+/**
+ * A deck with native, editable shapes: a slide per view (the one on screen first), and one per step
+ * where a view has steps; icon PNG fallbacks drawn by the browser's canvas. `small` lists the slides
+ * whose smallest text is under SLIDE_MIN_PT.
+ */
+export async function exportPptx(input: ExportInput, name?: string): Promise<{ blob: Blob; small: SlideText[] }> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
+  const others = (r.views ?? []).filter((v) => v.name !== r.view);
+  // The other views as they are drawn from scratch (with their own pins): only the one on screen has a drawing before it.
+  const rest = await Promise.all(others.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })));
+  const drawings = [r, ...rest.filter((x) => x.graph && x.placed)].map((x) => ({ ...x, name }));
   const { toPptx } = await import('@cartography/export');
-  const data = await toPptx({ ...r, name }, { theme: r.theme ?? input.theme, rasterize });
-  return new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  const small: SlideText[] = [];
+  const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
+  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t) });
+  return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small };
 }
 
 /** Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own faces embedded. */
@@ -101,7 +121,9 @@ export async function exportPdf(input: ExportInput, name?: string): Promise<Blob
   for (const family of pdfFamilies(theme)) {
     families[family] = Object.fromEntries(await Promise.all(Object.entries(bundledFontFiles[family] ?? {}).map(async ([w, u]) => [w, await bytes(u)] as const)));
   }
-  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families });
+  // On the drawing's page (a 16:9 slide unless aspect: says otherwise), 1 px = 0.75 pt.
+  const page = r.page ? { width: r.page.width * 0.75, height: r.page.height * 0.75 } : undefined;
+  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }
 

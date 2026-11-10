@@ -2,11 +2,11 @@
 // group to nest, and drops from the add palette.
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';
-import type { RenderResult } from '@cartography/engine';
+import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { PALETTE_MIME } from './add-menu.tsx';
-import { bendsOf, dragSegment, isHorizontal, nearestSegment, snapBox, union, viewFor, type Snap } from './craft.ts';
-import { BendHandles, Guides, LockBadges, Minimap } from './craft-overlays.tsx';
+import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
+import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
 
 export interface Selection {
   kind: 'node' | 'group' | 'edge';
@@ -65,7 +65,11 @@ interface Props {
   grid?: boolean;
   /** Show the overview when the drawing does not fit. */
   minimap?: boolean;
-  onToggle?(what: 'grid' | 'minimap'): void;
+  /** Show the page the drawing is for, and flag what makes its text too small. */
+  page?: boolean;
+  /** Elements placed by hand (pinned): a small pin shows on each that is not locked. */
+  pinned?: Set<string>;
+  onToggle?(what: 'grid' | 'minimap' | 'page'): void;
   /** A segment of the selected line dragged: the line's new bends (pin space); `done` on release. */
   onBend?(id: string, via: Point[], done: boolean): void;
   /** What a screen reader hears for the focused element. */
@@ -822,6 +826,9 @@ export function Preview(p: Props) {
   const pinToStage = (q: Point): Point => ({ x: q.x - shiftNow.x + o.x, y: q.y - shiftNow.y + o.y });
   const line = selected?.kind === 'edge' && bendable && !dragging ? result?.placed?.edges.get(selected.id) : undefined;
   const lockedBoxes = [...(p.locked ?? [])].map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
+  const pinnedBoxes = [...(p.pinned ?? [])].filter((id) => !p.locked?.has(id)).map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
+  // The page: how small the smallest text comes out on it, and the part where it would still be readable.
+  const pageInfo = p.page && result?.page && result.svg && result.width && result.height ? { pt: slideTextPt(result.svg, result.width, result.height, result.page), readable: readableArea(result.svg, result.page) } : undefined;
   // The overview only earns its place when the drawing does not fit the pane.
   const f = frame.current;
   const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);
@@ -855,6 +862,16 @@ export function Preview(p: Props) {
         // What is under the pointer: with pointer capture the event's own target is the frame.
         const t = document.elementFromPoint(e.clientX, e.clientY) ?? (e.target as Element);
         if (t.closest('.label-editor')) return;
+        // Double-click a bend of the selected line: that bend comes out (with its partner, so the line stays orthogonal).
+        const sel = selected?.kind === 'edge' && bendable ? result?.placed?.edges.get(selected.id) : undefined;
+        if (sel && p.onBend) {
+          const s = result!.placed!.shift ?? { x: 0, y: 0 };
+          const pts = sel.points.map((q) => ({ x: q.x + s.x, y: q.y + s.y }));
+          const at = toLayout(e.clientX, e.clientY);
+          const j = bendAt(pts, { x: at.x + s.x, y: at.y + s.y }, 10 / view.scale);
+          const out = j != null ? removeBend(pts, j) : undefined;
+          if (out) return p.onBend(selected!.id, bendsOf(out), true);
+        }
         const svg = t.closest('svg');
         if (svg && t.tagName === 'text' && t.parentNode === svg) {
           const firstG = [...svg.children].findIndex((c) => c.tagName === 'g' && !c.hasAttribute('data-sheet'));
@@ -946,7 +963,20 @@ export function Preview(p: Props) {
               )
             );
           })}
+          {pageInfo?.pt != null && (
+            <PageFrame
+              width={result!.width!}
+              height={result!.height!}
+              page={result!.page!}
+              pt={pageInfo.pt}
+              minPt={SLIDE_MIN_PT}
+              readable={pageInfo.readable}
+              boxes={[...(result!.placed?.nodes.values() ?? [])].map((b) => ({ ...b, x: b.x + o.x, y: b.y + o.y }))}
+              scale={view.scale}
+            />
+          )}
           {lockedBoxes.length > 0 && <LockBadges boxes={lockedBoxes} scale={view.scale} />}
+          {pinnedBoxes.length > 0 && <PinBadges boxes={pinnedBoxes} scale={view.scale} />}
           {line && <BendHandles points={line.points.map((q) => ({ x: q.x + o.x, y: q.y + o.y }))} scale={view.scale} bent={!!p.bent?.has(selected!.id)} />}
           {snap && <Guides snap={snap} at={pinToStage} scale={view.scale} />}
         </div>
@@ -1005,6 +1035,9 @@ export function Preview(p: Props) {
         </button>
         <button className={p.minimap ? 'on' : ''} onClick={() => p.onToggle?.('minimap')} title="Overview when the drawing does not fit (⇧M)" aria-label="Minimap" aria-pressed={!!p.minimap}>
           <Icon name="map" />
+        </button>
+        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={`The page it is for${result?.page ? `, a ${result.page.name}` : ''}, and text too small on it (⇧P)`} aria-label="Page" aria-pressed={!!p.page}>
+          <Icon name="monitor" />
         </button>
       </div>
     </div>

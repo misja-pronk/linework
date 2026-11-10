@@ -21,6 +21,31 @@ export const BLOCK = {
   tag: { height: 16, padX: 5, size: 9.5, gap: 6 },
 } as const;
 
+/**
+ * A mind map topic by its level: the centre is the heaviest, each level out a step lighter, from
+ * a filled block through a tinted and an outlined box to words on their own.
+ */
+export const TOPIC = [
+  { size: 16, weight: 600, line: 21, padX: 20, padY: 14, max: 230, icon: 18, note: 12 },
+  { size: 13.5, weight: 600, line: 18, padX: 14, padY: 9, max: 210, icon: 15, note: 11 },
+  { size: 12.5, weight: 500, line: 16, padX: 11, padY: 7, max: 200, icon: 14, note: 10.5 },
+  { size: 12, weight: 400, line: 16, padX: 3, padY: 4, max: 190, icon: 13, note: 10.5 },
+] as const;
+const topicStyle = (s: BlockShape) => TOPIC[Math.max(0, Math.min(3, s.level ?? 1))]!;
+
+/** A topic's words, note and room around them. */
+function topicText(s: BlockShape) {
+  const t = topicStyle(s);
+  const iconRoom = s.icon ? t.icon + 7 : 0;
+  const badgeRoom = s.badge ? measureText(s.badge, 10, 600) + 12 : 0;
+  const room = t.max - 2 * t.padX - iconRoom - badgeRoom;
+  const name = wrapText(s.label, t.size, t.weight as 400 | 500 | 600, room, 3);
+  const note = s.caption ? wrapText(s.caption, t.note, 400, Math.max(room, 120), 2) : [];
+  const noteLine = Math.round(t.note * 1.35);
+  const w = Math.max(widest(name, t.size, t.weight as 400 | 500 | 600), widest(note, t.note, 400)) + iconRoom + badgeRoom;
+  return { t, iconRoom, badgeRoom, name, note, noteLine, width: Math.ceil(w + 2 * t.padX), height: Math.ceil(2 * t.padY + name.length * t.line + note.length * noteLine + (note.length ? 2 : 0)) };
+}
+
 /** Team Topologies colours, after the book: stream-aligned yellow, platform blue, enabling purple, complicated-subsystem red. */
 export const TEAM_TONES: Partial<Record<BlockForm, Tone>> = {
   stream: 'amber',
@@ -149,6 +174,10 @@ export function blockSize(s: BlockShape, theme: Theme): NodeSize {
       const h = 2 * 12 + name.length * t.line + cap.length * t.caption + (narrow && s.badge ? t.caption : 0);
       return { width: even(clamp(w + 2, narrow ? 112 : t.min, narrow ? 132 : t.max + 60)), height: even(Math.max(58, h)) };
     }
+    case 'topic': {
+      const x = topicText(s);
+      return { width: even(Math.max(x.width, (s.level ?? 1) === 0 ? 120 : (s.level ?? 1) < 3 ? 64 : 24)), height: even(x.height) };
+    }
     default:
       return { width: 0, height: 0 };
   }
@@ -237,6 +266,9 @@ export function blockMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
     case 'facilitating':
       m.push(...zoneMarks(s, b, theme));
       break;
+    case 'topic':
+      m.push(...topicMarks(s, b, theme));
+      break;
     case 'flow': {
       // The flow of change: a long arrow, its name in it.
       const fg = theme.tones.slate.fg;
@@ -250,6 +282,31 @@ export function blockMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
       break;
     }
   }
+  return m;
+}
+
+function topicMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
+  const m: JourneyMark[] = [];
+  const level = s.level ?? 1;
+  const tone = theme.tones[s.tone];
+  const x = topicText(s);
+  const t = x.t;
+  const dark = theme.mode === 'dark';
+  // The centre in ink, a branch in its colour's tint, a topic outlined in it, deeper ones as words.
+  const fill = level === 0 ? theme.text : level === 1 ? mix(tone.fg, theme.surface, dark ? 0.26 : 0.14) : level === 2 ? theme.surface : undefined;
+  const stroke = level === 1 ? mix(tone.fg, theme.surface, dark ? 0.7 : 0.5) : level === 2 ? mix(tone.fg, theme.surface, dark ? 0.55 : 0.4) : undefined;
+  if (fill) m.push({ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: level === 0 ? Math.max(theme.radius.card, 10) : theme.radius.card, fill, ...(stroke ? { stroke, sw: level === 1 ? 1.2 : 1 } : {}), shadow: level === 0, name: s.label });
+  else m.push({ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, name: s.label });
+  const ink = level === 0 ? theme.canvas : theme.text;
+  const textH = x.name.length * t.line + x.note.length * x.noteLine + (x.note.length ? 2 : 0);
+  let y = b.y + (b.height - textH) / 2;
+  const left = b.x + t.padX + x.iconRoom;
+  const room = b.width - 2 * t.padX - x.iconRoom - x.badgeRoom;
+  if (s.icon) m.push({ t: 'icon', name: s.icon, x: b.x + t.padX, y: y + (t.line - t.icon) / 2, size: t.icon, color: level === 0 ? theme.canvas : tone.fg, sw: 1.75 });
+  m.push({ t: 'text', x: left, y, w: room, lines: x.name, size: t.size, weight: t.weight as 400 | 500 | 600, fill: ink, align: 'l', lh: t.line });
+  if (s.badge) m.push({ t: 'text', x: b.x + b.width - t.padX - x.badgeRoom + 6, y, w: x.badgeRoom - 6, lines: [s.badge], size: 10, weight: 600, fill: level === 0 ? mix(theme.canvas, theme.text, 0.7) : tone.fg, align: 'r', lh: t.line });
+  y += x.name.length * t.line + 2;
+  if (x.note.length) m.push({ t: 'text', x: left, y, w: Math.max(room, b.width - 2 * t.padX - x.iconRoom), lines: x.note, size: t.note, weight: 400, fill: level === 0 ? mix(theme.canvas, theme.text, 0.75) : theme.textMuted, align: 'l', lh: x.noteLine });
   return m;
 }
 
