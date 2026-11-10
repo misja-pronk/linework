@@ -735,7 +735,7 @@ async function importFile(file: string): Promise<boolean> {
     }
     // Several diagrams: named after what each is (aws-shop-tables.yaml), numbered when that is not clear.
     const part = b.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const name = blocks.length > 1 && (b.name || blocks.some((x, j) => j < i && !x.name)) ? `${base}-${part && blocks.filter((x) => x.name === b.name).length === 1 ? part : i + 1}.yaml` : `${base}.yaml`;
+    const name = blocks.length > 1 && i > 0 ? `${base}-${part && blocks.filter((x) => x.name === b.name).length === 1 ? part : i + 1}.yaml` : `${base}.yaml`;
     const out = !values.out ? path.join(path.dirname(file), name) : files.length === 1 && blocks.length === 1 && path.extname(values.out) ? values.out : path.join(values.out, name);
     if (fs.existsSync(out) && !values.force) {
       console.error(`${out} already exists, use --force to overwrite`);

@@ -11,7 +11,7 @@ import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
 import { failure, generate, MODELS, type ModelId } from './ai/claude.ts';
-import { importMarkdown, importMermaid } from '@cartography/import';
+import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 
 export type View = 'visual' | 'code';
@@ -146,7 +146,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
                   ? 'All templates and examples'
                   : `${typeName(typeId)}: pick a start`
                 : step === 'import'
-                  ? 'Import from Mermaid, draw.io or Excalidraw'
+                  ? 'Import from Mermaid, D2, PlantUML, draw.io or Excalidraw'
                   : step === 'mode'
                     ? `${starter!.title}`
                     : `Describe it · ${typeName(starter!.type)}`}
@@ -304,8 +304,8 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
         <button className="chip import-chip" onClick={() => onChoose('all')} title="Every template and example, of every type">
           <Icon name="layout-grid" size={13} /> All templates
         </button>
-        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
-          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, draw.io or Excalidraw
+        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid, D2 or PlantUML diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
+          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, D2, PlantUML, draw.io or Excalidraw
         </button>
       </div>
       <p className="type-hint" role="status">
@@ -841,7 +841,8 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
         const pages = drawing === 'Excalidraw' ? [importExcalidraw(text, opts)] : importDrawio(text, opts);
         return pages.map((p) => ({ yaml: p.yaml, warnings: p.report, name: p.name, pins: p.sidecar }));
       }
-      return /```mermaid/.test(text) ? importMarkdown(text) : [importMermaid(text)];
+      // Mermaid, D2, PlantUML or Markdown with their blocks: by the file's ending, or by how the text looks.
+      return importText(text, file);
     } catch (e) {
       return [{ yaml: '', warnings: [e instanceof Error ? e.message : String(e)] }];
     }
@@ -852,7 +853,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
   const choose = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.drawio,.dio,.xml,.excalidraw,.json,.mmd,.mermaid,.md';
+    input.accept = '.drawio,.dio,.xml,.excalidraw,.json,.mmd,.mermaid,.d2,.puml,.plantuml,.md';
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return;
@@ -866,7 +867,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey, or a draw.io or Excalidraw file
+          <Icon name="clipboard-paste" size={14} /> Paste Mermaid, D2 or PlantUML, or open a draw.io or Excalidraw file
         </div>
         <textarea
           className="paste mono"
@@ -880,7 +881,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
           spellCheck={false}
         />
         <div style={{ display: 'flex', gap: 8, margin: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd or .md file from your computer; it is read here, in the browser">
+          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd, .d2, .puml or .md file from your computer; it is read here, in the browser">
             <Icon name="folder-open" /> Choose a file…
           </button>
           {!text && (
@@ -897,7 +898,7 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
       </div>
       <div className="ask-preview">
         {blocks.length > 1 && (
-          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Mermaid block'}>
+          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Diagram'}>
             {blocks.map((b, i) => (
               <button key={i} role="radio" aria-checked={i === block} className={i === block ? 'active' : ''} onClick={() => setBlock(i)}>
                 {b.name ?? `${drawing ? 'Page' : 'Block'} ${i + 1}`}

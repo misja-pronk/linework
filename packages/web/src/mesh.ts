@@ -4,7 +4,7 @@ import { importDataMesh, isDataMeshFile, type ImportedMesh, type MeshFile } from
 
 const TEXT = /\.(ya?ml|json)$/i;
 /** What a drop reads: these, and drawings from draw.io, Excalidraw and Mermaid, which the editor imports. */
-const READ = /\.(ya?ml|json|drawio|dio|xml|excalidraw|mmd|mermaid)$/i;
+const READ = /\.(ya?ml|json|drawio|dio|xml|excalidraw|mmd|mermaid|d2|puml|plantuml)$/i;
 const NOTE = /\.layout\.json$/i;
 const MAX_FILES = 400;
 const MAX_BYTES = 2_000_000;

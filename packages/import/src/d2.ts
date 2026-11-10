@@ -469,8 +469,9 @@ export function importD2(text: string, fallbackTitle = 'Imported diagram'): Impo
     for (const d of drawBoard(b, name, lw)) out.push({ ...d, name: d.name ? `${name}: ${d.name}` : name, warnings: d.warnings });
   }
   if (layers.length) warn.add(`Each layer is a diagram of its own (${layers.map(([k]) => k.split('\0')[1]).join(', ')}); links between them are left out`);
-  // The file's own notes go with the first diagram.
+  // The file's own notes go with the first diagram; among several it is named after its type.
   if (out[0]) out[0].warnings = [...warn.list, ...out[0].warnings];
+  if (out.length > 1 && !out[0]!.name) out[0]!.name = /^type: (cloud|systems)\b/.test(out[0]!.yaml) ? 'architecture' : 'main';
   return out.length ? out : [{ yaml: '', warnings: warn.list }];
 }
 

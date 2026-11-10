@@ -149,7 +149,7 @@ Order: {shape: class; +id: uuid; +total(): Money}
 describe('D2 targets', () => {
   it('a cloud diagram when the icons say AWS, with the products as kinds and the tables as an erd', async () => {
     const blocks = importD2(fixture('aws-shop.d2'), 'aws-shop');
-    expect(blocks.map((b) => b.name)).toEqual([undefined, 'tables']);
+    expect(blocks.map((b) => b.name)).toEqual(['architecture', 'tables']);
     const d = parse(blocks[0]!.yaml);
     expect(d).toMatchObject({ type: 'cloud', provider: 'aws', title: 'Web shop on AWS', direction: 'right' });
     expect(d.groups).toMatchObject({ aws: { kind: 'aws' }, vpc: { kind: 'vpc', label: 'VPC eu-west-1' }, public: { kind: 'subnet' }, private: { kind: 'subnet' } });
@@ -203,7 +203,7 @@ users.id <- posts.author_id: writes
 
   it('a sequence_diagram inside an architecture is a diagram of its own', () => {
     const blocks = importD2('api -> db\nflow: Login {\n  shape: sequence_diagram\n  a -> b: hi\n}', 'T');
-    expect(blocks.map((b) => [b.name, parse(b.yaml).type])).toEqual([[undefined, 'systems'], ['Login', 'sequence']]);
+    expect(blocks.map((b) => [b.name, parse(b.yaml).type])).toEqual([['architecture', 'systems'], ['Login', 'sequence']]);
     expect(parse(blocks[0]!.yaml).nodes).not.toHaveProperty('flow');
   });
 
@@ -223,7 +223,7 @@ layers: {
   inside: { x -> y }
 }
 `, 'Main');
-    expect(blocks.map((b) => b.name)).toEqual([undefined, 'inside']);
+    expect(blocks.map((b) => b.name)).toEqual(['architecture', 'inside']);
     const d = parse(blocks[0]!.yaml);
     expect(d.views).toEqual({ main: { title: 'Main', exclude: ['c'] }, failover: { title: 'Main: failover' } });
     expect(parse(blocks[1]!.yaml).edges).toEqual(['x -> y']);
