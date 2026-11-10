@@ -33,7 +33,7 @@ import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-ed
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
-import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
+import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPageSvg, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, drawnAs, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
@@ -648,7 +648,14 @@ export function App() {
   });
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
-  const savePptx = attempt('Export', async () => download(`${baseName(doc.name)}.pptx`, await exportPptx(exportInput(), yamlName(doc.name))));
+  const savePptx = attempt('Export', async () => {
+    const { blob, small } = await exportPptx(exportInput(), yamlName(doc.name));
+    download(`${baseName(doc.name)}.pptx`, blob);
+    // Every slide is checked for text too small to read from the back of a room.
+    if (small.length) notify(`${count(small.length, 'slide')} with text under 9 pt (${small.map((t) => `slide ${t.slide}: ${t.smallestPt} pt`).join(', ')}): split into views, or Tidy for the page`, { tone: 'error' });
+  });
+  const pageName = (result?.page ?? drawn?.page)?.name ?? '16:9 slide';
+  const savePageSvg = attempt('Export', async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await svgNow());
@@ -1359,7 +1366,8 @@ export function App() {
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
     { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
-    { id: 'slide', group: 'Export', label: 'PNG for slides (16:9)', icon: 'monitor', run: saveSlide },
+    { id: 'slide', group: 'Export', label: `PNG on the page (${pageName})`, icon: 'monitor', run: saveSlide },
+    { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
@@ -1623,7 +1631,10 @@ export function App() {
                   <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
                 </button>
                 <button role="menuitem" onClick={saveSlide}>
-                  <Icon name="monitor" /> PNG for slides (16:9)
+                  <Icon name="monitor" /> PNG on the page ({pageName})
+                </button>
+                <button role="menuitem" onClick={savePageSvg}>
+                  <Icon name="monitor" /> SVG on the page ({pageName})
                 </button>
                 <button role="menuitem" onClick={savePptx}>
                   <Icon name="layout-template" /> {written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)'}

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { render, type RenderResult } from '@cartography/engine';
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
-import { pdfFamilies, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
+import { pdfFamilies, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
 import { clean, fitConnector } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
@@ -389,5 +389,30 @@ describe('process and states', () => {
       const said = pdfText(pdf).join('');
       for (const s of flowOf(r)) if (s.label) expect(said, `${f}: ${s.label}`).toContain(s.label.split(" ")[0]);
     }
+  });
+});
+
+describe('on the page', () => {
+  it('tells the smallest text on every slide, a view and a step each', async () => {
+    const seen: { slide: number; smallestPt: number; step?: number }[] = [];
+    await toPptx([await draw('systems/web-shop.yaml'), await draw('cloud/multi-cloud.yaml')], { onSlide: (t) => seen.push(t) });
+    expect(seen.map((t) => t.slide)).toEqual([1, 2]);
+    for (const t of seen) expect(t.smallestPt).toBeGreaterThan(3);
+    // The bigger drawing is set smaller on its slide.
+    expect(seen[1]!.smallestPt).toBeLessThan(seen[0]!.smallestPt);
+  });
+  it('puts a PDF on the page asked for, in points', async () => {
+    const pdf = Buffer.from(await toPdf(await draw('systems/web-shop.yaml'), { fonts: fonts(), compress: false, page: 'slide' })).toString('latin1');
+    expect(pdf).toMatch(/\/MediaBox \[0 0 960 540\]/);
+    const sized = Buffer.from(await toPdf(await draw('systems/web-shop.yaml'), { fonts: fonts(), compress: false, page: { width: 595.28, height: 841.89 } })).toString('latin1');
+    expect(sized).toMatch(/\/MediaBox \[0 0 595\.28 841\.89\]/);
+  });
+  it('grows an SVG to the page shape, the drawing centred', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100"><rect width="400" height="100" fill="#fff"/></svg>';
+    const out = svgOnPage(svg, 400, 100, 16 / 9, '#fff');
+    expect([out.width, out.height]).toEqual([400, 225]);
+    expect(out.svg).toContain('viewBox="0 -62.5 400 225"');
+    expect(out.svg).toContain('<rect x="0" y="-62.5" width="400" height="225" fill="#fff"/>');
+    expect(svgOnPage(svg, 400, 225, 16 / 9, '#fff').svg).toBe(svg);
   });
 });

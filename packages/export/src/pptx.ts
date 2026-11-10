@@ -47,6 +47,18 @@ export interface PptxOptions {
   /** A slide per step is the default for written steps. True: also for steps nobody wrote; false: one slide per drawing. */
   steps?: boolean;
   date?: Date;
+  /** Told, per slide of a drawing, the smallest text on it (points): under SLIDE_MIN_PT it is hard to read from the back of a room. */
+  onSlide?(slide: SlideText): void;
+}
+
+/** The smallest text on one slide. */
+export interface SlideText {
+  /** From 1, counting a title slide. */
+  slide: number;
+  title?: string;
+  /** The step shown, from 1. */
+  step?: number;
+  smallestPt: number;
 }
 
 const INCH = 914400;
@@ -132,15 +144,17 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
     const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, (W - 2 * MARGIN) / PX - 80).map((text) => ({ text, title: false })) : [])];
     const below = view ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
+    let smallest = Infinity;
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
     const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top - below };
     // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
     tree += await inThemeFonts(theme, () => {
       const c = contentSize(graph, placed, theme, view);
       const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
-      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k };
+      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)) };
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view);
     });
+    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(view ? { step: view.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
     if (view && state) {
       const y = H - MARGIN - below + 0.18 * INCH;
       tree += shape({ id: next(), name: 'Step rule', frame: { x: MARGIN, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);

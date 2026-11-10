@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
 import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
-import { render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
+import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
@@ -522,6 +522,19 @@ describe('slide shape', () => {
       const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
       expect(shape(r), file).toBeLessThan(most);
     }
+  });
+  it('knows its page: 16:9 by default, 4:3 and A4 by name, none with auto', async () => {
+    const page = async (aspect?: string) => (await render(aspect ? pipeline.replace('direction: right', `direction: right\naspect: ${aspect}`) : pipeline, { fonts: 'none' })).page;
+    expect(await page()).toMatchObject({ name: '16:9 slide', width: 1280, height: 720 });
+    expect(await page('4:3')).toMatchObject({ name: '4:3 slide' });
+    expect(await page('a4')).toMatchObject({ name: 'A4 landscape' });
+    expect(await page('A4 portrait')).toMatchObject({ name: 'A4 portrait', width: 794, height: 1123 });
+    expect(await page('auto')).toBeUndefined();
+    // The readable part of a page: where the smallest text is still SLIDE_MIN_PT.
+    const r = await render(pipeline, { fonts: 'none' });
+    const area = readableArea(r.svg!, r.page!)!;
+    expect(area.width / area.height).toBeCloseTo(16 / 9);
+    expect(slideTextPt(r.svg!, area.width, area.height)).toBeCloseTo(SLIDE_MIN_PT);
   });
   it('knows how small the text gets on a 16:9 slide', async () => {
     const small = await render('type: azure\nnodes:\n  a: app-service\n  b: sql-database\nedges:\n  - a -> b\n', { fonts: 'none' });

@@ -17,8 +17,11 @@ export const pdfFamilies = (theme: Theme): string[] => [...new Set([theme.font.s
 
 export interface PdfOptions {
   theme?: 'light' | 'dark' | Theme;
-  /** fit: each page as big as its drawing; a4/a3: landscape sheets, the drawing scaled to fit. */
-  page?: 'fit' | 'a4' | 'a3';
+  /**
+   * fit: each page as big as its drawing; a4/a3: landscape sheets, the drawing scaled to fit; a4-portrait;
+   * slide: 16:9 (13.33 by 7.5 inches), slide-4:3 (10 by 7.5); or any size in points.
+   */
+  page?: 'fit' | keyof typeof SHEETS | { width: number; height: number };
   fonts: FontBytes;
   /** The theme's own faces (see pdfFamilies). A family that is missing here is set in Inter. */
   families?: FamilyBytes;
@@ -51,7 +54,7 @@ function nameFaces(svg: string, monoFamily: string): string {
   });
 }
 
-const SHEETS = { a4: [841.89, 595.28], a3: [1190.55, 841.89] } as const;
+const SHEETS = { a4: [841.89, 595.28], a3: [1190.55, 841.89], 'a4-portrait': [595.28, 841.89], slide: [960, 540], 'slide-4:3': [720, 540] } as const;
 const MARGIN = 28;
 const FOOTER = 18;
 
@@ -82,13 +85,13 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view }));
     const svg = nameFaces(out.svg, monoFamily);
     const foot = footer ? FOOTER : 0;
-    const sheet = opts.page === 'a4' || opts.page === 'a3';
+    const sheet = !!opts.page && opts.page !== 'fit';
     // The SVG has its own padding: a fitted page adds nothing around it, a sheet keeps a margin.
     const m = sheet ? MARGIN : 0;
     let size: [number, number];
     let scale: number;
-    if (opts.page === 'a4' || opts.page === 'a3') {
-      size = [...SHEETS[opts.page]];
+    if (opts.page && opts.page !== 'fit') {
+      size = typeof opts.page === 'object' ? [opts.page.width, opts.page.height] : [...SHEETS[opts.page]];
       scale = Math.min((size[0] - 2 * m) / out.width, (size[1] - 2 * m - foot) / out.height, 1);
     } else {
       // 1 px = 0.75 pt: the drawing at its natural 96 dpi size.
