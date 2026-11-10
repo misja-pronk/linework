@@ -488,8 +488,8 @@ export function App() {
 
   /** A file from another tool goes through the Import panel: pages, positions and what was left out are shown first. */
   const [incoming, setIncoming] = useState<Incoming>();
-  const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
-  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid'] };
+  const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid|d2|puml|plantuml)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
+  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid', '.d2', '.puml', '.plantuml'] };
 
   /** data-mesh.yaml in the open folder: its data products and contracts as one map, made or brought up to date. False: the folder has none. */
   const meshInFolder = (w: Workspace): boolean => {
@@ -590,7 +590,7 @@ export function App() {
             multiple: true,
             types: [
               { description: 'Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
-              { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
+              { description: 'draw.io, Excalidraw, Mermaid, D2 or PlantUML, to import', accept: OTHER },
             ],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
@@ -603,7 +603,7 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,.json,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid';
+    input.accept = '.yaml,.yml,.json,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid,.d2,.puml,.plantuml';
     input.multiple = true;
     input.onchange = async () => {
       const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));

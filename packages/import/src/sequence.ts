@@ -20,14 +20,14 @@ const COLOUR = /^(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-f]{3,8}|transparent|(ligh
 const ARROW = /^(.+?)\s*(<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-]?)\s*(.+?)\s*(?::(.*))?$/;
 const OURS: Record<string, string> = { '->>': '->', '->': '->', '-->>': '-->', '-->': '-->', '-x': '-x', '--x': '-x', '-)': '->>', '--)': '->>', '<<->>': '->', '<<-->>': '-->' };
 
-interface Participant {
+export interface Participant {
   id: string;
   label?: string;
   kind: string;
   box?: string;
 }
 
-type Step = { line: string } | { frame: string; label?: string; steps: Step[]; branches: { label?: string; steps: Step[] }[] };
+export type Step = { line: string } | { frame: string; label?: string; steps: Step[]; branches: { label?: string; steps: Step[] }[] };
 
 export function importSequence(body: string[], title: string | undefined, warn: Warnings): string {
   const ids = new Ids();
@@ -47,9 +47,7 @@ export function importSequence(body: string[], title: string | undefined, warn: 
     const source = raw.trim();
     let p = participants.get(source);
     if (!p) {
-      const text = label ?? source;
-      const guess = guessKind(text);
-      const kind = actor ? 'person' : typed ? (TYPED[typed] ?? 'service') : guess ? (KIND[guess] ?? (SEQUENCE_KINDS.has(guess) ? guess : 'service')) : 'service';
+      const kind = actor ? 'person' : typed ? (TYPED[typed] ?? 'service') : participantKind(label ?? source);
       participants.set(source, (p = { id: ids.get(source), kind, box }));
       if (label !== undefined && label !== p.id) p.label = label;
       else if (!label && source !== p.id) p.label = source;
@@ -108,23 +106,44 @@ export function importSequence(body: string[], title: string | undefined, warn: 
     else warn.onceFor(`skip:${s}`, `Skipped: ${s}`);
   }
 
+  return sequenceYaml({ title, autonumber, explicit, boxes, participants: [...participants.values()], steps: root });
+}
+
+/** A sequence kind for a participant's name: "Orders DB" is a database, anything unclear a service. */
+export function participantKind(text: string): string {
+  const guess = guessKind(text);
+  return guess ? (KIND[guess] ?? (SEQUENCE_KINDS.has(guess) ? guess : 'service')) : 'service';
+}
+
+export interface SequenceDiagram {
+  title?: string;
+  autonumber?: boolean;
+  /** Only the activations the source asks for. */
+  explicit?: boolean;
+  boxes: { id: string; label: string }[];
+  participants: Participant[];
+  steps: Step[];
+}
+
+/** The common target of every sequence import (Mermaid, PlantUML, D2). */
+export function sequenceYaml(d: SequenceDiagram): string {
   const out: string[] = ['type: sequence'];
-  if (title) out.push(`title: ${scalar(title)}`);
-  if (autonumber) out.push('autonumber: true');
-  if (explicit) out.push('activations: explicit');
-  if (boxes.length) {
+  if (d.title) out.push(`title: ${scalar(d.title)}`);
+  if (d.autonumber) out.push('autonumber: true');
+  if (d.explicit) out.push('activations: explicit');
+  if (d.boxes.length) {
     out.push('', 'boxes:');
-    for (const b of boxes) out.push(`  ${b.id}: ${scalar(b.label)}`);
+    for (const b of d.boxes) out.push(`  ${b.id}: ${scalar(b.label)}`);
   }
   out.push('', 'participants:');
-  for (const p of participants.values()) {
+  for (const p of d.participants) {
     // The kind is read from the source's words or type: it gives the icon, not a caption the source never wrote.
     const quiet = p.kind === 'person' || p.kind === 'people';
     const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.label && !quiet ? 'caption: ""' : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
     out.push(`  ${p.id}: ${fields.length === 1 ? p.kind : `{ ${fields.join(', ')} }`}`);
   }
   out.push('', 'messages:');
-  writeSteps(root, '  ', out);
+  writeSteps(d.steps, '  ', out);
   return out.join('\n') + '\n';
 }
 

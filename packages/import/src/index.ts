@@ -4,7 +4,12 @@
 //                          erDiagram → erd, sequenceDiagram → sequence, stateDiagram → states, gitGraph → gitflow,
 //                          gantt and timeline → roadmap, journey → journey
 //   importGitLog(text)     `git log --format=GIT_LOG_FORMAT` of a real repository → gitflow
-//   importMarkdown(text)   every ```mermaid block in a Markdown file
+//   importMarkdown(text)   every ```mermaid, ```d2 and ```plantuml block in a Markdown file
+//   importD2(text)         D2 → systems (cloud when the icons say AWS or Google Cloud), its sql_tables → erd,
+//                          each sequence_diagram → sequence; steps, scenarios and layers
+//   importPlantUml(text)   PlantUML sequence → sequence, component and deployment → systems, C4-PlantUML → c4,
+//                          state → states, activity → process, entity → erd
+//   importText(text, name) any of these, by the file's ending or what the text looks like
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
 //   importDataMesh(files)  data product files (ODPS) and data contracts (ODCS) → data-products
@@ -21,6 +26,8 @@ import { importGantt, importTimeline } from './gantt.ts';
 import { importJourney } from './journey.ts';
 import { importState } from './state.ts';
 import { Warnings } from './text.ts';
+import { importD2 } from './d2.ts';
+import { importPlantUml } from './plantuml.ts';
 
 export interface Imported {
   /** Cartography YAML; empty when nothing could be imported. */
@@ -38,6 +45,8 @@ export { importGithub, isGithubExport, type GithubOptions } from './github-org.t
 export { importAzure, isAzureContainers, isAzureExport, type AzureOptions } from './azure.ts';
 export { importAccess, isAccessExport, type AccessOptions, type ExportFile, type ImportedExport } from './access.ts';
 export { GIT_LOG_FORMAT, importGitLog, type GitLogOptions } from './git.ts';
+export { importD2, type ImportedD2 } from './d2.ts';
+export { importPlantUml, type ImportedUml } from './plantuml.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
   const warn = new Warnings();
@@ -83,11 +92,46 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
 }
 
 export interface ImportedBlock extends Imported {
-  /** 1-based line of the ```mermaid fence. */
+  /** 1-based line of the fence in Markdown; 0 for a file of its own. */
   line: number;
+  /** What the diagram is, when one block or file gave several (a D2 layer, a PlantUML diagram's title). */
+  name?: string;
 }
 
-/** Every ```mermaid (or ~~~mermaid) block; the nearest heading above one becomes its title when it has none. */
+export type Language = 'mermaid' | 'd2' | 'plantuml' | 'markdown';
+
+const MERMAID = /^(flowchart|graph|architecture(-beta)?|erDiagram|sequenceDiagram|stateDiagram(-v2)?|gitGraph|gantt|timeline|journey|classDiagram(-v2)?|pie|mindmap|quadrantChart|requirementDiagram|C4\w+|xychart(-beta)?|sankey(-beta)?|block(-beta)?|packet(-beta)?|kanban|radar(-beta)?|treemap(-beta)?|zenuml)\b/;
+const FENCE = /^\s*(`{3,}|~{3,})\s*(mermaid|d2|plantuml|puml|uml)\b/;
+
+/** Which language a text is in: by the file's ending first, then by what it starts with. */
+export function languageOf(text: string, name = ''): Language {
+  if (/\.(mmd|mermaid)$/i.test(name)) return 'mermaid';
+  if (/\.d2$/i.test(name)) return 'd2';
+  if (/\.(puml|plantuml|pu|iuml|wsd)$/i.test(name)) return 'plantuml';
+  if (/\.(md|markdown)$/i.test(name)) return 'markdown';
+  if (/^\s*@start\w+/m.test(text)) return 'plantuml';
+  if (text.split('\n').some((l) => FENCE.test(l))) return 'markdown';
+  const src = text.replace(/^\s*---\n[\s\S]*?\n---\s*\n/, '');
+  const first = src.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('%%')) ?? '';
+  if (MERMAID.test(first)) return 'mermaid';
+  // PlantUML without @startuml: C4 macros, or participants and arrows with a colon.
+  if (/^\s*(!include|skinparam\b|(Person|System|Container|Component|Rel)(_\w+)?\s*\()/m.test(text) || /^\s*participant\s+\S+(\s+as\s+\S+)?\s*$/m.test(text)) return 'plantuml';
+  // D2: a shape:, a direction:, a block or a connection, outside any of the above.
+  if (/^\s*(direction|shape)\s*:|^[^%\n]*\{\s*$|^\s*[\w"'][^:\n]*?\s*(<->|<-|->|--)\s*[\w"']/m.test(text)) return 'd2';
+  return 'mermaid';
+}
+
+/** A file or a paste, in whichever language it is: one block per diagram. */
+export function importText(text: string, name = ''): ImportedBlock[] {
+  const base = name.split(/[\\/]/).pop()!.replace(/\.[^.]+$/, '') || undefined;
+  const lang = languageOf(text, name);
+  if (lang === 'markdown') return importMarkdown(text);
+  if (lang === 'd2') return importD2(text, base).map((b) => ({ ...b, line: 0 }));
+  if (lang === 'plantuml') return importPlantUml(text, base).map((b) => ({ ...b, line: 0 }));
+  return [{ ...importMermaid(text), line: 0 }];
+}
+
+/** Every ```mermaid, ```d2 and ```plantuml (or ~~~) block; the nearest heading above one becomes its title when it has none. */
 export function importMarkdown(text: string): ImportedBlock[] {
   const out: ImportedBlock[] = [];
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -95,11 +139,13 @@ export function importMarkdown(text: string): ImportedBlock[] {
   for (let i = 0; i < lines.length; i++) {
     const h = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(lines[i]!);
     if (h) heading = h[1]!.replace(/[*_`]/g, '');
-    const fence = /^\s*(`{3,}|~{3,})\s*mermaid\b/.exec(lines[i]!);
+    const fence = FENCE.exec(lines[i]!);
     if (!fence) continue;
     const end = lines.findIndex((l, j) => j > i && l.trim().startsWith(fence[1]!));
     const block = lines.slice(i + 1, end < 0 ? lines.length : end).join('\n');
-    out.push({ ...importMermaid(block, heading), line: i + 1 });
+    const lang = fence[2]!;
+    if (lang === 'mermaid') out.push({ ...importMermaid(block, heading), line: i + 1 });
+    else for (const b of lang === 'd2' ? importD2(block, heading) : importPlantUml(block, heading)) out.push({ ...b, line: i + 1 });
     i = end < 0 ? lines.length : end;
   }
   return out;

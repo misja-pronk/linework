@@ -107,7 +107,7 @@ await page.screenshot({ path: `${out}/3-drawio-opened.png` });
 
 // 3. Through the start dialog: choose an Excalidraw file in the Import panel.
 await page.getByRole('button', { name: 'New' }).click();
-await page.getByRole('button', { name: /Import from Mermaid, draw.io or Excalidraw/ }).click();
+await page.getByRole('button', { name: /Import from Mermaid, D2, PlantUML, draw.io or Excalidraw/ }).click();
 const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Choose a file/ }).click()]);
 await chooser.setFiles(path.join(fixtures, 'sketch.excalidraw'));
 await page.waitForSelector('.mode-preview svg', { timeout: 8000 }).catch(() => fail('Excalidraw: nothing drawn in the Import panel'));
