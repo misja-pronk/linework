@@ -69,8 +69,11 @@ await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.waitForSelector('.mode-card');
 await wait(800);
 await page.screenshot({ path: `${out}/2-mode.png` });
+// One name per way of working, the same as the switch in the header and the docs' glossary.
+const modeNames = await page.locator('.mode-card .mode-text strong').allInnerTexts();
+if (modeNames.slice(0, 3).join() !== 'Ask Claude,Builder,YAML') fail(`ways of working are named ${modeNames}`);
 
-// 2. Build visually: shapes panel, no YAML.
+// 2. The builder: shapes panel, no YAML.
 await page.keyboard.press('2');
 await page.waitForSelector('.shapes .add-item');
 await wait(800);
@@ -87,7 +90,7 @@ await page.keyboard.press('Meta+Backslash');
 await wait(400);
 if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show the YAML');
 
-// 3. Describe it: questions, generate (mocked), a repair round, open.
+// 3. Ask Claude: questions, generate (mocked), a repair round, open.
 await page.getByRole('button', { name: 'New' }).click();
 await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();

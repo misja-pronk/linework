@@ -65,22 +65,22 @@ const MODES = [
   {
     view: 'ai',
     icon: 'sparkles',
-    title: 'Describe it',
-    text: 'Answer a few questions; Claude drafts the diagram for you to refine.',
+    title: 'Ask Claude',
+    text: 'Describe it in a few answers; Claude drafts the diagram for you to refine.',
     key: '1',
   },
   {
     view: 'visual',
     icon: 'mouse-pointer-2',
-    title: 'Build visually',
-    text: 'Drag shapes from the palette, connect them, edit in the panel. No YAML needed.',
+    title: 'Builder',
+    text: 'Build visually: drag shapes from the palette, connect them, edit in the panel. No YAML needed.',
     key: '2',
   },
   {
     view: 'code',
     icon: 'code',
-    title: 'Write YAML',
-    text: 'Start from this example with autocomplete and a live drawing next to it.',
+    title: 'YAML',
+    text: 'Write it, starting from this example, with autocomplete and a live drawing next to it.',
     key: '3',
   },
 ] as const;
@@ -113,7 +113,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
   /** The chosen type, or 'all' to browse every template. */
   const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
   const [step, setStep] = useState<Step>(incoming ? 'import' : initial ? 'mode' : 'type');
-  /** A wizard's drawing that the AI mode starts from ("Refine with Claude"). */
+  /** A wizard's drawing that the AI mode starts from ("Ask Claude to refine it"). */
   const [draft, setDraft] = useState<string>();
   useRestoreFocus();
 
@@ -167,7 +167,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
                     ? `${starter!.title}`
                     : step === 'wizard'
                       ? `Answer questions · ${typeName(starter!.type)}`
-                      : `Describe it · ${typeName(starter!.type)}`}
+                      : `Ask Claude · ${typeName(starter!.type)}`}
           </h2>
           {step !== 'import' && (
             <ol className="steps" aria-label="Steps">

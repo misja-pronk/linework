@@ -1611,14 +1611,14 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
+    { id: 'ask', group: 'Claude', label: asking ? 'Close Ask Claude' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
-      : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
+      : { id: 'view-visual', group: 'View', label: 'Builder (hide the YAML)', icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
     { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: keyHint('save'), run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
@@ -1801,7 +1801,7 @@ export function App() {
           {dirty && <span className="dirty" title="Unsaved changes (⌘S saves)" aria-label="Unsaved changes" />}
           {type && (
             <div className="menu-anchor type-anchor">
-              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={type.tagline} aria-expanded={typeCard} aria-haspopup="menu">
+              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${type.name}, written type: ${type.id}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
                 {type.name}
               </button>
               {typeCard && (
@@ -1810,6 +1810,7 @@ export function App() {
                     <strong>
                       <Icon name={type.icon ?? 'layout-template'} size={15} /> {type.name}
                     </strong>
+                    <code className="type-yaml" title="What the YAML says">type: {type.id}</code>
                     {type.tagline && <p>{type.tagline}</p>}
                   </div>
                   <button role="menuitem" onClick={() => (setTypeCard(false), setGuiding(true), setModal('templates'))}>
@@ -1833,7 +1834,7 @@ export function App() {
             </button>
           )}
           <div className="segmented view-switch" role="radiogroup" aria-label="Way of working">
-            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Build visually (⌘\\)">
+            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Builder: the drawing and the shapes to drag onto it (⌘\\)">
               <Icon name="mouse-pointer-2" /> Builder
             </button>
             <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => setView('code')} title="YAML and drawing side by side (⌘\\)">
@@ -2161,8 +2162,8 @@ export function App() {
               <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" aria-label="Present" disabled={!drawn?.svg}>
                 <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
               </button>
-              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title="Ask Claude for a change or about the diagram (⌘J)" aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> <span className="tool-label">Ask</span> <kbd>⌘J</kbd>
+              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={`Ask Claude for a change or about the diagram (${keyHint('ask')})`} aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> <span className="tool-label">Ask Claude</span> <kbd>{keyHint('ask')}</kbd>
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
                 <Icon name="message-square" />
@@ -2272,10 +2273,10 @@ export function App() {
               <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
                 <Icon name="file-sliders" size={14} /> Properties
               </button>
-              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title="Review notes (⇧N)">
+              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
                 <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title="Ask Claude (⌘J)">
+              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
                 <Icon name="sparkles" size={14} /> Ask Claude
               </button>
             </div>

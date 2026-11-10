@@ -195,6 +195,13 @@ await step('⌘] in the YAML indents, in a folder too', async () => {
   if ((await page.locator('.cm-activeLine').innerText()) !== line) fail('⌘[ did not outdent the line');
 });
 
+await step('the type shows the id the YAML writes', async () => {
+  await page.click('.type-pill');
+  const card = await page.locator('.type-card-pop').innerText();
+  if (!/^type: [a-z-]+$/m.test(card)) fail(`the type card does not say what the YAML writes: ${card}`);
+  await page.keyboard.press('Escape');
+});
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all shortcut steps ok');
 await browser.close();
 process.exitCode = problems.length ? 1 : 0;

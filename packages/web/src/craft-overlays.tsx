@@ -98,7 +98,7 @@ export function PageFrame(p: { width: number; height: number; page: { name: stri
     <>
       <div className={small ? 'page-frame small' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
         <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
-          {p.page.name} · {p.pt.toFixed(1)} pt{small ? `, under ${p.minPt} pt` : ''}
+          Page: {p.page.name} · {p.pt.toFixed(1)} pt{small ? `, under ${p.minPt} pt` : ''}
         </span>
       </div>
       {r && <div className="page-readable" style={{ left: r.x, top: r.y, width: r.width, height: r.height, borderWidth: line }} aria-hidden="true" />}

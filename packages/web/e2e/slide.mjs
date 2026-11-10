@@ -42,7 +42,7 @@ await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label
   else {
     if (f.name !== '16:9 slide' || Math.abs(f.shape - 16 / 9) > 0.02) fail(`the frame is not a 16:9 slide: ${JSON.stringify(f)}`);
     if (f.small || f.pt < 9) fail(`a small drawing is flagged as too small: ${JSON.stringify(f)}`);
-    if (!/16:9 slide · [\d.]+ pt/.test(f.label)) fail(`the frame does not say its page and text size: "${f.label}"`);
+    if (!/^Page: 16:9 slide · [\d.]+ pt/.test(f.label)) fail(`the frame does not say its page and text size: "${f.label}"`);
   }
   if (await page.locator('[data-overflow]').count()) fail('a small drawing has elements flagged');
   await page.screenshot({ path: `${out}/s1-small.png` });

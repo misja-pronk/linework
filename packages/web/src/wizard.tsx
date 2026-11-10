@@ -146,7 +146,7 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
         <footer>
           <div className="segmented" role="radiogroup" aria-label="Open it">
             <button role="radio" aria-checked={how === 'visual'} className={how === 'visual' ? 'active' : ''} onClick={() => setHow('visual')}>
-              <Icon name="mouse-pointer-2" /> Build visually
+              <Icon name="mouse-pointer-2" /> Builder
             </button>
             <button role="radio" aria-checked={how === 'code'} className={how === 'code' ? 'active' : ''} onClick={() => setHow('code')}>
               <Icon name="code" /> YAML
