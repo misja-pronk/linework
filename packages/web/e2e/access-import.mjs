@@ -48,6 +48,24 @@ await page.waitForSelector('.drawing svg');
   if (!/^type: access/m.test((await stored()).text ?? '')) fail('the drop should open an access diagram');
   await page.screenshot({ path: `${out}/access-1-dropped.png` });
 
+  // 1b. With files it cannot read: the toast says the first and offers all of them, listed with the problems.
+  await drop([...fs.readdirSync(dir).map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') })), { name: 'broken.json', text: '{ nope' }, { name: 'cut-off.json', text: '[{"id": ' }, { name: 'other.json', text: '{"value": [{"x": 1}]}' }]);
+  await page.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('broken.json'), null, { timeout: 10000 }).catch(() => {});
+  const told = await toast();
+  if (!told.includes('broken.json') || !told.includes('Show all 3')) fail('the toast should say the first note and offer all 3: ' + told);
+  await page.click('.toast button:has-text("Show all")').catch(() => fail('no Show all on the toast'));
+  await wait();
+  const listed = await page.locator('.palette-list').innerText().catch(() => '');
+  for (const f of ['broken.json', 'cut-off.json', 'other.json']) if (!listed.includes(f)) fail(`the problems list should name ${f}: ${listed}`);
+  await page.screenshot({ path: `${out}/access-1b-notes.png` });
+  await page.keyboard.press('Escape');
+  // Still there from the palette while this diagram is open.
+  await page.keyboard.press('Meta+k');
+  await page.keyboard.type('show problems');
+  await wait();
+  if (!(await page.locator('.palette [role="option"]:has-text("Show problems")').innerText().catch(() => '')).includes('3 from the import')) fail('the palette should say the problems include the import notes');
+  await page.keyboard.press('Escape');
+
   // 2. What can this group reach: focus on it, downstream.
   await page.locator('.drawing [data-node="sg-developers"]').click();
   await page.locator('.preview').focus();

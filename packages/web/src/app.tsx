@@ -18,7 +18,7 @@ import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
-import { exportFrom, exportKind, exportRemark } from './exports.ts';
+import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -145,7 +145,9 @@ export function App() {
   const [typeCard, setTypeCard] = useState(false);
   /** Opened from the type pill: the dialog marks the open diagram's type. */
   const [guiding, setGuiding] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void } }>();
+  const [toast, setToast] = useState<{ message: string; tone?: 'error'; action?: { label: string; run(): void }; more?: { label: string; run(): void } }>();
+  /** All an import or export had to say (the toast says the first), for the document it was about: listed with the problems. */
+  const [notes, setNotes] = useState<{ doc: string; title: string; items: string[] }>();
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
   const editor = useRef<EditorHandle>(null);
   const openedText = useRef<string | null>(null);
@@ -251,7 +253,12 @@ export function App() {
     return () => window.removeEventListener('pagehide', flush);
   }, []);
 
-  const notify = useCallback((message: string, opts: { tone?: 'error'; action?: { label: string; run(): void } } = {}) => setToast({ message, ...opts }), []);
+  const notify = useCallback((message: string, opts: { tone?: 'error'; action?: { label: string; run(): void }; more?: { label: string; run(): void } } = {}) => setToast({ message, ...opts }), []);
+  /** Keeps what an import or export said about a document; with more than one thing, the toast offers them all. */
+  const remember = (name: string, title: string, items: string[]) => {
+    setNotes(items.length ? { doc: name, title, items } : undefined);
+    return items.length > 1 ? { more: { label: `Show all ${items.length}`, run: () => setModal('problems') } } : {};
+  };
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(undefined), toast.action || toast.tone ? 7000 : 2600);
@@ -297,7 +304,7 @@ export function App() {
   };
 
   const open = useCallback(
-    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false, said?: string) => {
+    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false, said?: string, told?: { title: string; items: string[] }) => {
       const before = { text: editor.current?.text() ?? text, doc, pins, handle: fileHandle.current, savedText, savedPins };
       editor.current?.load(next, nextPins);
       setDoc(nextDoc);
@@ -306,9 +313,11 @@ export function App() {
       setSavedText(next);
       setSavedPins(JSON.stringify(nextPins ?? null));
       openedText.current = next;
+      const more = remember(nextDoc.name, told?.title ?? '', told?.items ?? []);
       // Within a folder, files are saved before switching: nothing to undo. A blank start says nothing either.
       if (nextDoc.path || quiet) return;
       notify(said ?? `Opened ${nextDoc.name}`, {
+        ...more,
         action: {
           label: 'Undo',
           run: () => {
@@ -442,7 +451,8 @@ export function App() {
     open(mesh.yaml, { name: path, path }, readSidecar(w, path));
     // Not on disk yet, or not like this: ⌘S writes it into the folder.
     setSavedText(was ?? null);
-    notify(`${mesh.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${meshRemarks(mesh.problems)}`, mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    const more = remember(path, 'From the data products and contracts', meshNotes(mesh.problems));
+    notify(`${mesh.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${meshRemarks(mesh.problems)}`, { ...more, ...(mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
     focusDrawing();
     return true;
   };
@@ -455,16 +465,18 @@ export function App() {
     const was = w.files.get(path)?.text;
     if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
     const r = exportFrom(files.filter((f) => f.path !== path), was != null ? { existing: was } : {});
-    if (!r?.yaml) return (notify(`Nothing to draw in ${w.name}${r ? exportRemark(r) : ''}`, { tone: 'error' }), true);
+    if (!r?.yaml) return (notify(`Nothing to draw in ${w.name}${r ? exportRemark(r) : ''}`, { tone: 'error', ...(r ? remember(doc.name, 'From the exports (nothing drawn)', exportNotes(r)) : {}) }), true);
     fileHandle.current = undefined;
     open(r.yaml, { name: path, path }, readSidecar(w, path));
     setSavedText(was ?? null);
-    notify(`${r.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${exportRemark(r)}`, r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    const more = remember(path, 'From the exports', exportNotes(r));
+    notify(`${r.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${exportRemark(r)}`, { ...more, ...(r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
     focusDrawing();
     return true;
   };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
     problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
+  const meshNotes = (problems: { file?: string; message: string }[]) => problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message));
 
   /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
   const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
@@ -479,18 +491,18 @@ export function App() {
     const mesh = meshFrom(files);
     if (mesh?.yaml) {
       fileHandle.current = undefined;
-      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`);
+      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`, { title: 'From the data products and contracts', items: meshNotes(mesh.problems) });
       return focusDrawing();
     }
-    if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error' });
+    if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error', ...remember(doc.name, 'From the data products and contracts (nothing drawn)', meshNotes(mesh.problems)) });
     // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
     const exported = exportFrom(files);
     if (exported?.yaml) {
       fileHandle.current = undefined;
-      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`);
+      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`, { title: 'From the exports', items: exportNotes(exported) });
       return focusDrawing();
     }
-    if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error' });
+    if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, 'From the exports (nothing drawn)', exportNotes(exported)) });
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
     fileHandle.current = files.length === 1 ? handle : undefined;
@@ -559,7 +571,7 @@ export function App() {
   const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
   /** Another tool's file is there; what it could not hold is said, not hidden. */
   const handed = (what: string, h: Handed) =>
-    h.warnings.length ? notify(`${what}. ${h.warnings[0]}${h.warnings.length > 1 ? `, and ${h.warnings.length - 1} more left out` : ''}`, { action: { label: 'OK', run: () => {} } }) : notify(what);
+    h.warnings.length ? notify(`${what}. ${h.warnings[0]}${h.warnings.length > 1 ? `, and ${h.warnings.length - 1} more left out` : ''}`, { action: { label: 'OK', run: () => {} }, ...remember(doc.name, `${what}: left out`, h.warnings) }) : notify(what);
   const saveDrawio = attempt('Export', async () => {
     const h = await exportDrawio(exportInput());
     download(`${baseName(doc.name)}.drawio`, h.data, 'application/xml');
@@ -1262,6 +1274,8 @@ export function App() {
 
   // ------------------------------------------------------------ commands
 
+  /** What the last import or export said, while its document is open. */
+  const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
@@ -1327,7 +1341,7 @@ export function App() {
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
     { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: '?', run: () => setTimeout(() => setModal('shortcuts')) },
-    { id: 'problems', group: 'View', label: 'Show problems', icon: 'circle-exclamation-point', run: () => setModal('problems') },
+    { id: 'problems', group: 'View', label: 'Show problems', hint: shownNotes ? `and ${shownNotes.items.length} from the import` : undefined, icon: 'circle-exclamation-point', run: () => setModal('problems') },
     ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
     ...(selected?.kind === 'node'
       ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: 'C', run: () => setTimeout(() => setModal('connect')) }]
@@ -1950,9 +1964,9 @@ export function App() {
       {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
-          placeholder={diagnostics.length ? 'Filter problems…' : 'No problems: everything draws'}
+          placeholder={diagnostics.length || shownNotes ? 'Filter problems…' : 'No problems: everything draws'}
           onClose={closeModal}
-          commands={diagnostics.map((d, i) => ({
+          commands={[...diagnostics.map((d, i) => ({
             id: `p${i}`,
             group: d.severity === 'error' ? 'Errors' : 'Warnings',
             label: d.message,
@@ -1962,7 +1976,7 @@ export function App() {
               if (d.from != null && current) editor.current?.reveal(d.from, d.to ?? d.from);
               requestAnimationFrame(() => editor.current?.focus());
             },
-          }))}
+          })), ...(shownNotes?.items.map((m, i) => ({ id: `n${i}`, group: shownNotes.title, label: m, icon: 'triangle-exclamation-point', run: () => {} })) ?? [])]}
         />
       )}
       {dropping && (
@@ -1985,6 +1999,16 @@ export function App() {
               }}
             >
               {toast.action.label}
+            </button>
+          )}
+          {toast.more && (
+            <button
+              onClick={() => {
+                toast.more!.run();
+                setToast(undefined);
+              }}
+            >
+              {toast.more.label}
             </button>
           )}
         </div>
