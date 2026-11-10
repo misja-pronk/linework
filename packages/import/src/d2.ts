@@ -321,6 +321,10 @@ class Reader {
         else this.warn.onceFor('ref', 'Changes to an earlier connection, (a -> b)[0], are left out: write them on the connection itself');
         continue;
       }
+      if ((e.type === 'edge' ? e.ends.flat() : e.path).some((p) => p.includes('*'))) {
+        this.warn.onceFor('glob', 'Globs (*.style…, a.* -> b) are left out: write what they set on each shape');
+        continue;
+      }
       if (e.type === 'edge') {
         this.edge(b, e, scope);
         continue;
@@ -370,6 +374,8 @@ class Reader {
     if (!('text' in v)) return;
     o.label = this.sub(v.text);
     o.tag = v.tag;
+    // |js …| and the like: a code block, which is not a shape of the architecture.
+    if (v.tag && !/^(md|markdown|latex|tex)$/.test(v.tag)) o.shape ??= 'code';
   }
 
   field(o: Obj, path: string[], v: Value | undefined, block: Entry[] | undefined) {

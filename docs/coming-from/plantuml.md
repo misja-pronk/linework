@@ -4,18 +4,25 @@ PlantUML has drawn UML from text for a long time, and many architecture reposito
 
 ## Bring your diagrams
 
-There is **no PlantUML importer yet**. What to do instead, per kind of diagram:
+```sh
+carto import auth.puml           # → auth.yaml; a file with several @startuml blocks gives one file each
+carto import docs/README.md      # every ```plantuml (or ```puml) block, and ```mermaid and ```d2
+carto render auth.yaml -f svg
+```
 
-| You have | Do |
+In the editor: drop a `.puml` or `.plantuml` file on the window, or paste PlantUML in the start dialog (*Import from Mermaid, D2, PlantUML…*). The importer is Cartography's own: no Java, no PlantUML server, `!include` is never fetched (a C4 include only says which C4 diagram it is).
+
+| You have | Becomes |
 | --- | --- |
-| C4-PlantUML (`Person`, `System`, `Container`, `Rel`) | Rewrite as `type: c4`; the mapping is one to one ([c4.md](../c4.md)). If you also have a Structurizr workspace, `carto import workspace.dsl` does it for you. |
-| Sequence diagrams | Rewrite as `type: sequence`: participants, `->` messages, `-->` replies, `alt`, `loop` and `par` frames. |
-| State diagrams | Rewrite as `type: states`. |
-| Component and deployment diagrams | `type: systems`, or `azure`, `cloud`, `kubernetes` when the boxes are real infrastructure. |
-| Activity diagrams | `type: process`, with lanes per role. |
-| Class, object, use case, timing diagrams | Stay in PlantUML: Cartography has no UML class or use case types. |
+| Sequence diagram | `type: sequence`: `participant`, `actor`, `database`, `queue`, `entity`, `boundary`, `control`, `collections` (with `as` aliases) as participants with a kind; `->` call, `-->` reply, `->>` async, `->x` lost, `<-` turned round, `[->` from outside; `++`/`--`, `activate`, `deactivate` and `return` as activations; `alt/else`, `opt`, `loop`, `par`, `break`, `critical`, `group` as frames; notes (one line or several), `ref over`, `== dividers ==`, `autonumber`, `box … end box` |
+| Component and deployment diagram | `type: systems`: `component`, `[Name]`, `node`, `database`, `queue`, `storage`, `cloud`, `actor`, `interface` and `()` as nodes with a kind; `package`, `node`, `frame`, `folder`, `rectangle`, `cloud { … }` as groups; `-->`, `->`, `..>` (async), `--` and `<--` with labels; direction hints (`-up->`) and `[hidden]` lines dropped; `left to right direction` kept |
+| C4-PlantUML | `type: c4`: the model (`Person`, `System`, `SystemDb`, `Container`, `ContainerDb`, `ContainerQueue`, `Component`, `_Ext` as external, `System_Boundary` as the system, `Container_Boundary` as the container, technology and description) with `Rel`, `Rel_*`, `Rel_Back`, `BiRel`, `RelIndex` as relations, and the one view the file draws: context (or a landscape with `Enterprise_Boundary`), container, component, dynamic (the numbered steps) or deployment (`Deployment_Node` and `Node`, with the containers inside them as instances). Add more views to the same model by hand: see [c4.md](../c4.md) |
+| State diagram | `type: states`: `[*]`, composite states, `state "Long name" as x`, `<<choice>>`, notes, every arrow (`-->`, `->`, `-down->`) as a transition |
+| Activity diagram (new syntax) | `type: process`: `start`, `stop`, `:action;` (over several lines too), `if/elseif/else/endif`, `while … endwhile`, `repeat … repeat while`, `switch/case`, `fork`/`split` as parallel gateways, `|Swimlanes|` as lanes, `-> label;` on the next line |
+| Entity diagram (`entity X { … }`) | `type: erd`: columns with `<<PK>>`, `<<FK>>` and `<<UK>>`, crow's feet (`||--o{`) as relations and foreign keys |
+| Class, use case, mindmap, wbs, Gantt, old-style activity diagrams | Not imported: the report says so. A class diagram type is planned; for Gantt write a `roadmap` |
 
-An assistant connected to the [MCP server](../mcp.md) can do the rewriting: it reads the schema of each type and checks what it writes before you see it.
+What is left out, each said in the report: `skinparam`, `!theme` and colours (the theme draws each kind its own way), stereotypes, legends, headers, footers and captions, preprocessor lines (`!define`, `!function`, `!if`), notes in component and activity diagrams, partitions, `destroy` and `create` marks, delays (drawn as dividers), history states, notes on transitions, C4 tags and styles (`AddElementTag`, `UpdateElementStyle`), `Lay_*` hints and generic boundaries (their contents are kept).
 
 ## What maps to what
 
@@ -35,7 +42,7 @@ An assistant connected to the [MCP server](../mcp.md) can do the rewriting: it r
 ## What you lose
 
 - **UML.** Class diagrams, use cases, object, timing and Gantt-in-PlantUML have no Cartography type.
-- **An importer**, for now: your `.puml` files are rewritten, not converted.
+- **What the importer leaves out** (above): layout hints, notes outside sequence and state diagrams, styling.
 - **`skinparam`-level control** over every colour and font of every element.
 - **The PlantUML ecosystem**: its server, the IDE plugins, Confluence and wiki macros that render `.puml` in place.
 
