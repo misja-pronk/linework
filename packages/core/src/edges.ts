@@ -121,6 +121,7 @@ export function edgeItemSchema(extra: Record<string, object> = {}): object {
     label: { type: ['string', 'number'], description: 'Text on the line' },
     line: { enum: ['solid', 'dashed', 'dotted'] },
     both: { type: 'boolean', description: 'Arrow at both ends' },
+    tags: { type: 'array', items: { type: 'string' }, description: 'Free words that layers pick the line by, e.g. [data]' },
     ...extra,
   };
   return {

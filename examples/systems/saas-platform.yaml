@@ -12,21 +12,21 @@ groups:
   data: { kind: zone, label: Data tier, in: cloud }
 
 nodes:
-  guests: { kind: users, label: Guests }
-  app: { kind: mobile, label: Guest app }
-  admin: { kind: client, label: Host dashboard }
-  cdn: { kind: cdn, label: CloudFront, in: edge }
-  lb: { kind: load-balancer, label: ALB, in: edge }
-  bookings: { kind: service, label: Bookings, in: core }
-  search: { kind: search, label: Availability search, in: core }
-  billing: { kind: service, label: Billing, in: growth }
-  notify: { kind: worker, label: Notifier, in: growth }
-  pg: { kind: database, label: Postgres, caption: RDS, in: data }
-  redis: { kind: cache, label: Sessions, caption: ElastiCache, in: data }
-  events: { kind: topic, label: booking-events, caption: Kafka, in: data }
-  auth: { kind: identity, label: Auth0 }
-  stripe: { kind: payments, label: Stripe }
-  mail: { kind: email, label: SendGrid }
+  guests: { kind: users, label: Guests, tags: [phase-1] }
+  app: { kind: mobile, label: Guest app, tags: [phase-1] }
+  admin: { kind: client, label: Host dashboard, tags: [phase-2] }
+  cdn: { kind: cdn, label: CloudFront, in: edge, tags: [phase-1] }
+  lb: { kind: load-balancer, label: ALB, in: edge, tags: [phase-1] }
+  bookings: { kind: service, label: Bookings, in: core, tags: [phase-1] }
+  search: { kind: search, label: Availability search, in: core, tags: [phase-2] }
+  billing: { kind: service, label: Billing, in: growth, tags: [phase-2] }
+  notify: { kind: worker, label: Notifier, in: growth, tags: [phase-2] }
+  pg: { kind: database, label: Postgres, caption: RDS, in: data, tags: [phase-1, data] }
+  redis: { kind: cache, label: Sessions, caption: ElastiCache, in: data, tags: [phase-1, data] }
+  events: { kind: topic, label: booking-events, caption: Kafka, in: data, tags: [phase-2, data] }
+  auth: { kind: identity, label: Auth0, tags: [phase-1] }
+  stripe: { kind: payments, label: Stripe, tags: [phase-2] }
+  mail: { kind: email, label: SendGrid, tags: [phase-2] }
 
 edges:
   - guests -> app
@@ -43,3 +43,18 @@ edges:
   - billing -> stripe: { label: charge, style: sync }
   - notify -> mail: { style: sync }
   - app -> auth: { label: OIDC, style: dotted }
+
+# The plan in layers: what launches first on its own, then phase 2 on top of it with the rest faded.
+layers:
+  launch:
+    tags: [phase-1]
+    title: Phase 1
+    caption: Guests book through the app; one service, one database.
+  phase-2:
+    tags: [phase-2]
+    title: Phase 2
+    dim-others: true
+    caption: Search, billing and notifications join, around an event stream.
+  data:
+    tags: [data]
+    title: Data stores

@@ -20,6 +20,7 @@ import { edgeItemSchema, parseEdge } from './edges.ts';
 import { idPattern } from './diagram-type.ts';
 import { stepItemSchemas } from './steps.ts';
 import { focusSchema } from './focus.ts';
+import { viewLayersSchema } from './layers.ts';
 import { tones, type Direction, type Link, type Path, type Tone } from './model.ts';
 
 export interface ModelElement {
@@ -50,6 +51,7 @@ export interface ModelRelation {
   /** How it talks, e.g. HTTPS/JSON: drawn after the label as "Places orders [HTTPS/JSON]". */
   technology?: string;
   style?: string;
+  tags?: string[];
   at: Path;
   /** Position in the model, for a stable edge id. */
   index: number;
@@ -94,6 +96,8 @@ export interface ViewSpec {
   focus?: unknown;
   /** A deployment view of one environment: entries with another `env:` are left out. */
   environment?: string;
+  /** Drawn through these layers (layers.ts), named under `layers:` at the top. */
+  layers?: string[];
   /** The view claims to deploy everything: true for every part of every system, or the elements it is about. */
   complete?: true | string[];
   at: Path;
@@ -179,7 +183,8 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       }
       const style = typeof spec.props.style === 'string' ? spec.props.style : undefined;
       const technology = typeof spec.props.technology === 'string' ? spec.props.technology : undefined;
-      cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(technology ? { technology } : {}), style, at: at(['relations', i]), index: cat.relations.length });
+      const tags = Array.isArray(spec.props.tags) && spec.props.tags.length ? { tags: spec.props.tags.map(String) } : {};
+      cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(technology ? { technology } : {}), style, ...tags, at: at(['relations', i]), index: cat.relations.length });
     }
 
   if (included && data.views && typeof data.views === 'object' && !Array.isArray(data.views))
@@ -230,6 +235,7 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         expand: list('expand'),
         ...(o.focus != null ? { focus: o.focus } : {}),
         ...(typeof o.environment === 'string' ? { environment: o.environment } : {}),
+        ...(list('layers') ? { layers: list('layers') } : {}),
         ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
         at: at(['views', name]),
       });
@@ -350,6 +356,7 @@ const viewSchema = {
     nodes: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(4), description: 'Deployment view: deployment nodes, nested, with instances of model elements' },
     edges: { type: 'array', items: edgeItemSchema(relationProps), description: 'Deployment view: lines between deployment nodes or instances' },
     environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
+    layers: viewLayersSchema,
     complete: {
       anyOf: [{ type: 'boolean' }, { type: 'string' }, { type: 'array', items: { type: 'string' } }],
       description: 'Warn about parts of the model that nothing runs here: true for every system, or the elements it is about, e.g. [shop]',

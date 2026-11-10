@@ -130,22 +130,29 @@ export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: stri
     return n ? (n.shape.kind === 'card' || n.shape.kind === 'block' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (s.groups.get(id)?.label ?? id);
   };
   const nodes = graph.nodes.filter((n) => keep.has(n.id));
-  // The legend explains what is drawn: a line or a colour that only occurred outside the neighbourhood goes with it.
-  const sample = (l: LegendItem) => (e: GraphEdge) => (e.line ?? 'solid') === (l.line ?? 'solid') && e.tone === l.tone;
-  const tone = (n: GraphNode) => ('tone' in n.shape ? n.shape.tone : undefined);
-  // A block sample stands for a team type, an interaction mode or a vacancy: it goes when none of those is left.
-  const like = (l: LegendItem) => (n: GraphNode) => n.shape.kind === 'block' && (l.block!.form === 'person' ? !!n.shape.vacant : n.shape.form === l.block!.form);
-  const gone = (l: LegendItem) =>
-    l.swatch === 'block' && l.block && !l.block.heat
-      ? graph.nodes.some(like(l)) && !nodes.some(like(l))
-      : l.swatch === 'fill' ? graph.nodes.some((n) => tone(n) === l.tone) && !nodes.some((n) => tone(n) === l.tone) : !l.swatch && graph.edges.some(sample(l)) && !edges.some(sample(l));
-  const legend = graph.legend?.filter((l) => !gone(l));
+  const legend = pruneLegend(graph, nodes, edges);
   return {
     graph: { ...graph, groups: graph.groups.filter((g) => keep.has(g.id)).map(mark), nodes: nodes.map(mark), edges, ...(legend ? { legend } : {}), ...(steps ? { steps } : {}) },
     names: [...marked].map(name),
     kept: graph.nodes.filter((n) => keep.has(n.id)).length,
     total: graph.nodes.length,
   };
+}
+
+/** The key of a drawing cut down to these nodes and lines: a line or a colour that only occurred in what was left out goes with it. */
+export function pruneLegend(graph: Graph, nodes: GraphNode[], edges: GraphEdge[]): LegendItem[] | undefined {
+  const sample = (l: LegendItem) => (e: GraphEdge) => (e.line ?? 'solid') === (l.line ?? 'solid') && e.tone === l.tone;
+  const tone = (n: GraphNode) => ('tone' in n.shape ? n.shape.tone : undefined);
+  const chip = (l: LegendItem) => (e: GraphEdge) => !!e.badge && e.tone === l.tone;
+  // A block sample stands for a team type, an interaction mode or a vacancy: it goes when none of those is left.
+  const like = (l: LegendItem) => (n: GraphNode) => n.shape.kind === 'block' && (l.block!.form === 'person' ? !!n.shape.vacant : n.shape.form === l.block!.form);
+  const gone = (l: LegendItem) =>
+    l.swatch === 'block' && l.block && !l.block.heat
+      ? graph.nodes.some(like(l)) && !nodes.some(like(l))
+      : l.swatch === 'fill' ? graph.nodes.some((n) => tone(n) === l.tone) && !nodes.some((n) => tone(n) === l.tone)
+      : l.swatch === 'badge' ? graph.edges.some(chip(l)) && !edges.some(chip(l))
+      : !l.swatch && graph.edges.some(sample(l)) && !edges.some(sample(l));
+  return graph.legend?.filter((l) => !gone(l));
 }
 
 const on = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' }, minItems: 1 }], description: 'What it is about: an id, a group, tag:x, kind:x, or a list of these' };

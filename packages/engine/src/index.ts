@@ -6,7 +6,16 @@ import {
   focusGraph,
   focusReach,
   focusSchema,
+  fadeState,
   impliedSteps,
+  layerGraph,
+  layerLegend,
+  layerNames,
+  layersSchema,
+  modeOf,
+  pickLayers,
+  readLayers,
+  writtenTags,
   modelKeys,
   modelProperties,
   modelSchema,
@@ -23,8 +32,11 @@ import {
   badgePairs,
   type Diagnostic,
   type DiagramType,
+  type Faded,
   type FocusSpec,
   type Graph,
+  type LayerMode,
+  type LayerSpec,
   type LayoutMemory,
   type LayoutSidecar,
   type ModelContext,
@@ -95,7 +107,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema };
+  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -140,6 +152,34 @@ export interface RenderOptions extends SvgOptions {
    * diagram's own focus and says so in the subtitle; null draws everything, whatever the diagram says.
    */
   focus?: unknown;
+  /**
+   * Draw through these of the diagram's `layers:` (--layer, the editor's Layers control): one name or
+   * several. It wins over the layers a view names and says so in the subtitle; null draws no layer,
+   * whatever the view says. A focus wins over layers: while one is drawn they wait.
+   */
+  layers?: string | string[] | null;
+  /** Only the layers (laid out on their own) or everything with the rest faded; by default as the layers say. */
+  layerMode?: LayerMode;
+}
+
+/** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
+export interface LayersInfo {
+  /** Every layer the diagram defines, in order. */
+  list: Pick<LayerSpec, 'name' | 'title' | 'tags' | 'dim' | 'caption'>[];
+  /** The layers drawn (none while a focus waits them out). */
+  active: string[];
+  mode: LayerMode;
+  /** The view (or the diagram) names them, rather than an option asked from outside. */
+  written: boolean;
+  /** Elements on the layers, of how many in the drawing. */
+  kept: number;
+  total: number;
+  /** Asked for, but not drawn: a focus is drawn and wins (comparing wins over both, in the editor). */
+  paused?: 'focus';
+  /** The layers that wait while paused. */
+  waiting?: string[];
+  /** Every tag written in the diagram, for completing and picking. */
+  tags: string[];
 }
 
 export interface RenderResult {
@@ -176,6 +216,10 @@ export interface RenderResult {
   focusWritten?: boolean;
   /** Nothing to draw (a view that picks nothing, a table without rows): --all-views and decks leave it out. */
   empty?: boolean;
+  /** The diagram's layers and the ones drawn; undefined when it has none and none was asked for. */
+  layers?: LayersInfo;
+  /** What a layer drawn with dim-others leaves faded: exports that draw for themselves (slides, PDF pages) fade it too. */
+  faded?: Faded;
 }
 
 /** A drawing with nothing in it: no groups, and no node or only tables without a row. */
@@ -186,6 +230,7 @@ const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspec
 /** Model keys checked for types whose schema does not list them (ERD, access, …). */
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
+const layersOnly = { type: 'object', properties: { layers: layersSchema } };
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
@@ -217,6 +262,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // So is a focus: any diagram of elements and lines can be cut down to a neighbourhood.
   const focusRef = 'focus' in props ? undefined : rest.focus;
   if (!('focus' in props)) delete rest.focus;
+  // And so are layers: named lenses by tag, on any diagram whose things carry tags.
+  const layersRef = 'layers' in props ? undefined : rest.layers;
+  if (!('layers' in props)) delete rest.layers;
   const own: Source = { ...source, data: rest };
   const listed = 'views' in props;
   const keys = modelKeys.filter((k) => listed || !(k in props));
@@ -225,11 +273,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelOnly(keys))];
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
+  if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
   // An included diagram of this type may have what this one may: the model keys, and a focus and steps of its own (only read past here).
-  const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, ...modelOnly(keys).properties, ...props } };
+  const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, layers: layersSchema, ...modelOnly(keys).properties, ...props } };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
@@ -287,6 +336,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     // Asked for from outside, the picture itself says it is a part: nobody takes an export for the whole landscape.
     if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}${graph.tree ? ' and their branch' : `, ${focusReach(focusSpec!)}`}`].filter(Boolean).join(' · ');
   }
+  // Layers after the focus: a view of the drawing by tag, laid out on its own or faded in place.
+  const lens = applyLayers(graph, layersRef, built, model, opts, !!focused, report);
+  graph = lens.graph;
   // The key shows each badge style as its chips look on the cards.
   graph = withBadgeIcons(graph);
   if (origin) {
@@ -315,7 +367,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // A type that places things itself gets the drawing before this one as well, to keep what it can.
-  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  // A drawing of only some layers is a drawing of its own: it starts from where it was drawn last
+  // (the editor's memory, or its own note in the sidecar), never from the whole drawing's note.
+  const previous = lens.info?.mode === 'only' && lens.info.active.length ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info.active))?.layout) ?? null) : opts.previous;
+  const placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Two things pinned on top of each other: the newer one was moved clear, and that is said.
@@ -330,7 +385,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   // No step asked for: the drawing as the steps leave it, not every step's lines on top of each other.
   const end = !step && told ? finalState(steps, !!opts.interactive) : undefined;
-  const stepView = step ? { index: step - 1, states: steps, caption: opts.stepCaption } : end ? { index: 0, states: [end], caption: false } : undefined;
+  const at = step ? { index: step - 1, states: steps, caption: opts.stepCaption } : end ? { index: 0, states: [end], caption: false } : undefined;
+  // A dim layer draws the rest quietly at every step; what a step hides stays hidden.
+  const faded = lens.faded;
+  const stepView = faded ? (at ? { ...at, states: at.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false }) : at;
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView }));
   // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
@@ -358,7 +416,52 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(focused ? { focus: { ...focusSpec!, names: focused.names, kept: focused.kept, total: focused.total, written: !asked } } : {}),
     ...(focusOwn != null ? { focusWritten: true } : {}),
     ...(isEmpty(graph) ? { empty: true } : {}),
+    ...(lens.info ? { layers: lens.info } : {}),
+    ...(faded ? { faded } : {}),
   };
+}
+
+/** Where a drawing of only some layers keeps its own layout note in the sidecar: "view@security+data" ("@security" for the diagram as written). */
+export const layerKey = (view: string | undefined, layers: string[]) => `${view ?? ''}@${layers.join('+')}`;
+
+/** The layers asked for (by an option, else the view), checked and applied to the drawing. */
+function applyLayers(
+  graph: Graph,
+  raw: unknown,
+  built: Record<string, unknown>,
+  model: ModelContext | undefined,
+  opts: RenderOptions,
+  focused: boolean,
+  report: (path: Path, message: string, severity?: Diagnostic['severity']) => void,
+): { graph: Graph; info?: LayersInfo; faded?: Faded } {
+  const defined = readLayers(raw, report);
+  const view = model?.view;
+  const asked = opts.layers !== undefined;
+  const names = opts.layers === null ? [] : asked ? (typeof opts.layers === 'string' ? [opts.layers] : opts.layers!) : (view?.layers ?? []);
+  if (!defined.length && !names.length) return { graph };
+  // Tags are checked against the whole file, so a layer is not wrong in a view that happens not to show its things.
+  const tags = writtenTags(built);
+  for (const el of model?.elements.values() ?? []) for (const t of el.tags) tags.add(t);
+  for (const r of model?.relations ?? []) for (const t of r.tags ?? []) tags.add(t);
+  for (const l of defined)
+    for (const [j, t] of l.tags.entries())
+      if (!tags.has(t)) report(Array.isArray((raw as Record<string, { tags?: unknown }>)[l.name]?.tags) ? [...l.at, 'tags', j] : l.at, `Nothing here has the tag "${t}": add tags: [${t}] to what is on layer ${l.name}`, 'warning');
+  const picked = pickLayers(names, defined, (message, i) => report(asked ? [] : view && Array.isArray(view.layers) ? ['views', view.name, 'layers', i] : [], asked ? `Layers: ${message}` : message, asked ? 'error' : 'warning'));
+  const list = defined.map(({ name, title, tags: t, dim, caption }) => ({ name, ...(title ? { title } : {}), tags: t, dim, ...(caption ? { caption } : {}) }));
+  const base = { list, written: !asked, tags: [...tags].sort(), total: graph.nodes.length, kept: graph.nodes.length };
+  const mode = opts.layerMode ?? modeOf(picked);
+  if (!picked.length) return { graph, info: { ...base, active: [], mode } };
+  // A focus wins: it is a neighbourhood of the whole drawing, and the layers wait until it is left.
+  if (focused) {
+    if (!asked && view?.focus != null) report(['views', view.name, 'layers'], 'This view has a focus as well: the focus is drawn and the layers wait', 'warning');
+    return { graph, info: { ...base, active: [], mode, paused: 'focus', waiting: picked.map((l) => l.name) } };
+  }
+  const cut = layerGraph(graph, [...new Set(picked.flatMap((l) => l.tags))], mode);
+  if (!cut.kept) report(asked ? [] : ['views', view?.name ?? '', 'layers'], `Nothing drawn here is on ${picked.length === 1 ? `layer ${picked[0]!.name}` : `layers ${picked.map((l) => l.name).join(', ')}`}`, 'warning');
+  const out: Graph = { ...cut.graph, legend: [...(cut.graph.legend ?? []), ...picked.map((l) => layerLegend(l, mode))] };
+  // Asked for from outside, the picture says it is a part, as a focus does.
+  if (asked && out.title) out.subtitle = [out.subtitle, `${layerNames(picked)} ${picked.length === 1 ? 'layer' : 'layers'}`].filter(Boolean).join(' · ');
+  return { graph: out, info: { ...base, active: picked.map((l) => l.name), mode, kept: cut.kept }, ...(cut.faded ? { faded: cut.faded } : {}) };
 }
 
 /** A 16:9 slide, 13.33 by 7.5 inches, in CSS pixels (96 to the inch). */

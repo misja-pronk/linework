@@ -8,7 +8,7 @@ import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, coverageKinds, findIcons, iconGuide, importIcons, isVendor, listPacks, mapIcon, packSheet, readPack, unmapIcon } from './packs.ts';
 import { coverage } from '@cartography/icons';
-import { drift, findType, render, withReviewNotes, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drift, findType, layerKey, render, withReviewNotes, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
 import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importNetwork, importText, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
@@ -31,6 +31,8 @@ const helpAll = `carto — architecture diagrams that look good
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
                                                 whatever the diagram's icons: says
                [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>-<layer>.svg;
+               [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
@@ -251,6 +253,9 @@ const parsed = (() => {
     static: { type: 'boolean' },
     css: { type: 'boolean' },
     'all-views': { type: 'boolean' },
+    layer: { type: 'string', multiple: true },
+    'all-layers': { type: 'boolean' },
+    dim: { type: 'boolean' },
     stable: { type: 'boolean' },
     drift: { type: 'boolean' },
     json: { type: 'boolean' },
@@ -435,9 +440,11 @@ function noteLayout(file: string, results: RenderResult[]) {
   for (const r of results) {
     const note = packLayout(r.placed?.memory, true);
     if (!r.svg || !note) continue;
-    const mine = viewPins(sidecar, r.view);
+    // A drawing of only some layers has a note of its own: the whole view's stays as the whole was drawn.
+    const key = r.layers?.mode === 'only' && r.layers.active.length ? layerKey(r.view, r.layers.active) : r.view;
+    const mine = viewPins(sidecar, key);
     if (sameLayoutNote(mine?.layout, note)) continue;
-    sidecar = withViewPins(sidecar, r.view, { version: 1, ...mine, layout: note });
+    sidecar = withViewPins(sidecar, key, { version: 1, ...mine, layout: note });
   }
   if (sidecar === before) return;
   writeSidecar(file, sidecar);
@@ -475,8 +482,10 @@ function outputPath(file: string, format: string, view?: string, step?: number):
   // -o is a folder when it ends in / or has no extension; a file name for several pictures is a mistake,
   // not a folder named x.png.
   const folder = values.out.endsWith('/') || values.out.endsWith(path.sep) || !path.extname(values.out);
-  if (!folder && (files.length > 1 || values['all-views']))
-    throw new UsageError(`-o ${values.out} names one file, but ${values['all-views'] ? '--all-views writes one per view' : 'several diagrams make several files'}: give a folder, e.g. -o ${path.join(path.dirname(values.out), path.basename(values.out, path.extname(values.out)))}/`);
+  // A deck holds every layer on a slide of its own: one file.
+  const perLayer = values['all-layers'] && format !== 'pptx' && format !== 'pdf';
+  if (!folder && (files.length > 1 || values['all-views'] || perLayer))
+    throw new UsageError(`-o ${values.out} names one file, but ${values['all-views'] ? '--all-views writes one per view' : perLayer ? '--all-layers writes one per layer' : 'several diagrams make several files'}: give a folder, e.g. -o ${path.join(path.dirname(values.out), path.basename(values.out, path.extname(values.out)))}/`);
   if (!folder) return (fs.mkdirSync(path.dirname(values.out), { recursive: true }), nn ? values.out.replace(/(\.\w+)$/, `${nn}$1`) : values.out);
   fs.mkdirSync(values.out, { recursive: true });
   return path.join(values.out, base);
@@ -545,6 +554,8 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     view: values.view,
     step: values.step ? Number(values.step) || 1 : undefined,
     focus: focusFlag(),
+    ...(values.layer?.length ? { layers: values.layer.flatMap((l) => l.split(',')).map((l) => l.trim()).filter(Boolean) } : {}),
+    ...(values.dim ? { layerMode: 'dim' as const } : {}),
   };
 }
 
@@ -588,14 +599,32 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   const views = values['all-views'] && first.views?.length ? await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))) : [];
   // A view with nothing in it is no picture: said, not written.
   for (const v of views) if (v.empty) console.error(`${shown}#${v.view}  ${dim('empty: nothing to draw, not written')}`);
-  const runs = [first, ...views.filter((v) => !v.empty)];
+  // --all-layers: the drawing as a whole, then through each of its layers as <file>-<layer>.svg (a slide each in a deck).
+  if (values['all-layers'] && !first.layers?.list.length) console.error(`${shown}  ${yellow('warning')}  --all-layers: this diagram has no layers: (see docs/layers.md)`);
+  const layered = values['all-layers'] ? await Promise.all((first.layers?.list ?? []).map((l) => render(text, { ...opts, layers: l.name }))) : [];
+  for (const [i, l] of layered.entries()) if (l.empty || !l.layers?.kept) console.error(`${shown}@${first.layers!.list[i]!.name}  ${dim('nothing on this layer, not written')}`);
+  const runs = [first, ...views.filter((v) => !v.empty), ...layered.filter((l) => !l.empty && l.layers?.kept)];
+  /** What a run is called in messages and file names: its view, or its layers. */
+  const named = (r: RenderResult, i: number) => (i && layered.includes(r) ? [r.view, r.layers!.active.join('+')].filter(Boolean).join('-') : i ? r.view : values.view);
+  if (values['all-layers'] && (format === 'pptx' || format === 'pdf')) {
+    const drawn = runs.filter((r) => r.svg && !r.diagnostics.some((d) => d.severity === 'error'));
+    for (const r of runs) report(r === first ? shown : `${shown}@${named(r, runs.indexOf(r))}`, r === first ? r.diagnostics : r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)));
+    if (!drawn.length) return false;
+    const out = values.out === '-' ? '-' : outputPath(file, format, values.view);
+    const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file) })), first.theme);
+    if (out === '-') process.stdout.write(data);
+    else fs.writeFileSync(out, data);
+    console.log(`${shown} → ${out === '-' ? 'standard output' : out} ${dim(`${drawn.length} drawings: the whole and ${drawn.length - 1} ${drawn.length === 2 ? 'layer' : 'layers'}`)}`);
+    if (values.stable) noteLayout(file, runs);
+    return drawn.length === runs.length;
+  }
   const notes = values.notes ? notesFor(file) : undefined;
   if (values.notes && !notes) console.error(`${shown}  ${yellow('warning')}  --notes: there is no ${notesPath(file)}`);
   let ok = true;
   const stdout = values.out === '-' || (shown === 'stdin' && !values.out);
   for (const [i, result] of runs.entries()) {
-    const view = i ? result.view : values.view;
-    report(view && i ? `${shown}#${view}` : shown, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
+    const view = named(result, i);
+    report(view && i ? `${shown}${layered.includes(result) ? '@' : '#'}${view}` : shown, i && !values.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
     if (!result.svg) {
       ok = false;
       continue;
@@ -603,7 +632,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow('warning')}  no steps here: drawn as a whole`);
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
-    const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: view ?? opts.view, step: n + 1 }))) : [result];
+    const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
     const shots = plain.map((r) => annotated(r, notes));
     if (stdout && runs.length + shots.length > 2) throw new UsageError('-o - writes one picture to standard output: give a folder for --all-views or --all-steps');
     // A drawing with errors is not what was asked for: nothing is written, the errors say why.
