@@ -5,7 +5,7 @@ A share link opens a diagram read-only in the web app, for someone who only need
 ## Making one
 
 - In the editor: **Export → Copy share link**, or *Copy share link* in the command palette (⌘K).
-- On the command line: `carto share shop.yaml` prints the link. `--base` says where the web app lives (default `http://localhost:5173/`, the local dev server):
+- On the command line: `carto share shop.yaml` prints the link. `--base` says where the web app lives (default `http://localhost:5178/`, the local dev server):
 
   ```sh
   carto share shop.yaml --base https://diagrams.example.org/

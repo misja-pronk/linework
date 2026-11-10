@@ -123,7 +123,7 @@ export function importSequence(body: string[], title: string | undefined, warn: 
     const fields = [`kind: ${p.kind}`, p.label ? `label: ${scalar(p.label)}` : '', p.label && !quiet ? 'caption: ""' : '', p.box ? `box: ${p.box}` : ''].filter(Boolean);
     out.push(`  ${p.id}: ${fields.length === 1 ? p.kind : `{ ${fields.join(', ')} }`}`);
   }
-  out.push('', 'steps:');
+  out.push('', 'messages:');
   writeSteps(root, '  ', out);
   return out.join('\n') + '\n';
 }
@@ -137,7 +137,7 @@ function writeSteps(steps: Step[], indent: string, out: string[]) {
       continue;
     }
     out.push(`${indent}- ${step.frame}:${step.label ? ` ${scalar(step.label)}` : ''}`);
-    out.push(`${indent}  steps:`);
+    out.push(`${indent}  messages:`);
     writeSteps(step.steps, `${indent}    `, out);
     if (!step.branches.length) continue;
     const key = step.frame === 'par' ? 'and' : 'else';

@@ -93,6 +93,16 @@ export function growGroups(graph: Graph, nodes: Map<string, Box>, groups: Map<st
       groups.set(g.id, { x: fit.x, y: fit.y, width: x1 - fit.x, height: y1 - fit.y });
       continue;
     }
+    // Some of it placed by hand (a shape dropped or dragged in): it fits around what is in it, not
+    // around the room the layout made where the pinned ones would have gone; wide enough for a label.
+    if (pinned && own.some((n) => pinned.has(n.id))) {
+      const x0 = Math.min(...kids.map((k) => k.x - pad));
+      const y0 = Math.min(...kids.map((k) => k.y - header));
+      const x1 = Math.max(x0 + Math.min(box.width, 220), ...kids.map((k) => k.x + k.width + pad));
+      const y1 = Math.max(...kids.map((k) => k.y + k.height + pad));
+      groups.set(g.id, { x: x0, y: y0, width: x1 - x0, height: y1 - y0 });
+      continue;
+    }
     const x0 = Math.min(box.x, ...kids.map((k) => k.x - pad));
     const y0 = Math.min(box.y, ...kids.map((k) => k.y - header));
     const x1 = Math.max(box.x + box.width, ...kids.map((k) => k.x + k.width + pad));

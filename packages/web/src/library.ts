@@ -8,26 +8,37 @@ export interface Starter {
   /** Diagram type id. */
   type: string;
   title: string;
+  /** What the diagram's subtitle says: tells two of the same title apart. */
+  subtitle?: string;
   kind: 'template' | 'example';
   file: string;
   text: string;
 }
 
 const titleOf = (text: string) => /^title:\s*(.+)$/m.exec(text)?.[1]?.trim();
+const subtitleOf = (text: string) => /^subtitle:\s*(.+)$/m.exec(text)?.[1]?.trim();
 const typeOf = (text: string) => /^type:\s*([\w-]+)/m.exec(text)?.[1] ?? '';
 
 const templates = types.map((t): Starter => ({ id: `template:${t.id}`, type: t.id, title: t.name, kind: 'template', file: `${t.id}.yaml`, text: t.template }));
-/** Examples that are their type's template word for word would show the same card twice. */
-const same = new Set(templates.map((t) => t.text.trim()));
+/** The drawing a text makes, roughly: without comments, blank lines and presenting steps. */
+const drawingOf = (text: string) =>
+  text
+    .replace(/^steps:[\s\S]*?(?=^\S|(?![\s\S]))/m, '')
+    .split('\n')
+    .filter((l) => l.trim() && !/^\s*#/.test(l))
+    .join('\n')
+    .trim();
+/** Examples that draw what their type's template draws (perhaps told in steps) would show the same card twice. */
+const same = new Set(templates.map((t) => drawingOf(t.text)));
 
 export const starters: Starter[] = [
   ...templates,
   ...Object.entries(raw)
     // Data contracts and data products (ODCS, ODPS) lie next to the examples that draw them: read, not opened.
-    .filter(([p, text]) => !p.includes('/contracts/') && typeOf(text) && !same.has(text.trim()))
+    .filter(([p, text]) => !p.includes('/contracts/') && typeOf(text) && !same.has(drawingOf(text)))
     .map(([p, text]): Starter => {
       const rel = p.replace(/^.*\/examples\//, '');
-      return { id: `example:${rel}`, type: typeOf(text), title: titleOf(text) ?? rel, kind: 'example', file: rel.split('/').pop()!, text };
+      return { id: `example:${rel}`, type: typeOf(text), title: titleOf(text) ?? rel, subtitle: subtitleOf(text), kind: 'example', file: rel.split('/').pop()!, text };
     })
     .sort((a, b) => a.type.localeCompare(b.type) || a.title.localeCompare(b.title)),
 ];

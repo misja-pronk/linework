@@ -44,6 +44,23 @@ interface Deck {
   id: number;
   doc: PresentDoc;
   slides: Slide[];
+  /** Steps nobody wrote, made from the drawing's groups so it can still be told in parts. */
+  auto?: boolean;
+}
+
+/**
+ * A drawing without steps of its own, told group by group: a step per top-level group (in focus, the
+ * rest standing back; with one around everything, also the groups in it), then the whole. Only for two to nine groups, in a diagram without views; the
+ * text gets the steps a person would write, so the slides are the same as with written steps.
+ */
+function autoSteps(text: string, r: RenderResult): string | undefined {
+  const drawn = r.graph?.groups.filter((g) => r.placed?.groups.has(g.id)) ?? [];
+  // The top-level groups; one group around everything says little, so then the groups in it too.
+  const top = drawn.filter((g) => !g.parent);
+  const groups = top.length === 1 ? drawn.filter((g) => !g.parent || g.parent === top[0]!.id) : top;
+  if (r.steps?.length || r.views?.length || groups.length < 2 || groups.length > 9 || /^steps:/m.test(text)) return undefined;
+  const q = (v: string) => JSON.stringify(v);
+  return `${text.replace(/\s*$/, '')}\n\nsteps:\n${groups.map((g) => `  - { title: ${q(g.label || g.id)}, focus: ${q(g.id)} }`).join('\n')}\n  - { title: "Everything" }\n`;
 }
 
 interface Frame {
@@ -110,8 +127,17 @@ export function Present(p: PresentProps) {
   const outline = useCallback(
     async (doc: PresentDoc): Promise<Deck | undefined> => {
       const d: Deck = { id: ++decks, doc, slides: [] };
-      const whole = (view?: string) => render(doc.text, { theme: p.theme, themeOverride, icons, sidecar: doc.sidecar, load: doc.load, file: doc.file, view, fonts: 'none' });
-      const first = await whole();
+      const whole = (view?: string) => render(d.doc.text, { theme: p.theme, themeOverride, icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view, fonts: 'none' });
+      let first = await whole();
+      const told = first.svg ? autoSteps(doc.text, first) : undefined;
+      if (told) {
+        d.doc = { ...doc, text: told };
+        d.auto = true;
+        const r = await whole();
+        // Steps that do not draw (a type that takes none): the drawing as it is, one slide.
+        if (r.svg && r.steps?.length) first = r;
+        else (d.doc = doc), (d.auto = false);
+      }
       const views = first.views?.length ? [...(first.onlyViews ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
       for (const view of views) {
         const r = view === first.view ? first : await whole(view);
@@ -318,12 +344,14 @@ export function Present(p: PresentProps) {
   const t = top?.result.theme;
   const colours = t ? ({ '--present-canvas': t.canvas, '--present-text': t.text, '--present-muted': t.textMuted, '--present-faint': t.textFaint, '--present-line': t.border, '--present-accent': t.accent ?? t.tones.blue.fg } as React.CSSProperties) : undefined;
   const linkCount = linked().length;
+  /** Why there is nowhere to go: one slide, and how to make more. */
+  const oneSlide = 'One slide: this drawing has no steps. Add some in the editor (S on a selection, or steps: in the YAML) to tell it in parts';
   /** This slide has the editor's focus: drawn, or set aside with A. */
   const focusable = top?.deck.slides[top.at]?.focus != null;
   const lens = focusable ? top?.result.focus : undefined;
 
   return (
-    <div ref={root} className={`present${idle ? ' idle' : ''}`} style={colours} tabIndex={-1} role="dialog" aria-label="Presentation" aria-modal="true" onMouseMove={stir} onClick={onClick}>
+    <div ref={root} className={`present${idle ? ' idle' : ''}${top && !band ? ' no-band' : ''}`} style={colours} tabIndex={-1} role="dialog" aria-label="Presentation" aria-modal="true" onMouseMove={stir} onClick={onClick}>
       <div className="present-stage" ref={stage}>
         {frames.map((f, i) => (
           <div key={f.id} className={`present-frame${i < frames.length - 1 ? ' leaving' : ''}`} aria-hidden={i < frames.length - 1}>
@@ -371,16 +399,21 @@ export function Present(p: PresentProps) {
             <Icon name="arrow-left" size={15} /> Back <kbd>⌫</kbd>
           </button>
         )}
-        <button onClick={() => go(at - 1)} disabled={at === 0} title="Previous (←)" aria-label="Previous">
+        <button onClick={() => go(at - 1)} disabled={at === 0} title={count <= 1 ? oneSlide : at === 0 ? 'This is the first slide' : 'Previous (←)'} aria-label="Previous">
           <kbd>←</kbd>
         </button>
-        <button onClick={() => go(at + 1)} disabled={at >= count - 1} title="Next (→ or Space)" aria-label="Next">
+        <button onClick={() => go(at + 1)} disabled={at >= count - 1} title={count <= 1 ? oneSlide : at >= count - 1 ? 'This is the last slide' : 'Next (→ or Space)'} aria-label="Next">
           <kbd>→</kbd>
         </button>
         <button onClick={close} title="Stop presenting (Esc)">
           <Icon name="x" size={15} /> Exit <kbd>Esc</kbd>
         </button>
       </div>
+      {top && (count <= 1 || top.deck.auto) && (
+        <div className="present-about" onClick={(e) => e.stopPropagation()}>
+          {count <= 1 ? 'One slide: add steps in the editor (S on a selection) to tell this drawing in parts' : 'Told group by group: write steps: (S in the editor) to tell it your way'}
+        </div>
+      )}
       <div className="present-help" aria-hidden="true">
         <kbd>→</kbd> <kbd>Space</kbd> next · <kbd>←</kbd> back · number + <kbd>↵</kbd> jump · <kbd>B</kbd> blank
         {focusable && (

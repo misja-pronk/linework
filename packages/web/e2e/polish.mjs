@@ -19,10 +19,21 @@ await page.keyboard.press('Meta+k');
 await page.keyboard.type('customer data products in detail');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
+// Overlays never cover each other: the "Opened … Undo" toast stands clear of the hint and its close button.
+const overlaps = (a, b) => !!a && !!b && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+{
+  const toast = await page.locator('.toast').boundingBox();
+  const hint = await page.locator('.hint').boundingBox();
+  if (!toast) problems.push('no toast after opening an example');
+  if (!hint) problems.push('no hint on a fresh start');
+  if (overlaps(toast, hint)) problems.push(`the toast covers the hint: ${JSON.stringify(toast)} over ${JSON.stringify(hint)}`);
+  await page.screenshot({ path: `${out}/p-toast-hint.png` });
+}
 await page.locator('.preview').focus();
 await page.keyboard.press('?');
 await page.waitForTimeout(200);
 if (!(await page.locator('.shortcuts').isVisible())) problems.push('? did not open shortcuts');
+if (await page.locator('.toast').count()) problems.push('a toast from before stays on top of the shortcuts');
 await page.screenshot({ path: `${out}/p-shortcuts.png` });
 await page.keyboard.press('Escape');
 await page.click('.drawing [data-node="customer-360"]', { position: { x: 30, y: 20 } });
@@ -62,5 +73,36 @@ await dark.waitForSelector('.drawing svg');
 await dark.click('.drawing [data-node="orders"]', { position: { x: 30, y: 20 } });
 await dark.waitForTimeout(300);
 await dark.screenshot({ path: `${out}/p-dark.png` });
+// A phone: the canvas tools fit, and a document that opens with errors still shows its last good
+// drawing (greyed, with the note under the tools, not over them).
+{
+  const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })).newPage();
+  phone.on('pageerror', (e) => problems.push('phone: ' + e.message));
+  await phone.addInitScript(() => {
+    const broken = sessionStorage.getItem('broken');
+    if (!broken) return;
+    sessionStorage.removeItem('broken');
+    const d = JSON.parse(localStorage.getItem('cartography:doc'));
+    localStorage.setItem('cartography:doc', JSON.stringify({ ...d, text: broken }));
+  });
+  await phone.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await phone.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('cartography:started', 'true');
+  });
+  await phone.reload();
+  await phone.waitForSelector('.drawing svg');
+  await phone.waitForTimeout(800);
+  const tools = await phone.locator('.canvas-tools').boundingBox();
+  if (tools.x < 0 || tools.x + tools.width > 390) problems.push(`the canvas tools run off a phone screen: ${JSON.stringify(tools)}`);
+  await phone.evaluate(() => sessionStorage.setItem('broken', JSON.parse(localStorage.getItem('cartography:doc')).text.replace('\ntitle:', '\n      title:')));
+  await phone.reload();
+  await phone.waitForTimeout(1500);
+  if (await phone.locator('.preview-empty').count()) problems.push('a document with errors shows "Nothing to draw yet" instead of its last good drawing');
+  if (!(await phone.locator('.drawing svg').count()) || !(await phone.locator('.stale-note').count())) problems.push('no last good drawing with its note after opening with errors');
+  const note = await phone.locator('.stale-note').boundingBox();
+  if (overlaps(note, await phone.locator('.canvas-tools').boundingBox())) problems.push('the note about the last good drawing is under the tools');
+  await phone.screenshot({ path: `${out}/p-phone-errors.png` });
+}
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'polish screens ok');
 await browser.close();

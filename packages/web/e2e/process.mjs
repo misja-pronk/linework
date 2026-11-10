@@ -29,6 +29,8 @@ await page.addInitScript(
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
+    // The inspector with "More" open: these steps check every field.
+    localStorage.setItem('cartography:inspectorMore', 'true');
     for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'process.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
   },
   [text],
@@ -43,7 +45,7 @@ await page.screenshot({ path: `${out}/p1-builder.png` });
   await node('Check request').click();
   await page.waitForSelector('.inspector label.field');
   const names = await page.locator('.inspector label.field > span').allInnerTexts();
-  for (const want of ['Name', 'Kind', 'In', 'Caption']) if (!names.includes(want)) fail(`no ${want} field for a step: ${names.join(', ')}`);
+  for (const want of ['Name', 'Kind', 'Inside', 'Caption']) if (!names.includes(want)) fail(`no ${want} field for a step: ${names.join(', ')}`);
   if (names.includes('ID')) fail('a step shows an ID field');
   const caption = field('Caption');
   await caption.fill('within two days');
@@ -69,7 +71,7 @@ await page.screenshot({ path: `${out}/p1-builder.png` });
   await node('Approved?').click();
   await wait();
   const names = await page.locator('.inspector label.field > span').allInnerTexts();
-  if (!names.includes('Name') || !names.includes('In')) fail(`a step only the flow names has no fields: ${names.join(', ')}`);
+  if (!names.includes('Name') || !names.includes('Inside')) fail(`a step only the flow names has no fields: ${names.join(', ')}`);
 }
 
 // 4. A timer added from the keyboard, under the name it shows.
