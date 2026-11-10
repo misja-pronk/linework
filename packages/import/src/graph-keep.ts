@@ -75,5 +75,11 @@ export function writeDrawn(d: Drawn, opts: { existing?: string; tag?: boolean },
     kept.list(name, [...stay, ...fresh.filter((e) => !had.has(JSON.stringify(e)))]);
   }
   kept.tidy(Object.keys(d.maps));
-  return kept.text().replace(/^(\s*- )\{ ([^{}[\]:]+?: [^{}[\]]*) \}$/gm, '$1$2');
+  return (
+    kept
+      .text()
+      .replace(/^(\s*- )\{ ([^{}[\]:]+?: [^{}[\]]*) \}$/gm, '$1$2')
+      // A list inside a map whose key has a space (process steps), which keep.ts leaves loose: [a, b], not [ a, b ].
+      .replace(/\[ ([^[\]"']*?) \]/g, '[$1]')
+  );
 }
