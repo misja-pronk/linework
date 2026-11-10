@@ -311,7 +311,7 @@ describe('carto errors and help', () => {
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');
-    expect(render.out).not.toContain('  carto import <');
+    expect(render.out).not.toMatch(/^  carto import/m);
     expect(carto('help', 'diff').out).toContain('carto diff --git');
     expect(carto('help', 'all').out.split('\n').length).toBeGreaterThan(80);
     const bad = carto('render', 'x.yaml', '--bogus');
