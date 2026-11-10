@@ -1,0 +1,673 @@
+{
+  "count": 21,
+  "data": [
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app",
+      "name": "nsg-bookings-app",
+      "type": "microsoft.network/networksecuritygroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-network",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "securityRules": [
+          {
+            "name": "deny-internet-inbound",
+            "properties": {
+              "access": "Deny",
+              "direction": "Inbound",
+              "priority": 4000,
+              "protocol": "*",
+              "sourceAddressPrefix": "Internet",
+              "destinationAddressPrefix": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*"
+            }
+          }
+        ]
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod",
+      "name": "vnet-bookings-prod",
+      "type": "microsoft.network/virtualnetworks",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-network",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.20.0.0/22"
+          ]
+        },
+        "subnets": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+            "name": "snet-app",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "properties": {
+              "provisioningState": "Succeeded",
+              "addressPrefix": "10.20.0.0/24",
+              "privateEndpointNetworkPolicies": "Disabled",
+              "networkSecurityGroup": {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app"
+              },
+              "delegations": [
+                {
+                  "name": "web",
+                  "properties": {
+                    "serviceName": "Microsoft.Web/serverFarms"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "name": "snet-pe",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "properties": {
+              "provisioningState": "Succeeded",
+              "addressPrefix": "10.20.1.0/24",
+              "privateEndpointNetworkPolicies": "Disabled",
+              "networkSecurityGroup": {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app"
+              }
+            }
+          }
+        ],
+        "virtualNetworkPeerings": [],
+        "enableDdosProtection": false
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+      "name": "log-bookings-prod",
+      "type": "microsoft.operationalinsights/workspaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "customerId": "a26e5eca-c6d7-e88b-6222-311afb906b3d",
+        "retentionInDays": 90,
+        "sku": {
+          "name": "PerGB2018"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/serverfarms/asp-bookings-prod",
+      "name": "asp-bookings-prod",
+      "type": "microsoft.web/serverfarms",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "linux",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": {
+        "name": "P1v3",
+        "tier": "PremiumV3",
+        "size": "P1v3",
+        "capacity": 2
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "reserved": true,
+        "numberOfWorkers": 2
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/sites/app-kestrel-bookings",
+      "name": "app-kestrel-bookings",
+      "type": "microsoft.web/sites",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "app,linux",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "serverFarmId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/serverfarms/asp-bookings-prod",
+        "defaultHostName": "app-kestrel-bookings.azurewebsites.net",
+        "hostNames": [
+          "app-kestrel-bookings.azurewebsites.net"
+        ],
+        "httpsOnly": true,
+        "virtualNetworkSubnetId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+        "publicNetworkAccess": "Disabled",
+        "keyVaultReferenceIdentity": "SystemAssigned",
+        "siteConfig": null
+      },
+      "tags": {},
+      "identity": {
+        "type": "SystemAssigned",
+        "principalId": "c6f0befa-5045-f0da-dfbd-f5c7e87f4e16",
+        "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b"
+      },
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Insights/components/appi-bookings-prod",
+      "name": "appi-bookings-prod",
+      "type": "microsoft.insights/components",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "web",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "Application_Type": "web",
+        "WorkspaceResourceId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+        "IngestionMode": "LogAnalytics"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings",
+      "name": "kv-kestrel-bookings",
+      "type": "microsoft.keyvault/vaults",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "vaultUri": "https://kv-kestrel-bookings.vault.azure.net/",
+        "enableRbacAuthorization": true,
+        "publicNetworkAccess": "Disabled",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+      "name": "sql-kestrel-bookings",
+      "type": "microsoft.sql/servers",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "v12.0",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "fullyQualifiedDomainName": "sql-kestrel-bookings.database.windows.net",
+        "publicNetworkAccess": "Disabled",
+        "version": "12.0"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings/databases/master",
+      "name": "master",
+      "type": "microsoft.sql/servers/databases",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "v12.0,user",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+      "sku": {
+        "name": "System",
+        "tier": "System"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "status": "Online"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings/databases/bookings",
+      "name": "bookings",
+      "type": "microsoft.sql/servers/databases",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "v12.0,user",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": {
+        "name": "GP_S_Gen5_2",
+        "tier": "GeneralPurpose"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "status": "Online"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Storage/storageAccounts/stkestrelbookings",
+      "name": "stkestrelbookings",
+      "type": "microsoft.storage/storageaccounts",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "StorageV2",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": {
+        "name": "Standard_ZRS",
+        "tier": "Standard"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "primaryEndpoints": {
+          "blob": "https://stkestrelbookings.blob.core.windows.net/",
+          "dfs": "https://stkestrelbookings.dfs.core.windows.net/"
+        },
+        "publicNetworkAccess": "Disabled",
+        "minimumTlsVersion": "TLS1_2"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-sql-bookings.nic",
+      "name": "pe-sql-bookings.nic",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-sql-bookings.nic/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.20.1.4",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+              }
+            }
+          }
+        ],
+        "privateEndpoint": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-sql-bookings"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-sql-bookings",
+      "name": "pe-sql-bookings",
+      "type": "microsoft.network/privateendpoints",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "subnet": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+        },
+        "networkInterfaces": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-sql-bookings.nic"
+          }
+        ],
+        "privateLinkServiceConnections": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-sql-bookings/privateLinkServiceConnections/pe-sql-bookings",
+            "name": "pe-sql-bookings",
+            "properties": {
+              "privateLinkServiceId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+              "groupIds": [
+                "sqlServer"
+              ],
+              "privateLinkServiceConnectionState": {
+                "status": "Approved"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-kv-bookings.nic",
+      "name": "pe-kv-bookings.nic",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-kv-bookings.nic/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.20.1.5",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+              }
+            }
+          }
+        ],
+        "privateEndpoint": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-kv-bookings"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-kv-bookings",
+      "name": "pe-kv-bookings",
+      "type": "microsoft.network/privateendpoints",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "subnet": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+        },
+        "networkInterfaces": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-kv-bookings.nic"
+          }
+        ],
+        "privateLinkServiceConnections": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-kv-bookings/privateLinkServiceConnections/pe-kv-bookings",
+            "name": "pe-kv-bookings",
+            "properties": {
+              "privateLinkServiceId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings",
+              "groupIds": [
+                "vault"
+              ],
+              "privateLinkServiceConnectionState": {
+                "status": "Approved"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-st-bookings-blob.nic",
+      "name": "pe-st-bookings-blob.nic",
+      "type": "microsoft.network/networkinterfaces",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "ipConfigurations": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-st-bookings-blob.nic/ipConfigurations/ipconfig1",
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAddress": "10.20.1.6",
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+              }
+            }
+          }
+        ],
+        "privateEndpoint": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-st-bookings-blob"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-st-bookings-blob",
+      "name": "pe-st-bookings-blob",
+      "type": "microsoft.network/privateendpoints",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "westeurope",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "subnet": {
+          "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe"
+        },
+        "networkInterfaces": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-st-bookings-blob.nic"
+          }
+        ],
+        "privateLinkServiceConnections": [
+          {
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-st-bookings-blob/privateLinkServiceConnections/pe-st-bookings-blob",
+            "name": "pe-st-bookings-blob",
+            "properties": {
+              "privateLinkServiceId": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Storage/storageAccounts/stkestrelbookings",
+              "groupIds": [
+                "blob"
+              ],
+              "privateLinkServiceConnectionState": {
+                "status": "Approved"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings",
+      "name": "afd-kestrel-bookings",
+      "type": "microsoft.cdn/profiles",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "frontdoor",
+      "location": "Global",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": {
+        "name": "Premium_AzureFrontDoor"
+      },
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "frontDoorId": "eaf5031e-f081-2991-9acf-16bcffe93768",
+        "originResponseTimeoutSeconds": 60
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/afdEndpoints/afd-kestrel-bookings-ep",
+      "name": "afd-kestrel-bookings-ep",
+      "type": "microsoft.cdn/profiles/afdendpoints",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "Global",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "hostName": "afd-kestrel-bookings-ep-d43f64ce.z01.azurefd.net",
+        "enabledState": "Enabled"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/originGroups/og-default",
+      "name": "og-default",
+      "type": "microsoft.cdn/profiles/origingroups",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "Global",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "healthProbeSettings": {
+          "probePath": "/healthz",
+          "probeProtocol": "Https"
+        }
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    },
+    {
+      "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/originGroups/og-default/origins/app",
+      "name": "app",
+      "type": "microsoft.cdn/profiles/origingroups/origins",
+      "tenantId": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+      "kind": "",
+      "location": "Global",
+      "resourceGroup": "rg-bookings-prod",
+      "subscriptionId": "3209c48f-63fb-a1fa-be63-249618e2a277",
+      "managedBy": "",
+      "sku": null,
+      "plan": null,
+      "properties": {
+        "provisioningState": "Succeeded",
+        "hostName": "app-kestrel-bookings.azurewebsites.net",
+        "originHostHeader": "app-kestrel-bookings.azurewebsites.net",
+        "httpsPort": 443,
+        "enabledState": "Enabled"
+      },
+      "tags": {},
+      "identity": null,
+      "zones": null,
+      "extendedLocation": null
+    }
+  ],
+  "skip_token": null,
+  "total_records": 21
+}

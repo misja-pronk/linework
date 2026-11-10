@@ -1,0 +1,470 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.30.23.60470",
+      "templateHash": "9087123465512398012"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "prod",
+      "allowedValues": [
+        "test",
+        "prod"
+      ]
+    },
+    "appName": {
+      "type": "string",
+      "defaultValue": "bookings"
+    },
+    "sqlAdminGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "Entra group that administers the SQL server"
+      }
+    }
+  },
+  "variables": {
+    "siteName": "[format('app-kestrel-{0}', parameters('appName'))]",
+    "planName": "[format('asp-{0}-{1}', parameters('appName'), parameters('env'))]",
+    "vaultName": "[format('kv-kestrel-{0}', parameters('appName'))]",
+    "sqlName": "[format('sql-kestrel-{0}', parameters('appName'))]",
+    "storageName": "[format('st{0}{1}', parameters('appName'), uniqueString(resourceGroup().id))]",
+    "logName": "[format('log-{0}-{1}', parameters('appName'), parameters('env'))]",
+    "insightsName": "[format('appi-{0}-{1}', parameters('appName'), parameters('env'))]",
+    "frontDoorName": "[format('afd-kestrel-{0}', parameters('appName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('logName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "retentionInDays": 90,
+        "sku": {
+          "name": "PerGB2018"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('insightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('planName')]",
+      "location": "[parameters('location')]",
+      "kind": "linux",
+      "sku": {
+        "name": "P1v3",
+        "capacity": 2
+      },
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('siteName')]",
+      "location": "[parameters('location')]",
+      "kind": "app,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+        "httpsOnly": true,
+        "virtualNetworkSubnetId": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2022-09-01').outputs.appSubnetId.value]",
+        "siteConfig": {
+          "linuxFxVersion": "DOTNETCORE|8.0",
+          "appSettings": [
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('insightsName')), '2020-02-02').ConnectionString]"
+            },
+            {
+              "name": "ConnectionStrings__Bookings",
+              "value": "[format('@Microsoft.KeyVault(VaultName={0};SecretName=sql-connection)', variables('vaultName'))]"
+            },
+            {
+              "name": "Storage__BlobEndpoint",
+              "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')), '2023-05-01').primaryEndpoints.blob]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.Web/sites/{0}', variables('siteName'))]",
+      "name": "to-log-analytics",
+      "properties": {
+        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('siteName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('vaultName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "tenantId": "[subscription().tenantId]",
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "enableRbacAuthorization": true,
+        "publicNetworkAccess": "Disabled"
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('vaultName'))]",
+      "name": "to-log-analytics",
+      "properties": {
+        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Sql/servers",
+      "apiVersion": "2023-08-01-preview",
+      "name": "[variables('sqlName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicNetworkAccess": "Disabled",
+        "administrators": {
+          "administratorType": "ActiveDirectory",
+          "azureADOnlyAuthentication": true,
+          "principalType": "Group",
+          "sid": "[parameters('sqlAdminGroupId')]",
+          "login": "sg-bookings-sql-admins"
+        }
+      },
+      "resources": [
+        {
+          "type": "databases",
+          "apiVersion": "2023-08-01-preview",
+          "name": "bookings",
+          "location": "[parameters('location')]",
+          "sku": {
+            "name": "GP_S_Gen5_2",
+            "tier": "GeneralPurpose"
+          },
+          "properties": {},
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('sqlName'))]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "scope": "[format('Microsoft.Sql/servers/{0}', variables('sqlName'))]",
+      "name": "to-log-analytics",
+      "properties": {
+        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]",
+        "logs": [
+          {
+            "categoryGroup": "allLogs",
+            "enabled": true
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', variables('sqlName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('storageName')]",
+      "location": "[parameters('location')]",
+      "kind": "StorageV2",
+      "sku": {
+        "name": "Standard_ZRS"
+      },
+      "properties": {
+        "publicNetworkAccess": "Disabled",
+        "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-11-01",
+      "name": "pe-sql-bookings",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subnet": {
+          "id": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2022-09-01').outputs.peSubnetId.value]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "pe-sql-bookings",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Sql/servers', variables('sqlName'))]",
+              "groupIds": [
+                "sqlServer"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers', variables('sqlName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-11-01",
+      "name": "pe-kv-bookings",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subnet": {
+          "id": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2022-09-01').outputs.peSubnetId.value]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "pe-kv-bookings",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]",
+              "groupIds": [
+                "vault"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('vaultName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2023-11-01",
+      "name": "pe-st-bookings-blob",
+      "location": "[parameters('location')]",
+      "properties": {
+        "subnet": {
+          "id": "[reference(resourceId('Microsoft.Resources/deployments', 'network'), '2022-09-01').outputs.peSubnetId.value]"
+        },
+        "privateLinkServiceConnections": [
+          {
+            "name": "pe-st-bookings-blob",
+            "properties": {
+              "privateLinkServiceId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]",
+              "groupIds": [
+                "blob"
+              ]
+            }
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'network')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Cdn/profiles",
+      "apiVersion": "2024-02-01",
+      "name": "[variables('frontDoorName')]",
+      "location": "global",
+      "sku": {
+        "name": "Premium_AzureFrontDoor"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/originGroups",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}', variables('frontDoorName'), 'og-default')]",
+      "properties": {
+        "healthProbeSettings": {
+          "probePath": "/healthz"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles', variables('frontDoorName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Cdn/profiles/originGroups/origins",
+      "apiVersion": "2024-02-01",
+      "name": "[format('{0}/{1}/{2}', variables('frontDoorName'), 'og-default', 'app')]",
+      "properties": {
+        "hostName": "[reference(resourceId('Microsoft.Web/sites', variables('siteName')), '2023-12-01').defaultHostName]",
+        "httpsPort": 443,
+        "priority": 1,
+        "weight": 1000
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Cdn/profiles/originGroups', variables('frontDoorName'), 'og-default')]",
+        "[resourceId('Microsoft.Web/sites', variables('siteName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "network",
+      "resourceGroup": "rg-bookings-network",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "env": {
+            "value": "[parameters('env')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.30.23.60470",
+              "templateHash": "1146394828817593471"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "env": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "vnetName": "[format('vnet-bookings-{0}', parameters('env'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-11-01",
+              "name": "nsg-bookings-app",
+              "location": "[parameters('location')]",
+              "properties": {
+                "securityRules": []
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.20.0.0/22"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "snet-app",
+                    "properties": {
+                      "addressPrefix": "10.20.0.0/24",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-bookings-app')]"
+                      },
+                      "delegations": [
+                        {
+                          "name": "web",
+                          "properties": {
+                            "serviceName": "Microsoft.Web/serverFarms"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "snet-pe",
+                    "properties": {
+                      "addressPrefix": "10.20.1.0/24",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-bookings-app')]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', 'nsg-bookings-app')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'snet-app')]"
+            },
+            "peSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), 'snet-pe')]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "siteHost": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('siteName')), '2023-12-01').defaultHostName]"
+    }
+  }
+}

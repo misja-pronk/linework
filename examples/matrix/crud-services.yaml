@@ -1,0 +1,34 @@
+type: matrix
+title: Order platform — CRUD matrix
+subtitle: Which service creates, reads, updates and deletes which data
+legend: crud
+counts: true
+
+columns:
+  customer: { label: Customer, group: Party }
+  address: { label: Address, group: Party }
+  product: { label: Product, group: Catalogue }
+  price: { label: Price, group: Catalogue }
+  order: { label: Order, group: Sales }
+  payment: { label: Payment, group: Sales }
+  shipment: { label: Shipment, group: Fulfilment }
+
+rows:
+  accounts: { label: Accounts service, caption: team Identity }
+  catalog: { label: Catalogue service, caption: team Merchandise }
+  pricing: { label: Pricing engine, caption: team Merchandise }
+  checkout: { label: Checkout, caption: team Sales }
+  orders: { label: Orders service, caption: team Sales }
+  billing: { label: Billing, caption: team Finance }
+  shipping: { label: Shipping, caption: team Logistics }
+  reporting: { label: Reporting, caption: team Data }
+
+cells:
+  accounts: { customer: CRUD, address: CRUD }
+  catalog: { product: CRUD, price: R }
+  pricing: { product: R, price: CRU }
+  checkout: { customer: R, address: R, product: R, price: R, order: C, payment: C }
+  orders: { customer: R, order: RUD, payment: R, shipment: R }
+  billing: { customer: R, order: R, payment: RU }
+  shipping: { address: R, order: RU, shipment: CRU }
+  reporting: { customer: R, product: R, order: R, payment: R, shipment: R }

@@ -2,8 +2,9 @@
 // rule across, the word KEY, then the samples, wrapped to the page). A sample of a kind of element
 // is that kind's own icon in the theme's tile style, so it also reads without colour.
 import type { Graph, LegendItem } from '@cartography/core';
-import { baselineOffset, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
-import { dashAttr, esc, glyph, iconTile, monoAttr, r1 } from './paint.ts';
+import { baselineOffset, chipText, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
+import { chipBack, dashAttr, esc, glyph, iconTile, monoAttr, r1, tagRadius } from './paint.ts';
+import { drawTags, endStyle, tagsWidth } from './tags.ts';
 import { blockSample } from './block.ts';
 import { drawMarks } from './flow.ts';
 
@@ -17,7 +18,9 @@ const KEY = 44;
 const WRAP = 640;
 const COLUMN_ROW = 26;
 
-const labelWidth = (item: LegendItem, theme: Theme) => measureText(item.label, theme.size.caption, 500);
+/** A tag sample wider than the usual sample (OHS, ACL) pushes its label along. */
+export const sampleExtra = (item: LegendItem) => (item.swatch === 'mark' ? Math.max(0, tagsWidth([item.tag ?? 'T1']) + 8 - SAMPLE) : 0);
+const labelWidth = (item: LegendItem, theme: Theme) => sampleExtra(item) + measureText(item.label, theme.size.caption, 500);
 
 /** Positions of the items in one unwrapped row (the classic legend). */
 export function legendItems(g: Pick<Graph, 'legend'>, theme: Theme) {
@@ -147,7 +150,7 @@ function chipSwatch(x: number, cy: number, tone: ToneColors, theme: Theme): stri
 export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: number): string {
   const lk = look(theme);
   const color = item.tone ? theme.tones[item.tone].fg : theme.edge;
-  const label = `<text x="${r1(x0 + SAMPLE)}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
+  const label = `<text x="${r1(x0 + SAMPLE + sampleExtra(item))}" y="${r1(cy + baselineOffset(theme.size.caption))}" font-size="${theme.size.caption}" font-weight="500" fill="${theme.textMuted}">${esc(item.label)}</text>`;
   if (item.swatch === 'badge') return chipSwatch(x0, cy, theme.tones[item.tone ?? 'slate'], theme) + label;
   if (item.swatch === 'block' && item.block) return drawMarks(blockSample(item.block.form, theme, x0, cy, item.block.heat), theme, '') + label;
   if ((item.swatch === 'tile' || item.swatch === 'fill') && item.icon && lk.legend === 'key') {
@@ -168,6 +171,14 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
     if (paper) return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="${Math.min(4, theme.radius.group)}" fill="${paper}" stroke="${groupLine(theme, theme.tones.slate) ?? theme.textFaint}" stroke-width="1.2" stroke-dasharray="${lk.group.dash}"/>` + label;
     return `<rect x="${x0 + 0.5}" y="${cy - 7.5}" width="19" height="15" rx="4" fill="none" stroke="${theme.textFaint}" stroke-width="1.2" stroke-dasharray="3 2.5"/>` + label;
   }
+  if (item.swatch === 'trust') return `<path d="M${x0} ${cy}H${x0 + 20}" stroke="${theme.tones.rose.fg}" stroke-width="1.8" stroke-dasharray="5 3"/>` + label;
+  if (item.swatch === 'mark' && item.tag && item.tone) {
+    // A matrix value: its letter in a pill of its tone, as in the cells.
+    const t = theme.tones[item.tone];
+    const w = Math.max(20, measureText(item.tag, chipText(theme), 600) + 12);
+    return chipBack(theme, x0, cy - 9, w, 18, t, tagRadius(theme, 18)) + `<text x="${r1(x0 + w / 2)}" y="${r1(cy + baselineOffset(chipText(theme)))}" font-size="${chipText(theme)}" font-weight="600" fill="${t.fg}" text-anchor="middle">${esc(item.tag)}</text>` + label;
+  }
+  if (item.swatch === 'mark') return drawTags(theme, [item.tag ?? 'T1'], x0, cy, item.tag ? endStyle(item.tag) : 'threat') + label;
   if (item.swatch === 'fill') return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="${Math.min(7, theme.radius.chip + 3)}" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
   if (item.swatch === 'check' || item.swatch === 'check-outline') {
     // The same filled or dashed check circle as the matrix cells.

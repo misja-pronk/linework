@@ -1,7 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { themes } from '@cartography/theme';
+import { shareValue } from '@cartography/core';
 import { App } from './app.tsx';
+import { Viewer } from './viewer.tsx';
 import { registerDefaultFonts } from './fonts.ts';
 import './styles.css';
 
@@ -18,8 +20,10 @@ const tones = (['light', 'dark'] as const)
   .join('');
 document.head.insertAdjacentHTML('beforeend', `<style>${tones}</style>`);
 
+const shared = shareValue(location.hash);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {/* A share link opens the read-only viewer; everything else is the editor. */}
+    {shared ? <Viewer value={shared} /> : <App />}
   </StrictMode>,
 );

@@ -2,9 +2,9 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import { besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
-import { connector, group, picture, shape, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
+import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 /** EMU per CSS pixel at 96 dpi. */
 export const PX = 9525;
@@ -227,11 +227,36 @@ class SlideDrawing {
         continue;
       }
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : s.kind === 'flow' ? this.drawFlow(n, s, box) : this.drawMatrix(n, s, box)).xml);
+      // Threat numbers on the top edge, as in the SVG.
+      if (n.marks?.length && s.kind !== 'matrix') out.push(...this.tags(n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, 'threat').map((i) => i.xml));
+    }
+    for (const g of graph.groups) {
+      const box = placed.groups.get(g.id);
+      if (g.marks?.length && box && state?.groups[g.id] !== 'hidden') out.push(...this.tags(g.marks, box.x + box.width - 16 - tagsWidth(g.marks), box.y, 'threat').map((i) => i.xml));
     }
     for (const e of edges) {
       const pe = placed.edges.get(e.id)!;
       this.theme = state?.edges[e.id] === 'focus' ? strong : as(state?.edges[e.id]);
-      if (e.label && pe.label) out.push(this.edgeLabel(e, e.label, besideShortLine(pe.points, pe.label, placed)).xml);
+      if (!pe.label) continue;
+      // The room kept for a context map's end tags is not the label's; threat numbers end the label.
+      const room = endsRoom(e.ends);
+      let lb = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
+      if (e.marks?.length) {
+        const w = tagsWidth(e.marks);
+        out.push(...this.tags(e.marks, lb.x + lb.width - w, lb.y + lb.height / 2, 'threat').map((i) => i.xml));
+        lb = { ...lb, width: lb.width - w - TAG.GAP };
+      }
+      if (e.label) out.push(this.edgeLabel(e, e.label, lb).xml);
+    }
+    const taken: Box[] = [];
+    for (const e of edges) {
+      if (!e.ends) continue;
+      const pts = toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node);
+      for (const [list, tip, from] of [[e.ends.from, pts[0]!, pts[1]!], [e.ends.to, pts.at(-1)!, pts.at(-2)!]] as const) {
+        if (!list?.length) continue;
+        const at = endTagAt(list, tip, from, taken);
+        if (at) out.push(...this.tags(list, at.x, at.cy, endStyle).map((i) => i.xml));
+      }
     }
     this.theme = full;
     if (state) for (const n of placeNotes(state, placed)) out.push(this.note(n).xml);
@@ -267,7 +292,7 @@ class SlideDrawing {
     const room = max - measureText(label, lab.size, 600, 'sans', lab.tracking) - 8;
     if (g.caption && measureText(g.caption, t.size.caption, 400) <= room) runs.push(this.run(`  ${g.caption}`, t.size.caption, 400, groupCaptionInk(t)));
     // Where a theme draws no outline, a dashed boundary still gets one.
-    const outline = groupLine(t, tone) ?? (g.border === 'dashed' ? t.border : undefined);
+    const outline = g.trust ? t.tones.rose.fg : (groupLine(t, tone) ?? (g.border === 'dashed' ? t.border : undefined));
     // The label sits in the frame's own text, so renaming the group in PowerPoint is a double-click.
     const lineH = lab.size * 1.21;
     const frame = this.sp({
@@ -277,7 +302,7 @@ class SlideDrawing {
       frame: this.frame(b.x, b.y, b.width, b.height),
       geom: this.roundRect(b, t.radius.group),
       fill: { color: this.ground.fill(g) },
-      line: outline ? { color: outline, width: this.L(t.stroke.group), dash: g.border === 'dashed' ? 'dashed' : 'solid' } : null,
+      line: outline ? { color: outline, width: this.L(g.trust ? Math.max(1.6, t.stroke.group + 0.6) : t.stroke.group), dash: g.border === 'dashed' || g.trust ? 'dashed' : 'solid' } : null,
       text: { anchor: 't', inset: { l: this.L(16 + iconRoom), t: this.L(22 - lineH / 2), r: this.L(16) }, paras: [{ runs }] },
     });
     return this.group(`Group: ${g.label}`, [frame, lk.icon ? this.icon(g.icon, b.x + 16, b.y + 22 - lk.icon / 2, lk.icon, tone.fg, 1.75) : undefined]);
@@ -436,7 +461,91 @@ class SlideDrawing {
     return this.group(`Table: ${s.title}`, items);
   }
 
+  /**
+   * A matrix that is a table (a threat table, a RACI or CRUD chart) as a real PowerPoint table: the
+   * same columns, header and sections, with each value in its tone as bold text, so it can be edited.
+   */
+  private matrixTable(n: GraphNode, m: MatrixShape, b: Box): Item {
+    const t = this.theme;
+    const { PAD } = MATRIX;
+    const g = matrixGeometry(m, t);
+    const rule: Line = { color: t.border, width: this.L(1) };
+    const soft: Line = { color: mix(t.border, t.surface, 0.4), width: this.L(1) };
+    const head = look(t).tableHead === 'paper' ? (paperTint(t, 0) ?? t.surface) : t.surface;
+    const band = paperTint(t, 1) ?? t.tones.slate.bg;
+    const inset = { l: this.L(PAD), r: this.L(PAD / 2), t: this.L(6), b: this.L(6) };
+    const widths = [g.rowHeader, ...g.columns];
+    const cols = widths.length;
+    const para = (runs: Run[], align: Para['align'] = 'l'): Para => ({ align, runs });
+    const center = !m.plain;
+    const valueRuns = (c: MatrixCell | undefined): Run[] => {
+      if (!c || (!c.text && !c.check && !c.parts?.length)) return [this.run(m.plain ? '–' : '–', t.size.cell, 400, t.textFaint)];
+      if (c.parts?.length) return c.parts.flatMap((p, k) => [...(k ? [this.run(' ', t.size.cell, 400, t.text)] : []), this.run(p.text, t.size.cell, 600, t.tones[p.tone ?? 'blue'].fg)]);
+      if (c.check) return [this.run('✓', t.size.cell, 600, t.tones[c.tone ?? 'blue'].fg)];
+      return [this.run(c.text!, t.size.cell, c.strong || c.tone ? 600 : 400, c.tone ? t.tones[c.tone].fg : t.text)];
+    };
+    const rows: TableSpec['rows'] = [];
+    // Grouped columns: a row of their names over them.
+    if (g.bands.length) {
+      const cells: TableSpec['rows'][number]['cells'] = [{ paras: [para([])], fill: { color: head }, inset }];
+      const groups = headerGroups(m.columns);
+      for (let j = 0; j < m.columns.length; ) {
+        const grp = groups.find(([, first]) => first === j);
+        const span = grp ? grp[2] : 1;
+        cells.push({ paras: [para(grp ? [this.run(grp[0].toUpperCase(), 10, 600, t.textMuted, { tracking: 0.6 })] : [], 'ctr')], fill: { color: head }, span, inset, bottom: grp ? soft : null });
+        for (let k = 1; k < span; k++) cells.push({ paras: [para([])], merged: true, fill: { color: head } });
+        j += span;
+      }
+      rows.push({ height: this.L(g.band), cells });
+    }
+    rows.push({
+      height: this.L(MATRIX.HEAD),
+      cells: [
+        { paras: [para(m.corner ? [this.run(m.corner, t.size.caption, 500, t.textFaint)] : [])], fill: { color: head }, inset, bottom: rule },
+        ...m.columns.map((c) => ({
+          paras: [para([this.run(c.label, t.size.cell, 600, t.text)], center ? 'ctr' : 'l'), ...(c.caption ? [para([this.run(c.caption, t.size.caption, 400, t.textFaint)], center ? 'ctr' : 'l')] : [])],
+          fill: { color: head },
+          inset,
+          bottom: rule,
+        })),
+      ],
+    });
+    for (const [i, r] of m.rows.entries()) {
+      const sec = g.sections.find((x) => x.y + MATRIX.SECTION === g.rows[i]!.y);
+      if (sec)
+        rows.push({
+          height: this.L(MATRIX.SECTION),
+          cells: [{ paras: [para([this.run(sec.label.toUpperCase(), 10, 600, t.textMuted, { tracking: 0.6 })])], fill: { color: band }, span: cols, inset, bottom: soft }, ...Array.from({ length: cols - 1 }, () => ({ paras: [para([])], merged: true }))],
+        });
+      rows.push({
+        height: this.L(g.rows[i]!.height),
+        cells: [
+          { paras: [para([this.run(r.label, t.size.cell, 600, t.text)]), ...(r.caption ? [para([this.run(r.caption, t.size.caption, 400, t.textMuted)])] : [])], fill: { color: t.surface }, inset, anchor: g.rows[i]!.height > g.rowHeight ? 't' : 'ctr', bottom: soft },
+          ...m.columns.map((_, j) => ({ paras: [para(valueRuns(m.cells[i]?.[j]), center ? 'ctr' : 'l')], fill: { color: t.surface }, inset, anchor: (g.rows[i]!.height > g.rowHeight ? 't' : 'ctr') as 't' | 'ctr', bottom: soft })),
+        ],
+      });
+    }
+    const f = this.frame(b.x, b.y, b.width, b.height);
+    return { xml: table({ id: this.idFor(`node:${n.id}`), name: m.corner ? `Table: ${m.corner}` : 'Table', frame: f, columns: widths.map((w) => this.L(w)), rows }, this.fonts.sans), box: f };
+  }
+
+  /** Tags on the drawing as small framed text boxes: threat numbers, a context map's U, D, ACL. */
+  private tags(list: string[], x: number, cy: number, style: TagStyle | ((tag: string) => TagStyle)): Item[] {
+    return tagBoxes(list, x, cy).map((b) => {
+      const c = tagColors(this.theme, typeof style === 'function' ? style(b.text) : style);
+      return this.sp({
+        name: `Tag: ${b.text}`,
+        frame: this.frame(b.x, b.y, b.width, b.height),
+        geom: this.roundRect(b, 3.5),
+        fill: { color: c.fill },
+        line: { color: c.stroke, width: this.L(1.2) },
+        text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(b.text, TAG.SIZE, 600, c.ink)] }] },
+      });
+    });
+  }
+
   private drawMatrix(n: GraphNode, m: MatrixShape, b: Box): Item {
+    if (m.table) return this.matrixTable(n, m, b);
     const t = this.theme;
     const { PAD, HEAD, COL_ICON, ROW_ICON } = MATRIX;
     const g = matrixGeometry(m, t);
@@ -781,7 +890,7 @@ class SlideDrawing {
       for (const { item, x } of row) {
         const cy = first + i * LEGEND.ROW;
         items.push(...this.swatch(item, x, cy));
-        items.push(this.text(x + 28, cy, item.label, t.size.caption, 500, t.textMuted, 'start', `Legend: ${item.label}`));
+        items.push(this.text(x + 28 + sampleExtra(item), cy, item.label, t.size.caption, 500, t.textMuted, 'start', `Legend: ${item.label}`));
       }
     return this.group('Legend', items);
   }
@@ -814,6 +923,12 @@ class SlideDrawing {
       const line: Line = { color: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, width: this.L(1.2), dash: 'dashed' };
       return [box(19, 15, Math.min(4, t.radius.group), paper ? { color: paper } : null, line, 0.5)];
     }
+    if (item.swatch === 'trust') return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color: t.tones.rose.fg, width: this.L(1.8), dash: 'dashed' } })];
+    if (item.swatch === 'mark' && item.tag && item.tone) {
+      const w = Math.max(20, measureText(item.tag, chipText(t), 600) + 12);
+      return [this.sp({ name: 'Swatch', frame: this.frame(x, cy - 9, w, 18), geom: this.roundRect({ x: 0, y: 0, width: w, height: 18 }, tagRadius(t, 18)), ...this.chipLook(tone), text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(item.tag, chipText(t), 600, tone.fg)] }] } })];
+    }
+    if (item.swatch === 'mark') return this.tags([item.tag ?? 'T1'], x, cy, item.tag ? endStyle(item.tag) : 'threat');
     if (item.swatch === 'fill') return [box(20, 14, Math.min(7, t.radius.chip + 3), { color: tone.bg }, null)];
     if (item.swatch === 'outline') return [box(19, 13, Math.min(6.5, t.radius.chip + 2.5), null, { color, alpha: 0.7, width: this.L(1), dash: 'dashed' }, 0.5)];
     if (item.swatch === 'check' || item.swatch === 'check-outline') {

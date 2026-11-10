@@ -19,6 +19,13 @@ import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
+
+/** The command palette's entry for the exports in the open folder, by what they are. */
+const EXPORT_ENTRY = {
+  access: { label: (name: string) => `Who reaches what in ${name}`, hint: 'its az, Graph or AzureHound exports in access.yaml', icon: 'shield-user' },
+  github: { label: (name: string) => `GitHub organisation of ${name}`, hint: 'its gh api responses in github.yaml', icon: 'folder-git-2' },
+  azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
+};
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -29,6 +36,10 @@ import { blankText, exampleLoader, starters, typeName, type Starter } from './li
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
+import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
+import { themes } from '@cartography/theme';
+import { brand } from './brand.ts';
+import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -336,6 +347,23 @@ export function App() {
     [text, doc, pins, notify, savedText, savedPins],
   );
 
+  // "Open in editor" from a share link's viewer: the diagram becomes a document of this browser's own,
+  // with an undo back to what was open; the link data leaves the address bar.
+  const openShared = useRef(false);
+  useEffect(() => {
+    const m = new RegExp(`^#${OPEN_KEY}=([A-Za-z0-9_-]+)$`).exec(location.hash);
+    if (!m || openShared.current) return;
+    openShared.current = true;
+    history.replaceState(null, '', location.pathname + location.search);
+    void decodeShare(m[1]!).then((d) => {
+      if (!d) notify('That link does not hold a diagram: it may have been cut short', { tone: 'error' });
+      else {
+        setModal(undefined);
+        open(d.yaml, { name: d.name ?? 'shared.yaml' }, d.layout, false, `Opened the shared diagram as ${d.name ?? 'shared.yaml'}`);
+      }
+    });
+  }, [open, notify]);
+
   /** Before replacing the document: save it where it lives, or ask. False keeps it open. */
   const leave = async (): Promise<boolean> => {
     if (!dirty) return true;
@@ -541,7 +569,7 @@ export function App() {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
             types: [
-              { description: 'Cartography diagram, data products and contracts, or access and GitHub exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
+              { description: 'Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
               { description: 'draw.io, Excalidraw or Mermaid, to import', accept: OTHER },
             ],
           });
@@ -605,6 +633,17 @@ export function App() {
   const copySvg = attempt('Copy', async () => {
     await navigator.clipboard.writeText(await svgNow());
     notify('SVG copied');
+  });
+  // A share link carries the diagram in its #fragment, which never reaches a server.
+  const copyShare = attempt('Share', async () => {
+    const link = await shareLink({ yaml: editor.current?.text() ?? text, name: doc.name, layout: pins, ...(brand().choice && themes[brand().choice] ? { theme: brand().choice } : {}) }, location.origin + location.pathname);
+    if (link.length > SHARE_LIMIT) {
+      notify(`Too large for a link: ${Math.ceil(link.length / 1000)} kB where ${SHARE_LIMIT / 1000} kB is the most links safely carry. Share the YAML file instead.`, { tone: 'error' });
+      return;
+    }
+    await navigator.clipboard.writeText(link);
+    const away = result?.includes?.length ? ` It does not carry ${result.includes.length === 1 ? 'the included file' : `the ${result.includes.length} included files`}.` : '';
+    notify(`Share link copied: it opens read-only, and the diagram travels in the link itself, nothing was uploaded.${away}`);
   });
   const copyPng = attempt('Copy', async () => {
     // Safari wants the ClipboardItem created right in the click, with the PNG still on its way.
@@ -1135,7 +1174,8 @@ export function App() {
    * V: the next view of the diagram; the YAML stays as it is. Views the type draws itself (data products
    * overview and detailed) go round without "as written", which is one of them: the one in `view:`.
    */
-  const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews;
+  /** Only views the type draws itself (no model `views:`, nothing included): as written is one of them. */
+  const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews && !/^(views|include):/m.test(textNow());
   /** The view drawn: one picked, else for a type with views of its own the one in its `view:` (or its first). */
   const viewNow = () => viewName ?? (ownViews ? (drawn!.views!.find((v) => v.name === /^view:[ \t]*([\w-]+)/m.exec(textNow())?.[1]) ?? drawn!.views![0]!).name : undefined);
   const nextView = () => {
@@ -1292,7 +1332,7 @@ export function App() {
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
-    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: exportInWs === 'github' ? `GitHub organisation of ${ws.name}` : `Who reaches what in ${ws.name}`, hint: exportInWs === 'github' ? 'its gh api responses in github.yaml' : 'its az, Graph or AzureHound exports in access.yaml', icon: exportInWs === 'github' ? 'folder-git-2' : 'shield-user', run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
+    ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
@@ -1306,6 +1346,7 @@ export function App() {
     { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
     { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
+    { id: 'share', group: 'Export', label: 'Copy share link', hint: 'read-only, the diagram travels in the link', icon: 'link', run: copyShare },
     { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
     { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
     ...(type && !drawn?.stepsImplied
@@ -1599,6 +1640,10 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copyMermaid}>
                   <Icon name="copy" /> Copy as Mermaid
+                </button>
+                <hr />
+                <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
+                  <Icon name="link" /> Copy share link
                 </button>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>

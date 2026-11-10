@@ -4,6 +4,7 @@ import type { SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
 import type { JourneyPartShape, JourneyShape } from './journey.ts';
+import type { ThreatRow } from './threats.ts';
 import type { BlockShape } from './block.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
@@ -26,6 +27,8 @@ export interface Graph {
   steps?: GraphStep[];
   /** The main line of a process, one beat per stop: laid out straight, and what a step-through walks when no steps are written. */
   walk?: GraphBeat[];
+  /** The threat overlay's rows (see threats.ts): what the threat table and `carto threats` list. */
+  threats?: ThreatRow[];
   /** How a type's own layout is asked to arrange the drawing, as the source says (a capability map in bands, four areas to a row). */
   arrange?: Record<string, string | number | boolean>;
   /** The drawing is a tree along its solid lines (an org chart): a focus on one element keeps its whole branch and the line up to the top. */
@@ -72,6 +75,10 @@ export interface GraphGroup {
   tags?: string[];
   /** What a focus view is about (see focus.ts): drawn with a ring. */
   focused?: boolean;
+  /** A trust boundary of a threat model: drawn as a heavier dashed line in the threat colour. */
+  trust?: boolean;
+  /** Short tags drawn on it, such as threat numbers (T1, T2): they say it in text, never in colour alone. */
+  marks?: string[];
   path: Path;
 }
 
@@ -94,6 +101,8 @@ export interface GraphNode {
   focused?: boolean;
   /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
   pack?: string;
+  /** Short tags drawn on its top edge, such as threat numbers (T1, T2). */
+  marks?: string[];
 }
 
 /** A link on an element: a URL, a diagram file (relative to this one), or a view of one ("containers.yaml#containers", "#context"). */
@@ -174,6 +183,10 @@ export interface MatrixShape {
   plain?: boolean;
   /** A comparison with an earlier state: cells carry a `change`, and those without one are drawn quietly. */
   compare?: boolean;
+  /** A plain table whose text wraps at this width instead of widening its column (a threat table). */
+  wrap?: number;
+  /** Exported to slides as a real table, with cells to type in, instead of drawn shapes. */
+  table?: boolean;
 }
 
 export interface MatrixHeader {
@@ -183,6 +196,10 @@ export interface MatrixHeader {
   tone?: Tone;
   /** In a comparison: new here, or gone (the label is struck through). */
   change?: 'added' | 'removed';
+  /** Headers with the same group in a row are drawn under one name: a band over columns, a section line between rows. */
+  group?: string;
+  /** Where the header points to (the element of the model it names). */
+  link?: Link;
 }
 
 export interface MatrixCell {
@@ -194,8 +211,10 @@ export interface MatrixCell {
   /** Small text under the pill, e.g. "via Developers". */
   note?: string;
   tone?: Tone;
-  /** Bold text, in a plain table. */
+  /** Bold text, in a plain table. In a plain table a cell with a tone is a pill (a status). */
   strong?: boolean;
+  /** Several values in one cell (C, R, U): a small pill each, in the order written. */
+  parts?: { text: string; tone?: Tone }[];
   /** In a comparison: gained, lost (struck through) or another value than before. Drawn with a ring; the sign is part of the text. */
   change?: 'added' | 'removed' | 'changed';
 }
@@ -243,6 +262,10 @@ export interface GraphEdge {
   step?: number;
   /** Says nothing about what comes before what (a key between two contracts): the layout does not rank by it. */
   loose?: boolean;
+  /** Short tags drawn after its label, such as threat numbers (T1). */
+  marks?: string[];
+  /** Tags at the ends of the line, drawn on it next to the element: a context map's U and D, ACL, OHS. */
+  ends?: { from?: string[]; to?: string[] };
   path: Path;
 }
 
@@ -251,7 +274,7 @@ export interface LegendItem {
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'block';
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block';
   /** A block sample (swatch 'block'): a team type, an interaction mode, a place on a heatmap. */
   block?: { form: BlockShape['form']; heat?: BlockShape['heat'] };
   tone?: Tone;
@@ -261,6 +284,8 @@ export interface LegendItem {
   icon?: string;
   /** A greyed sample: external elements. */
   muted?: boolean;
+  /** The text of a tag sample ('mark'): T1, U, ACL. */
+  tag?: string;
 }
 
 // Geometry, filled in by layout.

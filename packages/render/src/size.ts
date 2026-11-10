@@ -2,6 +2,7 @@
 import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@cartography/core';
 import { chipText, fitText, groupLabel, look, measureText, monoCell, type Theme } from '@cartography/theme';
 import { matrixGeometry } from './matrix.ts';
+import { endsRoom, TAG, tagsWidth } from './tags.ts';
 import { sequenceGeometry } from './sequence.ts';
 import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
@@ -53,7 +54,8 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const edgeLabels = new Map<string, { width: number; height: number }>();
   for (const e of graph.edges)
-    if (e.label || e.step) edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0), height: 20 });
+    if (e.label || e.step || e.marks?.length || e.ends)
+      edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0) + (e.marks?.length ? tagsWidth(e.marks) + TAG.GAP : 0) + 2 * endsRoom(e.ends), height: 20 });
 
   const groupMinWidth = new Map<string, number>();
   // A lane's name stands in a header at its start: that header's width is what it needs.

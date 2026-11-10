@@ -78,7 +78,7 @@ if (await page.locator('.editor-pane').isVisible()) fail('YAML visible in the bu
 await page.screenshot({ path: `${out}/3-builder.png` });
 // A shape dragged from the panel lands in the YAML.
 const before = await page.locator('.drawing [data-node]').count();
-await page.locator('.shapes .add-item', { hasText: 'App Service' }).click();
+await page.locator('.shapes .add-item', { hasText: /^App Service$/ }).click();
 await wait(600);
 if ((await page.locator('.drawing [data-node]').count()) !== before + 1) fail('click in shapes panel did not add a shape');
 // ⌘\ shows the YAML again.

@@ -112,11 +112,12 @@ export function Present(p: PresentProps) {
       const d: Deck = { id: ++decks, doc, slides: [] };
       const whole = (view?: string) => render(doc.text, { theme: p.theme, themeOverride, icons, sidecar: doc.sidecar, load: doc.load, file: doc.file, view, fonts: 'none' });
       const first = await whole();
-      // A type's own views (data products overview and detailed) are all there is: as written is one of them.
-      const views = first.views?.length ? [...(first.onlyViews || first.type?.views ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
+      const views = first.views?.length ? [...(first.onlyViews ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
       for (const view of views) {
         const r = view === first.view ? first : await whole(view);
         if (!r.svg) continue;
+        // A view the type draws itself can be the drawing as written (data products: the one in `view:`): one slide for both.
+        if (view !== undefined && r.svg === first.svg && d.slides[0]?.view === undefined) d.slides = d.slides.filter((s) => s.view !== undefined);
         const n = r.steps?.length ?? 0;
         for (let step = 1; step <= Math.max(1, n); step++) d.slides.push({ view, ...(n ? { step } : {}) });
       }

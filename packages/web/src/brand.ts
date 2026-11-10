@@ -45,6 +45,13 @@ export function chooseBuiltin(name: string) {
   void registerFonts(undefined);
 }
 
+/** A built-in theme for this page only, not remembered: what a share link was made with. */
+export function showBuiltin(name: string) {
+  if (!themes[name]) return;
+  set({ choice: name, theme: themes[name], warnings: [] });
+  void registerFonts(undefined);
+}
+
 /** Theme files in the open folder, by path. */
 export const themeFiles = (ws: Workspace | undefined) => (ws ? [...ws.files.keys()].filter((p) => /\.theme\.(ya?ml|json)$/i.test(p)).sort() : []);
 

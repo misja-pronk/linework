@@ -136,17 +136,62 @@ function runXml(r: Run, font: string): string {
   return r.text ? `<a:r><a:rPr ${props}>${fill(r)}${face}</a:rPr><a:t>${esc(r.text)}</a:t></a:r>` : '';
 }
 
-export function textBody(t: TextBody, font: string): string {
-  const ins = t.inset ?? {};
-  const body = `<a:bodyPr wrap="none" lIns="${i(ins.l ?? 0)}" tIns="${i(ins.t ?? 0)}" rIns="${i(ins.r ?? 0)}" bIns="${i(ins.b ?? 0)}" anchor="${t.anchor ?? 'ctr'}" rtlCol="0"><a:noAutofit/></a:bodyPr>`;
-  const paras = t.paras
+function parasXml(list: Para[], font: string): string {
+  return list
     .map((p) => {
       // The empty paragraph end gets the text's size too, or a default 18 pt would set the line height.
       const size = p.runs[0]?.size ?? 10;
       return `<a:p><a:pPr algn="${p.align ?? 'l'}"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="${i((p.before ?? 0) * 100)}"/></a:spcBef><a:buNone/></a:pPr>${p.runs.map((r) => runXml(r, font)).join('')}<a:endParaRPr lang="en-US" sz="${Math.max(100, i(size * 100))}" dirty="0"/></a:p>`;
     })
     .join('');
+}
+
+export function textBody(t: TextBody, font: string): string {
+  const ins = t.inset ?? {};
+  const body = `<a:bodyPr wrap="none" lIns="${i(ins.l ?? 0)}" tIns="${i(ins.t ?? 0)}" rIns="${i(ins.r ?? 0)}" bIns="${i(ins.b ?? 0)}" anchor="${t.anchor ?? 'ctr'}" rtlCol="0"><a:noAutofit/></a:bodyPr>`;
+  const paras = parasXml(t.paras, font);
   return `<p:txBody>${body}<a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="en-US"/></a:p>'}</p:txBody>`;
+}
+
+export interface TableCell {
+  paras: Para[];
+  fill?: Fill | null;
+  /** Spans this many columns; the cells it covers follow as `merged`. */
+  span?: number;
+  merged?: boolean;
+  anchor?: 't' | 'ctr' | 'b';
+  /** Margins in EMU. */
+  inset?: { l: number; t: number; r: number; b: number };
+  /** The rule under the cell and the one on its right; none where left out. */
+  bottom?: Line | null;
+  right?: Line | null;
+}
+
+export interface TableSpec {
+  id: number;
+  name: string;
+  frame: Frame;
+  /** Column widths in EMU. */
+  columns: number[];
+  rows: { height: number; cells: TableCell[] }[];
+}
+
+/** A real table (a:tbl): cells you can type in, rows that grow with their text. */
+export function table(t: TableSpec, font: string): string {
+  const edge = (tag: string, l?: Line | null) => (l ? `<a:${tag} w="${i(l.width)}" cap="flat" cmpd="sng">${fill(l)}<a:prstDash val="solid"/></a:${tag}>` : `<a:${tag} w="0"><a:noFill/></a:${tag}>`);
+  const cell = (c: TableCell) => {
+    const m = c.inset ?? { l: 0, t: 0, r: 0, b: 0 };
+    const attrs = c.span && c.span > 1 ? ` gridSpan="${c.span}"` : c.merged ? ' hMerge="1"' : '';
+    const pr = `<a:tcPr marL="${i(m.l)}" marR="${i(m.r)}" marT="${i(m.t)}" marB="${i(m.b)}" anchor="${c.anchor ?? 'ctr'}">${edge('lnL', null)}${edge('lnR', c.right)}${edge('lnT', null)}${edge('lnB', c.bottom)}${fill(c.fill)}</a:tcPr>`;
+    return `<a:tc${attrs}><a:txBody><a:bodyPr/><a:lstStyle/>${parasXml(c.paras, font) || '<a:p><a:endParaRPr lang="en-US"/></a:p>'}</a:txBody>${pr}</a:tc>`;
+  };
+  const grid = t.columns.map((w) => `<a:gridCol w="${i(w)}"/>`).join('');
+  const rows = t.rows.map((r) => `<a:tr h="${i(r.height)}">${r.cells.map(cell).join('')}</a:tr>`).join('');
+  return (
+    `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${t.id}" name="${esc(t.name)}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>` +
+    `<p:xfrm><a:off x="${i(t.frame.x)}" y="${i(t.frame.y)}"/><a:ext cx="${i(t.frame.w)}" cy="${i(t.frame.h)}"/></p:xfrm>` +
+    `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1"/><a:tblGrid>${grid}</a:tblGrid>${rows}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`
+  );
 }
 
 export interface ShapeSpec {
