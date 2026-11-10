@@ -1,0 +1,309 @@
+/* The Ask panel (ask-panel.tsx): docked on the right of the drawing, over it, never moving it. */
+.ask-panel {
+  position: absolute;
+  /* Under the canvas tools, which stay in reach. */
+  top: 60px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 6;
+  width: min(480px, calc(100% - 20px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+}
+.ask-panel > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 8px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--accent);
+}
+.ask-panel > header strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.ask-scope {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ask-key {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.ask-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ask-panel input[type='password'],
+.ask-panel select,
+.ask-panel textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+.ask-panel textarea {
+  resize: none;
+  flex: 1;
+  min-width: 0;
+}
+.ask-panel :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.ask-log {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ask-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ask-empty p {
+  margin: 0 0 10px;
+}
+.ask-empty .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.turn {
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.turn.you {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--accent-soft);
+  color: var(--text);
+  padding: 7px 11px;
+  border-radius: 10px 10px 2px 10px;
+  white-space: pre-wrap;
+}
+.turn.claude .answer > :first-child {
+  margin-top: 0;
+}
+.answer p,
+.answer ul,
+.answer ol {
+  margin: 0 0 8px;
+}
+.answer ul,
+.answer ol {
+  padding-left: 20px;
+}
+.answer li + li {
+  margin-top: 3px;
+}
+.answer h4 {
+  margin: 10px 0 4px;
+  font-size: 13.5px;
+}
+.answer code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.answer button.ref {
+  font: inherit;
+  font-weight: 550;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: none;
+  border-radius: 5px;
+  padding: 0 5px;
+  cursor: pointer;
+}
+.answer button.ref:hover {
+  text-decoration: underline;
+}
+.answer button.ref:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.ask-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.ask-status .button {
+  margin-left: auto;
+  height: 26px;
+}
+.proposal-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 550;
+}
+.proposal-summary em {
+  font-weight: 400;
+  font-style: normal;
+  color: var(--text-faint);
+}
+.proposal-turn.rejected .proposal-summary,
+.proposal-turn.replaced .proposal-summary {
+  color: var(--text-faint);
+  font-weight: 450;
+}
+.proposal-turn.accepted .proposal-summary .icon {
+  color: var(--success);
+}
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  padding: 10px;
+  background: var(--bg);
+}
+.proposal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.proposal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.proposal-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proposal-drawing {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  max-height: 46vh;
+  overflow: auto;
+  background: var(--canvas);
+  border-radius: 7px;
+}
+.proposal-svg {
+  width: 100%;
+  line-height: 0;
+}
+.proposal-svg svg {
+  width: 100%;
+  height: auto;
+  max-height: 46vh;
+}
+.proposal-yaml {
+  margin: 0;
+  max-height: 46vh;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  background: var(--editor-bg);
+  border-radius: 7px;
+  padding: 8px 0;
+}
+.proposal-yaml > span {
+  display: block;
+  padding: 0 10px;
+  white-space: pre;
+}
+.proposal-yaml .add {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+.proposal-yaml .del {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--text-muted);
+}
+.proposal-yaml .fold {
+  color: var(--text-faint);
+  font-style: italic;
+}
+.proposal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.proposal-actions .fine {
+  margin: 0 0 0 auto;
+}
+.ask-errors {
+  display: block;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.ask-input {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+.ask-sent {
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+.ask-sent-text {
+  margin: 6px 0 0;
+  max-height: 28vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 8px;
+  color: var(--text-muted);
+}
+@media (max-width: 860px) {
+  .ask-panel {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    height: min(78vh, 640px);
+  }
+}
+.turn details summary {
+  cursor: pointer;
+  margin-top: 4px;
+  font-size: 12px;
+}

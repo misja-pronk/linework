@@ -28,6 +28,8 @@ const EXPORT_ENTRY = {
 };
 import { ViewPicker } from './view-picker.tsx';
 import { useCompare } from './compare/index.tsx';
+import { AskPanel } from './ai/ask-panel.tsx';
+import { renamePins } from './ai/ask.ts';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
 import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-edit.ts';
@@ -214,6 +216,13 @@ export function App() {
   const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
   const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
   const [presenting, setPresenting] = useState(false);
+  /** The Ask panel (⌘J), and a question the palette put in it. */
+  const [asking, setAsking] = useState(false);
+  const [askSeed, setAskSeed] = useState<{ text: string; n: number }>();
+  const askWith = (q?: string) => {
+    setAsking(true);
+    if (q) setAskSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 }));
+  };
   // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
   const [lens, setLens] = useState<{ doc: string; view?: string; focus: { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null }>();
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
@@ -1372,7 +1381,8 @@ export function App() {
         : [],
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
-  const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector);
+  // The Ask panel takes the right side while it is open: the inspector would squeeze the drawing between the two.
+  const showInspector = !asking && (!!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1420,6 +1430,9 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
+    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: () => (asking ? setAsking(false) : askWith()) },
+    { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
+    { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
@@ -1543,6 +1556,7 @@ export function App() {
       if (e.defaultPrevented || e.altKey || !mod(e)) return;
       const k = e.key.toLowerCase();
       if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
+      else if (k === 'j' && !e.shiftKey) setAsking((a) => !a);
       else if (k === 's' && !e.shiftKey) saveYaml();
       else if (k === 'o' && !e.shiftKey) openFile();
       else if (k === 'e') e.shiftKey ? savePng() : saveSvg();
@@ -1924,6 +1938,9 @@ export function App() {
               <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
                 <Icon name="play" /> Present <kbd>P</kbd>
               </button>
+              <button className={asking ? 'tool active' : 'tool'} onClick={() => setAsking((a) => !a)} title="Ask Claude for a change or about the diagram (⌘J)" aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> Ask <kbd>⌘J</kbd>
+              </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
@@ -1995,8 +2012,30 @@ export function App() {
               onDelete={(n) => editSteps(deleteStep(textNow(), stepsPath(drawn?.view), n))}
             />
           )}
+          {asking && (
+            <AskPanel
+              text={text}
+              type={type}
+              file={docFile}
+              graph={drawn?.graph}
+              placed={drawn?.placed}
+              selection={selection}
+              diagnostics={diagnostics}
+              sidecar={sidecar}
+              load={load}
+              theme={theme}
+              docKey={docKey}
+              seed={askSeed}
+              onAccept={(yaml, renames) => apply(yaml, renames.size ? (renamePins(vpins, renames) ?? null) : undefined)}
+              onRef={(r) => select(r)}
+              onClose={() => {
+                setAsking(false);
+                focusDrawing();
+              }}
+            />
+          )}
         </section>
-            {selected && inspector && type && (selNode || selGroup || selEdge) && (
+            {showInspector && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
@@ -2057,7 +2096,7 @@ export function App() {
             onClose={() => setInspector(false)}
           />
         )}
-        {selection.length > 1 && inspector && (
+        {showInspector && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">
