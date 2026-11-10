@@ -169,10 +169,13 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     const tags = def?.tags.length ? def.tags : node?.tags;
     const technology = def?.technology ?? text(own.technology);
     const owner = def?.owner ?? text(own.owner);
+    // A part of a journey: a step (told with its feeling, touchpoints and pains), a phase or the persona.
+    const part = node?.shape.kind === 'journey-part' ? node.shape : undefined;
+    const kindOf = def?.kind ?? node?.kind ?? entry?.kind ?? part?.part;
     const el: PElement = {
       id: def?.id ?? id,
-      label: def?.label ?? told?.label ?? group?.label ?? id,
-      ...((def?.kind ?? node?.kind ?? entry?.kind) ? { kind: def?.kind ?? node?.kind ?? entry?.kind } : {}),
+      label: def?.label ?? told?.label ?? group?.label ?? part?.label ?? id,
+      ...(kindOf ? { kind: kindOf } : {}),
       ...((def?.description ?? told?.description) ? { description: def?.description ?? told?.description } : {}),
       ...(technology ? { technology } : {}),
       ...(owner ? { owner } : {}),
@@ -180,6 +183,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       where: [],
     };
     const props = propsOf(raw);
+    if (part && told?.detail) props.unshift(['about', told.detail]);
+    if (part && told?.in) props.unshift(['phase', told.in]);
     if (props.length) el.props = props;
     at = elements.push(el) - 1;
     elementIndex.set(key, at);
@@ -271,8 +276,9 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       // What each shape is, and where it leads.
       const graph = light.graph;
       const said = describe(graph);
-      // A matrix, a sequence, a git graph, a roadmap or a journey is one shape: the drawing, not an element of it.
-      const whole = new Set(graph.nodes.filter((x) => ['matrix', 'sequence', 'gitflow', 'roadmap', 'journey', 'journey-part'].includes(x.shape.kind)).map((x) => `n:${x.id}`));
+      // A matrix, a sequence, a git graph, a roadmap or a journey is one shape: the drawing, not an element
+      // of it. A journey's steps, phases and persona are drawn as shapes of their own on top: those click.
+      const whole = new Set(graph.nodes.filter((x) => ['matrix', 'sequence', 'gitflow', 'roadmap', 'journey'].includes(x.shape.kind)).map((x) => `n:${x.id}`));
       for (const shape of drawnShapes(light.svg)) {
         if (whole.has(shape)) continue;
         const ei = elementFor(file, viewName, shape, graph, said);

@@ -1045,7 +1045,8 @@ kbd {
 .canvas-pane {
   container: canvas / inline-size;
 }
-.tool-overflow {
+/* ⋯ is there at every width for Decisions; what it repeats of the toolbar shows once that folds away. */
+.canvas-tools [role='menuitem'].tool-folded {
   display: none;
 }
 span.tool-more {
@@ -1071,8 +1072,8 @@ span.tool-more {
   .canvas-tools .tool-more {
     display: none;
   }
-  .canvas-tools .tool-overflow {
-    display: block;
+  .canvas-tools [role='menuitem'].tool-folded {
+    display: flex;
   }
 }
 
@@ -2543,8 +2544,12 @@ button.rail {
   display: none;
 }
 .more-dots {
+  /* As wide as an icon: ⋯ took the clock's place in the toolbar, not more. */
+  display: inline-block;
+  width: 16px;
   font-size: 18px;
   line-height: 1;
+  text-align: center;
 }
 @media (max-width: 900px) {
   /* The YAML / Drawing tabs are the one switcher here; the shapes panel does not fit anyway. */

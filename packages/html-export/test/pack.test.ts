@@ -129,6 +129,18 @@ edges:
     expect(d.steps![1]!.light).not.toContain('The order itself is quick');
   }, 30_000);
 
+  it('lets the steps, phases and persona of a journey be clicked, with what the journey says about them', async () => {
+    const p = payloadOf((await exportHtml({ entries: ['first-deploy.yaml'], read: reader('examples/journey') })).html);
+    const shapes = p.drawings[0]!.shapes;
+    const step = p.elements[shapes['n:hear']!]!;
+    expect(step).toMatchObject({ label: 'Hears about the platform in a guild demo', kind: 'step', description: 'Looks good in a demo. Will it fit our service?' });
+    expect(step.props).toEqual([['phase', 'Discover'], ['about', 'feeling 3 on 1 to 5 (curious), uses Guild meeting, with Platform team']]);
+    expect(p.elements[shapes['n:persona']!]).toMatchObject({ label: 'Ravi Menon', kind: 'persona' });
+    expect(p.elements[shapes['n:phase:discover']!]).toMatchObject({ label: 'Discover', kind: 'phase' });
+    // The journey itself is the drawing, not an element of it.
+    expect(shapes['n:journey']).toBeUndefined();
+  }, 30_000);
+
   it('makes a folder a site: elements from the model, drill-down, breadcrumbs, the C4 levels in order', async () => {
     const dir = path.join(root, 'examples/workspace');
     const entries = fs.readdirSync(dir).filter((f) => f.endsWith('.yaml'));

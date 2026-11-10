@@ -2,7 +2,7 @@
 // advisory board, the picture on screen as SVG or PNG, and a two-slide deck: before and after, each
 // with its marks, the sentences in the speaker notes. Pictures are drawn again with fonts embedded.
 import type { LayoutSidecar } from '@cartography/core';
-import { compare, explainMarkdown, summary, type Comparison, type Explained, type Picture } from '@cartography/diff';
+import { compare, explainMarkdown, toldSummary, type Comparison, type Explained, type Picture } from '@cartography/diff';
 import { baseName, download } from '../export.ts';
 import type { Baseline } from './versions.ts';
 import type { CompareMode, CompareNow } from './compare-view.tsx';
@@ -82,7 +82,7 @@ export function compareExports(i: Input): CompareExports {
       const [was, is] = [c.side('before'), c.side('after')];
       const empty = (words: string): Picture => ({ svg: `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="120" viewBox="0 0 480 120"><text x="240" y="64" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#667085">${words}</text></svg>`, width: 480, height: 120 });
       const sentences = i.sentences().map((s) => s.text);
-      const counts = summary(c.diff);
+      const counts = toldSummary(c.diff, c.before?.graph, c.after?.graph);
       const title = c.after?.graph?.title ?? c.before?.graph?.title ?? i.name;
       const slides = await Promise.all(
         [

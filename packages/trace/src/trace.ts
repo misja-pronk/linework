@@ -286,7 +286,10 @@ export function story(g: TraceGraph, steps: StoryStep[]): TraceOption | undefine
     const via = paths(g, a, b, 1)[0];
     if (via) {
       notes.push(`No line from ${labelOf(g, a)} to ${labelOf(g, b)}: traced through ${via.ids.slice(1, -1).map((id) => labelOf(g, id)).join(', ')}`);
-      return via.calls;
+      // Called again knowing the call that came in, so a router on the way forwards its label.
+      const out: Call[] = [];
+      for (const c of via.calls) out.push(callOf(g, c.from, c.to, c.relation, out.at(-1) ?? last));
+      return out;
     }
     notes.push(`Nothing leads from ${labelOf(g, a)} to ${labelOf(g, b)}: drawn as a call without a line`);
     return [callOf(g, a, b)];
@@ -294,7 +297,9 @@ export function story(g: TraceGraph, steps: StoryStep[]): TraceOption | undefine
   let last: Call | undefined;
   const routeCalls = (ids: string[]) =>
     ids.slice(1).flatMap((b, i) => {
-      if (i === 0) last = undefined;
+      // A route that goes on from where the one before ended carries on with its request: a router
+      // it starts at forwards that call's label ("customers -> gateway", then "gateway -> orders").
+      if (i === 0 && last?.to !== ids[0]) last = undefined;
       const out = hop(ids[i]!, b);
       last = out.at(-1);
       return out;

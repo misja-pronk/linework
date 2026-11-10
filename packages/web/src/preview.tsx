@@ -253,9 +253,7 @@ export function Preview(p: Props) {
     paneSize.current = { w: f.clientWidth, h: f.clientHeight };
     fittedPane.current = { ...paneSize.current };
     const pad = 32;
-    // Never under what floats over the top of the pane: the tools and the focus chip.
-    const tools = f.querySelector('.canvas-top');
-    const top = Math.max(pad, tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0);
+    const top = Math.max(pad, floatingTop(f));
     const w = f.clientWidth - 2 * pad;
     const h = f.clientHeight - top - BAR;
     // With the page shown, the page (and its label) is what fits and is centred: it is wider or taller
@@ -362,7 +360,8 @@ export function Preview(p: Props) {
     const f = frame.current;
     const boxes = selection.map((s) => selectedBox(result, s)).filter((b): b is Box => !!b);
     if (!f || !boxes.length) return fit();
-    setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { bottom: BAR, max: 2, min: MIN }));
+    // Clear of the tools as fit() is: viewFor keeps its own 48 px on top of `top`.
+    setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { top: Math.max(0, floatingTop(f) - 48), bottom: BAR, max: 2, min: MIN }));
   };
   /** A point of the pane (client pixels) in pin space. */
   const pinAt = (cx: number, cy: number): Point | undefined => {
@@ -1188,6 +1187,12 @@ function LabelEditor(p: { text: string; left: number; top: number; width: number
 }
 
 /** The selected element's box in SVG coordinates. */
+/** Where the drawing may start, below what floats over the top of the pane: the breadcrumbs, the tools and the focus chip (16 px under them). */
+function floatingTop(f: HTMLElement): number {
+  const tools = f.querySelector('.canvas-top');
+  return tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0;
+}
+
 function selectedBox(result: RenderResult | undefined, s: Selection | undefined): Box | undefined {
   if (!result?.placed || !result.origin || !s) return undefined;
   const o = result.origin;

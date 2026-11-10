@@ -6,7 +6,7 @@ What changed in a diagram since the review, since the last commit, since last qu
 
 ## Compare with…
 
-**⇧⌘D** (with the drawing in focus: elsewhere it stays the browser's), the **Compare** button in the drawing's toolbar, or *Compare with…* in the command palette (⌘K). It offers:
+**⇧⌘D** (with the drawing in focus: elsewhere it stays the browser's), *Compare with an earlier version* in the drawing toolbar's **⋯**, or *Compare with…* in the command palette (⌘K). It offers:
 
 | Version | What it is |
 |---|---|
@@ -39,11 +39,11 @@ The list on the right says each change in words, with the names the drawing show
 - *Renamed “Orders” to “Orders service”*
 - *Removed Legacy VM from rg-shop (and its connection)*
 
-Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list. Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
+Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list; so do the key under the picture, the Markdown summary, the slides and `carto diff -o changes.md` (its table, element by element, still lists every line). Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
 
 | Key | |
 |---|---|
-| **N** / **P** | Next / previous change (J and K too) |
+| **]** / **[** | Next / previous change (**J** and **K** too) |
 | **↵** or double-click | Back to editing, with that element selected |
 | **M** | Overlay or side by side |
 | **0** / **+** / **−** | Fit / zoom in / zoom out; pinch or ⌘-scroll zooms, two fingers or a drag pan |

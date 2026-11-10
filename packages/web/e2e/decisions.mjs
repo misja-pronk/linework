@@ -118,6 +118,23 @@ const browser = await chromium.launch();
   await page.waitForSelector('.files .file');
   await settle();
 
+  // The trackpad way in with nothing selected, in a wide window: the toolbar's ⋯ (it holds only what
+  // the toolbar does not show itself).
+  await step('the toolbar ⋯ opens the decisions with nothing selected', async () => {
+    const more = page.locator('.canvas-tools button[aria-label="More tools"]');
+    check(await more.isVisible(), 'editor: ⋯ shows in a wide window');
+    await more.click();
+    const item = page.locator('.canvas-tools [role="menuitem"]:has-text("Decisions")');
+    check(await item.isVisible(), 'editor: ⋯ offers Decisions');
+    check(!(await page.locator('.canvas-tools [role="menuitem"]:has-text("Focus")').isVisible()), 'editor: ⋯ does not repeat Focus while the toolbar shows it');
+    await page.screenshot({ path: path.join(out, 'editor-0-more.png') });
+    await item.click();
+    await page.waitForSelector('.decisions-panel');
+    await more.click();
+    await page.click('.canvas-tools [role="menuitem"]:has-text("Hide the decisions")');
+    await page.waitForSelector('.decisions-panel', { state: 'detached' });
+  });
+
   await step('open the payments view with the engine selected', async () => {
     await page.keyboard.press('Meta+p');
     await page.waitForSelector('.ws-search');

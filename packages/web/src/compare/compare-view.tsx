@@ -7,7 +7,7 @@ import { shortcutFor } from '../keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutSidecar } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
-import { compare, explain, type Comparison, type Explained, type ItemDiff, type Picture } from '@cartography/diff';
+import { compare, countTold, explain, type Comparison, type Explained, type ItemDiff, type Picture } from '@cartography/diff';
 import { useBrand } from '../brand.ts';
 import { useIconOptions } from '../icon-packs.ts';
 import { registerThemeFonts } from '../fonts.ts';
@@ -132,11 +132,7 @@ export function CompareView(p: Props) {
   const [at, setAt] = useState<number>();
   const current = at !== undefined ? steps[at] : undefined;
   // Counted as the list says them: a line removed with its node is part of that node's sentence, not a change of its own.
-  const counts = useMemo(() => {
-    if (!cmp) return undefined;
-    const of = (st: 'added' | 'changed' | 'removed') => steps.filter((x) => x.item!.status === st).length;
-    return { added: of('added'), changed: of('changed') + sentences.filter((x) => !x.item).length, removed: of('removed') };
-  }, [cmp, steps, sentences]);
+  const counts = useMemo(() => (cmp ? countTold(sentences) : undefined), [cmp, sentences]);
 
   // ------------------------------------------------------------ pan and zoom, one for both panes
 

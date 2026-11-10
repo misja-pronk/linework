@@ -3,8 +3,8 @@
 // (“TLS”)", "Removed Legacy VM (and its 2 connections)". No AI: every sentence comes from the
 // structural diff, with the names the drawing shows rather than ids.
 import type { Graph, GraphEdge, GraphNode } from '@cartography/core';
-import { escapeMarkdown, markdownDiff, summary } from './text.ts';
-import type { Change, GraphDiff, ItemDiff } from './structure.ts';
+import { escapeMarkdown, markdownDiff } from './text.ts';
+import type { Change, GraphDiff, ItemDiff, Status } from './structure.ts';
 
 /** One sentence, with the element it is about (to focus it in the drawing). */
 export interface Explained {
@@ -134,6 +134,26 @@ export function explain(diff: GraphDiff, before?: Graph, after?: Graph): Explain
   return out;
 }
 
+/**
+ * How many changes, counted as the sentences tell them: a line that went with its node is part of
+ * that node's sentence, not a change of its own; a new title is a change. The editor's list, its
+ * counts, the picture's key and the Markdown summary all count this way, so they agree.
+ */
+export function countTold(told: Explained[]): Record<Status, number> {
+  const counts: Record<Status, number> = { added: 0, removed: 0, changed: 0 };
+  for (const x of told) counts[x.item?.status ?? 'changed']++;
+  return counts;
+}
+
+export const toldCounts = (diff: GraphDiff, before?: Graph, after?: Graph): Record<Status, number> => countTold(explain(diff, before, after));
+
+/** "2 added, 1 removed, 3 changed", or "no changes": the counts of the sentences. */
+export function toldSummary(diff: GraphDiff, before?: Graph, after?: Graph): string {
+  const counts = toldCounts(diff, before, after);
+  const parts = (['added', 'removed', 'changed'] as const).filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`);
+  return parts.length ? parts.join(', ') : 'no changes';
+}
+
 /** The sentences joined for a one-line note: "Added Redis cache; removed Legacy VM." */
 export function explainText(diff: GraphDiff, before?: Graph, after?: Graph): string {
   const s = explain(diff, before, after).map((x, i) => (i ? lower(x.text) : x.text));
@@ -155,5 +175,6 @@ export function explainMarkdown(diff: GraphDiff, before?: Graph, after?: Graph, 
   const head = `## Changes to ${escapeMarkdown(name)}${opts.against ? ` since ${escapeMarkdown(opts.against)}` : ''}`;
   if (diff.same && !opts.lead?.length) return `${head}\n\nNo changes in what is drawn.\n`;
   const lines = [...(opts.lead ?? []), ...explain(diff, before, after).map((x) => x.text)];
-  return [head, '', `${summary(diff)[0]!.toUpperCase()}${summary(diff).slice(1)}.`, '', ...lines.map((l) => `- ${escapeMarkdown(l)}`), '', '### Element by element', '', markdownDiff(diff, 200), ''].join('\n');
+  const counts = toldSummary(diff, before, after);
+  return [head, '', `${counts[0]!.toUpperCase()}${counts.slice(1)}.`, '', ...lines.map((l) => `- ${escapeMarkdown(l)}`), '', '### Element by element', '', markdownDiff(diff, 200), ''].join('\n');
 }
