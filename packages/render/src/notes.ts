@@ -75,7 +75,7 @@ export const noteInk = (theme: Theme) => theme.tones.amber.fg;
  * A speech bubble with the thread's number whose tail points at (x, y): told from a step number by
  * its shape and its number, not by colour. A resolved thread's bubble is an outline.
  */
-export function noteMarker(theme: Theme, x: number, y: number, n: number, resolved = false): string {
+export function noteMarker(theme: Theme, x: number, y: number, n: number, resolved = false, title?: string): string {
   const label = String(n);
   const w = Math.max(18, measureText(label, 10.5, 600) + 10);
   const h = 16;
@@ -85,7 +85,7 @@ export function noteMarker(theme: Theme, x: number, y: number, n: number, resolv
   const fill = resolved ? theme.surface : ink;
   const d = `M${r1(left + 3)} ${r1(top)}h${r1(w - 6)}a3 3 0 0 1 3 3v${h - 6}a3 3 0 0 1-3 3H${r1(left + 9)}L${r1(x)} ${r1(y)}L${r1(left + 4)} ${r1(top + h)}H${r1(left + 3)}a3 3 0 0 1-3-3v${-(h - 6)}a3 3 0 0 1 3-3z`;
   return (
-    `<g data-note="${n}"><path d="${d}" fill="${fill}" stroke="${resolved ? ink : theme.surface}" stroke-width="${resolved ? 1.2 : 1.5}" stroke-linejoin="round"/>` +
+    `<g data-note="${n}">${title ? `<title>${esc(title)}</title>` : ''}<path d="${d}" fill="${fill}" stroke="${resolved ? ink : theme.surface}" stroke-width="${resolved ? 1.2 : 1.5}" stroke-linejoin="round"/>` +
     `<text x="${r1(left + w / 2)}" y="${r1(top + h / 2 + baselineOffset(10.5))}" font-size="10.5" font-weight="600" fill="${resolved ? ink : theme.surface}" text-anchor="middle">${esc(label)}</text></g>`
   );
 }
@@ -102,7 +102,8 @@ export function withReviewNotes(
   placed: Placed,
   notes: NotesFile,
   theme: Theme,
-  opts: { view?: string; resolved?: boolean } = {},
+  /** `appendix: false`: the markers only (a live preview, where the notes are listed elsewhere). */
+  opts: { view?: string; resolved?: boolean; appendix?: boolean } = {},
 ): { svg: string; width: number; height: number; count: number } {
   const spots = noteSpots(notes, graph, placed, opts.view, opts);
   const numbers = noteNumbers(notes);
@@ -112,7 +113,8 @@ export function withReviewNotes(
     .sort((a, b) => numbers.get(a.id)! - numbers.get(b.id)!);
   if (!listed.length) return { ...drawn, count: 0 };
   const o = drawn.origin ?? { x: 0, y: 0 };
-  const marks = spots.map((s) => noteMarker(theme, s.at.x + o.x, s.at.y + o.y, s.n, s.thread.status === 'resolved')).join('');
+  const marks = spots.map((s) => noteMarker(theme, s.at.x + o.x, s.at.y + o.y, s.n, s.thread.status === 'resolved', `${s.n}. ${s.about} — ${s.thread.author || 'someone'}: ${s.thread.text}`)).join('');
+  if (opts.appendix === false) return { svg: drawn.svg.replace(/<\/svg>\s*$/, `<g data-notes="">${marks}</g></svg>`), width: drawn.width, height: drawn.height, count: spots.length };
   // The appendix: under the drawing, as wide as it (at least a readable column).
   const pad = 32;
   const width = Math.max(drawn.width, 420);
