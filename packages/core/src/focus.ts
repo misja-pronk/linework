@@ -9,7 +9,7 @@
 // `on` takes the selectors steps take (steps.ts): an id, a group (everything inside), id.*, tag:x,
 // kind:x or a route "a -> b". Upstream and downstream follow the arrows; a line without an arrow
 // (a network link, a contract, an ERD relation) counts both ways.
-import type { Graph, GraphEdge } from './model.ts';
+import type { Graph, GraphEdge, GraphNode, LegendItem } from './model.ts';
 import { selectorsOf } from './steps.ts';
 
 export type FocusDirection = 'both' | 'upstream' | 'downstream';
@@ -115,8 +115,15 @@ export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: stri
     const n = s.nodes.get(id);
     return n ? (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (s.groups.get(id)?.label ?? id);
   };
+  const nodes = graph.nodes.filter((n) => keep.has(n.id));
+  // The legend explains what is drawn: a line or a colour that only occurred outside the neighbourhood goes with it.
+  const sample = (l: LegendItem) => (e: GraphEdge) => (e.line ?? 'solid') === (l.line ?? 'solid') && e.tone === l.tone;
+  const tone = (n: GraphNode) => ('tone' in n.shape ? n.shape.tone : undefined);
+  const gone = (l: LegendItem) =>
+    l.swatch === 'fill' ? graph.nodes.some((n) => tone(n) === l.tone) && !nodes.some((n) => tone(n) === l.tone) : !l.swatch && graph.edges.some(sample(l)) && !edges.some(sample(l));
+  const legend = graph.legend?.filter((l) => !gone(l));
   return {
-    graph: { ...graph, groups: graph.groups.filter((g) => keep.has(g.id)).map(mark), nodes: graph.nodes.filter((n) => keep.has(n.id)).map(mark), edges, ...(steps ? { steps } : {}) },
+    graph: { ...graph, groups: graph.groups.filter((g) => keep.has(g.id)).map(mark), nodes: nodes.map(mark), edges, ...(legend ? { legend } : {}), ...(steps ? { steps } : {}) },
     names: [...marked].map(name),
     kept: graph.nodes.filter((n) => keep.has(n.id)).length,
     total: graph.nodes.length,

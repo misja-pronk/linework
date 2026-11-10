@@ -162,6 +162,15 @@ describe('focus', () => {
     }
   }, 30_000);
 
+  it('the legend explains what is left: no colour or line of what was cut away', async () => {
+    const mesh = example('data-products/mesh.yaml');
+    const load = (rel: string) => example(`data-products/${rel}`);
+    const labels = async (focus?: unknown) => (await render(mesh, { fonts: 'none', load, ...(focus ? { focus } : {}) })).graph!.legend!.map((l) => l.label);
+    expect(await labels()).toEqual(['Source-aligned', 'Aggregate', 'Consumer-aligned', 'Data flow']);
+    expect(await labels({ on: 'revenue', hops: 'all', direction: 'upstream' })).toEqual(['Source-aligned', 'Consumer-aligned', 'Data flow']);
+    expect(await labels({ on: 'exchange-rates', hops: 0 })).toEqual(['Source-aligned']);
+  });
+
   it('a drawing that is one shape is shown whole, with a note', async () => {
     for (const [id, what] of [['sequence', 'a sequence diagram'], ['gitflow', 'a git graph'], ['roadmap', 'a roadmap']] as const) {
       const type = findType(id)!;
