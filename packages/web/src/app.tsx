@@ -6,7 +6,7 @@ import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride,
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
-import { ArrangeBar, arrangeCommands, arrangeKey, craftKey, useCraftPrefs } from './craft-actions.tsx';
+import { ArrangeBar, arrangeCommands, arrangeKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
 import { Start, type Incoming, type Opened, type View } from './start.tsx';
 import { isDrawio, isExcalidraw } from '@cartography/interop';
@@ -27,6 +27,7 @@ const EXPORT_ENTRY = {
   azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
+import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
@@ -318,6 +319,7 @@ export function App() {
   const pinnedIds = useMemo(() => new Set([...Object.keys(vpins?.nodes ?? {}), ...Object.keys(vpins?.groups ?? {})]), [vpins?.nodes, vpins?.groups]);
   const craft = useCraftPrefs();
   const previewControl = useRef<PreviewControl>(null);
+  const dragStartedInView = useRef(false);
 
   // ------------------------------------------------------------ review notes
 
@@ -872,6 +874,7 @@ export function App() {
    * stay). The drawing before is forgotten, so the rest is placed as a new drawing would place it.
    */
   const tidyLayout = () => {
+    previewControl.current?.fitNext();
     setFresh((n) => n + 1);
     if (!vpins) return void acted();
     const { layout: _, ...kept } = vpins;
@@ -880,8 +883,9 @@ export function App() {
   };
   /** Tidy all: unpins everything and lays it out afresh, as one undo step. */
   const tidyAll = () => {
+    previewControl.current?.fitNext();
     resetLayout();
-    if (vpins) notify('Unpinned everything and laid it out afresh (⌘Z undoes it)');
+    if (vpins) notify(pinCount ? `Unpinned ${count(pinCount, 'element')} and laid it all out afresh` : 'Laid it all out afresh', { action: { label: 'Undo', run: () => editor.current?.undo() } });
   };
   /** Pins the selected nodes and groups where they are, or unpins them when all are pinned: the layout places them again. */
   const togglePin = () => {
@@ -1170,7 +1174,10 @@ export function App() {
 
   const move = (id: string, at: Point, done: boolean, group?: string | null) => {
     const moved = movedWith(id, at);
+    // A drawing wholly in view before a drag fits again when the drag took it past the edge.
+    if (!done && !draft) dragStartedInView.current = previewControl.current?.wholly() ?? false;
     if (!done) return setDraft({ nodes: moved });
+    previewControl.current?.keepInView(dragStartedInView.current);
     setDraft(undefined);
     const nextPins = withPins(moved);
     // Moving and changing group are one step: one undo puts both back.
@@ -1299,41 +1306,50 @@ export function App() {
 
   const onCanvasKey = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
+    const arrange = arrangeKey(e);
+    if (arrange) {
+      arrangeSelection(arrange);
+      return e.preventDefault();
+    }
+    // The drawing's keys, by the table in keys.ts (the sheet shows the same).
+    const id = shortcutFor(e, drawn?.focus ? ['drawing', 'focus'] : ['drawing']);
     const step = e.shiftKey ? NUDGE * 5 : NUDGE;
-    if (mod(e) && e.key.toLowerCase() === 'z') e.shiftKey ? editor.current?.redo() : editor.current?.undo();
-    else if (mod(e) && e.key.toLowerCase() === 'y') editor.current?.redo();
-    else if (mod(e) && e.key.toLowerCase() === 'd') duplicate();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'c') copy();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'v') paste();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
-    else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
-    else if (e.key === 'Escape') selection.length || !focusOn ? setSelection([]) : leaveFocus();
-    else if (e.key.toLowerCase() === 'f' && !mod(e) && !e.altKey) focusOnSelection();
-    else if ((e.key === '+' || e.key === '=' || e.key === '-') && !mod(e) && !e.altKey && drawn?.focus) focusHops(e.key === '-' ? -1 : 1);
-    else if (e.key === 'd' && !mod(e) && !e.altKey && drawn?.focus) focusDirection();
-    else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
-    else if (craftKey(e) === 'lock') toggleLock();
-    else if (e.code === 'KeyL' && e.shiftKey && !mod(e) && !e.altKey) togglePin();
-    else if (e.code === 'KeyT' && !mod(e) && !e.altKey) e.shiftKey ? tidyAll() : tidyLayout();
-    else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap' || craftKey(e) === 'page') craft.toggle(craftKey(e) as 'grid' | 'minimap' | 'page');
-    else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
-    else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
-    else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
-    else if (e.key === 'v' && !mod(e) && !e.altKey) nextView();
-    else if (e.key === 'ArrowLeft') nudge(-step, 0);
-    else if (e.key === 'ArrowRight') nudge(step, 0);
-    else if (e.key === 'ArrowUp') nudge(0, -step);
-    else if (e.key === 'ArrowDown') nudge(0, step);
-    else if (e.key === 'Tab' && !mod(e)) {
-      if (!cycle(e.shiftKey ? -1 : 1)) return;
-    } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
-    else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
-    else if (e.key === 'n' && !mod(e) && !e.altKey) addNote();
-    else if (e.key === 'N' && !mod(e) && !e.altKey) toggleNotes();
-    else if (e.key === 'R' && !mod(e) && !e.altKey) toggleReview();
-    else if (e.key === 'F2' && !e.shiftKey && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
-    else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
-    else return;
+    switch (id) {
+      case 'undo': editor.current?.undo(); break;
+      case 'redo': editor.current?.redo(); break;
+      case 'duplicate': duplicate(); break;
+      case 'copy': copy(); break;
+      case 'paste': paste(); break;
+      case 'select-all': selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false); break;
+      case 'delete': selection.length > 1 ? removeAll() : remove(); break;
+      case 'escape': selection.length || !focusOn ? setSelection([]) : leaveFocus(); break;
+      case 'focus': focusOnSelection(); break;
+      case 'focus-hops': focusHops(e.key === '-' ? -1 : 1); break;
+      case 'focus-direction': focusDirection(); break;
+      case 'lock': toggleLock(); break;
+      case 'pin': togglePin(); break;
+      case 'tidy': tidyLayout(); break;
+      case 'grid':
+      case 'minimap':
+      case 'page': craft.toggle(id); break;
+      case 'nearest': focusToward(e.key.slice(5).toLowerCase() as Direction); break;
+      case 'step-by': stepBy(e.key === ']' ? 1 : -1); break;
+      case 'step': addStepFromSelection(); break;
+      case 'next-view': nextView(); break;
+      case 'nudge': nudge(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0); break;
+      case 'cycle': if (!cycle(e.shiftKey ? -1 : 1)) return; break;
+      case 'add': addShape(); break;
+      case 'connect': if (selected?.kind !== 'node') return; setModal('connect'); break;
+      case 'note': addNote(); break;
+      case 'notes': toggleNotes(); break;
+      case 'review': toggleReview(); break;
+      case 'edit':
+        if (!selected) return;
+        if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
+        else (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
+        break;
+      default: return;
+    }
     e.preventDefault();
   };
 
@@ -1452,7 +1468,10 @@ export function App() {
     const n = (drawn?.step ?? stepList.length) + 1;
     const next = addStep(textNow(), stepsPath(drawn?.view), { title: names.length === 1 ? names[0]! : names.length === 2 ? names.join(' and ') : `Step ${n}`, focus }, drawn?.step);
     editSteps(next, n);
-    if (next) setNaming(n);
+    if (next) {
+      setNaming(n);
+      notify(`Step ${n} added: ${names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : `${names.length} elements stand out`}`, { action: { label: 'Undo', run: () => editor.current?.undo() } });
+    }
   };
   const present = () => {
     if (!drawn?.svg) return notify('Nothing to present yet: fix the problems in the YAML first', { tone: 'error' });
@@ -1591,24 +1610,24 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: toggleAsk },
+    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
-      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
-      : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
-    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
+      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
+      : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
+    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
+    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: keyHint('save'), run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
     ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
-    { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
-    { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
+    { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: keyHint('export-svg'), run: saveSvg },
+    { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: keyHint('export-png'), run: savePng },
     { id: 'slide', group: 'Export', label: `PNG on the page (${pageName})`, icon: 'monitor', run: saveSlide },
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
@@ -1621,60 +1640,60 @@ export function App() {
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
     { id: 'share', group: 'Export', label: 'Copy share link', hint: 'read-only, the diagram travels in the link', icon: 'link', run: copyShare },
     { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
-    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
+    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: keyHint('present'), run: present },
     ...(type && !drawn?.stepsImplied
-      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
+      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: keyHint('step'), run: addStepFromSelection }]
       : []),
     ...(stepList.length
       ? [
-          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: ']', run: () => stepBy(1) },
+          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: keyHint('step-by'), run: () => stepBy(1) },
           { id: 'step-previous', group: 'Present', label: 'Previous step', icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
           ...(drawn?.step ? [{ id: 'step-none', group: 'Present', label: 'Show the whole drawing', hint: 'no step', icon: 'layers', run: () => pickStep(undefined) }] : []),
           ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
         ]
       : []),
     ...comparing.commands,
-    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: 'N', run: () => addNote() },
-    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: '⇧N', run: toggleNotes },
-    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: '⇧R', run: toggleReview },
+    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
+    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
+    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
-    { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
-    { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'sparkles', shortcut: 'T', run: tidyLayout },
-    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'lay it all out afresh; ⌘Z undoes it', icon: 'pin-off', shortcut: '⇧T', run: tidyAll }] : []),
-    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: '⇧L', run: togglePin },
+    { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
+    { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
+    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'layout-grid', shortcut: keyHint('tidy'), run: tidyLayout },
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'unpin everything and lay it all out afresh; Undo in the message', icon: 'pin-off', run: tidyAll }] : []),
+    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: keyHint('pin'), run: togglePin },
     ...arrangeCommands(arrangeSelection),
-    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
+    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: keyHint('lock'), run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
-    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
+    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: keyHint('fit'), run: () => previewControl.current?.fit() },
     ...viewList()
       .filter((v) => v !== viewName)
       .map((v) => ({ id: `view-${v ?? 'as-written'}`, group: 'View', label: v === undefined ? 'Show the diagram as written' : `Show the ${viewTitle(v)} view`, hint: 'the YAML stays as it is', icon: 'layers', run: () => showView(v) })),
-    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: 'V', run: nextView }] : []),
+    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: keyHint('next-view'), run: nextView }] : []),
     ...(ownView ? [{ id: 'view-keep', group: 'View', label: `Write view: ${viewName} into the YAML`, hint: 'so it opens like this', icon: 'save', run: keepView }] : []),
-    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
-    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: 'F', run: focusOnSelection },
+    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: keyHint('zoom-selection'), run: () => previewControl.current?.zoomToSelection() },
+    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: keyHint('focus'), run: focusOnSelection },
     ...(drawn?.focus
       ? [
           { id: 'focus-more', group: 'Focus', label: 'Focus: one hop more', hint: drawn.focus.hops === Infinity ? 'everything connected is shown' : `now ${drawn.focus.hops}`, icon: 'plus', shortcut: '+', run: () => focusHops(1) },
           { id: 'focus-fewer', group: 'Focus', label: 'Focus: one hop fewer', icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
-          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: 'D', run: focusDirection },
+          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: keyHint('focus-direction'), run: focusDirection },
         ]
       : []),
-    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: 'Esc', run: leaveFocus }] : []),
-    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
-    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
-    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: '⇧P', run: () => craft.toggle('page') },
+    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: keyHint('escape'), run: leaveFocus }] : []),
+    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: keyHint('grid'), run: () => craft.toggle('grid') },
+    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: keyHint('minimap'), run: () => craft.toggle('minimap') },
+    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: keyHint('page'), run: () => craft.toggle('page') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
-    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: '?', run: () => setTimeout(() => setModal('shortcuts')) },
+    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: keyHint('sheet'), run: () => setTimeout(() => setModal('shortcuts')) },
     { id: 'problems', group: 'View', label: 'Show problems', hint: shownNotes ? `and ${shownNotes.items.length} from the import` : undefined, icon: 'circle-exclamation-point', run: () => setModal('problems') },
     ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
     ...(selected?.kind === 'node'
-      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: 'C', run: () => setTimeout(() => setModal('connect')) }]
+      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => setModal('connect')) }]
       : []),
     ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', run: () => select({ kind: 'group', id: g.id }) })),
     ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => select({ kind: 'node', id: n.id }) })),
@@ -1704,50 +1723,32 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // F6 moves between the editor, the drawing and the properties, like panes in other apps.
-      if (e.key === 'F6') {
-        const panes = ['.cm-content', '.preview', '.inspector input, .inspector select'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
-        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.inspector') && p.closest('.inspector')!.contains(document.activeElement)));
+      if (is(e, 'next-pane')) {
+        const panes = ['.cm-content', '.preview', '.side input, .side select, .side textarea'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
+        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.side') && p.closest('.side')!.contains(document.activeElement)));
         panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
         return e.preventDefault();
       }
-      // "?" opens the shortcuts, unless someone is typing.
-      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
-      if (!modal && !presenting && wsTools.onKey(e, mod(e), !!typing)) return e.preventDefault();
-      if (e.key === '?' && !typing && !modal) {
-        setModal('shortcuts');
-        return e.preventDefault();
-      }
-      // "P" presents, from anywhere but a text field.
-      if (e.key.toLowerCase() === 'p' && !e.shiftKey && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        present();
-        return e.preventDefault();
-      }
-      if (e.defaultPrevented || e.altKey || !mod(e)) return;
-      const k = e.key.toLowerCase();
-      if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
-      else if (k === 'j' && !e.shiftKey) toggleAsk();
-      else if (k === 's' && !e.shiftKey) saveYaml();
-      else if (k === 'o' && !e.shiftKey) openFile();
-      else if (k === 'e') e.shiftKey ? savePng() : saveSvg();
-      else if (e.key === '\\') setView(view === 'visual' ? 'code' : 'visual');
+      // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
+      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
+      if (!modal && !presenting && wsTools.onKey(e, !!typing)) return e.preventDefault();
+      if (e.defaultPrevented) return;
+      const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
+      if (!id || (modal && id !== 'palette') || presenting) return;
+      if (id === 'sheet') setModal('shortcuts');
+      else if (id === 'present') present();
+      else if (id === 'palette') setModal((m) => (m === 'palette' ? undefined : 'palette'));
+      else if (id === 'ask') toggleAsk();
+      else if (id === 'save') saveYaml();
+      else if (id === 'open') openFile();
+      else if (id === 'export-svg') saveSvg();
+      else if (id === 'export-png') savePng();
+      else if (id === 'switch-view') setView(view === 'visual' ? 'code' : 'visual');
       else return;
       e.preventDefault();
     };
-    // ⌘↩ presents too, also while typing YAML: caught before the editor takes it for a new line.
-    const onPresentKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || !mod(e) || e.shiftKey || e.altKey || modal || presenting) return;
-      // In a note, ⌘↩ sends it.
-      if ((e.target as HTMLElement | null)?.closest?.('.note-composer')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      present();
-    };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('keydown', onPresentKey, true);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keydown', onPresentKey, true);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   });
 
   // Splitter between editor and drawing, by pointer or arrow keys.

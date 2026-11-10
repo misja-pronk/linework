@@ -1577,7 +1577,31 @@ button.rail {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 16px 16px 4px 24px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.shortcuts-search {
+  flex: 1;
+  max-width: 340px;
+  margin-left: auto;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.shortcut-where {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.shortcuts-none {
+  color: var(--text-muted);
 }
 .shortcuts h2 {
   display: flex;

@@ -1,6 +1,7 @@
 // Comparing the open diagram with an earlier version, as the editor offers it: "Compare with…" (⇧⌘D)
 // picks the version (last saved, a snapshot, another file, a commit), "Take snapshot…" (⇧⌘S) keeps
 // one. The app hands in what it knows about the document and places what this returns.
+import { is, keyHint } from '../keys.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { LayoutSidecar } from '@cartography/core';
 import type { ItemDiff } from '@cartography/diff';
@@ -39,8 +40,6 @@ export interface CompareContext {
 }
 
 const backend = browserBackend();
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-const mod = (e: KeyboardEvent) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
 const stamp = () => {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
@@ -144,7 +143,7 @@ export function useCompare(ctx: CompareContext) {
         icon: 'clock',
         run: () => start({ id: `snapshot:${s.label}`, kind: 'snapshot', name: `snapshot ${s.label}`, text: s.text, ...(s.pins ? { sidecar: s.pins } : {}) }),
       });
-    list.push({ id: 'snapshot-take', group: 'Snapshots', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: '⇧⌘S', run: () => (setChoosing(undefined), setNaming(true)) });
+    list.push({ id: 'snapshot-take', group: 'Snapshots', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: keyHint('snapshot'), run: () => (setChoosing(undefined), setNaming(true)) });
     if (c.ws && c.path) {
       const { repo: r, why } = await gitRepo();
       if (r) {
@@ -205,15 +204,15 @@ export function useCompare(ctx: CompareContext) {
       await saveInFolder(c.ws, p, text, c.pins);
       where = `in ${p}`;
     }
-    c.notify(`Snapshot “${label}” taken, ${where}. ⇧⌘D compares with it.`);
+    c.notify(`Snapshot “${label}” taken, ${where}. ${keyHint('compare')} compares with it (with the drawing in focus).`);
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (latest.current.blocked || choosing || naming || e.altKey || !mod(e) || !e.shiftKey) return;
-      const k = e.key.toLowerCase();
-      if (k === 's') setNaming(true);
-      else if (k === 'd') void choose();
+      // ⇧⌘S and ⇧⌘D while the drawing has focus: elsewhere they stay the browser's (bookmarks, screenshots).
+      if (latest.current.blocked || choosing || naming || !(e.target as HTMLElement | null)?.closest?.('.preview')) return;
+      if (is(e, 'snapshot')) setNaming(true);
+      else if (is(e, 'compare')) void choose();
       else return;
       e.preventDefault();
       e.stopPropagation();
@@ -223,8 +222,8 @@ export function useCompare(ctx: CompareContext) {
   });
 
   const commands: Command[] = [
-    { id: 'compare', group: 'Compare', label: 'Compare with…', hint: 'last saved, a snapshot, another file or a commit', icon: 'clock', shortcut: '⇧⌘D', run: () => setTimeout(() => void choose()) },
-    { id: 'snapshot', group: 'Compare', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: '⇧⌘S', run: () => setTimeout(() => setNaming(true)) },
+    { id: 'compare', group: 'Compare', label: 'Compare with…', hint: 'last saved, a snapshot, another file or a commit', icon: 'clock', shortcut: keyHint('compare'), run: () => setTimeout(() => void choose()) },
+    { id: 'snapshot', group: 'Compare', label: 'Take snapshot…', hint: 'keep the diagram as it is now, to compare with later', icon: 'plus', shortcut: keyHint('snapshot'), run: () => setTimeout(() => setNaming(true)) },
     ...(baseline
       ? [
           { id: 'compare-mode', group: 'Compare', label: mode === 'overlay' ? 'Compare side by side' : 'Compare as an overlay', icon: 'split', shortcut: 'M', run: () => setMode(mode === 'overlay' ? 'side' : 'overlay') },
@@ -288,7 +287,7 @@ export function useCompare(ctx: CompareContext) {
   );
 
   const button = (
-    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title="Compare with an earlier version (⇧⌘D)" aria-label="Compare with an earlier version" aria-pressed={!!baseline}>
+    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title={`Compare with an earlier version (${keyHint('compare')})`} aria-label="Compare with an earlier version" aria-pressed={!!baseline}>
       <Icon name="clock" />
     </button>
   );

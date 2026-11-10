@@ -5,8 +5,8 @@ import type { ArrangeOp } from './craft.ts';
 import type { Command } from './palette.tsx';
 import { Icon } from './icon.tsx';
 import { store } from './store.ts';
+import { keyHint } from './keys.ts';
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /** The six aligns and two distributes, with Figma's keys (⌥ and a letter, ⇧⌥ to distribute). */
 export const ARRANGE: { op: ArrangeOp; label: string; icon: string; code: string; shift?: boolean }[] = [
@@ -20,21 +20,12 @@ export const ARRANGE: { op: ArrangeOp; label: string; icon: string; code: string
   { op: 'distribute-y', label: 'Distribute vertically', icon: 'align-vertical-distribute-center', code: 'KeyV', shift: true },
 ];
 
-const keyName = (a: (typeof ARRANGE)[number]) => `${a.shift ? '⇧' : ''}⌥${a.code.slice(3)}`;
+const keyName = (a: (typeof ARRANGE)[number]) => keyHint(a.op.startsWith('distribute') ? a.op : `align-${a.op}`);
 
 /** The arrange op of a key press (⌥ letters go by key code: on a Mac ⌥ turns the letter into another character). */
 export function arrangeKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; code: string }): ArrangeOp | undefined {
   if (!e.altKey || e.metaKey || e.ctrlKey) return undefined;
   return ARRANGE.find((a) => a.code === e.code && !!a.shift === e.shiftKey)?.op;
-}
-
-/** ⇧⌘L locks, ⇧G snaps to the grid, ⇧M shows the minimap, ⇧P the page. */
-export function craftKey(e: { altKey: boolean; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean; code: string }): 'lock' | 'grid' | 'minimap' | 'page' | undefined {
-  const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
-  if (!e.shiftKey || e.altKey) return undefined;
-  if (mod && e.code === 'KeyL') return 'lock';
-  if (mod || e.metaKey || e.ctrlKey) return undefined;
-  return e.code === 'KeyG' ? 'grid' : e.code === 'KeyM' ? 'minimap' : e.code === 'KeyP' ? 'page' : undefined;
 }
 
 export function arrangeCommands(run: (op: ArrangeOp) => void): Command[] {

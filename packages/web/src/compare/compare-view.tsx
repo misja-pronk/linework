@@ -1,8 +1,9 @@
 // The compare view over the drawing pane: the diagram as it is now against an earlier version, live
 // while the YAML is edited. Overlay (the current drawing with what was added and changed marked, what
 // is gone as ghosts where it stood) or side by side (before | after, panned and zoomed together).
-// A list of the changes in plain words; N and P step through them, each focused in the drawing.
+// A list of the changes in plain words; ] and [ step through them, each focused in the drawing.
 // Marks never rest on colour alone: a sign (+ ~ −), an outline pattern and the word in the list.
+import { shortcutFor } from '../keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutSidecar } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
@@ -271,19 +272,21 @@ export function CompareView(p: Props) {
     const onKey = (e: KeyboardEvent) => {
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [role="dialog"], .palette');
       if (typing || e.altKey || e.metaKey || e.ctrlKey || document.querySelector('.palette, .modal-backdrop')) return;
-      const k = e.key;
-      if (k === 'n' || k === 'j') step(1);
-      else if (k === 'p' || k === 'k') step(-1);
-      else if (k === 'N') step(-1);
-      else if (k === 'Escape') {
+      // The keys of keys.ts: ] and [ walk the changes as they walk the steps in the drawing.
+      const id = shortcutFor(e, ['compare']);
+      if (id === 'compare-next') step(1);
+      else if (id === 'compare-previous') step(-1);
+      else if (id === 'compare-exit') {
         if (menu) setMenu(false);
         else p.onExit();
-      } else if (k === 'Enter' && current?.item) p.onEdit(current.item);
-      else if (k === 'm') p.onMode(mode === 'overlay' ? 'side' : 'overlay');
-      else if (k === '0' || k === '!') fit();
-      else if (k === '+' || k === '=') zoomBy(1.25);
-      else if (k === '-') zoomBy(0.8);
-      else return;
+      } else if (id === 'compare-edit' && current?.item) p.onEdit(current.item);
+      else if (id === 'compare-mode') p.onMode(mode === 'overlay' ? 'side' : 'overlay');
+      else if (id === 'compare-zoom') e.key === '0' ? fit() : zoomBy(e.key === '-' ? 0.8 : 1.25);
+      else {
+        // The drawing's own keys (P presents, N adds a note, ⌫ deletes) wait under the comparison.
+        if (e.key.length === 1 || /^(Backspace|Delete|Arrow|Tab$)/.test(e.key)) e.stopImmediatePropagation();
+        return;
+      }
       e.preventDefault();
       e.stopImmediatePropagation();
     };
@@ -392,7 +395,7 @@ export function CompareView(p: Props) {
           <header>
             <strong>Changes</strong>
             <span className="cmp-keys">
-              <kbd>N</kbd> <kbd>P</kbd> step · <kbd>↵</kbd> edit
+              <kbd>]</kbd> <kbd>[</kbd> step · <kbd>↵</kbd> edit
             </span>
           </header>
           {cmp && !sentences.length && <p className="cmp-none">Nothing drawn differs from {baseline.name}.</p>}

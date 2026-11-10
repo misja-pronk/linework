@@ -1,5 +1,6 @@
 // The drawing: the engine's SVG with pan and zoom, click to select, drag to move (pins), drop into a
 // group to nest, and drops from the add palette.
+import { is } from './keys.ts';
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
@@ -19,6 +20,12 @@ export interface PreviewControl {
   zoomToSelection(): void;
   /** The middle of what is in view, in pin space (where a note without an element goes). */
   centre(): Point | undefined;
+  /** Fit once the next drawing is in (after a tidy: it may land anywhere). */
+  fitNext(): void;
+  /** Whether the whole drawing is in view now. */
+  wholly(): boolean;
+  /** After the next drawing: one that was wholly in view (`was`) and no longer is (a long drag) fits again. */
+  keepInView(was: boolean): void;
 }
 
 /** What a label editor can be opened on: an element, or the diagram's title and subtitle. */
@@ -342,9 +349,24 @@ export function Preview(p: Props) {
     const sh = result.placed?.shift ?? { x: 0, y: 0 };
     return { x: (cx - r.left - view.x) / view.scale - result.origin.x + sh.x, y: (cy - r.top - view.y) / view.scale - result.origin.y + sh.y };
   };
+  const wholly = () => {
+    const f = frame.current;
+    if (!f || !result?.width || !result.height) return false;
+    return view.x >= -1 && view.y >= -1 && view.x + result.width * view.scale <= f.clientWidth + 1 && view.y + result.height * view.scale <= f.clientHeight - BAR / 2 + 1;
+  };
+  const refit = useRef<{ always: boolean; was: boolean } | null>(null);
+  useEffect(() => {
+    const r = refit.current;
+    if (!r || !result?.svg) return;
+    refit.current = null;
+    if (r.always || (r.was && !wholly())) requestAnimationFrame(() => fit(true));
+  }, [result]);
   useImperativeHandle(p.control, () => ({
     fit,
     zoomToSelection,
+    fitNext: () => void (refit.current = { always: true, was: true }),
+    wholly,
+    keepInView: (was: boolean) => void (refit.current = { always: false, was }),
     centre: () => {
       const r = frame.current?.getBoundingClientRect();
       return r && pinAt(r.left + r.width / 2, r.top + (r.height - BAR) / 2);
@@ -396,12 +418,11 @@ export function Preview(p: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const f = frame.current;
-      if (e.defaultPrevented || e.altKey || !(navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey)) return;
+      if (e.defaultPrevented || !is(e, 'zoom')) return;
       if (!hovered.current && !f?.contains(document.activeElement)) return;
       if (e.key === '0') fit();
-      else if (e.key === '=' || e.key === '+') zoomAt(1.2);
       else if (e.key === '-') zoomAt(1 / 1.2);
-      else return;
+      else zoomAt(1.2);
       e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
@@ -938,9 +959,9 @@ export function Preview(p: Props) {
         }
         if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
         // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
-        if (e.target === e.currentTarget && e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey && (e.code === 'Digit1' || e.code === 'Digit2')) {
+        if (e.target === e.currentTarget && (is(e, 'fit') || is(e, 'zoom-selection'))) {
           e.preventDefault();
-          return e.code === 'Digit1' ? fit() : zoomToSelection();
+          return is(e, 'fit') ? fit() : zoomToSelection();
         }
         p.onKeyDown(e);
       }}

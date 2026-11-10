@@ -110,23 +110,29 @@ const download = async (menuItem) => {
   check('signs in the list', (await page.locator('.cmp-sign').allInnerTexts()).join(''), '++−');
   await page.screenshot({ path: `${out}/c1-overlay.png` });
 
-  // 2. N and P step through the changes: the row and the mark are current, the view moves to it.
+  // 2. ] and [ step through the changes (as they step through steps): the row and the mark are current, the view moves to it.
   const transform = () => page.locator('.cmp-pane[data-pane="overlay"] .cmp-stage').evaluate((e) => e.style.transform);
   const before = await transform();
-  await page.keyboard.press('n');
+  await page.keyboard.press(']');
   await wait(400);
   check('first change current', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
-  if (!(await page.locator('.cmp-stage [data-current][data-node="cache"]').count())) fail('the cache mark is not current after N');
+  if (!(await page.locator('.cmp-stage [data-current][data-node="cache"]').count())) fail('the cache mark is not current after ]');
   if ((await transform()) === before) fail('the view did not move to the change');
-  await page.keyboard.press('n');
-  await page.keyboard.press('n');
+  await page.keyboard.press(']');
+  await page.keyboard.press('j');
   await wait(300);
   check('third change current', await page.locator('.cmp-item.current').getAttribute('data-step'), '2');
   if (!(await page.locator('.cmp-stage [data-current][data-node="vm"]').count())) fail('the ghost of the VM is not current on the third change');
-  await page.keyboard.press('p');
+  await page.keyboard.press('[');
   await wait(300);
-  check('P goes back', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
-  if (await page.locator('.present').count()) fail('P presented instead of stepping back');
+  check('[ goes back', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
+  // N and P are the drawing's (a note, presenting): under the comparison they do nothing.
+  await page.keyboard.press('p');
+  await page.keyboard.press('n');
+  await wait(300);
+  if (await page.locator('.present').count()) fail('P presented while comparing');
+  if (await page.locator('.note-composer').count()) fail('N started a note while comparing');
+  check('P and N leave the change alone', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
   await page.locator('.cmp-item').first().click();
   check('a click picks a change', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
   await wait(400);

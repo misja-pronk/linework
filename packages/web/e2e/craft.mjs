@@ -266,7 +266,7 @@ await page.screenshot({ path: `${out}/c0-start.png` });
   await page.keyboard.press('?');
   await wait(200);
   const sheet = await page.locator('.shortcuts').innerText();
-  for (const k of ['⌥A', '⇧⌥H', '⇧⌘L', '⇧1 / ⇧2', '⌥ ← ↑ → ↓']) if (!sheet.includes(k)) fail(`shortcuts sheet misses ${k}`);
+  for (const k of ['⌥A', '⌥⇧H', '⇧⌘L', '⇧1', '⇧2', '⌥ ← ↑ → ↓']) if (!sheet.includes(k)) fail(`shortcuts sheet misses ${k}`);
   await page.screenshot({ path: `${out}/c9-shortcuts.png` });
   await page.keyboard.press('Escape');
 }
