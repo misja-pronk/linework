@@ -364,12 +364,21 @@ kbd {
   filter: grayscale(0.5);
   transition: opacity 200ms;
 }
-.stale-note {
-  position: absolute;
-  left: 50%;
-  top: 16px;
-  transform: translateX(-50%);
+/*
+ * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
+ * notes on a row of their own under the tools); the hint docked bottom-left, the zoom bottom-right;
+ * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over
+ * everything, and a toast from before a dialog opened goes (one from the dialog itself shows on top).
+ */
+.canvas-note {
+  flex-basis: 100%;
   display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.stale-note {
+  display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
@@ -379,7 +388,8 @@ kbd {
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  white-space: nowrap;
+  white-space: normal;
+  pointer-events: auto;
 }
 .selection-ring {
   position: absolute;
@@ -765,6 +775,9 @@ kbd {
   border-radius: 10px;
   box-shadow: var(--shadow);
   animation: rise 160ms ease-out;
+}
+.app.with-hint .toast {
+  bottom: calc(44px + var(--hint-h, 72px) + 12px);
 }
 .toast button {
   border: none;
@@ -2126,6 +2139,25 @@ kbd {
 @media (max-width: 600px) {
   .wide-only {
     display: none;
+  }
+  /* The canvas tools fit a phone: no key hints (no keyboard there), and they scroll sideways rather
+     than run off the edge when a view picker makes them wider. */
+  .canvas-tools {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .canvas-tools .tool {
+    flex: none;
+  }
+  .canvas-tools .tool kbd {
+    display: none;
+  }
+  /* Icons only (the names stay for screen readers and in the tooltips). */
+  .canvas-tools .tool {
+    font-size: 0;
+    gap: 0;
+    min-width: 36px;
   }
   .narrow-only {
     display: block;

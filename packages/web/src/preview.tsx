@@ -968,11 +968,6 @@ export function Preview(p: Props) {
           }}
         />
       )}
-      {stale && !empty && (
-        <div className="stale-note" role="status">
-          <Icon name="circle-exclamation-point" size={14} /> Showing the last version that worked: fix the problems in the editor
-        </div>
-      )}
       <div className="sr-only" role="status" aria-live="polite">
         {announce}
       </div>

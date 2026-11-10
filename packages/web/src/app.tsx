@@ -142,6 +142,10 @@ export function App() {
   );
   // A first visit starts with choosing what to make and how.
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
+  // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
+  useEffect(() => {
+    if (modal) setToast(undefined);
+  }, [modal]);
   /** Building visually (drawing and shapes) or writing YAML (editor and drawing side by side). */
   // A first visit shows the builder: the friendliest way in.
   const [view, setViewState] = useState<View>(() => store.get<View>('view') ?? (store.get('started') ? 'code' : 'visual'));
@@ -154,6 +158,8 @@ export function App() {
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
   /** The first-visit hint, until it is dismissed once. */
   const [hint, setHint] = useState(() => !store.get('hinted'));
+  /** The hint's height: a toast stands clear above it (see .with-hint .toast). */
+  const [hintHeight, setHintHeight] = useState(72);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);
@@ -1506,8 +1512,8 @@ export function App() {
   const typeId = type?.id;
   return (
     <div
-      className="app"
-      style={{ ['--split' as string]: `${split * 100}%` }}
+      className={hint && !adding && !modal ? 'app with-hint' : 'app'}
+      style={{ ['--split' as string]: `${split * 100}%`, ['--hint-h' as string]: `${hintHeight}px` }}
       onDragOverCapture={onDragFiles}
       onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
       onDropCapture={onDropFiles}
@@ -1828,9 +1834,17 @@ export function App() {
               </button>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
+            {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
+            {!!rendered && !!drawn?.svg && drawn !== result && (
+              <div className="canvas-note">
+                <div className="stale-note" role="status">
+                  <Icon name="circle-exclamation-point" size={14} /> Showing the last version that worked: fix the problems in the editor
+                </div>
+              </div>
+            )}
             </div>
             {hint && !adding && !modal && (
-              <div className="hint" role="note">
+              <div className="hint" role="note" ref={(el) => void (el && el.offsetHeight !== hintHeight && setHintHeight(el.offsetHeight))}>
                 <span>
                   {view === 'visual' ? (
                     <>
