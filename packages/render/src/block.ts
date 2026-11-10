@@ -62,10 +62,13 @@ export function heatColors(theme: Theme, heat: BlockHeat): HeatColors {
   const tone = heat.scale === 'diverging' ? DIVERGING[Math.round(at * (DIVERGING.length - 1))]! : heat.tone;
   const fg = theme.tones[tone].fg;
   const dark = theme.mode === 'dark';
-  const k = heat.scale === 'sequential' ? 0.08 + 0.52 * at : heat.scale === 'diverging' ? 0.2 + 0.3 * Math.abs(2 * at - 1) : 0.3;
+  // A sequential scale runs from a wash to most of the colour, so neighbouring steps stay apart.
+  const k = heat.scale === 'sequential' ? 0.08 + 0.8 * at : heat.scale === 'diverging' ? 0.2 + 0.3 * Math.abs(2 * at - 1) : 0.3;
   const fill = mix(fg, theme.surface, dark ? k * 0.85 : k);
   const ink = contrast(theme.text, fill) >= contrast(theme.canvas, fill) ? theme.text : theme.canvas;
   const tagInk = contrast(theme.surface, fg) >= contrast(theme.text, fg) ? theme.surface : theme.text;
+  // On a fill that is most of the colour already, the tag turns round: the page's colour with the value in the tone.
+  if (k > 0.55) return { fill, ink, tag: theme.surface, tagInk: fg, line: mix(fg, fill, 0.55) };
   return { fill, ink, tag: fg, tagInk, line: mix(fg, fill, 0.55) };
 }
 

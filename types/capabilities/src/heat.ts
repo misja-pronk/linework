@@ -136,10 +136,13 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
     const t = hi > lo ? Math.max(0, Math.min(1, (n - lo) / (hi - lo))) : 0.5;
     return e.reverse ? 1 - t : t;
   };
-  const heat = (n: number, text: string): BlockHeat => ({ scale, at: at(n), tone, text });
   // The legend: a sample per labelled value, per whole number of a short range, or five even steps.
   const legend: LegendItem[] = [];
   const whole = found.every((n) => Number.isInteger(n)) && Number.isInteger(lo) && Number.isInteger(hi) && hi - lo <= 6;
+  // Five even steps colour every value as its step's sample, so the map shows the key's five shades and no in-betweens.
+  const steps = !(e.labels && Object.keys(e.labels).length) && !whole ? 5 : 0;
+  const binned = (t: number) => (steps ? (Math.min(steps - 1, Math.floor(t * steps)) + 0.5) / steps : t);
+  const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(at(n)), tone, text });
   const label = (i: number, s: string) => (i === 0 ? `${title}: ${s}` : s);
   if (e.labels && Object.keys(e.labels).length) {
     const keys = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
@@ -147,7 +150,6 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
   } else if (whole && found.length) {
     for (let k = lo, i = 0; k <= hi; k++, i++) legend.push({ label: label(i, String(k)), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } });
   } else if (found.length) {
-    const steps = 5;
     for (let i = 0; i < steps; i++) {
       const a = lo + ((hi - lo) * i) / steps;
       const b = lo + ((hi - lo) * (i + 1)) / steps;
