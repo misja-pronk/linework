@@ -290,11 +290,12 @@ export function noteBlocks(text: string): Block[] {
     .filter((l, i, all) => l.trim() || (i > 0 && all[i - 1]!.trim()))
     .map((l) => {
       const m = /^\s*[-*]\s+(.*)$/.exec(l);
-      return { list: !!m, parts: inline(m ? m[1]! : l) };
+      return { list: !!m, parts: inlineMarkdown(m ? m[1]! : l) };
     });
 }
 
-function inline(s: string): Inline[] {
+/** **bold**, *italic*, `code` and [links](url) of one line; only http(s) and mailto links keep their target. */
+export function inlineMarkdown(s: string): Inline[] {
   const out: Inline[] = [];
   const re = /\*\*([^*]+)\*\*|\*([^*\s][^*]*)\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let at = 0;

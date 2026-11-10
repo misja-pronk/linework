@@ -1,0 +1,77 @@
+/* Export → Animation (animate-dialog.tsx). */
+
+.animate-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.animate-lead {
+  margin: 4px 24px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.animate-form {
+  display: grid;
+  gap: 12px;
+  padding: 4px 24px 8px;
+}
+.animate-row {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.animate-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.animate-row .segmented {
+  justify-self: start;
+}
+/* Big enough to hit with a trackpad without aiming. */
+.animate-row .segmented button {
+  padding: 6px 12px;
+}
+.animate-row .segmented button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.animate-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+}
+.animate-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.animate-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px 20px;
+}
+.animate-hint {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.animate-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.animate-progress progress {
+  width: 160px;
+  accent-color: var(--accent);
+}
+@media (max-width: 520px) {
+  .animate-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

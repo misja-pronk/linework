@@ -3,11 +3,11 @@
 // for comes from the model (the workspace index), so a reader can click a box and see what it is,
 // where else it appears, and open the view a level down. Runs in Node and in the editor alike.
 import { parse as parseYaml } from 'yaml';
-import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, noteNumbers, notePlain, notesInView, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type NotesFile, type WorkspaceIndex } from '@cartography/core';
-import { noteSpots, render, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { decisionsOnDrawing, drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, markdownBlocks, noteNumbers, notePlain, notesInView, readConcern, statusSaid, trail, viewAbout, type Decision, type Graph, type LayoutSidecar, type Link, type NotesFile, type WorkspaceIndex } from '@cartography/core';
+import { noteSpots, render, withDecisions, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Theme } from '@cartography/theme';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
-import type { PDrawing, PElement, PFile, PNote, PStep, Picture } from './payload.ts';
+import type { PDecision, PDrawing, PElement, PFile, PNote, PStep, Picture } from './payload.ts';
 
 export interface HtmlExportInput {
   /** The diagrams to export, by path (forward slashes, relative to one root). */
@@ -24,6 +24,8 @@ export interface HtmlExportInput {
   /** Draw the open review notes as markers and list them. */
   notes?: boolean;
   notesFor?: (path: string) => NotesFile | undefined;
+  /** Architecture decisions to draw and list (files relative to the same root); see core decisions.ts. */
+  decisions?: Decision[];
   sidecarFor?: (path: string) => LayoutSidecar | undefined;
   assetsFor?: (path: string) => RenderOptions['assets'];
   /** What every render gets as well: a theme picked, icon packs, official icons. */
@@ -48,6 +50,7 @@ export interface Collected {
   /** The looks the drawings were made in, for their fonts and the page's colours. */
   themes: Theme[];
   problems: Problem[];
+  decisions?: PDecision[];
 }
 
 const dirOf = (p: string) => p.split('/').slice(0, -1).join('/');
@@ -240,7 +243,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const dark = await render(text, { ...common, theme: 'dark', view: viewName, idPrefix });
       addTheme(light.theme);
       addTheme(dark.theme);
-      const pic = picture(marked(light, notes), marked(dark, notes));
+      const decided = (r: RenderResult) => withDecisionMarks(r, input.decisions, ix, file);
+      const pic = picture(decided(marked(light, notes)), decided(marked(dark, notes)));
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? first.views?.find((v) => v.name === viewName)?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
       const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
@@ -322,6 +326,11 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         const list = noteList(notes, graph, light, viewName);
         if (list.length) drawing.notes = list;
       }
+      if (input.decisions?.length) {
+        const shows = ix.shows.get(keyOf(file, viewName));
+        const on = decisionsOnDrawing(input.decisions, graph, { file, view: viewName, drawnAs: (id) => shows?.get(id) });
+        if (on.length) drawing.decisions = on.map(({ decision, target }) => ({ n: decision.number, ...(target.kind === 'node' ? { shape: `n:${target.id}` } : target.kind === 'group' ? { shape: `g:${target.id}` } : {}) }));
+      }
     }
   }
 
@@ -356,7 +365,28 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   const site = input.site ?? files.length > 1;
   const model = [...ix.files.values()].find((f) => f.type === 'model' && f.title);
   const title = input.title ?? (site ? (model?.title ?? files[0]?.title) : files[0]?.title) ?? 'Diagrams';
-  return { title, site, files, drawings, elements, themes, problems };
+  const decisions = input.decisions?.length ? input.decisions.map((d) => decisionOf(d, ix)) : undefined;
+  return { title, site, files, drawings, elements, themes, problems, ...(decisions ? { decisions } : {}) };
+}
+
+/** The decision markers on a drawing (the decisions themselves are a page of their own). */
+function withDecisionMarks(r: RenderResult, decisions: Decision[] | undefined, ix: WorkspaceIndex, file: string): RenderResult {
+  if (!decisions?.length || !r.svg || !r.graph || !r.placed || !r.width || !r.height || !r.theme) return r;
+  const shows = ix.shows.get(keyOf(file, r.view));
+  const m = withDecisions({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, r.graph, r.placed, decisions, r.theme, { file, view: r.view, drawnAs: (id) => shows?.get(id), appendix: false });
+  return { ...r, svg: m.svg };
+}
+
+/** A decision as the page shows it: its text as blocks, what it is about by name. */
+function decisionOf(d: Decision, ix: WorkspaceIndex): PDecision {
+  const name = (id: string) => ix.elements.get(id)?.[0]?.label ?? id;
+  const about = d.concerns.map((s) => {
+    const c = readConcern(s);
+    return !c ? s : c.kind === 'edge' ? `${name(c.from)} → ${name(c.to)}` : c.kind === 'view' ? (ix.views.find((v) => v.name === c.view)?.title ?? c.view) : name(c.id);
+  });
+  // The title is the page's heading: the text starts under it.
+  const blocks = markdownBlocks(d.body.replace(/^\s*#[ \t]+.*\n/, ''));
+  return { n: d.number, title: d.title, status: d.status, said: statusSaid(d), ...(d.date ? { date: d.date } : {}), about, blocks };
 }
 
 /** The open review notes as markers on the drawing (the list goes into the page). */
