@@ -166,3 +166,21 @@ describe('theme files', () => {
     expect(resolveTheme('mono', io).theme).toBe(themes.mono);
   });
 });
+
+describe('pptx: a PowerPoint template in a theme file', () => {
+  it('takes a file or { template, layout, keepLook }, relative to the theme file, and says what is wrong', () => {
+    const files: Record<string, string> = {
+      'brand/corp.theme.yaml': 'name: corp\nextends: light\npptx: corp.potx\n',
+      'brand/full.theme.yaml': 'name: full\nextends: light\npptx: { template: ../decks/corp.pptx, layout: Title Only, keepLook: true }\n',
+    };
+    const io = { load: (f: string) => files[f] ?? (() => { throw new Error(f); })() };
+    expect(resolveTheme('brand/corp.theme.yaml', io).theme.pptx).toEqual({ template: 'brand/corp.potx' });
+    expect(resolveTheme('brand/full.theme.yaml', io).theme.pptx).toEqual({ template: 'decks/corp.pptx', layout: 'Title Only', keepLook: true });
+    // A theme that extends one with a template keeps it; a theme without has none.
+    expect(resolveTheme({ extends: 'brand/corp.theme.yaml', colors: { primary: '#0B5FFF' } }, io).theme.pptx?.template).toBe('brand/corp.potx');
+    expect(themes.light.pptx).toBeUndefined();
+    const warnings: ThemeWarning[] = [];
+    parseThemeSpec({ pptx: 'logo.png' }, (w) => warnings.push(w));
+    expect(warnings[0]!.message).toMatch(/pptx is a PowerPoint template file/);
+  });
+});

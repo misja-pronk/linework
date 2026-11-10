@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { iconPng, interTtf, themeTtf, toPng } from './png.ts';
-import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
+import { pages, readTemplate, toPdf, toPptx, type Drawing, type PptxOptions } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, coverageKinds, findIcons, iconGuide, importIcons, isVendor, listPacks, mapIcon, packSheet, readPack, unmapIcon } from './packs.ts';
 import { coverage } from '@cartography/icons';
@@ -50,6 +50,10 @@ const helpAll = `carto — architecture diagrams that look good
                [--decisions]                    with the architecture decisions of the folder (decisions/): a
                                                 numbered page marker on what each is about, and a key and the
                                                 decisions under the drawing (pptx: in the speaker notes)
+               [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
+               [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
+               [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
+                                                template's own slides in front
   carto render <folder> [-o mesh.svg]           a folder of data product and data contract files (ODPS, ODCS) as one
                [--write mesh.yaml]              data mesh map; --write keeps the diagram, and updates it the next time
   carto render <folder> [-o access.svg]         a folder of saved az / Graph / AzureHound JSON as who reaches what,
@@ -61,6 +65,8 @@ const helpAll = `carto — architecture diagrams that look good
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
+               [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
+               [--keep-look] [--keep-slides]
                [--page fit|a4|a3]                   page size (pdf, default fit)
   carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
                [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
@@ -349,6 +355,10 @@ const parsed = (() => {
     title: { type: 'string' },
     subtitle: { type: 'string' },
     aspect: { type: 'string', default: '16:9' },
+    template: { type: 'string' },
+    layout: { type: 'string' },
+    'keep-look': { type: 'boolean' },
+    'keep-slides': { type: 'boolean' },
     font: { type: 'string' },
     page: { type: 'string', default: 'fit' },
     git: { type: 'string' },
@@ -706,12 +716,35 @@ async function draw(file: string, fonts: RenderOptions['fonts']) {
 }
 
 /** Slides and PDF pages, from one or many drawings; a brand theme carries over. */
-function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme']): Promise<Uint8Array> {
+function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme'], diagram?: string): Promise<Uint8Array> {
   const t = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
   if (format === 'pptx')
-    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w) });
+    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w), ...templateFlags(theme, diagram) });
   const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
   return toPdf(drawings, { theme: t, page, fonts: interTtf(), families: themeTtf(typeof t === 'object' ? t : themes[t]), title: values.title, steps: stepsFlag() });
+}
+
+/**
+ * --template customer.potx [--layout "Title Only"] [--keep-look] [--keep-slides], or the template a
+ * brand theme names (pptx: template.potx, relative to the theme file): the deck is made in it.
+ */
+function templateFlags(theme: RenderResult['theme'], diagram?: string): Pick<PptxOptions, 'template' | 'layout' | 'keepLook' | 'keepSlides' | 'onWarning'> {
+  const fromTheme = !values.template && theme?.pptx;
+  const file = values.template ?? (fromTheme && diagram ? path.join(path.dirname(diagram), fromTheme.template) : undefined);
+  if (!file) {
+    if (values.layout || values['keep-look'] || values['keep-slides']) console.error(`${yellow('warning')}  --layout, --keep-look and --keep-slides go with --template: ignored`);
+    return {};
+  }
+  if (!/\.(potx|pptx)$/i.test(file)) throw new UsageError(`--template is a PowerPoint template, .potx or .pptx: ${file}`);
+  const template = readTemplate(fs.readFileSync(file));
+  const layout = values.layout ?? (fromTheme ? fromTheme.layout : undefined);
+  return {
+    template,
+    ...(layout ? { layout } : {}),
+    keepLook: !!values['keep-look'] || (!!fromTheme && !!fromTheme.keepLook),
+    keepSlides: !!values['keep-slides'],
+    onWarning: (w) => console.error(`${file}  ${yellow('warning')}  ${w}`),
+  };
 }
 
 /** `text`: the diagram when it is not (or not yet) what the file holds; `shown`: what it is called in messages. */
@@ -741,7 +774,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     if (!drawn.length) return false;
     const out = values.out === '-' ? '-' : outputPath(file, format, values.view);
     // A layer is one slide (its steps are the whole drawing's story, told on its own slides), unless every step is asked for.
-    const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(r !== first && !values['all-steps'] ? { steps: undefined } : {}) })), first.theme);
+    const data = await document(format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(r !== first && !values['all-steps'] ? { steps: undefined } : {}) })), first.theme, file);
     if (out === '-') process.stdout.write(data);
     else fs.writeFileSync(out, data);
     console.log(`${shown} → ${out === '-' ? 'standard output' : out} ${dim(`${drawn.length} drawings: the whole and ${drawn.length - 1} ${drawn.length === 2 ? 'layer' : 'layers'}`)}`);
@@ -780,7 +813,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
         format === 'png' ? await describedPng(shot, file, toPng(shot.svg, Number(values.scale) || 2, await ttfFiles(faces)))
         : safe ? toSafeSvg(shot.svg, { outline })
         : format === 'svg' ? shot.svg
-        : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme);
+        : await document(format, [{ ...shot, name: path.basename(file) }], shot.theme, file);
       if (stdout) process.stdout.write(data);
       else fs.writeFileSync(out, data);
       (stdout ? console.error : console.log)(`${shown}${view ? `${layered.includes(result) ? '@' : '#'}${view}` : ''}${shot.step ? ` step ${shot.step}` : ''} → ${stdout ? 'standard output' : out} ${dim(`${shot.width}×${shot.height}`)}`);
@@ -1265,7 +1298,7 @@ async function deck(): Promise<boolean> {
   }
   if (!drawings.length) return false;
   fs.mkdirSync(path.dirname(values.out), { recursive: true });
-  fs.writeFileSync(values.out, await document(format, drawings, theme));
+  fs.writeFileSync(values.out, await document(format, drawings, theme, files[0]));
   const count = pages(drawings, stepsFlag()).length;
   console.log(`${drawings.length} diagram${drawings.length > 1 ? 's' : ''}${count > drawings.length ? `, ${count} ${format === 'pdf' ? 'pages' : 'slides'}` : ''} → ${values.out}`);
   return ok;

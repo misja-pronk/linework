@@ -118,7 +118,9 @@ export function resolveTheme(value: unknown, io: ThemeLoaders, fallback: Theme =
   let fontFrom = '';
   let monoFrom = '';
   let logoFrom = '';
+  let pptxFrom = '';
   for (const c of chain) {
+    if (c.spec.pptx) pptxFrom = c.file;
     if (c.spec.font?.files) fontFrom = c.file;
     if (c.spec.font?.mono?.files) monoFrom = c.file;
     if (c.spec.titleBlock?.logo) logoFrom = c.file;
@@ -128,7 +130,9 @@ export function resolveTheme(value: unknown, io: ThemeLoaders, fallback: Theme =
   const faces = spec.font?.files ? loadFaces(spec.font.files, spec.font.family, fontFrom, io, top, files) : undefined;
   const monoFaces = spec.font?.mono?.files ? loadFaces(spec.font.mono.files, spec.font.mono.family, monoFrom, io, top, files, ['font', 'mono']) : undefined;
   const logo = spec.titleBlock?.logo ? loadLogo(joinPath(logoFrom, spec.titleBlock.logo), io, top, files) : undefined;
-  const theme = deriveTheme(base, spec, { faces, monoFaces, logo }, top);
+  const derived = deriveTheme(base, spec, { faces, monoFaces, logo }, top);
+  // The template is read by whoever makes the deck; here its path is made relative to the diagram.
+  const theme = spec.pptx ? { ...derived, pptx: { ...spec.pptx, template: joinPath(pptxFrom, spec.pptx.template) } } : derived;
   return { theme, warnings, files };
 }
 
