@@ -1,0 +1,200 @@
+/* The Wizard mode of the start dialog: the question on the left, the drawing it makes on the right. */
+.templates.start.step-wizard {
+  height: 80vh;
+}
+.wizard {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  border-top: 1px solid var(--border);
+}
+.wizard-ask {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 24px 20px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.wizard-progress {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wizard-progress .dot {
+  width: 22px;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: var(--border);
+  cursor: pointer;
+}
+.wizard-progress .dot.done {
+  background: var(--accent-soft);
+}
+.wizard-progress .dot.current {
+  background: var(--accent);
+}
+.wizard-progress .dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wizard-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.wizard-question {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: rise 140ms ease-out;
+}
+.wizard-question h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.wizard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.wizard-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  /* Big enough to hit with a trackpad without aiming. */
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 100ms,
+    background 100ms;
+}
+.wizard-option:hover {
+  border-color: var(--border-strong);
+}
+.wizard-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.wizard-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.wizard-option kbd {
+  margin-left: auto;
+}
+.wizard-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  color: #fff;
+}
+.wizard-options[role='group'] .wizard-mark {
+  border-radius: 5px;
+}
+.wizard-option.active .wizard-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.wizard-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.wizard-option-text strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.wizard-option-text span {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.wizard-text,
+.wizard-number input {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--editor-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.wizard-text:focus,
+.wizard-number input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+.wizard-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.wizard-names .chip {
+  cursor: default;
+}
+.wizard-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wizard-number input {
+  width: 72px;
+  text-align: center;
+}
+.wizard-number .icon-button {
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.wizard-nav {
+  display: flex;
+  gap: 8px;
+}
+.wizard-source {
+  margin-top: -4px;
+}
+.wizard-preview footer {
+  flex-wrap: wrap;
+}
+@media (max-width: 860px) {
+  .wizard {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .wizard-ask {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow: visible;
+  }
+  .wizard-preview .mode-preview {
+    min-height: 240px;
+  }
+}

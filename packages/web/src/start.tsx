@@ -13,6 +13,8 @@ import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.
 import { failure, generate, MODELS, type ModelId } from './ai/claude.ts';
 import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
+import { wizardsFor } from '@cartography/wizards';
+import { WizardSteps } from './wizard.tsx';
 
 export type View = 'visual' | 'code';
 
@@ -82,8 +84,18 @@ const MODES = [
   },
 ] as const;
 
-type Step = 'type' | 'pick' | 'mode' | 'ask' | 'import';
-const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type', import: 'type' };
+/** For types with a wizard (Azure landing zone, C4, data mesh, …): questions in, a finished drawing out, no AI. */
+const WIZARD_MODE = {
+  view: 'wizard',
+  icon: 'list-checks',
+  title: 'Answer questions',
+  text: 'A wizard after a reference architecture; the drawing grows as you answer. No AI, no key.',
+  key: '4',
+} as const;
+type ModeView = (typeof MODES)[number]['view'] | 'wizard';
+
+type Step = 'type' | 'pick' | 'mode' | 'ask' | 'import' | 'wizard';
+const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type', import: 'type', wizard: 'mode' };
 
 /**
  * `current` is the type of the open diagram: marked on its card, so the dialog doubles as the guide
@@ -100,10 +112,12 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
   /** The chosen type, or 'all' to browse every template. */
   const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
   const [step, setStep] = useState<Step>(incoming ? 'import' : initial ? 'mode' : 'type');
+  /** A wizard's drawing that the AI mode starts from ("Refine with Claude"). */
+  const [draft, setDraft] = useState<string>();
   useRestoreFocus();
 
   // Esc goes one step back, then closes.
-  const back = () => (PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
+  const back = () => (step === 'ask' && draft ? setStep('wizard') : PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
   const backRef = useRef(back);
   backRef.current = back;
   useEffect(() => {
@@ -117,9 +131,10 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
   }, []);
 
   const type = starter ? types.find((t) => t.id === starter.type) : undefined;
-  const choose = (mode: (typeof MODES)[number]['view']) => {
+  const choose = (mode: ModeView) => {
     if (!starter) return;
-    if (mode === 'ai') return setStep('ask');
+    if (mode === 'wizard') return setStep('wizard');
+    if (mode === 'ai') return (setDraft(undefined), setStep('ask'));
     // Building visually from a full example is editing, not starting: the template is the start.
     onOpen({
       text: starter.text,
@@ -149,12 +164,14 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
                   ? 'Import from Mermaid, D2, PlantUML, draw.io or Excalidraw'
                   : step === 'mode'
                     ? `${starter!.title}`
-                    : `Describe it · ${typeName(starter!.type)}`}
+                    : step === 'wizard'
+                      ? `Answer questions · ${typeName(starter!.type)}`
+                      : `Describe it · ${typeName(starter!.type)}`}
           </h2>
           {step !== 'import' && (
             <ol className="steps" aria-label="Steps">
-              {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : [])].map((s, i) => (
-                <li key={s} aria-current={i === ['type', 'pick', 'mode', 'ask'].indexOf(step)}>
+              {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : step === 'wizard' ? ['Questions'] : [])].map((s, i) => (
+                <li key={s} aria-current={i === ['type', 'pick', 'mode', step === 'wizard' ? 'wizard' : 'ask'].indexOf(step)}>
                   {s}
                 </li>
               ))}
@@ -196,7 +213,18 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
             onBlank={() => onOpen({ text: blankText(starter.type), name: `${starter.type}.yaml`, view: 'visual', blank: true })}
           />
         )}
-        {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} />}
+        {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} draft={draft} />}
+        {step === 'wizard' && starter && (
+          <WizardSteps
+            wizards={wizardsFor(starter.type)}
+            theme={theme}
+            onOpen={(r) => onOpen({ text: r.yaml, name: r.name, view: r.view })}
+            onAsk={(r) => {
+              setDraft(r.yaml);
+              setStep('ask');
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -500,25 +528,26 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
   );
 }
 
-function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: (typeof MODES)[number]['view']): void; onBlank(): void }) {
+function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: ModeView): void; onBlank(): void }) {
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const { svg } = useDrawing(starter.text, theme, load);
+  const modes = useMemo(() => (wizardsFor(starter.type).length ? [...MODES, WIZARD_MODE] : MODES), [starter.type]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
-      const m = MODES.find((x) => x.key === e.key);
+      const m = modes.find((x) => x.key === e.key);
       if (m) onChoose(m.view);
       else if (e.key === 'b') onBlank();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onChoose, onBlank]);
+  }, [onChoose, onBlank, modes]);
   return (
     <div className="mode-step">
       <div className="mode-preview">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
       <div className="modes" role="group" aria-label="How do you want to work?">
         <p className="modes-intro">How do you want to work?</p>
-        {MODES.map((m, i) => (
+        {modes.map((m, i) => (
           <button key={m.view} className={`mode-card mode-${m.view}`} onClick={() => onChoose(m.view)} autoFocus={i === 0}>
             <span className="mode-icon">
               <Icon name={m.icon} size={20} />
@@ -606,7 +635,7 @@ function Field({ q, value, onChange }: { q: Question; value: string | string[] |
 type Phase =
   { at: 'form' } | { at: 'running'; text: string; attempt: number } | { at: 'paste' } | { at: 'done'; yaml: string; errors: string[] } | { at: 'failed'; message: string };
 
-function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
+function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void; draft?: string }) {
   const questions = useMemo(() => questionsFor(type), [type]);
   const [answers, setAnswers] = useState<Answers>(() => ({
     ...Object.fromEntries(questions.filter((q) => q.initial).map((q) => [q.id, q.initial!])),
@@ -622,7 +651,7 @@ function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: Diagram
   useEffect(() => () => abort.current?.abort(), []);
 
   // The template's own YAML shows the model the style; an empty start teaches nothing, so use the type's template.
-  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text), [type, questions, answers, starter]);
+  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text, draft), [type, questions, answers, starter, draft]);
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const shown = phase.at === 'running' ? extractYaml(phase.text) : phase.at === 'done' ? phase.yaml : phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
   const drawing = useDrawing(shown, theme, load);
