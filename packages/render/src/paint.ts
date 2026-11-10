@@ -136,7 +136,7 @@ export function dashAttr(line: 'solid' | 'dashed' | 'dotted' | undefined, width:
 export function patternOver(pattern: LinePattern | undefined, d: string, color: string, width: number, theme: Theme, dash = ''): string {
   if (!pattern) return '';
   if (pattern === 'ticks') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 4.5)}" stroke-dasharray="1.3 11" stroke-dashoffset="-5"/>`;
-  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3)}" stroke-dasharray="0 12" stroke-dashoffset="-5" stroke-linecap="round"/>`;
+  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3)}" stroke-dasharray="0.01 12" stroke-dashoffset="-5" stroke-linecap="round"/>`;
   return `<path d="${d}" fill="none" stroke="${theme.surface}" stroke-width="${r1(Math.max(1, width * 0.4))}" stroke-linejoin="round"${dash}/>`;
 }
 

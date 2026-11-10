@@ -62,8 +62,8 @@ describe('org chart', () => {
     const r = await render(example('product-org.yaml'), { fonts: 'none', focus: 'bo', view: 'org' });
     expect(r.graph!.nodes.map((n) => n.id).sort()).toEqual(['anna', 'bo', 'dana', 'eli', 'fay', 'finn'].sort());
     expect(r.graph!.subtitle).toContain('Focus on Bo Jansen and their branch');
-    // No vacancy in that branch: the key does not mention one.
-    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Reports to', 'Dotted-line report']);
+    // No vacancy in that branch: the key does not mention one (the ring around Bo it does).
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Reports to', 'Dotted-line report', 'In focus']);
   });
 
   it('puts 150 people on one slide in good time', async () => {

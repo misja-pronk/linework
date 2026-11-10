@@ -326,7 +326,12 @@ function curve(pen: Pen, shape: JourneyShape, points: CurvePoint[], o: ChartOpti
     const w = measureText(label, size, 600) + mark + (extreme ? 16 : 0);
     const h = extreme ? 18 : 14;
     const gap = o.faceR + (extreme ? 8 : 5);
-    const cy = above ? p.y - gap - h / 2 : p.y + gap + h / 2;
+    // Not on the dashed neutral line, where the words would read as struck through: the other side
+    // of the face, or else just clear of the line.
+    const at = (up: boolean) => (up ? p.y - gap - h / 2 : p.y + gap + h / 2);
+    const struck = (c: number) => Math.abs(c - base) < h / 2 + 2;
+    let cy = at(above);
+    if (struck(cy)) cy = !struck(at(!above)) ? at(!above) : above ? Math.min(cy, base - h / 2 - 3) : Math.max(cy, base + h / 2 + 3);
     const x = Math.min(o.x1 - w, Math.max(o.x0, p.x - w / 2));
     if (extreme) {
       pen.rect(x, cy - h / 2, w, h, { r: h / 2, fill: tone.bg, name: p === low ? 'Lowest point' : 'Highest point' });

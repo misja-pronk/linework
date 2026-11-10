@@ -6,7 +6,7 @@ import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { disorder, labelMetrics, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
+import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
@@ -142,7 +142,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     const other = graph.direction === 'right' ? 'down' : 'right';
     const wide = graph.direction === 'right' && best.placed.width >= WIDE * best.placed.height;
     // Shape alone asks for another try only on a first drawing of a diagram small enough to draw twice.
-    const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF;
+    // So does a drawing with labels on cards or lines through them: the other direction may have none.
+    const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && ((target != null && off(best.placed, graph, target) > OFF) || errors(best) > 0);
     let turnedAlt: Choice | undefined;
     if (open && (stayIn === other || wide || reshape)) {
       const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other);
@@ -156,8 +157,11 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       if (fits(a, b) && noWorse(alt, best)) best = alt;
       // Or, on a first drawing, when it reads clearly better on the page (larger text, for what it costs).
       else if (!was && target != null && readsBetter(alt, best, target)) best = alt;
-      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins.
-      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
+      // A shape is no reason to keep a drawing with labels on cards or lines through them that the other is free of.
+      else if (errors(best) > errors(alt) && alt.cost < best.cost) best = alt;
+      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins;
+      // nor, on a first drawing of a few cards (too few to wrap), a worse shape that comes out clearly smaller on the page.
+      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
     if (!was && tuning.wrap !== false && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > WRAP_OFF) {
@@ -205,6 +209,8 @@ function shapeOf(graph: Graph, open: boolean, target: number | undefined): strin
   return (h >>> 0).toString(36);
 }
 
+/** A drawing of this many cards or fewer fits a page side by side: it is not a long chain to turn. */
+const FEW = 5;
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
 const WIDE = 3;
 /** The shape a drawing aims for unless the source says otherwise: a slide. */
@@ -241,6 +247,8 @@ export const CROSSING_COST = 0.25;
 export const BACKWARD_COST = 0.05;
 /** And empty room: per share of the drawing far from everything (metrics voids), as a block left alone on a row leaves. */
 export const VOID_COST = 1.5;
+/** And a line that misleads (lineFaults): a loop, a hook at an end, arrowheads on each other, a line that seems to run on into another. */
+export const FAULT_COST = 0.1;
 /** A wrapped drawing must read this much better (in doublings of scale: 11% larger text) to be kept. */
 const WRAP_GAIN = 0.15;
 
@@ -276,10 +284,21 @@ function touchingOf(c: Choice): number {
   return n;
 }
 
+const faults = new WeakMap<Placed, number>();
+/** Lines that mislead (lineFaults): loops, hooks at an end, arrowheads on each other, a line that seems to run on into another. */
+function faultsOf(c: Choice): number {
+  let n = faults.get(c.placed);
+  if (n == null) {
+    const f = lineFaults(c.sized.graph, c.placed);
+    faults.set(c.placed, (n = f.loops + f.hooks + f.heads + f.continuations));
+  }
+  return n;
+}
+
 /** How a drawing reads on the page, flaws or not. */
 function readsAs(c: Choice, target: number): number {
   const m = metricsOf(c);
-  return slideReadability(pageScale(c.placed, c.sized.graph, target), m.crossings, m.backward, m.voids);
+  return slideReadability(pageScale(c.placed, c.sized.graph, target), m.crossings, m.backward, m.voids) - FAULT_COST * faultsOf(c);
 }
 
 /** How a drawing reads on the page (slideReadability), or undefined when it has a flaw (FLAWS, touching labels) the other is free of. */
@@ -374,6 +393,12 @@ function rewrapped(best: Choice, spacing: Spacing, q: Placement, parts: number, 
   const placed = normalise({ ...q, edges: route(s, q) });
   const sc = score(metricsOf({ placed, sized: s }));
   return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+}
+
+/** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */
+function errors(c: Choice): number {
+  const m = metricsOf(c);
+  return m.edgeThroughNode + m.labelOverlaps + m.overlaps;
 }
 
 /** A drawing with no more crossings than another and none of the errors (lines through boxes, covered labels, overlaps) that one is free of. */

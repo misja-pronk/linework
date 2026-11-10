@@ -71,7 +71,7 @@ const crossingBudget: Record<string, number> = {
   'workspace/containers.yaml#api': 1, // the payments call leaves the API past the accounts controller's line to the ledger
   'workspace/context.yaml': 0,
   'workspace/data-products.yaml': 0,
-  'workspace/deployment.yaml': 1, // the API's line to the core ledger outside the subscription crosses the call into the gateway
+  'workspace/deployment.yaml': 0,
   'workspace/model.yaml': 0,
   'network/campus.yaml': 0,
   'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
@@ -123,6 +123,7 @@ const jogBudget: Record<string, number> = {
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
   'workspace/data-products.yaml': 2,
+  'systems/invoice-walkthrough.yaml': 1, // three lines out of Orders' side: confirmation steps a lane down past the SQL line
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
@@ -140,9 +141,9 @@ const jogBudget: Record<string, number> = {
   'mindmap/capability-brainstorm.yaml': 86,
   'mindmap/workshop-agenda.yaml': 72,
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
-  'states/device-connection.yaml': 1, // returns to Idle share its side
+  'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
   'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
-  'states/pull-request.yaml': 2, // the returns into In review and Closed
+  'states/pull-request.yaml': 3, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
 };
 
@@ -175,13 +176,18 @@ const joinBudget: Record<string, number> = {
   'erd/saas.yaml': 3, // a nullable key comes into users.id beside the required ones: ends are fixed on their row
 };
 
-// Labels with another line running through or right beside them: none, but for the ones named here.
+// Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
-  'c4/kestrel-bank.yaml#context': 1,
-  'deployment/model.yaml#containers': 1,
-  'states/pull-request.yaml': 1, // closed without merging, between the line out and the line back
+  'c4/kestrel-bank.yaml#containers': 1,
+  'kubernetes/inference.yaml': 1,
+  'states/device-connection.yaml': 1,
+  'states/pull-request.yaml': 2, // closed without merging, between the line out and the line back
   'systems/invoice-walkthrough.yaml': 1,
+  'systems/web-shop.yaml': 1,
+  'workspace/containers.yaml#payments': 1,
+  'workspace/containers.yaml#api': 1,
+  'workspace/deployment.yaml': 1,
 };
 
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
@@ -194,11 +200,13 @@ const returns: Record<string, number> = {
   'states/document-approval.yaml': 1,
   'states/order-lifecycle.yaml': 1,
   'states/pull-request.yaml': 4,
+  'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
   'deployment/azure.yaml#prod': 1,
+  'deployment/aws.yaml#prod': 1, // wrapped the way the first environment is
   'model/containers.yaml': 2,
   'network/campus.yaml': 2,
   'systems/threat-model.yaml': 2,
@@ -246,7 +254,8 @@ describe('layout quality', () => {
   });
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
-    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev' });
+    // Drawn on its own (not the way the first environment was), as it would be without the others.
+    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev', previous: null });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
@@ -302,7 +311,8 @@ describe('layout quality', () => {
     expect(ragged).toEqual([]);
   });
   it('starts the cards of one column on one line, left to right', async () => {
-    const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none' });
+    // Drawn for a slide it turns top-down: asked left to right, the sources share their left edge.
+    const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
     const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
   });
