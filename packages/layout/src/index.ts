@@ -266,7 +266,7 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     const from = end(e.from, e.start);
     const to = end(e.to, e.end);
     // Dotted lines (lookups, management) route last, so the main flow gets the best paths.
-    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
+    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), says: e.label && e.step == null ? `${e.label}|${e.icon ?? ''}` : undefined, order: e.line === 'dotted' ? 1 : 0, style: `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}`, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
   }
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);

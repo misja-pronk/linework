@@ -25,6 +25,8 @@ export interface RouteRequest {
   from: RouteEnd;
   to: RouteEnd;
   label?: { width: number; height: number };
+  /** What the label says. Lines drawn alike that say the same may share a trunk, with the label written once. */
+  says?: string;
   /** Lower routes first and gets the best paths. */
   order?: number;
   /** How the line is drawn (pattern, colour, markers). Lines drawn alike may share a trunk. */
@@ -72,6 +74,7 @@ const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
+const SAID = 0.1; // the same for siblings with one label between them: it needs a shared piece long enough to sit on
 const FLOW = 150; // per end on a side across the flow, for a line into a later layer
 const TEXT = 60; // per pixel through header text: a detour of almost any length is cheaper
 const FOREIGN = 1; // per pixel inside a group that holds neither end, for each such group around the line
@@ -116,7 +119,7 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
         // Siblings' lines are cheap to run on, so the lines merge into one trunk.
         const friends = (members.get(trunk.get(e.id) ?? '') ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c);
         for (const c of friends) mark(grid, c, 1, true);
-        const found = search(grid, p, strange(e));
+        const found = search(grid, p, strange(e), e.says != null && friends.length ? SAID : SHARE);
         for (const c of friends) mark(grid, c, -1, true);
         if (found) {
           mark(grid, found.cells, 1);
@@ -149,30 +152,31 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
     const nudged = new Map(out);
     list.forEach((e, i) => nudged.set(e.id, { points: moved[i]! }));
     // Spreading lines can shorten the pieces labels sat on: keep the spread only when every label still fits.
-    const before = placeLabels(input, new Map([...out].map(([k, v]) => [k, { points: v.points }])));
-    const after = placeLabels(input, nudged);
+    const before = placeLabels(input, new Map([...out].map(([k, v]) => [k, { points: v.points }])), trunk);
+    const after = placeLabels(input, nudged, trunk);
     if (after <= before) return nudged;
   }
-  placeLabels(input, out);
+  placeLabels(input, out, trunk);
   return out;
 }
 
 /**
  * Trunk groups: lines drawn alike leaving one node side (fan-out) share a port and run as one line
  * until they branch; so do solid lines arriving at one side (fan-in; dashes would not line up there).
- * Only unlabelled lines: a label on the shared part would not say which line it names.
- * Returns edge id → group key, only for groups of two or more.
+ * Lines with a label only when they say the same: any other label on the shared part would not
+ * say which line it names. Returns edge id → group key, only for groups of two or more.
  */
 function trunkGroups(input: RouterInput, sides: Map<string, [Side, Side]>): Map<string, string> {
   const groups = new Map<string, string[]>();
   const add = (key: string, id: string) => groups.set(key, [...(groups.get(key) ?? []), id]);
-  // Labelled lines keep their own path: on a shared trunk a label could not say which line it names.
-  const usable = input.edges.filter((e) => e.style && !e.label && e.from.node !== e.to.node);
-  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}`, e.id);
+  // Lines with labels of their own keep their own path: on a shared trunk a label could not say which line it names.
+  const usable = input.edges.filter((e) => e.style && (!e.label || e.says != null) && e.from.node !== e.to.node);
+  const drawn = (e: RouteRequest) => `${e.style}|${e.says ?? ''}`;
+  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${drawn(e)}`, e.id);
   const out = new Map<string, string>();
   for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
   groups.clear();
-  for (const e of usable) if (!out.has(e.id) && e.style!.startsWith('solid')) add(`in|${e.to.node}|${e.to.rowY ?? ''}|${sides.get(e.id)![1]}|${e.style}`, e.id);
+  for (const e of usable) if (!out.has(e.id) && e.style!.startsWith('solid')) add(`in|${e.to.node}|${e.to.rowY ?? ''}|${sides.get(e.id)![1]}|${drawn(e)}`, e.id);
   for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
   return out;
 }
@@ -222,7 +226,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     for (const pair of list) {
       const sideways = pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25);
       // Only a way cheaper than the best so far is worth finding.
-      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), bestCost - sideways);
+      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways);
       if (!found) continue;
       const cost = found.cost + sideways;
       if (cost < bestCost) [best, bestCost] = [pair, cost];
@@ -720,7 +724,11 @@ interface Found {
   cost: number;
 }
 
-function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found | undefined {
+function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = Infinity): Found | undefined {
+  // What is left to go is guessed at full price, which finds a line of its own fast. For a line that
+  // is to run on its siblings' the guess must not be dearer than running there, or the search stops
+  // at the first way in it finds instead of the best one.
+  const guess = share < SHARE ? share : 1;
   const { xs, ys, W, H } = g;
   const sx = g.xi.get(p.start.x);
   const sy = g.yi.get(p.start.y);
@@ -740,11 +748,11 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found 
   stamp[s] = gen;
   cost[s] = 0;
   prev[s] = -1;
-  heap.push(s, Math.abs(xs[sx]! - tx) + Math.abs(ys[sy]! - ty));
+  heap.push(s, guess * (Math.abs(xs[sx]! - tx) + Math.abs(ys[sy]! - ty)));
 
   // A walled-in end (a stub ending in another box's margin) would make the search sweep the whole
   // grid; well before that it is cheaper to give up and use the fallback.
-  let budget = Math.max(20000, W * H * 2);
+  let budget = Math.max(20000, W * H * (guess < 1 ? 8 : 2));
   while (heap.size && budget-- > 0) {
     const k = heap.pop();
     const d = k & 3;
@@ -756,7 +764,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found 
     if (x === gx && y === gy && d !== ((goalDir + 2) & 3)) return unwind(g, k, p, cost[k]!);
     const base = cost[k]!;
     // Nothing still to come is cheaper than this: a caller that knows a better way already has its answer.
-    if (base + Math.abs(xs[x]! - tx) + Math.abs(ys[y]! - ty) >= limit) return undefined;
+    if (base + guess * (Math.abs(xs[x]! - tx) + Math.abs(ys[y]! - ty)) >= limit) return undefined;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === ((d + 2) & 3)) continue; // no U-turns
       const nx: number = x + DX[nd]!;
@@ -768,18 +776,19 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found 
         if (g.hBlocked[e]) continue;
         const len = Math.abs(xs[nx]! - xs[x]!);
         const f = g.hFriend[e]!;
-        c += (f ? len * SHARE : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f);
+        c += (f ? len * share : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f);
         if (strange) c += g.hZoneLen[e]! * strange.h[g.hZone[e]!]!;
-        // Crossing a vertical line that runs straight through the point we step onto.
-        if (ny > 0 && ny < H - 1 && g.vUsed[(ny - 1) * W + nx]! && g.vUsed[ny * W + nx]!) c += CROSS;
+        // Crossing a vertical line that runs straight through the point we step onto (a trunk-mate's
+        // line is joined there, not crossed).
+        if (ny > 0 && ny < H - 1 && g.vUsed[(ny - 1) * W + nx]! > g.vFriend[(ny - 1) * W + nx]! && g.vUsed[ny * W + nx]! > g.vFriend[ny * W + nx]!) c += CROSS;
       } else {
         const e = Math.min(y, ny) * W + x;
         if (g.vBlocked[e]) continue;
         const len = Math.abs(ys[ny]! - ys[y]!);
         const f = g.vFriend[e]!;
-        c += (f ? len * SHARE : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f);
+        c += (f ? len * share : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f);
         if (strange) c += g.vZoneLen[e]! * strange.v[g.vZone[e]!]!;
-        if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! && g.hUsed[ny * W + nx]!) c += CROSS;
+        if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! > g.hFriend[ny * W + nx - 1]! && g.hUsed[ny * W + nx]! > g.hFriend[ny * W + nx]!) c += CROSS;
       }
       // Arriving at the goal in the wrong heading costs a bend.
       if (nx === gx && ny === gy && nd !== goalDir) c += BEND;
@@ -788,7 +797,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, limit = Infinity): Found 
         stamp[nk] = gen;
         cost[nk] = c;
         prev[nk] = k;
-        heap.push(nk, c + Math.abs(xs[nx]! - tx) + Math.abs(ys[ny]! - ty));
+        heap.push(nk, c + guess * (Math.abs(xs[nx]! - tx) + Math.abs(ys[ny]! - ty)));
       }
     }
   }
@@ -908,7 +917,7 @@ export function simplify(pts: Point[]): Point[] {
 // ---------------------------------------------------------------- labels
 
 /** Puts each label on its line where it covers nothing; returns how many could not avoid covering something. */
-function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): number {
+function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>, trunk = new Map<string, string>()): number {
   let bad = 0;
   const taken: Box[] = [...input.obstacles.values()].map((b) => ({ x: b.x - 4, y: b.y - 4, width: b.width + 8, height: b.height + 8 }));
   taken.push(...input.soft, ...(input.labelZones ?? []));
@@ -916,48 +925,62 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
   const lines: { edge: string; box: Box }[] = [];
   for (const [id, r] of routes) for (let i = 1; i < r.points.length; i++) lines.push({ edge: id, box: segmentBox(r.points[i - 1]!, r.points[i]!) });
   const overlap = (r: Box, t: Box) => r.x < t.x + t.width && t.x < r.x + r.width && r.y < t.y + t.height && t.y < r.y + r.height;
-  let current = '';
-  const hits = (r: Box) => taken.some((t) => overlap(r, t)) || lines.some((l) => l.edge !== current && overlap(r, l.box));
+  // The labelled lines of each trunk: they say the same, so one label on the part they share speaks for all.
+  const mates = new Map<string, string[]>();
   for (const e of input.edges) {
-    current = e.id;
+    const t = trunk.get(e.id);
+    if (t && e.label && routes.has(e.id)) mates.set(t, [...(mates.get(t) ?? []), e.id]);
+  }
+  let own = new Set<string>();
+  const hits = (r: Box) => taken.some((t) => overlap(r, t)) || lines.some((l) => !own.has(l.edge) && overlap(r, l.box));
+  const said = new Set<string>();
+  for (const e of input.edges) {
     const route = routes.get(e.id);
-    if (!e.label || !route) continue;
+    if (!e.label || !route || said.has(e.id)) continue;
+    const group = mates.get(trunk.get(e.id) ?? '') ?? [e.id];
+    own = new Set(group);
     const { width, height } = e.label;
     const pts = route.points;
-    const candidates: { box: Box; score: number }[] = [];
-    const total = pts.length - 1;
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1]!;
-      const b = pts[i]!;
-      const horizontal = a.y === b.y;
-      const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-      const middle = Math.abs(i - 0.5 - total / 2);
-      for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
-        const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-        // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
-        // some line visible either side, or the line would seem to end in the label.
-        if (len >= (horizontal ? width + 16 : height + 16)) {
-          const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
-          const covers = horizontal && pts.length === 2 && len < width + 28 ? 100 : 0;
-          candidates.push({ box, score: (horizontal ? 0 : 60) + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
+    // Where the label could go on these pieces of the line, each with how bad it is there.
+    const spots = (pieces: [Point, Point][], alone: boolean) => {
+      const found: { box: Box; score: number }[] = [];
+      const total = pieces.length;
+      pieces.forEach(([a, b], k) => {
+        const horizontal = a.y === b.y;
+        const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+        const middle = Math.abs(k + 0.5 - total / 2);
+        for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+          const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
+          // some line visible either side, or the line would seem to end in the label.
+          if (len >= (horizontal ? width + 16 : height + 16)) {
+            const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
+            const covers = horizontal && alone && len < width + 28 ? 100 : 0;
+            found.push({ box, score: (horizontal ? 0 : 60) + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + (hits(box) ? 1000 : 0) });
+          }
+          // Above or below a horizontal line too short for a pill on it (a short hop between layers).
+          if (horizontal && alone && len >= 24 && len < width + 28 && t === 0.5)
+            for (const side of [-1, 1]) {
+              const y = side < 0 ? c.y - 4 - height : c.y + 4;
+              const box = { x: c.x - width / 2, y, width, height };
+              found.push({ box, score: 95 + middle * 10 + (side > 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+            }
+          // Beside a vertical line, when it is too short or crowded for a pill on it.
+          if (!horizontal && len >= height + 8)
+            for (const side of [1, -1]) {
+              const x = side > 0 ? c.x + 6 : c.x - 6 - width;
+              const box = { x, y: c.y - height / 2, width, height };
+              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
+            }
         }
-        // Above or below a horizontal line too short for a pill on it (a short hop between layers).
-        if (horizontal && pts.length === 2 && len >= 24 && len < width + 28 && t === 0.5)
-          for (const side of [-1, 1]) {
-            const y = side < 0 ? c.y - 4 - height : c.y + 4;
-            const box = { x: c.x - width / 2, y, width, height };
-            candidates.push({ box, score: 95 + middle * 10 + (side > 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
-          }
-        // Beside a vertical line, when it is too short or crowded for a pill on it.
-        if (!horizontal && len >= height + 8)
-          for (const side of [1, -1]) {
-            const x = side > 0 ? c.x + 6 : c.x - 6 - width;
-            const box = { x, y: c.y - height / 2, width, height };
-            candidates.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + (hits(box) ? 1000 : 0) });
-          }
-      }
-    }
-    candidates.sort((p, q) => p.score - q.score);
+      });
+      return found.sort((p, q) => p.score - q.score);
+    };
+    // On the part the trunk's lines share first: there one label speaks for all of them. A label that
+    // does not fit there goes on each line, as without a trunk.
+    let candidates = group.length > 1 ? spots(sharedPart(group.map((id) => routes.get(id)!.points)), false) : [];
+    if (candidates[0] && candidates[0].score < 500) for (const id of group) said.add(id);
+    else candidates = spots(pts.slice(1).map((b, i) => [pts[i]!, b]), pts.length === 2);
     if (!candidates[0] || candidates[0].score >= 500) bad++;
     const best = candidates[0]?.box ?? midLabel(pts, width, height);
     route.label = best;
@@ -965,6 +988,38 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
   }
   return bad;
 }
+
+/** The pieces of the first line that all the other lines run on too. */
+function sharedPart(lines: Point[][]): [Point, Point][] {
+  const [first, ...rest] = lines as [Point[], ...Point[][]];
+  const out: [Point, Point][] = [];
+  for (let i = 1; i < first.length; i++) {
+    const a = first[i - 1]!;
+    const b = first[i]!;
+    const horizontal = a.y === b.y;
+    const along = (p: Point) => (horizontal ? p.x : p.y);
+    const across = (p: Point) => (horizontal ? p.y : p.x);
+    let lo = Math.min(along(a), along(b));
+    let hi = Math.max(along(a), along(b));
+    for (const pts of rest) {
+      let [l, h] = [0, 0];
+      for (let j = 1; j < pts.length; j++) {
+        const c = pts[j - 1]!;
+        const d = pts[j]!;
+        if (Math.abs(across(c) - across(a)) > 0.5 || Math.abs(across(d) - across(a)) > 0.5) continue;
+        const s = Math.max(lo, Math.min(along(c), along(d)));
+        const t = Math.min(hi, Math.max(along(c), along(d)));
+        if (t - s > h - l) [l, h] = [s, t];
+      }
+      [lo, hi] = [l, h];
+    }
+    // In the line's own direction, so "before the middle" means the same as on a whole line.
+    if (hi - lo > 0) out.push(along(a) <= along(b) ? [at(a, lo, horizontal), at(a, hi, horizontal)] : [at(a, hi, horizontal), at(a, lo, horizontal)]);
+  }
+  return out;
+}
+
+const at = (p: Point, v: number, horizontal: boolean): Point => (horizontal ? { x: v, y: p.y } : { x: p.x, y: v });
 
 function segmentBox(a: Point, b: Point): Box {
   return { x: Math.min(a.x, b.x) - 1, y: Math.min(a.y, b.y) - 1, width: Math.abs(b.x - a.x) + 2, height: Math.abs(b.y - a.y) + 2 };

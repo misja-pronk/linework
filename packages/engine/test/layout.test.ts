@@ -77,6 +77,12 @@ const crossingBudget: Record<string, number> = {
   'systems/web-shop.yaml': 0,
 };
 
+// Lines over the header strip of a group: none, but for the ones named here.
+const headerBudget: Record<string, number> = {
+  'deployment/aws.yaml': 1, // Users' line to the load balancer steps aside right above the public subnet
+  'deployment/aws.yaml#dev': 1,
+};
+
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
   // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
@@ -92,6 +98,7 @@ describe('layout quality', () => {
       const m = measure(r.graph!, r.placed!);
       expect({ through: m.edgeThroughNode, labels: m.labelOverlaps, backward: m.backward, overlaps: m.overlaps }).toEqual({ through: 0, labels: 0, backward: 0, overlaps: 0 });
       expect(m.crossings).toBeLessThanOrEqual(crossingBudget[key]!);
+      expect(m.headerHits).toBeLessThanOrEqual(headerBudget[key] ?? 0);
     });
 
   const c4 = fs.readFileSync(path.join(examples, 'c4/kestrel-bank.yaml'), 'utf8');
@@ -105,6 +112,13 @@ describe('layout quality', () => {
   it('keeps the wide deployment view within 2600 px', async () => {
     const r = await render(c4, { fonts: 'none', view: 'production' });
     expect(r.placed!.width).toBeLessThan(2600);
+  });
+  it('writes one label where lines that say the same run into one target', async () => {
+    const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
+    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'prod' });
+    const said = r.graph!.edges.filter((e) => e.label === 'OrderPlaced' && e.to.node === 'queue');
+    expect(said.length).toBeGreaterThan(1);
+    expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(1);
   });
   it('starts the cards of one row on one line, top-down', async () => {
     const r = await render(c4, { fonts: 'none', view: 'containers' });
