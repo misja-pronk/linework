@@ -153,6 +153,12 @@ describe('the template as a theme', () => {
     for (const tone of Object.values(made.theme.tones)) expect(contrast(tone.fg, made.theme.canvas)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(made.theme.text, made.theme.canvas)).toBeGreaterThanOrEqual(4.5);
 
+    // A layout on a dark ground gives a dark theme, its text in the scheme colour that reads there.
+    const dark = templateTheme(t, chooseLayout(t, 'diagram', 'Title Slide')).theme;
+    expect(dark.mode).toBe('dark');
+    expect(dark.canvas).toBe('#0B2545');
+    expect(contrast(dark.text, dark.canvas)).toBeGreaterThanOrEqual(4.5);
+
     const d = readTemplate(dutch);
     const nl = templateTheme(d, chooseLayout(d, 'diagram'));
     expect(nl.theme.canvas).toBe('#FBF8F2');
@@ -182,6 +188,7 @@ describe('writing into a template', () => {
     expect(files['ppt/media/image2.png']).toBeUndefined();
     expect(files['docProps/thumbnail.jpeg']).toBeUndefined();
     expect(text('ppt/presentation.xml')).not.toContain('sectionLst');
+    expect(text('ppt/presentation.xml')).not.toContain('custShow');
     expect(findAll(pres, 'p:sldId')).toHaveLength(3);
     expect(text('ppt/presentation.xml')).toContain('<p:sldSz cx="12192000" cy="6858000"/>');
     // The title slide uses Title Slide, the diagrams Title Only.

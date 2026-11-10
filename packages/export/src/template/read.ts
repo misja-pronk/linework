@@ -53,6 +53,8 @@ export interface TemplateLayout {
   /** False when the layout hides the master's own shapes (showMasterSp="0"). */
   showMasterSp: boolean;
   background?: Background;
+  /** The layout's own colour map (a dark layout maps tx1 to lt1), when it overrides the master's. */
+  clrMap?: Record<string, string>;
 }
 
 export type Background = { color: string } | { image: string; color?: string };
@@ -298,6 +300,8 @@ export function readTemplate(bytes: Uint8Array): PptxTemplate {
       const lroot = parseXml(lxml);
       const l = child(lroot, 'p:sldLayout');
       const own = spTree(lxml, 'p:sldLayout');
+      const over = child(l, 'p:clrMapOvr/a:overrideClrMapping')?.attrs;
+      const map = over ? { ...over } : clrMap;
       // A placeholder without a frame of its own sits where the master's of its kind does.
       for (const ph of own.placeholders) {
         if (ph.frame) continue;
@@ -313,7 +317,8 @@ export function readTemplate(bytes: Uint8Array): PptxTemplate {
         placeholders: own.placeholders,
         decorations: own.decorations,
         showMasterSp: l?.attrs.showMasterSp !== '0',
-        background: background(lroot, 'p:sldLayout', files, lp, scheme, clrMap),
+        background: background(lroot, 'p:sldLayout', files, lp, scheme, map),
+        ...(over ? { clrMap: map } : {}),
       });
     }
   }

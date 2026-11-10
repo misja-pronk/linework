@@ -134,7 +134,7 @@ function build(b: Brand): Uint8Array {
     : '';
   put(
     'ppt/presentation.xml',
-    `${HEAD}<p:presentation ${NS} saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>${b.notesMaster ? '<p:notesMasterIdLst><p:notesMasterId r:id="rId2"/></p:notesMasterIdLst>' : ''}<p:sldIdLst>${ids.join('')}</p:sldIdLst><p:sldSz cx="${b.width}" cy="${b.height}"${b.height / b.width > 0.7 ? ' type="screen4x3"' : ''}/><p:notesSz cx="6858000" cy="9144000"/>` +
+    `${HEAD}<p:presentation ${NS} saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>${b.notesMaster ? '<p:notesMasterIdLst><p:notesMasterId r:id="rId2"/></p:notesMasterIdLst>' : ''}<p:sldIdLst>${ids.join('')}</p:sldIdLst><p:sldSz cx="${b.width}" cy="${b.height}"${b.height / b.width > 0.7 ? ' type="screen4x3"' : ''}/><p:notesSz cx="6858000" cy="9144000"/>${b.sections ? '<p:custShowLst><p:custShow name="Short" id="0"><p:sldLst><p:sld r:id="rId11"/></p:sldLst></p:custShow></p:custShowLst>' : ''}` +
       `<p:defaultTextStyle><a:defPPr><a:defRPr lang="nl-NL"/></a:defPPr>${lvl(1, 1800, scheme('tx1'), '+mn-lt').replace(/<a:buFont[^>]*\/><a:buChar[^>]*\/>/, '')}</p:defaultTextStyle>${sections}</p:presentation>`,
   );
   over('ppt/presentation.xml', `${PML}.${b.potx ? 'template.main' : 'presentation.main'}+xml`);

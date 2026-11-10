@@ -31,6 +31,8 @@ const decks: [string, string[], PptxOptions][] = [
   ['corporate-content', ['process/order-to-cash.yaml'], { template: templates.corporate, layout: 'Title and Content' }],
   ['dutch-deck', ['systems/web-shop.yaml', 'systems/invoice-walkthrough.yaml'], { template: templates.dutch, title: 'Architectuur', subtitle: 'Polder Advies' }],
   ['dutch-caption', ['systems/invoice-walkthrough.yaml'], { template: templates.dutch, layout: 'Afbeelding met bijschrift' }],
+  ['corporate-dark', ['systems/web-shop.yaml'], { template: templates.corporate, layout: 'Title Slide' }],
+  ['dutch-blank', ['erd/orders.yaml'], { template: templates.dutch, layout: 'Leeg' }],
   ['plain', ['systems/web-shop.yaml'], {}],
 ];
 const only = process.argv[3];

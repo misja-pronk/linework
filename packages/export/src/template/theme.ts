@@ -20,7 +20,7 @@ export function pageColor(t: PptxTemplate, layout: TemplateLayout): string {
 
 /** A scheme name (tx1, bg2, accent1) as the master maps it, as a colour. */
 export function schemeColor(t: PptxTemplate, layout: TemplateLayout, name: string): string {
-  const map = t.masters.find((m) => m.path === layout.master)?.clrMap ?? {};
+  const map = layout.clrMap ?? t.masters.find((m) => m.path === layout.master)?.clrMap ?? {};
   const key = (map[name] ?? { bg1: 'lt1', tx1: 'dk1', bg2: 'lt2', tx2: 'dk2' }[name] ?? name) as SchemeColor;
   return t.colors[key] ?? t.colors.dk1;
 }
@@ -39,7 +39,8 @@ export function templateTheme(t: PptxTemplate, layout: TemplateLayout): Template
   const canvas = pageColor(t, layout);
   const dark = contrast(canvas, '#000000') < contrast(canvas, '#FFFFFF');
   const base = dark ? themes.dark : themes.light;
-  const text = schemeColor(t, layout, 'tx1');
+  // Text in tx1, unless the layout puts it on a ground it does not read on (a dark title layout): then the scheme colour that does.
+  const text = ['tx1', 'bg1', 'tx2', 'bg2'].map((k) => schemeColor(t, layout, k)).find((c) => contrast(c, canvas) >= 4.5) ?? schemeColor(t, layout, 'tx1');
   const warnings: string[] = [];
   const accents = (['accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6'] as const).map((k) => ({ key: k, color: t.colors[k] }));
   const usable = accents.filter((a) => {

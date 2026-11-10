@@ -83,7 +83,8 @@ export function writeTemplateDeck(t: PptxTemplate, slides: DeckSlide[], media: R
       delete files[relsPath(s)];
     }
   }
-  // Sections name slides by id: with the sample slides gone they would point at nothing.
+  // Sections and custom shows name slides: with the sample slides gone they would point at nothing.
+  if (!opts.keepSlides) pres = pres.replace(/<p:custShowLst>[\s\S]*?<\/p:custShowLst>|<p:custShowLst\/>/, '');
   if (!opts.keepSlides) pres = pres.replace(/<p:ext uri="\{521415D9-36F7-43E2-AB2F-B90AF26B5E84\}">[\s\S]*?<\/p:ext>/, '').replace(/<p:extLst><\/p:extLst>|<p:extLst\/>/, '');
 
   // Speaker notes need a notes master: the template's, or a plain one with a theme of its own.
