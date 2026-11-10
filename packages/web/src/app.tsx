@@ -97,6 +97,17 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
+/** What the status bar counts: what the type draws. One shape drawn whole (a sequence, a roadmap) is
+ * counted by its parts; everything else by its elements and connections. */
+function drawnCount(graph: { nodes: GraphNode[]; edges: unknown[] }): string {
+  const s = graph.nodes.length === 1 ? graph.nodes[0]!.shape : undefined;
+  if (s?.kind === 'sequence') return `${count(s.participants.length, 'participant')} · ${count(s.events.filter((e) => e.kind === 'message').length, 'message')}`;
+  if (s?.kind === 'gitflow') return `${count(s.branches.length, 'branch')} · ${count(s.commits.length, 'commit')}`.replace('branchs', 'branches');
+  if (s?.kind === 'roadmap') return `${count(s.lanes.length, 'lane')} · ${count(s.items.length, 'item')}`;
+  if (s?.kind === 'journey') return `${count(s.phases.length, 'phase')} · ${count(s.steps.length, 'step')}`;
+  if (s?.kind === 'matrix') return `${count(s.rows.length, 'row')} · ${count(s.columns.length, 'column')}`;
+  return `${count(graph.nodes.length, 'element')} · ${count(graph.edges.length, 'connection')}`;
+}
 const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' || n.shape.kind === 'block' ? n.shape.label || n.id : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
 const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : n.shape.kind === 'block' ? (n.shape.form === 'person' ? 'user' : n.shape.form === 'area' || n.shape.form === 'capability' || n.shape.form === 'chip' ? 'layout-grid' : 'users') : 'table');
 
@@ -1983,11 +1994,7 @@ export function App() {
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
         </button>
-        {result?.graph && (
-          <span>
-            {count(result.graph.nodes.length, 'element')} · {count(result.graph.edges.length, 'connection')}
-          </span>
-        )}
+        {result?.graph && <span>{drawnCount(result.graph)}</span>}
         {pinCount > 0 && (
           <span className="status-selected">
             <Icon name="pin" size={13} /> {pinCount} pinned

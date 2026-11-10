@@ -236,6 +236,9 @@ await wait(400);
   await seed('type: sequence\ntitle: Login\nparticipants:\n  user: { kind: person, label: User }\n  app: { kind: client, label: Web app }\nmessages:\n  - user -> app: Sign in\n  - app --> user: Welcome\n', 'login.yaml');
   await page.waitForSelector('.drawing svg', { timeout: 10000 });
   await wait(400);
+  // The status bar counts what a sequence draws: participants and messages.
+  const status = await page.locator('.statusbar').innerText();
+  if (!status.includes('2 participants · 2 messages')) fail('the status bar does not count participants and messages: ' + status.split('\n').slice(0, 3).join(' '));
   const any = page.locator('.drawing [data-node]').first();
   if (await any.count()) {
     await any.click();
