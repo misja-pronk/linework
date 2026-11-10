@@ -48,7 +48,7 @@ const help = `carto — architecture diagrams that look good
                                                 what was there in place; --exit-code exits 1 when something changed
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto import <file.mmd|.md|.dsl|.yaml…> [-o out|-] [--force]
-                                                Mermaid (flowchart, architecture-beta,
+                                                Mermaid (flowchart, architecture-beta, stateDiagram,
                                                 erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
                                                 .md: every mermaid block; Kubernetes manifests: all files in one diagram;
                                                 .csv inventory or NetBox JSON: a network diagram

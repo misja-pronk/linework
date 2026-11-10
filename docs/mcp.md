@@ -16,7 +16,7 @@ drawing before you see it.
 | `new_diagram(type)` | The starter template |
 | `validate(yaml \| file)` | Problems with line, column and hint; when valid, layout quality: `verdict`, `score`, metrics and `suggestions` (badges for hub nodes, the other `direction` when it measures clearly better, shorter labels…) |
 | `render(yaml \| file, format?, theme?, path?, scale?)` | SVG or PNG. With `path` it writes the file; a PNG also comes back as an image, an SVG without `path` as text |
-| `import_mermaid(text)` | Mermaid flowchart, architecture-beta, erDiagram or sequenceDiagram → Cartography YAML, plus warnings |
+| `import_mermaid(text)` | Mermaid flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram and the others `carto import` reads → Cartography YAML, plus warnings |
 
 Resources: `cartography://types` and `cartography://schema/{type}`. Prompt: `create-diagram`
 (asks what to draw, picks a type, asks the type's questions, then runs the validate → render loop).
