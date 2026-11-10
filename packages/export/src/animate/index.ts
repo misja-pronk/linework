@@ -35,7 +35,7 @@ export async function sceneRasters(a: Animated, rasterize: Pixels, opts: PixelOp
   const out: SceneRaster[] = [];
   for (const [i, s] of list.entries()) {
     const full = await rasterize(s.svg, width, height);
-    const words = s.words != null ? { words: Math.floor(s.words * k) } : {};
+    const words = s.words ? { words: pixels(s.words, k, width, height) } : {};
     const added = opts.drawLines ? newLines(a.beats[i - 1], a.beats[i]!, a.graph) : [];
     if (!added.length || !s.without) {
       out.push({ full, ...words });
@@ -45,6 +45,13 @@ export async function sceneRasters(a: Animated, rasterize: Pixels, opts: PixelOp
     out.push({ full, ...words, lines: { without, paths: added.map((e) => s.path(e).map((p) => ({ x: p.x * k, y: p.y * k }))) } });
   }
   return out;
+}
+
+/** A box in frame units as whole pixels, inside the frame. */
+function pixels(b: { x: number; y: number; width: number; height: number }, k: number, width: number, height: number) {
+  const x = Math.max(0, Math.floor(b.x * k));
+  const y = Math.max(0, Math.floor(b.y * k));
+  return { x, y, width: Math.min(width, Math.ceil((b.x + b.width) * k)) - x, height: Math.min(height, Math.ceil((b.y + b.height) * k)) - y };
 }
 
 /** GIF frames come at most this often: more only makes the file bigger, and browsers slow down very short delays. */

@@ -19,8 +19,8 @@ export interface Frame {
 /** A beat as pixels: the picture, and when its new lines are drawn on, the picture without them and their paths in pixels. */
 export interface SceneRaster {
   full: Raster;
-  /** The first row of the lower third's words: they go out and come in rather than blend into each other. */
-  words?: number;
+  /** Where the caption's words are, in pixels: they go out and come in rather than blend into each other. */
+  words?: { x: number; y: number; width: number; height: number };
   lines?: { without: Raster; paths: Point[][] };
 }
 
@@ -44,32 +44,41 @@ export const TIMING = { hold: 2.5, transition: 0.5, draw: 0.6, fps: 30 };
 /** Slow in, slow out: a blend that settles instead of stopping. */
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-function blend(a: Uint8Array, b: Uint8Array, t: number, out = new Uint8Array(a.length), from = 0, to = a.length): Uint8Array {
+function blend(a: Uint8Array, b: Uint8Array, t: number): Uint8Array {
+  const out = new Uint8Array(a.length);
   const k = Math.round(t * 256);
-  for (let i = from; i < to; i++) {
+  for (let i = 0; i < a.length; i++) {
     const x = a[i]!;
     out[i] = x + (((b[i]! - x) * k) >> 8);
   }
   return out;
 }
 
-/** Two words written over each other read as neither: below `row`, the old ones fade to the ground, then the new ones come up. */
-function blendWords(a: Raster, b: Uint8Array, t: number, row: number): Uint8Array {
-  const out = blend(a.data, b, t, undefined, 0, row * a.width * 4);
-  const from = row * a.width * 4;
+type Rect = NonNullable<SceneRaster['words']>;
+
+/** Two words written over each other read as neither: in `r`, the old ones fade to the ground, then the new ones come up. */
+function blendWords(a: Raster, b: Uint8Array, t: number, r: Rect): Uint8Array {
+  const out = blend(a.data, b, t);
   // The ground is the frame's own colour, in its bottom-left corner.
   const g = a.data.length - a.width * 4;
-  const ground = new Uint8Array(a.data.length - from);
-  for (let i = 0; i < ground.length; i += 4) ((ground[i] = a.data[g]!), (ground[i + 1] = a.data[g + 1]!), (ground[i + 2] = a.data[g + 2]!), (ground[i + 3] = 255));
-  const tail = t < 0.5 ? blend(a.data.subarray(from), ground, Math.min(1, t * 2.5)) : blend(ground, b.subarray(from), Math.max(0, t * 2.5 - 1.5));
-  out.set(tail, from);
+  const k = Math.round((t < 0.5 ? Math.min(1, t * 2.5) : Math.max(0, t * 2.5 - 1.5)) * 256);
+  for (let y = r.y; y < r.y + r.height; y++)
+    for (let x = r.x, i = (y * a.width + x) * 4; x < r.x + r.width; x++, i += 4)
+      for (let c = 0; c < 3; c++) {
+        const ground = a.data[g + c]!;
+        out[i + c] = t < 0.5 ? a.data[i + c]! + (((ground - a.data[i + c]!) * k) >> 8) : ground + (((b[i + c]! - ground) * k) >> 8);
+      }
   return out;
 }
 
-const same = (a: Uint8Array, b: Uint8Array, from: number) => {
-  for (let i = from; i < a.length; i++) if (a[i] !== b[i]) return false;
+/** Whether two pictures are the same inside a rectangle. */
+function same(a: Raster, b: Uint8Array, r: Rect): boolean {
+  for (let y = r.y; y < r.y + r.height; y++) {
+    const from = (y * a.width + r.x) * 4;
+    for (let i = from; i < from + r.width * 4; i++) if (a.data[i] !== b[i]) return false;
+  }
   return true;
-};
+}
 
 /**
  * Where each pixel the new lines add lies along them: the distance along its nearest line and that
@@ -121,10 +130,10 @@ export function* frames(list: SceneRaster[], timing: Timing = {}): Generator<Fra
   const tick = 1000 / fps;
   const blends = Math.round((timing.transition ?? TIMING.transition) * fps);
   const draws = Math.round((timing.draw ?? TIMING.draw) * fps);
-  function* fade(from: SceneRaster, b: Uint8Array, words?: number): Generator<Frame> {
+  function* fade(from: SceneRaster, b: Uint8Array, words?: Rect): Generator<Frame> {
     const a = from.full;
-    const row = words != null && !same(a.data, b, words * a.width * 4) ? words : undefined;
-    for (let k = 1; k < blends; k++) yield { data: row != null ? blendWords(a, b, ease(k / blends), row) : blend(a.data, b, ease(k / blends)), duration: tick };
+    const box = words && !same(a, b, words) ? words : undefined;
+    for (let k = 1; k < blends; k++) yield { data: box ? blendWords(a, b, ease(k / blends), box) : blend(a.data, b, ease(k / blends)), duration: tick };
   }
   for (const [i, s] of list.entries()) {
     if (i) {
