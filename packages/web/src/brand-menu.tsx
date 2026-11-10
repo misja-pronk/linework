@@ -8,7 +8,7 @@ import { chooseBuiltin, chooseFile, forgetIcons, pickIconFolder, reconnectIcons,
 
 /** The built-in looks by name, as a person reads them: "survey-dark" is "Survey dark". */
 const BUILTIN = themeCatalog.map((t) => [t.name, t.name[0]!.toUpperCase() + t.name.slice(1).replace(/-/g, ' '), t.description] as const);
-/** A rule before each new family (Survey, Transit, Drafting, Classic, then the colourways). */
+/** A rule before each new family (Survey, Transit, Drafting, Sketch, Classic, then the colourways). */
 const family = (name: string) => name.split('-')[0]!;
 
 export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: string): void }) {
@@ -43,7 +43,7 @@ export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: s
           <hr />
           {BUILTIN.map(([k, name, description], i) => (
             <Fragment key={k}>
-              {i > 0 && family(k) !== family(BUILTIN[i - 1]![0]) && ['transit', 'drafting', 'classic', 'slate'].includes(k) && <hr />}
+              {i > 0 && family(k) !== family(BUILTIN[i - 1]![0]) && ['transit', 'drafting', 'sketch', 'classic', 'slate'].includes(k) && <hr />}
               <button role="menuitem" onClick={run(() => chooseBuiltin(k))} title={description} data-theme-name={k}>
                 {mark(b.choice === k)} {name}
                 {k === 'survey' ? <span className="menu-note"> default</span> : null}

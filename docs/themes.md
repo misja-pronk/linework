@@ -15,6 +15,8 @@ GCP icons you downloaded yourself on the cards.
 | `transit-dark` | Transit on a dark page | The same, on dark slides |
 | `drafting` | An engineering drawing: ink lines, square corners, monospace lettering, a frame with zones | Specifications and print |
 | `drafting-dark` | Drafting as a blueprint | The same, on a dark page |
+| `sketch` | Drawn by hand: marker lines that wobble a little, hachured zones, a handwriting face (Kalam) | Workshops, whiteboard sessions, early ideas that should not look final |
+| `sketch-dark` | Sketch in chalk on a blackboard | The same, on a dark screen or slide |
 | `classic`, `classic-dark` | The look before Survey: Inter, soft icon tiles, tone-washed groups, pill labels | Diagrams that must keep looking as they did |
 | `slate` | Sober consulting: navy and brass on a paper-grey page, tight corners, flat cards (built on Classic) | Formal reports |
 | `ocean` | Fresh and bright: deep sea blue, seafoam and coral, round corners, solid icon tiles (built on Classic) | Product and marketing pages |
@@ -30,6 +32,35 @@ the names.
 
 Use one with `theme: transit` at the top of a diagram, `carto render x.yaml --theme transit`, or the theme picker in
 the editor's Export menu. A `--theme` flag or the picker wins over the diagram's own `theme:`.
+
+### Sketch, for workshops
+
+A diagram that is still being argued about should look like it. `sketch` draws the same layout by hand: every
+outline and line becomes a slightly wobbly stroke (cards and zones get a second, overshooting pencil line), tinted
+zones, tiles and headers get hachure, arrows are two open strokes, and all text is set in Kalam, a handwriting face
+under the SIL Open Font License. The wobble is seeded per element (by its id in the editor, by its shape in an
+export), so a redraw comes out exactly the same and a card you drag keeps its own hand.
+
+![sketch](themes/png/sketch-azure.png)
+
+![sketch, a process](themes/png/sketch-process.png)
+
+![sketch-dark](themes/png/sketch-dark-process.png)
+
+The look is plain SVG paths, no filters, so PNG, PDF and Office-safe SVG keep it. A PowerPoint deck keeps the
+layout, colours and the Kalam typeface name but draws ruled native shapes: editable shapes in Office cannot wobble.
+Where Kalam is not installed PowerPoint substitutes another face; install Kalam (free, Google Fonts) or pass
+`--font` for the deck.
+
+A theme file can make any look hand-drawn, or a sketch ruled again:
+
+```yaml
+extends: survey
+sketch: true                    # or { roughness: 0.5, fill: solid, double: false }; false turns it off
+```
+
+`roughness` runs from 0 (a ruler) to 3 (a quick marker), 1 by default; `fill: solid` leaves out the hachure;
+`double: false` draws each outline once.
 
 ## A theme file
 
@@ -94,7 +125,7 @@ allowed ones, and the rest of the theme still applies.
 extends: survey
 
 font:
-  family: Instrument Sans     # bundled: Inter, Instrument Sans, Barlow, IBM Plex Sans (or your own files)
+  family: Instrument Sans     # bundled: Inter, Instrument Sans, Barlow, IBM Plex Sans, Kalam (or your own files)
   mono: Geist Mono            # bundled: Geist Mono, IBM Plex Mono; or { family, files }
   monoFor: [edgeLabel, type]  # what is set in the monospace face: edgeLabel, type, title
 
@@ -192,6 +223,7 @@ in `packages/theme/fonts`:
 | Geist Mono | Survey | 400, 500 |
 | Barlow | Transit | 400, 500, 600 |
 | IBM Plex Sans, IBM Plex Mono | Drafting | 400, 500, 600 and 400, 500 |
+| Kalam | Sketch | 400 and 600 (its Bold; there is no medium) |
 | Inter | Classic, slate, ocean, mono | 400, 500, 600 |
 
 Name one of them in `font.family` or `font.mono` and nothing else is needed. Text is measured with that face's own

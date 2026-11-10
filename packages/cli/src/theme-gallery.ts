@@ -30,6 +30,11 @@ const jobs: { name: string; file: string; theme?: string; view?: string; patch?:
   { name: 'survey-sheet', file: 'examples/azure/web-shop.yaml', patch: sheet },
   { name: 'transit-network', file: 'examples/network/small-office.yaml', theme: 'transit' },
   { name: 'drafting-c4', file: 'examples/c4/kestrel-bank.yaml', theme: 'drafting', view: 'containers' },
+  // Sketch, for workshops: the pictures in docs/themes.md.
+  { name: 'sketch-azure', file: 'examples/azure/web-shop.yaml', theme: 'sketch' },
+  { name: 'sketch-process', file: 'examples/process/order-to-cash.yaml', theme: 'sketch' },
+  { name: 'sketch-sequence', file: 'examples/sequence/checkout.yaml', theme: 'sketch' },
+  { name: 'sketch-dark-process', file: 'examples/process/order-to-cash.yaml', theme: 'sketch-dark' },
 ];
 
 let failed = false;
