@@ -448,7 +448,8 @@ export function App() {
 
   /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
   const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
-    const other = files.find((f) => foreign(f.path, f.text));
+    // A folder of data products may hold a drawing too: the mesh goes first.
+    const other = hasMesh(files) ? undefined : files.find((f) => foreign(f.path, f.text));
     if (other) {
       setIncoming({ name: other.path.split('/').pop()!, text: other.text });
       setModal('templates');
