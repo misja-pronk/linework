@@ -51,6 +51,7 @@ function parse(files: ExportFile[], warn: Warnings) {
     for (const p of entries) {
       const c = compiled.get(p)!;
       for (const n of c.notes) warn.add(n);
+      if (!isObj(c.template.resources)) continue;
       templates.push({ path: p, json: c.template, what: 'Bicep' });
       estate.sources.add('bicep');
     }

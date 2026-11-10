@@ -103,7 +103,7 @@ export type E =
   | { k: 'arr'; items: E[] }
   | { k: 'for'; item: string; index?: string; src: E; cond?: E; body: E }
   | { k: 'if'; cond: E; body: E }
-  | { k: 'call'; name: string; args: E[] }
+  | { k: 'call'; name: string; args: E[]; line?: number }
   | { k: 'member'; of: E; name: string }
   | { k: 'index'; of: E; at: E }
   | { k: 'un'; op: string; e: E }
@@ -338,7 +338,7 @@ class Parser {
         this.expr();
         return { k: 'lambda' };
       }
-      if (this.is('(')) return { k: 'call', name: t.v, args: this.args() };
+      if (this.is('(')) return { k: 'call', name: t.v, args: this.args(), line: t.line };
       return { k: 'id', name: t.v };
     }
     if (this.is('(')) {
@@ -536,6 +536,8 @@ export function compileBicep(path: string, files: Map<string, string>, seen: str
       case 'index':
         return `${x(e.of, scope)}[${x(e.at, scope)}]`;
       case 'call': {
+        // Notes name the line of the call, not of the declaration it is in.
+        if (e.line) line = e.line;
         if (e.name.includes('.')) throw new Unsupported(`${e.name}() is only known once deployed`);
         const name = e.name === 'resourceGroup' && e.args.length ? 'resourceGroup' : e.name;
         if (/^(loadTextContent|loadJsonContent|loadYamlContent|loadFileAsBase64|readEnvironmentVariable|getSecret)$/.test(name)) throw new Unsupported(`${name}() is not read`);
@@ -645,7 +647,7 @@ export function compileBicep(path: string, files: Map<string, string>, seen: str
       }
       if (/^(br|ts)[:/]/.test(d.path)) {
         notes.push(`${path}:${d.line}: the module ${d.path} is in a registry: not read`);
-        r.properties = { mode: 'Incremental', parameters: {} };
+        continue;
       } else if (seen.includes(at)) notes.push(`${path}:${d.line}: ${d.path} uses itself`);
       else {
         modules.push(at);
