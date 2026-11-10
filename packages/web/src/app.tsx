@@ -15,6 +15,8 @@ import { Menu } from './menu.tsx';
 import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
+import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
+import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { ViewPicker } from './view-picker.tsx';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
@@ -36,6 +38,8 @@ interface Doc {
   starter?: string;
   /** Path inside the open folder. */
   path?: string;
+  /** The data product and contract files it was imported from, by path: its contracts are read from there. */
+  files?: Record<string, string>;
 }
 
 interface Saved {
@@ -152,9 +156,11 @@ export function App() {
   }, []);
 
   const load = useMemo(
-    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
-    [ws, doc.path, doc.starter],
+    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : doc.files ? memoryLoader(doc.files) : undefined),
+    [ws, doc.path, doc.starter, doc.files],
   );
+  /** The open folder holds data products or data contracts (ODPS, ODCS): it can be drawn as one map. */
+  const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -164,6 +170,9 @@ export function App() {
   const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
   const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
   const [presenting, setPresenting] = useState(false);
+  // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
+  const [lens, setLens] = useState<{ doc: string; view?: string; focus: { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null }>();
+  const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
   /** A step just made from the selection: the strip asks for its name. */
   const [naming, setNaming] = useState<number>();
   const drawnView = useRef<string>(undefined);
@@ -177,7 +186,7 @@ export function App() {
   const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -278,7 +287,7 @@ export function App() {
   };
 
   const open = useCallback(
-    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false) => {
+    (next: string, nextDoc: Doc, nextPins?: LayoutSidecar, quiet = false, said?: string) => {
       const before = { text: editor.current?.text() ?? text, doc, pins, handle: fileHandle.current, savedText, savedPins };
       editor.current?.load(next, nextPins);
       setDoc(nextDoc);
@@ -289,7 +298,7 @@ export function App() {
       openedText.current = next;
       // Within a folder, files are saved before switching: nothing to undo. A blank start says nothing either.
       if (nextDoc.path || quiet) return;
-      notify(`Opened ${nextDoc.name}`, {
+      notify(said ?? `Opened ${nextDoc.name}`, {
         action: {
           label: 'Undo',
           run: () => {
@@ -361,7 +370,7 @@ export function App() {
           setWs(await scan(ws.dir));
         } else {
           fileHandle.current = r.handle;
-          setDoc({ name: r.name });
+          setDoc({ name: r.name, ...(doc.files ? { files: doc.files } : {}) });
         }
       } else download(yamlName(doc.name), now, 'text/yaml');
       setSavedText(now);
@@ -390,6 +399,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
+      else if (meshInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -406,16 +416,69 @@ export function App() {
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
   };
 
+  /** data-mesh.yaml in the open folder: its data products and contracts as one map, made or brought up to date. False: the folder has none. */
+  const meshInFolder = (w: Workspace): boolean => {
+    const path = 'data-mesh.yaml';
+    const was = w.files.get(path)?.text;
+    if (was != null && !/^type:\s*data-products\s*$/m.test(was)) return (notify(`${path} in ${w.name} is another kind of diagram: rename it first`, { tone: 'error' }), true);
+    const mesh = meshFrom([...w.files].filter(([p]) => p !== path).map(([p, f]) => ({ path: p, text: f.text })), was != null ? { existing: was } : {});
+    if (!mesh?.yaml) return false;
+    fileHandle.current = undefined;
+    open(mesh.yaml, { name: path, path }, readSidecar(w, path));
+    // Not on disk yet, or not like this: ⌘S writes it into the folder.
+    setSavedText(was ?? null);
+    notify(`${mesh.summary} in ${w.name} → ${path}${was != null ? ', what you added by hand is kept' : ''}${meshRemarks(mesh.problems)}`, mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {});
+    focusDrawing();
+    return true;
+  };
+  const meshRemarks = (problems: { file?: string; message: string }[]) =>
+    problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
+
+  /** Files picked or dropped. Data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
+  const openTexts = (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
+    const folder = folderOf(files);
+    const mesh = meshFrom(files);
+    if (mesh?.yaml) {
+      fileHandle.current = undefined;
+      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${mesh.summary} as one map${meshRemarks(mesh.problems)}`);
+      return focusDrawing();
+    }
+    if (mesh) return notify(`Nothing to draw${meshRemarks(mesh.problems) || ': no data product or contract could be read'}`, { tone: 'error' });
+    const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
+    if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
+    fileHandle.current = files.length === 1 ? handle : undefined;
+    open(diagram.text, { name: diagram.path.split('/').pop()! });
+  };
+
+  // Files dragged over the page: the whole page takes them, before the YAML editor reads them as text to insert.
+  const [dropping, setDropping] = useState(false);
+  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
+  const onDragFiles = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropping(true);
+  };
+  const onDropFiles = (e: React.DragEvent) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDropping(false);
+    void dropped(e.dataTransfer)
+      .then((files) => openTexts(files))
+      .catch((err: unknown) => notify(`Opening failed: ${err instanceof Error ? err.message : String(err)}`, { tone: 'error' }));
+  };
+
   const openFile = () => {
     if ('showOpenFilePicker' in window) {
       void (async () => {
         try {
-          const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
-            types: [{ description: 'Cartography diagram', accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+          const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
+            multiple: true,
+            types: [{ description: 'Cartography diagram, or data products and contracts (ODPS, ODCS)', accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } }],
           });
-          const f = await h!.getFile();
-          fileHandle.current = h;
-          open(await f.text(), { name: f.name });
+          const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
+          openTexts(files, hs[0]);
         } catch (e) {
           if ((e as Error).name !== 'AbortError') notify(`Opening failed: ${(e as Error).message}`, { tone: 'error' });
         }
@@ -424,17 +487,18 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,text/yaml';
+    input.accept = '.yaml,.yml,.json,text/yaml';
+    input.multiple = true;
     input.onchange = async () => {
-      const f = input.files?.[0];
-      if (f) open(await f.text(), { name: f.name });
+      const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));
+      if (files.length) openTexts(files);
     };
     input.click();
   };
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -885,7 +949,10 @@ export function App() {
     else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'v') paste();
     else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
     else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
-    else if (e.key === 'Escape') setSelection([]);
+    else if (e.key === 'Escape') selection.length || !focusOn ? setSelection([]) : leaveFocus();
+    else if (e.key.toLowerCase() === 'f' && !mod(e) && !e.altKey) focusOnSelection();
+    else if ((e.key === '+' || e.key === '=' || e.key === '-') && !mod(e) && !e.altKey && drawn?.focus) focusHops(e.key === '-' ? -1 : 1);
+    else if (e.key === 'd' && !mod(e) && !e.altKey && drawn?.focus) focusDirection();
     else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
     else if (craftKey(e) === 'lock') toggleLock();
     else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
@@ -927,6 +994,40 @@ export function App() {
     setPicked({ doc: s.id, name: t.view });
     pick(s);
   };
+
+  // ------------------------------------------------------------ focus
+
+  /** A focus is drawn, or one of the YAML is switched off: there is a way back. */
+  const focusOn = focusAsked !== undefined || !!drawn?.focus?.written;
+  const setFocus = (focus: NonNullable<typeof lens>['focus'] | undefined) => setLens(focus === undefined ? undefined : { doc: docId, view: viewName, focus });
+  /** Esc: out of a focus set here; a focus the YAML has is switched off, and on again. */
+  const leaveFocus = () => setFocus(focusAsked !== undefined ? undefined : drawn?.focus?.written ? null : undefined);
+  /** F: the drawing cut down to the selection and what is around it. In a focus, that walks on to a neighbour. */
+  const focusOnSelection = () => {
+    const g = drawn?.graph;
+    if (!g) return;
+    if (!selection.length) return focusOn ? leaveFocus() : notify('Select what to focus on, then press F');
+    const ends = (id: string) => g.edges.filter((e) => e.id === id).flatMap((e) => [e.from.node, e.to.node]);
+    const on = [...new Set(selection.flatMap((x) => (x.kind === 'edge' ? ends(x.id) : [x.id])))];
+    if (!on.length) return;
+    const now = drawn?.focus;
+    setFocus({ on, hops: !now ? 1 : now.hops === Infinity ? 'all' : now.hops, direction: now?.direction ?? 'both' });
+  };
+  const refocus = (change: (now: Focus) => Partial<Pick<Focus, 'hops' | 'direction'>>) => {
+    const now = drawn?.focus;
+    if (!now) return notify('No focus yet: select something and press F');
+    const next = { hops: now.hops, direction: now.direction, ...change(now) };
+    setFocus({ on: now.on, hops: next.hops === Infinity ? 'all' : next.hops, direction: next.direction });
+  };
+  const focusHops = (by: 1 | -1) => refocus((now) => ({ hops: hopsBy(now.hops, by) }));
+  const focusDirection = () => refocus((now) => ({ direction: nextDirection(now.direction) }));
+  // A drawing that is one shape (a sequence, a roadmap) has nothing to walk from: say so and stay on the whole.
+  useEffect(() => {
+    if (!focusAsked || !result?.svg || result.focus || rendered?.text !== text) return;
+    const why = result.diagnostics.find((d) => d.message.startsWith('Focus'));
+    setLens(undefined);
+    notify(why ? why.message.replace(/^Focus: /, '') : 'Nothing to focus on there');
+  }, [result]);
 
   // ------------------------------------------------------------ steps and presenting
 
@@ -1016,10 +1117,11 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
       : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open YAML file…', icon: 'folder-open', shortcut: '⌘O', run: openFile },
+    { id: 'open', group: 'File', label: 'Open YAML file…', hint: 'a diagram, or data products and contracts (ODPS, ODCS)', icon: 'folder-open', shortcut: '⌘O', run: openFile },
     { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
+    ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
@@ -1049,6 +1151,15 @@ export function App() {
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
     { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
     { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
+    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: 'F', run: focusOnSelection },
+    ...(drawn?.focus
+      ? [
+          { id: 'focus-more', group: 'Focus', label: 'Focus: one hop more', hint: drawn.focus.hops === Infinity ? 'everything connected is shown' : `now ${drawn.focus.hops}`, icon: 'plus', shortcut: '+', run: () => focusHops(1) },
+          { id: 'focus-fewer', group: 'Focus', label: 'Focus: one hop fewer', icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
+          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: 'D', run: focusDirection },
+        ]
+      : []),
+    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: 'Esc', run: leaveFocus }] : []),
     { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
     { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
@@ -1158,7 +1269,13 @@ export function App() {
   }
   const typeId = type?.id;
   return (
-    <div className="app" style={{ ['--split' as string]: `${split * 100}%` }}>
+    <div
+      className="app"
+      style={{ ['--split' as string]: `${split * 100}%` }}
+      onDragOverCapture={onDragFiles}
+      onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
+      onDropCapture={onDropFiles}
+    >
       <header className="topbar">
         <div className="brand">
           <span className="logo" aria-hidden="true" />
@@ -1363,7 +1480,7 @@ export function App() {
             result={drawn}
             stale={!!rendered && drawn !== result}
             selection={selection}
-            docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}`}
+            docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}:${drawn?.focus ? `${drawn.focus.on.join(' ')} ${drawn.focus.hops} ${drawn.focus.direction}` : ''}`}
             onSelect={(s, add) => (add && s ? toggle(s) : select(s))}
             onSelectMany={selectMany}
             labelOf={labelOf}
@@ -1425,6 +1542,9 @@ export function App() {
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
+              <button className={drawn?.focus ? 'tool active' : 'tool'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" disabled={!selection.length && !focusOn}>
+                <Icon name="focus" /> Focus <kbd>F</kbd>
+              </button>
               {!stepList.length && (
                 <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
                   <Icon name="layers" /> Step <kbd>S</kbd>
@@ -1434,6 +1554,7 @@ export function App() {
                 <Icon name="play" /> Present <kbd>P</kbd>
               </button>
             </div>
+            {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {hint && !adding && !modal && (
               <div className="hint" role="note">
                 <span>
@@ -1645,6 +1766,15 @@ export function App() {
             },
           }))}
         />
+      )}
+      {dropping && (
+        <div className="drop-here" aria-hidden="true">
+          <div>
+            <Icon name="folder-open" size={22} />
+            <strong>Drop to open</strong>
+            <span>A diagram, or data product and data contract files (ODPS, ODCS) and folders of them: they become one data mesh map</span>
+          </div>
+        </div>
       )}
       {toast && (
         <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'}>
