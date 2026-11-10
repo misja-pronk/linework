@@ -138,7 +138,9 @@ async function pageOf(root: string, rel: string, flags: WikiFlags, used: Set<str
         const title = s.title ?? `Step ${i + 1}`;
         steps.push({ title, ...(s.caption ? { caption: s.caption } : {}), ...(at.svg ? { picture: await picture(at, `${base}-step-${String(i + 1).padStart(2, '0')}`, words, `${words.title}, step ${i + 1} of ${r.steps.length}: ${[s.title, s.caption].filter(Boolean).join('. ')}`) } : {}) });
       }
-    parts.push({ title: r === first ? words.title : (r.views?.find((v) => v.name === r.view)?.title ?? words.title), ...(r !== first && r.view ? { view: r.view } : {}), picture: await picture(r, base, words), words, steps });
+    // With a section per step (and its picture), the walkthrough list would say the same twice.
+    const shown = steps.length ? { ...words, sections: words.sections.filter((x) => x.heading !== 'Walkthrough') } : words;
+    parts.push({ title: r === first ? words.title : (r.views?.find((v) => v.name === r.view)?.title ?? words.title), ...(r !== first && r.view ? { view: r.view } : {}), picture: await picture(r, base, words), words: shown, steps });
   }
   const d = parts[0]?.words;
   return { file: rel, name, title: d?.title ?? rel, summary: d?.summary ?? '', parts, files, problems };

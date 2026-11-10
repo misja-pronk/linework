@@ -60,6 +60,11 @@ describe('carto describe', () => {
     expect(all).toContain('### Interactions');
   });
 
+  it('names the architecture decisions about the drawing', () => {
+    const r = carto('describe', 'examples/workspace/containers.yaml');
+    expect(r.out).toMatch(/\nDecisions\n- ADR-0001: .*\(accepted\)\./);
+  });
+
   it('says what is wrong with a broken diagram and writes nothing', () => {
     fs.writeFileSync(out('broken.yaml'), 'type: nonsense\n');
     const r = carto('describe', out('broken.yaml'));
@@ -89,6 +94,7 @@ describe('carto export-md', () => {
     const walk = fs.readFileSync(path.join(dir, 'invoice-walkthrough.md'), 'utf8');
     expect(walk).toContain('## Step by step');
     expect(walk).toContain('### 3. Then checkout waits for Finance');
+    expect(walk).not.toContain('## Walkthrough');
     expect(walk).toContain('![Checkout without waiting, step 3 of 7: Then checkout waits for Finance.');
     // A view of its own under its heading.
     expect(fs.readFileSync(path.join(dir, 'threat-model.md'), 'utf8')).toMatch(/\n## .*\n\n!\[.*\]\(images\/threat-model-threats\.svg\)/);
