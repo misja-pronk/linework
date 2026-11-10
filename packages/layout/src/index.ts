@@ -352,15 +352,17 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // Never further outside the band of slide shapes than the drawing it would replace.
   if (outOfBand(a.placed, a.sized.graph, target) > Math.max(1e-9, outOfBand(b.placed, b.sized.graph, target))) return false;
   if (beats(readability(a, b, target, 0), readsAs(b, target, 0))) return true;
+  // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
   const crossed = metricsOf(b).crossings;
-  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, Math.ceil(crossed / 2))) return false;
+  const tiny = pageScale(b.placed, b.sized.graph, target) < READABLE_SCALE / 2;
+  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0)) return false;
   // Weighed with small text double, for text too small to read: only for text clearly larger, or for a
   // slide's shape at text as large.
   const [sa, sb] = [pageScale(a.placed, a.sized.graph, target), pageScale(b.placed, b.sized.graph, target)];
   const shaped = outOfBand(a.placed, a.sized.graph, target) < outOfBand(b.placed, b.sized.graph, target) - NEARER && sa >= AS_LARGE * sb;
   return sb < READABLE_SCALE && (sa >= LARGER * sb || shaped) && beats(readability(a, b, target), readsAs(b, target));
 }
-/** For larger text a drawing may take on this many more crossings (or half as many again as it has), no more: past that it is a tangle, however large. */
+/** For larger text a drawing may take on this many more crossings (half as many again as it has when its text is tiny), no more: past that it is a tangle, however large. */
 const SMALL_CROSSINGS = 2;
 const beats = (r: number | undefined, than: number) => r != null && r > than + WRAP_GAIN + 1e-9;
 
