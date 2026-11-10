@@ -493,7 +493,7 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
   if (typeof plan === 'string') return { error: plan };
 
   // The entry that holds the list may still be shorthand ("alice: user").
-  if (plan.path.length > 2) entryMap(doc, type, plan.path.slice(0, 2));
+  if (plan.path.length > 2 || (plan.key != null && plan.path.length === 2)) entryMap(doc, type, plan.path.slice(0, 2));
   const at = doc.getIn(plan.path, true);
   if (plan.key != null) {
     if (at == null) doc.setIn(plan.path, doc.createNode({}));

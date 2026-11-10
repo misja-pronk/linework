@@ -353,7 +353,7 @@ function zoneMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
     }
   } else {
     m.push({ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: 3, fill, stroke: mix(fg, theme.surface, 0.55), sw: 0.8, name: s.label });
-    m.push(...patternMarks(b.x, b.y, b.width, b.height, s.form === 'collaboration' ? 'cross' : 'dots', mix(fg, fill, 0.6), 3));
+    m.push(...patternMarks(b.x, b.y, b.width, b.height, s.form === 'collaboration' ? 'cross' : 'dots', mix(fg, fill, s.form === 'collaboration' ? 0.4 : 0.6), 3));
   }
   // The mode in words where it fits along the zone, on a plate so the pattern does not cut it.
   const words = (s.label || ZONE_NAMES[s.form as keyof typeof ZONE_NAMES]).toUpperCase();
@@ -383,7 +383,7 @@ export function patternMarks(x: number, y: number, w: number, h: number, kind: '
       for (let xx = x0 + step / 2 + (row % 2 ? step / 2 : 0); xx < x1; xx += step) m.push({ t: 'circle', cx: xx, cy: yy, r: 1.2, fill: color });
     return m;
   }
-  const step = 7;
+  const step = kind === 'cross' ? 9 : 7;
   const d: JourneySeg[] = [];
   // Lines x - y = c (falling) and x + y = c (rising), clipped to the box.
   const clip = (rising: boolean) => {

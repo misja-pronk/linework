@@ -46,6 +46,8 @@ export interface BlockShape {
   heat?: BlockHeat;
   /** Holds other blocks, placed inside it: its label is a header, its own heat a tag beside it. */
   container?: boolean;
+  /** The block it stands in (a capability's parent, by node id): the tree engine places it there. */
+  inside?: string;
   /** Short lines under the label: the systems that support a capability. */
   lines?: string[];
   /** A person's initials, in the disc. */

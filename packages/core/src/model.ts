@@ -26,6 +26,10 @@ export interface Graph {
   steps?: GraphStep[];
   /** The main line of a process, one beat per stop: laid out straight, and what a step-through walks when no steps are written. */
   walk?: GraphBeat[];
+  /** How a type's own layout is asked to arrange the drawing, as the source says (a capability map in bands, four areas to a row). */
+  arrange?: Record<string, string | number | boolean>;
+  /** The drawing is a tree along its solid lines (an org chart): a focus on one element keeps its whole branch and the line up to the top. */
+  tree?: boolean;
 }
 
 export interface GraphBeat {

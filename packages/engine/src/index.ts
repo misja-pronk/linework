@@ -14,6 +14,7 @@ import {
   readFocus,
   resolveSteps,
   stepsSchema,
+  unpackLayout,
   validate,
   viewPins,
   withoutBadges,
@@ -48,9 +49,11 @@ import { roadmap } from '@cartography/roadmap';
 import { journey } from '@cartography/journey';
 import { process } from '@cartography/process';
 import { states } from '@cartography/states';
+import { capabilities } from '@cartography/capabilities';
+import { teams } from '@cartography/teams';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, capabilities, teams];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -228,7 +231,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (focused) {
     graph = focused.graph;
     // Asked for from outside, the picture itself says it is a part: nobody takes an export for the whole landscape.
-    if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}, ${focusReach(focusSpec!)}`].filter(Boolean).join(' · ');
+    if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}${graph.tree ? ' and their branch' : `, ${focusReach(focusSpec!)}`}`].filter(Boolean).join(' · ');
   }
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
@@ -254,7 +257,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   const autoDirection = (model?.view?.direction ?? data.direction) == null;
-  const placed = type.layout ? await type.layout(sized, pins) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
+  // A type that places things itself gets the drawing before this one as well, to keep what it can.
+  const placed = type.layout ? await type.layout(sized, pins, opts.previous === null ? undefined : (opts.previous ?? unpackLayout(pins?.layout))) : await layout(sized, spacing, pins, { autoDirection, ...type.tuning, ...(opts.previous !== undefined ? { previous: opts.previous } : {}), ...opts.tuning });
   // Layout may turn a very wide drawing top-down when the source did not say which way.
   if (placed.direction) graph.direction = placed.direction;
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.

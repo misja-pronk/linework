@@ -19,6 +19,15 @@ export interface RouteOptions {
   margin?: number;
   /** What one bend costs, in px of length. */
   bend?: number;
+  /** Lines already drawn: running along one costs five times its length, so a line keeps a lane of its own beside them. */
+  lines?: Point[][];
+}
+
+interface Run {
+  /** The y of a level run, the x of an upright one. */
+  at: number;
+  lo: number;
+  hi: number;
 }
 
 const DIRS: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
@@ -58,6 +67,25 @@ export function route(obstacles: Box[], from: RouteEnd, to: RouteEnd, o: RouteOp
   };
   mids(xs);
   mids(ys);
+  // Lanes beside the lines already there, and what running on them costs.
+  const level: Run[] = [];
+  const upright: Run[] = [];
+  for (const l of o.lines ?? [])
+    for (let i = 1; i < l.length; i++) {
+      const a = l[i - 1]!;
+      const b = l[i]!;
+      if (Math.abs(a.y - b.y) < 0.5) level.push({ at: a.y, lo: Math.min(a.x, b.x), hi: Math.max(a.x, b.x) });
+      else if (Math.abs(a.x - b.x) < 0.5) upright.push({ at: a.x, lo: Math.min(a.y, b.y), hi: Math.max(a.y, b.y) });
+    }
+  for (const r of level) if (r.at > fy0 && r.at < fy1) ys.add(r.at - 9), ys.add(r.at + 9);
+  for (const r of upright) if (r.at > fx0 && r.at < fx1) xs.add(r.at - 9), xs.add(r.at + 9);
+  const along = (x0: number, y0: number, x1: number, y1: number) => {
+    const runs = y0 === y1 ? level : upright;
+    const [at, a, b] = y0 === y1 ? [y0, Math.min(x0, x1), Math.max(x0, x1)] : [x0, Math.min(y0, y1), Math.max(y0, y1)];
+    let shared = 0;
+    for (const r of runs) if (Math.abs(r.at - at) < 1) shared = Math.max(shared, Math.min(b, r.hi) - Math.max(a, r.lo));
+    return Math.max(0, shared);
+  };
   for (const e of [...starts, ...goals]) {
     const q = stub(e.p, e.s);
     xs.add(q.x), ys.add(q.y);
@@ -81,7 +109,7 @@ export function route(obstacles: Box[], from: RouteEnd, to: RouteEnd, o: RouteOp
     const [j0, j1] = span(Y, b.y - m, b.y + b.height + m);
     for (let j = j0; j < j1; j++) free.fill(0, j * X.length + i0, j * X.length + i1);
   }
-  const open = (_i: number, _j: number, i2: number, j2: number) => free[j2 * X.length + i2] === 1;
+  const open = (i2: number, j2: number) => free[j2 * X.length + i2] === 1;
 
   // A* over (cell, heading); the heading is what a bend is counted against.
   const W = X.length;
@@ -129,9 +157,9 @@ export function route(obstacles: Box[], from: RouteEnd, to: RouteEnd, o: RouteOp
       const [dx, dy] = dirs[nd]!;
       const i2 = i + dx;
       const j2 = j + dy;
-      if (i2 < 0 || j2 < 0 || i2 >= W || j2 >= Y.length || !open(i, j, i2, j2)) continue;
+      if (i2 < 0 || j2 < 0 || i2 >= W || j2 >= Y.length || !open(i2, j2)) continue;
       const nk = key(i2, j2, nd);
-      const nc = c + Math.abs(X[i2]! - X[i]!) + Math.abs(Y[j2]! - Y[j]!) + (nd === d ? 0 : bendCost);
+      const nc = c + Math.abs(X[i2]! - X[i]!) + Math.abs(Y[j2]! - Y[j]!) + (nd === d ? 0 : bendCost) + 4 * along(X[i]!, Y[j]!, X[i2]!, Y[j2]!);
       if (nc < (cost.get(nk) ?? Infinity)) {
         cost.set(nk, nc);
         back.set(nk, k);

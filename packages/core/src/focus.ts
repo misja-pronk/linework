@@ -108,13 +108,26 @@ export function focusGraph(graph: Graph, spec: FocusSpec, report: (message: stri
   }
 
   const keep = new Set(dist.keys());
+  // In a tree (an org chart) a person is seen with their whole branch and the line up to the top.
+  if (graph.tree) {
+    const solid = graph.edges.filter((e) => e.line === 'solid');
+    const down = (id: string) => {
+      for (const e of solid) if (e.from.node === id && !keep.has(e.to.node)) (keep.add(e.to.node), down(e.to.node));
+    };
+    for (const id of seeds) {
+      down(id);
+      for (let up = solid.find((e) => e.to.node === id), n = 0; up && n < graph.nodes.length; up = solid.find((e) => e.to.node === up!.from.node), n++) keep.add(up.from.node);
+    }
+  }
+  // A shape that only stands between two others (an interaction between two teams) stays when both of them do.
+  for (const n of graph.nodes) if (n.shape.kind === 'block' && n.shape.between && n.shape.between.every((id) => keep.has(id))) keep.add(n.id);
   for (const id of [...keep]) for (const g of s.up(parentOf(id))) keep.add(g);
   const mark = <T extends { id: string }>(x: T): T => (marked.has(x.id) ? { ...x, focused: true } : x);
   const edges = graph.edges.filter((e) => keep.has(e.from.node) && keep.has(e.to.node));
   const steps = graph.steps?.filter((x) => edges.some((e) => e.id === x.edge));
   const name = (id: string) => {
     const n = s.nodes.get(id);
-    return n ? (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (s.groups.get(id)?.label ?? id);
+    return n ? (n.shape.kind === 'card' || n.shape.kind === 'block' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : id) : (s.groups.get(id)?.label ?? id);
   };
   const nodes = graph.nodes.filter((n) => keep.has(n.id));
   // The legend explains what is drawn: a line or a colour that only occurred outside the neighbourhood goes with it.

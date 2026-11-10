@@ -197,6 +197,9 @@ importers:
       '@cartography/azure':
         specifier: workspace:*
         version: link:../../types/azure
+      '@cartography/capabilities':
+        specifier: workspace:*
+        version: link:../../types/capabilities
       '@cartography/cloud':
         specifier: workspace:*
         version: link:../../types/cloud
@@ -248,6 +251,9 @@ importers:
       '@cartography/systems':
         specifier: workspace:*
         version: link:../../types/systems
+      '@cartography/teams':
+        specifier: workspace:*
+        version: link:../../types/teams
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
@@ -477,6 +483,28 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
 
+  types/capabilities:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@cartography/tree':
+        specifier: workspace:*
+        version: link:../../packages/tree
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
   types/cloud:
     dependencies:
       '@cartography/azure':
@@ -684,6 +712,28 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../../packages/icons
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
+  types/teams:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@cartography/tree':
+        specifier: workspace:*
+        version: link:../../packages/tree
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
