@@ -1,6 +1,6 @@
 // The type-agnostic graph every diagram type builds. Render and layout only know this model,
 // which is what keeps all diagram types looking like one tool.
-import type { SequenceShape } from './sequence.ts';
+import type { SequenceArrow, SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
 import type { JourneyPartShape, JourneyShape } from './journey.ts';
@@ -279,8 +279,12 @@ export interface LegendItem {
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
   pattern?: LinePattern;
+  /** A line sample's end, for a key of crow's feet; a glyph sample ('glyph') is its icon alone, in its tone, as in a table row. */
+  end?: Marker;
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block';
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block' | 'glyph' | 'message';
+  /** The arrow of a message sample ('message'), drawn as the sequence draws it. */
+  arrow?: SequenceArrow;
   /** A block sample (swatch 'block'): a team type, an interaction mode, a place on a heatmap. */
   block?: { form: BlockShape['form']; heat?: BlockShape['heat'] };
   tone?: Tone;

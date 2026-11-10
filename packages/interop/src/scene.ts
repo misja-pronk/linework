@@ -1033,6 +1033,7 @@ class SceneBuilder {
       const paper = paperTint(t, 0);
       return [box(19, 15, Math.min(4, t.radius.group), { ...(paper ? { fill: paper } : {}), stroke: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, strokeWidth: 1.2, dash: 'dashed' }, 0.5)];
     }
+    if (item.swatch === 'glyph') return some(item.icon ? this.picture(item.icon, x + 3, cy - 7, 14, tone.fg, 1.75) : undefined);
     if (item.swatch === 'fill') return [box(20, 14, Math.min(7, t.radius.chip + 3), { fill: tone.bg })];
     if (item.swatch === 'outline') return [box(19, 13, Math.min(6.5, t.radius.chip + 2.5), { stroke: color, strokeOpacity: 0.7, strokeWidth: 1, dash: 'dashed' }, 0.5)];
     if (item.swatch === 'check' || item.swatch === 'check-outline') {

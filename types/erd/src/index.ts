@@ -21,6 +21,7 @@ import {
   type GraphEdge,
   type GraphGroup,
   type GraphNode,
+  type LegendItem,
   type Marker,
   type Reference,
   type RowMark,
@@ -209,7 +210,19 @@ function build(src: ErdSource, ctx: BuildContext): Graph {
     else edges.push(edge);
   }
 
-  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges };
+  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend: erdKey(nodes, edges) };
+}
+
+/** The key: the column marks and the relationship ends that are drawn, quietly, nothing else. */
+function erdKey(nodes: GraphNode[], edges: GraphEdge[]): LegendItem[] {
+  const marks = new Set(nodes.flatMap((n) => (n.shape.kind === 'table' ? n.shape.rows.flatMap((r) => (r.kind === 'row' && !r.icon ? (r.marks ?? []) : [])) : [])));
+  const ends = new Set(edges.flatMap((e) => [e.start, e.end]));
+  const columnKey: [RowMark, string, string, Tone][] = [['pk', 'Primary key', 'key-round', 'amber'], ['fk', 'Foreign key', 'link', 'blue'], ['unique', 'Unique', 'fingerprint-pattern', 'violet'], ['pii', 'Personal data', 'eye', 'rose']];
+  const endKey: [Marker, string][] = [['one', 'Exactly one'], ['zeroOrOne', 'Zero or one'], ['oneOrMany', 'One or many'], ['zeroOrMany', 'Zero or many'], ['many', 'Many']];
+  return [
+    ...columnKey.filter(([m]) => marks.has(m)).map(([, label, icon, tone]) => ({ label, swatch: 'glyph' as const, icon, tone })),
+    ...endKey.filter(([m]) => ends.has(m)).map(([end, label]) => ({ label, line: 'solid' as const, end })),
+  ];
 }
 
 function markers(cardinality: string | undefined): [Marker, Marker] {

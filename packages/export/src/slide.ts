@@ -923,6 +923,7 @@ class SlideDrawing {
       const line: Line = { color: paper ? (groupLine(t, t.tones.slate) ?? t.textFaint) : t.textFaint, width: this.L(1.2), dash: 'dashed' };
       return [box(19, 15, Math.min(4, t.radius.group), paper ? { color: paper } : null, line, 0.5)];
     }
+    if (item.swatch === 'glyph') return [this.icon(item.icon, x + 3, cy - 7, 14, tone.fg, 1.75)];
     if (item.swatch === 'trust') return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color: t.tones.rose.fg, width: this.L(1.8), dash: 'dashed' } })];
     if (item.swatch === 'mark' && item.tag && item.tone) {
       const w = Math.max(20, measureText(item.tag, chipText(t), 600) + 12);

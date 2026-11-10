@@ -23,6 +23,7 @@ import {
   type FrameKind,
   type Graph,
   type KindTable,
+  type LegendItem,
   type PaletteItem,
   type Path,
   type Reference,
@@ -199,6 +200,7 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
     }
   };
   walk(src.steps, ['steps']);
+  const key = arrowKey(events);
 
   return {
     title: src.title,
@@ -207,7 +209,16 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
     groups: [],
     nodes: [{ id: 'sequence', shape: { kind: 'sequence', participants, boxes, events, ...(src.footers ? { footers: true } : {}) }, path: [] }],
     edges: [],
+    ...(key.length ? { legend: key } : {}),
   };
+}
+
+/** The key: what each kind of arrow means, once a signal or a lost message is drawn; calls and replies alone are read without one. */
+function arrowKey(events: SequenceEvent[]): LegendItem[] {
+  const drawn = new Set(events.flatMap((e) => (e.kind === 'message' ? [e.arrow] : [])));
+  if (!drawn.has('async') && !drawn.has('lost')) return [];
+  const names: [SequenceArrow, string][] = [['sync', 'Call'], ['reply', 'Reply'], ['async', 'Async message'], ['lost', 'Lost message']];
+  return names.filter(([a]) => drawn.has(a)).map(([arrow, label]) => ({ label, swatch: 'message' as const, arrow }));
 }
 
 /** Every participant id a step names, so renames and deletes follow them. */
