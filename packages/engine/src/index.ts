@@ -328,7 +328,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let seed: LayoutMemory | undefined;
   // A table (an access matrix) is not laid out: nothing to share.
   const table = (name: string | undefined) => !!ownViews?.find((v) => v.name === name)?.table;
-  if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
+  // Views of different kinds (a C4 context and a component view) are different pictures.
+  const kindOf = (name: string) => model?.views.get(name)?.kind;
+  if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
     if (!seeds.has(seedKey)) {
       const first = await render(text, { ...opts, view: firstView, fonts: 'none', step: undefined, focus: undefined });
       seeds.set(seedKey, { variant: first.placed?.memory?.variant, nodes: new Set(first.graph?.nodes.map((n) => n.id)) });
