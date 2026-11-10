@@ -216,6 +216,7 @@ table.index{width:100%;border-collapse:collapse;background:var(--canvas);border:
 .keys dd{margin:0;color:var(--muted)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted)}
+.words{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:pre-line}
 .presenting .top,.presenting .side,.presenting .panel,.presenting .zoom{display:none}
 .presenting.app{grid-template-columns:1fr;grid-template-rows:1fr}
 .presenting .main{grid-row:1;grid-column:1}
