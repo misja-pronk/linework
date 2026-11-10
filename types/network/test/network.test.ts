@@ -59,7 +59,8 @@ describe('network', () => {
   });
 
   it('lines up tiers top-down', async () => {
-    const r = await render(office, { fonts: 'none' });
+    // As placed, not wrapped for a slide (that stands the internet beside the office).
+    const r = await render(office, { fonts: 'none', tuning: { wrap: false } });
     const y = (id: string) => r.placed!.nodes.get(id)!.y;
     expect(y('isp')).toBeLessThan(y('fw'));
     expect(y('fw')).toBeLessThan(y('core'));

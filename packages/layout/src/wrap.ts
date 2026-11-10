@@ -33,6 +33,11 @@ export interface WrapOptions {
    * the empty room left across in each row. Each block is then a column of its own.
    */
   loose?: boolean;
+  /**
+   * Turn every row after the first over across, when those rows hold only cards: what the lines
+   * from the row before come into stands nearest it, and they need not cross the row's own line to reach it.
+   */
+  flip?: boolean;
 }
 
 /**
@@ -122,8 +127,10 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const thick = down ? 'width' : 'height';
   const origin = union(blocks.map((b) => b.box));
   let next = origin[across];
-  for (const row of rows) {
+  for (const [i, row] of rows.entries()) {
     if (opts.loose) closeAcross(row, nodes, groups, at, size, across, thick, gap);
+    // Only rows of cards (states, steps) turn over: groups turned over would stand against the order they are written in.
+    if (opts.flip && i > 0 && row.every((b) => b.ids.length === 1 && p.nodes.has(b.ids[0]!))) flipAcross(row, nodes, groups, across, thick);
     const box = union(row.map((b) => b.box));
     // Whole grid steps, so centres tidied onto the 8px grid stay on it.
     const dx = grid(down ? next - box.x : origin.x - box.x);
@@ -190,5 +197,20 @@ function closeAcross(row: Block[], nodes: Map<string, Box>, groups: Map<string, 
       b.box = { ...b.box, [across]: b.box[across] + by };
     }
     done.push(b.box);
+  }
+}
+
+/** The blocks of one row turned over across, each moved whole (what is inside a group stays as it is). */
+function flipAcross(row: Block[], nodes: Map<string, Box>, groups: Map<string, Box>, across: 'x' | 'y', thick: 'width' | 'height') {
+  const lo = Math.min(...row.map((b) => b.box[across]));
+  const hi = Math.max(...row.map((b) => b.box[across] + b.box[thick]));
+  for (const b of row) {
+    const by = grid(lo + hi - 2 * b.box[across] - b.box[thick]);
+    for (const id of b.ids) {
+      const m = nodes.has(id) ? nodes : groups;
+      const o = m.get(id)!;
+      m.set(id, { ...o, [across]: o[across] + by });
+    }
+    b.box = { ...b.box, [across]: b.box[across] + by };
   }
 }
