@@ -39,6 +39,8 @@ export interface OverlayOptions {
   labels?: { before?: string; after?: string };
   /** Side by side: next to each other, under each other, or whichever keeps the picture closest to a page (default). */
   arrange?: 'auto' | 'row' | 'column';
+  /** What replaces what (a transition between two stages): a dashed "replaces" arrow from the old, gone, to the new. */
+  replaces?: { from: string; to: string }[];
 }
 
 const SIGN: Record<Status, string> = { added: '+', changed: '~', removed: '−' };
@@ -176,12 +178,12 @@ function leave(b: Box, to: Point): Point {
  * What is gone, drawn where it used to be. The older drawing is laid over the newer one by what both
  * still have; a removed card whose place has been taken stands in a row under the drawing instead.
  */
-function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string; bounds: Box | undefined; row: Ghost[]; boxes: Box[] } {
+function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string; bounds: Box | undefined; row: Ghost[]; boxes: Box[]; at: Map<string, Box> } {
   const theme = after.theme;
   const both = [...after.placed.nodes].filter(([id]) => before.placed.nodes.has(id));
-  const shift = both.length
-    ? { x: median(both.map(([id, b]) => b.x - before.placed.nodes.get(id)!.x)), y: median(both.map(([id, b]) => b.y - before.placed.nodes.get(id)!.y)) }
-    : undefined;
+  // With nothing in common there is nothing to line the two up by: the older one stands where it was
+  // drawn (two stages of one diagram share their placement, so that is exactly where it stood).
+  const shift = both.length ? { x: median(both.map(([id, b]) => b.x - before.placed.nodes.get(id)!.x)), y: median(both.map(([id, b]) => b.y - before.placed.nodes.get(id)!.y)) } : { x: 0, y: 0 };
   const moved = (b: Box): Box => ({ ...b, x: b.x + shift!.x, y: b.y + shift!.y });
   const label = (id: string) => diff.nodes.find((n) => n.id === id)?.label ?? diff.groups.find((g) => g.id === id)?.label ?? id;
 
@@ -251,7 +253,7 @@ function ghosts(before: Drawing, after: Drawing, diff: GraphDiff): { svg: string
     const pts = a.still && b.still && route && route.points.length > 1 ? route.points.map((p) => ({ x: p.x + shift.x, y: p.y + shift.y })) : [leave(a.box, centre(b.box)), leave(b.box, centre(a.box))];
     out.unshift(edgeMark(theme, 'removed', pts, e.id, [...after.placed.nodes.values(), ...placedGhosts.values()], true));
   }
-  return { svg: out.join(''), bounds, row, boxes: [...placedGhosts.values()] };
+  return { svg: out.join(''), bounds, row, boxes: [...placedGhosts.values()], at: placedGhosts };
 }
 
 function ghostCard(theme: Theme, id: string, label: string, b: Box): string {
@@ -263,6 +265,34 @@ function ghostCard(theme: Theme, id: string, label: string, b: Box): string {
     tag(theme, 'removed', b.x + b.width - 5 - tagWidth('removed'), b.y - 5).svg +
     '</g>'
   );
+}
+
+/**
+ * "Replaces": a dashed arrow from where the old element stood (its ghost) to the new one, with the
+ * word on it, so a transition says what took over from what, not only what came and went.
+ */
+function replacesSvg(theme: Theme, pairs: { from: string; to: string }[], ghostsAt: Map<string, Box>, placed: Placed): string {
+  const out: string[] = [];
+  for (const { from, to } of pairs) {
+    const [a, b] = [ghostsAt.get(from), placed.nodes.get(to)];
+    if (!a || !b) continue;
+    const [p, q] = [leave(a, centre(b)), leave(b, centre(a))];
+    const len = Math.hypot(q.x - p.x, q.y - p.y);
+    if (len < 24) continue;
+    const ux = (q.x - p.x) / len;
+    const uy = (q.y - p.y) / len;
+    const tip = { x: q.x - ux * 4, y: q.y - uy * 4 };
+    const head = `${r1(tip.x)},${r1(tip.y)} ${r1(tip.x - ux * 10 - uy * 5)},${r1(tip.y - uy * 10 + ux * 5)} ${r1(tip.x - ux * 10 + uy * 5)},${r1(tip.y - uy * 10 - ux * 5)}`;
+    const mid = { x: (p.x + tip.x) / 2, y: (p.y + tip.y) / 2 };
+    const w = Math.ceil(measureText('replaces', 11, 600)) + 12;
+    out.push(
+      `<g data-replaces="${esc(from)}>${esc(to)}"><path d="M${r1(p.x)} ${r1(p.y)} L${r1(tip.x)} ${r1(tip.y)}" fill="none" stroke="${theme.text}" stroke-width="1.6" stroke-dasharray="5 4"/><polygon points="${head}" fill="${theme.text}"/>` +
+        `<rect x="${r1(mid.x - w / 2)}" y="${r1(mid.y - 9)}" width="${w}" height="18" rx="9" fill="${theme.canvas}" stroke="${theme.text}" stroke-width="1.2"/>` +
+        textAt(mid.x, mid.y, 'replaces', 11, 600, theme.text, ' text-anchor="middle"') +
+        '</g>',
+    );
+  }
+  return out.join('');
 }
 
 /** The key: each mark as it is drawn, with how many there are (counted as the sentences tell them). */
@@ -323,8 +353,8 @@ function overlay(base: Drawing, before: Drawing | undefined, after: Drawing | un
   // A framed sheet keeps everything clear of its frame, the key included.
   const frame = sheetPad(theme);
   const pad = theme.space.pad + frame;
-  const gone = before && after ? ghosts(before, after, diff) : { svg: '', bounds: undefined, row: [] as Ghost[], boxes: [] as Box[] };
-  const over = marksSvg(base, marksFor(diff, after ? 'after' : 'before'), gone.boxes);
+  const gone = before && after ? ghosts(before, after, diff) : { svg: '', bounds: undefined, row: [] as Ghost[], boxes: [] as Box[], at: new Map<string, Box>() };
+  const over = marksSvg(base, marksFor(diff, after ? 'after' : 'before'), gone.boxes) + (after ? replacesSvg(theme, opts.replaces ?? [], gone.at, after.placed) : '');
 
   // Ghosts may stand outside the newer drawing: the canvas grows to hold them.
   const gb = gone.bounds;

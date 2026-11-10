@@ -30,6 +30,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Steps: tell a drawing in parts, present it | `S`, `P` | [steps](docs/steps.md) |
 | Focus: one thing and what is around it | `F`, `carto render --focus x` | [data products](docs/data-products.md) |
 | Layers: a security, data or phase-2 view of one file | `L`, `carto render --layer x` | [layers](docs/layers.md) |
+| Transitions: as-is, stages and to-be in one file; each stage, the changes, a roadmap | `,` `.`, `carto stages`, `carto render --stage q2` | [transitions](docs/transitions.md) |
 | Trace a request, as a sequence diagram | `⇧Q`, `carto trace f.yaml --from a --to b` | [trace](docs/trace.md) |
 | Review notes on elements, lines and spots | `N`, `⇧N`, `carto notes` | [notes](docs/notes.md) |
 | Architecture decisions (ADRs) on the drawing | `⇧D`, `⌥⇧D`, `carto decisions` | [decisions](docs/decisions.md) |
