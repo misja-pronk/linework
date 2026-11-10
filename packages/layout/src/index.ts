@@ -6,7 +6,7 @@ import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { disorder, labelMetrics, measure, plainLine, score } from './metrics.ts';
+import { disorder, labelMetrics, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
@@ -113,14 +113,22 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   // The previous drawing is kept in the direction it had (when the source leaves the direction open).
   const stayIn = open && was ? was.direction : graph.direction;
 
+  const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
+  const shape = shapeOf(graph, open, target);
+  // The same diagram drawn again (a label edited, a colour changed, the same file opened): the way it
+  // was drawn (direction, way of asking dot, packed, straightened, mirrored, wrapped) is drawn again
+  // and the others are not tried. Each of those is routed in full, which is most of what a layout
+  // costs, and next to the previous drawing kept as it was they win only when the diagram changed.
+  const same = !!prev && !!was && prev.shape === shape && (open || was.direction === graph.direction);
+
   let best: Choice;
-  if (pinned && was && !tuning.dot) {
+  if (was && (pinned || same) && !tuning.dot) {
     // Pins were set on one placement: the one the sidecar names is drawn again, whatever the others
-    // would score now. Moving a pin never redraws the rest.
+    // would score now. Moving a pin never redraws the rest. (Nor does drawing the same diagram again.)
     const d = open ? was.direction : graph.direction;
     // And what is not pinned stays where it was whenever it can: placing things by hand, the rest
     // holding still is worth more than any score.
-    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, new Map(Object.entries(sidecar?.nodes ?? {})));
+    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
@@ -130,7 +138,6 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // (16:9 unless the source says otherwise) without more crossings or any new error. With a
     // drawing before this one, that one's direction is tried as well, so it can stay that way.
     const other = graph.direction === 'right' ? 'down' : 'right';
-    const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
     const wide = graph.direction === 'right' && best.placed.width >= WIDE * best.placed.height;
     // Shape alone asks for another try only on a first drawing of a diagram small enough to draw twice.
     const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF;
@@ -155,7 +162,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       const kept = best;
       best = wrapped(best, spacing, target) ?? best;
       // The other direction, wrapped, may read better still (a drawing far off the page's shape both ways).
-      const other = turnedAlt && turnedAlt !== kept && graph.nodes.length <= WRAP_ALL && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target) : undefined;
+      const other = turnedAlt && turnedAlt !== kept && graph.nodes.length <= WRAP_ALL && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target, best) : undefined;
       if (other && readsBetter(other, best, target)) best = other;
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
@@ -165,6 +172,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   const s = best.sized;
   const memory: LayoutMemory = {
     variant: best.key,
+    shape,
     ...(best.held ? { held: true } : {}),
     disorder: disorder(s.graph, best.p.groups),
     nodes: new Map([...best.p.nodes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }])),
@@ -179,6 +187,20 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
   const p: Placement & { nudged?: string[] } = pinned ? applyPins(best.p, s.graph, sidecar, s.groupHeader, spacing.groupPad) : best.p;
   const nudged = p.nudged?.length ? { nudged: p.nudged } : {};
   return { ...normalise({ ...p, edges: route(s, p, via.size ? via : undefined) }), ...direction, memory, ...nudged };
+}
+
+/** What a diagram is made of, without sizes or words (LayoutMemory.shape): a short hash. */
+function shapeOf(graph: Graph, open: boolean, target: number | undefined): string {
+  const parts = [
+    `${graph.direction}${open ? '?' : ''} ${target ?? 'auto'}`,
+    ...graph.groups.map((g) => `#${g.id}<${g.parent ?? ''}`),
+    ...graph.nodes.map((n) => `${n.id}<${n.parent ?? ''}`),
+    ...graph.edges.map((e) => `${e.from.node}.${e.from.row ?? ''}>${e.to.node}.${e.to.row ?? ''}${e.loose ? '~' : ''}`),
+  ];
+  // FNV-1a, 32 bits.
+  let h = 0x811c9dc5;
+  for (const ch of parts.join('\n')) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193);
+  return (h >>> 0).toString(36);
 }
 
 /** Wider than this many times the height, a left-to-right drawing is also tried top-down. */
@@ -237,44 +259,103 @@ const WRAP_OFF = Math.log(1.3);
 type Flaw = 'edgeThroughNode' | 'labelOverlaps' | 'overlaps' | 'headerHits' | 'borderHits' | 'jogs' | 'labelOnBend';
 const FLAWS: Flaw[] = ['edgeThroughNode', 'labelOverlaps', 'overlaps', 'headerHits', 'borderHits', 'jogs', 'labelOnBend'];
 
+/** Each drawing's metrics, measured once: the wrap search weighs one drawing against many. */
+const measured = new WeakMap<Placed, LayoutMetrics>();
+function metricsOf(c: Pick<Choice, 'placed' | 'sized'>): LayoutMetrics {
+  let m = measured.get(c.placed);
+  if (!m) measured.set(c.placed, (m = measure(c.sized.graph, c.placed, c.sized.groupHeader, c.sized.groupMinWidth)));
+  return m;
+}
+
+const touching = new WeakMap<Placed, number>();
+function touchingOf(c: Choice): number {
+  let n = touching.get(c.placed);
+  if (n == null) touching.set(c.placed, (n = labelMetrics(c.sized.graph, c.placed).labelTouching));
+  return n;
+}
+
+/** How a drawing reads on the page, flaws or not. */
+function readsAs(c: Choice, target: number): number {
+  const m = metricsOf(c);
+  return slideReadability(pageScale(c.placed, c.sized.graph, target), m.crossings, m.backward, m.voids);
+}
+
 /** How a drawing reads on the page (slideReadability), or undefined when it has a flaw (FLAWS, touching labels) the other is free of. */
 function readability(c: Choice, than: Choice, target: number): number | undefined {
-  const g = c.sized.graph;
-  const m = measure(g, c.placed, c.sized.groupHeader, c.sized.groupMinWidth);
-  const m0 = measure(than.sized.graph, than.placed, than.sized.groupHeader, than.sized.groupMinWidth);
+  const m = metricsOf(c);
+  const m0 = metricsOf(than);
   if (FLAWS.some((k) => m[k] > m0[k])) return undefined;
-  if (labelMetrics(g, c.placed).labelTouching > labelMetrics(than.sized.graph, than.placed).labelTouching) return undefined;
-  return slideReadability(pageScale(c.placed, g, target), m.crossings, m.backward, m.voids);
+  if (touchingOf(c) > touchingOf(than)) return undefined;
+  return readsAs(c, target);
 }
 
 function readsBetter(a: Choice, b: Choice, target: number): boolean {
   const ra = readability(a, b, target);
-  if (ra == null) return false;
-  const mb = measure(b.sized.graph, b.placed, b.sized.groupHeader, b.sized.groupMinWidth);
-  return ra > slideReadability(pageScale(b.placed, b.sized.graph, target), mb.crossings, mb.backward, mb.voids) + WRAP_GAIN + 1e-9;
+  return ra != null && ra > readsAs(b, target) + WRAP_GAIN + 1e-9;
 }
+
+/** Lines that run back against the flow whatever their route: the box they go to lies wholly before the one they leave. */
+function surelyBack(graph: Graph, p: Placement): number {
+  const down = graph.direction === 'down';
+  let n = 0;
+  for (const e of graph.edges) {
+    const s = p.nodes.get(e.from.node) ?? p.groups.get(e.from.node);
+    const t = p.nodes.get(e.to.node) ?? p.groups.get(e.to.node);
+    if (!e.loose && s && t && (down ? t.y + t.height < s.y - 1 : t.x + t.width < s.x - 1)) n++;
+  }
+  return n;
+}
+
+/** At most this many wrapped drawings are routed in one search, the most promising first. */
+const WRAP_ROUTED = 12;
 
 /**
  * The drawing cut into rows (columns, top-down), at the top level or inside a group that takes most
  * of its length, when that reads clearly better on the page (slideReadability) without any new error
- * (lines through boxes, covered labels, overlaps).
+ * (lines through boxes, covered labels, overlaps). With `than`, it must also read that much better
+ * than that drawing (the one it would replace).
+ *
+ * Routing is what costs, so every cut is placed first and routed only when it could still win: its
+ * lines can only cost (crossings, lines back), so the page scale of its boxes alone bounds how well
+ * it can read. Cuts that come out the same are routed once.
  */
-function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undefined {
+function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice): Choice | undefined {
   const s = best.sized;
-  const m0 = measure(s.graph, best.placed, s.groupHeader, s.groupMinWidth);
   let found: Choice | undefined;
-  let bar = slideReadability(pageScale(best.placed, s.graph, target), m0.crossings, m0.backward, m0.voids) + WRAP_GAIN;
-  // Every candidate is routed in full: a bigger diagram tries the plain cuts only.
+  const m0 = metricsOf(best);
+  let bar = Math.max(readsAs(best, target), than ? readsAs(than, target) : -Infinity) + WRAP_GAIN;
+  // A bigger diagram tries the plain cuts only.
   const small = s.graph.nodes.length <= WRAP_ALL;
   const scopes: (string | undefined)[] = [undefined, ...(small ? wrapScopes(best.p, s.graph) : [])];
   const modes = small ? [[false, false], [true, false], [true, true]] : [[false, false]];
+  const cuts: { q: Placement; parts: number; opts: WrapOptions; bound: number; i: number }[] = [];
+  const seen = new Set<string>();
   for (const scope of scopes)
     for (const [chains, loose] of modes)
       for (const parts of small ? [2, 3, 4] : [2, 3]) {
-        const c = rewrap(best, spacing, parts, { scope, chains, loose });
-        const r = c && readability(c, best, target);
-        if (c && r != null && r > bar + 1e-9) [found, bar] = [c, r];
+        const opts: WrapOptions = { scope, chains, loose };
+        const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
+        if (!q) continue;
+        const sig = boxesKey(q);
+        if (seen.has(sig)) continue;
+        seen.add(sig);
+        // Boxes on each other are a flaw no routing mends.
+        if (boxOverlaps(s.graph, q).length > m0.overlaps) continue;
+        cuts.push({ q, parts, opts, bound: Math.log2(pageScale(q, s.graph, target)) - BACKWARD_COST * surelyBack(s.graph, q) - VOID_COST * voidShare(q), i: cuts.length });
       }
+  // The most promising first, so the bar rises early and the rest need not be routed; on a tie the
+  // one tried first in the order above wins, as it always did.
+  cuts.sort((a, b) => b.bound - a.bound || a.i - b.i);
+  let at = Infinity;
+  let routed = 0;
+  for (const c of cuts) {
+    if (c.bound < bar - 1e-9 || routed >= WRAP_ROUTED) break;
+    routed++;
+    const choice = rewrapped(best, spacing, c.q, c.parts, c.opts);
+    const r = readability(choice, best, target);
+    if (r == null) continue;
+    if (r > bar + 1e-9 || (found && Math.abs(r - bar) <= 1e-9 && c.i < at)) [found, bar, at] = [choice, r, c.i];
+  }
   return found;
 }
 
@@ -282,16 +363,21 @@ function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undef
 function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}): Choice | undefined {
   const s = best.sized;
   const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
-  if (!q) return undefined;
+  return q && rewrapped(best, spacing, q, parts, opts);
+}
+
+/** A wrapped placement (wrap.ts) routed, its key saying how it was cut. */
+function rewrapped(best: Choice, spacing: Spacing, q: Placement, parts: number, opts: WrapOptions): Choice {
+  const s = best.sized;
   const placed = normalise({ ...q, edges: route(s, q) });
-  const sc = score(measure(s.graph, placed, s.groupHeader, s.groupMinWidth));
+  const sc = score(metricsOf({ placed, sized: s }));
   return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
 }
 
 /** A drawing with no more crossings than another and none of the errors (lines through boxes, covered labels, overlaps) that one is free of. */
 function noWorse(a: Choice, b: Choice): boolean {
-  const ma = measure(a.sized.graph, a.placed, a.sized.groupHeader, a.sized.groupMinWidth);
-  const mb = measure(b.sized.graph, b.placed, b.sized.groupHeader, b.sized.groupMinWidth);
+  const ma = metricsOf(a);
+  const mb = metricsOf(b);
   return ma.crossings <= mb.crossings && ma.edgeThroughNode <= mb.edgeThroughNode && ma.labelOverlaps <= mb.labelOverlaps && ma.overlaps <= mb.overlaps;
 }
 /** How much better (in score) the wide drawing must be to be kept over the top-down one. */
@@ -322,7 +408,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
     if (kept) {
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const m = measure(graph, placed, sized.groupHeader, sized.groupMinWidth);
+      const m = metricsOf({ placed, sized });
       const sc = score(m);
       const cost = sc + moveCost(kept, prev);
       // Staying put never turns a line against the reading direction: a line drawn between two nodes
@@ -387,6 +473,17 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   return best!;
 }
 
+/** Drawings finished per set of sizes (one direction of one layout), by their boxes (boxesKey). */
+const finished = new WeakMap<Sized, Map<string, { placed: Placed; p: Placement }>>();
+
+/** Where every box is, as one string: two placements with the same key are the same drawing. */
+function boxesKey(p: Pick<Placement, 'nodes' | 'groups'>): string {
+  let out = '';
+  for (const [id, b] of p.nodes) out += `${id}@${b.x},${b.y},${b.width},${b.height};`;
+  for (const [id, b] of p.groups) out += `#${id}@${b.x},${b.y},${b.width},${b.height};`;
+  return out;
+}
+
 /** The best drawing of one placement: compacted or not, straightened or not. */
 function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, mirror: boolean, asked: Placement, fit: boolean, prev: LayoutMemory | undefined): Choice {
   const { graph } = sized;
@@ -417,8 +514,16 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
       };
       return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
     };
+    // Ways of asking dot, mirrors, packing and straightening often come to the very same boxes:
+    // those are routed once (routing is most of what a layout costs).
+    const sig = boxesKey(start);
+    const done = finished.get(sized)?.get(sig);
+    if (done) return done;
     const { p, edges } = clear({ p: start, edges: route(sized, start) }, 4, true);
-    return { placed: normalise({ ...p, edges }), p };
+    const result = { placed: normalise({ ...p, edges }), p };
+    if (!finished.has(sized)) finished.set(sized, new Map());
+    finished.get(sized)!.set(sig, result);
+    return result;
   };
   // Each helps some diagrams and hurts others, so all are drawn and the best one is kept.
   const packed = (q = placed) => compact(q, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
@@ -429,12 +534,12 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     for (const a of aligns) {
       let drawn = finish(base, a);
       const key = `${name}${c ? 'c' : ''}${a ? 'a' : ''}${mirror ? 'm' : ''}${c || a || mirror ? '' : '-'}`;
-      let m = measure(graph, drawn.placed, sized.groupHeader, sized.groupMinWidth);
+      let m = metricsOf({ placed: drawn.placed, sized });
       // Closing the gaps can leave two labels of one fan without room beside each other: then the
       // same drawing with dot's own gaps is the better one.
       if (squeezed && m.labelOverlaps > 0) {
         const wide = finish(c ? packed(asked) : asked, a);
-        const wm = measure(graph, wide.placed, sized.groupHeader, sized.groupMinWidth);
+        const wm = metricsOf({ placed: wide.placed, sized });
         if (score(wm) < score(m)) [drawn, m] = [wide, wm];
       }
       const sc = score(m);

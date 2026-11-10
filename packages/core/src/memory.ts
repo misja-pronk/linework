@@ -15,6 +15,7 @@ export function packLayout(m: LayoutMemory | undefined, positions: boolean): Lay
     const nodes = [...m.nodes].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([id, p]) => `${enc(id)}@${r(p.x)},${r(p.y)}`);
     const groups = [...(m.groups ?? [])].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([id, b]) => `#${enc(id)}@${r(b.x)},${r(b.y)},${r(b.width)},${r(b.height)}`);
     out.at = [...nodes, ...groups].join(';');
+    if (m.shape) out.shape = m.shape;
   }
   return out.variant || out.at ? out : undefined;
 }
@@ -24,6 +25,7 @@ export function unpackLayout(note: LayoutNote | undefined): LayoutMemory | undef
   if (!note || typeof note !== 'object') return undefined;
   const out: LayoutMemory = {};
   if (typeof note.variant === 'string') out.variant = note.variant;
+  if (typeof note.shape === 'string' && note.shape) out.shape = note.shape;
   if (typeof note.at === 'string' && note.at) {
     const nodes = new Map<string, Point>();
     const groups = new Map<string, Box>();
@@ -51,5 +53,5 @@ export function unpackLayout(note: LayoutNote | undefined): LayoutMemory | undef
 
 /** Whether two notes say the same (so the sidecar is only rewritten when the drawing changed). */
 export function sameLayoutNote(a: LayoutNote | undefined, b: LayoutNote | undefined): boolean {
-  return (a?.variant ?? '') === (b?.variant ?? '') && (a?.at ?? '') === (b?.at ?? '');
+  return (a?.variant ?? '') === (b?.variant ?? '') && (a?.at ?? '') === (b?.at ?? '') && (a?.shape ?? '') === (b?.shape ?? '');
 }

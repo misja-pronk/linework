@@ -387,6 +387,8 @@ export interface LayoutNote {
    * "id@x,y;…;#group@x,y,w,h" (centres of nodes, boxes of groups, pin space). Only written when asked for.
    */
   at?: string;
+  /** What the drawing was made of (shapeOf in layout), written with the positions: the same shape is drawn the same way again without trying the others. */
+  shape?: string;
 }
 
 /** The previous drawing of a view, as the layout uses it. */
@@ -400,6 +402,12 @@ export interface LayoutMemory {
   groups?: Map<string, Box>;
   /** How many pairs of groups stood against the order they were written in (not kept in the sidecar). */
   disorder?: number;
+  /**
+   * What the drawing was made of, without sizes or words (its nodes, groups and lines, in source
+   * order, its direction and page): while it stays the same, the way it was drawn is kept and the
+   * others are not tried again. Editing a label or moving a pin does not change it.
+   */
+  shape?: string;
 }
 
 /** Manual tweaks stored next to the diagram as <name>.layout.json. */

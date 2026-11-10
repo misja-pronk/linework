@@ -339,23 +339,6 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     }
   }
 
-  // Voids: points of the drawing far from every box. Lines through a hole do not fill it.
-  const boxes = [...placed.nodes.values(), ...placed.groups.values()];
-  let samples = 0;
-  let holes = 0;
-  if (boxes.length) {
-    const x0 = Math.min(...boxes.map((b) => b.x));
-    const y0 = Math.min(...boxes.map((b) => b.y));
-    const x1 = Math.max(...boxes.map((b) => b.x + b.width));
-    const y1 = Math.max(...boxes.map((b) => b.y + b.height));
-    const step = Math.max(24, Math.sqrt(((x1 - x0) * (y1 - y0)) / 2500));
-    for (let y = y0 + step / 2; y < y1; y += step)
-      for (let x = x0 + step / 2; x < x1; x += step) {
-        samples++;
-        if (!boxes.some((b) => boxDistance(b, x, y) < VOID)) holes++;
-      }
-  }
-
   // Alignment across the flow: centres sharing a row (left-to-right) or column (top-down).
   const centres = [...placed.nodes.values()].map((b) => (graph.direction === 'down' ? b.x + b.width / 2 : b.y + b.height / 2));
   const aligned = centres.filter((c, i) => centres.some((d, j) => j !== i && Math.abs(c - d) < 1)).length;
@@ -520,7 +503,7 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
     detour: counted ? r2(ratioSum / counted) : 1,
     detourExcess: r2(detourExcess),
     groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,
-    voids: samples ? r2(holes / samples) : 0,
+    voids: voidShare(placed),
     aligned: centres.length ? r2(aligned / centres.length) : 1,
     tightPairs,
     minGap: minGap === Infinity ? 0 : r2(minGap),
@@ -531,6 +514,32 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
 }
 
 /** Groups with the same answer are siblings of one kind: they read as a set. */
+/** The share of the drawing far from every node and group (the voids of measure): boxes alone decide it, before any line is routed. */
+export function voidShare(placed: Pick<Placed, 'nodes' | 'groups'>): number {
+  const { samples, holes } = voidSamples(placed);
+  return samples ? Math.round((holes / samples) * 100) / 100 : 0;
+}
+
+// Voids: points of the drawing far from every box. Lines through a hole do not fill it.
+function voidSamples(placed: Pick<Placed, 'nodes' | 'groups'>): { samples: number; holes: number } {
+  const boxes = [...placed.nodes.values(), ...placed.groups.values()];
+  let samples = 0;
+  let holes = 0;
+  if (boxes.length) {
+    const x0 = Math.min(...boxes.map((b) => b.x));
+    const y0 = Math.min(...boxes.map((b) => b.y));
+    const x1 = Math.max(...boxes.map((b) => b.x + b.width));
+    const y1 = Math.max(...boxes.map((b) => b.y + b.height));
+    const step = Math.max(24, Math.sqrt(((x1 - x0) * (y1 - y0)) / 2500));
+    for (let y = y0 + step / 2; y < y1; y += step)
+      for (let x = x0 + step / 2; x < x1; x += step) {
+        samples++;
+        if (!boxes.some((b) => boxDistance(b, x, y) < VOID)) holes++;
+      }
+  }
+  return { samples, holes };
+}
+
 export function siblingSet(g: Graph['groups'][number]): string {
   return `${g.parent ?? ''}|${g.kind ?? `${g.icon ?? ''}/${g.tone}/${g.border}`}`;
 }
