@@ -371,7 +371,7 @@ export function fromElement(el: ModelElement, local: Entry, coll: Coll, cfg: Gra
   };
 }
 
-const envsOf = (v: unknown): string[] | undefined => (v == null ? undefined : (Array.isArray(v) ? v : [v]).map(String));
+export const envsOf = (v: unknown): string[] | undefined => (v == null ? undefined : (Array.isArray(v) ? v : [v]).map(String));
 
 /**
  * An entry that runs a model element (`of:`): infrastructure of its own kind, named after the element.

@@ -15,7 +15,7 @@ import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
 import { drawJourney } from './journey.ts';
 import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.ts';
-import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
+import { drawTags, endsRoom, endStyle, endTagAt, markStyle, tagsWidth, TAG, type TagStyle } from './tags.ts';
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 import { sketchSvg } from './sketch.ts';
@@ -125,7 +125,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
     // Threat numbers sit on the top edge, at the end, where they never cover the name.
-    const tags = g.marks?.length ? drawTags(theme, g.marks, box.x + box.width - 16 - tagsWidth(g.marks) - (mark ? 24 : 0), box.y) : '';
+    const tags = g.marks?.length ? drawTags(theme, g.marks, box.x + box.width - 16 - tagsWidth(g.marks) - (mark ? 24 : 0), box.y, markStyle(graph.environments)) : '';
     out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${g.focused ? focusRing(box, theme.radius.group, theme) : ''}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}${tags}</g>`, opts));
   }
   const badges = chips(graph);
@@ -175,7 +175,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const boxed = shape.kind !== 'flow' || shape.form === 'task' || shape.form === 'subprocess' || shape.form === 'state';
     const mark = link && shape.kind !== 'matrix' && boxed ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
     // Threat numbers on the top edge, at the end: on the card, never over its name.
-    const tags = n.marks?.length && shape.kind !== 'matrix' ? drawTags(theme, n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y) : '';
+    const tags = n.marks?.length && shape.kind !== 'matrix' ? drawTags(theme, n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, markStyle(graph.environments)) : '';
     // Marked as standing back in words too: a look without shadows shows it only in its colours.
     out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${n.focused ? focusRing(box, theme.radius.card, theme) : ''}${body}${mark}${tags}</g>`, opts));
   }
@@ -189,7 +189,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const room = endsRoom(e.ends);
     const box = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
     const lt = lineTheme(e);
-    out.push(drawEdgeLabel(e.label ?? '', box, lt, ground.under(box), edgeColor(e, lt), e.step, e.icon, e.tone, e.marks));
+    out.push(drawEdgeLabel(e.label ?? '', box, lt, ground.under(box), edgeColor(e, lt), e.step, e.icon, e.tone, e.marks, markStyle(graph.environments)));
   }
   // The ends of a context map's relationships: U and D, and the patterns on each side.
   const taken: Box[] = [];
@@ -691,13 +691,13 @@ function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[]): strin
   return s;
 }
 
-function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, lineColor: string, step?: number, iconName?: string, tone?: GraphEdge['tone'], marks?: string[]): string {
+function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, lineColor: string, step?: number, iconName?: string, tone?: GraphEdge['tone'], marks?: string[], style?: (tag: string) => TagStyle): string {
   const h = 20;
   const y = b.y + (b.height - h) / 2;
   const n = step ? stepMark(b.x + 10, y + h / 2, step, theme) : '';
   // Threat numbers end the label, after its text; a line without a label shows only them.
   const tagW = marks?.length ? tagsWidth(marks) : 0;
-  const tags = tagW ? drawTags(theme, marks!, b.x + b.width - tagW, y + h / 2) : '';
+  const tags = tagW ? drawTags(theme, marks!, b.x + b.width - tagW, y + h / 2, style) : '';
   if (tagW) b = { ...b, width: b.width - tagW - TAG.GAP };
   if (!label) return n + tags;
   const lk = look(theme).edgeLabel;

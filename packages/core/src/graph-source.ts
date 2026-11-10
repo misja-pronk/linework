@@ -12,7 +12,7 @@ import { idPattern, type BuildContext, type KindTable, type Reference } from './
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, LinePattern, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
-import type { Origins } from './views.ts';
+import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
 import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
 
@@ -197,6 +197,15 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     src = { ...viewSource(src, cfg, model, ctx), ...overlayKeys(src as Record<string, unknown>) };
   }
   const origin = src.origin;
+  // Every environment in one drawing: what only some of them have says which, as a tag on it.
+  const allEnvs = !ctx.model?.view?.environment;
+  const envNames: string[] = [...(ctx.model?.views.values() ?? [])].flatMap((v) => (v.environment ? [v.environment] : []));
+  const envMarks = (v: unknown) => {
+    const tags = allEnvs ? envsOf(v) : undefined;
+    for (const t of tags ?? []) if (!envNames.includes(t)) envNames.push(t);
+    return tags?.length ? { marks: [...envNames.filter((n) => tags.includes(n))] } : {};
+  };
+  const marked = new Set<string>();
   const at = (coll: 'groups' | 'nodes', id: string): Path => origin?.[coll][id] ?? [coll, id];
   const entries = (coll: 'groups' | 'nodes') =>
     Object.entries(src[coll] ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { kind: v } : (v ?? {})] as [string, Entry]);
@@ -232,6 +241,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(e.description ? { description: e.description } : {}),
       ...(e.kind ? { kind: e.kind } : {}),
       ...(e.tags?.length ? { tags: e.tags } : {}),
+      ...envMarks(e.env),
       path: at('groups', id),
     };
   });
@@ -259,6 +269,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(e.description ? { description: e.description } : {}),
       ...(e.kind ? { kind: e.kind } : {}),
       ...(e.tags?.length ? { tags: e.tags } : {}),
+      ...envMarks(e.env),
       path: at('nodes', id),
     };
   });
@@ -313,6 +324,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(badge ? { badge } : {}),
       ...(style ? { kind: style.label } : {}),
       ...(step ? { step } : {}),
+      ...envMarks(spec.props.env),
       path: spec.path,
     });
   }
@@ -334,7 +346,21 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
   }
 
-  const graph: Graph = { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend, ...(steps.length ? { steps } : {}) };
+  for (const x of [...groups, ...nodes, ...edges]) for (const t of x.marks ?? []) marked.add(t);
+  const environments = envNames.filter((n) => marked.has(n));
+  if (environments.length) legend.push({ label: `Only in the environments named; unmarked: in all (${environments.join(', ')})`, swatch: 'mark', tag: environments[0] });
+
+  const graph: Graph = {
+    title: src.title,
+    subtitle: src.subtitle,
+    direction: src.direction ?? 'right',
+    groups,
+    nodes,
+    edges,
+    legend,
+    ...(steps.length ? { steps } : {}),
+    ...(environments.length ? { environments } : {}),
+  };
   if (!cfg.threats) return graph;
   applyThreats(graph, src as Record<string, unknown>, cfg.threats === true ? threatKindsOf(cfg.nodeKinds) : cfg.threats, ctx);
   return src.view === 'threats' ? threatTable(graph) : graph;
