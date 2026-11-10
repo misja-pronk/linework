@@ -190,6 +190,31 @@ export function dragSegment(pts: Point[], i: number, d: number, stub = 30): Poin
   return simplify([...head, ...tail]);
 }
 
+/**
+ * The line with the bend at point `j` taken out: the shorter of its two pieces collapses (the piece
+ * after it, or before it, moves over onto the other side), so two bends become none and the line
+ * stays orthogonal. Undefined when `j` is an end, or the bend sits between the two end pieces.
+ */
+export function removeBend(pts: Point[], j: number): Point[] | undefined {
+  if (j <= 0 || j >= pts.length - 1) return undefined;
+  const len = (i: number) => Math.abs(pts[i + 1]!.x - pts[i]!.x) + Math.abs(pts[i + 1]!.y - pts[i]!.y);
+  // The piece to collapse has a piece on both sides of it.
+  const s = [j - 1, j].filter((i) => i > 0 && i < pts.length - 2).sort((a, b) => len(a) - len(b))[0];
+  if (s == null) return undefined;
+  const a = pts[s]!;
+  const b = pts[s + 1]!;
+  const d = isHorizontal(pts, s) ? b.x - a.x : b.y - a.y;
+  // Move the piece after it back onto its start, or (when that is the last piece) the one before it on to its end.
+  const after = s + 1 < pts.length - 2;
+  return dragSegment(pts, after ? s + 1 : s - 1, after ? -d : d);
+}
+
+/** The bend (point index) of a line within `tol` of a point, ends excepted. */
+export function bendAt(pts: Point[], q: Point, tol: number): number | undefined {
+  for (let j = 1; j < pts.length - 1; j++) if (Math.abs(pts[j]!.x - q.x) <= tol && Math.abs(pts[j]!.y - q.y) <= tol) return j;
+  return undefined;
+}
+
 /** What the sidecar keeps of a line: its bends, without the two ends (those follow the boxes). */
 export const bendsOf = (pts: Point[]): Point[] => simplify(pts).slice(1, -1);
 

@@ -255,6 +255,7 @@ export function App() {
   };
   const locked = useMemo(() => new Set(vpins?.locked ?? []), [vpins?.locked]);
   const bent = useMemo(() => new Set(Object.keys(vpins?.edges ?? {})), [vpins?.edges]);
+  const pinnedIds = useMemo(() => new Set([...Object.keys(vpins?.nodes ?? {}), ...Object.keys(vpins?.groups ?? {})]), [vpins?.nodes, vpins?.groups]);
   const craft = useCraftPrefs();
   const previewControl = useRef<PreviewControl>(null);
   const type = result?.type ?? drawn?.type;
@@ -752,6 +753,37 @@ export function App() {
     if (vpins) pinTo(tracked ? { version: 1, layout: { at: '' } } : null);
     else acted();
   };
+  /**
+   * Tidy: lays out afresh everything that is not pinned, around what is (pins, locks and bent lines
+   * stay). The drawing before is forgotten, so the rest is placed as a new drawing would place it.
+   */
+  const tidyLayout = () => {
+    setFresh((n) => n + 1);
+    if (!vpins) return void acted();
+    const { layout: _, ...kept } = vpins;
+    pinTo(kept.nodes || kept.groups || kept.edges ? kept : tracked ? { version: 1, layout: { at: '' } } : null);
+    notify(pinCount ? `Tidied: ${count(pinCount, 'pinned element')} stayed, the rest is laid out afresh (⌘Z undoes it)` : 'Tidied: laid out afresh');
+  };
+  /** Tidy all: unpins everything and lays it out afresh, as one undo step. */
+  const tidyAll = () => {
+    resetLayout();
+    if (vpins) notify('Unpinned everything and laid it out afresh (⌘Z undoes it)');
+  };
+  /** Pins the selected nodes and groups where they are, or unpins them when all are pinned: the layout places them again. */
+  const togglePin = () => {
+    const shift = result?.placed?.shift ?? { x: 0, y: 0 };
+    const items = selection.filter((s) => s.kind !== 'edge' && (s.kind === 'node' ? result?.placed?.nodes.has(s.id) : result?.placed?.groups.has(s.id)));
+    if (!items.length || !current) return;
+    const isPinned = (s: Selection) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id]);
+    const unpin = items.every(isPinned);
+    if (unpin && items.some((s) => locked.has(s.id))) return notify('Locked: unlock it first (⇧⌘L)');
+    const at = (s: Selection) => {
+      const b = (s.kind === 'node' ? result!.placed!.nodes : result!.placed!.groups).get(s.id)!;
+      return unpin ? undefined : { x: Math.round(b.x + shift.x), y: Math.round(b.y + shift.y) };
+    };
+    pinTo(withPins(Object.fromEntries(items.filter((s) => s.kind === 'node').map((s) => [s.id, at(s)])), Object.fromEntries(items.filter((s) => s.kind === 'group').map((s) => [s.id, at(s)]))));
+    notify(unpin ? `Unpinned ${count(items.length, 'element')}: the layout places it` : `Pinned ${count(items.length, 'element')}: it stays where it is`);
+  };
   /** Pins with one line's bends set (or reset with undefined). */
   const withEdge = (id: string, via: Point[] | undefined): LayoutSidecar | null => {
     const e = result?.graph?.edges.find((x) => x.id === id);
@@ -1058,11 +1090,24 @@ export function App() {
     if (!current) return;
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
     const moved: Record<string, Point> = {};
+    const groups: Record<string, Point> = {};
     for (const s of selection) {
-      const box = s.kind === 'node' && !locked.has(s.id) ? result?.placed?.nodes.get(s.id) : undefined;
-      if (box) moved[s.id] = { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) };
+      if (locked.has(s.id)) continue;
+      const box = s.kind === 'node' ? result?.placed?.nodes.get(s.id) : s.kind === 'group' ? result?.placed?.groups.get(s.id) : undefined;
+      if (box) (s.kind === 'group' ? groups : moved)[s.id] = { x: Math.round(box.x + shift.x + dx), y: Math.round(box.y + shift.y + dy) };
     }
-    if (Object.keys(moved).length) pinTo(withPins(moved));
+    // A group moves with everything in it: what is pinned inside moves along.
+    const graph = result?.graph;
+    const inside = (id: string, g: string) => {
+      for (let p = graph?.nodes.find((n) => n.id === id)?.parent ?? graph?.groups.find((x) => x.id === id)?.parent; p; p = graph?.groups.find((x) => x.id === p)?.parent) if (p === g) return true;
+      return false;
+    };
+    const next = Object.keys(moved).length || Object.keys(groups).length ? withPins(moved, groups) : undefined;
+    if (next && Object.keys(groups).length) {
+      for (const [id, at] of Object.entries(next.nodes ?? {})) if (!moved[id] && Object.keys(groups).some((g) => inside(id, g))) next.nodes![id] = { x: at.x + dx, y: at.y + dy };
+      for (const [id, at] of Object.entries(next.groups ?? {})) if (!groups[id] && Object.keys(groups).some((g) => inside(id, g))) next.groups![id] = { x: at.x + dx, y: at.y + dy };
+    }
+    if (next !== undefined) pinTo(next);
     else if (selection.some((s) => locked.has(s.id))) notify('Locked: unlock it first (⇧⌘L)');
   };
 
@@ -1149,7 +1194,9 @@ export function App() {
     else if (e.key === 'd' && !mod(e) && !e.altKey && drawn?.focus) focusDirection();
     else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
     else if (craftKey(e) === 'lock') toggleLock();
-    else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap') craft.toggle(craftKey(e) as 'grid' | 'minimap');
+    else if (e.code === 'KeyL' && e.shiftKey && !mod(e) && !e.altKey) togglePin();
+    else if (e.code === 'KeyT' && !mod(e) && !e.altKey) e.shiftKey ? tidyAll() : tidyLayout();
+    else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap' || craftKey(e) === 'page') craft.toggle(craftKey(e) as 'grid' | 'minimap' | 'page');
     else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
     else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
     else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
@@ -1392,7 +1439,9 @@ export function App() {
       : []),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Edit', label: 'Reset layout (unpin everything)', icon: 'pin-off', run: resetLayout }] : []),
+    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'sparkles', shortcut: 'T', run: tidyLayout },
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'lay it all out afresh; ⌘Z undoes it', icon: 'pin-off', shortcut: '⇧T', run: tidyAll }] : []),
+    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: '⇧L', run: togglePin },
     ...arrangeCommands(arrangeSelection),
     { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
@@ -1414,6 +1463,7 @@ export function App() {
     ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: 'Esc', run: leaveFocus }] : []),
     { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
     { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
+    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: '⇧P', run: () => craft.toggle('page') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
@@ -1801,6 +1851,8 @@ export function App() {
             bent={bent}
             grid={craft.grid}
             minimap={craft.minimap}
+            page={craft.page}
+            pinned={pinnedIds}
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
@@ -1829,8 +1881,11 @@ export function App() {
               <button className="tool" onClick={() => editor.current?.redo()} title="Redo (⇧⌘Z)" aria-label="Redo">
                 <Icon name="redo-2" />
               </button>
+              <button className="tool" onClick={tidyLayout} title="Tidy: lay out again what is not pinned, pins stay (T)" aria-label="Tidy">
+                <Icon name="sparkles" />
+              </button>
               {(vpins || drawnLayout?.held) && (
-                <button className="tool" onClick={resetLayout} title="Unpin everything and draw again from scratch: back to the automatic layout" aria-label="Reset layout">
+                <button className="tool" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⇧T, ⌘Z undoes it)" aria-label="Reset layout">
                   <Icon name="pin-off" />
                 </button>
               )}
