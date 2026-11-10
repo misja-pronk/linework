@@ -19,6 +19,7 @@ import { drawTags, endsRoom, endStyle, endTagAt, markStyle, tagsWidth, TAG, type
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 import { sketchSvg } from './sketch.ts';
+import { tr } from '@cartography/i18n/drawing';
 
 export { legendItems, legendWidth } from './legend.ts';
 
@@ -122,7 +123,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
       continue;
     }
     // In the editor an empty group says what it is for; exports stay clean.
-    const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, 'Drop shapes here', theme.size.caption, 500, theme.textFaint, 'middle') : '';
+    const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, tr(theme.lang, 'Drop shapes here'), theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
     // Threat numbers sit on the top edge, at the end, where they never cover the name.
     const tags = g.marks?.length ? drawTags(theme, g.marks, box.x + box.width - 16 - tagsWidth(g.marks) - (mark ? 24 : 0), box.y, markStyle(graph.environments)) : '';

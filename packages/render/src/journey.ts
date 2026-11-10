@@ -10,6 +10,7 @@ import { journeyMood, journeyNeutral, type Box, type JourneyPersona, type Journe
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { quietTheme, wrap } from './steps.ts';
+import { term, tr } from '@cartography/i18n/drawing';
 
 type Weight = 400 | 500 | 600;
 export type JourneySeg = ['M', number, number] | ['L', number, number] | ['C', number, number, number, number, number, number] | ['Z'];
@@ -310,7 +311,7 @@ function curve(pen: Pen, shape: JourneyShape, points: CurvePoint[], o: ChartOpti
     const extreme = p === low || p === high;
     face(pen, p.x, p.y, o.faceR, p.mood, theme, { ring: extreme });
     if (!o.words) continue;
-    const word = p.step.feeling ?? (p === low ? 'Low point' : p === high ? 'High point' : undefined);
+    const word = p.step.feeling ?? (p === low ? term(t.lang, 'Low point') : p === high ? term(t.lang, 'High point') : undefined);
     if (!word) continue;
     const tone = theme.tones[journeyMoodTone(p.mood)];
     // Labels go on the outside of the curve: above a peak, below a dip.
@@ -452,7 +453,7 @@ function personaBand(pen: Pen, shape: JourneyShape, x: number, y: number, width:
     if (role.length) ty += pen.text(tx, ty, room, role, 12, 400, theme.textMuted, 'l', 17);
     if (goal.length) {
       ty += 5;
-      pen.text(tx, ty, 32, ['Goal'], S.small, 600, theme.textFaint, 'l', 16);
+      pen.text(tx, ty, 32, [term(theme.lang, 'Goal')], S.small, 600, theme.textFaint, 'l', 16);
       pen.text(tx + 34, ty, room - 34, goal, S.body, 400, theme.textMuted, 'l', 16);
     }
     const textW = Math.max(measureText(name, 15, 600), widest(role, 12, 400), goal.length ? 34 + widest(goal, S.body, 400) : 0);
@@ -553,7 +554,7 @@ function rowLabel(pen: Pen, shape: JourneyShape, row: JourneyRow, y: number, the
   const r = JOURNEY_ROWS[row];
   const tone = theme.tones[r.tone];
   pen.icon(r.icon, 0, y + 1, 13, tone.fg, 1.75);
-  pen.text(19, y, width - 19, [fitText(label ?? shape.rowLabels?.[row] ?? r.label, S.body, 600, width - 19)], S.body, 600, theme.textMuted, 'l', 15);
+  pen.text(19, y, width - 19, [fitText(label ?? shape.rowLabels?.[row] ?? term(theme.lang, r.label), S.body, 600, width - 19)], S.body, 600, theme.textMuted, 'l', 15);
 }
 
 const gutterFor = (shape: JourneyShape, labels: string[]) => Math.ceil(Math.max(64, ...labels.map((l) => measureText(l, S.body, 600) + 19))) + 18;
@@ -654,7 +655,7 @@ function mapScene(shape: JourneyShape, full: Theme, colW: number, step?: number)
   const themeAt = (i: number) => (!step || i === step - 1 ? full : quiet);
   const rows = shape.rows;
   // The feeling row's label stands left of the faces on the scale, so it has less room: count it as a few letters longer.
-  const labels = rows.map((r) => (shape.rowLabels?.[r] ?? JOURNEY_ROWS[r].label) + (r === 'feeling' ? 'mm' : ''));
+  const labels = rows.map((r) => (shape.rowLabels?.[r] ?? term(full.lang, JOURNEY_ROWS[r].label)) + (r === 'feeling' ? 'mm' : ''));
   const actors = [...new Set(shape.steps.flatMap((s) => s.actors))].slice(0, 6);
   const gutter = gutterFor(shape, rows.includes('actors') ? [...labels, ...actors.map((a) => a.slice(0, 16))] : labels);
   const { cols, phases, right } = columns(shape, shape.steps, gutter, colW);
@@ -830,7 +831,7 @@ function storyboardScene(shape: JourneyShape, full: Theme, option: number, step?
       if (s.actors.length) {
         const ay = ty + (used ? used + 8 : 0);
         pen.icon('users', x + BOARD.pad + 4, ay + 1.5, 12, t.textFaint, 1.75);
-        pen.text(x + BOARD.pad + TOUCH.tile + 7, ay, inner - TOUCH.tile - 7, [fitText(`With ${s.actors.join(', ')}`, S.body, 400, inner - TOUCH.tile - 7)], S.body, 400, t.textMuted, 'l', 15);
+        pen.text(x + BOARD.pad + TOUCH.tile + 7, ay, inner - TOUCH.tile - 7, [fitText(tr(t.lang, 'With {names}', { names: s.actors.join(', ') }), S.body, 400, inner - TOUCH.tile - 7)], S.body, 400, t.textMuted, 'l', 15);
       }
       ty += touchH;
     }
@@ -869,9 +870,9 @@ function blueprintScene(shape: JourneyShape, full: Theme, colW: number, step?: n
   const pen = new Pen(full);
   const quiet = step ? quietTheme(full) : full;
   const themeAt = (i: number) => (!step || i === step - 1 ? full : quiet);
-  const stages = STAGES.filter((s) => shape.steps.some((x) => x[s.key].length));
+  const stages = STAGES.filter((s) => shape.steps.some((x) => x[s.key].length)).map((s) => ({ ...s, label: term(full.lang, s.label), line: term(full.lang, s.line) }));
   const touch = shape.steps.some((s) => s.touchpoints.length);
-  const gutter = Math.ceil(Math.max(...['Touchpoints', 'Actions', ...stages.flatMap((s) => [s.label])].map((l) => measureText(l, S.body, 600) + 19), ...stages.map((s) => measureText(s.line, S.small, 500)))) + 18;
+  const gutter = Math.ceil(Math.max(...[term(full.lang, 'Touchpoints'), term(full.lang, 'Actions'), ...stages.flatMap((s) => [s.label])].map((l) => measureText(l, S.body, 600) + 19), ...stages.map((s) => measureText(s.line, S.small, 500)))) + 18;
   const { cols, phases, right } = columns(shape, shape.steps, gutter, colW);
   const width = Math.max(right, 560);
   const current = step ? cols.find((c) => c.index === step - 1) : undefined;
@@ -894,14 +895,14 @@ function blueprintScene(shape: JourneyShape, full: Theme, colW: number, step?: n
   const bodyTop = y;
   if (touch) {
     const h = Math.max(...cols.map((c) => touchHeight(c.step, inner - 12, 2)));
-    label(shape.rowLabels?.touchpoints ?? 'Touchpoints', 'mouse-pointer-2', y + 3);
+    label(shape.rowLabels?.touchpoints ?? term(full.lang, 'Touchpoints'), 'mouse-pointer-2', y + 3);
     for (const c of cols) touchpoints(pen, c.step, c.x + MAP.cardGap / 2 + 6, y, inner - 12, themeAt(c.index), shape.phases[c.phase]!.tone, 2);
     y += h + 14;
   }
   // What the person does.
   const lines = cols.map((c) => stepLines(c.step, inner, 4));
   const cardH = 20 + Math.max(18, ...lines.map((l) => l.length * lh(S.step)));
-  label(shape.rowLabels?.steps ?? 'Actions', 'route', y + 12);
+  label(shape.rowLabels?.steps ?? term(full.lang, 'Actions'), 'route', y + 12);
   const ends = new Map<Col, number>();
   for (const [i, c] of cols.entries()) {
     stepCard(pen, c.step, c.index + 1, c.x + MAP.cardGap / 2, y, inner, cardH, lines[i]!, themeAt(c.index), shape.phases[c.phase]!.tone, { focus: !!step && c === current });
@@ -951,7 +952,7 @@ function blueprintScene(shape: JourneyShape, full: Theme, colW: number, step?: n
 
 function compareScene(shape: JourneyShape, full: Theme, colW: number, step?: number): JourneyScene {
   const pen = new Pen(full);
-  const future = shape.future ?? { label: 'Future', steps: [], metrics: [] };
+  const future = shape.future ?? { label: term(full.lang, 'Future'), steps: [], metrics: [] };
   const quiet = step ? quietTheme(full) : full;
   const tracks = [
     { label: shape.label, steps: shape.steps, id: (s: JourneyStep) => s.id },
@@ -960,7 +961,7 @@ function compareScene(shape: JourneyShape, full: Theme, colW: number, step?: num
   const hasPains = shape.steps.some((s) => s.pains.length);
   const hasGains = future.steps.some((s) => s.gains.length);
   // Wide enough for the legend of the two curves, which names both journeys.
-  const gutter = Math.ceil(Math.max(72, ...['Feeling', 'Pains', 'Gains'].map((l) => measureText(l, S.body, 600) + 30), ...tracks.map((t) => Math.min(190, measureText(t.label, S.small, 500) + 28 + 28)))) + 16;
+  const gutter = Math.ceil(Math.max(72, ...['Feeling', 'Pains', 'Gains'].map((l) => term(full.lang, l)).map((l) => measureText(l, S.body, 600) + 30), ...tracks.map((t) => Math.min(190, measureText(t.label, S.small, 500) + 28 + 28)))) + 16;
   // A phase is as wide as the journey with the most steps in it; each journey spreads its steps over that width.
   const boxes: PhaseBox[] = [];
   let x = gutter;
@@ -1010,7 +1011,7 @@ function compareScene(shape: JourneyShape, full: Theme, colW: number, step?: num
   // Both curves in one chart: today dashed, the future solid.
   const chartY = y;
   chartFrame(pen, gutter, right, chartY, full, gutter - 12);
-  pen.text(0, chartY + chartHeight / 2 - 30, gutter - 30, ['Feeling'], S.body, 600, full.textMuted, 'l', 15);
+  pen.text(0, chartY + chartHeight / 2 - 30, gutter - 30, [term(full.lang, 'Feeling')], S.body, 600, full.textMuted, 'l', 15);
   for (const [i, track] of tracks.entries()) {
     const ly = chartY + chartHeight / 2 - 6 + i * 17;
     pen.line(0, ly + 7, 22, ly + 7, lineOf[i]!.color, lineOf[i]!.width, lineOf[i]!.dash);
@@ -1028,8 +1029,8 @@ function compareScene(shape: JourneyShape, full: Theme, colW: number, step?: num
 
   // What hurts today and what the future journey wins, per phase.
   const lists: { row: 'pains' | 'gains'; steps: JourneyStep[]; label: string }[] = [
-    ...(hasPains ? [{ row: 'pains' as const, steps: shape.steps, label: 'Pains' }] : []),
-    ...(hasGains ? [{ row: 'gains' as const, steps: future.steps, label: 'Gains' }] : []),
+    ...(hasPains ? [{ row: 'pains' as const, steps: shape.steps, label: term(full.lang, 'Pains') }] : []),
+    ...(hasGains ? [{ row: 'gains' as const, steps: future.steps, label: term(full.lang, 'Gains') }] : []),
   ];
   for (const l of lists) {
     const cells = boxes.map((b) => {

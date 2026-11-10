@@ -10,6 +10,8 @@ import { nodeLabel, type Graph, type Placed, type Point } from '@cartography/cor
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
 import { wrapText } from './size.ts';
+import type { Lang } from '@cartography/i18n';
+import { tr, type DrawingMessage } from '@cartography/i18n/drawing';
 
 export type FindingSeverity = 'error' | 'warn' | 'info';
 
@@ -134,11 +136,12 @@ export function reviewSpots(marks: ReviewMark[], placed: Placed, size?: { width:
   return out;
 }
 
-const said: Record<FindingSeverity, string> = { error: 'Error', warn: 'Warning', info: 'Info' };
-const pillar: Record<string, string> = { security: 'Security', reliability: 'Reliability', operations: 'Operational excellence', performance: 'Performance efficiency', cost: 'Cost optimisation' };
+const SAID = { error: 'Error', warn: 'Warning', info: 'Info' } as const satisfies Record<FindingSeverity, DrawingMessage>;
+const said = (s: FindingSeverity, lang?: Lang) => tr(lang, SAID[s]);
+const PILLAR: Record<string, DrawingMessage> = { security: 'Security', reliability: 'Reliability', operations: 'Operational excellence', performance: 'Performance efficiency', cost: 'Cost optimisation' };
 
 /** A finding's one-line tooltip: "R3 Warning: Orders has no private endpoint (Data stores … private endpoint)". */
-export const reviewTitle = (m: ReviewMark) => `${m.id} ${said[m.severity]}: ${m.message}${m.rule ? ` (${m.rule.title})` : ''}`;
+export const reviewTitle = (m: ReviewMark, lang?: Lang) => `${m.id} ${said(m.severity, lang)}: ${m.message}${m.rule ? ` (${m.rule.title})` : ''}`;
 
 /**
  * The drawing with review markers and, under it, a key and the findings written out (what a review
@@ -158,7 +161,8 @@ export function withReview(
   if (!live.length) return { ...drawn, count: 0, spots };
   const o = drawn.origin ?? { x: 0, y: 0 };
   const shift = (s: ReviewSpot) => (s.diagram ? s.at : { x: s.at.x + o.x, y: s.at.y + o.y });
-  const drawnMarks = spots.map((s) => reviewMarker(theme, shift(s).x, shift(s).y, s.marks, s.marks.map(reviewTitle).join('\n'))).join('');
+  const lang = theme.lang;
+  const drawnMarks = spots.map((s) => reviewMarker(theme, shift(s).x, shift(s).y, s.marks, s.marks.map((m) => reviewTitle(m, lang)).join('\n'))).join('');
   if (opts.appendix === false) return { svg: drawn.svg.replace(/<\/svg>\s*$/, `<g data-review-marks="">${drawnMarks}</g></svg>`), width: drawn.width, height: drawn.height, count: live.length, spots };
 
   const pad = 32;
@@ -169,13 +173,13 @@ export function withReview(
   const text = (s: string, x: number, size: number, weight: 400 | 500 | 600, fill: string) => `<text x="${r1(x)}" y="${r1(y)}" font-size="${size}" font-weight="${weight}" fill="${fill}">${esc(s)}</text>`;
   rows.push(`<line x1="${pad}" x2="${r1(width - pad)}" y1="${r1(y)}" y2="${r1(y)}" stroke="${theme.border}" stroke-width="1"/>`);
   y += 30;
-  rows.push(text('Review', pad, 14, 600, theme.text));
-  let kx = pad + measureText('Review', 14, 600) + 28;
+  rows.push(text(tr(lang, 'Review'), pad, 14, 600, theme.text));
+  let kx = pad + measureText(tr(lang, 'Review'), 14, 600) + 28;
   for (const s of ['error', 'warn', 'info'] as const) {
     if (!live.some((m) => m.severity === s)) continue;
     rows.push(reviewMarker(theme, kx, y - 4, [{ id: '', severity: s, on: { kind: 'diagram' }, message: '' }]));
-    rows.push(text(said[s], kx + reviewMarkerWidth('') + 6, 11, 500, theme.textMuted));
-    kx += reviewMarkerWidth('') + 6 + measureText(said[s], 11, 500) + 20;
+    rows.push(text(said(s, lang), kx + reviewMarkerWidth('') + 6, 11, 500, theme.textMuted));
+    kx += reviewMarkerWidth('') + 6 + measureText(said(s, lang), 11, 500) + 20;
   }
   y += 8;
   const name = (id: string) => {
@@ -188,14 +192,14 @@ export function withReview(
     const x = pad + reviewMarkerWidth(m.id) + 10;
     rows.push(text(m.rule?.title ?? m.message, x, 12, 600, theme.text));
     y += 15;
-    const about = m.about ?? (m.on.kind === 'diagram' ? 'the diagram' : m.on.kind === 'edge' ? (m.ends ? `${name(m.ends.from)} → ${name(m.ends.to)}` : m.on.id) : name(m.on.id));
-    rows.push(text([said[m.severity], m.rule?.category && (pillar[m.rule.category] ?? m.rule.category), `about ${about}`, m.rule?.id].filter(Boolean).join(' · '), x, 10.5, 400, theme.textFaint));
+    const about = m.about ?? (m.on.kind === 'diagram' ? tr(lang, 'the diagram') : m.on.kind === 'edge' ? (m.ends ? `${name(m.ends.from)} → ${name(m.ends.to)}` : m.on.id) : name(m.on.id));
+    rows.push(text([said(m.severity, lang), m.rule?.category && (PILLAR[m.rule.category] ? tr(lang, PILLAR[m.rule.category]!) : m.rule.category), tr(lang, 'about {about}', { about }), m.rule?.id].filter(Boolean).join(' · '), x, 10.5, 400, theme.textFaint));
     for (const line of wrapText(m.message, 11.5, 400, textWidth, 2)) {
       y += 16;
       rows.push(text(line, x, 11.5, 400, theme.textMuted));
     }
     if (m.rule?.fix)
-      for (const [i, line] of wrapText(`Fix: ${m.rule.fix}`, 11, 400, textWidth, 3).entries()) {
+      for (const [i, line] of wrapText(tr(lang, 'Fix: {fix}', { fix: m.rule.fix }), 11, 400, textWidth, 3).entries()) {
         y += i ? 14 : 16;
         rows.push(text(line, x, 11, 400, theme.textFaint));
       }

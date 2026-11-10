@@ -7,6 +7,7 @@ import { stack, tracks, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { arrowHead, tagRadius } from './paint.ts';
+import { term, tr } from '@cartography/i18n/drawing';
 
 const K = {
   gutter: { padX: 14, min: 120, max: 220, gap: 16 },
@@ -365,12 +366,13 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
 
   // Legend of the statuses in use, in the bars' own style.
   let lx = g.gutter;
-  if (g.legend.items.length && g.gutter >= 60 && look(theme).legend === 'key') out.push(text(0, g.legend.y, 'KEY', 9.5, 600, theme.textFaint, undefined, ' letter-spacing="1.2" data-aside=""'));
+  if (g.legend.items.length && g.gutter >= 60 && look(theme).legend === 'key') out.push(text(0, g.legend.y, tr(theme.lang, 'KEY'), 9.5, 600, theme.textFaint, undefined, ' letter-spacing="1.2" data-aside=""'));
   for (const s of g.legend.items) {
     const st = STATUS[s];
     out.push(drawBar({ it: { id: '', label: '', start: 0, end: 0, milestone: false, status: s, after: [], path: [] }, box: { x: lx, y: g.legend.y - 8, width: 26, height: 16 }, tone: st.tone, inside: true, label: '', labelX: 0 }, theme, true));
-    out.push(text(lx + 34, g.legend.y, st.label, theme.size.caption, 500, theme.textMuted));
-    lx += 34 + measureText(st.label, theme.size.caption, 500) + 22;
+    const said = term(theme.lang, st.label);
+    out.push(text(lx + 34, g.legend.y, said, theme.size.caption, 500, theme.textMuted));
+    lx += 34 + measureText(said, theme.size.caption, 500) + 22;
   }
   out.push('</g>');
   return out.join('');
