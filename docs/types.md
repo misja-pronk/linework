@@ -31,6 +31,8 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | A branching strategy: branches, merges, tags, releases; or how branches reach production | [Git branching](#git-branching) | `gitflow` |
 | What happens when: workstreams, milestones, migration waves, a delivery plan | [Roadmap & timeline](#roadmap--timeline) | `roadmap` |
 | What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
+| Who does what, in which order, and where it branches: an approval in swimlanes, a decision flowchart, a runbook | [Process](#process) | `process` |
+| The states one thing can be in and what moves it on: the lifecycle of an order, a ticket, a connection | [State machine](#state-machine) | `states` |
 
 Look-alikes that trip people up:
 
@@ -46,12 +48,18 @@ Look-alikes that trip people up:
 - **The steps of one flow** are Sequence; **work spread over weeks and months** is Roadmap.
 - **Messages between systems** are Sequence; **what a person does, thinks and feels along the way** is a Journey map.
 - **A plan with dates** is Roadmap; **an experience in phases, without dates** is a Journey map.
+- **Which systems there are** is Architecture; **the steps people and systems take, with decisions** are a Process.
+- **Messages between systems, call by call** are Sequence; **work handed from role to role, with branches** is a Process.
+- **What one person feels along the way** is a Journey map; **what every role does, and who decides** is a Process.
+- **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
 
 ## Architecture
 
 `type: systems` · boxes and arrows: the parts of a system and how they talk.
 
 Use it for any system overview: services, clients, queues, databases and external systems in nestable groups (system, zone, cloud, region). It is cloud-neutral, so it suits design docs and onboarding, and it is what a Mermaid import becomes.
+
+Groups that end up side by side are drawn in the order they are written: the first one left, or on top in a left-to-right drawing. Move a group up in the file to move it to the front. Where the lines between two groups pull the other way, the lines win. This holds for every type made of nodes and groups (`azure`, `cloud`, `network`, `kubernetes`, …).
 
 Not for: what runs in which Azure subnet (use `azure`), table columns (use `erd`), who may access what (use `access`).
 
@@ -126,7 +134,7 @@ Use it for a VPC across availability zones with its subnet tiers, a data platfor
 
 - **Containers** nest the way the clouds do: `organization`, `region`, `vpc`, `zone`, `subnet`, `on-premises` and `boundary` for both; `aws`, `ou`, `account`, `security-group`, `auto-scaling-group`, `ecs-cluster`, `eks-cluster` for AWS; `gcp`, `folder`, `project`, `instance-group`, `gke-cluster`, `service-perimeter` for Google Cloud. `cidr`, `account`, `project`, `region` and `zone` go in the caption.
 - **Services** are named the way you say them: `ec2`, `ecs`, `eks`, `lambda`, `s3`, `rds`, `aurora`, `dynamodb`, `redshift`, `glue`, `kinesis`, `sqs`, `sns`, `eventbridge`, `api-gateway`, `cloudfront`, `route53`, `alb`, `nat-gateway`, `transit-gateway`, `iam-role`, `kms`, `cloudwatch`, `bedrock`, … (59 for AWS) and `compute-engine`, `gke`, `cloud-run`, `cloud-functions`, `gcs`, `cloud-sql`, `spanner`, `bigquery`, `dataflow`, `pubsub`, `cloud-load-balancing`, `cloud-nat`, `service-account`, `cloud-kms`, `vertex-ai`, … (51 for Google Cloud), plus `internet`, `users`, `client`, `server`, `external` and the like. The palette in the editor lists them all by category. `size`, `zone` and `exposure: public | internal` go in the caption.
-- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. A node outside the subnets joins a row with `tier:` as well.
+- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. The zones stand in the order they are written. A node outside the subnets joins a row with `tier:` as well.
 - **Mixing providers**: one file may hold AWS, Google Cloud and Azure. A service's provider follows from its kind; a container's from its kind, `provider:` or what it sits in. Every Azure kind works here too; the four that are also general words are `azure-storage`, `azure-load-balancer`, `azure-dns` and `azure-firewall`.
 - **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
 - **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.
@@ -280,7 +288,7 @@ Guide: [data-products.md](data-products.md) (the mesh map from ODPS and ODCS fil
 
 Use it for a login or OAuth flow step by step, an integration with a payment provider, event choreography between services, or a handshake between two systems.
 
-Not for: which services exist and how they connect, or a process flow with decisions (both `systems`).
+Not for: which services exist and how they connect (`systems`), a process flow with decisions (`process`), the states one thing goes through (`states`), or what a person goes through and how it feels (`journey`).
 
 ```yaml
 type: sequence
@@ -412,7 +420,7 @@ Examples: [examples/roadmap](../examples/roadmap)
 
 Use it for a developer's first week from laptop to first deploy, asking for access today next to the self-service way, a service blueprint with frontstage, backstage and support, or a storyboard that tells a slide deck step by step.
 
-Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`systems`).
+Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`process`).
 
 The short form is one line per step, the key being what they do and the number how it feels:
 
@@ -482,6 +490,76 @@ Presenting tells the journey one step at a time: the step in focus is outlined, 
 Import: Mermaid `journey` (sections become phases, tasks steps with their score; the actor in most tasks becomes the persona, the others go to `with:`).
 
 Examples: [examples/journey](../examples/journey)
+
+## Process
+
+`type: process` · who does what, in which order, and where it branches.
+
+Use it for an approval or request process with the roles in swimlanes, a decision flowchart (leave the lanes out), an incident or release procedure with a manual gate, or order to cash across departments.
+
+Not for: the states one thing can be in (`states`), messages between systems call by call (`sequence`), how one person experiences it (`journey`), or the systems themselves and how they connect (`systems`).
+
+```yaml
+type: process
+title: Access request
+lanes:                              # who does it; optional
+  employee: Employee
+  manager: Line manager
+  it: IT service desk
+nodes:                              # only what the flow cannot say itself
+  Request access: { in: employee, kind: user }
+  Check request: manager            # a lane; a step without one stands with the step before it
+  Grant access: { in: it, kind: service }
+  Confirm access: employee
+  Request rejected: end             # a kind
+flow:                               # the first item is the happy path
+  - start -> Request access -> Check request -> Approved? -yes-> Grant access -> Confirm access -> end
+  - Approved? -no-> Explain why -> Request rejected
+```
+
+The names are the steps; a name that ends in `?` is a decision, `start` and `end` are the events. `->` is sequence flow, `-->` a message (dashed), `-yes->` a label where the line leaves. Kinds: `task`, `user`, `service`, `manual`, `script`, `subprocess`; `decision`, `parallel`, `inclusive`, `event-based`; `start`, `end`, `timer`, `message`, `error`, `signal`; `document`, `note`. The happy path runs straight and a little heavier; the layout is the type's own and places everything, so nothing is pinned. Without `steps:` a presentation walks the happy path.
+
+It has BPMN's everyday shapes, not BPMN: no pools, boundary events or BPMN XML.
+
+Import: a Mermaid `flowchart` that decides something (diamonds, starts and ends are a good part of it) becomes a process, its subgraphs lanes; other flowcharts stay `systems`.
+
+Guide: [process.md](process.md). Examples: [examples/process](../examples/process)
+
+## State machine
+
+`type: states` · the states one thing can be in, and what moves it on.
+
+Use it for the lifecycle of an order, a ticket or a document, what a pull request or a contract can become and when, a connection or a device that retries, times out and recovers, or to check that no status is a dead end before it is built.
+
+Not for: who does what in which order, with decisions (`process`), messages between systems call by call (`sequence`), branches, merges and releases in a repository (`gitflow`), or what is delivered when (`roadmap`).
+
+```yaml
+type: states
+title: Order lifecycle
+states:                             # only what the transitions cannot say themselves
+  Awaiting payment: { entry: reserve stock }
+  Fulfilment:                       # a composite state: its substates are nested in it
+    states:
+      Picking: { do: collect the items }
+      Packed:
+  In stock?: choice                 # a kind: choice, final or history; a name ending in ? is a choice anyway
+transitions:                        # from -> to: event [guard] / action
+  - start -> Awaiting payment: order placed
+  - Awaiting payment -> In stock?: payment received
+  - In stock? -> Fulfilment: [yes]
+  - In stock? -> Refunded: "[no] / pay back"
+  - start -> Picking                # the start inside Fulfilment: where Picking is
+  - Picking -> Packed: all items scanned
+  - Fulfilment -> Shipped: handed to carrier
+  - Shipped -> end
+  - Refunded -> end
+```
+
+`start` and `end` are the initial and final pseudo-states of the level the state at the other end lives in. A state has one name in the whole diagram, so transitions name it without a path. `entry`, `do` and `exit` are listed in the state; `note:` hangs a remark on it; a transition to itself is a loop on the state. It uses the general layout, so a state you drag stays where you put it. Without `steps:` a presentation walks from the start along the first way out.
+
+Import: Mermaid `stateDiagram` and `stateDiagram-v2` (`[*]`, composite states, `<<choice>>`, notes; fork and join come in as states, concurrent regions are merged, with a warning).
+
+Guide: [states.md](states.md). Examples: [examples/states](../examples/states)
 
 ## Adding a type
 

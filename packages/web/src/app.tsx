@@ -26,7 +26,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
-import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -85,8 +85,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'flow' ? n.shape.label || n.id : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : n.shape.kind === 'flow' ? 'workflow' : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -719,8 +719,15 @@ export function App() {
   const remove = (sel: Selection | undefined = selected) => {
     const path = pathOf(sel);
     if (!path || !sel || !type || !ready()) return;
+    // One arrow of a chain ("a -> b -> c"): the chain is cut there, the rest of it stays.
+    if (sel.kind === 'edge' && isChainLine(textNow(), type, sel.id)) {
+      const next = editChainLine(textNow(), type, sel.id);
+      apply(next);
+      if (next != null && sel === selected) setSelected(undefined);
+      return;
+    }
     // A line that stands for part of something bigger (a policy, a list) is changed in the YAML.
-    const deletable = (path.length === 2 && typeof path[1] === 'string') || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
+    const deletable = isEntryPath(path) || typeof path.at(-1) === 'number' || (sel.kind === 'edge' && isScalarAt(textNow(), path));
     if (!deletable) {
       notify('This one is part of a larger entry: change it in the YAML', { tone: 'error' });
       const e = entries.find((x) => x.kind === sel.kind && x.id === sel.id);
@@ -737,7 +744,7 @@ export function App() {
     if (selection.length > 1) return paste(copy(false));
     const path = pathOf(selected);
     if (!path || !selected || path.length !== 2 || !ready()) return;
-    const r = duplicateEntry(textNow(), path);
+    const r = duplicateEntry(textNow(), path, type);
     if (!r) return apply(undefined);
     const box = result?.placed?.nodes.get(selected.id);
     const shift = result?.placed?.shift ?? { x: 0, y: 0 };
@@ -749,16 +756,31 @@ export function App() {
   const removeAll = () => {
     if (!type || !ready()) return;
     const t = textNow();
-    const paths = selection.map(pathOf).filter((p): p is Path => !!p && ((p.length === 2 && typeof p[1] === 'string') || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
-    if (!paths.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
-    const next = deleteEntries(t, type, paths);
+    const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(t, type, s.id));
+    const rest = selection.filter((s) => !chain.includes(s));
+    const paths = rest.map(pathOf).filter((p): p is Path => !!p && (isEntryPath(p) || typeof p.at(-1) === 'number' || isScalarAt(t, p)));
+    if (!paths.length && !chain.length) return notify('These are parts of larger entries: change them in the YAML', { tone: 'error' });
+    // Arrows of chains and whole list items go together, last written first, so the places of the
+    // others stay right; an arrow in an item that goes anyway is left alone.
+    const place = (p: Path | undefined) => (typeof p?.at(-1) === 'number' ? (p.at(-1) as number) : -1);
+    const items = paths.filter((p) => place(p) >= 0);
+    const ops = [...items.map((p) => ({ at: place(p), path: p, id: '' })), ...chain.map((s) => ({ at: place(pathOf(s)), path: undefined, id: s.id }))];
+    ops.sort((a, b) => b.at - a.at || Number(!!b.path) - Number(!!a.path) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+    let next: string | undefined = t;
+    for (const op of ops) {
+      if (next == null) break;
+      if (op.path) next = deleteEntry(next, type, op.path);
+      else if (!items.some((p) => place(p) === op.at)) next = editChainLine(next, type, op.id);
+    }
+    const others = paths.filter((p) => place(p) < 0);
+    if (next != null && others.length) next = deleteEntries(next, type, others);
     const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
     const unpinned = vpins && selection.some((s) => (s.kind === 'node' ? vpins.nodes?.[s.id] : s.kind === 'group' ? vpins.groups?.[s.id] : undefined));
     const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
     apply(next, nextPins);
     if (next != null) {
       setSelection([]);
-      if (paths.length < selection.length) notify(`Deleted ${paths.length}; ${selection.length - paths.length} that are part of larger entries stayed`);
+      if (paths.length < rest.length) notify(`Deleted ${paths.length + chain.length}; ${rest.length - paths.length} that are part of larger entries stayed`);
     }
   };
 
@@ -798,10 +820,11 @@ export function App() {
     const path = pathOf(t as Selection);
     if (!path) return undefined;
     if (t.kind === 'edge') {
+      if (isChainLine(textNow(), type, t.id)) return result?.graph?.edges.find((x) => x.id === t.id)?.label ?? '';
       const f = path[0] === 'edges' && typeof path[1] === 'number' ? edgeFields(textNow(), type, path).find((x) => x.key === 'label') : undefined;
       return f?.kind === 'text' ? f.value : undefined;
     }
-    if (path.length !== 2 || typeof path[1] !== 'string') return undefined;
+    if (!isEntryPath(path)) return undefined;
     const f = labelField(path);
     if (!f) return undefined;
     const n = t.kind === 'node' ? result?.graph?.nodes.find((x) => x.id === t.id) : undefined;
@@ -813,9 +836,16 @@ export function App() {
     if (t.kind === 'title' || t.kind === 'subtitle') return apply(setField(textNow(), type, [], t.kind, value));
     const path = pathOf(t as Selection);
     if (!path) return;
-    if (t.kind === 'edge') return apply(setEdgeField(textNow(), path, 'label', value));
+    if (t.kind === 'edge') return apply(isChainLine(textNow(), type, t.id) ? editChainLine(textNow(), type, t.id, value) : setEdgeField(textNow(), path, 'label', value));
     const f = labelField(path);
-    if (f) apply(setField(textNow(), type, path, f.key, value));
+    if (!f) return;
+    // A step or a state is its name: typing another one renames it wherever it is written. Only a
+    // name the YAML cannot hold as a key (a colon, an arrow) becomes a label on the entry.
+    if (type.freeNames && !f.value && value.trim()) {
+      const renamed = renameEntry(textNow(), type, path, value.trim());
+      if (renamed != null) return apply(renamed);
+    }
+    apply(setField(textNow(), type, path, f.key, value));
   };
 
   const rename = (to: string): boolean => {
@@ -1109,11 +1139,22 @@ export function App() {
   const selNode = selected?.kind === 'node' ? (result ?? drawn)?.graph?.nodes.find((n) => n.id === selected.id) : undefined;
   const selGroup = selected?.kind === 'group' ? (result ?? drawn)?.graph?.groups.find((g) => g.id === selected.id) : undefined;
   const selEdge = selected?.kind === 'edge' ? (result ?? drawn)?.graph?.edges.find((e) => e.id === selected.id) : undefined;
-  const isEntry = !!selectedPath && selectedPath.length === 2 && typeof selectedPath[1] === 'string';
+  const isEntry = !!selectedPath && isEntryPath(selectedPath) && selected?.kind !== 'edge';
   const isEdgeItem = !!selectedPath && selectedPath[0] === 'edges' && typeof selectedPath[1] === 'number';
+  /** One arrow of a chain ("a -> b -> c" in a process): its label is the one thing to set. */
+  const isChain = !!type && selected?.kind === 'edge' && isChainLine(text, type, selected.id);
   const fields = useMemo(
-    () => (type && selectedPath ? (isEntry ? fieldsFor(text, type, selectedPath) : isEdgeItem ? edgeFields(text, type, selectedPath) : []) : []),
-    [type, isEntry, isEdgeItem, selectedPath, text],
+    () =>
+      type && selectedPath
+        ? isChain
+          ? [{ key: 'label', kind: 'text' as const, label: 'Label', value: selEdge?.label ?? '', hint: type.lines?.hint }]
+          : isEntry
+            ? fieldsFor(text, type, selectedPath)
+            : isEdgeItem
+              ? edgeFields(text, type, selectedPath)
+              : []
+        : [],
+    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
   const showInspector = !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector);
   /** A diagram with nothing in it yet: the canvas says how to start. */
@@ -1524,7 +1565,9 @@ export function App() {
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
               const path = pathOf({ kind: 'node', id });
-              return !!type && !type.unconnected && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+              // A type that writes its own lines says what can be joined (a start dot has no entry of its own).
+              const entry = !!path && (type?.lines ? true : path.length === 2 && typeof path[1] === 'string');
+              return !!type && !type.unconnected && entry && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
             }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
@@ -1648,12 +1691,13 @@ export function App() {
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
-            id={isEntry ? String(selectedPath![1]) : selected.id}
+            id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
             kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
+            freeName={!!type.freeNames}
             pinned={selected.kind === 'node' ? !!vpins?.nodes?.[selected.id] : selected.kind === 'group' && !!vpins?.groups?.[selected.id]}
             locked={selected.kind === 'edge' ? undefined : locked.has(selected.id)}
             onLock={toggleLock}
@@ -1661,7 +1705,15 @@ export function App() {
             links={(selNode ?? selGroup)?.links}
             onFollowLink={follow}
             onField={(key, value) =>
-              type && selectedPath && apply(isEdgeItem ? setEdgeField(textNow(), selectedPath, key, value) : setField(textNow(), type, selectedPath, key, value))
+              type &&
+              selectedPath &&
+              apply(
+                isChain
+                  ? editChainLine(textNow(), type, selected.id, String(value ?? ''))
+                  : isEdgeItem
+                    ? setEdgeField(textNow(), selectedPath, key, value)
+                    : setField(textNow(), type, selectedPath, key, value),
+              )
             }
             onRename={rename}
             onReveal={() => {

@@ -359,7 +359,8 @@ export const sequence: DiagramType<SequenceSource> = {
   useWhen: ['A login or OAuth flow, step by step', 'An API integration with a payment provider', 'Event choreography between services', 'A handshake between two systems'],
   notFor: [
     { text: 'Which services exist and how they connect', use: 'systems' },
-    { text: 'A process flow with decisions', use: 'systems' },
+    { text: 'A process flow with decisions', use: 'process' },
+    { text: 'The states one thing goes through', use: 'states' },
     { text: 'What a person goes through and how it feels', use: 'journey' },
   ],
   keywords: ['sequence', 'sequence diagram', 'interaction', 'message', 'call', 'reply', 'request response', 'oauth', 'handshake', 'flow over time', 'lifeline', 'choreography', 'uml'],

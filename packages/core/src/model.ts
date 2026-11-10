@@ -23,6 +23,16 @@ export interface Graph {
   legend?: LegendItem[];
   /** Numbered interactions of a dynamic view, in order: drawn as numbers on their lines, and what a step-through shows one by one. */
   steps?: GraphStep[];
+  /** The main line of a process, one beat per stop: laid out straight, and what a step-through walks when no steps are written. */
+  walk?: GraphBeat[];
+}
+
+export interface GraphBeat {
+  title: string;
+  caption?: string;
+  /** The stop and the line that leads to it. */
+  nodes: string[];
+  edges: string[];
 }
 
 export interface GraphStep {
@@ -45,6 +55,8 @@ export interface GraphGroup {
   tone: Tone;
   /** solid: a real boundary (subscription); dashed: a logical one (subnet, schema). */
   border: 'solid' | 'dashed';
+  /** A swimlane: a band across the whole drawing with its name in a header at the start, instead of a box around its children. */
+  lane?: boolean;
   /** Where it points to: a URL, another diagram, a view. Drawn as a link icon; real links in exports. */
   links?: Link[];
   description?: string;
@@ -61,7 +73,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape | FlowShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
@@ -109,6 +121,30 @@ export interface CardShape {
 }
 
 export type CardForm = 'decision' | 'terminal' | 'plain' | 'person';
+
+/**
+ * An element of a process or a state machine, told apart by its outline rather than its colour:
+ * a task or state is a rounded box, an event a circle, a gateway a diamond.
+ */
+export interface FlowShape {
+  kind: 'flow';
+  form: FlowForm;
+  /** Inside a task or state; beside an event, gateway or document. */
+  label: string;
+  caption?: string;
+  /** A task's kind (user, service…) in its corner, an event's trigger in its circle. */
+  icon?: string;
+  tone: Tone;
+  /**
+   * What the outline says. Event: start (thin ring), end (heavy ring) or mid (double ring).
+   * Gateway: xor (plain), and (+), or (o) or event. Pseudo-state: initial, final, choice or history.
+   */
+  mark?: 'start' | 'end' | 'mid' | 'xor' | 'and' | 'or' | 'event' | 'initial' | 'final' | 'choice' | 'history';
+  /** A state's entry / exit / do lines, under its name. */
+  lines?: string[];
+}
+
+export type FlowForm = 'task' | 'subprocess' | 'event' | 'gateway' | 'state' | 'pseudo' | 'document' | 'note';
 
 /** Header + rows, with a connection point per row: tables, data products in detail. */
 export interface TableShape {
@@ -172,7 +208,8 @@ export interface Cell {
   strong?: boolean;
 }
 
-export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany';
+/** `slash` is a process's default flow: a stroke across the line where it leaves the gateway. */
+export type Marker = 'none' | 'arrow' | 'one' | 'zeroOrOne' | 'many' | 'oneOrMany' | 'zeroOrMany' | 'slash';
 
 export interface Endpoint {
   node: string;
@@ -241,6 +278,8 @@ export interface Placed {
   shift?: Point;
   /** The direction drawn, when layout chose one other than the graph's (the source left it open). */
   direction?: Direction;
+  /** Where a name sits that is drawn beside its shape (an event's, a gateway's), by node id. */
+  labels?: Map<string, Box>;
   /** What to remember of this drawing so the next one stays close to it: how it was made and where things are, before pins. */
   memory?: LayoutMemory;
 }
@@ -259,6 +298,8 @@ export interface Sized {
   groupHeader: number;
   /** Width a group needs at least to show its label. */
   groupMinWidth: Map<string, number>;
+  /** Pairs that belong together without a line between them (a relation shown as a badge). */
+  near?: [string, string][];
 }
 
 export interface NodeSize {
@@ -268,6 +309,8 @@ export interface NodeSize {
   rowY?: Record<string, number>;
   /** Boxes of the parts a shape draws itself and that are nodes of their own (a journey's steps), relative to its top-left. */
   parts?: Record<string, Box>;
+  /** Room for a name drawn beside the shape instead of inside it. */
+  label?: { width: number; height: number };
 }
 
 /** A line drawn by hand: the router runs it through these bend points (pin space), kept orthogonal. */
@@ -311,6 +354,8 @@ export interface LayoutMemory {
   nodes?: Map<string, Point>;
   /** Group boxes in pin space. */
   groups?: Map<string, Box>;
+  /** How many pairs of groups stood against the order they were written in (not kept in the sidecar). */
+  disorder?: number;
 }
 
 /** Manual tweaks stored next to the diagram as <name>.layout.json. */

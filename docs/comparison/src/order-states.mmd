@@ -1,0 +1,23 @@
+---
+title: Order lifecycle
+---
+stateDiagram-v2
+    direction LR
+    state "Awaiting payment" as AwaitingPayment
+    [*] --> AwaitingPayment: order placed
+    AwaitingPayment --> Fulfilment: payment received
+    AwaitingPayment --> Cancelled: 30 min without payment
+    state Fulfilment {
+        [*] --> Picking
+        Picking --> Packed: all items scanned
+        Packed --> Picking: item missing [damaged]
+    }
+    Fulfilment --> Shipped: handed to carrier
+    Fulfilment --> Cancelled: customer cancels
+    Shipped --> Shipped: delayed / tell the customer
+    Shipped --> Delivered: signed for
+    Delivered --> [*]
+    Cancelled --> [*]
+    note right of Cancelled
+        Stock is released
+    end note

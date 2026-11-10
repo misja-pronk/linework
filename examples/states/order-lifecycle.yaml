@@ -1,0 +1,23 @@
+type: states
+title: Order lifecycle
+subtitle: The states an order can be in, and what moves it on
+
+states:
+  Awaiting payment: { entry: reserve stock }
+  Fulfilment:
+    states:
+      Picking: { do: collect the items }
+      Packed: { entry: print the label }
+  Cancelled: { entry: release stock }
+
+transitions:
+  - start -> Awaiting payment: order placed
+  - Awaiting payment -> Fulfilment: payment received
+  - start -> Picking
+  - Picking -> Packed: all items scanned
+  - Fulfilment -> Shipped: handed to carrier
+  - Shipped -> Delivered: signed for
+  - Delivered -> end
+  - Awaiting payment -> Cancelled: 30 min without payment
+  - Fulfilment -> Cancelled: customer cancels
+  - Cancelled -> end

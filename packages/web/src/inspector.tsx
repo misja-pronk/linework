@@ -17,6 +17,8 @@ export interface InspectorProps {
   fields: Field[];
   /** Entries in a map can be renamed; list items (edges) cannot. */
   renamable: boolean;
+  /** The id is a name as a reader says it (a process step, a state): spaces are fine. */
+  freeName?: boolean;
   pinned: boolean;
   /** Nodes and groups: whether it is locked in place (undefined for lines). */
   locked?: boolean;
@@ -104,15 +106,15 @@ export function Inspector(p: InspectorProps) {
       <div className="inspector-body">
         {p.renamable && (
           <label className={idError ? 'field invalid' : 'field'}>
-            <span>ID</span>
+            <span>{p.freeName ? 'Name' : 'ID'}</span>
             <TextInput
-              className="mono"
+              className={p.freeName ? undefined : 'mono'}
               value={p.id}
               spellCheck={false}
               onCommit={(v) => setIdError(!p.onRename(v.trim()))}
               aria-invalid={idError}
             />
-            {idError && <small className="field-error">Letters, digits, - and _ only, and not used yet</small>}
+            {idError && <small className="field-error">{p.freeName ? 'Plain words, without : > # or quotes, and not used yet' : 'Letters, digits, - and _ only, and not used yet'}</small>}
           </label>
         )}
         {p.fields.map((f) => (
@@ -142,15 +144,13 @@ export function Inspector(p: InspectorProps) {
                 // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.
                 value={f.value.join(f.value.some((x) => x.includes(',')) ? '; ' : ', ')}
                 placeholder="a, b, c"
-                onCommit={(v) =>
-                  p.onField(
-                    f.key,
-                    v
-                      .split(v.includes(';') ? ';' : ',')
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  )
-                }
+                onCommit={(v) => {
+                  const items = v
+                    .split(v.includes(';') ? ';' : ',')
+                    .map((x) => x.trim())
+                    .filter(Boolean);
+                  p.onField(f.key, f.one && items.length === 1 ? items[0] : items);
+                }}
               />
             ) : (
               <button type="button" className="field-yaml" onClick={p.onReveal}>

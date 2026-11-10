@@ -213,7 +213,7 @@ export const classic: Theme = {
   border: '#DDE2E8',
   text: '#0F172A',
   textMuted: '#556070',
-  textFaint: '#8A93A2',
+  textFaint: '#667080',
   edge: '#8792A4',
   shadow: { color: '#0F172A', opacity: 0.07 },
   tones: {
@@ -239,7 +239,7 @@ export const classicDark: Theme = {
   border: '#2A313C',
   text: '#E8EBF0',
   textMuted: '#A2AAB8',
-  textFaint: '#6F7887',
+  textFaint: '#8E97A6',
   edge: '#6E7A8C',
   shadow: { color: '#000000', opacity: 0.35 },
   tones: {

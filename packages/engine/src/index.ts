@@ -17,6 +17,7 @@ import {
   validate,
   viewPins,
   withoutBadges,
+  badgePairs,
   type Diagnostic,
   type DiagramType,
   type FocusSpec,
@@ -46,9 +47,11 @@ import { sequence } from '@cartography/sequence';
 import { gitflow } from '@cartography/gitflow';
 import { roadmap } from '@cartography/roadmap';
 import { journey } from '@cartography/journey';
+import { process } from '@cartography/process';
+import { states } from '@cartography/states';
 
 // Systems first: the generic type people reach for, and what imports produce.
-export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey];
+export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states];
 
 export function findType(id: unknown): DiagramType | undefined {
   return types.find((t) => t.id === id);
@@ -249,7 +252,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   await loadFonts([fonts.sans, fonts.mono]);
   // Cards are sized with their badge chips; layout and routing never see the badged edges.
   const measured = withTextFonts(fonts, () => size(graph, theme));
-  const sized = { ...measured, graph: withoutBadges(graph) };
+  const sized = { ...measured, graph: withoutBadges(graph), near: badgePairs(graph) };
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);

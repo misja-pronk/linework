@@ -42,6 +42,18 @@ export interface LayoutMetrics {
   portCrowding: number;
   /** Groups lying over each other (neither inside the other), and nodes lying in a group they are not in. */
   overlaps: number;
+  /** Lines over a group header: through the header of a group that holds neither end, or running along inside any header. */
+  headerHits: number;
+  /** Length of line inside groups that hold neither of its ends, in median node widths (nested groups each count). */
+  foreign: number;
+  /** Small steps: a piece shorter than JOG between two pieces that run the same way. */
+  jogs: number;
+  /** Labels lying on a bend of their own line. */
+  labelOnBend: number;
+  /** How ragged sibling groups of one kind are: per pair lying side by side, how far their starts and ends are apart. */
+  siblingSpread: number;
+  /** Pairs of groups in one parent standing side by side against the order they are written in. */
+  disorder: number;
 }
 
 /** Lines closer than this read as one smudge. */
@@ -50,10 +62,16 @@ const MIN_GAP = 8;
 const VOID = 96;
 /** Parallel lines within this distance count as one bundle. */
 const BUNDLE = 40;
+/** A step shorter than this in a line that runs on the same way reads as a kink. */
+const JOG = 40;
 
 type Seg = [Point, Point];
 
-export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetrics {
+/**
+ * `titles` is the room each group's title takes (its least width, as layout got it); without it
+ * the title's extent is guessed from its text.
+ */
+export function measure(graph: Graph, placed: Placed, header = 44, titles?: Map<string, number>): LayoutMetrics {
   const segs = new Map<string, Seg[]>();
   for (const e of graph.edges) {
     const pts = placed.edges.get(e.id)?.points ?? [];
@@ -95,7 +113,7 @@ export function measure(graph: Graph, placed: Placed, header = 44): LayoutMetric
   const widths = [...placed.nodes.values()].map((b) => b.width).sort((a, b) => a - b);
   const unit = widths[Math.floor(widths.length / 2)] ?? 1;
   const nodeArea = [...placed.nodes.values()].reduce((s, b) => s + b.width * b.height, 0);
-  const beauty = beautyMetrics(graph, placed, segs, header, unit);
+  const beauty = beautyMetrics(graph, placed, segs, header, unit, titles);
   return {
     ...beauty,
     crossings,
@@ -136,8 +154,28 @@ export function score(m: LayoutMetrics, targetAspect = 16 / 9): number {
     m.tightPairs * 6 +
     m.uneven * 4 +
     m.borderHits * 25 +
+    m.headerHits * 10 +
+    m.foreign * 6 +
+    m.disorder * 6 +
     m.portCrowding * 8
   );
+}
+
+/**
+ * Groups of one parent that stand side by side (across the flow) read in the order they are
+ * written: the first one left (or on top, in a left-to-right drawing). Counts the pairs that do not.
+ */
+export function disorder(graph: Graph, groups: Map<string, Box>): number {
+  const down = graph.direction === 'down';
+  let n = 0;
+  for (const [i, first] of graph.groups.entries())
+    for (const second of graph.groups.slice(i + 1)) {
+      const [a, b] = [groups.get(first.id), groups.get(second.id)];
+      if (!a || !b || first.parent !== second.parent) continue;
+      const beside = down ? a.y < b.y + b.height && b.y < a.y + a.height : a.x < b.x + b.width && b.x < a.x + a.width;
+      if (beside && (down ? b.x + b.width <= a.x + 1 : b.y + b.height <= a.y + 1)) n++;
+    }
+  return n;
 }
 
 /**
@@ -168,7 +206,7 @@ function siblings(a: GraphEdge, b: GraphEdge): boolean {
   return (a.from.node === b.from.node || a.to.node === b.to.node) && a.line === b.line && a.tone === b.tone;
 }
 
-function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, header: number, unit: number) {
+function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, header: number, unit: number, titles?: Map<string, number>) {
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const byId = new Map(graph.edges.map((e) => [e.id, e]));
 
@@ -285,12 +323,14 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
       { x: b.x + b.width - t, y: b.y - t, width: 2 * t, height: b.height + 2 * t },
     ];
     for (const l of labels) if (overlaps(l, head) || bands.some((r) => overlaps(l, r))) borderHits++;
+    // Where the title ends: its least width less the air kept beside it, or about 7px a letter.
+    const end = titles?.has(g.id) ? titles.get(g.id)! - 40 : Math.min(212, 44 + 7 * (g.label.length + (g.caption?.length ?? 0)));
     for (const s of all) {
       const along = s.h ? [b.y, b.y + b.height].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.x + b.width) - Math.max(s.lo, b.x) > 12
         : [b.x, b.x + b.width].some((v) => Math.abs(s.at - v) < t) && Math.min(s.hi, b.y + b.height) - Math.max(s.lo, b.y) > 12;
-      // Through the header text: the title is drawn 13 to 31px below the top, from 12px in, and is
-      // rarely wider than 200px (a line passing under it, in a top-down header's lane, is fine).
-      const [t0, t1, a0, a1] = s.h ? [b.x + 12, b.x + Math.min(b.width - 12, 212), b.y + 13, b.y + 31] : [b.y + 13, b.y + 31, b.x + 12, b.x + Math.min(b.width - 12, 212)];
+      // Through the header text: the title is drawn 13 to 31px below the top, from 12px in (a line
+      // passing under it, in a top-down header's lane, or beside it is fine).
+      const [t0, t1, a0, a1] = s.h ? [b.x + 12, b.x + Math.min(b.width - 12, end), b.y + 13, b.y + 31] : [b.y + 13, b.y + 31, b.x + 12, b.x + Math.min(b.width - 12, end)];
       const through = s.at > a0 && s.at < a1 && s.lo < t1 && s.hi > t0;
       if (along || through) borderHits++;
     }
@@ -316,7 +356,79 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
       if (d < MIN_GAP && !(d < 0.5 && siblings(a.edge, b.edge))) portCrowding++;
     }
 
+  // Headers and foreign groups: a line has no business in a group that holds neither of its ends,
+  // least of all over its header; inside any header it may cross (on its way in) but not run along.
+  // Lanes are bands across the drawing with their name at the start: lines cross them freely.
+  const parent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
+  const home = (e: GraphEdge) => {
+    const out = new Set<string>();
+    for (const end of [e.from.node, e.to.node]) for (let g = parent.has(end) ? end : nodeParent.get(end); g && !out.has(g); g = parent.get(g)) out.add(g);
+    return out;
+  };
+  let headerHits = 0;
+  let foreign = 0;
+  for (const e of graph.edges) {
+    const list = segs.get(e.id)!;
+    if (!list.length) continue;
+    const own = home(e);
+    for (const g of graph.groups) {
+      const b = placed.groups.get(g.id);
+      if (!b || g.lane) continue;
+      const away = !own.has(g.id);
+      const head = { x: b.x + 1, y: b.y + 1, width: b.width - 2, height: Math.min(header, b.height) - 2 };
+      let hit = false;
+      for (const s of list) {
+        const [x0, x1, y0, y1] = [Math.min(s[0].x, s[1].x), Math.max(s[0].x, s[1].x), Math.min(s[0].y, s[1].y), Math.max(s[0].y, s[1].y)];
+        if (away) foreign += lengthInside(s, b);
+        if (!segmentHitsBox(s, head)) continue;
+        if (away || (y0 === y1 && Math.min(x1, head.x + head.width) - Math.max(x0, head.x) > 12)) hit = true;
+      }
+      if (hit) headerHits++;
+    }
+  }
+
+  // Jogs, and labels on a bend of their own line.
+  let jogs = 0;
+  let labelOnBend = 0;
+  for (const e of graph.edges) {
+    const pe = placed.edges.get(e.id);
+    const pts = pe?.points ?? [];
+    for (let i = 1; i + 2 < pts.length; i++) {
+      const [a, b, c, d] = [pts[i - 1]!, pts[i]!, pts[i + 1]!, pts[i + 2]!];
+      const step = Math.abs(c.x - b.x) + Math.abs(c.y - b.y);
+      const same = Math.sign(b.x - a.x) === Math.sign(d.x - c.x) && Math.sign(b.y - a.y) === Math.sign(d.y - c.y);
+      if (step < JOG && same) jogs++;
+    }
+    const l = pe?.label;
+    if (l && pts.slice(1, -1).some((p) => p.x > l.x - 2 && p.x < l.x + l.width + 2 && p.y > l.y - 2 && p.y < l.y + l.height + 2)) labelOnBend++;
+  }
+
+  // Sibling groups of one kind (the zones of a network, the subnets of a zone): side by side they
+  // start and end on one line, stacked they are equally wide.
+  let siblingSpread = 0;
+  const sets = new Map<string, Box[]>();
+  for (const g of graph.groups) {
+    const b = placed.groups.get(g.id);
+    if (b) sets.set(siblingSet(g), [...(sets.get(siblingSet(g)) ?? []), b]);
+  }
+  for (const list of sets.values())
+    for (const [i, a] of list.entries())
+      for (const b of list.slice(i + 1)) {
+        const row = a.y < b.y + b.height && b.y < a.y + a.height;
+        const column = a.x < b.x + b.width && b.x < a.x + a.width;
+        if (row === column) continue;
+        const apart = row ? Math.abs(a.y - b.y) + Math.abs(a.y + a.height - b.y - b.height) : Math.abs(a.x - b.x) + Math.abs(a.x + a.width - b.x - b.width);
+        siblingSpread += Math.min(1, apart / Math.max(1, row ? Math.max(a.height, b.height) : Math.max(a.width, b.width)));
+      }
+
   return {
+    headerHits,
+    foreign: r2(foreign / unit),
+    jogs,
+    labelOnBend,
+    siblingSpread: r2(siblingSpread),
+    disorder: disorder(graph, placed.groups),
     detour: counted ? r2(ratioSum / counted) : 1,
     detourExcess: r2(detourExcess),
     groupEmpty: groupsCounted ? r2(emptySum / groupsCounted) : 0,
@@ -330,10 +442,21 @@ function beautyMetrics(graph: Graph, placed: Placed, segs: Map<string, Seg[]>, h
   };
 }
 
+/** Groups with the same answer are siblings of one kind: they read as a set. */
+export function siblingSet(g: Graph['groups'][number]): string {
+  return `${g.parent ?? ''}|${g.kind ?? `${g.icon ?? ''}/${g.tone}/${g.border}`}`;
+}
+
 function boxDistance(b: Box, x: number, y: number): number {
   const dx = Math.max(b.x - x, 0, x - b.x - b.width);
   const dy = Math.max(b.y - y, 0, y - b.y - b.height);
   return Math.hypot(dx, dy);
+}
+
+/** How much of an orthogonal segment lies inside a box (not on its border). */
+function lengthInside([a, b]: Seg, box: Box): number {
+  if (a.y === b.y) return a.y > box.y && a.y < box.y + box.height ? Math.max(0, Math.min(Math.max(a.x, b.x), box.x + box.width) - Math.max(Math.min(a.x, b.x), box.x)) : 0;
+  return a.x > box.x && a.x < box.x + box.width ? Math.max(0, Math.min(Math.max(a.y, b.y), box.y + box.height) - Math.max(Math.min(a.y, b.y), box.y)) : 0;
 }
 
 function inset(b: Box, d: number): Box {
