@@ -140,6 +140,9 @@ const orderBudget: Record<string, number> = {
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way
   'cloud/multi-cloud.yaml': 1,
+  // One load balancer across both zones (as AWS runs it) no longer pins zone a to the left: zone b lands first.
+  'deployment/aws.yaml': 1,
+  'deployment/aws.yaml#prod': 1,
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
@@ -192,7 +195,7 @@ describe('layout quality', () => {
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
     const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev' });
-    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb-a')!;
+    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
   it('writes one label where lines that say the same run into one target', async () => {

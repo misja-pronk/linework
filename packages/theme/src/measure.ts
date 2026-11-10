@@ -77,7 +77,8 @@ export function measureText(text: string, size: number, weight: Weight = 400, fa
 
 /** Cut text to fit a width, ending in an ellipsis. */
 export function fitText(text: string, size: number, weight: Weight, width: number, face: Face = 'sans', tracking = 0): string {
-  if (measureText(text, size, weight, face, tracking) <= width) return text;
+  // Half a pixel of slack: a box sized to its text gets back the same width minus rounding, and must not cut it.
+  if (measureText(text, size, weight, face, tracking) <= width + 0.5) return text;
   const chars = [...text];
   while (chars.length > 1 && measureText(chars.join('') + '…', size, weight, face, tracking) > width) chars.pop();
   return chars.join('').trimEnd() + '…';

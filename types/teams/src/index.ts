@@ -222,6 +222,14 @@ function buildOrg(src: TeamsSource, ctx: BuildContext): Graph {
     }
   }
   const legend: LegendItem[] = [];
+  // Branch colours that each stand for one team or place (the client's people, the consultancy's) are named in the key by it.
+  const whereOf = new Map<Tone, Set<string | undefined>>();
+  for (const p of people) {
+    const t = tone.get(p.id) ?? 'slate';
+    whereOf.set(t, (whereOf.get(t) ?? new Set()).add(p.e.team ? teamLabel(p.e.team) : p.e.location));
+  }
+  const named = [...whereOf].filter(([, w]) => w.size === 1 && [...w][0]);
+  if (named.length > 1 && named.length === whereOf.size) for (const [t, w] of named) legend.push({ label: [...w][0]!, line: 'solid', tone: t, width: 2.2 });
   if (dotted) legend.push({ label: 'Reports to', line: 'solid' }, { label: 'Dotted-line report', line: 'dotted', tone: 'slate' });
   if (vacancies) legend.push({ label: 'Vacancy', swatch: 'block', block: { form: 'person' } });
   return { title: src.title, subtitle: src.subtitle, direction: 'down', groups: [], nodes, edges, tree: true, ...(legend.length ? { legend } : {}) };

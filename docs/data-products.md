@@ -25,7 +25,7 @@ Files are recognised by what is in them, not by their name: `.yaml`, `.yml` and 
 What the map shows:
 
 - **A product per ODPS file**, in the domain it names. A contract no product has a port for becomes a product of its own (or joins the product it names in `dataProduct`), so a folder of contracts alone draws too.
-- **Lineage** from the ports. An input port names a contract; the product whose output port has that contract is what it reads. An input nobody in the folder offers is drawn as a source with the caption *Outside these files*, so the edge of what you know is visible.
+- **Lineage** from the ports. An input port names a contract; the product whose output port has that contract is what it reads. An input nobody in the folder offers is drawn as a source with the caption *Outside the mesh*: no product in the folder provides it, so the edge of what you know is visible.
 - **The class of a product** (source-aligned, aggregate, consumer-aligned) is not in either standard. On the first import it is read from where the product stands: one that reads no other product is source-aligned, one that reads products and is read itself is an aggregate, one that only reads is consumer-aligned. Change it in the diagram and it stays changed.
 
 ### Running it again

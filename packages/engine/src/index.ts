@@ -17,6 +17,7 @@ import {
   unpackLayout,
   validate,
   viewPins,
+  withBadgeIcons,
   withoutBadges,
   badgePairs,
   type Diagnostic,
@@ -237,6 +238,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     // Asked for from outside, the picture itself says it is a part: nobody takes an export for the whole landscape.
     if (asked && graph.title) graph.subtitle = [graph.subtitle, `Focus on ${focused.names.join(', ')}${graph.tree ? ' and their branch' : `, ${focusReach(focusSpec!)}`}`].filter(Boolean).join(' · ');
   }
+  // The key shows each badge style as its chips look on the cards.
+  graph = withBadgeIcons(graph);
   if (origin) {
     // Entries from other files are edited there: the editor sees their include entry and file
     // (['include', 0, 'model.yaml']), never a path it could take for one of this file's entries.

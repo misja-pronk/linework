@@ -475,9 +475,6 @@ groups:
   az-a: { kind: zone, zone: eu-west-1a, in: vpc }
   az-b: { kind: zone, zone: eu-west-1b, in: vpc }
   az-c: { kind: zone, zone: eu-west-1c, in: vpc }
-  public-a: { kind: subnet, tier: public, cidr: 10.0.0.0/24, in: az-a }
-  public-b: { kind: subnet, tier: public, cidr: 10.0.1.0/24, in: az-b }
-  public-c: { kind: subnet, tier: public, cidr: 10.0.2.0/24, in: az-c }
   app-a: { kind: subnet, tier: private, cidr: 10.0.10.0/24, in: az-a }
   app-b: { kind: subnet, tier: private, cidr: 10.0.11.0/24, in: az-b }
   app-c: { kind: subnet, tier: private, cidr: 10.0.12.0/24, in: az-c }
@@ -488,9 +485,8 @@ groups:
 nodes:
   users: users
   cdn: { kind: cloudfront, label: CDN and WAF }
-  alb-a: { kind: alb, label: Load balancer, in: public-a, exposure: public }
-  alb-b: { kind: alb, label: Load balancer, in: public-b, exposure: public }
-  alb-c: { kind: alb, label: Load balancer, in: public-c, exposure: public }
+  # One load balancer across the zones (AWS puts its nodes in a public subnet of each zone, left out here).
+  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public }
   web-a: { kind: ecs, label: Web shop, in: app-a, size: 2 tasks }
   web-b: { kind: ecs, label: Web shop, in: app-b, size: 2 tasks }
   web-c: { kind: ecs, label: Web shop, in: app-c, size: 2 tasks }
@@ -500,12 +496,10 @@ nodes:
 
 edges:
   - users -> cdn: { label: HTTPS, style: public }
-  - cdn -> alb-a: { style: public }
-  - cdn -> alb-b: { style: public }
-  - cdn -> alb-c: { style: public }
-  - alb-a -> web-a: { style: private }
-  - alb-b -> web-b: { style: private }
-  - alb-c -> web-c: { style: private }
+  - cdn -> alb: { style: public }
+  - alb -> web-a: { style: private }
+  - alb -> web-b: { style: private }
+  - alb -> web-c: { style: private }
   - web-a -> db-b: { style: private }
   - web-b -> db-b: { label: SQL, style: private }
   - web-c -> db-b: { style: private }

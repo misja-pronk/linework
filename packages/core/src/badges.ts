@@ -36,6 +36,22 @@ export function chips(graph: Graph): Map<string, Chip[]> {
   return out;
 }
 
+/** The key's badge samples with the icon their chips carry on the cards (a key on Key Vault's chips, a file on a ConfigMap's). */
+export function withBadgeIcons(graph: Graph): Graph {
+  if (!graph.legend?.some((l) => l.swatch === 'badge' && !l.icon)) return graph;
+  const icons = new Map<string, string>();
+  for (const list of chips(graph).values())
+    for (const c of list) {
+      const kind = graph.edges.find((e) => e.id === c.edge)?.kind;
+      if (kind && c.icon && !icons.has(kind)) icons.set(kind, c.icon);
+    }
+  const legend = graph.legend.map((l) => {
+    const icon = l.swatch === 'badge' && !l.icon ? icons.get(l.label.replace(/ badge$/, '')) : undefined;
+    return icon ? { ...l, icon } : l;
+  });
+  return { ...graph, legend };
+}
+
 /** The graph layout should see: without badged edges, so they no longer pull nodes around, and without folded nodes. */
 export function withoutBadges(graph: Graph): Graph {
   const nodes = byId(graph);

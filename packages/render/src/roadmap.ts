@@ -38,6 +38,8 @@ export interface RoadmapBar {
   inside: boolean;
   label: string;
   labelX: number;
+  /** No status where others have one: drawn as planned, in its lane's colour, so it never passes for done. */
+  unstated?: boolean;
 }
 
 export interface RoadmapGeometry {
@@ -218,6 +220,12 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
   const marks = loose.map((it) => ({ x: x(it.start), y: marksY, label: it.label, tone: it.tone ?? (it.status ? STATUS[it.status].tone : 'rose') }));
   const phases = shape.phases.map((p) => ({ box: { x: x(p.start), y: phaseY, width: x(p.end) - x(p.start), height: laneBottom - phaseY }, label: p.label, tone: p.tone, labelY: phaseY + K.phase / 2 }));
   const used = [...new Set(shape.items.map((i) => i.status).filter((s): s is RoadmapStatus => !!s))];
+  // Once some items say how they stand, one that says nothing is still to come: planned, in the key too.
+  const unstated = used.length > 0 && shape.items.some((i) => !i.status && !i.milestone);
+  if (unstated) {
+    for (const b of out) if (!b.it.status && !b.it.milestone) b.unstated = true;
+    if (!used.includes('planned')) used.push('planned');
+  }
   const legendItems = (Object.keys(STATUS) as RoadmapStatus[]).filter((s) => used.includes(s));
   const hasToday = !!shape.today && shape.today.at >= shape.start && shape.today.at <= shape.end;
   const legendY = laneBottom + (hasToday ? 46 : 24);
@@ -379,10 +387,10 @@ function drawBar(b: RoadmapBar, theme: Theme, sample = false): string {
   }
   const rx = Math.min(8, box.height / 2, theme.radius.card);
   const active = it.status === 'active';
-  const planned = it.status === 'planned';
-  // Planned: an outline of what is to come; active: solid; the rest soft in their tone.
+  const planned = it.status === 'planned' || !!b.unstated;
+  // Planned: an outline of what is to come (in its lane's colour when it has no status of its own); active: solid; the rest soft in their tone.
   const fill = planned ? theme.surface : active ? t.fg : t.bg;
-  const stroke = planned ? theme.edge : active ? t.fg : t.line;
+  const stroke = b.unstated ? t.fg : planned ? theme.edge : active ? t.fg : t.line;
   s += rect(box, rx, `fill="${fill}" stroke="${stroke}" stroke-width="${planned ? 1.2 : 1}"${planned ? ' stroke-dasharray="4 3"' : ''}`);
   if (it.progress !== undefined && it.progress > 0 && !sample) {
     // Done part: a darker band along the bottom edge, so the label stays readable.

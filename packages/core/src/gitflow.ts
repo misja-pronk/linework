@@ -47,6 +47,8 @@ export interface GitPipeline {
   label: string;
   tone: Tone;
   steps: { stage: string; label: string; gate?: string }[];
+  /** The row this one's branches merge into (feat/* into main): drawn from its last step to that row's first. */
+  into?: string;
   path: Path;
 }
 
