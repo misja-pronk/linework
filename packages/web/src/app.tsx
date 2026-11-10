@@ -20,6 +20,8 @@ import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
 import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
 import { SLIDE_MIN_PT } from '@cartography/engine';
 import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
+import { isRepo, scanRepo, type RepoDiagram } from '@cartography/import';
+import { RepoDialog, type RepoOffer } from './repo-dialog.tsx';
 
 /** The command palette's entry for the exports in the open folder, by what they are. */
 const EXPORT_ENTRY = {
@@ -58,7 +60,7 @@ import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
-import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
+import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, writeInFolder, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -262,6 +264,10 @@ export function App() {
   const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
   /** The open folder holds access exports or gh api responses: they can be drawn as one access or GitHub diagram. */
   const exportInWs = useMemo(() => (ws && !meshInWs ? exportKind([...ws.files].map(([path, f]) => ({ path, text: f.text }))) : undefined), [ws, meshInWs]);
+  /** The open folder is a code repository (Compose, Helm, Bicep, OpenAPI, workflows …): a diagram can be made of each. */
+  const repoInWs = useMemo(() => !!ws && !meshInWs && isRepo([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws, meshInWs]);
+  /** Diagrams from the code, offered in a dialog: written into the folder, or one opened. */
+  const [repoOffer, setRepoOffer] = useState<RepoOffer>();
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -599,7 +605,7 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
-      else if (meshInFolder(next) || exportInFolder(next)) return;
+      else if (meshInFolder(next) || repoInFolder(next) || exportInFolder(next)) return;
       else notify(`No diagrams in ${next.name} yet: start from a template and save it there`);
     } catch (e) {
       notify(`Opening the folder failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
@@ -655,6 +661,46 @@ export function App() {
     focusDrawing();
     return true;
   };
+  /** A code repository in the open folder: its diagrams offered, to be written into diagrams/. False: it is none. */
+  const repoInFolder = (w: Workspace): boolean => {
+    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
+    if (!isRepo(files)) return false;
+    const scan = scanRepo(files, { name: w.name, existing: (file) => w.files.get(file)?.text });
+    if (!scan.diagrams.length) return false;
+    setRepoOffer({ scan, name: w.name, write: true });
+    return true;
+  };
+  const writeRepo = async (chosen: RepoDiagram[]) => {
+    const w = ws;
+    setRepoOffer(undefined);
+    if (!w || !chosen.length) return;
+    if (!(await leave())) return;
+    try {
+      for (const d of chosen) await writeInFolder(w, d.file, d.yaml);
+    } catch (e) {
+      return notify(`Writing the diagrams failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+    }
+    const first = chosen[0]!;
+    fileHandle.current = undefined;
+    open(first.yaml, { name: first.file.split('/').pop()!, path: first.file }, readSidecar(w, first.file));
+    setSavedText(first.yaml);
+    const kept = chosen.filter((d) => d.kept).length;
+    const notes = chosen.flatMap((d) => d.warnings.map((x) => `${d.file}: ${x}`));
+    notify(`${chosen.length} diagram${chosen.length === 1 ? '' : 's'} from the code in ${w.name} → ${first.file.includes('/') ? first.file.slice(0, first.file.lastIndexOf('/') + 1) : w.name}${kept ? `, what you added by hand is kept in ${kept}` : ''}`, remember(first.file, 'From the code', notes));
+    focusDrawing();
+  };
+  const openRepoDiagram = async (d: RepoDiagram) => {
+    const offer = repoOffer;
+    setRepoOffer(undefined);
+    if (!(await leave())) return;
+    fileHandle.current = undefined;
+    // In a folder it opens where it will be written (⌘S writes it); dropped, it is a new document.
+    if (offer?.write && ws) {
+      open(d.yaml, { name: d.file.split('/').pop()!, path: d.file }, readSidecar(ws, d.file));
+      setSavedText(ws.files.get(d.file)?.text ?? null);
+    } else open(d.yaml, { name: d.file.split('/').pop()! }, undefined, false, `${d.summary}, from ${d.sources.join(', ')}`, { title: 'From the code', items: d.warnings });
+    focusDrawing();
+  };
   const meshRemarks = (problems: { file?: string; message: string }[]) =>
     problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
   const meshNotes = (problems: { file?: string; message: string }[]) => problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message));
@@ -686,6 +732,11 @@ export function App() {
       return focusDrawing();
     }
     if (exported) return notify(`Nothing to draw${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, 'From the exports (nothing drawn)', exportNotes(exported)) });
+    // A code repository dropped: its diagrams offered, one to open.
+    if (isRepo(files)) {
+      const scan = scanRepo(files, { name: folder });
+      if (scan.diagrams.length) return setRepoOffer({ scan, name: folder ?? 'the drop', write: false });
+    }
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
     if (!diagram) return notify('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)', { tone: 'error' });
     if (!(await leave())) return;
@@ -1736,6 +1787,7 @@ export function App() {
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
+    ...(ws && repoInWs ? [{ id: 'repo', group: 'File', label: `Diagrams from the code in ${ws.name}`, hint: 'Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows → diagrams/', icon: 'folder-git-2', run: () => void leave().then((ok) => ok && repoInFolder(ws)) }] : []),
     ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
@@ -2631,6 +2683,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {repoOffer && <RepoDialog offer={repoOffer} onWrite={(chosen) => void writeRepo(chosen)} onOpen={(d) => void openRepoDiagram(d)} onClose={() => setRepoOffer(undefined)} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}

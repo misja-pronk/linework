@@ -1,0 +1,84 @@
+/* Diagrams from the code (repo-dialog.tsx): one row a source, picked to be written. */
+
+.repo-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+.repo-intro {
+  margin: 0 24px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 8px;
+  overflow: auto;
+}
+.repo-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+}
+.repo-row:hover,
+.repo-row.at {
+  background: var(--hover, rgba(0, 0, 0, 0.04));
+}
+.repo-row:focus-visible {
+  outline: 2px solid var(--accent, #2b62a3);
+  outline-offset: -2px;
+}
+.repo-row input {
+  margin: 0;
+  pointer-events: none;
+}
+.repo-what {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.repo-what strong {
+  font-weight: 600;
+}
+.repo-kind {
+  color: var(--text-muted);
+}
+.repo-source,
+.repo-summary {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repo-source {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+}
+.repo-hints {
+  margin: 0 24px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.repo-hints ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+@media (max-width: 560px) {
+  .repo-row {
+    grid-template-columns: auto 1fr auto;
+  }
+  .repo-row > .icon {
+    display: none;
+  }
+}
