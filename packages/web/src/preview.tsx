@@ -42,9 +42,10 @@ interface Props {
   onMove(id: string, pin: Point, done: boolean, group?: string | null): void;
   /** A group dragged by its header to a new top-left (pin coordinates). */
   onMoveGroup(id: string, pin: Point, done: boolean): void;
-  /** A palette item dropped into a group, or into free space at a point (pin coordinates). Without
-   * a point the layout places it. */
-  onPaletteDrop(index: number, at: Point | undefined, group: string | null): void;
+  /** A palette item dropped at a point (its card's top-left, pin coordinates), into a group or into
+   * free space: it stays there, pinned. Without a point the layout places it; `refused` is the group
+   * it was dropped on that cannot take it. */
+  onPaletteDrop(index: number, at: Point | undefined, group: string | null, refused?: string): void;
   onKeyDown(e: React.KeyboardEvent): void;
   /** Dragged from one element's handle onto another. */
   onConnect(from: string, to: string): void;
@@ -151,6 +152,9 @@ export function Preview(p: Props) {
   /** While connecting: where the pointer is (SVG coordinates) and the node it is over. */
   const [link, setLink] = useState<{ x: number; y: number; target?: string }>();
   const [dropTarget, setDropTarget] = useState<string | null>();
+  /** While a palette item is dragged over the drawing: where its card would land (layout space), and
+   * the group under it that cannot take it. */
+  const [ghost, setGhost] = useState<{ card: Box; refused?: string }>();
   /** Guides and gaps of the drag in progress. */
   const [snap, setSnap] = useState<Snap>();
   /** Keys moved the focus last (not the pointer): the focused element gets a visible ring. */
@@ -158,6 +162,8 @@ export function Preview(p: Props) {
   const drag = useRef<Drag>(null);
   const fitted = useRef<number | string>(-1);
   const anchor = useRef<{ doc: number | string; x: number; y: number }>(null);
+  /** A shape dropped from the palette: its pin and where on screen its card was let go, until drawn. */
+  const dropAnchor = useRef<{ pin: Point; x: number; y: number; svg?: string }>(null);
   const frameReq = useRef(0);
   /** The palette item being dragged in (dataTransfer cannot be read during dragover). */
   const paletteDrag = useRef<number>(undefined);
@@ -166,8 +172,17 @@ export function Preview(p: Props) {
       const el = (e.target as Element | null)?.closest?.('[data-palette]') as HTMLElement | null;
       paletteDrag.current = el ? Number(el.dataset.palette) : undefined;
     };
+    // Cancelled (Esc) or dropped elsewhere: the ring and the card outline go.
+    const end = () => {
+      setDropTarget(undefined);
+      setGhost(undefined);
+    };
     window.addEventListener('dragstart', start);
-    return () => window.removeEventListener('dragstart', start);
+    window.addEventListener('dragend', end);
+    return () => {
+      window.removeEventListener('dragstart', start);
+      window.removeEventListener('dragend', end);
+    };
   }, []);
   const hovered = useRef(false);
   useEffect(() => {
@@ -204,10 +219,17 @@ export function Preview(p: Props) {
 
   /** The pane size the view was last placed for (see the resize observer below). */
   const paneSize = useRef({ w: 0, h: 0 });
-  const fit = useCallback(() => {
+  /** The view as fit() last placed it, carried along by moves that keep it so (the layout's origin
+   * moving, the pane changing size); null once people pan or zoom themselves. */
+  const fittedView = useRef<View | null>(null);
+  /** The pane size fit() last fitted to. */
+  const fittedPane = useRef({ w: 0, h: 0 });
+  const [easing, setEasing] = useState(false);
+  const fit = useCallback((ease = false) => {
     const f = frame.current;
     if (!f || !result?.width || !result.height) return;
     paneSize.current = { w: f.clientWidth, h: f.clientHeight };
+    fittedPane.current = { ...paneSize.current };
     const pad = 32;
     // Never under what floats over the top of the pane: the tools and the focus chip.
     const tools = f.querySelector('.canvas-top');
@@ -215,8 +237,16 @@ export function Preview(p: Props) {
     const w = f.clientWidth - 2 * pad;
     const h = f.clientHeight - top - BAR;
     const scale = clamp(Math.min(w / result.width, h / result.height, 1.25));
-    setView({ scale, x: (f.clientWidth - result.width * scale) / 2, y: top + Math.max(0, (h - result.height * scale) / 2) });
+    const next = { scale, x: (f.clientWidth - result.width * scale) / 2, y: top + Math.max(0, (h - result.height * scale) / 2) };
+    fittedView.current = next;
+    setEasing(ease);
+    setView(next);
   }, [result?.width, result?.height]);
+  /** A view change that keeps a fitted view fitted (it follows the drawing or the pane, not people). */
+  const carry = (v: View, next: View) => {
+    if (v === fittedView.current) fittedView.current = next;
+    return next;
+  };
 
   // Fit once per document; afterwards keep what is on screen still. When the layout's origin moves
   // (a node dragged past the edge, a title added), shift the view so the drawing does not jump.
@@ -224,16 +254,55 @@ export function Preview(p: Props) {
     if (!result?.svg || !result.origin) return;
     const shift = result.placed?.shift ?? { x: 0, y: 0 };
     const zero = { x: result.origin.x - shift.x, y: result.origin.y - shift.y };
+    const dropped = dropAnchor.current;
     if (fitted.current !== docKey) {
       fitted.current = docKey;
       fit();
+    } else if (dropped && dropped.svg !== result.svg) {
+      // A shape just dropped: it stays under the pointer, whatever else the layout moved, and the view
+      // is no longer a fitted one that glides to the centre when the inspector opens for it.
+      dropAnchor.current = null;
+      fittedView.current = null;
+      const o = result.origin;
+      setView((v) => ({ ...v, x: dropped.x - (dropped.pin.x - shift.x + o.x) * v.scale, y: dropped.y - (dropped.pin.y - shift.y + o.y) * v.scale }));
     } else if (anchor.current?.doc === docKey) {
       const dx = zero.x - anchor.current.x;
       const dy = zero.y - anchor.current.y;
-      if (dx || dy) setView((v) => ({ ...v, x: v.x - dx * v.scale, y: v.y - dy * v.scale }));
+      if (dx || dy) setView((v) => carry(v, { ...v, x: v.x - dx * v.scale, y: v.y - dy * v.scale }));
     }
     anchor.current = { doc: docKey, ...zero };
   }, [result, docKey, fit]);
+
+  // A drawing that was fitted and that nobody has panned or zoomed since fits again when the pane
+  // changed size (the inspector, the YAML pane), or when it grew past the pane's edges. Not under a
+  // click in progress: a first click that opens the inspector must leave the second of a double-click
+  // on the same element, so it waits until the pointer has been still for a moment.
+  const lastDown = useRef(0);
+  const settle = useRef(0);
+  const settleState = useRef({ view, editing: !!editing, fit });
+  settleState.current = { view, editing: !!editing, fit };
+  useEffect(() => {
+    const f = frame.current;
+    if (!f || !result?.width || !result.height || view !== fittedView.current) return;
+    const paneMoved = f.clientWidth !== fittedPane.current.w || f.clientHeight !== fittedPane.current.h;
+    const fits = view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - BAR / 2;
+    if (!paneMoved && fits) return;
+    const run = () => {
+      const st = settleState.current;
+      if (st.view !== fittedView.current) return;
+      const wait = lastDown.current + 550 - performance.now();
+      if (wait > 0 || drag.current || st.editing) return void (settle.current = window.setTimeout(run, Math.max(wait, 200)));
+      st.fit(true);
+    };
+    window.clearTimeout(settle.current);
+    settle.current = window.setTimeout(run, 0);
+    return () => window.clearTimeout(settle.current);
+  }, [view, result?.width, result?.height]);
+  useEffect(() => {
+    if (!easing) return;
+    const t = window.setTimeout(() => setEasing(false), 260);
+    return () => window.clearTimeout(t);
+  }, [easing, view]);
 
   const zoomAt = useCallback((factor: number, cx?: number, cy?: number) => {
     const f = frame.current!;
@@ -270,14 +339,14 @@ export function Preview(p: Props) {
       paneSize.current = { w: f.clientWidth, h: f.clientHeight };
       const { view: v, width, height, fit: refit } = latest.current;
       const whole = width > 0 && w > 0 && v.x >= -1 && v.y >= -1 && v.x + width * v.scale <= w + 1 && v.y + height * v.scale <= h + 1;
-      if (!whole || (dw >= 0 && dh >= 0)) return setView((v) => ({ ...v, x: v.x + dw / 2, y: v.y + dh / 2 }));
+      if (!whole || (dw >= 0 && dh >= 0)) return setView((v) => carry(v, { ...v, x: v.x + dw / 2, y: v.y + dh / 2 }));
       // Shrinking around a drawing that was wholly in view: move it only as far as needed to keep it in
       // view (what is under the pointer stays put for a double-click), and fit when it no longer fits.
       const m = 16;
       const x = Math.min(v.x, f.clientWidth - m - width * v.scale);
       const y = Math.min(v.y, f.clientHeight - BAR - height * v.scale);
       if (x < m / 2 || y < 0) refit();
-      else setView({ ...v, x, y });
+      else setView(carry(v, { ...v, x, y }));
     });
     ro.observe(f);
     return () => ro.disconnect();
@@ -326,6 +395,7 @@ export function Preview(p: Props) {
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as Element).closest('.label-editor, .canvas-empty button')) return;
+    lastDown.current = performance.now();
     frame.current?.focus({ preventScroll: true });
     setKb(false);
     // Space-drag and the middle button pan; a plain drag on empty canvas draws a marquee.
@@ -668,30 +738,59 @@ export function Preview(p: Props) {
     return { left: cx - width / 2, top: cy - height / 2, width, height, size: 14 };
   };
 
+  /** Where a palette item dropped at a point lands: the group under it that takes it (and the one that
+   * does not), and its card, centred on the point and moved clear of every group it would not be in. */
+  const dropPlace = (at: Point, index: number | undefined) => {
+    const placed = result!.placed!;
+    const g = groupAt(placed.groups, at);
+    const into = g && index != null && p.canDrop(g, { palette: index }) ? g : null;
+    // A card is centred on the point; its exact size is known only after the next render.
+    let card: Box = { x: at.x - 90, y: at.y - 29, width: 180, height: 58 };
+    const holders = new Set<string>();
+    for (let id: string | undefined = into ?? undefined; id; id = result?.graph?.groups.find((x) => x.id === id)?.parent) holders.add(id);
+    // Over a group it is not in (a nested one, or a border it straddles), it would look as if it were;
+    // over a shape it would hide it: it moves out by the shortest way, a few times over for things
+    // side by side. What is already there stays where it is.
+    // Clear of shapes by more than the layout keeps between a pinned shape and the rest, or it would
+    // push them aside.
+    const obstacles = [...[...placed.groups].filter(([id]) => !holders.has(id)).map(([, b]) => ({ b, m: 16 })), ...[...placed.nodes.values()].map((b) => ({ b, m: 30 }))];
+    for (let round = 0; round < 8; round++) {
+      const hit = obstacles.find(({ b, m }) => card.x < b.x + b.width + m && card.x + card.width > b.x - m && card.y < b.y + b.height + m && card.y + card.height > b.y - m);
+      if (!hit) break;
+      const { b, m } = hit;
+      const ways = [
+        { dx: b.x - m - (card.x + card.width), dy: 0 },
+        { dx: b.x + b.width + m - card.x, dy: 0 },
+        { dx: 0, dy: b.y - m - (card.y + card.height) },
+        { dx: 0, dy: b.y + b.height + m - card.y },
+      ];
+      const w = ways.reduce((a, c) => (Math.abs(c.dx) + Math.abs(c.dy) < Math.abs(a.dx) + Math.abs(a.dy) ? c : a));
+      card = { ...card, x: card.x + w.dx, y: card.y + w.dy };
+    }
+    return { into, refused: g && !into ? g : undefined, card };
+  };
   const onDragOver = (e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes(PALETTE_MIME) || !result?.placed) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    const g = groupAt(result.placed.groups, toLayout(e.clientX, e.clientY));
-    setDropTarget(g && p.canDrop(g, { palette: paletteDrag.current }) ? g : undefined);
+    const d = dropPlace(toLayout(e.clientX, e.clientY), paletteDrag.current);
+    setDropTarget(d.into ?? undefined);
+    setGhost({ card: d.card, refused: d.refused });
   };
   const onDrop = (e: React.DragEvent) => {
     const raw = e.dataTransfer.getData(PALETTE_MIME);
     setDropTarget(undefined);
+    setGhost(undefined);
     if (!raw || !result?.placed) return;
     e.preventDefault();
-    const at = toLayout(e.clientX, e.clientY);
-    const g = groupAt(result.placed.groups, at);
-    // Into a group that takes it: it joins, and the layout gives it a place inside.
-    if (g && p.canDrop(g, { palette: Number(raw) })) return p.onPaletteDrop(Number(raw), undefined, g);
-    // Elsewhere it is pinned where it was dropped, but only in free space: a pin over a group it is
-    // not in, or over another shape, would draw it where it does not belong. Then the layout places it.
-    // A card is centred on the point; its exact size is known only after the next render.
-    const card = { x: at.x - 90, y: at.y - 29, width: 180, height: 58 };
-    const m = 24;
-    const hits = (b: Box) => card.x < b.x + b.width + m && card.x + card.width > b.x - m && card.y < b.y + b.height + m && card.y + card.height > b.y - m;
-    const free = result.placed.nodes.size > 0 && ![...result.placed.groups.values(), ...result.placed.nodes.values()].some(hits);
-    p.onPaletteDrop(Number(raw), free ? toPin(card) : undefined, null);
+    const d = dropPlace(toLayout(e.clientX, e.clientY), Number(raw));
+    // On a group that cannot take it: the layout finds it a place outside, and the app says why.
+    if (d.refused) return p.onPaletteDrop(Number(raw), undefined, null, d.refused);
+    // It stays where it was dropped (pinned, as a drag does), in the group under it if any; on an empty
+    // drawing there is nothing to keep it in line with, and the layout places it.
+    const empty = !result.placed.nodes.size && !result.placed.groups.size;
+    if (!empty) dropAnchor.current = { pin: toPin(d.card), x: view.x + (d.card.x + o.x) * view.scale, y: view.y + (d.card.y + o.y) * view.scale, svg: result.svg };
+    p.onPaletteDrop(Number(raw), empty ? undefined : toPin(d.card), d.into);
   };
 
   const box = selectedBox(result, selected);
@@ -715,6 +814,8 @@ export function Preview(p: Props) {
   const from = dragging === 'connect' && drag.current?.node ? result?.placed?.nodes.get(drag.current.node) : undefined;
   const linkTarget = link?.target ? result?.placed?.nodes.get(link.target) : undefined;
   const target = dropTarget && result?.placed?.groups.get(dropTarget);
+  const refusedBox = ghost?.refused ? result?.placed?.groups.get(ghost.refused) : undefined;
+  const groupName = (id: string) => result?.graph?.groups.find((g) => g.id === id)?.label || id;
   const o = result?.origin ?? { x: 0, y: 0 };
   const empty = !result?.svg;
   const shiftNow = result?.placed?.shift ?? { x: 0, y: 0 };
@@ -742,7 +843,11 @@ export function Preview(p: Props) {
       onPointerEnter={() => (hovered.current = true)}
       onPointerLeave={() => (hovered.current = false)}
       onDragOver={onDragOver}
-      onDragLeave={() => setDropTarget(undefined)}
+      onDragLeave={(e) => {
+        if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+        setDropTarget(undefined);
+        setGhost(undefined);
+      }}
       onDrop={onDrop}
       onDoubleClick={(e) => {
         if (stale) return;
@@ -788,10 +893,20 @@ export function Preview(p: Props) {
           <p>Nothing to draw yet. Fix the problems in the editor, or start from a template.</p>
         </div>
       ) : (
-        <div className={stale ? 'stage stale' : 'stage'} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
+        <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
           <div className="drawing" ref={drawingEl} dangerouslySetInnerHTML={{ __html: result!.svg! }} />
           {target && (
-            <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }} />
+            <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }}>
+              {ghost && <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>Into {groupName(dropTarget!)}</span>}
+            </div>
+          )}
+          {refusedBox && (
+            <div className="drop-ring refused" style={{ left: refusedBox.x + o.x, top: refusedBox.y + o.y, width: refusedBox.width, height: refusedBox.height, borderWidth: 2 / view.scale }}>
+              <span style={{ fontSize: 12 / view.scale, padding: `${2 / view.scale}px ${6 / view.scale}px` }}>Cannot go in {groupName(ghost!.refused!)}</span>
+            </div>
+          )}
+          {ghost && !ghost.refused && (
+            <div className="drop-ghost" style={{ left: ghost.card.x + o.x, top: ghost.card.y + o.y, width: ghost.card.width, height: ghost.card.height, borderWidth: 2 / view.scale }} />
           )}
           {from && link && (
             <svg className="link-line" width={result!.width} height={result!.height}>
@@ -883,7 +998,7 @@ export function Preview(p: Props) {
         <button onClick={() => zoomAt(1.2)} title="Zoom in (⌘+)" aria-label="Zoom in">
           <Icon name="plus" />
         </button>
-        <button onClick={fit} title="Fit to screen (⇧1 or ⌘0)" aria-label="Fit to screen">
+        <button onClick={() => fit()} title="Fit to screen (⇧1 or ⌘0)" aria-label="Fit to screen">
           <Icon name="maximize" />
         </button>
         <button onClick={zoomToSelection} title="Zoom to selection (⇧2)" aria-label="Zoom to selection" disabled={!selection.length}>

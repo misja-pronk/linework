@@ -336,6 +336,15 @@ kbd {
   top: 0;
   transform-origin: 0 0;
 }
+/* Fitting again after the pane changed: a short glide, not a jump. */
+.stage.easing {
+  transition: transform 240ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage.easing {
+    transition: none;
+  }
+}
 .drawing {
   border-radius: 12px;
   overflow: hidden;
@@ -871,6 +880,33 @@ kbd {
   border: 2px dashed var(--accent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
+  pointer-events: none;
+}
+/* Says what a drop from the palette does here, at the top right so the group's own label stays readable. */
+.drop-ring > span {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translateY(-100%);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.drop-ring.refused {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+.drop-ring.refused > span {
+  background: var(--danger);
+}
+/* Where a shape dragged from the palette will land: it stays there. */
+.drop-ghost {
+  position: absolute;
+  border: 2px dashed var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   pointer-events: none;
 }
 

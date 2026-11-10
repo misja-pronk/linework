@@ -34,7 +34,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
-import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, drawnAs, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
 import { themes } from '@cartography/theme';
@@ -817,7 +817,9 @@ export function App() {
     const parent = gp && gp.length === 2 && parentKey(type, item.collection, String(gp[0])) ? { collection: String(gp[0]), id: String(gp[1]) } : holder;
     const r = addEntry(textNow(), type, item, parent);
     if (!r) return apply(undefined);
-    apply(r.text, at ? withPin(r.id, at) : undefined);
+    // Dropped at a point: it stays there, pinned as a node or, for a new group, by its top-left.
+    const drawnAt = at && drawnAs(r.text, type, r.path);
+    apply(r.text, at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
     // The label is what people change first: selected and focused once it is drawn.
     setPendingPath(JSON.stringify(r.path));
   };
@@ -1757,7 +1759,12 @@ export function App() {
               const collection = what.palette != null ? type.palette[what.palette]?.collection : String(pathOf({ kind: 'node', id: what.node! })?.[0] ?? '');
               return !!collection && !!parentKey(type, collection, String(g.path[0]));
             }}
-            onPaletteDrop={(i, at, group) => type?.palette[i] && add(type.palette[i], group, at)}
+            onPaletteDrop={(i, at, group, refused) => {
+              const item = type?.palette[i];
+              if (!item) return;
+              add(item, group, at);
+              if (refused) notify(`${item.label} cannot go in ${result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused}: placed outside it`);
+            }}
             onKeyDown={onCanvasKey}
             locked={locked}
             bent={bent}

@@ -5,6 +5,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2 });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
+page.on('console', (m) => m.text().startsWith('DBG') && console.log(m.text()));
 page.on('console', async (m) => { if (m.type() === 'error' && m.text().includes('render failed')) problems.push('console: ' + (await Promise.all(m.args().map((a) => a.evaluate((v) => (v instanceof Error ? v.stack : String(v)))))).join(' ')); });
 const fail = (m) => problems.push(m);
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
@@ -264,6 +265,105 @@ await wait(600);
 await page.keyboard.press('Delete');
 await wait(500);
 if ((await yaml()).includes('users-2') || (await yaml()).includes('vault-2')) fail('deleting the selection left copies');
+
+// 15. Drops from the palette stay where they land: into a group that already has something in it
+// (the group under the pointer is ringed and named while dragging), and into free space.
+// Seeded before the app starts (it saves what it has on the way out).
+await page.addInitScript(() => {
+  const text = sessionStorage.getItem('seed');
+  if (!text) return;
+  sessionStorage.removeItem('seed');
+  localStorage.setItem('cartography:doc', JSON.stringify({ text, doc: { name: 'drops.yaml' } }));
+});
+await page.evaluate(() => {
+  const text = 'type: azure\ntitle: Drops\ngroups:\n  sub: { kind: subscription, label: Subscription }\n  rg: { kind: resource-group, label: Resource group, in: sub }\nnodes:\n  app: { kind: app-service, label: App Service, in: rg }\n  users: { kind: users, label: Users }\nedges:\n  - users -> app\n';
+  sessionStorage.setItem('seed', text);
+});
+await page.reload();
+await page.waitForSelector('.drawing [data-node="app"]');
+// The trackpad way: the shapes listed beside the drawing in the builder, dragged over.
+await page.locator('.view-switch button', { hasText: 'Builder' }).click();
+await wait(600);
+await page.locator('.preview').focus();
+await page.keyboard.press('Meta+0');
+await wait(500);
+const pinnedNow = async () => Number((await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? 0);
+const centre = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+const paletteDrop = async (label, at, during) => {
+  const it = await page.locator(`.add-item:has-text("${label}")`).first().boundingBox();
+  await page.mouse.move(it.x + it.width / 2, it.y + it.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(it.x + 120, it.y, { steps: 4 });
+  await page.mouse.move(at.x, at.y, { steps: 12 });
+  await wait(300);
+  // One more small move: a held drag repaints only when the pointer moves.
+  await page.mouse.move(at.x + 1, at.y);
+  await wait(300);
+  if (during) await during();
+  await page.mouse.up();
+  await wait(700);
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Escape');
+  await wait(300);
+};
+const rg15 = await page.locator('.drawing [data-group="rg"]').boundingBox();
+const app15 = await page.locator('.drawing [data-node="app"]').boundingBox();
+const pins0 = await pinnedNow();
+const into = { x: app15.x + app15.width / 2, y: rg15.y + rg15.height - 6 };
+await paletteDrop('SQL Database', into, async () => {
+  const ring = await page.locator('.drop-ring:not(.refused) > span').innerText().catch(() => '');
+  if (!ring.includes('Into Resource group')) fail(`no "Into Resource group" ring while dragging over the group: "${ring}"`);
+  if ((await page.locator('.drop-ghost').count()) !== 1) fail('no outline of where the dropped shape lands');
+  await page.screenshot({ path: `${out}/12-dropping.png` });
+});
+if (!/sql-database: \{ kind: sql-database, label: SQL Database, in: rg \}/.test(await yaml())) fail('drop into a group with content did not nest: ' + (await yaml()).split('\n').filter((l) => l.includes('sql')).join());
+if ((await pinnedNow()) !== pins0 + 1) fail(`the dropped shape was not pinned where it landed: ${pins0} → ${await pinnedNow()}`);
+// It lands where it was let go: under App Service, clear of it, inside the group.
+const sql15 = await page.locator('.drawing [data-node="sql-database"]').boundingBox();
+const app15b = await page.locator('.drawing [data-node="app"]').boundingBox();
+const rg15b = await page.locator('.drawing [data-group="rg"]').boundingBox();
+const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+if (Math.abs(centre(sql15).x - centre(app15b).x) > app15b.width / 2 || sql15.y < app15b.y + app15b.height) fail(`the shape dropped under App Service did not stay there: ${JSON.stringify(sql15)} vs ${JSON.stringify(app15b)}`);
+if (overlaps(sql15, app15b)) fail('the dropped shape covers App Service');
+if (sql15.x < rg15b.x || sql15.x + sql15.width > rg15b.x + rg15b.width || sql15.y + sql15.height > rg15b.y + rg15b.height) fail('the group did not grow around the dropped shape');
+await page.screenshot({ path: `${out}/13-dropped-in.png` });
+// Free space right of the subscription: it stays there, outside every group.
+const sub15 = await page.locator('.drawing [data-group="sub"]').boundingBox();
+const pane15 = await page.locator('.preview').boundingBox();
+const free = { x: Math.min(sub15.x + sub15.width + 160, pane15.x + pane15.width - 120), y: sub15.y + sub15.height / 2 };
+const pins1 = await pinnedNow();
+await paletteDrop('Function App', free);
+const fa = await page.locator('.drawing [data-node="function-app"]').boundingBox();
+const sub15b = await page.locator('.drawing [data-group="sub"]').boundingBox();
+if ((await pinnedNow()) !== pins1 + 1) fail('a shape dropped in free space was not pinned');
+if (!fa || fa.x < sub15b.x + sub15b.width || overlaps(fa, sub15b)) fail(`a shape dropped right of the subscription did not stay there: ${JSON.stringify(fa)} vs ${JSON.stringify(sub15b)}`);
+if (/function-app: .*in:/.test(await yaml())) fail('a shape dropped outside every group was nested');
+await page.screenshot({ path: `${out}/14-dropped-free.png` });
+
+// 16. Panes opening and closing re-fit a fitted drawing: centred in what is left, not pushed aside.
+await page.keyboard.press('Meta+0');
+await wait(400);
+const offCentre = async () => {
+  const d = await page.locator('.drawing svg').boundingBox();
+  const c = await page.locator('.preview').boundingBox();
+  const fits = d.x >= c.x - 1 && d.x + d.width <= c.x + c.width + 1;
+  return { off: Math.round(d.x + d.width / 2 - (c.x + c.width / 2)), fits };
+};
+await page.locator('.drawing [data-node="app"]').click();
+await wait(1200);
+let oc = await offCentre();
+if (!(await page.locator('.inspector').isVisible()) || Math.abs(oc.off) > 24 || !oc.fits) fail(`after the inspector opened the drawing is ${oc.off}px off centre${oc.fits ? '' : ' and clipped'}`);
+await page.click('.inspector button[aria-label="Close properties"]');
+await wait(1200);
+oc = await offCentre();
+if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after the inspector closed the drawing is ${oc.off}px off centre`);
+for (const mode of ['YAML', 'Builder']) {
+  await page.locator('.view-switch button', { hasText: mode }).click();
+  await wait(1200);
+  oc = await offCentre();
+  if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after switching to ${mode} the drawing is ${oc.off}px off centre${oc.fits ? '' : ' and clipped'}`);
+}
+await page.screenshot({ path: `${out}/15-refit.png` });
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all builder steps ok');
 await browser.close();

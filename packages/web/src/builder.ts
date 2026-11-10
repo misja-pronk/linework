@@ -97,6 +97,22 @@ export interface Added {
   path: Path;
 }
 
+/** What an entry is drawn as (a node or a group, and its id there), from the type's own build of the text. */
+export function drawnAs(text: string, type: DiagramType, path: Path): { kind: 'node' | 'group'; id: string } | undefined {
+  try {
+    const doc = parse(text);
+    if (!doc) return undefined;
+    const graph = type.build(doc.toJS() as never, { error() {}, warn() {} });
+    const key = JSON.stringify(path);
+    const n = graph.nodes.find((x) => JSON.stringify(x.path) === key);
+    if (n) return { kind: 'node', id: n.id };
+    const g = graph.groups.find((x) => JSON.stringify(x.path) === key);
+    return g ? { kind: 'group', id: g.id } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Adds a palette item as a new entry, optionally inside a parent entry. */
 function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, parent?: { collection: string; id: string }): Added | undefined {
   const doc = parse(text);
