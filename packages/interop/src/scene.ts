@@ -561,7 +561,7 @@ class SceneBuilder {
     // Grouped columns and rows: their names over the columns and between the rows.
     for (const band of g.bands) parts.push(this.text(`Group: ${band.label}`, b.x + band.x + band.width / 2, b.y + g.band / 2 + 4, band.label.toUpperCase(), 10, 600, t.textMuted, 'middle'));
     for (const sec of g.sections) parts.push(this.text(`Group: ${sec.label}`, b.x + PAD, b.y + sec.y + MATRIX.SECTION / 2, sec.label.toUpperCase(), 10, 600, t.textMuted));
-    if (m.corner) parts.push(this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
+    if (m.corner) parts.push(m.plain ? this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.cell, 600, t.text) : this.text('Corner', b.x + PAD, b.y + g.band + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
       const w = g.columns[j]!;
@@ -583,7 +583,7 @@ class SceneBuilder {
       const tall = g.rows[i]!.height > g.rowHeight;
       const cy = tall ? y + 10 + MATRIX.LINE / 2 : y + g.rowHeight / 2;
       // A row without a label continues the one above: the rule skips its header.
-      if (i > 0) parts.push(hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
+      if (i > 0) parts.push(hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
       let tx = b.x + PAD;
       if (row.icon) {

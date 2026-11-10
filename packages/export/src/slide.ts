@@ -501,7 +501,7 @@ class SlideDrawing {
     rows.push({
       height: this.L(MATRIX.HEAD),
       cells: [
-        { paras: [para(m.corner ? [this.run(m.corner, t.size.caption, 500, t.textFaint)] : [])], fill: { color: head }, inset, bottom: rule },
+        { paras: [para(m.corner ? [m.plain ? this.run(m.corner, t.size.cell, 600, t.text) : this.run(m.corner, t.size.caption, 500, t.textFaint)] : [])], fill: { color: head }, inset, bottom: rule },
         ...m.columns.map((c) => ({
           paras: [para([this.run(c.label, t.size.cell, 600, t.text)], center ? 'ctr' : 'l'), ...(c.caption ? [para([this.run(c.caption, t.size.caption, 400, t.textFaint)], center ? 'ctr' : 'l')] : [])],
           fill: { color: head },
@@ -557,7 +557,7 @@ class SlideDrawing {
     const pr = Math.max(0, t.radius.card - 0.5);
     if (paper) items.push(this.sp({ name: 'Header', frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5), geom: { prst: 'round2SameRect', adj: { adj1: (pr / Math.min(b.width - 1, HEAD - 0.5)) * 100000, adj2: 0 } }, fill: { color: paper }, line: null }));
     items.push(this.hline(b.x, b.x + b.width, b.y + HEAD, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
-    if (m.corner) items.push(this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
+    if (m.corner) items.push(m.plain ? this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.cell, 600, t.text) : this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
     for (const [j, col] of m.columns.entries()) {
       const w = g.columns[j]!;
@@ -578,7 +578,7 @@ class SlideDrawing {
     for (const [i, row] of m.rows.entries()) {
       const cy = y + g.rowHeight / 2;
       // A row without a label continues the one above: the rule skips its header.
-      if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x + PAD, b.x + b.width - PAD, y, t.border, 0.6));
+      if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
       let tx = b.x + PAD;
       if (row.icon) {
