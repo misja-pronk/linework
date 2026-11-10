@@ -97,6 +97,36 @@ await step('search', async () => {
   if (await page.locator('.focus-chip').count()) fail('⌥↵ focused');
 });
 
+// Review 3: ⌘↑ from the containers (drilled into from the context) went to model.yaml. It goes back up
+// the way it came: to the context, with Harbour Online selected, then to the landscape.
+await step('up goes back the way it came down', async () => {
+  await page.keyboard.press('Meta+p');
+  await page.keyboard.type('landscape');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Enter');
+  await waitFile('model.yaml');
+  await settle();
+  const dbl = async (id) => {
+    const box = await page.locator(`.drawing [data-node="${id}"], .drawing [data-group="${id}"]`).first().boundingBox();
+    await page.mouse.dblclick(box.x + 30, box.y + 20);
+  };
+  await dbl('online');
+  await waitFile('context.yaml');
+  await settle();
+  await dbl('online');
+  await waitFile('containers.yaml');
+  await settle();
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+ArrowUp');
+  await waitFile('context.yaml').catch(async () => fail(`⌘↑ from the containers went to ${await activeFile()}, not back to context.yaml`));
+  await settle();
+  if ((await selectedId()) !== 'online') fail(`back up, what was drilled into should be selected: ${await selectedId()}`);
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+ArrowUp');
+  await waitFile('model.yaml').catch(async () => fail(`⌘↑ from the context went to ${await activeFile()}, not the landscape in model.yaml`));
+  await settle();
+});
+
 await step('drill down', async () => {
   await page.keyboard.press('Meta+p');
   await page.keyboard.type('landscape');

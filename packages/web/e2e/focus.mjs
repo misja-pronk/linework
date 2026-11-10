@@ -9,6 +9,14 @@ import { chromium } from '@playwright/test';
 const out = process.argv[2];
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2, acceptDownloads: true });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
@@ -264,13 +272,16 @@ await wait(400);
   }, files);
   // The open diagram has changes that are in no file: a drop asks before it replaces them, and No keeps them.
   const unsaved = await yaml();
-  let asked = '';
-  page.once('dialog', (d) => ((asked = d.message()), d.dismiss()));
+  // Asked in the app's own dialog (review 3: it was the browser's confirm()); Keep editing keeps them.
   await dropMesh();
-  await wait(800);
+  const ask = page.locator('.confirm-dialog');
+  await ask.waitFor({ timeout: 3000 }).catch(() => {});
+  const asked = (await ask.count()) ? await ask.innerText() : '';
   if (!asked.includes('not saved')) fail('dropping over unsaved changes should ask first: ' + (asked || 'nothing asked'));
-  check('No keeps the unsaved diagram', await yaml(), unsaved);
-  page.once('dialog', (d) => d.accept());
+  if (await ask.count()) await ask.locator('button:has-text("Keep editing")').click();
+  await wait(500);
+  check('Keep editing keeps the unsaved diagram', await yaml(), unsaved);
+  const stopDrop = discarding();
   await page.evaluate((files) => {
     const data = new DataTransfer();
     for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
@@ -279,6 +290,7 @@ await wait(400);
     at.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
   }, files);
   await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the dropped data products were not drawn'));
+  stopDrop();
   const said = await page.locator('.toast').innerText().catch(() => '');
   if (!said.includes('6 data products, 4 contracts')) fail('the drop should say what it made: ' + said);
   await wait(600);
@@ -339,11 +351,12 @@ await wait(400);
       await w.close();
     }
     window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('mesh');
-    // The map of the drop is not kept: this is about the folder.
-    window.confirm = () => true;
   }, files);
+  // The map of the drop is not kept: this is about the folder.
+  const stop = discarding();
   await palette('open folder');
   await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the data products of the folder were not drawn'));
+  stop();
   const said = await page.locator('.toast').innerText().catch(() => '');
   if (!said.includes('6 data products, 4 contracts in mesh')) fail('opening the folder should say what it made: ' + said);
   if (!(await page.locator('.doc-name .dirty').count())) fail('the new map is not in the folder yet: it should show as unsaved');

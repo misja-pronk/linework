@@ -30,6 +30,7 @@ const EXPORT_ENTRY = {
 import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
+import { useConfirm } from './confirm.tsx';
 import { useLayers } from './layers-control.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
@@ -114,7 +115,7 @@ function useWindowWidth() {
 
 /**
  * Puts a toast just under the drawing's tools, at their left: where the eyes are after an action, and
- * never over the zoom bar, the hint or a panel. Without a drawing on screen (a phone on the YAML tab)
+ * never over the zoom bar, the hint, a panel or an open popover. Without a drawing on screen (a phone on the YAML tab)
  * it stays at the bottom of the window.
  */
 function dockToast(el: HTMLDivElement | null) {
@@ -123,7 +124,9 @@ function dockToast(el: HTMLDivElement | null) {
   const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
   if (!top.length || !pane?.width) return el.classList.remove('docked');
   el.classList.add('docked');
-  el.style.top = `${Math.max(...top.map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
+  // Under an open popover too (the Layers panel, ⋯): a toast never covers what is being used.
+  const open = [...document.querySelectorAll('.canvas-top [role="menu"]')];
+  el.style.top = `${Math.max(...[...top, ...open].map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
   el.style.left = `${pane.left + 16}px`;
   el.style.maxWidth = `${pane.width - 32}px`;
 }
@@ -187,6 +190,8 @@ export function App() {
   );
   // A first visit starts with choosing what to make and how.
   // The start dialog only until it has been left once (by any way: a template, a file, Esc).
+  /** Questions before something is lost, in the app's own dialog (confirm.tsx). */
+  const confirmer = useConfirm();
   const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
   // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
   // Once the start dialog is left, by whatever way, it is not shown at the next launch.
@@ -517,7 +522,7 @@ export function App() {
   const leave = async (): Promise<boolean> => {
     if (!dirty) return true;
     if ((ws && doc.path) || fileHandle.current) return save();
-    return window.confirm(`${doc.name} has changes that are not saved in a file. Discard them?`);
+    return confirmer.ask({ title: 'Discard the unsaved changes?', text: `${doc.name} has changes that are not saved in a file.`, ok: 'Discard', cancel: 'Keep editing' });
   };
 
   const focusDrawing = () => requestAnimationFrame(() => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true }));
@@ -552,7 +557,7 @@ export function App() {
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
         const disk = await diskText(ws, doc.path);
-        if (disk != null && savedText != null && disk !== savedText && disk !== now && !window.confirm(`${doc.path} was changed outside Cartography. Overwrite it?`)) return false;
+        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await confirmer.ask({ title: `Overwrite ${doc.path}?`, text: `${doc.path} was changed outside Cartography since it was opened.`, ok: 'Overwrite', cancel: 'Keep the file' }))) return false;
         await saveInFolder(ws, doc.path, now, pinsToSave);
         await review.saveTo(ws, doc.path, drawn?.view ? undefined : drawn?.graph);
       }
@@ -1539,12 +1544,12 @@ export function App() {
         ? isChain
           ? [{ key: 'label', kind: 'text' as const, label: 'Label', value: selEdge?.label ?? '', hint: type.lines?.hint }]
           : isEntry
-            ? fieldsFor(text, type, selectedPath)
+            ? withDrawnName(fieldsFor(text, type, selectedPath), selNode ? label(selNode) : selGroup?.label)
             : isEdgeItem
               ? edgeFields(text, type, selectedPath)
               : []
         : [],
-    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
+    [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text, selNode, selGroup],
   );
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
@@ -1759,7 +1764,7 @@ export function App() {
     { id: 'describe', group: 'Export', label: 'Describe in words…', hint: 'what the diagram shows, for a screen reader or a handout; copy as text or Markdown', icon: 'scroll-text', run: () => setTimeout(() => setDescribing(true)) },
     { id: 'copy-wiki', group: 'Export', label: 'Copy for Confluence / Notion', hint: 'the picture and the description in one paste', icon: 'book-open', run: copyForWiki },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
-    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
+    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (SVG for PowerPoint / Word off)' : 'SVG for PowerPoint / Word on', hint: 'an SVG that PowerPoint, Word and Keynote take whole', icon: 'monitor', run: toggleSafeSvg },
     { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
     { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
@@ -2014,7 +2019,7 @@ export function App() {
               <Menu onClose={() => setMenu(false)}>
                 <div className="menu-heading">Image</div>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG for PowerPoint / Word' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
@@ -2035,7 +2040,7 @@ export function App() {
                     toggleSafeSvg();
                   }}
                 >
-                  <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
+                  <Icon name={safeSvg ? 'check' : 'square'} /> SVG for PowerPoint / Word
                 </button>
                 <div className="menu-heading">Document, on the page ({pageName})</div>
                 <button role="menuitem" onClick={savePptx}>
@@ -2051,6 +2056,9 @@ export function App() {
                 <button role="menuitem" onClick={savePageSvg}>
                   <Icon name="monitor" /> SVG of the page
                 </button>
+                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
+                  <Icon name="scroll-text" /> Describe in words…
+                </button>
                 <div className="menu-heading">Share</div>
                 <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
                   <Icon name="link" /> Copy share link
@@ -2063,9 +2071,6 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copyForWiki} title="The picture and the description in one paste, for Confluence, Notion or Google Docs">
                   <Icon name="book-open" /> Copy for Confluence / Notion
-                </button>
-                <button role="menuitem" onClick={() => setDescribing(true)} title="What the diagram shows, in words: for a screen reader, a handout or a wiki">
-                  <Icon name="scroll-text" /> Describe in words…
                 </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
@@ -2639,6 +2644,7 @@ export function App() {
       {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} layers={layering.options} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {comparing.dialogs}
+      {confirmer.dialog}
       {modal === 'connect' && selected?.kind === 'node' && (
         <Palette
           placeholder={`Connect ${nodeName(selected.id)} to…`}
@@ -2730,4 +2736,10 @@ export function App() {
       )}
     </div>
   );
+}
+
+/** An empty label field says what is drawn instead ("Users", from the kind) as its placeholder: empty is not "no name". */
+function withDrawnName<F extends { key: string; kind: string; value?: unknown; note?: string }>(fields: F[], drawn: string | undefined): F[] {
+  if (!drawn) return fields;
+  return fields.map((f) => (f.kind === 'text' && ['label', 'name', 'title'].includes(f.key) && f.value === '' ? { ...f, note: `${drawn} (as drawn; type to change it)` } : f));
 }

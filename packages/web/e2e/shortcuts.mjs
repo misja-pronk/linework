@@ -8,6 +8,14 @@ import { chromium } from '@playwright/test';
 const out = process.argv[2] ?? '.';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 } });
+/** Says Discard to the app's "Discard the unsaved changes?" dialogs until stopped (they replaced confirm()). */
+const discarding = () => {
+  let on = true;
+  void (async () => {
+    while (on && !page.isClosed()) await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 250 }).catch(() => {});
+  })();
+  return () => void (on = false);
+};
 page.setDefaultTimeout(8000);
 const problems = [];
 const fail = (m) => problems.push(m);
@@ -165,11 +173,10 @@ await page.evaluate(async (files) => {
   }
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('harbour');
 }, files);
-const discard = (d) => d.accept();
-page.on('dialog', discard);
+const stop = discarding();
 await page.click('button:has-text("Open folder")');
 await page.waitForSelector('.files .file, .files-rail');
-page.off('dialog', discard);
+stop();
 await wait(600);
 
 await step('⌘P searches in a folder', async () => {

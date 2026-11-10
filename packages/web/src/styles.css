@@ -3960,3 +3960,27 @@ button.type-pill:hover {
 .pin-badge {
   color: var(--accent);
 }
+
+/* Asking before something is lost (confirm.tsx). */
+.confirm-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 18px 20px 16px;
+  display: grid;
+  gap: 8px;
+}
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: 15px;
+}
+.confirm-dialog p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
