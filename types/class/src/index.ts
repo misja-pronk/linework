@@ -216,6 +216,13 @@ export function parseRelationLine(line: string): Omit<Relation, 'path' | 'kind' 
       colonAt = m.index;
       break;
     }
+    // "B: label" with the colon glued to the name, once the arrow is behind.
+    const cut = m[2]?.indexOf(':') ?? -1;
+    if (m[2] && cut > 0 && tokens.some((t) => !t.quoted && ARROW.test(t.text))) {
+      tokens.push({ text: m[2].slice(0, cut), at: m.index, quoted: false });
+      colonAt = m.index + cut;
+      break;
+    }
     tokens.push({ text: m[1] ?? m[2]!, at: m.index + (m[1] !== undefined ? 1 : 0), quoted: m[1] !== undefined });
   }
   // "B: label" glued to the name.

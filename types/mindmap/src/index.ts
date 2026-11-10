@@ -146,7 +146,7 @@ function build(src: MindmapSource, ctx: BuildContext): Graph {
     };
     nodes.push({ id: t.id, shape, kind: `level-${level}`, path: t.path, ...(links?.length ? { links } : {}), ...(str(t.props.description) ? { description: str(t.props.description)! } : {}) });
     // Lines get lighter further out, as the topics do.
-    edges.push({ id: `to-${t.id}`, from: { node: parent }, to: { node: t.id }, line: 'solid', start: 'none', end: 'none', kind: 'branch', tone: own, width: level === 1 ? 1.7 : level === 2 ? 1.3 : 1, path: t.path });
+    edges.push({ id: `to-${t.id}`, from: { node: parent }, to: { node: t.id }, line: 'solid', start: 'none', end: 'none', kind: 'branch', loose: true, tone: own, width: level === 1 ? 1.7 : level === 2 ? 1.3 : 1, path: t.path });
     if (level === 1 && (t.props.side === 'left' || t.props.side === 'right')) arrange[`side:${t.id}`] = t.props.side;
     if (level < depth) for (const k of t.children) walk(k, level + 1, own, t.id);
   };

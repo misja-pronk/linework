@@ -112,20 +112,42 @@ function place(centre: Item, arrangement: Arrangement, previous?: LayoutMemory) 
     const r = t.boxes.get(centre.id)!;
     const rx = r.x + r.width / 2;
     const ry = r.y + r.height / 2;
+    const placed = new Map<string, Box>();
     for (const [id, b] of t.boxes) {
       if (id === centre.id) continue;
       const cx = sign * (b.y + b.height / 2 - ry);
       const cy = b.x + b.width / 2 - rx;
-      boxes.set(id, { x: cx - b.height / 2, y: cy - b.width / 2, width: b.height, height: b.width });
+      placed.set(id, { x: cx - b.height / 2, y: cy - b.width / 2, width: b.height, height: b.width });
     }
-    for (const [id, pts] of t.links) links.set(id, pts.map((p) => ({ x: sign * (p.y - ry), y: p.x - rx })));
+    // The tree centres its root over its branches, so a branch that grew would move the whole side
+    // against the centre: the side goes back to where most of its topics were.
+    let shift = 0;
+    if (c0 && previous?.nodes) {
+      const d = [...placed].flatMap(([id, b]) => {
+        const p = previous.nodes!.get(id);
+        return p ? [p.y - c0.y - (b.y + b.height / 2)] : [];
+      });
+      if (d.length) shift = d.sort((p, q) => p - q)[(d.length - 1) >> 1]!;
+    }
+    for (const [id, b] of placed) boxes.set(id, { ...b, y: b.y + shift });
+    for (const [id, pts] of t.links) links.set(id, pts.map((p) => ({ x: sign * (p.y - ry), y: p.x - rx + shift })));
   }
   boxes.set(centre.id, { x: -centre.width / 2, y: -centre.height / 2, width: centre.width, height: centre.height });
   // From the centre each branch leaves on a curve of its own, so no two colours share a trunk; further
   // out the topics hang square from their branch's bus, as an outline does.
-  for (const k of centre.children) {
-    const b = boxes.get(k.id);
-    if (b) links.set(k.id, curve(centre, b));
+  // Each leaves from its own point along the centre's side, in the order they stand, so the curves fan out and never cross.
+  for (const side of [1, -1]) {
+    const kids = centre.children.map((k) => boxes.get(k.id)!).filter((b) => b && Math.sign(b.x + b.width / 2) === side);
+    const ids = centre.children.filter((k) => kids.includes(boxes.get(k.id)!)).map((k) => k.id);
+    const order = ids.map((id, i) => ({ id, b: kids[i]! })).sort((p, q) => p.b.y - q.b.y);
+    const reach = Math.max(0, centre.height / 2 - 12);
+    const step = order.length > 1 ? Math.min(14, (2 * reach) / (order.length - 1)) : 0;
+    for (const [i, { id, b }] of order.entries()) {
+      const at = (i - (order.length - 1) / 2) * step;
+      // A branch level with the centre goes straight out; the others leave towards where they go.
+      const cy = b.y + b.height / 2;
+      links.set(id, curve(centre, b, Math.abs(cy) < reach ? Math.max(-reach, Math.min(reach, cy)) : at));
+    }
   }
   const all = [...boxes.values()];
   const pts = [...links.values()].flat();
@@ -139,12 +161,10 @@ function place(centre: Item, arrangement: Arrangement, previous?: LayoutMemory) 
 }
 
 /** Points along an S-curve from the centre's side to a branch's near side, close enough to draw as a smooth line. */
-export function curve(centre: { width: number; height: number }, b: Box, steps = 16): Point[] {
+export function curve(centre: { width: number; height: number }, b: Box, sy: number, steps = 16): Point[] {
   const right = b.x + b.width / 2 > 0;
   const sx = right ? centre.width / 2 : -centre.width / 2;
   const cy = b.y + b.height / 2;
-  // Leave the centre a little towards the branch, within its rounded side.
-  const sy = Math.max(-centre.height / 2 + 12, Math.min(centre.height / 2 - 12, cy * 0.25));
   const ex = right ? b.x : b.x + b.width;
   const mx = (sx + ex) / 2;
   const pts: Point[] = [];
