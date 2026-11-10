@@ -16,7 +16,8 @@ import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 import { wizardsFor } from '@cartography/wizards';
 import { WizardSteps } from './wizard.tsx';
-import { say, t } from './i18n/index.ts';
+import { say, t, uiLang } from './i18n/index.ts';
+import { englishQuery } from './i18n/query-nl.ts';
 
 export type View = 'visual' | 'code';
 
@@ -294,7 +295,7 @@ const typeTemplates = types.map((t) => starters.find((s) => s.id === `template:$
 /** Step one: what do you want to draw? A card per type says what it is for and what it is not for. */
 function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 'dark'; current?: string; last: string; onChoose(id: string): void; onImport(): void }) {
   const [query, setQuery] = useState('');
-  const ranked = useMemo(() => matchTypes(query, types), [query]);
+  const ranked = useMemo(() => matchTypes(uiLang() === 'nl' ? englishQuery(query) : query, types), [query]);
   const matched = ranked[0]!.score > 0;
   const [flash, setFlash] = useState<string>();
   const grid = useRef<HTMLDivElement>(null);

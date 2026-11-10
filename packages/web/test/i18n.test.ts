@@ -44,3 +44,16 @@ describe('the catalog parts', () => {
     expect(differ).toEqual([]);
   });
 });
+
+describe('a Dutch description in the start dialog', () => {
+  it('finds the type an English one would', async () => {
+    const { matchTypes } = await import('@cartography/core');
+    const { englishQuery } = await import('../src/i18n/query-nl.ts');
+    const { types } = await import('@cartography/engine');
+    const best = (q: string) => matchTypes(englishQuery(q), types)[0]!.type.id;
+    expect(best('wie heeft toegang tot welke gegevens')).toBe(best('who has access to which data'));
+    expect(best('volgorde van aanroepen tussen systemen')).toBe('sequence');
+    expect(best('ideeën voor de workshop')).toBe('mindmap');
+    expect(englishQuery('Kubernetes cluster met netwerken')).toBe('Kubernetes cluster with networks');
+  });
+});
