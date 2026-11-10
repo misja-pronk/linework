@@ -1838,7 +1838,7 @@ export function App() {
                     </>
                   ) : (
                     <>
-                      Edit the YAML, or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>F6</kbd> switches panes, <kbd>?</kbd> shows all keys.
+                      Edit the YAML (<kbd>Tab</kbd> indents two spaces; <kbd>Esc</kbd> <kbd>Tab</kbd> or <kbd>F6</kbd> leaves it), or build here: <kbd>A</kbd> adds a shape, drag the dot on a shape to connect it, <kbd>?</kbd> shows all keys.
                     </>
                   )}
                 </span>
