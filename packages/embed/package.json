@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@cartography/core": "workspace:*",
+    "@cartography/describe": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",

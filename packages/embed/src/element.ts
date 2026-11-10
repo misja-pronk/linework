@@ -139,7 +139,7 @@ export class CartoDiagram extends HTMLElement {
   #alt!: HTMLDetailsElement;
   #id = `carto${++count}`;
   #trail: Entry[] = [];
-  #result?: RenderResult;
+  #result?: RenderResult & { summary?: string };
   #scheme: 'light' | 'dark' = 'light';
   #seq = 0;
   #started = false;
@@ -572,9 +572,13 @@ export class CartoDiagram extends HTMLElement {
     const relations = h('ul');
     for (const r of d.relations) relations.append(h('li', {}, `${r.from} → ${r.to}${r.label ? `: ${r.label}` : ''}`));
     const heading = [d.title, d.subtitle].filter(Boolean).join(' — ');
+    const said = this.#result?.summary;
+    if (said) this.#stage.setAttribute('aria-description', said);
+    else this.#stage.removeAttribute('aria-description');
     this.#alt.replaceChildren(
       h('summary', {}, 'Text description'),
       ...(heading ? [h('p', {}, heading)] : []),
+      ...(said ? [h('p', {}, said)] : []),
       ...(d.elements.length ? [h('p', { class: 'head' }, `Elements (${d.elements.length})`), elements] : []),
       ...(d.relations.length ? [h('p', { class: 'head' }, `Connections (${d.relations.length})`), relations] : []),
     );
