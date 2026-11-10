@@ -2,7 +2,7 @@
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
-Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, network, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts), sequence, git branching, roadmap and journey map. Not sure which one you need? See [Which diagram type do I need?](docs/types.md)
+Diagram types: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, network, database (ERD), roles / groups / access packages, GitHub, data products (with ports and data contracts), sequence, git branching, roadmap, journey map, DDD context map and matrix (RACI, CRUD). Not sure which one you need? See [Which diagram type do I need?](docs/types.md)
 
 Status: early development. See [docs/requirements.md](docs/requirements.md).
 
@@ -39,6 +39,12 @@ Diagrams look better than the usual tools: lines that share a path are spaced ev
 ![A folder of ODPS and ODCS files as one map](docs/data-products/mesh.png)
 
 **Who reaches what, from your exports**: `carto render exports/` draws a folder of `az role assignment list`, Microsoft Graph or AzureHound JSON as an access diagram (scopes as a tree, groups and members, access packages, directory roles), and a folder of `gh api` answers as the GitHub organisation (teams, repositories, rulesets, environments, CODEOWNERS). Large tenants stay readable (members folded into groups, a who × where matrix, `--scope`, `--depth`), importing again keeps your edits, and `carto diff march/ june/` says who gained and lost what, in plain words. See [docs/access-import.md](docs/access-import.md).
+
+**Threat models, context maps, RACI**: mark trust boundaries and STRIDE threats on an architecture, C4 or Azure diagram and get numbered tags on the drawing, suggested threats as warnings and a threat table (`carto render --view threats`, `carto threats shop.yaml -o threats.md`); draw a DDD context map with U/D ends and ACL, OHS, PL, CF patterns (`type: context-map`); or a RACI or CRUD matrix that checks itself (`type: matrix`), exported to PowerPoint as a real table. See [docs/threats.md](docs/threats.md), [docs/context-map.md](docs/context-map.md) and [docs/matrix.md](docs/matrix.md).
+
+![A threat model](docs/threats/web-shop.png)
+
+**Share a diagram as a link**: *Copy share link* (or `carto share shop.yaml`) puts the diagram itself in the link's `#fragment`, which never reaches a server; the link opens a read-only viewer with zoom, present and export, and *Open in editor* makes it the reader's own. See [docs/share.md](docs/share.md).
 
 **Steps and presenting**: `steps:` tells a drawing in parts (`- customer -> web -> api: The order comes in`), with what is shown, what stands out and the sentence you say. Press `P` to present it full screen, or export it: one slide per step in PowerPoint, one page per step in PDF, with every shape in the same place. See [docs/steps.md](docs/steps.md).
 

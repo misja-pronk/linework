@@ -1,4 +1,4 @@
-import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, threatViews, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
 
 // Generic line icons in one style; no Microsoft icons, their terms forbid redistributing them.
 export const config: GraphTypeConfig = {
@@ -64,6 +64,8 @@ export const config: GraphTypeConfig = {
     identity: { label: 'Identity', line: 'dotted', tone: 'amber' },
     management: { label: 'Management', line: 'dotted', tone: 'slate' },
   },
+  // Trust boundaries, STRIDE threats and the threat table (docs/threats.md).
+  threats: true,
   // Shared-model kinds (the architecture type's words) as the Azure resource that usually hosts them.
   kindAliases: {
     person: 'user',
@@ -119,6 +121,7 @@ export const azure: DiagramType<GraphSource> = {
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
   references: graphReferences,
+  views: threatViews,
   template: `type: azure
 title: Web shop
 subtitle: Production

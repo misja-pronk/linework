@@ -33,6 +33,9 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
 | Who does what, in which order, and where it branches: an approval in swimlanes, a decision flowchart, a runbook | [Process](#process) | `process` |
 | The states one thing can be in and what moves it on: the lifecycle of an order, a ticket, a connection | [State machine](#state-machine) | `states` |
+| DDD bounded contexts and how they integrate: upstream, downstream, ACL, OHS, shared kernel | [Context map](#context-map) | `context-map` |
+| A grid with a value per cell: a RACI chart, a CRUD matrix of services × data, an ownership table | [Matrix](#matrix) | `matrix` |
+| Trust boundaries and STRIDE threats on an architecture, with a threat table | [Architecture](#architecture), [C4](#c4-model) or [Azure](#azure-infrastructure) with a [threat overlay](threats.md) | `systems`, `c4`, `azure` |
 
 Look-alikes that trip people up:
 
@@ -51,6 +54,9 @@ Look-alikes that trip people up:
 - **Which systems there are** is Architecture; **the steps people and systems take, with decisions** are a Process.
 - **Messages between systems, call by call** are Sequence; **work handed from role to role, with branches** is a Process.
 - **What one person feels along the way** is a Journey map; **what every role does, and who decides** is a Process.
+- **Services and how requests flow between them** are Architecture; **bounded contexts and who depends on whose model** are a Context map.
+- **Who may reach which resource, through which group or role** is Access; **who does what in a programme** (RACI) or **which service touches which data** (CRUD) is a Matrix.
+- **A threat model** is not a type of its own: mark trust boundaries and threats on the Architecture, C4 or Azure diagram you already have, and draw its threat table as a view.
 - **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
 
 ## Architecture
@@ -74,6 +80,8 @@ edges:
   - web -> orders: REST
   - orders -> db: SQL
 ```
+
+A threat model is this type with trust boundaries and STRIDE threats on it: `trust: true` on a group, `threats: [S, T]` on an element or line, and the *Threat table* view. See [threats.md](threats.md).
 
 Examples: [examples/systems](../examples/systems)
 
@@ -560,6 +568,47 @@ transitions:                        # from -> to: event [guard] / action
 Import: Mermaid `stateDiagram` and `stateDiagram-v2` (`[*]`, composite states, `<<choice>>`, notes; fork and join come in as states, concurrent regions are merged, with a warning).
 
 Guide: [states.md](states.md). Examples: [examples/states](../examples/states)
+
+## Context map
+
+`type: context-map` · bounded contexts and who depends on whom (DDD).
+
+Use it for strategic design: which bounded contexts there are, who is upstream, who protects itself with an anticorruption layer, where a shared kernel or a partnership ties two teams together, and which subdomains are core, supporting or generic. Ends of each line carry U and D and the patterns of each side (OHS, PL upstream; ACL, CF downstream), as Context Mapper draws them.
+
+Not for: how requests flow between services (`systems`), a C4 view of one system (`c4`).
+
+```yaml
+type: context-map
+nodes:
+  catalog: { kind: context, label: Catalogue, domain: supporting }
+  ordering: { kind: context, label: Ordering, domain: core }
+  erp: { kind: legacy, label: Warehouse ERP }
+edges:
+  - catalog -> ordering: { relation: customer-supplier, upstream: [OHS, PL] }
+  - erp -> ordering: { relation: anticorruption-layer }
+```
+
+Guide: [context-map.md](context-map.md). Examples: [examples/context-map](../examples/context-map)
+
+## Matrix
+
+`type: matrix` · who does what, or what touches which data, as a checked table.
+
+Use it for a RACI chart (one Accountable per activity is checked), a CRUD matrix of services against the data they create, read, update and delete (every kind of data needs a creator and a reader), or any grid with a fixed set of values and rules of your own. Rows and columns group under shared names, columns can count their values, and PowerPoint gets a real table.
+
+Not for: who may access which resource through groups and roles (`access`), steps in order and who does them (`process`).
+
+```yaml
+type: matrix
+legend: raci
+columns: { pm: Programme manager, arch: Architect, ops: Platform team }
+rows: { plan: Migration plan, build: Landing zone }
+cells:
+  plan: { pm: A, arch: R, ops: C }
+  build: { pm: I, arch: A, ops: R }
+```
+
+Guide: [matrix.md](matrix.md). Examples: [examples/matrix](../examples/matrix)
 
 ## Adding a type
 
