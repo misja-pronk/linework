@@ -90,7 +90,7 @@ const exampleType = new Map<string, string>();
 for (const dir of fs.readdirSync(examplesDir)) {
   const p = path.join(examplesDir, dir);
   if (!fs.statSync(p).isDirectory()) continue;
-  const first = fs.readdirSync(p).filter((f) => /\.ya?ml$/.test(f)).sort().map((f) => /^type:\s*([\w-]+)/m.exec(fs.readFileSync(path.join(p, f), 'utf8'))?.[1]).find(Boolean);
+  const first = fs.readdirSync(p).filter((f) => /\.ya?ml$/.test(f) && !/\.block\.ya?ml$/.test(f)).sort().map((f) => /^type:\s*([\w-]+)/m.exec(fs.readFileSync(path.join(p, f), 'utf8'))?.[1]).find(Boolean);
   if (first) exampleType.set(dir, first);
 }
 

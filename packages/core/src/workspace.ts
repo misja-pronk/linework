@@ -143,7 +143,7 @@ export const GRAPH_TYPES = new Set(['model', 'c4', 'systems', 'azure', 'cloud', 
 const PROSE = new Set(['label', 'title', 'subtitle', 'caption', 'description', 'note', 'notes', 'technology', 'owner', 'kind', 'class', 'version', 'icon', 'tone', 'file', 'links']);
 
 /** Diagram files of a folder: YAML with a top-level type:, not a data contract or a layout. */
-export const isDiagramFile = (path: string, text: string) => /\.ya?ml$/i.test(path) && !/\.odcs\.ya?ml$/i.test(path) && /^type:\s*[\w-]+/m.test(text);
+export const isDiagramFile = (path: string, text: string) => /\.ya?ml$/i.test(path) && !/\.(odcs|block)\.ya?ml$/i.test(path) && /^type:\s*[\w-]+/m.test(text);
 
 const dirOf = (file: string) => file.split('/').slice(0, -1).join('/');
 

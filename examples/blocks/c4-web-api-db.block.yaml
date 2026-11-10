@@ -1,0 +1,20 @@
+# The usual container set of a C4 container view: a web app, its API and its database (docs/blocks.md).
+type: c4
+title: C4 web app + API + database
+description: "The containers of one software system: a single-page web app that calls a JSON API, which keeps its data in a relational database"
+tags: [c4, containers]
+params:
+  name: { default: shop, label: System id }
+  label: { default: Web shop, label: System name }
+
+groups:
+  ${name}: { kind: software-system, label: "${label}" }
+
+nodes:
+  ${name}-web: { kind: web-app, label: Web app, technology: React, in: "${name}", description: "Serves ${label} to the browser" }
+  ${name}-api: { kind: container, label: API, technology: Node.js, in: "${name}", description: Business logic as JSON over HTTPS }
+  ${name}-db: { kind: database, label: Database, technology: PostgreSQL, in: "${name}", description: "Customers, orders and products" }
+
+edges:
+  - ${name}-web -> ${name}-api: { label: Calls over JSON/HTTPS }
+  - ${name}-api -> ${name}-db: { label: Reads and writes with SQL }

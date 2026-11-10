@@ -35,7 +35,7 @@ export const starters: Starter[] = [
   ...templates,
   ...Object.entries(raw)
     // Data contracts and data products (ODCS, ODPS) lie next to the examples that draw them: read, not opened.
-    .filter(([p, text]) => !p.includes('/contracts/') && typeOf(text) && !same.has(drawingOf(text)))
+    .filter(([p, text]) => !p.includes('/contracts/') && !p.endsWith('.block.yaml') && typeOf(text) && !same.has(drawingOf(text)))
     .map(([p, text]): Starter => {
       const rel = p.replace(/^.*\/examples\//, '');
       return { id: `example:${rel}`, type: typeOf(text), title: titleOf(text) ?? rel, subtitle: subtitleOf(text), kind: 'example', file: rel.split('/').pop()!, text };
