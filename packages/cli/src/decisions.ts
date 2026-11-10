@@ -20,6 +20,7 @@ import {
   type WorkspaceIndex,
 } from '@cartography/core';
 import { decisionLines, renderGraph, themes, withDecisions, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { t } from './i18n.ts';
 
 const KNOWN = ['decisions', 'docs/decisions', 'docs/adr', 'doc/adr', 'adr', 'docs/architecture/decisions', 'architecture/decisions', 'doc/architecture/decisions'];
 const SKIP = new Set(['node_modules', 'dist', '.git']);
@@ -127,8 +128,8 @@ export async function decisionsCommand(a: DecisionsArgs): Promise<number> {
   const [first, ...rest] = a.args;
   if (first === 'new') {
     const title = rest.join(' ').trim();
-    if (!title) return (console.error('carto decisions new "title": the decision needs a title'), 1);
-    if (a.status && !decisionStatuses.includes(a.status as DecisionStatus)) return (console.error(`--status is one of ${decisionStatuses.join(', ')}, not "${a.status}"`), 1);
+    if (!title) return (console.error(t('carto decisions new "title": the decision needs a title')), 1);
+    if (a.status && !decisionStatuses.includes(a.status as DecisionStatus)) return (console.error(t('--status is one of {list}, not "{value}"', { list: decisionStatuses.join(', '), value: a.status })), 1);
     const root = decisionsRoot(a.into ?? '.');
     const files = workspaceFiles(root);
     const ix = indexWorkspace(files);
@@ -137,28 +138,28 @@ export async function decisionsCommand(a: DecisionsArgs): Promise<number> {
     const file = `${dir}/${decisionFileName(number, title)}`;
     const concerns = (a.concerns ?? '').split(',').map((s) => s.trim()).filter(Boolean);
     const old = a.supersedes ? decisionByNumber(ix.decisions, Number(a.supersedes)) : undefined;
-    if (a.supersedes && !old) return (console.error(`carto decisions new: there is no decision ${a.supersedes} in ${path.join(root, dir)}`), 1);
+    if (a.supersedes && !old) return (console.error(t('carto decisions new: there is no decision {n} in {folder}', { n: a.supersedes, folder: path.join(root, dir) })), 1);
     for (const c of concerns) {
       const parsed = readConcern(c);
       const ids = parsed?.kind === 'element' ? [parsed.id] : parsed?.kind === 'edge' ? [parsed.from, parsed.to] : [];
-      for (const id of ids) if (ix.elements.size && !ix.elements.has(id)) console.error(`${file}  warning  concerns "${id}", which is not in ${root === process.cwd() ? 'this folder' : root}`);
+      for (const id of ids) if (ix.elements.size && !ix.elements.has(id)) console.error(`${file}  ${t('warning')}  ${t('concerns "{id}", which is not in {folder}', { id, folder: root === process.cwd() ? t('this folder') : root })}`);
     }
     const text = decisionTemplate({ number, title, concerns: concerns.length ? concerns : (old?.concerns ?? []), file, ...(old ? { supersedes: old } : {}), ...(a.status ? { status: a.status as DecisionStatus } : {}) });
     fs.mkdirSync(path.join(root, dir), { recursive: true });
     fs.writeFileSync(path.join(root, file), text);
     if (old) {
       fs.writeFileSync(path.join(root, old.file), setDecisionStatus(old.text, old.file, 'superseded', { number, title, file }));
-      console.error(`${path.join(root, old.file)} → superseded by ${number}`);
+      console.error(`${path.join(root, old.file)} → ${t('superseded by {n}', { n: number })}`);
     }
     console.log(path.join(root, file));
     return 0;
   }
   const folder = first ?? '.';
-  if (!fs.existsSync(folder)) return (console.error(`${folder}: no such folder`), 1);
+  if (!fs.existsSync(folder)) return (console.error(t('{file}: no such folder', { file: folder })), 1);
   const root = decisionsRoot(folder);
   const ix = workspaceAt(root);
   const describe = describer(ix);
-  for (const p of ix.problems.filter((x) => ix.decisions.some((d) => d.file === x.file))) console.error(`${path.join(root, p.file)}${p.line ? `:${p.line}` : ''}  warning  ${p.message}`);
+  for (const p of ix.problems.filter((x) => ix.decisions.some((d) => d.file === x.file))) console.error(`${path.join(root, p.file)}${p.line ? `:${p.line}` : ''}  ${t('warning')}  ${p.message}`);
   const out = a.out;
   const ext = out && out !== '-' ? path.extname(out).slice(1).toLowerCase() : 'md';
   if (ext === 'md' || ext === '') {
@@ -171,7 +172,7 @@ export async function decisionsCommand(a: DecisionsArgs): Promise<number> {
     if (!out || out === '-') process.stdout.write(md);
     else {
       fs.writeFileSync(out, md);
-      console.error(`${path.join(root, ix.decisionsDir)} → ${out}  ${ix.decisions.length} decision${ix.decisions.length === 1 ? '' : 's'}`);
+      console.error(`${path.join(root, ix.decisionsDir)} → ${out}  ${t('{count} decision|{count} decisions', { count: ix.decisions.length })}`);
     }
     return 0;
   }

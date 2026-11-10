@@ -30,7 +30,7 @@ export interface HtmlExportInput {
   sidecarFor?: (path: string) => LayoutSidecar | undefined;
   assetsFor?: (path: string) => RenderOptions['assets'];
   /** What every render gets as well: a theme picked, icon packs, official icons. */
-  render?: Pick<RenderOptions, 'themeOverride' | 'packs' | 'pack' | 'iconsOverride' | 'icons' | 'iconPacks' | 'fontScale'>;
+  render?: Pick<RenderOptions, 'themeOverride' | 'packs' | 'pack' | 'iconsOverride' | 'icons' | 'iconPacks' | 'fontScale' | 'lang'>;
   /** Also steps nobody wrote (a dynamic view's numbered lines, a sequence's messages). */
   allSteps?: boolean;
 }

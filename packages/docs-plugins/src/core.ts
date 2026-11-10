@@ -42,6 +42,8 @@ export interface CartographyOptions {
   iconPack?: RenderOptions['pack'];
   /** official or lucide, over what the diagrams say. */
   icons?: RenderOptions['iconsOverride'];
+  /** The language of the drawing's own words for a diagram without lang: (en or nl). */
+  lang?: RenderOptions['lang'];
 }
 
 /** One diagram to draw. Plain data, so it can cross to a worker. */
@@ -158,6 +160,7 @@ export async function build(job: Job): Promise<Built> {
       fonts: toFile ? 'embed' : 'none',
       pack: o.iconPack,
       iconsOverride: o.icons,
+      lang: o.lang,
       interactive: !toFile,
       hints: false,
       idPrefix: `c${key}${suffix}`,

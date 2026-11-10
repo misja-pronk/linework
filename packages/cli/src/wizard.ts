@@ -2,14 +2,15 @@
 // the YAML to a file or standard output.
 import fs from 'node:fs';
 import readline from 'node:readline';
-import { asked, coerce, resolve, wizards, findWizard, type Answers, type Question, type Wizard } from '@cartography/wizards';
+import { asked, coerce, resolve, translateWizard, wizards, findWizard, type Answers, type Question, type Wizard } from '@cartography/wizards';
+import { cliLang, t } from './i18n.ts';
 
 const dim = (s: string) => (process.stderr.isTTY ? `\x1b[2m${s}\x1b[0m` : s);
 const bold = (s: string) => (process.stderr.isTTY ? `\x1b[1m${s}\x1b[0m` : s);
 
 export function listWizards(): string {
   const width = Math.max(...wizards.map((w) => w.id.length));
-  return `Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):\n${wizards.map((w) => `  ${w.id.padEnd(width)}  ${w.description}`).join('\n')}`;
+  return `${t('Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):')}\n${wizards.map((w) => `  ${w.id.padEnd(width)}  ${translateWizard(w, cliLang).description}`).join('\n')}`;
 }
 
 /** What to type, and what Enter takes. */
@@ -21,7 +22,7 @@ function prompt(q: Question): string {
       const on = q.kind === 'choice' ? o.value === q.default : q.default.includes(o.value);
       lines.push(`  ${i + 1}. ${o.label}${on ? ' *' : ''}${o.help ? dim(` · ${o.help}`) : ''}`);
     });
-  const def = q.kind === 'yesno' ? (q.default ? 'Y/n' : 'y/N') : q.kind === 'multi' ? `numbers, commas; Enter: ${q.default.length ? q.default.join(', ') : 'none'}` : q.kind === 'number' ? `${q.min}–${q.max}, Enter: ${q.default}` : q.kind === 'choice' ? 'number or name, Enter: *' : q.default ? `Enter: ${q.default}` : 'Enter: none';
+  const def = q.kind === 'yesno' ? (q.default ? t('Y/n') : t('y/N')) : q.kind === 'multi' ? t('numbers, commas; Enter: {value}', { value: q.default.length ? q.default.join(', ') : t('none') }) : q.kind === 'number' ? `${q.min}–${q.max}, ${t('Enter: {value}', { value: q.default })}` : q.kind === 'choice' ? t('number or name, Enter: *') : t('Enter: {value}', { value: q.default || t('none') });
   return `${lines.join('\n')}\n${dim(`(${def})`)} › `;
 }
 
@@ -39,7 +40,7 @@ async function ask(w: Wizard, given: Answers): Promise<Answers> {
   };
   const answers: Answers = { ...given };
   try {
-    process.stderr.write(`${bold(w.name)}\n${dim(w.description)}\n${dim(`After: ${w.source}`)}\n\n`);
+    process.stderr.write(`${bold(w.name)}\n${dim(w.description)}\n${dim(t('After: {source}', { source: w.source }))}\n\n`);
     for (;;) {
       // The questions asked depend on the answers so far: take the next one not yet answered.
       const q = asked(w, answers).find((x) => !(x.id in answers));
@@ -64,7 +65,7 @@ async function ask(w: Wizard, given: Answers): Promise<Answers> {
           answers[q.id] = q.default;
           break;
         }
-        process.stderr.write(dim('  Not one of the choices; try again.\n'));
+        process.stderr.write(dim(`  ${t('Not one of the choices; try again.')}\n`));
       }
       process.stderr.write('\n');
     }
@@ -75,13 +76,15 @@ async function ask(w: Wizard, given: Answers): Promise<Answers> {
 }
 
 export async function newFromWizard(name: string, target: string | undefined, opts: { answers?: string; yes?: boolean }): Promise<number> {
-  const w = findWizard(name);
-  if (!w) {
-    console.error(`${name === 'list' ? '' : `No wizard "${name}". `}${listWizards()}`);
+  const found = findWizard(name);
+  if (!found) {
+    console.error(`${name === 'list' ? '' : `${t('No wizard "{name}".', { name })} `}${listWizards()}`);
     return name === 'list' ? 0 : 1;
   }
+  // The questions in the CLI's language; the answers and the YAML are the same in any.
+  const w = translateWizard(found, cliLang);
   if (target && fs.existsSync(target)) {
-    console.error(`${target} already exists`);
+    console.error(t('{file} already exists', { file: target }));
     return 1;
   }
   let given: Answers = {};
@@ -93,13 +96,13 @@ export async function newFromWizard(name: string, target: string | undefined, op
       return 1;
     }
     const unknown = Object.keys(given).filter((k) => !w.questions.some((q) => q.id === k));
-    if (unknown.length) console.error(dim(`Not a question of ${w.id}, ignored: ${unknown.join(', ')}. Questions: ${w.questions.map((q) => q.id).join(', ')}`));
+    if (unknown.length) console.error(dim(t('Not a question of {wizard}, ignored: {ids}. Questions: {questions}', { wizard: w.id, ids: unknown.join(', '), questions: w.questions.map((q) => q.id).join(', ') })));
   }
   // An answers file or -y: no questions. Otherwise ask what the file does not answer.
   const answers = opts.answers || opts.yes ? given : await ask(w, given);
   const yaml = w.build(resolve(w, answers));
   if (!target) return (process.stdout.write(yaml), 0);
   fs.writeFileSync(target, yaml);
-  console.error(`Created ${target}`);
+  console.error(t('Created {file}', { file: target }));
   return 0;
 }
