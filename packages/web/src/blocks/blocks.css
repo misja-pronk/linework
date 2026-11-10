@@ -1,0 +1,267 @@
+/* Blocks: the section in the shapes panel, its dialogs, and the handles of what was just inserted. */
+
+.blocks-panel {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: none;
+}
+.blocks-panel.open {
+  max-height: 55%;
+}
+.blocks-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 4px 6px;
+}
+.blocks-panel > header kbd {
+  font-size: 11px;
+}
+.blocks-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.blocks-toggle:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+.blocks-toggle[aria-expanded='false'] .icon {
+  transform: rotate(-90deg);
+}
+.blocks-count {
+  font-weight: 400;
+  color: var(--text-faint);
+  letter-spacing: 0;
+}
+.blocks-search {
+  margin: 0 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 8px;
+}
+.blocks-search input {
+  height: 30px;
+  font-size: 13px;
+}
+.blocks-list {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 8px 10px;
+  display: grid;
+  gap: 8px;
+}
+.blocks-empty {
+  margin: 4px 4px 8px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.block-card {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  font: inherit;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: grab;
+}
+.block-card:hover,
+.block-card:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+.block-thumb {
+  display: block;
+  height: 84px;
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.block-thumb svg {
+  width: 100%;
+  height: 100%;
+}
+.block-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.block-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.block-source {
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.block-source.folder {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.block-problem {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--danger, #c0392b);
+}
+.blocks-outdated {
+  margin: 0 8px 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Dialogs. */
+.block-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.block-dialog.update {
+  width: min(820px, calc(100vw - 32px));
+}
+.block-dialog-thumb {
+  margin: 0 16px 8px;
+  height: 150px;
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.block-dialog-thumb svg {
+  width: 100%;
+  height: 100%;
+}
+.block-dialog-text {
+  margin: 0 16px 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.block-fields {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 12px;
+}
+.block-fields.two {
+  grid-template-columns: 1fr 1fr;
+}
+.block-fields .wide {
+  grid-column: 1 / -1;
+}
+.block-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-faint);
+  min-width: 0;
+}
+.block-fields code,
+.block-params code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.block-fields input {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  min-width: 0;
+  width: 100%;
+}
+.block-fields input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.block-fields input[aria-invalid='true'] {
+  border-color: var(--danger, #c0392b);
+}
+.block-params {
+  margin: 0 16px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.block-params legend {
+  font-size: 12px;
+  color: var(--text-faint);
+  padding: 0 4px;
+}
+.block-params .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.block-suggested {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--accent);
+}
+.block-where {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--text-faint);
+  align-self: center;
+}
+.block-instance h4 input {
+  margin: 0 4px 0 0;
+}
+
+/* The dots of what was just inserted: lines to the rest of the drawing are yours to draw. */
+.block-handle {
+  animation: block-handle 1.6s ease-in-out 3;
+}
+@keyframes block-handle {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 30%, transparent), var(--shadow);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .block-handle {
+    animation: none;
+  }
+}
+@media (max-width: 640px) {
+  .block-fields.two {
+    grid-template-columns: 1fr;
+  }
+}

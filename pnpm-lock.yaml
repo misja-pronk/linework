@@ -628,6 +628,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^1.6.0
         version: 1.6.0(zod@4.6.7)
+      '@cartography/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       '@cartography/core':
         specifier: workspace:*
         version: link:../core

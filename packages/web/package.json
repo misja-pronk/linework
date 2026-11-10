@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
+    "@cartography/blocks": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/diff": "workspace:*",
     "@cartography/wizards": "workspace:*",

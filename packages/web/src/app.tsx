@@ -50,6 +50,7 @@ import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { useTrace } from './trace/use-trace.tsx';
+import { useBlocks } from './blocks/use-blocks.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
@@ -1625,6 +1626,24 @@ export function App() {
     notify,
   });
 
+  // Reusable fragments (blocks/): the shapes panel's Blocks section, B and ⇧B, drops, updates.
+  const blocks = useBlocks({
+    ws,
+    refresh: (w) => setWs({ ...w }),
+    inFolder: !!(ws && doc.path),
+    type,
+    text: rendered?.text ?? text,
+    textNow,
+    drawn,
+    current,
+    selection,
+    pathOf: (s) => pathOf(s),
+    theme,
+    apply: (next, nodePins) => apply(next, nodePins ? withPins(nodePins) : undefined),
+    selectPaths: (paths) => setPendingPaths(paths.map((p) => JSON.stringify(p))),
+    notify,
+  });
+
   // ------------------------------------------------------------ commands
 
   // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
@@ -1656,6 +1675,7 @@ export function App() {
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
     ...trace.commands,
+    ...blocks.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
@@ -1776,7 +1796,7 @@ export function App() {
       }
       // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
-      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || trace.onKey(e, mod(e), !!typing))) return e.preventDefault();
+      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || trace.onKey(e, mod(e), !!typing) || blocks.onKey(e, !!typing))) return e.preventDefault();
       if (e.defaultPrevented) return;
       const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (modal && id !== 'palette') || presenting) return;
@@ -2056,6 +2076,7 @@ export function App() {
         {view === 'visual' && type && (
           <aside className="shapes" aria-label="Shapes">
             <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
+            {blocks.panel}
           </aside>
         )}
         {panes.editorMode === 'rail' && (
@@ -2146,6 +2167,7 @@ export function App() {
               add(item, group, at);
               if (refused) notify(`${item.label} cannot go in ${result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused}: placed outside it`);
             }}
+            onBlockDrop={blocks.onDrop}
             onKeyDown={onCanvasKey}
             locked={locked}
             bent={bent}
@@ -2156,7 +2178,12 @@ export function App() {
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
-            overlay={(scale) => <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />}
+            overlay={(scale) => (
+              <>
+                <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
+                {blocks.overlay(scale)}
+              </>
+            )}
             onContextMenu={(s, at, client) => {
               if (s) select(s, false);
               setNoteMenu({ x: client.x, y: client.y, s, at });
@@ -2535,6 +2562,7 @@ export function App() {
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {wsTools.dialogs}
       {trace.dialog}
+      {blocks.dialog}
       {noteMenu && (
         <div className="context-menu" style={{ left: noteMenu.x, top: noteMenu.y }}>
           <Menu onClose={() => setNoteMenu(undefined)}>
@@ -2550,6 +2578,7 @@ export function App() {
               <Icon name="message-square" /> Show the notes
             </button>
             {trace.menuItems(() => setNoteMenu(undefined))}
+            {blocks.menuItems(() => setNoteMenu(undefined))}
           </Menu>
         </div>
       )}

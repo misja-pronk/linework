@@ -109,6 +109,18 @@ describe('insert', () => {
   it('refuses a block of another type', () => expect(insertBlock(DIAGRAM, azure, starter('k8s-namespace'))).toEqual({ error: expect.stringContaining('kubernetes') }));
 });
 
+describe('instances', () => {
+  it('an entry of the diagram written just before a marked one is not part of it', () => {
+    const t = 'type: azure\nedges:\n  - a -> b: SQL\n  - x -> y: SQL # from block: s@0123abcd #1 name=x\n  - c -> d:\n      label: L\n  - p -> q # from block: s@0123abcd #1 name=x\n';
+    expect(findInstances(t).map((i) => i.members)).toEqual([
+      [
+        ['edges', 1],
+        ['edges', 3],
+      ],
+    ]);
+  });
+});
+
 describe('update instances', () => {
   const hub = starter('azure-hub');
   const newer = parseBlock(hub.text.replace('  ${name}-logs: { kind: log-analytics, label: "log-${name}", in: "${name}" }\n', '  ${name}-logs: { kind: log-analytics, label: "logs-${name}", in: "${name}" }\n  ${name}-dns: { kind: dns, label: private dns, in: "${name}" }\n').replace('  ${name}-vpn: { kind: vpn-gateway, label: "vgw-${name}", in: "${name}-gw-snet" }\n', '').replace('  - ${name}-vpn -> ${name}-fw: { style: private }\n', ''), 'azure-hub').block!;

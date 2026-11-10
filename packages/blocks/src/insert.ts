@@ -99,7 +99,8 @@ export function findInstances(text: string): Instance[] {
   };
   const found = new Map<string, Instance>();
   const see = (path: Path, from: number, to: number) => {
-    const m = MARK.exec(text.slice(from, lineEnd(to)));
+    // A block map's range takes its line break along: the next line is not its own.
+    const m = MARK.exec(text.slice(from, text[to - 1] === '\n' ? to - 1 : lineEnd(to)));
     if (!m) return;
     const key = `${m[1]}#${m[3]}`;
     let inst = found.get(key);

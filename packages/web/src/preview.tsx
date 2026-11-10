@@ -6,6 +6,7 @@ import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { PALETTE_MIME } from './add-menu.tsx';
+import { BLOCK_MIME } from './blocks/blocks-panel.tsx';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
 import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
 
@@ -55,6 +56,8 @@ interface Props {
    * free space: it stays there, pinned. Without a point the layout places it; `refused` is the group
    * it was dropped on that cannot take it. */
   onPaletteDrop(index: number, at: Point | undefined, group: string | null, refused?: string): void;
+  /** A block (blocks/) dropped at a point (its top-left, pin coordinates), into the group under it if any. */
+  onBlockDrop?(name: string, at: Point | undefined, group: string | null): void;
   onKeyDown(e: React.KeyboardEvent): void;
   /** Dragged from one element's handle onto another. */
   onConnect(from: string, to: string): void;
@@ -846,6 +849,12 @@ export function Preview(p: Props) {
     return { into, refused: g && !into ? g : undefined, card };
   };
   const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(BLOCK_MIME) && result?.placed && p.onBlockDrop) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDropTarget(groupAt(result.placed.groups, toLayout(e.clientX, e.clientY)) ?? undefined);
+      return;
+    }
     if (!e.dataTransfer.types.includes(PALETTE_MIME) || !result?.placed) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -854,6 +863,15 @@ export function Preview(p: Props) {
     setGhost({ card: d.card, refused: d.refused });
   };
   const onDrop = (e: React.DragEvent) => {
+    const block = e.dataTransfer.getData(BLOCK_MIME);
+    if (block && result?.placed && p.onBlockDrop) {
+      e.preventDefault();
+      setDropTarget(undefined);
+      const at = toLayout(e.clientX, e.clientY);
+      // On an empty drawing there is nothing to keep it in line with: the layout places it.
+      const empty = !result.placed.nodes.size && !result.placed.groups.size;
+      return p.onBlockDrop(block, empty ? undefined : toPin(at), groupAt(result.placed.groups, at));
+    }
     const raw = e.dataTransfer.getData(PALETTE_MIME);
     setDropTarget(undefined);
     setGhost(undefined);
