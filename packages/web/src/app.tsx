@@ -23,7 +23,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
-import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
+import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
@@ -80,8 +80,8 @@ function useDebounced<T>(value: T, ms: number, key: unknown): T {
 /** Behind the first start dialog: a small, friendly diagram, not the most complex example. */
 const firstStarter = starters.find((s) => s.id === 'template:systems') ?? starters[0]!;
 const count = (n: number, what: string) => `${n} ${what}${n === 1 ? '' : 's'}`;
-const label = (n: GraphNode) => (n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
-const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' ? n.shape.icon : 'table');
+const label = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'journey-part' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id);
+const iconOf = (n: GraphNode) => (n.shape.kind === 'card' || n.shape.kind === 'table' || n.shape.kind === 'journey-part' ? n.shape.icon : 'table');
 
 export function App() {
   const saved = useMemo(() => store.get<Saved>('doc'), []);
@@ -566,6 +566,12 @@ export function App() {
     notify(result?.graph ? 'One moment: the drawing is catching up with the text' : 'Fix the problems in the YAML first', { tone: 'error' });
     return false;
   };
+  /** Put the cursor in a field of the inspector once it shows this selection: on a busy machine that is more than one frame away. */
+  const toInspector = (sel: Selection, field: string, select = false, tries = 60) => {
+    const el = document.querySelector(`.inspector[data-selection="${CSS.escape(`${sel.kind}:${sel.id}`)}"] ${field}`) as HTMLInputElement | null;
+    if (el) return select ? el.select() : el.focus();
+    if (tries > 0) requestAnimationFrame(() => toInspector(sel, field, select, tries - 1));
+  };
   const [pendingEdge, setPendingEdge] = useState<{ from: string; to: string; count: number }>();
   useEffect(() => {
     if (!pendingEdge || !result?.graph || !current) return;
@@ -576,7 +582,7 @@ export function App() {
     if (!e) return;
     setSelected({ kind: 'edge', id: e.id });
     setInspector(true);
-    requestAnimationFrame(() => (document.querySelector('.inspector .field input:not([type="checkbox"])') as HTMLInputElement | null)?.focus());
+    toInspector({ kind: 'edge', id: e.id }, '.field input:not([type="checkbox"])');
   }, [pendingEdge, result, current]);
 
   /** After an add, select the new element once it is drawn (node or group, whatever its type makes it). */
@@ -588,7 +594,7 @@ export function App() {
     if (n || g) {
       setSelected(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id });
       setInspector(true);
-      requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select());
+      toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.field:nth-child(2) input', true);
     }
     setPendingPath(undefined);
   }, [pendingPath, result, current]);
@@ -1372,7 +1378,7 @@ export function App() {
             onDragCancel={() => setDraft(undefined)}
             canConnect={(id) => {
               const path = pathOf({ kind: 'node', id });
-              return !!type && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
+              return !!type && !type.unconnected && !!path && path.length === 2 && typeof path[1] === 'string' && (!!type.connect || !!(type.schema as { properties?: { edges?: unknown } }).properties?.edges);
             }}
             canDrop={(group, what) => {
               const g = result?.graph?.groups.find((x) => x.id === group);
@@ -1491,6 +1497,7 @@ export function App() {
             {selected && inspector && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
+            selection={`${selected.kind}:${selected.id}`}
             id={isEntry ? String(selectedPath![1]) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
@@ -1513,6 +1520,14 @@ export function App() {
               editor.current?.focus();
             }}
             onDuplicate={isEntry ? duplicate : undefined}
+            onMove={
+              isEntry && type?.ordered?.[String(selectedPath![0])]
+                ? {
+                    earlier: canMove(text, type, selectedPath!, -1) ? () => apply(moveEntry(textNow(), type, selectedPath!, -1)) : undefined,
+                    later: canMove(text, type, selectedPath!, 1) ? () => apply(moveEntry(textNow(), type, selectedPath!, 1)) : undefined,
+                  }
+                : undefined
+            }
             onDelete={() => remove()}
             connections={
               selNode

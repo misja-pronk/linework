@@ -3,7 +3,9 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { findType, types } from '@cartography/engine';
+import { findType, themes, types } from '@cartography/engine';
+
+const themeNames = Object.keys(themes) as [string, ...string[]];
 import { questionsFor } from '../../web/src/ai/questions.ts';
 import { getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
 
@@ -110,7 +112,7 @@ export function createServer(cwd = process.cwd()): McpServer {
       inputSchema: {
         ...source,
         format: z.enum(['svg', 'png']).optional().describe('Default: from the path extension, else svg'),
-        theme: z.enum(['light', 'dark']).optional().describe('Default light'),
+        theme: z.enum(themeNames).optional().describe('A built-in look. Default survey; also survey-dark, survey-cool, transit, drafting, classic and their dark versions'),
         path: z.string().optional().describe('Output file, e.g. docs/architecture.svg. The extension is added when missing.'),
         scale: z.number().min(0.5).max(4).optional().describe('PNG pixel density, default 2'),
       },
@@ -135,7 +137,7 @@ export function createServer(cwd = process.cwd()): McpServer {
     'import_mermaid',
     {
       title: 'Import Mermaid',
-      description: 'Converts a Mermaid diagram (flowchart/graph, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline) to Cartography YAML, with warnings for what could not be carried over. Validate the result before rendering.',
+      description: 'Converts a Mermaid diagram (flowchart/graph, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to Cartography YAML, with warnings for what could not be carried over. Validate the result before rendering.',
       inputSchema: { text: z.string().describe('The Mermaid source, without the ``` fence') },
       annotations: { readOnlyHint: true },
     },

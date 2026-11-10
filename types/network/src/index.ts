@@ -451,6 +451,7 @@ export const guidance = {
   ],
   notFor: [
     { text: 'Which Azure resources run where', use: 'azure' },
+    { text: 'VPCs, subnets and services in AWS or Google Cloud', use: 'cloud' },
     { text: 'Services and how they call each other', use: 'systems' },
     { text: 'Pods and services inside a cluster', use: 'kubernetes' },
   ],

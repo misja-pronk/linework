@@ -2,6 +2,7 @@ export * from './model.ts';
 export * from './sequence.ts';
 export * from './gitflow.ts';
 export * from './roadmap.ts';
+export * from './journey.ts';
 export * from './source.ts';
 export * from './edges.ts';
 export * from './diagram-type.ts';

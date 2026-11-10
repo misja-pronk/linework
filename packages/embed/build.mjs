@@ -1,5 +1,6 @@
 // Builds the embed into dist/: carto-diagram.js (the loader, a few kB), carto-engine.js (the engine
-// with Graphviz, fetched on demand and once per page) and carto-diagram.standalone.js (both in one).
+// with Graphviz, fetched on demand and once per page), carto-font-*.js (the faces of the looks that
+// are not the default, fetched when a diagram uses one) and carto-diagram.standalone.js (all in one).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -16,7 +17,20 @@ export async function buildEmbed() {
   // The loader imports the engine by its file name, so the two are exactly two requests.
   const engineApart = { name: 'engine-apart', setup: (b) => b.onResolve({ filter: /^\.\/engine\.ts$/ }, () => ({ path: './carto-engine.js', external: true })) };
   await build({ ...common, entryPoints: { 'carto-diagram': 'src/index.ts' }, plugins: [engineApart], outdir: dist });
-  await build({ ...common, entryPoints: { 'carto-engine': 'src/engine.ts' }, outdir: dist });
+  // The theme package loads the faces of its optional looks on first use; here each is a file next to the engine.
+  const faces = new Map();
+  const fontsApart = {
+    name: 'fonts-apart',
+    setup: (b) =>
+      b.onResolve({ filter: /^\.\/generated\/font-[a-z-]+\.ts$/ }, (a) => {
+        if (a.kind !== 'dynamic-import') return undefined;
+        const name = `carto-${path.basename(a.path, '.ts')}`;
+        faces.set(name, path.join(a.resolveDir, a.path));
+        return { path: `./${name}.js`, external: true };
+      }),
+  };
+  await build({ ...common, entryPoints: { 'carto-engine': 'src/engine.ts' }, plugins: [fontsApart], outdir: dist });
+  if (faces.size) await build({ ...common, entryPoints: Object.fromEntries(faces), outdir: dist });
   await build({ ...common, entryPoints: { 'carto-diagram.standalone': 'src/standalone.ts' }, outdir: dist });
   return fs
     .readdirSync(dist)

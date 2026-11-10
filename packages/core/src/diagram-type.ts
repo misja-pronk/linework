@@ -31,12 +31,28 @@ export interface DiagramType<Source = any> {
    * saying why these two cannot be connected. Without it, connections go to `edges` as "a -> b".
    */
   connect?(source: Source, from: string, to: string): Connection | string;
+  /** No lines between entries at all (a journey): the builder offers no connect handle. */
+  unconnected?: true;
   /** Every place the YAML names another entry, so renames and deletes follow references and nothing else. */
   references?(source: Source): Reference[];
   /** Layout hints for the shared graph layout, e.g. room for long labels. */
   tuning?: { labelRoom?: 'fit' };
   /** Own layout for types that are not node-and-edge graphs (git flow, journeys). Defaults to dot placement plus the router. */
   layout?(sized: Sized, sidecar?: LayoutSidecar): Promise<Placed>;
+  /**
+   * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
+   * and the editor's view picker choose one; build gets it as the source's `view`.
+   */
+  views?(source: Source): { name: string; title?: string }[];
+  /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
+  shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
+  /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */
+  refKeys?: Record<string, string[]>;
+  /**
+   * Collections drawn in the order written (journey steps), so the builder offers to move an entry
+   * earlier or later. A string names the field an entry without it takes from the entry above ("in").
+   */
+  ordered?: Record<string, true | string>;
 }
 
 export interface Connection {
@@ -88,6 +104,10 @@ export interface PaletteItem {
   tone: Tone;
   /** Short words for palette search. */
   keywords?: string[];
+  /** The vendor a kind belongs to (aws, gcp, azure): which icon pack draws it. */
+  provider?: string;
+  /** What the vendor's own icon files call it, e.g. "simple storage service" for s3: matched when icons are imported. */
+  names?: string[];
 }
 
 export const idPattern = '^[A-Za-z0-9_-]+$';

@@ -195,6 +195,7 @@ export const c4: DiagramType<GraphSource> = {
   notFor: [
     { text: 'A quick boxes-and-arrows sketch', use: 'systems' },
     { text: 'Azure resources and networks', use: 'azure' },
+    { text: 'AWS or Google Cloud accounts, VPCs and services', use: 'cloud' },
   ],
   keywords: [
     'c4',

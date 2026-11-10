@@ -3,6 +3,7 @@
 import type { SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
+import type { JourneyPartShape, JourneyShape } from './journey.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -47,6 +48,8 @@ export interface GraphGroup {
   /** Where it points to: a URL, another diagram, a view. Drawn as a link icon; real links in exports. */
   links?: Link[];
   description?: string;
+  /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
+  pack?: string;
   /** Kind and tags as written, for rules like "kind:database" and "tag:external" in steps. */
   kind?: string;
   tags?: string[];
@@ -58,7 +61,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
@@ -72,6 +75,8 @@ export interface GraphNode {
   rank?: number;
   /** What a focus view is about (see focus.ts): drawn with a ring. */
   focused?: boolean;
+  /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
+  pack?: string;
 }
 
 /** A link on an element: a URL, a diagram file (relative to this one), or a view of one ("containers.yaml#containers", "#context"). */
@@ -255,6 +260,8 @@ export interface NodeSize {
   height: number;
   /** Vertical centre of each table row, relative to the node's top. */
   rowY?: Record<string, number>;
+  /** Boxes of the parts a shape draws itself and that are nodes of their own (a journey's steps), relative to its top-left. */
+  parts?: Record<string, Box>;
 }
 
 /** A line drawn by hand: the router runs it through these bend points (pin space), kept orthogonal. */

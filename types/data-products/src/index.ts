@@ -380,7 +380,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   const legend: LegendItem[] = [
     ...Object.keys(classes)
       .filter((c) => usedClasses.has(c))
-      .map((c): LegendItem => ({ label: classes[c]!.label, swatch: 'fill', tone: classes[c]!.tone })),
+      .map((c): LegendItem => ({ label: classes[c]!.label, swatch: 'fill', icon: classes[c]!.icon, tone: classes[c]!.tone })),
     ...(Object.keys(styles) as (keyof typeof styles)[])
       .filter((k) => used.has(k))
       .map((k): LegendItem => {

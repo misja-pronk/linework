@@ -1,0 +1,39 @@
+# The web shop of model.yaml on Azure. `of:` says which container a resource runs: it takes the
+# container's name and technology, links back to the model, and the model's relations are drawn
+# between what runs them. `env:` marks what only some environments have; each view draws one.
+#   carto render examples/deployment/azure.yaml --view prod
+type: azure
+title: Web shop on Azure
+subtitle: Every environment at once
+include: [model.yaml]
+
+groups:
+  sub: { kind: subscription, label: Shop }
+  rg: { kind: resource-group, label: rg-shop, in: sub }
+  vnet: { kind: vnet, label: vnet-shop, in: rg }
+  apps: { kind: subnet, label: snet-apps, in: vnet }
+  data: { kind: subnet, label: snet-data, in: vnet }
+
+nodes:
+  users: users
+  door: { kind: front-door, label: Front Door and WAF, env: prod }
+  web: { of: shop.web, kind: static-web-app, in: rg }
+  api: { of: shop.api, kind: container-app, in: apps }
+  worker: { of: shop.worker, kind: function-app, in: rg }
+  db: { of: shop.db, kind: postgres, in: data }
+  replica: { kind: postgres, label: Read replica, in: data, env: prod }
+  bus: { of: shop.bus, kind: service-bus, in: rg }
+  vault: { kind: key-vault, label: kv-shop, in: rg, env: [test, prod] }
+
+edges:
+  - users -> door: { label: HTTPS, style: public }
+  - door -> web: { style: public }
+  - users -> web: { label: HTTPS, style: public, env: [dev, test] }
+  - api -> db: { label: SQL, style: private }
+  - db -> replica: { label: replication, style: data }
+  - api -> vault: { style: identity }
+
+views:
+  prod: { environment: prod, complete: true, subtitle: Production }
+  test: { environment: test, complete: true, subtitle: Test }
+  dev: { environment: dev, complete: true, subtitle: Development }

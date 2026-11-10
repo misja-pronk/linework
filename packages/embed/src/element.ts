@@ -79,7 +79,7 @@ export function pageScheme(el: Element): 'light' | 'dark' {
 }
 
 const fontsAdded = new Set<string>();
-/** Fonts in a shadow tree have to be registered on the document. Inter goes in under a private name, so it never changes the page's own text. */
+/** Fonts in a shadow tree have to be registered on the document. The bundled faces go in under a private name ('Carto Instrument Sans'), so they never change the page's own text. */
 function addFont(family: string, weight: number | string, style: string, base64: string) {
   const key = `${family}/${weight}/${style}`;
   if (fontsAdded.has(key) || typeof FontFace === 'undefined') return;
@@ -93,6 +93,10 @@ function addFont(family: string, weight: number | string, style: string, base64:
     // Text falls back to the fonts of the page.
   }
 }
+
+/** Names the private copy of each bundled face first in a font stack, so the drawing is set in the faces it was measured in. */
+const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono)'?\s*(?=,|$)/g;
+const ownFaces = (stack: string) => stack.replace(BUNDLED, "$1'Carto $2','$2'");
 
 /** A link written as an href (a sequence diagram's ref): the same three kinds as `links:`. */
 function linkFromHref(href: string): Link {
@@ -362,7 +366,7 @@ export class CartoDiagram extends HTMLElement {
       });
       result.diagnostics.push(...unknown);
       if (this.getAttribute('fonts') !== 'page') {
-        for (const [weight, data] of Object.entries(engine.embeddedFonts)) addFont('Carto Inter', weight, 'normal', data);
+        for (const f of engine.themeFonts(result.theme)) for (const [weight, data] of Object.entries(f.woff2)) addFont(`Carto ${f.family}`, weight, 'normal', data);
         for (const f of result.theme?.font.faces ?? []) addFont(f.family, f.weight, f.style, f.data);
       }
     } catch (e) {
@@ -396,7 +400,11 @@ export class CartoDiagram extends HTMLElement {
       if (svg) {
         this.#w = result.width ?? 0;
         this.#h = result.height ?? 0;
-        if (this.getAttribute('fonts') !== 'page') svg.style.fontFamily = `'Carto Inter', ${svg.getAttribute('font-family') ?? 'sans-serif'}`;
+        if (this.getAttribute('fonts') !== 'page') {
+          svg.style.fontFamily = ownFaces(svg.getAttribute('font-family') ?? 'sans-serif');
+          // Text in the monospace face names its own family.
+          for (const t of svg.querySelectorAll('[font-family]')) t.setAttribute('font-family', ownFaces(t.getAttribute('font-family')!));
+        }
         this.#links(svg);
         this.#canvas.replaceChildren(svg);
         this.#frame.removeAttribute('data-fallback');

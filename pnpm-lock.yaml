@@ -17,6 +17,9 @@ importers:
       inter-ui:
         specifier: 4.1.1
         version: 4.1.1
+      subset-font:
+        specifier: ^2.9.0
+        version: 2.9.0
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
@@ -114,6 +117,9 @@ importers:
       '@cartography/engine':
         specifier: workspace:*
         version: link:../engine
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../render
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
@@ -191,6 +197,9 @@ importers:
       '@cartography/azure':
         specifier: workspace:*
         version: link:../../types/azure
+      '@cartography/cloud':
+        specifier: workspace:*
+        version: link:../../types/cloud
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
@@ -209,6 +218,9 @@ importers:
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons
+      '@cartography/journey':
+        specifier: workspace:*
+        version: link:../../types/journey
       '@cartography/kubernetes':
         specifier: workspace:*
         version: link:../../types/kubernetes
@@ -453,6 +465,22 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
 
+  types/cloud:
+    dependencies:
+      '@cartography/azure':
+        specifier: workspace:*
+        version: link:../azure
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+
   types/data-products:
     dependencies:
       '@cartography/core':
@@ -492,6 +520,28 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../../packages/core
+
+  types/journey:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   types/kubernetes:
     dependencies:
@@ -1726,6 +1776,9 @@ packages:
   fontkit@2.0.4:
     resolution: {integrity: sha512-syetQadaUEDNdxdugga9CpEYVaQIxOwk7GlwZWWZ19//qW4zE5bknOKeMBDYAASwnpaSHKJITRLMF9m1fp3s6g==}
 
+  fontverter@2.0.0:
+    resolution: {integrity: sha512-DFVX5hvXuhi1Jven1tbpebYTCT9XYnvx6/Z+HFUPb7ZRMCW+pj2clU9VMhoTPgWKPhAs7JJDSk3CW1jNUvKCZQ==}
+
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
@@ -1756,6 +1809,9 @@ packages:
 
   hachure-fill@0.5.2:
     resolution: {integrity: sha512-3GKBOn+m2LX9iq+JC1064cSFprJY4jL1jCXTcpnfER5HYE2l/4EfWSGzkPa/ZDBmYI0ZOEj5VHV/eKnPGkHuOg==}
+
+  harfbuzzjs@1.6.4:
+    resolution: {integrity: sha512-T/PyfhVt1gGR2Tkf5KJUj1DQFkVBXHw552lS1iLEEDhV1Lukb3eq1pk2ov85kgbT2YUiZtJBTak9w+M7YgzUEQ==}
 
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
@@ -2152,11 +2208,18 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
+  p-limit@3.1.0:
+    resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
+    engines: {node: '>=10'}
+
   package-manager-detector@1.9.0:
     resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
 
   pako@0.2.9:
     resolution: {integrity: sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==}
+
+  pako@1.0.11:
+    resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
 
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
@@ -2378,6 +2441,9 @@ packages:
   stylis@4.4.0:
     resolution: {integrity: sha512-5Z9ZpRzfuH6l/UAvCPAPUo3665Nk2wLaZU3x+TLHKVzIz33+sbJqbtrYoC3KD4/uVOr2Zp+L0LySezP9OHV9yA==}
 
+  subset-font@2.9.0:
+    resolution: {integrity: sha512-WJulQeFwbewrXIGcLJbSZFWI44fHW8gNRuPzLywfDL8w38IPRbN1JFxwG76aoohw9kcFdvjVIn2QmID1iy119A==}
+
   svg-to-pdfkit@0.1.8:
     resolution: {integrity: sha512-QItiGZBy5TstGy+q8mjQTMGRlDDOARXLxH+sgVm1n/LYeo0zFcQlcCh8m4zi8QxctrxB9Kue/lStc/RD5iLadQ==}
 
@@ -2575,6 +2641,9 @@ packages:
     engines: {node: '>=20.11'}
     hasBin: true
 
+  woff2sfnt-sfnt2woff@1.0.0:
+    resolution: {integrity: sha512-edK4COc1c1EpRfMqCZO1xJOvdUtM5dbVb9iz97rScvnTevqEB3GllnLWCmMVp1MfQBdF1DFg/11I0rSyAdS4qQ==}
+
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
@@ -2582,6 +2651,10 @@ packages:
     resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
     engines: {node: '>= 14.6'}
     hasBin: true
+
+  yocto-queue@0.1.0:
+    resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
+    engines: {node: '>=10'}
 
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
@@ -3715,6 +3788,11 @@ snapshots:
       unicode-properties: 1.4.1
       unicode-trie: 2.0.0
 
+  fontverter@2.0.0:
+    dependencies:
+      wawoff2: 2.0.1
+      woff2sfnt-sfnt2woff: 1.0.0
+
   forwarded@0.2.0: {}
 
   fresh@2.0.0: {}
@@ -3745,6 +3823,8 @@ snapshots:
   gopd@1.2.0: {}
 
   hachure-fill@0.5.2: {}
+
+  harfbuzzjs@1.6.4: {}
 
   has-symbols@1.1.0: {}
 
@@ -4342,9 +4422,15 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
+  p-limit@3.1.0:
+    dependencies:
+      yocto-queue: 0.1.0
+
   package-manager-detector@1.9.0: {}
 
   pako@0.2.9: {}
+
+  pako@1.0.11: {}
 
   parse-entities@4.0.2:
     dependencies:
@@ -4646,6 +4732,12 @@ snapshots:
 
   stylis@4.4.0: {}
 
+  subset-font@2.9.0:
+    dependencies:
+      fontverter: 2.0.0
+      harfbuzzjs: 1.6.4
+      p-limit: 3.1.0
+
   svg-to-pdfkit@0.1.8:
     dependencies:
       pdfkit: 0.20.2
@@ -4798,9 +4890,15 @@ snapshots:
 
   why-is-node-running@3.2.1: {}
 
+  woff2sfnt-sfnt2woff@1.0.0:
+    dependencies:
+      pako: 1.0.11
+
   wrappy@1.0.2: {}
 
   yaml@2.9.1: {}
+
+  yocto-queue@0.1.0: {}
 
   zod-to-json-schema@3.25.2(zod@4.6.7):
     dependencies:

@@ -4,8 +4,9 @@
 // the lanes. Phases are bands behind everything, the today line runs over everything.
 import type { Box, RoadmapItem, RoadmapShape, RoadmapStatus, Tone } from '@cartography/core';
 import { stack, tracks, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, fitText, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
+import { arrowHead, tagRadius } from './paint.ts';
 
 const K = {
   gutter: { padX: 14, min: 120, max: 220, gap: 16 },
@@ -272,10 +273,11 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
   const lanesTop = g.lanes[0]?.top ?? g.axis.bottom;
 
   // Lane stripes: every other lane barely tinted, so a long row is easy to follow.
-  for (const [i, l] of g.lanes.entries()) if (i % 2) out.push(rect({ x: 0, y: l.top, width: right, height: l.bottom - l.top }, 0, `fill="${theme.tones.slate.wash}"`));
+  for (const [i, l] of g.lanes.entries()) if (i % 2) out.push(rect({ x: 0, y: l.top, width: right, height: l.bottom - l.top }, 0, `fill="${paperTint(theme, 0) ?? theme.tones.slate.wash}"`));
   for (const p of g.phases) {
     const t = tone(p.tone);
-    out.push(rect(p.box, 10, `fill="${t.wash}" fill-opacity="0.9" stroke="${t.line}" stroke-width="1"`));
+    // A phase is a band of its own tone on every look: the tone is what tells the phases apart.
+    out.push(rect(p.box, Math.min(10, theme.radius.group), `fill="${t.wash}" fill-opacity="0.9" stroke="${t.line}" stroke-width="1"`));
   }
   for (const gl of g.grid) out.push(`<path d="M${r1(gl.x)} ${r1(gl.strong ? 0 : g.axis.tiers.at(-1)!.y)}V${r1(g.bottom)}" stroke="${theme.border}" stroke-width="1"${gl.strong ? '' : ' stroke-dasharray="2 4"'}/>`);
   for (const l of g.lanes) out.push(`<path d="M0 ${r1(l.bottom)}H${r1(right)}" stroke="${theme.border}" stroke-width="1"/>`);
@@ -301,7 +303,7 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
     const label = fitText(p.label, theme.size.caption, 600, p.box.width - 20);
     if (!label) continue;
     const w = measureText(label, theme.size.caption, 600) + 20;
-    out.push(rect({ x: p.box.x + 8, y: p.labelY - 10, width: w, height: 20 }, 10, `fill="${t.bg}"`));
+    out.push(rect({ x: p.box.x + 8, y: p.labelY - 10, width: w, height: 20 }, tagRadius(theme, 20), `fill="${t.bg}"`));
     out.push(text(p.box.x + 18, p.labelY, label, theme.size.caption, 600, t.fg));
   }
 
@@ -329,8 +331,9 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
 
   for (const a of g.arrows) {
     const { x, y, dx, dy } = a.tip;
-    out.push(`<path d="${a.d}" fill="none" stroke="${theme.edge}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`);
-    out.push(`<path d="M${r1(x - dx * 7 - dy * 4)} ${r1(y - dy * 7 + dx * 4)}L${r1(x)} ${r1(y)}L${r1(x - dx * 7 + dy * 4)} ${r1(y - dy * 7 - dx * 4)}Z" fill="${theme.edge}" stroke="${theme.edge}" stroke-width="1" stroke-linejoin="round"/>`);
+    out.push(`<path d="${a.d}" fill="none" stroke="${theme.edge}" stroke-width="${theme.stroke.edge}" stroke-linecap="round" stroke-linejoin="round"/>`);
+    if (look(theme).line.arrow !== 'filled') out.push(arrowHead({ x, y }, { x: x - dx, y: y - dy }, theme.edge, theme));
+    else out.push(`<path d="M${r1(x - dx * 7 - dy * 4)} ${r1(y - dy * 7 + dx * 4)}L${r1(x)} ${r1(y)}L${r1(x - dx * 7 + dy * 4)} ${r1(y - dy * 7 - dx * 4)}Z" fill="${theme.edge}" stroke="${theme.edge}" stroke-width="1" stroke-linejoin="round"/>`);
   }
 
   for (const b of g.bars) out.push(drawBar(b, theme));
@@ -346,12 +349,13 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
     const t = theme.tones.rose;
     const w = measureText(g.today.label, 10.5, 600) + 14;
     const y = g.bottom + 6;
-    out.push(rect({ x: g.today.x - w / 2, y, width: w, height: 18 }, 9, `fill="${t.fg}"`));
+    out.push(rect({ x: g.today.x - w / 2, y, width: w, height: 18 }, tagRadius(theme, 18), `fill="${t.fg}"`));
     out.push(text(g.today.x, y + 9, g.today.label, 10.5, 600, theme.canvas, 'middle'));
   }
 
   // Legend of the statuses in use, in the bars' own style.
   let lx = g.gutter;
+  if (g.legend.items.length && g.gutter >= 60 && look(theme).legend === 'key') out.push(text(0, g.legend.y, 'KEY', 9.5, 600, theme.textFaint, undefined, ' letter-spacing="1.2"'));
   for (const s of g.legend.items) {
     const st = STATUS[s];
     out.push(drawBar({ it: { id: '', label: '', start: 0, end: 0, milestone: false, status: s, after: [], path: [] }, box: { x: lx, y: g.legend.y - 8, width: 26, height: 16 }, tone: st.tone, inside: true, label: '', labelX: 0 }, theme, true));
@@ -373,7 +377,7 @@ function drawBar(b: RoadmapBar, theme: Theme, sample = false): string {
     s += diamond(box.x + K.diamond, cy, K.diamond, `fill="${t.fg}" stroke="${theme.canvas}" stroke-width="2"`);
     return s + text(b.labelX, cy, b.label, K.label.size, 600, theme.text);
   }
-  const rx = Math.min(8, box.height / 2);
+  const rx = Math.min(8, box.height / 2, theme.radius.card);
   const active = it.status === 'active';
   const planned = it.status === 'planned';
   // Planned: an outline of what is to come; active: solid; the rest soft in their tone.

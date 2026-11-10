@@ -76,11 +76,27 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'milestones', label: 'Milestones and deadlines', kind: 'text', placeholder: 'Go-live 1 June, audit in September, old contract ends 31 December' },
     { id: 'show', label: 'Include', kind: 'chips', options: ['Dependencies', 'Progress and status', 'Phases', 'Today line'], initial: ['Dependencies', 'Phases'] },
   ],
+  journey: () => [
+    { ...about, label: 'Whose journey, and towards what?', placeholder: 'E.g. a new developer, from the first day to the first deploy in production on our platform.' },
+    { id: 'persona', label: 'Who is it about?', kind: 'text', placeholder: 'Dana, new backend developer; wants to ship a first change this week' },
+    { id: 'phases', label: 'Phases, in order', kind: 'text', placeholder: 'First day, first commit, first deploy, first incident' },
+    { id: 'steps', label: 'What happens, roughly', kind: 'long', placeholder: 'One step per line is enough; add what goes badly or well: finds the repository (lost, 40 repos), first review (quick)…' },
+    { id: 'view', label: 'Show it as', kind: 'choice', options: ['Journey map (rows under the steps)', 'Storyboard (a card per step)', 'Service blueprint (frontstage, backstage)', 'Today next to future'], initial: 'Journey map (rows under the steps)' },
+    { id: 'rows', label: 'Include', kind: 'chips', options: ['Touchpoints', 'Feeling curve', 'Thoughts', 'Pains', 'Gains', 'Opportunities', 'Metrics'], initial: ['Touchpoints', 'Feeling curve', 'Thoughts', 'Pains', 'Opportunities'] },
+  ],
   azure: (t) => [
     { ...about, placeholder: 'E.g. an order platform on Container Apps with a public API, events on Service Bus and SQL.' },
     parts(t, 'Which Azure services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),
     { id: 'layout', label: 'How is it organised?', kind: 'choice', options: ['One subscription', 'Hub and spoke', 'Per environment (dev / test / prod)', 'Not sure'], initial: 'One subscription' },
     { id: 'network', label: 'Networking', kind: 'choice', options: ['Public endpoints', 'Private endpoints in a VNet', 'Mixed'], initial: 'Mixed' },
+    { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
+  ],
+  cloud: (t) => [
+    { ...about, placeholder: 'E.g. a web shop on AWS: a load balancer, containers on ECS and Aurora, across three availability zones.' },
+    { id: 'provider', label: 'Which cloud?', kind: 'choice', options: ['AWS', 'Google Cloud', 'Several clouds or hybrid'], initial: 'AWS' },
+    parts(t, 'Which services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),
+    { id: 'layout', label: 'How is it organised?', kind: 'choice', options: ['One account or project', 'Landing zone (organization, several accounts or projects)', 'Per environment (dev / test / prod)', 'Not sure'], initial: 'One account or project' },
+    { id: 'network', label: 'Networking', kind: 'choice', options: ['Leave the network out', 'One VPC with public and private subnets', 'Subnet tiers across availability zones', 'Hub network with VPN or interconnect'], initial: 'One VPC with public and private subnets' },
     { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
   ],
   network: (t) => [

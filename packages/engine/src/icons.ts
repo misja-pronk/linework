@@ -29,16 +29,26 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
   const load = opts.load;
   // kind → how to get its SVG markup
   const files = new Map<string, () => string>();
-  const fromPack = (p: IconPackFile, base: string) => {
+  // The same per pack, for diagrams that say whose icon a shape wants (a cloud diagram mixing vendors).
+  const packs = new Map<string, Map<string, () => string>>();
+  // Kinds mapped by hand, in the diagram or by the caller: these win over any pack.
+  const byHand = new Set<string>();
+  const fromPack = (p: IconPackFile, base: string, name: string) => {
     const root = joinPath(base, p.root || '.');
-    for (const [kind, rel] of Object.entries(p.icons ?? {})) files.set(kind, () => load!(joinPath(root + '/', rel)));
+    const own = packs.get(name) ?? new Map<string, () => string>();
+    packs.set(name, own);
+    for (const [kind, rel] of Object.entries(p.icons ?? {})) {
+      const get = () => load!(joinPath(root + '/', rel));
+      files.set(kind, get);
+      own.set(kind, get);
+    }
   };
   const usePack = (name: string, path: Path) => {
     if (isPath(name)) {
       try {
         const p = parse(load!(name)) as IconPackFile;
         if (!p || typeof p !== 'object' || typeof p.icons !== 'object') throw new Error('no icons: map');
-        fromPack(p, name);
+        fromPack(p, name, typeof p.name === 'string' ? p.name : name);
       } catch (e) {
         warn(path, `Cannot read icon pack ${name}: ${(e as Error).message.split('\n')[0]}`);
       }
@@ -46,33 +56,52 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
     }
     const p = opts.pack?.(name);
     if (!p) return warn(path, opts.pack ? `No icon pack "${name}": import one with carto icons import <folder|zip> --pack ${name}` : `Icon pack "${name}" is only available in the CLI; use a pack file or the editor's icon folder`);
-    fromPack(p, '');
+    fromPack(p, '', name);
   };
 
   for (const name of opts.packs ?? []) usePack(name, ['icons']);
-  for (const [kind, svg] of Object.entries(opts.icons ?? {})) files.set(kind, () => svg);
+  for (const [kind, svg] of Object.entries(opts.icons ?? {})) {
+    files.set(kind, () => svg);
+    byHand.add(kind);
+  }
   if (typeof ref === 'string') usePack(ref, ['icons']);
   else if (Array.isArray(ref)) ref.forEach((r, i) => typeof r === 'string' && usePack(r, ['icons', i]));
   else if (ref && typeof ref === 'object')
     for (const [kind, v] of Object.entries(ref as Record<string, unknown>)) {
       if (kind === 'pack') [v].flat().forEach((r) => typeof r === 'string' && usePack(r, ['icons', 'pack']));
-      else if (typeof v === 'string') files.set(kind, () => load!(v));
+      else if (typeof v === 'string') {
+        files.set(kind, () => load!(v));
+        byHand.add(kind);
+      }
       else warn(['icons', kind], 'An icon is the path of an SVG file, e.g. key-vault: ./icons/key-vault.svg');
     }
   else if (ref != null) warn(['icons'], 'icons is a pack name, a pack file, or a map of kind: file.svg');
   if (!files.size) return undefined;
 
   const cache = new Map<string, string | undefined>();
-  const href = (kind: string | undefined, path: Path) => {
-    if (!kind || !files.has(kind)) return undefined;
+  /**
+   * Where a kind's icon comes from. A shape that names its vendor looks only in that vendor's pack
+   * when it is loaded (an AWS VPC icon on a Google network would be wrong), also under the kind's
+   * name without the vendor ("azure-storage" is "storage" in the azure pack).
+   */
+  const source = (kind: string, pack: string | undefined): { key: string; get: () => string } | undefined => {
+    const own = pack ? packs.get(pack) : undefined;
+    if (!own || byHand.has(kind)) return files.has(kind) ? { key: kind, get: files.get(kind)! } : undefined;
+    const k = own.has(kind) ? kind : kind.startsWith(`${pack}-`) ? kind.slice(pack!.length + 1) : kind;
+    return own.has(k) ? { key: `${pack}/${k}`, get: own.get(k)! } : undefined;
+  };
+  const href = (written: string | undefined, path: Path, pack?: string) => {
+    const from = written ? source(written, pack) : undefined;
+    if (!from) return undefined;
+    const kind = from.key;
     if (!cache.has(kind)) {
       let svg: string | undefined;
       try {
-        if (!load && !opts.icons?.[kind]) throw new Error('no files here');
-        svg = files.get(kind)!();
+        if (!load && !opts.icons?.[written!]) throw new Error('no files here');
+        svg = from.get();
         if (!/<svg[\s>]/.test(svg)) throw new Error('not an SVG');
       } catch (e) {
-        warn(path, `Icon for ${kind}: ${(e as Error).message.split('\n')[0]}`);
+        warn(path, `Icon for ${written}: ${(e as Error).message.split('\n')[0]}`);
         svg = undefined;
       }
       // As-is: the vendor's file, base64 so nothing in it can clash with the drawing's ids or styles.
@@ -83,11 +112,11 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
   const nodes = new Map<string, string>();
   const groups = new Map<string, string>();
   for (const n of graph.nodes) {
-    const h = n.shape.kind !== 'matrix' ? href(kindAt(data, n.path), n.path) : undefined;
+    const h = n.shape.kind !== 'matrix' ? href(kindAt(data, n.path), n.path, n.pack) : undefined;
     if (h) nodes.set(n.id, h);
   }
   for (const g of graph.groups) {
-    const h = href(kindAt(data, g.path), g.path);
+    const h = href(kindAt(data, g.path), g.path, g.pack);
     if (h) groups.set(g.id, h);
   }
   return { nodes, groups };

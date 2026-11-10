@@ -353,7 +353,9 @@ export function Preview(p: Props) {
     const hit = e.button === 0 ? ((e.target as Element).closest('[data-node]') as HTMLElement | null) : null;
     // A locked element is picked like the background: it can be selected, not moved.
     const id = hit?.dataset.node;
-    const box = id && !p.locked?.has(id) ? result?.placed?.nodes.get(id) : undefined;
+    // So is a part of a journey: steps stand in the order written, there is nowhere to drag them to.
+    const fixed = !!id && !!result?.graph?.nodes.find((n) => n.id === id)?.shape.kind.startsWith('journey');
+    const box = id && !p.locked?.has(id) && !fixed ? result?.placed?.nodes.get(id) : undefined;
     // A group's header (its label strip) moves the whole group; the rest of it pans the canvas.
     const headerHit = !id && e.button === 0 && !stale ? headerAt(toLayout(e.clientX, e.clientY)) : undefined;
     const header = headerHit && !p.locked?.has(headerHit) ? headerHit : undefined;
@@ -713,7 +715,7 @@ export function Preview(p: Props) {
         if (t.closest('.label-editor')) return;
         const svg = t.closest('svg');
         if (svg && t.tagName === 'text' && t.parentNode === svg) {
-          const firstG = [...svg.children].findIndex((c) => c.tagName === 'g');
+          const firstG = [...svg.children].findIndex((c) => c.tagName === 'g' && !c.hasAttribute('data-sheet'));
           const heads = [...svg.children].filter((c, i) => c.tagName === 'text' && (firstG < 0 || i < firstG));
           const i = heads.indexOf(t);
           if (i >= 0 && editLabel({ kind: i === 0 ? 'title' : 'subtitle', id: '' }, t)) return;

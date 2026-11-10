@@ -15,13 +15,19 @@ export interface Line extends Fill {
   tail?: End;
 }
 
-export type End = 'none' | 'triangle';
+/** Line ends: a filled triangle, two open strokes, or a long slim triangle. */
+export type End = 'none' | 'triangle' | 'open' | 'slim';
 
 export interface Run {
   text: string;
   size: number;
   bold?: boolean;
   color: string;
+  /** Typeface of this run, when it is not the deck's (the theme's monospace face). */
+  font?: string;
+  mono?: boolean;
+  /** Letter-spacing in points. */
+  spacing?: number;
 }
 
 export interface Para {
@@ -52,7 +58,7 @@ export type Geometry =
   /** A custom path in the frame's own EMU space. */
   | { path: PathCmd[]; closed?: boolean; sites?: boolean };
 
-export type PathCmd = { m: [number, number] } | { l: [number, number] } | { q: [number, number, number, number] };
+export type PathCmd = { m: [number, number] } | { l: [number, number] } | { q: [number, number, number, number] } | { c: [number, number, number, number, number, number] };
 
 const hex = (c: string) => c.replace('#', '').toUpperCase().slice(0, 6);
 const i = Math.round;
@@ -66,7 +72,7 @@ const fill = (f?: Fill | null) => (f ? `<a:solidFill>${color(f.color, f.alpha)}<
 function line(l?: Line | null): string {
   if (!l) return '<a:ln><a:noFill/></a:ln>';
   const dash = l.dash === 'dashed' ? '<a:prstDash val="dash"/>' : l.dash === 'dotted' ? '<a:prstDash val="sysDot"/>' : '<a:prstDash val="solid"/>';
-  const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e}" w="med" len="med"/>` : '');
+  const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e === 'open' ? 'arrow' : 'triangle'}" w="med" len="${e === 'slim' ? 'lg' : 'med'}"/>` : '');
   return `<a:ln w="${i(l.width)}" cap="${l.dash === 'dotted' ? 'rnd' : 'flat'}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
 }
 
@@ -89,7 +95,11 @@ function geometry(g: Geometry, f: Frame): string {
   for (const c of g.path) {
     if ('m' in c) paths.push(`<a:moveTo>${P(...c.m)}</a:moveTo>`), (cur = c.m);
     else if ('l' in c) (paths[paths.length - 1] += `<a:lnTo>${P(...c.l)}</a:lnTo>`), (cur = c.l);
-    else {
+    else if ('c' in c) {
+      const [x1, y1, x2, y2, x, y] = c.c;
+      paths[paths.length - 1] += `<a:cubicBezTo>${P(x1, y1)}${P(x2, y2)}${P(x, y)}</a:cubicBezTo>`;
+      cur = [x, y];
+    } else {
       const [qx, qy, x, y] = c.q;
       const c1 = P(cur[0] + ((qx - cur[0]) * 2) / 3, cur[1] + ((qy - cur[1]) * 2) / 3);
       const c2 = P(x + ((qx - x) * 2) / 3, y + ((qy - y) * 2) / 3);
@@ -117,9 +127,12 @@ const effects = (s?: Shadow) =>
   s ? `<a:effectLst><a:outerShdw blurRad="${i(s.blur)}" dist="${i(s.dist)}" dir="5400000" algn="t" rotWithShape="0">${color(s.color, s.alpha)}</a:outerShdw></a:effectLst>` : '';
 
 function runXml(r: Run, font: string): string {
-  const props = `lang="en-US" sz="${Math.max(100, i(r.size * 100))}" b="${r.bold ? 1 : 0}" dirty="0"`;
-  // pitchFamily 34 = proportional sans: where the font is missing, apps fall back to a sans, not Times.
-  const face = `<a:latin typeface="${esc(font)}" pitchFamily="34" charset="0"/><a:cs typeface="${esc(font)}" pitchFamily="34" charset="0"/>`;
+  const props = `lang="en-US" sz="${Math.max(100, i(r.size * 100))}" b="${r.bold ? 1 : 0}"${r.spacing ? ` spc="${i(r.spacing * 100)}"` : ''} dirty="0"`;
+  // Where the face is not installed, apps pick a substitute from these hints: a proportional sans
+  // (pitchFamily 34, Arial's PANOSE) or a fixed-pitch face (pitchFamily 49, Consolas's), never Times.
+  const name = esc(r.font ?? font);
+  const hint = r.mono ? 'panose="020B0609020204030204" pitchFamily="49"' : 'panose="020B0604020202020204" pitchFamily="34"';
+  const face = `<a:latin typeface="${name}" ${hint} charset="0"/><a:cs typeface="${name}" ${hint} charset="0"/>`;
   return r.text ? `<a:r><a:rPr ${props}>${fill(r)}${face}</a:rPr><a:t>${esc(r.text)}</a:t></a:r>` : '';
 }
 

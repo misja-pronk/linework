@@ -6,7 +6,7 @@ import path from 'node:path';
 import { includesOf, joinPath, parseSource, type Diagnostic, type Graph, type LayoutSidecar, type Link } from '@cartography/core';
 import { render, themes, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
-import { embeddedFonts } from '@cartography/theme';
+import { bundledFont, type Theme } from '@cartography/theme';
 import { el, parseSvg, walk, type El } from './tree.ts';
 
 export interface CartographyOptions {
@@ -28,7 +28,7 @@ export interface CartographyOptions {
    * Anything else is a CSS selector that matches when the page is dark, for example ".dark".
    */
   dark?: string;
-  /** `embed` (the default) adds Inter to the page once, under a name of its own; `none` leaves the text to the page's fonts. */
+  /** `embed` (the default) adds the theme's typefaces to the page once, under names of their own; `none` leaves the text to the page's fonts. */
   fonts?: 'embed' | 'none';
   /** Add the drawing in words below it: elements and connections in a <details>. */
   description?: boolean;
@@ -36,7 +36,7 @@ export interface CartographyOptions {
   strict?: boolean;
   /** Diagrams may only read files below this folder. Default: where the build runs. */
   root?: string;
-  /** Put the small stylesheet (light or dark, Inter) in each page with a diagram (the default). Off when the site's own CSS has `pageCss()`. */
+  /** Put the small stylesheet (light or dark, the typefaces) in each page with a diagram (the default). Off when the site's own CSS has `pageCss()`. */
   pageStyle?: boolean;
 }
 
@@ -205,8 +205,8 @@ export async function build(job: Job): Promise<Built> {
     } else {
       const fonts = o.fonts !== 'none';
       variants = both
-        ? [el('div', { class: 'carto-light' }, inlineSvg(light, title, fonts)), el('div', { class: 'carto-dark' }, inlineSvg(both, title, fonts))]
-        : [el('div', { class: 'carto-only' }, inlineSvg(light, title, fonts))];
+        ? [el('div', { class: 'carto-light' }, inlineSvg(light, title, fonts, o)), el('div', { class: 'carto-dark' }, inlineSvg(both, title, fonts, o))]
+        : [el('div', { class: 'carto-only' }, inlineSvg(light, title, fonts, o))];
     }
   } catch (e) {
     return fail(e instanceof Error ? e.message : String(e));
@@ -254,8 +254,24 @@ function linked(text: string, dir: string, files: Record<string, string>, base: 
   }
 }
 
+/** The name a bundled typeface goes into a page under, so it never changes the page's own text. No spaces: the CSS needs no quotes. */
+const faceName = (family: string) => `Carto${family.replace(/\s+/g, '')}`;
+const faceRules = (family: string) =>
+  Object.entries(bundledFont(family)?.woff2 ?? {}).map(([weight, data]) => `@font-face{font-family:${faceName(family)};font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${data})}`);
+/** The bundled typefaces a theme sets its text in; Inter where a brand brings its own files. */
+const facesOf = (theme: Theme | undefined) => [theme?.font.sans ?? 'Inter', theme?.font.monoFace].filter((f): f is string => !!f && !!bundledFont(f));
+/** The typefaces in the page stylesheet: those of the site's own theme that are always at hand (a drawing in another theme brings its own). */
+const PAGE_FACES = ['Inter', 'Instrument Sans', 'Geist Mono'];
+const pageFaces = (o: CartographyOptions) => {
+  const name = (o.theme ?? 'auto').trim();
+  return facesOf(themes[name] ?? themes.light).filter((f) => PAGE_FACES.includes(f));
+};
+/** Names the page's copy of each bundled typeface first in a font stack. */
+const BUNDLED = /(^|,)\s*'?(Inter|Instrument Sans|Geist Mono|Barlow|IBM Plex Sans|IBM Plex Mono)'?\s*(?=,|$)/g;
+const ownFaces = (stack: string) => stack.replace(BUNDLED, (_, lead: string, family: string) => `${lead}${faceName(family)}, ${/\s/.test(family) ? `'${family}'` : family}`);
+
 /** The engine's SVG, cleaned, made to fit the page's width, and with the links a static page can honour. */
-function inlineSvg(result: RenderResult, title: string, fonts: boolean): El {
+function inlineSvg(result: RenderResult, title: string, fonts: boolean, o: CartographyOptions): El {
   const svg = parseSvg(result.svg!);
   const g = result.graph!;
   const linksOf = new Map<string, Link[]>();
@@ -265,6 +281,8 @@ function inlineSvg(result: RenderResult, title: string, fonts: boolean): El {
   // Only links that mean the same on any page: web addresses. Links to other diagrams work in the interactive drawing.
   const outside = (href: string | undefined) => (href && /^(https?|mailto):/i.test(href) ? href : undefined);
   walk(svg, (child, parent, i) => {
+    // Text in the monospace face names its own family.
+    if (fonts && child.attrs['font-family']) child.attrs['font-family'] = ownFaces(child.attrs['font-family']);
     const id = child.attrs['data-node'] != null ? `node:${child.attrs['data-node']}` : child.attrs['data-group'] != null ? `group:${child.attrs['data-group']}` : undefined;
     for (const k of Object.keys(child.attrs)) if (k.startsWith('data-')) delete child.attrs[k];
     if (child.tag === 'a') {
@@ -288,11 +306,14 @@ function inlineSvg(result: RenderResult, title: string, fonts: boolean): El {
   const family = svg.attrs['font-family'] ?? 'sans-serif';
   svg.attrs = {
     ...svg.attrs,
-    ...(fonts && /^Inter\b/.test(family) ? { 'font-family': `CartoInter, ${family}` } : {}),
+    ...(fonts ? { 'font-family': ownFaces(family) } : {}),
     role: hasLinks ? 'group' : 'img',
     'aria-label': title,
     style: 'max-width:100%;height:auto',
   };
+  // A drawing in a theme of its own (Transit, Drafting, classic) carries the typefaces the page stylesheet does not have.
+  const extra = fonts ? facesOf(result.theme).filter((f) => !pageFaces(o).includes(f)) : [];
+  if (extra.length) svg.children.unshift(el('style', {}, extra.flatMap(faceRules).join('')));
   return svg;
 }
 
@@ -339,8 +360,8 @@ export function problemFigure(problems: Problem[]): El {
 }
 
 /**
- * The CSS that goes into a page once: which drawing shows on a light and on a dark page, and Inter
- * under a name of its own. Written without quotes or angle brackets, so it survives any templating.
+ * The CSS that goes into a page once: which drawing shows on a light and on a dark page, and the
+ * theme's typefaces under names of their own. Written without quotes or angle brackets, so it survives any templating.
  */
 export function pageCss(o: CartographyOptions = {}): string {
   const dark = (o.dark ?? 'auto').trim() || 'auto';
@@ -358,8 +379,7 @@ export function pageCss(o: CartographyOptions = {}): string {
     rules.push(toLight(':is([data-theme=light],[data-bs-theme=light],[data-md-color-scheme=default],.light) '));
   } else if (dark !== 'media') rules.push(toDark(`:is(${dark.replace(/[<>{}]/g, '')}) `));
   if (o.fonts !== 'none' && o.output !== 'file')
-    for (const [weight, data] of Object.entries(embeddedFonts))
-      rules.push(`@font-face{font-family:CartoInter;font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${data})}`);
+    for (const family of pageFaces(o)) rules.push(...faceRules(family));
   return rules.join('\n');
 }
 

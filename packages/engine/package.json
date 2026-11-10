@@ -15,6 +15,7 @@
     "yaml": "^2.9.1",
     "@cartography/systems": "workspace:*",
     "@cartography/azure": "workspace:*",
+    "@cartography/cloud": "workspace:*",
     "@cartography/kubernetes": "workspace:*",
     "@cartography/network": "workspace:*",
     "@cartography/erd": "workspace:*",
@@ -23,7 +24,8 @@
     "@cartography/data-products": "workspace:*",
     "@cartography/sequence": "workspace:*",
     "@cartography/gitflow": "workspace:*",
-    "@cartography/roadmap": "workspace:*"
+    "@cartography/roadmap": "workspace:*",
+    "@cartography/journey": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"

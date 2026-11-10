@@ -98,9 +98,15 @@ describe('icon packs', () => {
     expect(r.diagnostics).toEqual([]);
     const href = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
     expect(r.svg!.split(href).length - 1).toBe(1);
-    expect(r.svg).toContain('fill="#F3F5F8"');
+    // Survey sets icons bare: the vendor's picture stands on the card itself, a little larger, with no tile behind it.
+    expect(r.svg).toMatch(/<image href="[^"]+" x="\d+" y="\d+" width="28" height="28"/);
+    expect(r.svg).not.toContain('fill="#F3F5F8"');
     // Never recoloured: the vendor colour stays inside the untouched file only.
     expect(r.svg).not.toContain('#0078D4');
+    // A look with tiles (classic) puts it on a neutral one, so a coloured mark never sits on a coloured wash.
+    const classic = await render(small('icons: { key-vault: ./kv.svg }'), { fonts: 'none', theme: 'classic', load: (f) => (f === './kv.svg' ? svg : '') });
+    expect(classic.svg).toContain('fill="#F3F5F8"');
+    expect(classic.svg).toMatch(/<image href="[^"]+" x="\d+" y="\d+" width="24" height="24"/);
   });
 
   it('uses packs from the caller and warns about unknown ones', async () => {

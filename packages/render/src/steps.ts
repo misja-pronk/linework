@@ -38,7 +38,7 @@ export function quietTheme(theme: Theme): Theme {
     shadow: { ...theme.shadow, opacity: 0 },
     tones: Object.fromEntries(Object.entries(theme.tones).map(([k, c]) => [k, { fg: q(c.fg, dark ? 0.5 : 0.42), bg: q(c.bg, 0.5), wash: q(c.wash, 0.45), line: q(c.line, 0.55) }])) as Theme['tones'],
     ...(theme.accent ? { accent: q(theme.accent, 0.45) } : {}),
-    tile: theme.tile === 'solid' ? 'soft' : theme.tile,
+    tile: theme.tile === 'solid' ? 'soft' : theme.tile === 'disc' ? 'ring' : theme.tile,
     cardBar: false,
   };
   quiet.set(theme, t);

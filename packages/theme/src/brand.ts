@@ -1,8 +1,12 @@
 // Brand themes: a small spec (1–2 brand colours, font, corners, title block) becomes a full Theme.
 // Everything not given is derived, and every text/background pair is checked against WCAG AA.
 import { tones as toneSlots, type Tone } from '@cartography/core';
-import { contrast, ensureContrast, fromHsl, isColor, isDark, mix, toHsl } from './color.ts';
-import { light, type FontFace, type LegendPosition, type Theme, type TitleBlock, type ToneColors } from './tokens.ts';
+import { contrast, ensureContrast, fromHsl, hex, isColor, isDark, mix, parseColor, toHsl } from './color.ts';
+import { bundledFamilies, bundledFamily } from './fonts.ts';
+import { classic, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';
+
+type FontFiles = string[] | Record<string, string>;
+const RADIUS_KEYS = ['card', 'group', 'tile', 'chip', 'corner'] as const;
 
 type ToneSpec = string | { slot?: string; color?: string; fg?: string; bg?: string; wash?: string; line?: string };
 
@@ -13,15 +17,39 @@ export interface ThemeSpec {
   colors?: { primary?: string; accent?: string; canvas?: string; surface?: string; border?: string; text?: string; muted?: string; faint?: string; edge?: string };
   /** Slot (blue, teal…) → colour, or a brand name → { slot, color }. */
   tones?: Record<string, ToneSpec>;
-  font?: { family?: string; files?: string[] | Record<string, string>; scale?: number };
-  radius?: number | 'sharp' | 'soft' | 'round';
+  font?: {
+    family?: string;
+    files?: FontFiles;
+    scale?: number;
+    /** The monospace face: a bundled or installed family, or { family, files }. */
+    mono?: { family?: string; files?: FontFiles };
+    /** Which text is set in the monospace face. */
+    monoFor?: MonoRole[];
+  };
+  radius?: number | 'sharp' | 'soft' | 'round' | Partial<Record<(typeof RADIUS_KEYS)[number], number>>;
   lineWeight?: number;
   /** Shadow strength: 0 for a flat, print-friendly look; 1 is the default. */
   shadow?: number;
-  tile?: Theme['tile'];
+  tile?: TileStyle;
+  iconSize?: number;
   cardBar?: boolean;
   titleBlock?: Omit<TitleBlock, 'logo'> & { logo?: string };
   legend?: LegendPosition;
+  legendStyle?: Theme['legendStyle'];
+  group?: GroupLook;
+  edgeLabel?: EdgeLabelLook['style'];
+  edgeLabelInk?: EdgeLabelLook['ink'];
+  edgeLabelCaps?: boolean;
+  lines?: LineLook;
+  sheet?: SheetLook;
+  tableHead?: Theme['tableHead'];
+  number?: Theme['number'];
+  chip?: Theme['chip'];
+  cardLine?: Theme['cardLine'];
+  title?: TitleLook;
+  background?: { dots?: boolean | { step?: number; r?: number; color?: string } };
+  /** high: borders and outlines get 3:1 against what they sit on, faint text 4.5:1. */
+  contrast?: 'normal' | 'high';
   /** Pull the tones nobody chose towards the brand's saturation (default true). */
   harmonize?: boolean;
 }
@@ -32,10 +60,19 @@ export interface ThemeWarning {
 }
 
 const COLOR_KEYS = ['primary', 'accent', 'canvas', 'surface', 'border', 'text', 'muted', 'faint', 'edge'] as const;
-const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'cardBar', 'titleBlock', 'legend', 'harmonize'];
-const BLOCK_KEYS = ['logo', 'client', 'project', 'version', 'date', 'classification', 'footer'];
+const TOP_KEYS = ['name', 'extends', 'colors', 'tones', 'font', 'radius', 'lineWeight', 'shadow', 'tile', 'iconSize', 'cardBar', 'titleBlock', 'legend', 'legendStyle', 'harmonize', 'group', 'edgeLabel', 'edgeLabelInk', 'edgeLabelCaps', 'lines', 'sheet', 'tableHead', 'number', 'chip', 'cardLine', 'title', 'background', 'contrast'];
+const BLOCK_KEYS = ['logo', 'client', 'project', 'version', 'date', 'classification', 'footer', 'imprint'];
 const RADIUS = { sharp: 0.35, soft: 1, round: 1.4 };
-const MAX_TONES = 8;
+/** Every tone slot can be given. */
+const MAX_TONES = toneSlots.length;
+const TILES: TileStyle[] = ['soft', 'solid', 'outline', 'bare', 'disc', 'ring'];
+const MONO_ROLES: MonoRole[] = ['edgeLabel', 'type', 'title'];
+const GROUP_KEYS = ['tints', 'line', 'dash', 'label', 'labelSize', 'tracking', 'labelColor', 'captionColor', 'icon'];
+const LINE_KEYS = ['bridge', 'junction', 'junctionSize', 'corner', 'arrow', 'arrowScale', 'dashScale'];
+const SHEET_KEYS = ['marks', 'inset', 'zones', 'ticks'];
+const TITLE_KEYS = ['mono', 'caps', 'size', 'weight', 'tracking'];
+const DASH = /^\d+(\.\d+)?( \d+(\.\d+)?){1,5}$/;
+const or = (list: readonly string[]) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]!);
 
 /** Checks a parsed theme value and keeps what is usable; everything else becomes a warning. */
 export function parseThemeSpec(v: unknown, warn: (w: ThemeWarning) => void): ThemeSpec {
@@ -86,16 +123,128 @@ export function parseThemeSpec(v: unknown, warn: (w: ThemeWarning) => void): The
       else warn({ path: ['font', 'files'], message: 'font.files is a list of .woff2/.ttf paths, or weight: path' });
     }
     spec.font.scale = num(['font', 'scale'], f.scale, 0.6, 1.6);
+    if (f.mono != null) {
+      const m = typeof f.mono === 'string' ? { family: f.mono } : (f.mono as Record<string, unknown>);
+      if (!m || typeof m !== 'object' || m.family == null) warn({ path: ['font', 'mono'], message: `font.mono is a family name (bundled: ${bundledFamilies.filter((x) => /mono/i.test(x)).join(', ')}) or { family, files }` });
+      else {
+        spec.font.mono = { family: String(m.family) };
+        const ok = m.files == null || (Array.isArray(m.files) ? m.files.every((x) => typeof x === 'string') : typeof m.files === 'object' && Object.values(m.files as object).every((x) => typeof x === 'string'));
+        if (!ok) warn({ path: ['font', 'mono', 'files'], message: 'font.mono.files is a list of .woff2/.ttf paths, or weight: path' });
+        else if (m.files != null) spec.font.mono.files = m.files as FontFiles;
+      }
+    }
+    if (f.monoFor != null) {
+      const list = Array.isArray(f.monoFor) ? f.monoFor.map(String) : [String(f.monoFor)];
+      const bad = list.filter((x) => !(MONO_ROLES as string[]).includes(x));
+      if (bad.length) warn({ path: ['font', 'monoFor'], message: `font.monoFor lists what is set in the monospace face: ${or(MONO_ROLES)}` });
+      spec.font.monoFor = list.filter((x) => (MONO_ROLES as string[]).includes(x)) as MonoRole[];
+    }
   }
   if (o.radius != null) {
     if (typeof o.radius === 'string' && o.radius in RADIUS) spec.radius = o.radius as keyof typeof RADIUS;
-    else spec.radius = num(['radius'], o.radius, 0, 3) ?? (typeof o.radius === 'string' ? (warn({ path: ['radius'], message: 'radius is sharp, soft, round or a scale like 0.5' }), undefined) : undefined);
+    else if (typeof o.radius === 'object' && !Array.isArray(o.radius)) {
+      const r: Partial<Record<(typeof RADIUS_KEYS)[number], number>> = {};
+      for (const [k, x] of Object.entries(o.radius as object)) {
+        if (!(RADIUS_KEYS as readonly string[]).includes(k)) warn({ path: ['radius', k], message: `Unknown radius "${k}", use one of: ${RADIUS_KEYS.join(', ')}` });
+        else {
+          const n = num(['radius', k], x, 0, 40);
+          if (n !== undefined) r[k as (typeof RADIUS_KEYS)[number]] = n;
+        }
+      }
+      spec.radius = r;
+    } else spec.radius = num(['radius'], o.radius, 0, 3) ?? (typeof o.radius === 'string' ? (warn({ path: ['radius'], message: 'radius is sharp, soft, round or a scale like 0.5' }), undefined) : undefined);
   }
   spec.lineWeight = num(['lineWeight'], o.lineWeight, 0.5, 3);
   spec.shadow = num(['shadow'], o.shadow === false ? 0 : o.shadow === true ? 1 : o.shadow, 0, 3);
-  if (o.tile != null) {
-    if (['soft', 'solid', 'outline'].includes(String(o.tile))) spec.tile = o.tile as Theme['tile'];
-    else warn({ path: ['tile'], message: 'tile is soft, solid or outline' });
+  /** One of a fixed set of words; anything else is a warning that lists them. */
+  const pick = <T extends string>(path: string[], x: unknown, options: readonly T[]): T | undefined => {
+    if (x == null) return undefined;
+    if ((options as readonly string[]).includes(String(x))) return String(x) as T;
+    warn({ path, message: `${path.join('.')} is ${or(options)}` });
+    return undefined;
+  };
+  const flag = (path: string[], x: unknown) => (x == null ? undefined : typeof x === 'boolean' ? x : (warn({ path, message: `${path.join('.')} is true or false` }), undefined));
+  /** A map with known keys; unknown ones are named. */
+  const block = (key: string, x: unknown, keys: string[]): Record<string, unknown> | undefined => {
+    if (x == null) return undefined;
+    if (typeof x !== 'object' || Array.isArray(x)) return warn({ path: [key], message: `${key} is a map: ${keys.join(', ')}` }), undefined;
+    for (const k of Object.keys(x)) if (!keys.includes(k)) warn({ path: [key, k], message: `Unknown ${key} key "${k}", use one of: ${keys.join(', ')}` });
+    return x as Record<string, unknown>;
+  };
+  const clean = <T extends object>(x: T): T => Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined)) as T;
+
+  spec.tile = pick(['tile'], o.tile, TILES);
+  spec.iconSize = num(['iconSize'], o.iconSize, 10, 34);
+  spec.legendStyle = pick(['legendStyle'], o.legendStyle, ['row', 'key']);
+  spec.edgeLabel = pick(['edgeLabel'], o.edgeLabel, ['pill', 'halo', 'plate']);
+  spec.edgeLabelInk = pick(['edgeLabelInk'], o.edgeLabelInk, ['muted', 'text', 'line']);
+  spec.edgeLabelCaps = flag(['edgeLabelCaps'], o.edgeLabelCaps);
+  spec.tableHead = pick(['tableHead'], o.tableHead, ['tone', 'paper', 'plain']);
+  spec.number = pick(['number'], o.number, ['solid', 'ink', 'ring']);
+  spec.chip = pick(['chip'], o.chip, ['fill', 'outline']);
+  spec.cardLine = pick(['cardLine'], o.cardLine, ['border', 'tone']);
+  spec.contrast = pick(['contrast'], o.contrast, ['normal', 'high']);
+  const g = block('group', o.group, GROUP_KEYS);
+  if (g) {
+    const group: GroupLook = {};
+    if (g.tints != null) {
+      const list = Array.isArray(g.tints) ? g.tints : [g.tints];
+      if (list.length < 1 || list.length > 6 || !list.every(isColor)) warn({ path: ['group', 'tints'], message: 'group.tints is a list of hex colours, one per nesting depth, e.g. ["#F8F6F1", "#F0EDE4", "#E8E4D8"]' });
+      else group.tints = list as string[];
+    }
+    if (g.line != null) {
+      if (g.line === 'none' || g.line === false || isColor(g.line)) group.line = g.line === false ? 'none' : (g.line as string);
+      else warn({ path: ['group', 'line'], message: 'group.line is a hex colour, or none for groups without an outline' });
+    }
+    if (g.dash != null) {
+      if (typeof g.dash === 'string' && DASH.test(g.dash.trim())) group.dash = g.dash.trim();
+      else warn({ path: ['group', 'dash'], message: 'group.dash is a dash pattern like "4 3"' });
+    }
+    group.label = pick(['group', 'label'], g.label, ['plain', 'caps']);
+    group.labelSize = num(['group', 'labelSize'], g.labelSize, 8, 18);
+    group.tracking = num(['group', 'tracking'], g.tracking, 0, 4);
+    group.labelColor = pick(['group', 'labelColor'], g.labelColor, ['tone', 'muted', 'text']);
+    group.captionColor = pick(['group', 'captionColor'], g.captionColor, ['faint', 'muted']);
+    group.icon = g.icon === false ? 0 : g.icon === true ? undefined : num(['group', 'icon'], g.icon, 0, 24);
+    spec.group = clean(group);
+  }
+  const l = block('lines', o.lines, LINE_KEYS);
+  if (l)
+    spec.lines = clean({
+      bridge: l.bridge === false ? 0 : num(['lines', 'bridge'], l.bridge, 0, 12),
+      junction: pick(['lines', 'junction'], l.junction, ['dot', 'ring']),
+      junctionSize: num(['lines', 'junctionSize'], l.junctionSize, 1, 10),
+      corner: pick(['lines', 'corner'], l.corner, ['round', 'chamfer', 'square']),
+      arrow: pick(['lines', 'arrow'], l.arrow, ['filled', 'slim', 'open']),
+      arrowScale: num(['lines', 'arrowScale'], l.arrowScale, 0.5, 2.5),
+      dashScale: flag(['lines', 'dashScale'], l.dashScale),
+    });
+  if (o.sheet != null) {
+    const sh = typeof o.sheet === 'string' ? { marks: o.sheet } : block('sheet', o.sheet, SHEET_KEYS);
+    if (sh) {
+      const marks = pick(['sheet', 'marks'], sh.marks ?? 'corners', ['none', 'corners', 'frame']);
+      if (marks) spec.sheet = clean({ marks, inset: num(['sheet', 'inset'], sh.inset, 4, 40), zones: flag(['sheet', 'zones'], sh.zones), ticks: flag(['sheet', 'ticks'], sh.ticks) });
+    }
+  }
+  const t = block('title', o.title, TITLE_KEYS);
+  if (t)
+    spec.title = clean({
+      mono: flag(['title', 'mono'], t.mono),
+      caps: flag(['title', 'caps'], t.caps),
+      size: num(['title', 'size'], t.size, 10, 40),
+      weight: t.weight == null ? undefined : (Number(pick(['title', 'weight'], t.weight, ['400', '500', '600'])) as 400 | 500 | 600) || undefined,
+      tracking: num(['title', 'tracking'], t.tracking, 0, 4),
+    });
+  const bg = block('background', o.background, ['dots']);
+  if (bg && bg.dots != null) {
+    if (typeof bg.dots === 'boolean') spec.background = { dots: bg.dots };
+    else if (typeof bg.dots !== 'object') warn({ path: ['background', 'dots'], message: 'background.dots is true, or a map: step, r, color' });
+    else {
+      const d = bg.dots as Record<string, unknown>;
+      for (const k of Object.keys(d)) if (!['step', 'r', 'color'].includes(k)) warn({ path: ['background', 'dots', k], message: `Unknown dots key "${k}", use one of: step, r, color` });
+      if (d.color != null && !isColor(d.color)) warn({ path: ['background', 'dots', 'color'], message: 'background.dots.color must be a hex colour like "#CDD3DA"' });
+      spec.background = { dots: clean({ step: num(['background', 'dots', 'step'], d.step, 6, 64), r: num(['background', 'dots', 'r'], d.r, 0.2, 3), color: isColor(d.color) ? d.color : undefined }) };
+    }
   }
   if (o.cardBar != null) spec.cardBar = !!o.cardBar;
   if (o.harmonize != null) spec.harmonize = !!o.harmonize;
@@ -109,11 +258,12 @@ export function parseThemeSpec(v: unknown, warn: (w: ThemeWarning) => void): The
       spec.titleBlock = {};
       for (const [k, x] of Object.entries(o.titleBlock as object)) {
         if (!BLOCK_KEYS.includes(k)) warn({ path: ['titleBlock', k], message: `Unknown title block field "${k}", use one of: ${BLOCK_KEYS.join(', ')}` });
+        else if (k === 'imprint') spec.titleBlock.imprint = flag(['titleBlock', 'imprint'], x);
         else if (x != null) (spec.titleBlock as Record<string, string>)[k] = x instanceof Date ? x.toISOString().slice(0, 10) : String(x);
       }
     }
   }
-  return spec;
+  return clean(spec);
 }
 
 /** A spec layered on another (a diagram's `theme:` block on top of the file it extends). */
@@ -125,12 +275,19 @@ export function mergeSpecs(a: ThemeSpec, b: ThemeSpec): ThemeSpec {
     tones: { ...a.tones, ...b.tones },
     font: a.font || b.font ? { ...a.font, ...b.font } : undefined,
     titleBlock: a.titleBlock || b.titleBlock ? { ...a.titleBlock, ...b.titleBlock } : undefined,
+    ...(a.group || b.group ? { group: { ...a.group, ...b.group } } : {}),
+    ...(a.lines || b.lines ? { lines: { ...a.lines, ...b.lines } } : {}),
+    ...(a.sheet || b.sheet ? { sheet: { ...a.sheet, ...b.sheet } as SheetLook } : {}),
+    ...(a.title || b.title ? { title: { ...a.title, ...b.title } } : {}),
+    ...(a.background || b.background ? { background: { ...a.background, ...b.background } } : {}),
     extends: a.extends,
   };
 }
 
 export interface DeriveExtras {
   faces?: FontFace[];
+  /** Files of the monospace face, when the theme brings its own. */
+  monoFaces?: FontFace[];
   logo?: TitleBlock['logo'];
 }
 
@@ -144,21 +301,36 @@ export function deriveTheme(base: Theme, spec: ThemeSpec, extras: DeriveExtras =
   const surface = c.surface ?? (c.canvas ? (isDark(canvas) ? mix('#FFFFFF', canvas, 0.05) : '#FFFFFF') : base.surface);
   const mode = isDark(canvas) ? 'dark' : 'light';
   if (mode !== base.mode) warn({ path: ['colors', 'canvas'], message: `canvas ${canvas} is ${mode} but the theme extends a ${base.mode} theme; extend ${mode} instead` });
+  const high = spec.contrast === 'high';
+
+  // Group tints follow the page: on another canvas they keep their step away from it.
+  const baseTints = base.group?.tints;
+  const moved = (colour: string) => (c.canvas && colour !== 'none' ? shift(colour, base.canvas, canvas) : colour);
+  const tints = spec.group?.tints ?? baseTints?.map(moved);
+  // Text sits on cards, on the page and on every group tint; the deepest tint is the hardest.
+  const grounds = [surface, canvas, ...(tints ?? [])];
+  const worstOn = (colour: string) => Math.min(...grounds.map((g) => contrast(colour, g)));
+  const fixOn = (colour: string, ratio: number) => grounds.reduce((x, g) => ensureContrast(x, g, ratio), colour);
+  let groupLine = spec.group?.line ?? (base.group?.line ? moved(base.group.line) : undefined);
+  if (high && groupLine && groupLine !== 'none') groupLine = fixOn(groupLine, 3);
 
   // A colour someone chose is kept unless it fails; then it is fixed and they are told.
   const readable = (key: string, chosen: string | undefined, derived: string, ratio: number, what: string) => {
     const want = chosen ?? derived;
-    const worst = Math.min(contrast(want, surface), contrast(want, canvas));
+    const worst = worstOn(want);
     if (worst >= ratio) return want;
-    const fixed = ensureContrast(ensureContrast(want, surface, ratio), canvas, ratio);
+    const fixed = fixOn(want, ratio);
     if (chosen) warn({ path: ['colors', key], message: `${what} ${chosen} has ${worst.toFixed(1)}:1 contrast on the background (needs ${ratio}:1), using ${fixed}` });
     return fixed;
   };
   const text = readable('text', c.text, tint(base.text, 0.1), 4.5, 'Text');
   const textMuted = readable('muted', c.muted, tint(base.textMuted, 0.12), 4.5, 'Muted text');
-  const textFaint = readable('faint', c.faint, tint(base.textFaint, 0.12), 3, 'Faint text');
-  const edge = readable('edge', c.edge, tint(base.edge, 0.16), 3, 'Line colour');
-  const border = c.border ?? (primary ? mix(primary, base.border, 0.1) : base.border);
+  const textFaint = readable('faint', c.faint, tint(base.textFaint, 0.12), high ? 4.5 : 3, 'Faint text');
+  const edge = readable('edge', c.edge, tint(base.edge, 0.16), high ? 4.5 : 3, 'Line colour');
+  const softBorder = c.border ?? (primary ? mix(primary, base.border, 0.1) : base.border);
+  const border = high ? fixOn(softBorder, 3) : softBorder;
+  // On a paper look every tone shares the group wash and outline: depth tells groups apart, not colour.
+  const paper = tints ? { wash: tints[0]!, line: groupLine && groupLine !== 'none' ? groupLine : tints.at(-1)! } : undefined;
 
   // Tones: brand colours on their slots, primary on blue and accent on teal unless named otherwise.
   const chosen = new Map<Tone, { spec: ToneSpec; path: (string | number)[] }>();
@@ -170,23 +342,36 @@ export function deriveTheme(base: Theme, spec: ThemeSpec, extras: DeriveExtras =
   for (const slot of toneSlots) {
     const pick = chosen.get(slot);
     if (pick) {
-      tones[slot] = toneFrom(pick.spec, { dark, canvas, surface }, (m) => warn({ path: pick.path, message: m }));
+      tones[slot] = toneFrom(pick.spec, { dark, canvas, surface, paper }, (m) => warn({ path: pick.path, message: m }));
       continue;
     }
     const b = base.tones[slot];
     if (brandSat === undefined || spec.harmonize === false) {
-      tones[slot] = c.canvas || c.surface ? toneFrom(b.fg, { dark, canvas, surface }) : b;
+      tones[slot] = c.canvas || c.surface ? toneFrom(b.fg, { dark, canvas, surface, paper }) : paper ? { ...b, ...paper } : b;
       continue;
     }
     // Unchosen tones keep their hue (blue stays blue) but take on the brand's saturation, so the set reads as one palette.
     const [h, s, l] = toHsl(b.fg);
-    tones[slot] = toneFrom(fromHsl(h, slot === 'slate' ? s : s * 0.55 + brandSat * 0.45, l), { dark, canvas, surface });
+    tones[slot] = toneFrom(fromHsl(h, slot === 'slate' ? s : s * 0.55 + brandSat * 0.45, l), { dark, canvas, surface, paper });
   }
 
-  const radius = spec.radius === undefined ? 1 : typeof spec.radius === 'string' ? RADIUS[spec.radius] : spec.radius;
+  const exact = typeof spec.radius === 'object' ? spec.radius : {};
+  const radius = spec.radius === undefined || typeof spec.radius === 'object' ? 1 : typeof spec.radius === 'string' ? RADIUS[spec.radius] : spec.radius;
   const scaleR = (r: number) => Math.round(r * radius * 2) / 2;
   const lw = spec.lineWeight ?? 1;
+  // A bundled family is measured by its own widths; any other is the brand font, measured against Inter.
   const family = spec.font?.family;
+  const ours = extras.faces?.length ? undefined : bundledFamily(family);
+  const monoFamily = spec.font?.mono?.family;
+  const ourMono = extras.monoFaces?.length ? undefined : bundledFamily(monoFamily);
+  const faces = [...(extras.faces ?? []), ...(extras.monoFaces ?? []).map((f) => ({ ...f, mono: true }))];
+  const group: GroupLook | undefined = base.group || spec.group ? { ...base.group, ...spec.group, ...(tints ? { tints } : {}), ...(groupLine ? { line: groupLine } : {}) } : undefined;
+  const edgeLabel: EdgeLabelLook | undefined =
+    base.edgeLabel || spec.edgeLabel || spec.edgeLabelInk || spec.edgeLabelCaps !== undefined
+      ? { ...base.edgeLabel, ...(spec.edgeLabel ? { style: spec.edgeLabel } : {}), ...(spec.edgeLabelInk ? { ink: spec.edgeLabelInk } : {}), ...(spec.edgeLabelCaps !== undefined ? { caps: spec.edgeLabelCaps } : {}) }
+      : undefined;
+  const dots = spec.background?.dots;
+  const background = dots === undefined ? base.background : dots === false ? undefined : { dots: { step: 16, r: 0.6, color: mix(border, canvas, 0.6), ...base.background?.dots, ...(dots === true ? {} : dots) } };
   const titleBlock = spec.titleBlock || extras.logo ? { ...spec.titleBlock, logo: extras.logo, date: today(spec.titleBlock?.date) } : undefined;
   const accent = c.accent ?? primary ?? base.accent;
   return {
@@ -204,37 +389,60 @@ export function deriveTheme(base: Theme, spec: ThemeSpec, extras: DeriveExtras =
     tones,
     font: {
       ...base.font,
-      ...(family ? { family: `'${family.replace(/'/g, '')}', ${light.font.family}` } : {}),
-      ...(extras.faces?.length ? { faces: extras.faces } : {}),
+      // The fallback after a brand family is Inter: its widths are what the brand font is measured against.
+      ...(family ? { family: ours && ours !== 'Inter' ? `'${ours}', ${classic.font.family}` : ours ? classic.font.family : `'${family.replace(/'/g, '')}', ${classic.font.family}`, sans: ours } : {}),
+      ...(monoFamily ? { mono: `'${(ourMono ?? monoFamily).replace(/'/g, '')}', ui-monospace, 'SF Mono', Menlo, Consolas, monospace`, monoFace: ourMono } : {}),
+      ...(spec.font?.monoFor ? { monoFor: spec.font.monoFor } : {}),
+      ...(faces.length ? { faces } : {}),
       ...(spec.font?.scale ? { scale: spec.font.scale } : {}),
     },
     radius: {
-      card: scaleR(base.radius.card),
-      group: scaleR(base.radius.group),
-      tile: scaleR(base.radius.tile),
-      chip: scaleR(base.radius.chip),
+      card: exact.card ?? scaleR(base.radius.card),
+      group: exact.group ?? scaleR(base.radius.group),
+      tile: exact.tile ?? scaleR(base.radius.tile),
+      chip: exact.chip ?? scaleR(base.radius.chip),
       pill: base.radius.pill,
-      corner: Math.max(2, scaleR(base.radius.corner)),
+      corner: exact.corner ?? (base.radius.corner ? Math.max(2, scaleR(base.radius.corner)) : 0),
     },
     stroke: { ...base.stroke, card: base.stroke.card * Math.min(lw, 1.5), group: base.stroke.group * Math.min(lw, 1.5), edge: Math.round(base.stroke.edge * lw * 100) / 100 },
     ...(accent ? { accent: readable('accent', undefined, accent, 3, 'Accent') } : {}),
     ...(titleBlock ? { titleBlock: Object.fromEntries(Object.entries(titleBlock).filter(([, x]) => x !== undefined)) } : {}),
     ...(spec.legend ? { legend: spec.legend } : {}),
     ...(spec.tile ? { tile: spec.tile } : {}),
+    // The icon size belongs to the tile style: another tile takes its own default unless a size is given too.
+    ...(spec.iconSize ? { iconSize: spec.iconSize } : spec.tile && spec.tile !== base.tile ? { iconSize: undefined } : {}),
     ...(spec.cardBar !== undefined ? { cardBar: spec.cardBar } : {}),
+    ...(group ? { group } : {}),
+    ...(edgeLabel ? { edgeLabel } : {}),
+    ...(spec.lines ? { line: { ...base.line, ...spec.lines } } : {}),
+    ...(spec.legendStyle ? { legendStyle: spec.legendStyle } : {}),
+    ...(spec.sheet ? { sheet: { ...base.sheet, ...spec.sheet } } : {}),
+    ...(spec.tableHead ? { tableHead: spec.tableHead } : {}),
+    ...(spec.number ? { number: spec.number } : {}),
+    ...(spec.chip ? { chip: spec.chip } : {}),
+    ...(spec.cardLine ? { cardLine: spec.cardLine } : {}),
+    ...(spec.title ? { title: { ...base.title, ...spec.title } } : {}),
+    background,
   };
+}
+
+/** A colour moved along with the page it was chosen for: the same step away from the new canvas. */
+function shift(colour: string, from: string, to: string): string {
+  const [a, b, c] = [parseColor(colour), parseColor(from), parseColor(to)];
+  if (!a || !b || !c) return colour;
+  return hex([0, 1, 2].map((i) => Math.max(0, Math.min(255, c[i]! + a[i]! - b[i]!))) as [number, number, number]);
 }
 
 const today = (d: string | undefined) => (d === 'today' ? new Date().toISOString().slice(0, 10) : d);
 
 /** One tone from a brand colour: tile tint, group wash and border, and a foreground that reads on the tile. */
-function toneFrom(t: ToneSpec, bgs: { dark: boolean; canvas: string; surface: string }, warn: (m: string) => void = () => {}): ToneColors {
+function toneFrom(t: ToneSpec, bgs: { dark: boolean; canvas: string; surface: string; paper?: { wash: string; line: string } }, warn: (m: string) => void = () => {}): ToneColors {
   const o = typeof t === 'string' ? { color: t } : t;
   const color = o.color ?? o.fg!;
-  const { dark, canvas, surface } = bgs;
+  const { dark, canvas, surface, paper } = bgs;
   const bg = o.bg ?? mix(color, surface, dark ? 0.2 : 0.12);
-  const wash = o.wash ?? mix(color, canvas, dark ? 0.07 : 0.04);
-  const line = o.line ?? mix(color, canvas, dark ? 0.32 : 0.26);
+  const wash = o.wash ?? paper?.wash ?? mix(color, canvas, dark ? 0.07 : 0.04);
+  const line = o.line ?? paper?.line ?? mix(color, canvas, dark ? 0.32 : 0.26);
   // Badges put tone text on the tile, so the foreground needs text contrast there (and on the card).
   const fg = ensureContrast(ensureContrast(o.fg ?? color, bg, 4.5), surface, 4.5);
   // A brand colour is only a starting point and is darkened quietly; an explicit fg was a choice, so say so.
@@ -244,11 +452,11 @@ function toneFrom(t: ToneSpec, bgs: { dark: boolean; canvas: string; surface: st
 
 // Built-in brand themes. Each is a spec run through the same derivation people's themes go through.
 
-export const builtinSpecs: Record<string, ThemeSpec & { extends: 'light' | 'dark'; description: string }> = {
+export const builtinSpecs: Record<string, ThemeSpec & { extends: 'classic' | 'classic-dark'; description: string }> = {
   slate: {
     name: 'slate',
     description: 'Sober consulting: navy and brass on a paper-grey page, tight corners, flat cards',
-    extends: 'light',
+    extends: 'classic',
     colors: { primary: '#1F3A5F', accent: '#9A6B1F', canvas: '#F5F6F8', text: '#141B26', muted: '#4D5866', edge: '#7D8794', border: '#D3D8DF' },
     tones: { sky: '#2F6690', indigo: '#3A4E7A', violet: '#5B4B7A', green: '#3D6B4F', amber: '#9A6B1F', orange: '#A4552B', rose: '#9B3B4A', slate: '#56606E' },
     radius: 0.45,
@@ -260,7 +468,7 @@ export const builtinSpecs: Record<string, ThemeSpec & { extends: 'light' | 'dark
   ocean: {
     name: 'ocean',
     description: 'Fresh and bright: deep sea blue, seafoam and coral, round corners, solid icon tiles',
-    extends: 'light',
+    extends: 'classic',
     colors: { primary: '#0B6E99', accent: '#0F9D8A', canvas: '#F2F8FB', text: '#0B2533', muted: '#3F5F70', edge: '#6F93A6', border: '#D2E4EC' },
     tones: { sky: '#1A8FC4', indigo: '#2B5BA8', violet: '#5A55B5', green: '#2E9160', amber: '#C27C0E', orange: '#E0663B', rose: '#D64563', slate: '#58717F' },
     radius: 1.3,
@@ -270,7 +478,7 @@ export const builtinSpecs: Record<string, ThemeSpec & { extends: 'light' | 'dark
   mono: {
     name: 'mono',
     description: 'Print-friendly: greyscale with one vermilion accent, outlined tiles, no shadows',
-    extends: 'light',
+    extends: 'classic',
     colors: { primary: '#D2401E', accent: '#D2401E', canvas: '#FFFFFF', text: '#111111', muted: '#4A4A4A', faint: '#767676', edge: '#8C8C8C', border: '#9E9E9E' },
     tones: Object.fromEntries(toneSlots.filter((t) => t !== 'blue').map((t, i) => [t, { fg: ['#2B2B2B', '#3D3D3D', '#4F4F4F', '#333333', '#454545'][i % 5]!, bg: '#F1F1F1', wash: '#FAFAFA', line: '#BDBDBD' }])),
     radius: 0.6,
@@ -281,4 +489,4 @@ export const builtinSpecs: Record<string, ThemeSpec & { extends: 'light' | 'dark
   },
 };
 
-export const builtinThemes: Record<string, Theme> = Object.fromEntries(Object.entries(builtinSpecs).map(([k, s]) => [k, deriveTheme(light, s)]));
+export const builtinThemes: Record<string, Theme> = Object.fromEntries(Object.entries(builtinSpecs).map(([k, s]) => [k, deriveTheme(classic, s)]));

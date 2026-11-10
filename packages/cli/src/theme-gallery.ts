@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { render, type RenderOptions } from '@cartography/engine';
-import { builtinSpecs } from '@cartography/theme';
+import { themeCatalog } from '@cartography/theme';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { toPng } from './png.ts';
 
@@ -16,16 +16,27 @@ const io = (file: string): RenderOptions => ({
   fontScale,
 });
 
-const jobs: { name: string; file: string; theme?: string }[] = [
-  ...['light', 'dark', ...Object.keys(builtinSpecs)].map((theme) => ({ name: theme, file: 'examples/systems/saas-platform.yaml', theme })),
+// A sheet with a frame, zone grid and imprint: what a diagram adds to become a page of a document.
+const sheet = (text: string) =>
+  text.replace(/^type: (\w+)\n/, 'type: $1\ntheme:\n  extends: survey\n  sheet: { marks: frame, zones: true }\n  titleBlock: { client: Acme Corporation, project: Platform modernisation, version: v1.3, classification: Confidential, imprint: true }\n');
+
+const jobs: { name: string; file: string; theme?: string; view?: string; patch?: (text: string) => string }[] = [
+  ...themeCatalog.map(({ name }) => ({ name, file: 'examples/systems/saas-platform.yaml', theme: name })),
   { name: 'slate-azure', file: 'examples/azure/web-shop.yaml', theme: 'slate' },
   { name: 'acme', file: 'docs/themes/acme/platform.yaml' },
+  // The pictures in docs/style.md.
+  { name: 'survey-azure', file: 'examples/azure/web-shop.yaml', theme: 'survey' },
+  { name: 'survey-erd', file: 'examples/erd/orders.yaml', theme: 'survey' },
+  { name: 'survey-sheet', file: 'examples/azure/web-shop.yaml', patch: sheet },
+  { name: 'transit-network', file: 'examples/network/small-office.yaml', theme: 'transit' },
+  { name: 'drafting-c4', file: 'examples/c4/kestrel-bank.yaml', theme: 'drafting', view: 'containers' },
 ];
 
 let failed = false;
 for (const j of jobs) {
   const file = path.join(root, j.file);
-  const r = await render(fs.readFileSync(file, 'utf8'), { ...io(file), themeOverride: j.theme, fonts: 'none' });
+  const text = fs.readFileSync(file, 'utf8');
+  const r = await render(j.patch ? j.patch(text) : text, { ...io(file), themeOverride: j.theme, view: j.view, fonts: 'none' });
   for (const d of r.diagnostics) console.error(`${j.file}:${d.line ?? 0}  ${d.severity}  ${d.message}`);
   if (!r.svg) {
     failed = true;

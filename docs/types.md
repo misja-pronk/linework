@@ -19,6 +19,7 @@ Whatever the type, a drawing can be told in parts for an audience: `steps:` says
 | Services, apps, queues and databases and how they talk; anything when unsure | [Architecture](#architecture) | `systems` |
 | C4: system context, containers, components, dynamic and deployment views of one model | [C4 model](#c4-model) | `c4` |
 | What runs where in Azure: subscriptions, resource groups, VNets, subnets | [Azure infrastructure](#azure-infrastructure) | `azure` |
+| What runs where in AWS or Google Cloud: accounts, VPCs, zones, subnets; multi-cloud and hybrid | [AWS and Google Cloud](#aws-and-google-cloud) | `cloud` |
 | Network topology: zones, VLANs, firewalls, switches and links; an IP plan | [Network](#network) | `network` |
 | Tables, columns, keys and how tables relate | [Database design](#database-design) | `erd` |
 | Who gets access to what, through which group, package or role | [Roles, groups and access packages](#roles-groups-and-access-packages) | `access` |
@@ -27,18 +28,22 @@ Whatever the type, a drawing can be told in parts for an audience: `steps:` says
 | Who calls whom, in what order: a login flow, an API integration, event choreography | [Sequence](#sequence) | `sequence` |
 | A branching strategy: branches, merges, tags, releases; or how branches reach production | [Git branching](#git-branching) | `gitflow` |
 | What happens when: workstreams, milestones, migration waves, a delivery plan | [Roadmap & timeline](#roadmap--timeline) | `roadmap` |
+| What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
 
 Look-alikes that trip people up:
 
 - **A service that uses a database** is Architecture; **the tables inside it** are Database design.
 - **A quick boxes-and-arrows sketch** is Architecture; **a context diagram that drills down into containers and components** is the C4 model.
 - **Azure resources and networks** are Azure infrastructure; **who may touch them** is Access.
+- **An estate that is only Azure** is Azure infrastructure; **AWS, Google Cloud or several clouds in one picture** is AWS and Google Cloud.
 - **Firewalls, switches, VLANs and circuits** are Network; **the Azure resources behind them** are Azure infrastructure.
 - **GitHub teams and repository permissions** are GitHub design; **Entra groups and Azure roles** are Access.
 - **ETL jobs as boxes and arrows** are Architecture; **products with ports and contracts** are Data products.
 - **Which services talk to each other** is Architecture; **the order they talk in, step by step** is Sequence.
 - **Repositories and teams in a GitHub org** are GitHub design; **how branches in one repo merge and release** is Git branching.
 - **The steps of one flow** are Sequence; **work spread over weeks and months** is Roadmap.
+- **Messages between systems** are Sequence; **what a person does, thinks and feels along the way** is a Journey map.
+- **A plan with dates** is Roadmap; **an experience in phases, without dates** is a Journey map.
 
 ## Architecture
 
@@ -110,6 +115,46 @@ edges:
 ```
 
 Examples: [examples/azure](../examples/azure)
+
+## AWS and Google Cloud
+
+`type: cloud` · what runs where in AWS or Google Cloud: accounts, VPCs, subnets, zones.
+
+Use it for a VPC across availability zones with its subnet tiers, a data platform (S3, Glue and Redshift, or BigQuery), a landing zone (organization, accounts or projects, networks), or a multi-cloud or hybrid picture. `provider: aws | gcp` at the top says whose words the file speaks by default; it reads top-down with `direction: down`.
+
+- **Containers** nest the way the clouds do: `organization`, `region`, `vpc`, `zone`, `subnet`, `on-premises` and `boundary` for both; `aws`, `ou`, `account`, `security-group`, `auto-scaling-group`, `ecs-cluster`, `eks-cluster` for AWS; `gcp`, `folder`, `project`, `instance-group`, `gke-cluster`, `service-perimeter` for Google Cloud. `cidr`, `account`, `project`, `region` and `zone` go in the caption.
+- **Services** are named the way you say them: `ec2`, `ecs`, `eks`, `lambda`, `s3`, `rds`, `aurora`, `dynamodb`, `redshift`, `glue`, `kinesis`, `sqs`, `sns`, `eventbridge`, `api-gateway`, `cloudfront`, `route53`, `alb`, `nat-gateway`, `transit-gateway`, `iam-role`, `kms`, `cloudwatch`, `bedrock`, … (59 for AWS) and `compute-engine`, `gke`, `cloud-run`, `cloud-functions`, `gcs`, `cloud-sql`, `spanner`, `bigquery`, `dataflow`, `pubsub`, `cloud-load-balancing`, `cloud-nat`, `service-account`, `cloud-kms`, `vertex-ai`, … (51 for Google Cloud), plus `internet`, `users`, `client`, `server`, `external` and the like. The palette in the editor lists them all by category. `size`, `zone` and `exposure: public | internal` go in the caption.
+- **Subnet tiers**: `tier: public | private | isolated` on a subnet colours it and puts the subnets of one tier on one row across the zones, so three zones with the same tiers read as a grid. A node outside the subnets joins a row with `tier:` as well.
+- **Mixing providers**: one file may hold AWS, Google Cloud and Azure. A service's provider follows from its kind; a container's from its kind, `provider:` or what it sits in. Every Azure kind works here too; the four that are also general words are `azure-storage`, `azure-load-balancer`, `azure-dns` and `azure-firewall`.
+- **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
+- **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.
+- **Model kinds** (`database`, `queue`, `api`, …) become the service that usually hosts them: RDS, SQS and ECS for `provider: aws`; Cloud SQL, Pub/Sub and Cloud Run for `gcp`. `of:` places a model's containers on the infrastructure, per environment; see [model.md](model.md#deployments-of-what-a-resource-runs).
+- **Official icons** are bring-your-own, as for Azure: `carto icons import <download> --pack aws` (or `gcp`), then `--pack aws` or `icons: { pack: [aws, gcp] }`. In a mixed diagram each shape takes its icon from its own provider's pack. See [themes.md](themes.md#icon-packs-bring-your-own).
+
+Not for: an estate that is only Azure (use `azure`), a cloud-neutral overview (use `systems`), pods and services inside a cluster (use `kubernetes`), devices, cabling and an IP plan (use `network`).
+
+```yaml
+type: cloud
+provider: aws
+title: Web shop
+direction: down
+groups:
+  vpc: { kind: vpc, cidr: 10.0.0.0/16 }
+  az-a: { kind: zone, zone: eu-west-1a, in: vpc }
+  public-a: { kind: subnet, tier: public, cidr: 10.0.0.0/24, in: az-a }
+  app-a: { kind: subnet, tier: private, cidr: 10.0.10.0/24, in: az-a }
+nodes:
+  users: users
+  alb: { kind: alb, in: public-a, exposure: public }
+  web: { kind: ecs, label: Web shop, in: app-a, size: 2 vCPU }
+edges:
+  - users -> alb: { label: HTTPS, style: public }
+  - alb -> web: { style: private }
+```
+
+Import what Terraform knows with `terraform show -json > state.json` (or `terraform show -json plan.out`) and `carto import state.json`: VPCs, zones and subnets become containers (public, private or isolated by their route out), about a hundred AWS and Google resource types become services in the right one, and lines follow references, event sources, listeners and security group rules. Ids come from the resource addresses, so pins survive a re-import. It reads the file only; nothing calls a cloud API.
+
+Examples: [examples/cloud](../examples/cloud) · deployments of a model: [examples/deployment](../examples/deployment)
 
 ## Network
 
@@ -358,6 +403,83 @@ items:
 Import: Mermaid `gantt` (sections become lanes; `done`, `active`, `crit` become statuses; `after` stays a dependency; milestones stay milestones) and `timeline` (periods become the axis, sections phases).
 
 Examples: [examples/roadmap](../examples/roadmap)
+
+## Journey map
+
+`type: journey` · what one person goes through, step by step, and how it feels.
+
+Use it for a developer's first week from laptop to first deploy, asking for access today next to the self-service way, a service blueprint with frontstage, backstage and support, or a storyboard that tells a slide deck step by step.
+
+Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`systems`).
+
+The short form is one line per step, the key being what they do and the number how it feels:
+
+```yaml
+type: journey
+title: A developer's first week
+persona: Dana, new backend developer
+phases:
+  day1: Day one
+  commit: First commit
+steps:
+  Collect laptop: 4                 # a score, 1..5 unless scale: says otherwise
+  Request access: { in: day1, feel: 2 frustrated, with: Service desk }
+  Wait for access: 1                # no in: the phase of the step above
+  Clone the repository: { in: commit, feel: 3 }
+  Open a pull request: 5 proud      # a score and the feeling in a word
+```
+
+Everything a step can carry:
+
+```yaml
+persona:
+  name: Dana
+  role: New backend developer
+  avatar: bob                       # short | long | bun | curly | bob | beard | headscarf | cap | glasses; else initials
+  goal: Ship a first change in week one
+  quote: I just want to know where to start.
+scale: 1..5                         # worst..best, also -2..2 or 0..10; default: what the scores fit in
+steps:
+  deploy:
+    label: First deploy
+    in: commit
+    feel: 2 anxious
+    thought: Did I just break production?    # a thought bubble; says: a speech bubble
+    touchpoint:                              # what they use; link: opens that diagram, ref: an element of the model
+      - Developer portal
+      - { label: Delivery pipeline, link: ../gitflow/trunk-delivery.yaml }
+    with: [Platform team, Buddy]             # who else is involved
+    pains: No preview environment            # one or a list
+    gains: The pipeline is fast
+    ideas: Preview environment per pull request
+    metrics: { Lead time: 3 days }
+    frontstage: Portal shows the rollout     # the rows of a service blueprint
+    backstage: Pipeline deploys to test
+    support: Platform team on call
+metrics: { Time to first deploy: 9 days }    # the numbers of the whole journey, beside the persona
+rows: [steps, feeling, thoughts, { ideas: Next steps }]   # order and names; default: all rows that have something
+hide: [metrics]
+view: map                                    # map | storyboard | blueprint | compare
+future:                                      # a second journey through the same phases
+  label: With self-service
+  steps: { Request access: { in: day1, feel: 4 } }
+  metrics: { Time to first deploy: 2 days }
+```
+
+Four views of the same steps, picked with `view:`, `--view` or the view menu:
+
+- `map`: phases as columns, a row each for what they do, touchpoints, the feeling curve, thoughts, pains, gains, opportunities and metrics. Rows nothing fills are left out.
+- `storyboard`: one card per step with its thought, feeling and notes, in reading order; the one to present from.
+- `blueprint`: the journey over the lines of interaction and visibility, with frontstage, backstage and support rows (offered when steps have them).
+- `compare`: today and `future:` above each other with both curves in one chart and the numbers side by side (the default when there is a `future:`).
+
+The feeling curve is not colour-only: every point is a face, the lowest and highest are called out, and a dashed line marks neutral. A score outside the scale is drawn at the edge, with a warning. The drawing picks its column width (or cards per row) to come close to 16:9, so it fills a slide.
+
+Presenting tells the journey one step at a time: the step in focus is outlined, the rest is quiet and the curve is drawn up to that point; the caption is the step's thought. A comparison is told phase by phase. `carto render --all-steps` gives the same as slides or pages. In PowerPoint the journey is native shapes and text boxes (the curve an editable freeform), not a picture.
+
+Import: Mermaid `journey` (sections become phases, tasks steps with their score; the actor in most tasks becomes the persona, the others go to `with:`).
+
+Examples: [examples/journey](../examples/journey)
 
 ## Adding a type
 

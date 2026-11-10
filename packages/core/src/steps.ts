@@ -12,6 +12,7 @@
 //       hide: legacy
 //       note: { stripe: 'PCI scope ends here' }
 import type { Graph, Path } from './model.ts';
+import { journeyBeats } from './journey.ts';
 
 /** hidden: not drawn, its space stays empty; dim: drawn quiet; focus: emphasised. Absent: as usual. */
 export type Emphasis = 'hidden' | 'dim' | 'focus';
@@ -33,6 +34,8 @@ export interface StepState {
   notes: StepNote[];
   /** Sequence diagrams: the message this step has reached (1-based); later ones are not drawn yet. */
   message?: number;
+  /** Journeys: the step (or, comparing, the phase) this one is about (1-based); the rest stands back and the curve stops here. */
+  journey?: number;
 }
 
 type Report = (path: Path, message: string, severity?: 'error' | 'warning') => void;
@@ -220,6 +223,9 @@ export function impliedSteps(graph: Graph): StepState[] {
         notes: [],
       } satisfies StepState;
     });
+  // A journey is told step by step: its column in focus, the feeling curve drawn up to there.
+  const journey = graph.nodes.find((n) => n.shape.kind === 'journey')?.shape;
+  if (journey?.kind === 'journey') return journeyBeats(journey).map((b, i) => ({ ...b, nodes: {}, groups: {}, edges: {}, notes: [], journey: i + 1 }));
   const seq = graph.nodes.length === 1 && graph.nodes[0]!.shape.kind === 'sequence' ? graph.nodes[0]!.shape : undefined;
   if (!seq) return [];
   const who = new Map(seq.participants.map((p) => [p.id, p.label]));

@@ -1,18 +1,20 @@
 // Imports from other diagram languages. Pure functions (text in, YAML out), shared by the CLI and the web app.
 //
 //   importMermaid(text)    flowchart/graph and architecture-beta → systems, erDiagram → erd, sequenceDiagram → sequence,
-//                          gitGraph → gitflow, gantt and timeline → roadmap
+//                          gitGraph → gitflow, gantt and timeline → roadmap, journey → journey
 //   importGitLog(text)     `git log --format=GIT_LOG_FORMAT` of a real repository → gitflow
 //   importMarkdown(text)   every ```mermaid block in a Markdown file
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
 //   importDataMesh(files)  data product files (ODPS) and data contracts (ODCS) → data-products
+//   importTerraform(text)  `terraform show -json` of a state or a plan (AWS, Google Cloud) → cloud
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
 import { importSequence } from './sequence.ts';
 import { importGitGraph } from './gitgraph.ts';
 import { importGantt, importTimeline } from './gantt.ts';
+import { importJourney } from './journey.ts';
 import { Warnings } from './text.ts';
 
 export interface Imported {
@@ -26,6 +28,7 @@ export { importKubernetes, isKubernetes } from './kubernetes.ts';
 export { importNetwork, isNetworkInventory, networkKind } from './network.ts';
 export { importStructurizr, isStructurizr } from './structurizr.ts';
 export { dataFileKind, importDataMesh, isDataMeshFile, type DataFileKind, type ImportedMesh, type MeshFile, type MeshOptions, type MeshProblem } from './data-mesh.ts';
+export { importTerraform, isTerraform } from './terraform.ts';
 export { GIT_LOG_FORMAT, importGitLog, type GitLogOptions } from './git.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {
@@ -65,7 +68,8 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   else if (/^gitGraph/.test(kind)) yaml = importGitGraph(body, header, title, warn);
   else if (kind === 'gantt') yaml = importGantt(body, title, warn);
   else if (kind === 'timeline') yaml = importTimeline(body, title, warn);
-  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt and timeline can`);
+  else if (kind === 'journey') yaml = importJourney(body, title, warn);
+  else warn.add(`Mermaid "${kind}" diagrams cannot be imported yet: flowchart, graph, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline and journey can`);
   return { yaml, warnings: warn.list };
 }
 
