@@ -16,6 +16,7 @@
     "@cartography/wizards": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
+    "@cartography/html-export": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/interop": "workspace:*",

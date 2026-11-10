@@ -1,0 +1,25 @@
+{
+  "name": "@cartography/html-export",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "One HTML file that carries a diagram or a whole workspace: every view and step drawn, pan, zoom, drill-down, search and details, offline",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@cartography/core": "workspace:*",
+    "@cartography/embed": "workspace:*",
+    "@cartography/engine": "workspace:*",
+    "@cartography/render": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "fflate": "0.8.3",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
