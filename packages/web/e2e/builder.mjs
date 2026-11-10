@@ -178,6 +178,10 @@ await page.keyboard.press('Escape');
 await page.keyboard.press('Meta+0');
 await wait(300);
 const nodeCount = await page.locator('.drawing [data-node]').count();
+// Selected first: here the node sits where the inspector opens, so a double-click on it unselected
+// would have its second click land on the inspector that the first click opens (a known gap).
+await page.locator('.drawing [data-node="vault"]').click();
+await wait(600);
 const vb = await page.locator('.drawing [data-node="vault"]').boundingBox();
 await page.mouse.dblclick(vb.x + vb.width / 2, vb.y + vb.height / 2);
 await wait(300);
