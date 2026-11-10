@@ -77,6 +77,9 @@ importers:
       '@cartography/import':
         specifier: workspace:*
         version: link:../import
+      '@cartography/interop':
+        specifier: workspace:*
+        version: link:../interop
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
@@ -309,6 +312,52 @@ importers:
         specifier: workspace:*
         version: link:../engine
 
+  packages/interop:
+    dependencies:
+      '@cartography/azure':
+        specifier: workspace:*
+        version: link:../../types/azure
+      '@cartography/cloud':
+        specifier: workspace:*
+        version: link:../../types/cloud
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cartography/github':
+        specifier: workspace:*
+        version: link:../../types/github
+      '@cartography/icons':
+        specifier: workspace:*
+        version: link:../icons
+      '@cartography/import':
+        specifier: workspace:*
+        version: link:../import
+      '@cartography/kubernetes':
+        specifier: workspace:*
+        version: link:../../types/kubernetes
+      '@cartography/network':
+        specifier: workspace:*
+        version: link:../../types/network
+      '@cartography/render':
+        specifier: workspace:*
+        version: link:../render
+      '@cartography/sequence':
+        specifier: workspace:*
+        version: link:../../types/sequence
+      '@cartography/systems':
+        specifier: workspace:*
+        version: link:../../types/systems
+      '@cartography/theme':
+        specifier: workspace:*
+        version: link:../theme
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+    devDependencies:
+      '@cartography/engine':
+        specifier: workspace:*
+        version: link:../engine
+
   packages/lanes: {}
 
   packages/layout:
@@ -388,6 +437,9 @@ importers:
       '@cartography/import':
         specifier: workspace:*
         version: link:../import
+      '@cartography/interop':
+        specifier: workspace:*
+        version: link:../interop
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme

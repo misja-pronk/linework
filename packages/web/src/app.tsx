@@ -22,7 +22,7 @@ import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-ed
 import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
-import { baseName, download, exportPdf, exportPng, exportPptx, exportSlide, exportSvg, yamlName } from './export.ts';
+import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
 import { addEntry, canMove, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { BrandMenu } from './brand-menu.tsx';
@@ -88,6 +88,12 @@ export function App() {
   const [text, setText] = useState(saved?.text ?? firstStarter.text);
   const [doc, setDoc] = useState<Doc>(saved?.doc ?? { name: firstStarter.file, starter: firstStarter.id });
   const [pins, setPins] = useState<LayoutSidecar | undefined>(saved?.pins);
+  const [safeSvg, setSafeSvg] = useState(() => store.get<boolean>('svg-safe') ?? false);
+  const toggleSafeSvg = () =>
+    setSafeSvg((on) => {
+      store.set('svg-safe', !on);
+      return !on;
+    });
   /** A node being dragged: its pin before it is committed to the history. */
   const [draft, setDraft] = useState<{ nodes?: Record<string, Point>; groups?: Record<string, Point>; edges?: Record<string, EdgeOverride> }>();
   const [docKey, setDocKey] = useState(0);
@@ -329,7 +335,7 @@ export function App() {
     closeModal();
     fileHandle.current = undefined;
     setView(o.view);
-    open(o.text, { name: o.name, starter: o.starter }, undefined, o.blank);
+    open(o.text, { name: o.name, starter: o.starter }, o.pins, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -440,13 +446,38 @@ export function App() {
   const saveYaml = () => void save();
   const downloadYaml = () => download(yamlName(doc.name), editor.current?.text() ?? text, 'text/yaml');
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
-  const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await exportSvg(exportInput()), 'image/svg+xml'));
+  // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
+  const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
+  const saveSvg = attempt('Export', async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
+  /** Another tool's file is there; what it could not hold is said, not hidden. */
+  const handed = (what: string, h: Handed) =>
+    h.warnings.length ? notify(`${what}. ${h.warnings[0]}${h.warnings.length > 1 ? `, and ${h.warnings.length - 1} more left out` : ''}`, { action: { label: 'OK', run: () => {} } }) : notify(what);
+  const saveDrawio = attempt('Export', async () => {
+    const h = await exportDrawio(exportInput());
+    download(`${baseName(doc.name)}.drawio`, h.data, 'application/xml');
+    handed('Saved for draw.io', h);
+  });
+  const saveExcalidraw = attempt('Export', async () => {
+    const h = await exportExcalidraw(exportInput());
+    download(`${baseName(doc.name)}.excalidraw`, h.data, 'application/json');
+    handed('Saved for Excalidraw', h);
+  });
+  const saveMermaid = attempt('Export', async () => {
+    const h = await exportMermaid(exportInput());
+    download(`${baseName(doc.name)}.mmd`, h.data, 'text/plain');
+    handed('Saved as Mermaid', h);
+  });
+  const copyMermaid = attempt('Copy', async () => {
+    const h = await exportMermaid(exportInput());
+    await navigator.clipboard.writeText('```mermaid\n' + h.data + '```\n');
+    handed('Mermaid copied, paste it into a README', h);
+  });
   const savePng = attempt('Export', async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt('Export', async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const savePptx = attempt('Export', async () => download(`${baseName(doc.name)}.pptx`, await exportPptx(exportInput(), yamlName(doc.name))));
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const copySvg = attempt('Copy', async () => {
-    await navigator.clipboard.writeText(await exportSvg(exportInput()));
+    await navigator.clipboard.writeText(await svgNow());
     notify('SVG copied');
   });
   const copyPng = attempt('Copy', async () => {
@@ -1029,6 +1060,11 @@ export function App() {
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
     { id: 'copy-svg', group: 'Export', label: 'Copy as SVG', icon: 'copy', run: copySvg },
+    { id: 'svg-safe', group: 'Export', label: safeSvg ? 'SVG as drawn (Office-safe SVG off)' : 'Office-safe SVG on', hint: 'for PowerPoint, Word and Keynote', icon: 'monitor', run: toggleSafeSvg },
+    { id: 'drawio', group: 'Export', label: 'Export for draw.io (.drawio)', hint: 'editable shapes, every view a page', icon: 'workflow', run: saveDrawio },
+    { id: 'excalidraw', group: 'Export', label: 'Export for Excalidraw (.excalidraw)', icon: 'square-dashed', run: saveExcalidraw },
+    { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
+    { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
     { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
     ...(type && !drawn?.stepsImplied
       ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
@@ -1255,7 +1291,7 @@ export function App() {
             {menu && (
               <Menu onClose={() => setMenu(false)}>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> SVG <kbd>⌘E</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>⌘E</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
                   <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
@@ -1275,6 +1311,31 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={copySvg}>
                   <Icon name="copy" /> Copy as SVG
+                </button>
+                <button
+                  role="menuitemcheckbox"
+                  aria-checked={safeSvg}
+                  title="SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node"
+                  onClick={(e) => {
+                    // A switch: the menu stays open, the SVG rows above follow it.
+                    e.stopPropagation();
+                    toggleSafeSvg();
+                  }}
+                >
+                  <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
+                </button>
+                <hr />
+                <button role="menuitem" onClick={saveDrawio}>
+                  <Icon name="workflow" /> draw.io (.drawio)
+                </button>
+                <button role="menuitem" onClick={saveExcalidraw}>
+                  <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                </button>
+                <button role="menuitem" onClick={saveMermaid}>
+                  <Icon name="file-code" /> Mermaid (.mmd)
+                </button>
+                <button role="menuitem" onClick={copyMermaid}>
+                  <Icon name="copy" /> Copy as Mermaid
                 </button>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>

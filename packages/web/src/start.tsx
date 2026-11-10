@@ -3,7 +3,7 @@
 // Claude runs here with your own key, or that you copy into any chat and paste the answer back.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
-import { matchTypes, type DiagramType } from '@cartography/core';
+import { matchTypes, type DiagramType, type LayoutSidecar } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
 import { useRestoreFocus } from './menu.tsx';
@@ -12,6 +12,7 @@ import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
 import { failure, generate, MODELS, type ModelId } from './ai/claude.ts';
 import { importMarkdown, importMermaid } from '@cartography/import';
+import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 
 export type View = 'visual' | 'code';
 
@@ -23,13 +24,15 @@ export interface Opened {
   view: View;
   /** A new, empty diagram: nothing worth an "undo open". */
   blank?: boolean;
+  /** Where the shapes stood in the drawing it was imported from, when that was asked for. */
+  pins?: LayoutSidecar;
 }
 
 const thumbs = new Map<string, string>();
 let thumbIds = 0;
 
 /** A drawing of some YAML, kept while the next one is on its way. */
-function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f: string) => string) {
+function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f: string) => string, sidecar?: LayoutSidecar) {
   const [svg, setSvg] = useState<string>();
   const [errors, setErrors] = useState<string[]>([]);
   useEffect(() => {
@@ -41,6 +44,7 @@ function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f
         fonts: 'none',
         idPrefix: `s${thumbIds++}`,
         load,
+        sidecar,
       }).catch(() => undefined);
       if (stop || !r) return;
       if (r.svg) setSvg(r.svg);
@@ -50,7 +54,7 @@ function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f
       stop = true;
       clearTimeout(t);
     };
-  }, [text, theme, load]);
+  }, [text, theme, load, sidecar]);
   return { svg, errors };
 }
 
@@ -136,7 +140,7 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
                   ? 'All templates and examples'
                   : `${typeName(typeId)}: pick a start`
                 : step === 'import'
-                  ? 'Import from Mermaid'
+                  ? 'Import from Mermaid, draw.io or Excalidraw'
                   : step === 'mode'
                     ? `${starter!.title}`
                     : `Describe it · ${typeName(starter!.type)}`}
@@ -294,8 +298,8 @@ function Types({ theme, current, last, onChoose, onImport }: { theme: 'light' | 
         <button className="chip import-chip" onClick={() => onChoose('all')} title="Every template and example, of every type">
           <Icon name="layout-grid" size={13} /> All templates
         </button>
-        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram and get it back as Cartography">
-          <Icon name="clipboard-paste" size={13} /> Import from Mermaid
+        <button className="chip import-chip" onClick={onImport} title="Paste a Mermaid diagram, or open a draw.io or Excalidraw file, and get it back as Cartography">
+          <Icon name="clipboard-paste" size={13} /> Import from Mermaid, draw.io or Excalidraw
         </button>
       </div>
       <p className="type-hint" role="status">
@@ -806,65 +810,118 @@ const MERMAID_SAMPLE = `flowchart LR
 /** Messages read as sentences: a capital first, a full stop last. */
 const sentence = (s: string) => (s.charAt(0).toUpperCase() + s.slice(1)).replace(/([^.!?…])$/, '$1.');
 
-/** Paste Mermaid (or Markdown with mermaid blocks) and see it as Cartography right away. */
+/** One diagram out of what was pasted: a Mermaid block, a draw.io page, an Excalidraw scene. */
+interface Imported {
+  yaml: string;
+  /** What was left out or changed; for a drawing the whole report, what was mapped first. */
+  warnings: string[];
+  name?: string;
+  pins?: LayoutSidecar;
+}
+
+/** Paste Mermaid (or Markdown with mermaid blocks), or a draw.io or Excalidraw file, and see it as Cartography right away. */
 function Import({ theme, onOpen }: { theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
   const [text, setText] = useState('');
+  const [file, setFile] = useState<string>();
   const [block, setBlock] = useState(0);
-  const blocks = useMemo(() => {
+  const [keep, setKeep] = useState(false);
+  // A drawing from another tool: XML of draw.io (packed or not) or the JSON of Excalidraw.
+  const drawing = useMemo(() => (isExcalidraw(text) ? 'Excalidraw' : isDrawio(text) ? 'draw.io' : undefined), [text]);
+  const blocks = useMemo((): Imported[] => {
     if (!text.trim()) return [];
     try {
+      if (drawing) {
+        const opts = { keepPositions: keep, title: file?.replace(/\.[^.]+$/, '') };
+        const pages = drawing === 'Excalidraw' ? [importExcalidraw(text, opts)] : importDrawio(text, opts);
+        return pages.map((p) => ({ yaml: p.yaml, warnings: p.report, name: p.name, pins: p.sidecar }));
+      }
       return /```mermaid/.test(text) ? importMarkdown(text) : [importMermaid(text)];
     } catch (e) {
       return [{ yaml: '', warnings: [e instanceof Error ? e.message : String(e)] }];
     }
-  }, [text]);
+  }, [text, drawing, keep, file]);
   const current = blocks[Math.min(block, blocks.length - 1)];
-  const drawing = useDrawing(current?.yaml || undefined, theme);
-  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: 'imported.yaml', view });
+  const shown = useDrawing(current?.yaml || undefined, theme, undefined, current?.pins);
+  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: `${(drawing && (current.name ?? file?.replace(/\.[^.]+$/, ''))) || 'imported'}.yaml`.replace(/[\\/:]+/g, '-'), view, pins: current.pins });
+  const choose = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.drawio,.dio,.xml,.excalidraw,.json,.mmd,.mermaid,.md';
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      setFile(f.name);
+      setBlock(0);
+      setText(await f.text());
+    };
+    input.click();
+  };
   return (
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey
+          <Icon name="clipboard-paste" size={14} /> Paste a flowchart, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline or journey, or a draw.io or Excalidraw file
         </div>
-        <textarea className="paste mono" autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={MERMAID_SAMPLE} spellCheck={false} />
-        {!text && (
-          <button className="button ghost" style={{ margin: 12 }} onClick={() => setText(MERMAID_SAMPLE)}>
-            Try the example
+        <textarea
+          className="paste mono"
+          autoFocus
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setFile(undefined);
+          }}
+          placeholder={MERMAID_SAMPLE}
+          spellCheck={false}
+        />
+        <div style={{ display: 'flex', gap: 8, margin: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="button ghost" onClick={choose} title="A .drawio, .excalidraw, .mmd or .md file from your computer; it is read here, in the browser">
+            <Icon name="folder-open" /> Choose a file…
           </button>
-        )}
+          {!text && (
+            <button className="button ghost" onClick={() => setText(MERMAID_SAMPLE)}>
+              Try the example
+            </button>
+          )}
+          {drawing && (
+            <label className="fine" title="Pins every shape where it stood in the drawing. Off, Cartography lays it out itself.">
+              <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep the positions from {drawing}
+            </label>
+          )}
+        </div>
       </div>
       <div className="ask-preview">
         {blocks.length > 1 && (
-          <div className="segmented" role="radiogroup" aria-label="Mermaid block">
+          <div className="segmented" role="radiogroup" aria-label={drawing ? 'Page' : 'Mermaid block'}>
             {blocks.map((b, i) => (
               <button key={i} role="radio" aria-checked={i === block} className={i === block ? 'active' : ''} onClick={() => setBlock(i)}>
-                Block {i + 1}
+                {b.name ?? `${drawing ? 'Page' : 'Block'} ${i + 1}`}
               </button>
             ))}
           </div>
         )}
         <div className="mode-preview">
-          {drawing.svg && current?.yaml ? (
-            <div dangerouslySetInnerHTML={{ __html: drawing.svg }} />
+          {shown.svg && current?.yaml ? (
+            <div dangerouslySetInnerHTML={{ __html: shown.svg }} />
           ) : (
             <p className="fine">{text.trim() ? 'Nothing to draw: see the problem below.' : 'The Cartography version appears here as you paste.'}</p>
           )}
         </div>
         {current && current.warnings.length > 0 && (
-          <div className={current.yaml ? 'callout warn' : 'callout error'} role={current.yaml ? 'status' : 'alert'}>
-            <Icon name={current.yaml ? 'triangle-exclamation-point' : 'circle-exclamation-point'} size={14} />
+          <div className={!current.yaml ? 'callout error' : drawing && current.warnings.length === 1 ? 'callout' : 'callout warn'} role={current.yaml ? 'status' : 'alert'}>
+            <Icon name={!current.yaml ? 'circle-exclamation-point' : drawing && current.warnings.length === 1 ? 'check' : 'triangle-exclamation-point'} size={14} />
             <div>
               <strong>
-                {current.yaml
-                  ? `${current.warnings.length === 1 ? 'One thing was' : `${current.warnings.length} things were`} left out or changed:`
-                  : 'This could not be imported:'}
+                {!current.yaml
+                  ? 'This could not be imported:'
+                  : drawing
+                    ? `Read from ${drawing}:`
+                    : `${current.warnings.length === 1 ? 'One thing was' : `${current.warnings.length} things were`} left out or changed:`}
               </strong>
               <ul className="warnings">
-                {current.warnings.slice(0, 4).map((w) => (
+                {current.warnings.slice(0, drawing ? 6 : 4).map((w) => (
                   <li key={w}>{sentence(w)}</li>
                 ))}
-                {current.warnings.length > 4 && <li>…and {current.warnings.length - 4} more</li>}
+                {current.warnings.length > (drawing ? 6 : 4) && <li>…and {current.warnings.length - (drawing ? 6 : 4)} more</li>}
               </ul>
             </div>
           </div>
