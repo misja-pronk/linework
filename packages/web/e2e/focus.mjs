@@ -233,7 +233,7 @@ await wait(400);
 
 // 8. A drawing that is one shape has nothing to walk from: it says so and stays whole.
 {
-  await seed('type: sequence\ntitle: Login\nparticipants:\n  user: { kind: person, label: User }\n  app: { kind: client, label: Web app }\nsteps:\n  - user -> app: Sign in\n  - app --> user: Welcome\n', 'login.yaml');
+  await seed('type: sequence\ntitle: Login\nparticipants:\n  user: { kind: person, label: User }\n  app: { kind: client, label: Web app }\nmessages:\n  - user -> app: Sign in\n  - app --> user: Welcome\n', 'login.yaml');
   await page.waitForSelector('.drawing svg', { timeout: 10000 });
   await wait(400);
   const any = page.locator('.drawing [data-node]').first();

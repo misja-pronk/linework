@@ -35,7 +35,7 @@ participants:
   a: person
   b: { kind: service, label: Orders }
   c: database
-steps:
+messages:
   - a -> b: Order with a label long enough to wrap onto a second line in the drawing for sure
   - b -> b: Check
   - b -> c: INSERT
@@ -85,11 +85,11 @@ describe('sequence', () => {
   it('nests frames with growing insets, branches inside, and fits their tabs', async () => {
     const { g } = await geometry(`type: sequence
 participants: { a: service, b: service }
-steps:
+messages:
   - loop: Every minute
-    steps:
+    messages:
       - alt: ok
-        steps:
+        messages:
           - a -> b: x
         else:
           Not ok: [ { b -> a: y } ]
@@ -108,7 +108,7 @@ steps:
   it('keeps notes, refs and dividers in rows of their own', async () => {
     const { g } = await geometry(`type: sequence
 participants: { a: service, b: service, c: service }
-steps:
+messages:
   - a -> b: x
   - note: Over two lifelines, wrapped to their width when it is long enough to need it
     over: [a, b]
@@ -134,7 +134,7 @@ participants:
   a: { kind: service, box: shop }
   x: external
   b: { kind: database, box: shop }
-steps: [ a -> x, x -> b ]
+messages: [ a -> x, x -> b ]
 `);
     expect(shape.participants.map((p) => p.id)).toEqual(['a', 'b', 'x']);
     const box = g.boxes[0]!.box;
@@ -144,7 +144,7 @@ steps: [ a -> x, x -> b ]
   it('reports unknown participants and boxes on the step', async () => {
     const r = await render(`type: sequence
 participants: { a: { kind: service, box: nope } }
-steps:
+messages:
   - a -> zz: hi
   - note: x
 `, { fonts: 'none' });
@@ -155,8 +155,21 @@ steps:
     ]);
   });
 
+  it('reads the old steps: as messages:, with a warning to rename it', async () => {
+    const old = await render('type: sequence\nparticipants: { a: person, b: service }\nsteps:\n  - a -> b: hi\n  - loop: again\n    steps: [ b --> a ]\n', { fonts: 'none' });
+    expect(old.svg).toContain('hi');
+    expect(old.diagnostics.map((d) => [d.severity, d.line])).toEqual([
+      ['warning', 3],
+      ['warning', 6],
+    ]);
+    expect(old.diagnostics[0]!.message).toMatch(/now called messages:/);
+    const both = await render('type: sequence\nparticipants: { a: person, b: service }\nmessages: [ a -> b ]\nsteps: [ b -> a ]\n', { fonts: 'none' });
+    expect(both.diagnostics.some((d) => d.severity === 'error' && /keep one/.test(d.message))).toBe(true);
+    expect(sequence.connect!(parse('type: sequence\nparticipants: { a: person, b: service }\nsteps: [ a -> b ]\n'), 'b', 'a')).toEqual({ path: ['steps'], value: 'b -> a' });
+  });
+
   it('validates the schema, nested frames included', async () => {
-    const bad = await render('type: sequence\nparticipants: { a: robot }\nsteps:\n  - alt: x\n    steps:\n      - opt: y\n        steps: [ { a => a: z } ]\n', { fonts: 'none' });
+    const bad = await render('type: sequence\nparticipants: { a: robot }\nmessages:\n  - alt: x\n    messages:\n      - opt: y\n        messages: [ { a => a: z } ]\n', { fonts: 'none' });
     expect(bad.diagnostics.length).toBeGreaterThan(0);
     expect(bad.diagnostics.some((d) => d.line === 2)).toBe(true);
   });
@@ -164,24 +177,24 @@ steps:
   it('follows references through frames and connects with a message', () => {
     const src = parse(`type: sequence
 participants: { a: service, b: service }
-steps:
+messages:
   - a -> b: x
   - alt: ok
-    steps: [ b --> a ]
+    messages: [ b --> a ]
     else: { no: [ { note: n, over: [a, b] } ] }
   - activate: a
 `);
     const refs = sequence.references!(src);
     expect(refs.map((r) => [r.path.join('.'), r.id, r.start])).toEqual([
-      ['steps.0', 'a', 0],
-      ['steps.0', 'b', 5],
-      ['steps.1.steps.0', 'b', 0],
-      ['steps.1.steps.0', 'a', 6],
-      ['steps.1.else.no.0.over.0', 'a', 0],
-      ['steps.1.else.no.0.over.1', 'b', 0],
-      ['steps.2.activate', 'a', 0],
+      ['messages.0', 'a', 0],
+      ['messages.0', 'b', 5],
+      ['messages.1.messages.0', 'b', 0],
+      ['messages.1.messages.0', 'a', 6],
+      ['messages.1.else.no.0.over.0', 'a', 0],
+      ['messages.1.else.no.0.over.1', 'b', 0],
+      ['messages.2.activate', 'a', 0],
     ]);
-    expect(sequence.connect!(src, 'a', 'b')).toEqual({ path: ['steps'], value: 'a -> b' });
+    expect(sequence.connect!(src, 'a', 'b')).toEqual({ path: ['messages'], value: 'a -> b' });
     expect(typeof sequence.connect!(src, 'a', 'nope')).toBe('string');
   });
 

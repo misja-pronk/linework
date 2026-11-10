@@ -9,7 +9,7 @@ participants:
   mfa: { kind: mobile, label: Authenticator }
   api: { kind: api, label: Orders API }
 
-steps:
+messages:
   - user -> app: Sign in
   - app -> app: Create code verifier and challenge
   - app -> idp: /authorize (client id, challenge, scopes)
@@ -17,7 +17,7 @@ steps:
   - user -> idp: Name and password
   - idp -> idp: Risk check
   - alt: New device or risky sign-in
-    steps:
+    messages:
       - idp ->> mfa: Push notification
       - mfa --> user: Approve sign-in?
       - user -> mfa: Approve with Face ID
@@ -32,11 +32,11 @@ steps:
   - note: Tokens stay in memory; the refresh token is rotated on every use
     right: app
   - loop: Every API call
-    steps:
+    messages:
       - app -> api: GET /orders (Bearer token)
       - api -> api: Validate JWT signature and audience
       - api --> app: 200 Orders
   - opt: Access token expired
-    steps:
+    messages:
       - app -> idp: /token (refresh token)
       - idp --> app: New access token

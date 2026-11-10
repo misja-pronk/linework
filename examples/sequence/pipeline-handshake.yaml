@@ -13,7 +13,7 @@ participants:
   lake: { kind: storage, label: Raw zone, box: platform }
   wh: { kind: database, label: Warehouse, box: platform }
 
-steps:
+messages:
   - partner ->> ingest: orders_2026-11-09.csv + .done marker
   - ingest -> lake: Copy file and checksum
   - lake --> ingest: stored
@@ -22,7 +22,7 @@ steps:
   - orch -> lake: Read manifest
   - lake --> orch: 3 files, 1.2 GB
   - par: orders
-    steps:
+    messages:
       - orch -> wh: COPY orders
       - wh --> orch: 1,204,331 rows
     and:
@@ -32,7 +32,7 @@ steps:
   - orch -> wh: Run quality checks
   - wh --> orch: Results
   - alt: All checks pass
-    steps:
+    messages:
       - orch -> wh: Swap staging into production
       - orch ->> partner: ACK batch 8812
     else:

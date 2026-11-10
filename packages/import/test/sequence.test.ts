@@ -60,7 +60,7 @@ describe('sequenceDiagram', () => {
       DB: { kind: 'database', box: 'shop-system' },
       S: { kind: 'payments', label: 'Stripe' },
     });
-    expect(d.steps.slice(0, 9)).toEqual([
+    expect(d.messages.slice(0, 9)).toEqual([
       { 'C -> W': 'Pay' },
       { 'W -> +S': 'Create intent' },
       { 'S --> -W': 'secret' },
@@ -71,9 +71,9 @@ describe('sequenceDiagram', () => {
       { note: 'waits', right: 'W' },
       { note: '3-D Secure', over: ['W', 'S'] },
     ]);
-    expect(d.steps[9]).toEqual({ alt: 'paid', steps: [{ 'S ->> W': 'webhook' }], else: { declined: [{ 'S -> W': 'failed' }], else: [{ 'W -> DB': 'log' }] } });
-    expect(d.steps[10]).toEqual({ par: 'to DB', steps: [{ 'W -> DB': 'save' }], and: { 'to Stripe': [{ 'W -> S': 'capture' }] } });
-    expect(d.steps[11]).toEqual({ group: null, steps: [{ critical: 'lock', steps: [{ 'W -> DB': 'SELECT FOR UPDATE' }], else: { busy: [{ 'W -> W': 'wait' }] } }] });
+    expect(d.messages[9]).toEqual({ alt: 'paid', messages: [{ 'S ->> W': 'webhook' }], else: { declined: [{ 'S -> W': 'failed' }], else: [{ 'W -> DB': 'log' }] } });
+    expect(d.messages[10]).toEqual({ par: 'to DB', messages: [{ 'W -> DB': 'save' }], and: { 'to Stripe': [{ 'W -> S': 'capture' }] } });
+    expect(d.messages[11]).toEqual({ group: null, messages: [{ critical: 'lock', messages: [{ 'W -> DB': 'SELECT FOR UPDATE' }], else: { busy: [{ 'W -> W': 'wait' }] } }] });
     expect(warnings).toEqual(['rect highlights become plain group frames (colours are not kept)']);
     await clean(yaml);
   });

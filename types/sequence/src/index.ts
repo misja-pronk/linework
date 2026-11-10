@@ -3,16 +3,19 @@
 //   participants:
 //     shopper: person
 //     api: { kind: service, label: Orders API, box: shop }
-//   steps:
+//   messages:
 //     - shopper -> api: Place order        call (opens an activation on api)
 //     - api ->> bus: OrderPlaced           async message
 //     - api --> shopper: 201 Created       reply (closes api's activation)
 //     - alt: Card accepted                 frames: alt/else, opt, loop, par/and, break, critical, group
-//       steps: [...]
+//       messages: [...]
 //       else: { Card declined: [...] }
 //     - note: Idempotent                   notes over, left or right of participants
 //       over: api
 //     - divider: Payment
+//
+// `steps:` is the old name of `messages:` (everywhere else steps: are presentation steps): still read,
+// with a warning.
 //
 // Activations follow the calls by default: a call opens one on the callee, its reply closes it.
 // `activations: explicit` draws only the ones asked for (`a -> +b`, `b --> -a`, activate:/deactivate:).
@@ -78,8 +81,13 @@ export interface SequenceSource {
   footers?: boolean;
   boxes?: Record<string, string | { label?: string; tone?: Tone }>;
   participants?: Record<string, string | ParticipantEntry | null>;
+  messages?: unknown[];
+  /** The old name of messages. */
   steps?: unknown[];
 }
+
+/** Where the messages of a sequence or a frame are: `messages:`, or the old `steps:`. */
+const messagesKey = (o: { messages?: unknown; steps?: unknown }): 'messages' | 'steps' => (o.messages === undefined && o.steps !== undefined ? 'steps' : 'messages');
 
 type Item = Record<string, unknown>;
 
@@ -144,7 +152,7 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
       const kind = stepKind(item);
       const o = (item && typeof item === 'object' ? item : {}) as Item;
       if (!kind) {
-        ctx.error(path, 'A step is a message ("a -> b: text"), a note, a divider, a ref or a frame (alt, opt, loop, par, …)');
+        ctx.error(path, 'Each entry is a message ("a -> b: text"), a note, a divider, a ref or a frame (alt, opt, loop, par, …)');
         continue;
       }
       if (kind === 'message') {
@@ -181,7 +189,9 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
         events.push({ kind, lane, path });
       } else {
         events.push({ kind: 'frame', frame: kind, ...(o[kind] != null ? { label: String(o[kind]) } : {}), ...(typeof o.tone === 'string' ? { tone: o.tone as Tone } : {}), path });
-        walk(o.steps, [...path, 'steps']);
+        const inner = messagesKey(o);
+        if (inner === 'steps') ctx.warn([...path, 'steps'], 'In a sequence this is now called messages: (steps: are for presenting elsewhere); rename it');
+        walk(o[inner], [...path, inner]);
         // else: (alt) and and: (par) hold the other branches: a map of label → steps, or one list without a label.
         for (const k of ['else', 'and'] as const) {
           const more = o[k];
@@ -198,7 +208,10 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
       }
     }
   };
-  walk(src.steps, ['steps']);
+  const top = messagesKey(src);
+  if (top === 'steps') ctx.warn(['steps'], 'In a sequence this is now called messages: (steps: are for presenting elsewhere); rename it');
+  if (src.messages !== undefined && src.steps !== undefined) ctx.error(['steps'], 'Both messages: and steps: here: steps: is the old name of messages:, keep one');
+  walk(src[top], [top]);
 
   return {
     title: src.title,
@@ -236,14 +249,16 @@ export function sequenceReferences(src: SequenceSource): Reference[] {
       else if (kind === 'ref') scalar(o.over, [...path, 'over']);
       else if (kind === 'activate' || kind === 'deactivate') scalar(o[kind], [...path, kind]);
       else if (kind && frames.includes(kind as FrameKind)) {
-        walk(o.steps, [...path, 'steps']);
+        const inner = messagesKey(o);
+        walk(o[inner], [...path, inner]);
         for (const k of ['else', 'and'])
           if (Array.isArray(o[k])) walk(o[k], [...path, k]);
           else if (o[k] && typeof o[k] === 'object') for (const [label, s] of Object.entries(o[k] as Item)) walk(s, [...path, k, label]);
       }
     }
   };
-  walk(src.steps, ['steps']);
+  const top = messagesKey(src);
+  walk(src[top], [top]);
   return out;
 }
 
@@ -254,12 +269,13 @@ const ids = { anyOf: [{ type: 'string', pattern: idPattern }, { type: 'array', i
 const messageKey = { pattern: MESSAGE.source, description: '"a -> b" (call), "a ->> b" (async), "a --> b" (reply), "a -x b" (lost)' };
 
 /**
- * Steps nest inside frames. The top level is written out so the editor can complete it; inside a
+ * Messages nest inside frames. The top level is written out so the editor can complete it; inside a
  * frame they refer to one shared definition (inlining every level grows the schema exponentially).
  */
 function stepsSchema(inner: object): object {
   const steps = inner;
-  const branches = { anyOf: [steps, { type: 'object', additionalProperties: steps }], description: 'More branches: label → steps, or one list of steps' };
+  const branches = { anyOf: [steps, { type: 'object', additionalProperties: steps }], description: 'More branches: label → messages, or one list of messages' };
+  const old = { ...(steps as object), description: 'The old name of messages:' };
   const message = {
     type: 'object',
     minProperties: 1,
@@ -275,7 +291,7 @@ function stepsSchema(inner: object): object {
   const frame = (k: FrameKind) => ({
     type: 'object',
     required: [k],
-    properties: { [k]: { type: ['string', 'null'], description: 'Condition or label in the tab' }, steps, else: branches, and: branches, tone },
+    properties: { [k]: { type: ['string', 'null'], description: 'Condition or label in the tab' }, messages: steps, steps: old, else: branches, and: branches, tone },
     additionalProperties: false,
   });
   return {
@@ -339,10 +355,11 @@ const schema = {
         ],
       },
     },
-    steps: stepsSchema({ $ref: '#/$defs/steps' }),
+    messages: { ...stepsSchema({ $ref: '#/$defs/messages' }), description: 'The messages, in order: "a -> b: text", notes, dividers, refs and frames (alt, opt, loop, par, …)' },
+    steps: { ...stepsSchema({ $ref: '#/$defs/messages' }), description: 'The old name of messages:' },
   },
   additionalProperties: false,
-  $defs: { steps: stepsSchema({ $ref: '#/$defs/steps' }) },
+  $defs: { messages: stepsSchema({ $ref: '#/$defs/messages' }) },
 };
 
 const palette: PaletteItem[] = [
@@ -379,12 +396,12 @@ participants:
   orders: { kind: service, label: Orders, box: shop }
   psp: { kind: payments, label: Stripe }
 
-steps:
+messages:
   - shopper -> web: Place order
   - web -> orders: POST /orders
   - orders -> psp: Create payment
   - alt: Paid
-    steps:
+    messages:
       - psp --> orders: succeeded
       - orders --> web: 201 Created
     else:
@@ -398,7 +415,7 @@ steps:
   connect(src, from, to) {
     const known = (id: string) => !!src.participants && Object.hasOwn(src.participants, id);
     if (!known(from) || !known(to)) return 'Connect one participant to another';
-    return { path: ['steps'], value: `${from} -> ${to}` };
+    return { path: [messagesKey(src)], value: `${from} -> ${to}` };
   },
   // One node, drawn whole: no graph layout to run.
   async layout(sized) {
