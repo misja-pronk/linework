@@ -16,7 +16,8 @@ const active = () => page.locator('.steps-strip .step-chip.active').getAttribute
 const count = () => page.locator('.present-count').innerText();
 const words = () => page.locator('.present-words').innerText();
 // What stands back in a step lies flat: a dimmed card has lost its shadow.
-const flat = (id) => page.evaluate((id) => !document.querySelector(`.drawing [data-node="${id}"] [filter]`), id);
+// Standing back in a step: the renderer says so on the element, whatever the look (the default has no shadows to lose).
+const flat = (id) => page.evaluate((id) => !!document.querySelector(`.drawing [data-node="${id}"][data-dim]`), id);
 const check = async (what, got, want) => got === want || fail(`${what}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
 
 const text = `type: azure

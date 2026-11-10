@@ -56,9 +56,15 @@ export const journeyMoodTone = (mood: number): Tone => (mood > 0.25 ? 'green' : 
 class Pen {
   marks: JourneyMark[] = [];
   parts: Record<string, Box> = {};
+  /** How round the look is: corner radii below are written for a card radius of 12 and follow the theme's. */
+  private corner: number;
+
+  constructor(theme?: Theme) {
+    this.corner = theme ? Math.min(1.25, theme.radius.card / 12) : 1;
+  }
 
   rect(x: number, y: number, w: number, h: number, o: { r?: number; fill?: string; stroke?: string; sw?: number; dash?: boolean; shadow?: boolean; name?: string } = {}) {
-    this.marks.push({ t: 'rect', x, y, w: Math.max(0, w), h: Math.max(0, h), ...o });
+    this.marks.push({ t: 'rect', x, y, w: Math.max(0, w), h: Math.max(0, h), ...o, ...(o.r ? { r: Math.round(o.r * this.corner * 2) / 2 } : {}) });
   }
   /** Lines of text from the top of a box; returns its height. */
   text(x: number, y: number, w: number, lines: string[], size: number, weight: Weight, fill: string, align: 'l' | 'c' | 'r' = 'l', line = lh(size)): number {
@@ -638,7 +644,7 @@ function drawList(pen: Pen, items: ListItem[], total: number, row: JourneyRow, x
 const MAP = { rowGap: 16, cardGap: 8, min: 132, max: 232, bubblePad: 9 };
 
 function mapScene(shape: JourneyShape, full: Theme, colW: number, step?: number): JourneyScene {
-  const pen = new Pen();
+  const pen = new Pen(full);
   const quiet = step ? quietTheme(full) : full;
   const themeAt = (i: number) => (!step || i === step - 1 ? full : quiet);
   const rows = shape.rows;
@@ -739,7 +745,7 @@ const BOARD = { card: 256, widest: 448, gap: 30, rowGap: 22, pad: 14 };
 /** `option`: cards per row and the card width, as perRow * 1000 + width (see `fit`). */
 function storyboardScene(shape: JourneyShape, full: Theme, option: number, step?: number): JourneyScene {
   const perRow = Math.max(1, Math.floor(option / 1000));
-  const pen = new Pen();
+  const pen = new Pen(full);
   const quiet = step ? quietTheme(full) : full;
   const themeAt = (i: number) => (!step || i === step - 1 ? full : quiet);
   const steps = shape.steps;
@@ -855,7 +861,7 @@ const STAGES: { key: Stage; label: string; icon: string; tone: Tone; line: strin
 ];
 
 function blueprintScene(shape: JourneyShape, full: Theme, colW: number, step?: number): JourneyScene {
-  const pen = new Pen();
+  const pen = new Pen(full);
   const quiet = step ? quietTheme(full) : full;
   const themeAt = (i: number) => (!step || i === step - 1 ? full : quiet);
   const stages = STAGES.filter((s) => shape.steps.some((x) => x[s.key].length));
@@ -939,7 +945,7 @@ function blueprintScene(shape: JourneyShape, full: Theme, colW: number, step?: n
 // ---------------------------------------------------------------- compare
 
 function compareScene(shape: JourneyShape, full: Theme, colW: number, step?: number): JourneyScene {
-  const pen = new Pen();
+  const pen = new Pen(full);
   const future = shape.future ?? { label: 'Future', steps: [], metrics: [] };
   const quiet = step ? quietTheme(full) : full;
   const tracks = [

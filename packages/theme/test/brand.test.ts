@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tones } from '@cartography/core';
-import { builtinSpecs, contrast, deriveTheme, ensureContrast, light, dark, parseThemeSpec, resolveTheme, themes, type Theme, type ThemeWarning } from '../src/index.ts';
+import { builtinSpecs, classic, classicDark, contrast, deepestGround, deriveTheme, ensureContrast, fromHsl, light, dark, look, parseThemeSpec, resolveTheme, themes, type Theme, type ThemeWarning } from '../src/index.ts';
 
 const AA = 4.5;
 
@@ -43,13 +43,13 @@ describe('theme specs', () => {
   it('keeps the shipped themes AA without warnings', () => {
     for (const [name, spec] of Object.entries(builtinSpecs)) {
       const w: ThemeWarning[] = [];
-      checkAA(deriveTheme(light, spec, {}, (x) => w.push(x)));
+      checkAA(deriveTheme(classic, spec, {}, (x) => w.push(x)));
       expect(w, name).toEqual([]);
     }
   });
 
   it('derives a whole palette from one brand colour, AA on light and dark', () => {
-    for (const base of [light, dark]) {
+    for (const base of [light, dark, classic, classicDark]) {
       const t = deriveTheme(base, { colors: { primary: '#FFC20E' } });
       checkAA(t);
       expect(t.tones.blue.bg).not.toBe(base.tones.blue.bg);
@@ -70,10 +70,73 @@ describe('theme specs', () => {
     expect(t.stroke.edge).toBeCloseTo(light.stroke.edge * 1.5);
   });
 
-  it('leaves light and dark as they were', () => {
-    expect(themes.light).toBe(light);
-    expect(themes.dark).toBe(dark);
-    expect(Object.keys(themes)).toEqual(['light', 'dark', 'slate', 'ocean', 'mono']);
+  it('keeps the previous default as classic, untouched by the new tokens', () => {
+    expect(themes.classic).toBe(classic);
+    expect(themes['classic-dark']).toBe(classicDark);
+    expect(classic.font.family).toMatch(/^Inter/);
+    expect(look(classic)).toMatchObject({ tile: 'soft', legend: 'row', tableHead: 'tone', number: 'solid', chip: 'fill', edgeLabel: { style: 'pill', mono: false }, sheet: { marks: 'none' }, line: { bridge: 0, junction: 'dot', corner: 'round', arrow: 'filled' } });
+    expect(look(classic).group.tints).toBeUndefined();
+    expect(themes.slate!.font.family).toMatch(/^Inter/);
+    expect(look(themes.slate!).edgeLabel.style).toBe('pill');
+  });
+
+  it('reads the look tokens and says what it cannot use', () => {
+    const w: ThemeWarning[] = [];
+    const spec = parseThemeSpec(
+      {
+        tile: 'ring',
+        iconSize: 20,
+        edgeLabel: 'halo',
+        edgeLabelInk: 'line',
+        edgeLabelCaps: true,
+        legendStyle: 'key',
+        group: { tints: ['#F4F4F4', '#EAEAEA'], line: 'none', dash: '4 3', label: 'caps', tracking: 1, labelColor: 'muted', bogus: 1 },
+        lines: { bridge: 4, junction: 'ring', corner: 'chamfer', arrow: 'open', dashScale: true },
+        sheet: { marks: 'frame', zones: true, ticks: true },
+        tableHead: 'paper',
+        number: 'ring',
+        chip: 'outline',
+        title: { mono: true, caps: true, size: 16 },
+        background: { dots: true },
+        contrast: 'high',
+        font: { mono: { family: 'Geist Mono' }, monoFor: ['edgeLabel', 'type'] },
+      },
+      (x) => w.push(x),
+    );
+    expect(w.map((x) => x.path.join('.'))).toEqual(['group.bogus']);
+    expect(spec).toMatchObject({ tile: 'ring', edgeLabel: 'halo', legendStyle: 'key', lines: { bridge: 4, corner: 'chamfer' }, sheet: { marks: 'frame', zones: true }, contrast: 'high' });
+
+    const bad: ThemeWarning[] = [];
+    parseThemeSpec({ tile: 'blob', edgeLabel: 'bubble', lines: { junction: 'star', bridge: 99 }, sheet: { marks: 'border' }, group: { tints: ['red-ish'], dash: 'dotted' }, font: { monoFor: ['body'] }, contrast: 'max' }, (x) => bad.push(x));
+    expect(bad.map((x) => x.path.join('.')).sort()).toEqual(['contrast', 'edgeLabel', 'font.monoFor', 'group.dash', 'group.tints', 'lines.bridge', 'lines.junction', 'sheet.marks', 'tile']);
+    expect(bad.find((x) => x.path[0] === 'tile')!.message).toMatch(/soft, solid, outline, bare, disc or ring/);
+  });
+
+  it('applies look tokens on top of the base and keeps text readable on the deepest tint', () => {
+    const w: ThemeWarning[] = [];
+    const t = deriveTheme(light, { group: { tints: ['#EEEEEE', '#D8D8D8', '#BDBDBD'] }, colors: { faint: '#8A8A8A' }, edgeLabel: 'plate', lines: { bridge: 0 } }, {}, (x) => w.push(x));
+    expect(look(t).edgeLabel.style).toBe('plate');
+    expect(look(t).line.bridge).toBe(0);
+    expect(look(t).line.junction).toBe('ring'); // from Survey
+    expect(deepestGround(t)).toBe('#BDBDBD');
+    // Faint text is checked against the deepest tint, not only the page: 3:1 normally, AA with contrast: high.
+    expect(contrast('#8A8A8A', '#BDBDBD')).toBeLessThan(3);
+    expect(contrast(t.textFaint, '#BDBDBD')).toBeGreaterThanOrEqual(3);
+    expect(contrast(t.textMuted, '#BDBDBD')).toBeGreaterThanOrEqual(AA);
+    expect(w.some((x) => x.path.join('.') === 'colors.faint')).toBe(true);
+    const high = deriveTheme(light, { group: { tints: ['#EEEEEE', '#D8D8D8', '#BDBDBD'] }, colors: { faint: '#8A8A8A' }, contrast: 'high' });
+    expect(contrast(high.textFaint, '#BDBDBD')).toBeGreaterThanOrEqual(AA);
+  });
+
+  it('takes all ten tones and sharpens outlines with contrast: high', () => {
+    const w: ThemeWarning[] = [];
+    const all = Object.fromEntries(tones.map((k, i) => [k, fromHsl(i * 36, 0.6, 0.4)]));
+    const spec = parseThemeSpec({ tones: all, contrast: 'high' }, (x) => w.push(x));
+    expect(w).toEqual([]);
+    expect(Object.keys(spec.tones!)).toHaveLength(10);
+    const t = deriveTheme(light, { contrast: 'high' });
+    for (const bg of [t.canvas, t.surface]) expect(contrast(t.border, bg)).toBeGreaterThanOrEqual(3);
+    expect(contrast(look(t).group.line!, deepestGround(t))).toBeGreaterThanOrEqual(3);
   });
 });
 

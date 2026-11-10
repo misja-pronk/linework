@@ -132,9 +132,21 @@ describe('remark', () => {
     // The two drawings differ: one is dark.
     const [light, dark] = [...html.matchAll(/<div class="carto-(?:light|dark)">(<svg[^]*?<\/svg>)/g)].map((m) => m[1]!);
     expect(light).not.toBe(dark);
-    // Two drawings in a page never share ids (filters, clip paths).
+    // The text is set in the page's copy of the theme's typefaces, which the stylesheet brings once.
+    expect(unescape(light!)).toContain(`font-family="CartoInstrumentSans, 'Instrument Sans'`);
+    expect(count(html, '@font-face{font-family:CartoInstrumentSans;font-style:normal;font-weight:400')).toBe(1);
+  });
+
+  it('gives the drawings in a page ids of their own, and a drawing in another theme its own typefaces', async () => {
+    // Classic has shadows, so its drawings carry ids (filters).
+    const { html, messages } = await remark(`${fence(SHOP, 'cartography theme=classic')}\n${fence(SHOP.replace('Sign-up', 'Sign-in'), 'cartography theme=classic')}\n`);
+    expect(messages).toEqual([]);
     const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
-    expect(new Set(ids.slice(0, ids.length / 2)).size).toBeGreaterThan(0);
+    expect(ids.length).toBeGreaterThan(1);
+    expect(new Set(ids).size).toBe(ids.length);
+    // Inter is not in the stylesheet of a site in the default look: each classic drawing brings it.
+    expect(html).toContain('font-family="CartoInter, Inter');
+    expect(count(html, '@font-face{font-family:CartoInter;font-style:normal;font-weight:400')).toBe(2);
   });
 
   it('draws an image that points at a diagram file, with its view and the alt text as name', async () => {
@@ -175,7 +187,9 @@ describe('remark', () => {
   it('writes the page CSS for the way the site says it is dark', () => {
     expect(pageCss()).toContain('@media (prefers-color-scheme:dark)');
     expect(pageCss()).toContain('[data-theme=dark]');
-    expect(pageCss()).toContain('@font-face{font-family:CartoInter');
+    expect(pageCss()).toContain('@font-face{font-family:CartoInstrumentSans');
+    expect(pageCss()).toContain('@font-face{font-family:CartoGeistMono');
+    expect(pageCss({ theme: 'classic' })).toContain('@font-face{font-family:CartoInter');
     expect(pageCss({ dark: 'media' })).not.toContain('[data-theme=dark]');
     const own = pageCss({ dark: '.dark', fonts: 'none' });
     expect(own).toContain(':is(.dark) .carto-dark{display:block}');

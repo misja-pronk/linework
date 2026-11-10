@@ -103,7 +103,7 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 - L5 (S) Snap to grid, align/distribute, manual edge bends.
 
 ## 7. Visual design
-- V1 (M) Clean modern style: lots of whitespace, soft palette, rounded shapes, thin crisp lines, Inter font (OFL).
+- V1 (M) Clean modern style with a look of its own (Survey, see style.md): lots of whitespace, restrained colour, thin crisp lines, bundled OFL fonts (Instrument Sans and Geist Mono by default).
 - V2 (M) One set of design tokens (colours, spacing, radii, lines, font sizes) for all types.
 - V3 (M) Light and dark themes; the export follows the chosen theme.
 - V4 (M) Own line-icon set in one style for all types (based on Lucide, ISC). Kubernetes icons (CC-BY-4.0) optional. Microsoft Azure icons are not bundled (their terms forbid redistribution), but users can load their own icon pack (S).
@@ -131,7 +131,7 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 
 ## 11. Quality, tech and open source
 - Q1 (M) TypeScript, pnpm monorepo; packages `core`, `layout`, `render`, `theme`, `icons`, `cli`, `web`, and one package per type.
-- Q2 (M) Only permissive licences: Graphviz dot via @hpcc-js/wasm-graphviz (Apache-2.0 wrapper, Graphviz EPL) for node placement, our own orthogonal line router, React, Vite, CodeMirror 6, resvg-js (PNG without a browser), Lucide, Inter. Licence check in CI.
+- Q2 (M) Only permissive licences: Graphviz dot via @hpcc-js/wasm-graphviz (Apache-2.0 wrapper, Graphviz EPL) for node placement, our own orthogonal line router, React, Vite, CodeMirror 6, resvg-js (PNG without a browser), Lucide, and OFL fonts (Instrument Sans, Geist Mono, Barlow, IBM Plex, Inter). Licence check in CI.
   - Decided 2026-11-09 after measuring (`pnpm lab`): ELK lays out each group as one block, so lines that go into a group, out and back in were reversed or detoured around the drawing. dot layers the whole graph at once and keeps clusters together; our router then avoids boxes and group headers, spreads lines into lanes and places labels. Result on the examples: no backward lines, no lines through boxes, about 35% shorter lines.
 - Q3 (M) Tests: schema/parse unit tests, SVG snapshot tests per gallery example, layout quality guard per example (no lines through boxes, no overlapping labels, no backward lines, crossing budget), builder round-trip tests (UI action → YAML → same drawing).
 - Q4 (M) Performance: diagram of 200 elements renders under 1 s; editing feels instant (<100 ms update).

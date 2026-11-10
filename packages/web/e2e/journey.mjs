@@ -89,7 +89,7 @@ await page.screenshot({ path: `${out}/j1-builder.png` });
   if (!fourth.startsWith('4 /')) fail(`after three steps forward: ${fourth}`);
   const words = await page.locator('.present-words').innerText();
   if (!words.trim()) fail('no caption on a journey step');
-  if (!/<rect[^>]* rx="14" fill="none"/.test(await page.locator('.present .present-frame:not(.leaving)').innerHTML())) fail('no step in focus in the presenter');
+  if (!/<rect[^>]* rx="[\d.]+" fill="none"/.test(await page.locator('.present .present-frame:not(.leaving)').innerHTML())) fail('no step in focus in the presenter');
   await page.screenshot({ path: `${out}/j4-present-4.png` });
   await page.keyboard.press('Escape');
   await wait(300);

@@ -33,7 +33,10 @@ export function useBrand(): Brand {
 }
 
 // A built-in choice survives a reload; a theme file is picked again (its folder may be gone).
-const saved = store.get<string>('brand-theme');
+// A choice saved as light or dark (before the looks had names) is Survey in that mode.
+const RENAMED: Record<string, string> = { light: 'survey', dark: 'survey-dark' };
+const stored = store.get<string>('brand-theme');
+const saved = stored ? (RENAMED[stored] ?? stored) : undefined;
 if (saved && themes[saved]) set({ choice: saved, theme: themes[saved] });
 
 export function chooseBuiltin(name: string) {
@@ -85,11 +88,14 @@ async function registerFonts(theme: Theme | undefined): Promise<number | undefin
   fontStyle = undefined;
   const faces = theme?.font.faces;
   if (!faces?.length) return undefined;
+  // The width against Inter is that of the text face; a monospace face is measured by its own rule.
+  const text = faces.filter((f) => !f.mono);
   const mime = { woff2: 'font/woff2', woff: 'font/woff', truetype: 'font/ttf', opentype: 'font/otf' };
   fontStyle = document.createElement('style');
   fontStyle.textContent = faces.map((f) => `@font-face{font-family:'${f.family}';font-weight:${f.weight};font-style:${f.style};src:url(data:${mime[f.format]};base64,${f.data})}`).join('');
   document.head.append(fontStyle);
-  const face = faces.find((f) => f.weight === 600) ?? faces[0]!;
+  const face = text.find((f) => f.weight === 600) ?? text[0];
+  if (!face) return undefined;
   try {
     await document.fonts.load(`${face.weight} 100px '${face.family}'`);
     const g = document.createElement('canvas').getContext('2d')!;

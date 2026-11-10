@@ -284,7 +284,8 @@ export async function validateDiagram(input: Input, cwd = process.cwd()): Promis
 
 export interface RenderRequest extends Input {
   format?: 'svg' | 'png';
-  theme?: 'light' | 'dark';
+  /** A built-in theme: survey (the default), survey-dark, transit, drafting, classic… */
+  theme?: string;
   /** Where to write the file; without it the drawing comes back in the result only. */
   path?: string;
   /** PNG pixel density (default 2). */
@@ -309,7 +310,7 @@ export async function renderDiagram(req: RenderRequest, cwd = process.cwd()): Pr
   const src = load(req, cwd);
   // Fonts are embedded only in SVG files: resvg reads them from disk, and inline SVG goes back to a
   // model, where a few hundred KB of font data is pure cost.
-  const r = await render(src.text, { theme: req.theme ?? 'light', fonts: format === 'svg' && out ? 'embed' : 'none', load: reader(src.dir), sidecar: src.sidecar });
+  const r = await render(src.text, { theme: req.theme ?? 'survey', fonts: format === 'svg' && out ? 'embed' : 'none', load: reader(src.dir), sidecar: src.sidecar });
   const base = { format, problems: problems(r.diagnostics, src.text, r.type), type: r.type?.id };
   if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) return { ...base, ok: false };
   const png = format === 'png' ? toPng(r.svg, req.scale ?? 2) : undefined;

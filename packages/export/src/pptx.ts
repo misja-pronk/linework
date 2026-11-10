@@ -5,7 +5,7 @@ import { zipSync, strToU8 } from 'fflate';
 import type { Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { wrap } from '@cartography/render';
-import { themes, type Theme } from '@cartography/theme';
+import { inThemeFonts, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { shape, type Run } from './shapes.ts';
 import { contentSize, drawDiagram, PX, type IconRef } from './slide.ts';
@@ -31,8 +31,14 @@ export type Rasterize = (svg: string, width: number, height: number) => Uint8Arr
 export interface PptxOptions {
   theme?: 'light' | 'dark' | Theme;
   aspect?: '16:9' | '4:3';
-  /** Typeface for all text; PowerPoint substitutes when it is not installed. Default Inter. */
+  /**
+   * Typeface for the text; by default the theme's own (Instrument Sans for Survey, Inter for classic).
+   * Slides hold native text, so the face is not embedded: where it is not installed the app
+   * substitutes a sans (Arial, Helvetica). Name one here to choose it yourself, e.g. 'Arial'.
+   */
   font?: string;
+  /** Typeface for what the theme sets in monospace; by default the theme's (Geist Mono for Survey). Substituted by a fixed-pitch face (Consolas, Menlo, Courier New) where it is not installed. */
+  monoFont?: string;
   /** Adds a title slide in front. */
   title?: string;
   subtitle?: string;
@@ -50,6 +56,9 @@ const MAX_K = 1.6 * PX;
 /** A step's caption on a slide: sizes in points, the row in inches, `px` the caption size for wrapping. */
 const CAPTION = { title: 15, text: 14, row: 0.3, px: (14 * 12700) / PX };
 
+/** The first name of a CSS font stack. */
+const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
+
 export function iconSvg(name: string, color: string, size: number, stroke: number): string | undefined {
   const markup = icon(name);
   if (!markup) return undefined;
@@ -60,7 +69,11 @@ export function iconSvg(name: string, color: string, size: number, stroke: numbe
 export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {}): Promise<Uint8Array> {
   const drawings = Array.isArray(input) ? input : [input];
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
-  const font = opts.font ?? 'Inter';
+  const font = opts.font ?? theme.font.sans ?? 'Inter';
+  const fonts = { sans: font, mono: opts.monoFont ?? theme.font.monoFace ?? firstFamily(theme.font.mono) ?? 'Courier New' };
+  // The title as the theme sets it: in capitals or the monospace face where asked.
+  const tl = look(theme).title;
+  const titleRun = (text: string): Run => ({ text: tl.caps ? text.toUpperCase() : text, size: 24, bold: tl.weight >= 600, color: theme.text, ...(tl.mono ? { font: fonts.mono, mono: true } : {}), ...(tl.tracking ? { spacing: tl.tracking } : {}) });
   const W = opts.aspect === '4:3' ? 9144000 : 12192000;
   const H = 6858000;
   const files: Record<string, Uint8Array> = {};
@@ -108,7 +121,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     let tree = '';
     let top = MARGIN;
     if (graph.title) {
-      tree += shape({ id: next(), name: 'Title', ph: 'title', frame: { x: MARGIN, y: MARGIN, w: W - 2 * MARGIN, h: 0.5 * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [{ text: graph.title, size: 24, bold: true, color: theme.text }] }] } }, font);
+      tree += shape({ id: next(), name: 'Title', ph: 'title', frame: { x: MARGIN, y: MARGIN, w: W - 2 * MARGIN, h: 0.5 * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
       top += 0.5 * INCH;
       if (graph.subtitle) {
         tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: MARGIN, y: top, w: W - 2 * MARGIN, h: 0.32 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle, size: 13, color: theme.textMuted }] }] } }, font);
@@ -121,10 +134,13 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const below = view ? Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH) : 0;
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
     const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top - below };
-    const c = contentSize(graph, placed, theme, view);
-    const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
-    const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k };
-    tree += drawDiagram(graph, placed, theme, at, font, icons, next, view);
+    // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
+    tree += await inThemeFonts(theme, () => {
+      const c = contentSize(graph, placed, theme, view);
+      const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
+      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k };
+      return drawDiagram(graph, placed, theme, at, fonts, icons, next, view);
+    });
     if (view && state) {
       const y = H - MARGIN - below + 0.18 * INCH;
       tree += shape({ id: next(), name: 'Step rule', frame: { x: MARGIN, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);

@@ -193,16 +193,27 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   const placed = squeezed ? squeeze(asked, sized, spacing) : asked;
   const finish = (q: Placement, straighten: boolean) => {
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
-    let p = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
-    let edges = route(sized, p);
+    const start = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     // A label that cannot sit clear of a group border gets room: space is opened just before that
     // border and the lines are drawn again.
-    for (let i = 0; i < 4; i++) {
-      const cut = labelOnBorder(p, edges, sized.groupHeader);
-      if (!cut) break;
-      p = openSpace(p, cut, graph);
-      edges = route(sized, p);
-    }
+    type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
+    const clear = (d: Drawn, left: number, branch: boolean): Drawn => {
+      const cuts = left ? labelOnBorder(d.p, d.edges, sized.groupHeader) : [];
+      if (!cuts.length) return d;
+      // A label at a group's corner can be cleared across or down. Which is better only shows in
+      // the finished drawing, so (once) both are drawn to the end: fewer crossings wins, then the better drawing.
+      const ends = (branch ? cuts : cuts.slice(0, 1)).map((cut) => {
+        const q = openSpace(d.p, cut, graph);
+        return clear({ p: q, edges: route(sized, q) }, left - 1, branch && cuts.length < 2);
+      });
+      if (ends.length < 2) return ends[0]!;
+      const worth = (e: Drawn) => {
+        const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader);
+        return m.crossings * 1000 + score(m);
+      };
+      return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
+    };
+    const { p, edges } = clear({ p: start, edges: route(sized, start) }, 4, true);
     return { placed: normalise({ ...p, edges }), p };
   };
   // Each helps some diagrams and hurts others, so all are drawn and the best one is kept.
@@ -292,12 +303,14 @@ interface Cut {
   group: string;
 }
 
-/** The first label lying on a group's border or header, as the space to open before that border. */
-function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: number): Cut | undefined {
+/** The first label lying on a group's border or header, as the space to open before that border: the cheapest cut across and the cheapest down, cheapest first. */
+function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: number): Cut[] {
   const t = 4;
   for (const e of edges.values()) {
     const l = e.label;
     if (!l) continue;
+    // A label at a group's corner touches two borders at once.
+    const cuts: Partial<Record<'x' | 'y', Cut>> = {};
     for (const [group, b] of p.groups)
       for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
         const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
@@ -312,10 +325,12 @@ function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: num
         // stays snug around what it holds. Otherwise before the border (the group moves on, or grows).
         const far = at !== b[axis];
         const beyond = far && [...p.nodes.values(), ...p.groups.values()].some((q) => q[axis] > at);
-        return { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
+        if (!cuts[axis] || by < cuts[axis].by) cuts[axis] = { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
       }
+    const found = [cuts.x, cuts.y].filter((c): c is Cut => !!c).sort((a, b) => a.by - b.by);
+    if (found.length) return found;
   }
-  return undefined;
+  return [];
 }
 
 /**
