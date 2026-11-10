@@ -152,7 +152,7 @@ Use it for a VPC across availability zones with its subnet tiers, a data platfor
 - **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
 - **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.
 - **Model kinds** (`database`, `queue`, `api`, …) become the service that usually hosts them: RDS, SQS and ECS for `provider: aws`; Cloud SQL, Pub/Sub and Cloud Run for `gcp`. `of:` places a model's containers on the infrastructure, per environment; see [model.md](model.md#deployments-of-what-a-resource-runs).
-- **Official icons** are bring-your-own, as for Azure: `carto icons import <download> --pack aws` (or `gcp`), then `--pack aws` or `icons: { pack: [aws, gcp] }`. In a mixed diagram each shape takes its icon from its own provider's pack. See [themes.md](themes.md#icon-packs-bring-your-own).
+- **Official icons** are bring-your-own, as for Azure: `carto icons import <download>` (AWS and Google Cloud are told apart by their files), then `icons: official`. In a mixed diagram each shape takes its icon from its own provider's set. See [icons.md](icons.md).
 
 Not for: an estate that is only Azure (use `azure`), a cloud-neutral overview (use `systems`), pods and services inside a cluster (use `kubernetes`), devices, cabling and an IP plan (use `network`).
 

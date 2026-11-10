@@ -8,7 +8,7 @@ import { wrap } from '@cartography/render';
 import { inThemeFonts, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { shape, type Run } from './shapes.ts';
-import { contentSize, drawDiagram, PX, type IconRef } from './slide.ts';
+import { contentSize, drawDiagram, PX, type IconRef, type SlideImages } from './slide.ts';
 import { pages } from './steps.ts';
 
 /** What render() returns, or anything else carrying a built graph and its layout. */
@@ -23,6 +23,8 @@ export interface Drawing {
   step?: number;
   /** Steps nobody wrote (a dynamic view's numbered lines, a sequence's messages): one slide unless asked. */
   stepsImplied?: boolean;
+  /** Official icons (BYO packs) by node and group id, as render() returns them: pictures on the slide, as they are. */
+  images?: SlideImages;
 }
 
 /** SVG to PNG bytes at the given pixel size; icons get a PNG for apps that cannot show SVG. */
@@ -71,6 +73,8 @@ const CAPTION = { title: 15, text: 14, row: 0.3, px: (14 * 12700) / PX };
 /** The first name of a CSS font stack. */
 const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
 
+const decodeBase64 = (b64: string) => new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+
 export function iconSvg(name: string, color: string, size: number, stroke: number): string | undefined {
   const markup = icon(name);
   if (!markup) return undefined;
@@ -114,7 +118,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       const key = `${name}|${color}|${size}|${stroke}`;
       const known = refs.get(key);
       if (known) return known;
-      const svg = iconSvg(name, color, size, stroke);
+      // An official icon comes as the SVG data URI the drawing has; a line icon is drawn in its colour.
+      const svg = name.startsWith('data:image/svg+xml;base64,') ? decodeBase64(name.slice(26)) : iconSvg(name, color, size, stroke);
       if (!svg) return undefined;
       let m = media.get(key);
       if (!m) media.set(key, (m = { n: media.size + 1, svg, size }));
@@ -152,7 +157,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       const c = contentSize(graph, placed, theme, view);
       const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
       const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)) };
-      return drawDiagram(graph, placed, theme, at, fonts, icons, next, view);
+      return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
     if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(view ? { step: view.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
     if (view && state) {

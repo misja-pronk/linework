@@ -19,6 +19,8 @@ export interface DrawRequest {
   read: (file: string) => Promise<string>;
   /** Bytes of a file next to the diagram (brand fonts, logos). */
   bytes: (file: string) => Promise<Uint8Array>;
+  /** Official icons the page was built with, kind → SVG (carto embed and the docs plugins take them along). */
+  icons?: Record<string, string>;
 }
 
 const dirOf = (file: string) => file.split('/').slice(0, -1).join('/');
@@ -63,6 +65,7 @@ export async function draw(req: DrawRequest): Promise<RenderResult> {
       interactive: true,
       hints: false,
       idPrefix: req.idPrefix,
+      ...(req.icons ? { icons: req.icons } : {}),
       load: (file) => {
         const t = texts.get(file);
         if (typeof t === 'string') return t;

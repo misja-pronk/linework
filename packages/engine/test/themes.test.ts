@@ -118,7 +118,7 @@ describe('icon packs', () => {
       pack: (n) => (n === 'azure' ? pack : undefined),
     });
     expect(read).toEqual(['/packs/azure/web/App-Services.svg']);
-    expect(r.diagnostics.map((d) => d.message)).toEqual([expect.stringMatching(/No icon pack "aws"/)]);
+    expect(r.diagnostics.map((d) => d.message)).toEqual([expect.stringMatching(/No aws icons imported yet/)]);
     expect(r.svg).toContain('<image href="data:image/svg+xml');
   });
 });

@@ -1,5 +1,6 @@
 // Bring-your-own icon packs: official Azure/AWS/GCP icons the user downloaded themselves, mapped
 // from file names to our kind ids. We never ship or recolour them; this only builds the index.
+import { officialNames } from './names.ts';
 
 /** A pack as stored in the user's config dir (or next to a diagram): kind → SVG file under `root`. */
 export interface IconPackFile {
@@ -9,6 +10,10 @@ export interface IconPackFile {
   icons: Record<string, string>;
   /** Where it was imported from, for `carto icons list`. */
   source?: string;
+  /** Kinds mapped by hand (also in `icons`): kept when a newer download is imported. */
+  manual?: Record<string, string>;
+  /** When it was imported (ISO date). */
+  imported?: string;
 }
 
 export interface KindInfo {
@@ -42,80 +47,6 @@ export function nameTokens(name: string): string[] {
 
 const singular = (t: string) => (t.length > 3 && t.endsWith('ies') ? t.slice(0, -3) + 'y' : t.length > 3 && t.endsWith('s') && !/(ss|us|is)$/.test(t) ? t.slice(0, -1) : t);
 
-/** Official names that do not follow from our kind id or label. Keys are kind ids; several phrases may match. */
-export const aliases: Record<string, Record<string, string[]>> = {
-  azure: {
-    aks: ['kubernetes services'],
-    'aks-cluster': ['kubernetes services'],
-    vm: ['virtual machine'],
-    vmss: ['vm scale sets', 'virtual machine scale sets'],
-    storage: ['storage accounts'],
-    redis: ['cache redis', 'redis caches'],
-    'event-hub': ['event hubs'],
-    'event-grid': ['event grid topics', 'event grid domains'],
-    'api-management': ['api management services'],
-    'logic-app': ['logic apps'],
-    'data-factory': ['data factories'],
-    openai: ['openai', 'azure openai'],
-    'ai-search': ['cognitive search', 'search services'],
-    'front-door': ['front door and cdn profiles', 'front doors'],
-    'app-gateway': ['application gateways'],
-    'vpn-gateway': ['virtual network gateways', 'vpn gateways'],
-    'private-endpoint': ['private endpoints', 'private link'],
-    dns: ['dns zones'],
-    firewall: ['firewalls'],
-    nsg: ['network security groups'],
-    'entra-id': ['entra id', 'microsoft entra id', 'azure active directory', 'active directory'],
-    'managed-identity': ['managed identities', 'entra managed identities'],
-    'log-analytics': ['log analytics workspaces'],
-    'app-insights': ['application insights'],
-    monitor: ['monitor'],
-    vnet: ['virtual networks'],
-    subnet: ['subnet'],
-    postgres: ['azure database postgresql server', 'database postgresql server'],
-    'cosmos-db': ['azure cosmos db', 'cosmos db'],
-    'static-web-app': ['static apps', 'static web apps'],
-    'container-app': ['container apps', 'worker container app'],
-    tenant: ['tenant properties', 'entra tenant'],
-    region: ['region management'],
-    users: ['users'],
-    user: ['user'],
-  },
-  aws: {
-    storage: ['simple storage service'],
-    function: ['lambda'],
-    queue: ['simple queue service'],
-    topic: ['simple notification service'],
-    database: ['rds'],
-    cache: ['elasticache'],
-    api: ['api gateway'],
-    container: ['elastic container service'],
-    cluster: ['elastic kubernetes service'],
-    warehouse: ['redshift'],
-    search: ['opensearch service'],
-    cdn: ['cloudfront'],
-    dns: ['route 53'],
-    'load-balancer': ['elastic load balancing'],
-    server: ['ec2'],
-    secrets: ['secrets manager'],
-    'key-vault': ['secrets manager'],
-    monitor: ['cloudwatch'],
-    users: ['users'],
-    user: ['user'],
-  },
-  gcp: {
-    storage: ['cloud storage'],
-    function: ['cloud functions'],
-    queue: ['pubsub', 'pub sub'],
-    topic: ['pubsub', 'pub sub'],
-    database: ['cloud sql'],
-    warehouse: ['bigquery'],
-    cluster: ['google kubernetes engine'],
-    container: ['cloud run'],
-    server: ['compute engine'],
-  },
-};
-
 function score(want: string[], have: string[]): number {
   if (!want.length || !have.length) return 0;
   const a = new Set(want);
@@ -132,18 +63,21 @@ function preference(file: string): number {
   if (/(^|\/)res_/i.test(file.split('/').pop()!)) p -= 0.5;
   if (/category/i.test(file)) p -= 0.5;
   if (/dark/i.test(file)) p -= 0.3;
+  // Kubernetes ships each icon with and without its name under it: the card has the name already.
+  if (/(^|\/)unlabeled\//i.test(file)) p += 0.4;
+  else if (/(^|\/)labeled\//i.test(file)) p -= 0.2;
   return p;
 }
 
 /**
- * The best file for each kind: every name a kind goes by (id, label, aliases, keywords at lower weight)
+ * The best file for each kind: every name a kind goes by (id, label, the vendor's names, keywords at lower weight)
  * against the words of each file name. Only confident matches are kept; people can add the rest by hand.
  */
 export function matchIcons(files: string[], kinds: KindInfo[], pack?: string, threshold = 0.75): Record<string, string> {
   const svgs = files.filter((f) => /\.svg$/i.test(f));
   const tokens = svgs.map((f) => ({ file: f, t: nameTokens(f) }));
   const out: Record<string, string> = {};
-  const extra = pack ? aliases[pack] ?? {} : Object.assign({}, ...Object.values(aliases));
+  const extra: Record<string, string[]> = pack ? ((officialNames as Record<string, Record<string, string[]>>)[pack] ?? {}) : Object.assign({}, ...Object.values(officialNames));
   for (const k of kinds) {
     const phrases = [k.kind.replace(/-/g, ' '), k.label ?? '', ...(k.names ?? []), ...(extra[k.kind] ?? [])].filter(Boolean).map(nameTokens);
     const loose = (k.keywords ?? []).map(nameTokens);

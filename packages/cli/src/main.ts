@@ -6,7 +6,8 @@ import { parseArgs } from 'node:util';
 import { iconPng, interTtf, themeTtf, toPng } from './png.ts';
 import { pages, toPdf, toPptx, type Drawing } from '@cartography/export';
 import { fontScale, ttfFiles } from './fonts.ts';
-import { configDir, importIcons, listPacks, readPack } from './packs.ts';
+import { configDir, coverageKinds, findIcons, iconGuide, importIcons, isVendor, listPacks, mapIcon, packSheet, readPack, unmapIcon } from './packs.ts';
+import { coverage } from '@cartography/icons';
 import { drift, findType, render, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
@@ -24,6 +25,8 @@ const helpAll = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
+               [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
+                                                whatever the diagram's icons: says
                [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
@@ -110,10 +113,17 @@ const helpAll = `carto — architecture diagrams that look good
                                                 Excalidraw keep shapes, groups and attached lines where they are;
                                                 Mermaid (.mmd, or .md as a fenced block) for a README on GitHub.
                                                 What a format cannot hold is said on stderr. More: docs/interop.md
-  carto icons import <folder|file.zip> --pack azure
-                                                index an official icon download (Azure, AWS,
-                                                GCP) into a pack in ${configDir()}
-  carto icons list                              packs and how many kinds each maps
+  carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported
+  carto icons import <folder|file.zip> [--pack azure]
+                                                index an official icon download (Azure, AWS, Google Cloud,
+                                                Kubernetes) into a pack in ${configDir()};
+                                                the vendor is told from the files when --pack is left out
+  carto icons list                              packs, when imported, and how many kinds each covers
+  carto icons show <pack> [-o sheet.png|.svg]   which kind got which icon, and which have none
+  carto icons find <pack> <words…>              icons of the pack by name, to map one by hand
+  carto icons map <pack> <kind> <words…|file>   give a kind an icon by hand (kept when a newer set is imported)
+  carto icons unmap <pack> <kind>               the kind draws its line icon again
+               then: icons: official in a diagram, or --icons official|lucide on render, deck, watch, embed
   carto themes                                  built-in themes
   carto types [words…]                          which type to pick, best match first
 
@@ -198,6 +208,7 @@ const parsed = (() => {
     format: { type: 'string', short: 'f', default: 'svg' },
     theme: { type: 'string', short: 't' },
     pack: { type: 'string', multiple: true },
+    icons: { type: 'string' },
     scale: { type: 'string', default: '2' },
     'no-fonts': { type: 'boolean' },
     'svg-safe': { type: 'boolean' },
@@ -396,12 +407,21 @@ function optionsFor(file: string, fonts: RenderOptions['fonts']): RenderOptions 
     fontScale,
     packs: values.pack,
     pack: readPack,
+    iconsOverride: iconsFlag(),
     fonts,
     file: path.basename(file),
     view: values.view,
     step: values.step ? Number(values.step) || 1 : undefined,
     focus: focusFlag(),
   };
+}
+
+/** --icons official|lucide; anything else is a usage error. */
+function iconsFlag(): RenderOptions['iconsOverride'] {
+  const v = values.icons;
+  if (v == null) return undefined;
+  if (v === 'official' || v === 'lucide') return v;
+  throw new UsageError(`--icons is official or lucide, not "${v}"`);
 }
 
 /** --all-steps: also steps nobody wrote; --no-steps: one slide per drawing; else a slide per written step. */
@@ -1072,26 +1092,69 @@ async function main(): Promise<number> {
       console.log(dim('Or a file: theme: ./client.theme.yaml (see docs/themes.md and docs/style.md)'));
       return 0;
     case 'icons': {
-      const [sub, src] = files;
+      const [sub, a, ...more] = files;
+      const fail = (e: unknown) => (console.error(`${red('error')}  ${(e as Error).message}`), 1);
+      if (!sub || isVendor(sub)) return (console.log(iconGuide(sub)), 0);
       if (sub === 'list') {
         const packs = listPacks();
-        if (!packs.length) console.log(`No icon packs yet. Import one: carto icons import <folder|zip> --pack azure`);
-        for (const p of packs) console.log(`${p.name.padEnd(12)} ${Object.keys(p.icons).length} kinds ${dim(`← ${p.source ?? '?'}  (${p.root})`)}`);
+        if (!packs.length) console.log(`No icon packs yet. Where to get them: carto icons`);
+        for (const p of packs) {
+          const cov = coverage(p, coverageKinds(p.name));
+          console.log(`${p.name.padEnd(12)} ${cov.have} of ${cov.of} kinds${p.manual && Object.keys(p.manual).length ? `, ${Object.keys(p.manual).length} by hand` : ''} ${dim(`imported ${p.imported ?? '?'} ← ${p.source ?? '?'}`)}`);
+        }
         return 0;
       }
-      if (sub !== 'import' || !src) return (console.error(helpFor(command)), 1);
-      const name = values.pack?.[0];
-      if (!name) return (console.error('Name the pack: carto icons import <folder|zip> --pack azure'), 1);
+      if (sub === 'import') {
+        if (!a) return (console.error(helpFor(command)), 1);
+        try {
+          const r = importIcons(a, values.pack?.[0]);
+          const name = r.pack.name;
+          console.log(`${a} → ${r.dir}\n  ${r.files} SVG files; ${r.coverage.have} of ${r.coverage.of} ${name} kinds have an icon${r.kept.length ? ` (${r.kept.length} mapped by hand before, kept)` : ''}`);
+          if (r.coverage.missing.length) console.log(dim(`  no icon yet: ${r.coverage.missing.join(', ')}\n  give one by hand: carto icons map ${name} <kind> <words>; see all: carto icons show ${name} -o ${name}.png`));
+          console.log(dim(`  use it: icons: official in the diagram, or carto render diagram.yaml --icons official`));
+          return 0;
+        } catch (e) {
+          return fail(e);
+        }
+      }
+      if (!a) return (console.error(helpFor(command)), 1);
       try {
-        const r = importIcons(src, name);
-        console.log(`${src} → ${r.dir}\n  ${r.files} SVG files, ${Object.keys(r.pack.icons).length} kinds mapped`);
-        if (r.unmatched.length) console.log(dim(`  not matched (map by hand under icons: in a diagram, names in ${path.join(r.dir, 'index.json')}):\n  ${r.unmatched.join(', ')}`));
-        console.log(dim(`  use it: carto render diagram.yaml --pack ${name}, or icons: { pack: ${name} } in the diagram`));
-        return 0;
+        if (sub === 'show') {
+          const { svg, coverage: cov } = packSheet(a);
+          if (values.out) {
+            fs.writeFileSync(values.out, /\.png$/i.test(values.out) ? toPng(svg, 2) : svg);
+            console.log(`${a}: ${cov.have} of ${cov.of} kinds → ${values.out}`);
+          } else {
+            const pack = readPack(a)!;
+            for (const k of coverageKinds(a)) console.log(`${k.kind.padEnd(24)} ${pack.icons[k.kind] ? pack.icons[k.kind] + (pack.manual?.[k.kind] ? dim('  (by hand)') : '') : dim('—')}`);
+            console.log(`\n${cov.have} of ${cov.of} kinds have an icon`);
+          }
+          return 0;
+        }
+        if (sub === 'find') {
+          const hits = findIcons(a, more.join(' '));
+          for (const h of hits.slice(0, 30)) console.log(`${h.name.padEnd(40)} ${dim(h.file)}`);
+          if (!hits.length) console.log(`Nothing in ${a} called "${more.join(' ')}"`);
+          return hits.length ? 0 : 1;
+        }
+        if (sub === 'map') {
+          const [kind, ...words] = more;
+          if (!kind || !words.length) return (console.error(helpFor(command)), 1);
+          const r = mapIcon(a, kind, words.join(' '));
+          console.log(`${a}: ${kind} → ${r.file}`);
+          return 0;
+        }
+        if (sub === 'unmap') {
+          const [kind] = more;
+          if (!kind) return (console.error(helpFor(command)), 1);
+          unmapIcon(a, kind);
+          console.log(`${a}: ${kind} draws its line icon again`);
+          return 0;
+        }
       } catch (e) {
-        console.error(`${src}  ${red('error')}  ${(e as Error).message}`);
-        return 1;
+        return fail(e);
       }
+      return (console.error(helpFor(command)), 1);
     }
     case 'new': {
       const [id, target] = files;
@@ -1119,7 +1182,7 @@ async function main(): Promise<number> {
       if (values.css) return (process.stdout.write(embedCss()), 0);
       const [f] = files;
       if (!f) return (console.error(helpFor(command)), 1);
-      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static });
+      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static, icons: iconsFlag() });
       report(f === '-' ? 'stdin' : f, r.problems);
       // A fragment, or a page made from standard input, goes to standard output unless -o says where.
       // With errors a fragment is still written: it is the message a reader of the page should see.

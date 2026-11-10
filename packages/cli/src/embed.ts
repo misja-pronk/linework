@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { build, pageCss, toHtml, type CartographyOptions, type Problem } from '@cartography/docs-plugins';
 import { escapeHtml } from '@cartography/embed/shared';
+import { readPack } from './packs.ts';
 
 export interface EmbedFlags {
   view?: string;
@@ -14,6 +15,8 @@ export interface EmbedFlags {
   fragment?: boolean;
   /** No zoom and drill-down: the drawing alone, a few kB. */
   static?: boolean;
+  /** official or lucide, over the diagram's icons:. */
+  icons?: 'official' | 'lucide';
 }
 
 export interface Embedded {
@@ -27,7 +30,7 @@ export interface Embedded {
 export async function embed(file: string, flags: EmbedFlags): Promise<Embedded> {
   const stdin = file === '-';
   const abs = path.resolve(file);
-  const options: CartographyOptions = { theme: flags.theme ?? 'auto', view: flags.view, interactive: !flags.static, description: true, strict: false, root: path.parse(abs).root };
+  const options: CartographyOptions = { theme: flags.theme ?? 'auto', view: flags.view, interactive: !flags.static, description: true, strict: false, root: path.parse(abs).root, iconPack: readPack, icons: flags.icons };
   const built = await build(
     stdin
       ? { text: fs.readFileSync(0, 'utf8'), dir: process.cwd(), title: flags.title, options: { ...options, root: path.parse(process.cwd()).root } }

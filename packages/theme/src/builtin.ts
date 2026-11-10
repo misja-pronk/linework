@@ -82,6 +82,19 @@ export const surveyCool: Theme = {
   group: { ...surveyGroup, tints: ['#F5F7F9', '#ECEFF3', '#E2E7EC'], line: '#CDD4DB' },
 };
 
+const surveyDarkInks: Pairs = {
+  blue: ['#8BADFB', '#243652'],
+  sky: ['#5DAABB', '#1E3944'],
+  indigo: ['#C4BAFF', '#2D2F56'],
+  violet: ['#CD92D9', '#3A2C49'],
+  teal: ['#67DBD4', '#1C3B38'],
+  green: ['#94D78F', '#253B23'],
+  amber: ['#EBB13C', '#40331A'],
+  orange: ['#EA8A5E', '#472A1D'],
+  rose: ['#D1838D', '#482329'],
+  slate: ['#AEB4BA', '#353D45'],
+};
+
 /** Survey at night: terrain gets lighter as it nests and cards are the lightest ground. */
 export const surveyDark: Theme = {
   ...surveyShape,
@@ -96,22 +109,7 @@ export const surveyDark: Theme = {
   edge: '#949DA6',
   shadow: { color: '#000000', opacity: 0 },
   accent: '#E8875A',
-  tones: tones(
-    {
-      blue: ['#8BADFB', '#243652'],
-      sky: ['#5DAABB', '#1E3944'],
-      indigo: ['#C4BAFF', '#2D2F56'],
-      violet: ['#CD92D9', '#3A2C49'],
-      teal: ['#67DBD4', '#1C3B38'],
-      green: ['#94D78F', '#253B23'],
-      amber: ['#EBB13C', '#40331A'],
-      orange: ['#EA8A5E', '#472A1D'],
-      rose: ['#D1838D', '#482329'],
-      slate: ['#AEB4BA', '#353D45'],
-    },
-    '#181D21',
-    '#39424A',
-  ),
+  tones: tones(surveyDarkInks, '#181D21', '#39424A'),
   group: { ...surveyGroup, tints: ['#181D21', '#1E2429', '#242B31'], line: '#39424A' },
 };
 
@@ -267,6 +265,71 @@ export const draftingDark: Theme = {
   background: { dots: { step: 16, r: 0.6, color: '#2A3139' } },
 };
 
+// ---------------------------------------------------------------- Sketch
+
+const HAND_FALLBACK = "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive";
+
+const sketchShape = {
+  ...shared,
+  // Everything in the one hand: a monospace column would look typed onto the sketch.
+  font: { family: `Kalam, ${HAND_FALLBACK}`, mono: `Kalam, ${HAND_FALLBACK}`, sans: 'Kalam' },
+  // A handwriting face reads a size smaller than a book face at the same size.
+  size: { ...shared.size, title: 24, subtitle: 14.5, label: 15, caption: 12.5, group: 13, edgeLabel: 12.5, cell: 13 },
+  space: { ...shared.space, layerGap: 78 },
+  radius: { card: 5, group: 8, tile: 6, chip: 5, pill: 999, corner: 9 },
+  stroke: { card: 1.5, group: 1.3, edge: 1.6, icon: 1.8 },
+  tile: 'bare',
+  iconSize: 22,
+  edgeLabel: { style: 'halo', ink: 'text' },
+  // Bridges are gaps a hand does not leave; open arrowheads are how people draw them.
+  line: { bridge: 0, junction: 'dot', junctionSize: 3.2, corner: 'round', arrow: 'open', arrowScale: 1.2 },
+  legendStyle: 'key',
+  sheet: { marks: 'none' },
+  tableHead: 'paper',
+  number: 'ring',
+  chip: 'outline',
+  title: { size: 24, weight: 600 },
+  sketch: { roughness: 1, fill: 'hachure', double: true },
+} satisfies Partial<Theme>;
+
+const sketchGroup = { dash: '7 5', label: 'plain', labelSize: 13, labelColor: 'text', captionColor: 'muted', icon: 15 } as const;
+
+/** Sketch: a workshop drawing. Marker lines that wobble a little, hachured zones, a handwriting face. */
+export const sketch: Theme = {
+  ...sketchShape,
+  name: 'sketch',
+  mode: 'light',
+  canvas: '#FFFEFA',
+  surface: '#FFFFFF',
+  border: '#3A3F47',
+  text: '#1D2127',
+  textMuted: '#454C55',
+  textFaint: '#575E67',
+  edge: '#3A3F47',
+  shadow: { color: '#1D2127', opacity: 0 },
+  accent: '#B5491B',
+  tones: tones(surveyInks, '#F7F4EC', '#9C9486'),
+  group: { ...sketchGroup, tints: ['#F7F4EC', '#EFEBDF', '#E7E1D2'], line: '#8D8577' },
+};
+
+/** Sketch in chalk on a blackboard, for dark rooms and screens. */
+export const sketchDark: Theme = {
+  ...sketchShape,
+  name: 'sketch-dark',
+  mode: 'dark',
+  canvas: '#1D2422',
+  surface: '#28302D',
+  border: '#C9CEC9',
+  text: '#F1EFE8',
+  textMuted: '#BDC2BD',
+  textFaint: '#A9AFAA',
+  edge: '#C9CEC9',
+  shadow: { color: '#000000', opacity: 0 },
+  accent: '#F0A070',
+  tones: tones(surveyDarkInks, '#222A27', '#69726E'),
+  group: { ...sketchGroup, tints: ['#222A27', '#28302D', '#2E3733'], line: '#7D8681' },
+};
+
 /** `light` and `dark` are the default look in its two modes. */
 export const light = survey;
 export const dark = surveyDark;
@@ -280,6 +343,8 @@ export const builtinLooks: Record<string, { theme: Theme; description: string }>
   'transit-dark': { theme: transitDark, description: 'Transit on a dark page' },
   drafting: { theme: drafting, description: 'An engineering drawing: ink lines, square corners, monospace lettering, a frame with zones. For specifications and print' },
   'drafting-dark': { theme: draftingDark, description: 'Drafting as a blueprint on a dark page' },
+  sketch: { theme: sketch, description: 'Drawn by hand for workshops: marker lines that wobble a little, hachured zones, a handwriting face' },
+  'sketch-dark': { theme: sketchDark, description: 'Sketch in chalk on a blackboard' },
   classic: { theme: classic, description: 'The look before Survey: Inter, soft icon tiles, tone-washed groups, pill labels' },
   'classic-dark': { theme: classicDark, description: 'Classic on a dark page' },
 };

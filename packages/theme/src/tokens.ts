@@ -183,6 +183,18 @@ export interface Theme {
   title?: TitleLook;
   /** A dot grid behind the drawing. */
   background?: { dots?: { step: number; r: number; color: string } };
+  /** Drawn by hand: outlines and lines wobble (the same way on every redraw), tinted areas get hachure. */
+  sketch?: SketchLook;
+}
+
+/** The hand-drawn look. Plain SVG paths only, so PNG, slides and Office-safe SVG keep it. */
+export interface SketchLook {
+  /** How far a hand strays from the line: 0 is a ruler, 1 the default, 2 a quick marker. */
+  roughness?: number;
+  /** Tinted areas (zones, tiles, headers): hachure over a light tint, or the tint alone. */
+  fill?: 'hachure' | 'solid';
+  /** Outlines of cards and zones drawn twice, slightly apart, as a pencil does. */
+  double?: boolean;
 }
 
 export const shared = {
