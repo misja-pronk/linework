@@ -69,12 +69,14 @@ interface VariantKey {
   compact: boolean;
   align: boolean;
   mirror: boolean;
+  /** Cut into this many rows (columns, top-down) by wrap.ts; 0 when not. */
+  wrap: number;
 }
 
 function parseKey(key: string | undefined): VariantKey | undefined {
-  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?$/.exec(key ?? '');
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d))?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
-  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5] } : undefined;
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0) } : undefined;
 }
 
 /** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
@@ -114,6 +116,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // would score now. Moving a pin never redraws the rest.
     const d = open ? was.direction : graph.direction;
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn);
+    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
     // A long chain drawn left to right can end up many times wider than tall, and a deep tree drawn
@@ -129,14 +132,19 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     if (open && (stayIn === other || wide || reshape)) {
       const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other);
       const [a, b] = target == null ? [0, 0] : [off(alt.placed, graph, target), off(best.placed, graph, target)];
-      if (!was && a < b - NEARER && noWorse(alt, best)) best = alt;
-      // Neither clearly nearer the shape (or a drawing before to stay close to): the better drawing.
-      // Its shape is why the other is tried at all: on a near tie the drawing as asked loses, unless
-      // the previous drawing was that one.
-      else if ((was || a <= b + NEARER || !noWorse(best, alt)) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
+      // Without a drawing before, the one that fits the target shape (within OFF) and is clearly
+      // nearer it wins, when it is no worse. Otherwise the better drawing: its shape is why the other
+      // is tried at all, so on a near tie the drawing as asked loses, unless the previous drawing was
+      // that one. A long chain, far off either way, goes top-down there as it always did.
+      const fits = (x: number, y: number) => !was && x <= OFF && x < y - NEARER;
+      if (fits(a, b) && noWorse(alt, best)) best = alt;
+      // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins.
+      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
     if (!was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF) best = wrapped(best, spacing, target) ?? best;
+    // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
+    else if (was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap) ?? best;
   }
 
   const s = best.sized;
@@ -184,17 +192,25 @@ function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undef
   const s = best.sized;
   let found: Choice | undefined;
   for (const parts of [2, 3]) {
-    const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth);
-    if (!q) continue;
-    const placed = normalise({ ...q, edges: route(s, q) });
-    const sc = score(measure(s.graph, placed, s.groupHeader, s.groupMinWidth));
-    const c: Choice = { p: q, placed, score: sc, cost: sc, key: best.key, sized: s };
+    const c = rewrap(best, spacing, parts);
+    if (!c) continue;
+    const placed = c.placed;
     const ref = found ?? best;
     // And it may not mostly add room: what it saves in length it should not spend twice over in height.
     const roomy = placed.width * placed.height > ROOM * best.placed.width * best.placed.height;
     if (!roomy && off(placed, s.graph, target) < off(ref.placed, s.graph, target) - NEARER && noWorse(c, best)) found = c;
   }
   return found;
+}
+
+/** The drawing cut into `parts` rows (columns), its key saying so, so the next drawing can be cut the same way. */
+function rewrap(best: Choice, spacing: Spacing, parts: number): Choice | undefined {
+  const s = best.sized;
+  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth);
+  if (!q) return undefined;
+  const placed = normalise({ ...q, edges: route(s, q) });
+  const sc = score(measure(s.graph, placed, s.groupHeader, s.groupMinWidth));
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d$/, '')}w${parts}`, sized: s };
 }
 
 /** A drawing with no more crossings than another and none of the errors (lines through boxes, covered labels, overlaps) that one is free of. */
@@ -349,7 +365,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
       const sc = score(m);
       // Close to the previous drawing counts; with only its variant known, being that variant does
       // (in a mirror or not: that follows the order in the source, which may have changed).
-      const way = (k: string) => k.replace(/m?-?$/, '');
+      const way = (k: string) => k.replace(/w\d$/, '').replace(/m?-?$/, '');
       const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && way(prev.variant) !== way(key) ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }

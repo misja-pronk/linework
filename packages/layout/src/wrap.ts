@@ -54,7 +54,8 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
     else columns.push([b]);
     end = Math.max(end, b.box[at] + b.box[size]);
   }
-  if (columns.length < parts) return undefined;
+  // A plain chain (one block a column) reads best in one line: cut, it would run back to its start.
+  if (columns.length < parts || columns.every((c) => c.length === 1)) return undefined;
   // Cut where the parts come out most even in length along the flow.
   const spans = columns.map((c) => union(c.map((b) => b.box)));
   const total = spans[spans.length - 1]![at] + spans[spans.length - 1]![size] - spans[0]![at];
