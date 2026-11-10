@@ -163,6 +163,11 @@ describe('what it says about mistakes, and where', () => {
     expect(said).toEqual(['4:5 error "A and then B" should look like "a -> b -> c"; "a -yes-> b" with a label; "a --> b" for a message']);
   });
 
+  it('says so when the quotes went around the whole item', async () => {
+    const { said } = await draw('type: process\nflow:\n  - start -> A -> end\n  - "A -> B: only on Fridays"\n  - B -> end\n');
+    expect(said).toContain('4:5 warning "B: only on Fridays" is read as the name of a step: quote only what stands after the colon, like B: "only on Fridays"');
+  });
+
   it('points at a lane that is not there', async () => {
     const { said } = await draw(leave.replace('Explain: manager', 'Explain: { in: boss }').replace('Ask for leave: employee', 'Ask for leave: staff'));
     expect(said).toEqual([

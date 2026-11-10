@@ -31,6 +31,8 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | A branching strategy: branches, merges, tags, releases; or how branches reach production | [Git branching](#git-branching) | `gitflow` |
 | What happens when: workstreams, milestones, migration waves, a delivery plan | [Roadmap & timeline](#roadmap--timeline) | `roadmap` |
 | What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
+| Who does what, in which order, and where it branches: an approval in swimlanes, a decision flowchart, a runbook | [Process](#process) | `process` |
+| The states one thing can be in and what moves it on: the lifecycle of an order, a ticket, a connection | [State machine](#state-machine) | `states` |
 
 Look-alikes that trip people up:
 
@@ -46,6 +48,10 @@ Look-alikes that trip people up:
 - **The steps of one flow** are Sequence; **work spread over weeks and months** is Roadmap.
 - **Messages between systems** are Sequence; **what a person does, thinks and feels along the way** is a Journey map.
 - **A plan with dates** is Roadmap; **an experience in phases, without dates** is a Journey map.
+- **Which systems there are** is Architecture; **the steps people and systems take, with decisions** are a Process.
+- **Messages between systems, call by call** are Sequence; **work handed from role to role, with branches** is a Process.
+- **What one person feels along the way** is a Journey map; **what every role does, and who decides** is a Process.
+- **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
 
 ## Architecture
 
@@ -280,7 +286,7 @@ Guide: [data-products.md](data-products.md) (the mesh map from ODPS and ODCS fil
 
 Use it for a login or OAuth flow step by step, an integration with a payment provider, event choreography between services, or a handshake between two systems.
 
-Not for: which services exist and how they connect, or a process flow with decisions (both `systems`).
+Not for: which services exist and how they connect (`systems`), a process flow with decisions (`process`), the states one thing goes through (`states`), or what a person goes through and how it feels (`journey`).
 
 ```yaml
 type: sequence
@@ -412,7 +418,7 @@ Examples: [examples/roadmap](../examples/roadmap)
 
 Use it for a developer's first week from laptop to first deploy, asking for access today next to the self-service way, a service blueprint with frontstage, backstage and support, or a storyboard that tells a slide deck step by step.
 
-Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`systems`).
+Not for: messages between systems in one flow (`sequence`), a plan with dates and milestones (`roadmap`), or a process with decisions and branches (`process`).
 
 The short form is one line per step, the key being what they do and the number how it feels:
 
@@ -482,6 +488,76 @@ Presenting tells the journey one step at a time: the step in focus is outlined, 
 Import: Mermaid `journey` (sections become phases, tasks steps with their score; the actor in most tasks becomes the persona, the others go to `with:`).
 
 Examples: [examples/journey](../examples/journey)
+
+## Process
+
+`type: process` · who does what, in which order, and where it branches.
+
+Use it for an approval or request process with the roles in swimlanes, a decision flowchart (leave the lanes out), an incident or release procedure with a manual gate, or order to cash across departments.
+
+Not for: the states one thing can be in (`states`), messages between systems call by call (`sequence`), how one person experiences it (`journey`), or the systems themselves and how they connect (`systems`).
+
+```yaml
+type: process
+title: Access request
+lanes:                              # who does it; optional
+  employee: Employee
+  manager: Line manager
+  it: IT service desk
+nodes:                              # only what the flow cannot say itself
+  Request access: { in: employee, kind: user }
+  Check request: manager            # a lane; a step without one stands with the step before it
+  Grant access: { in: it, kind: service }
+  Confirm access: employee
+  Request rejected: end             # a kind
+flow:                               # the first item is the happy path
+  - start -> Request access -> Check request -> Approved? -yes-> Grant access -> Confirm access -> end
+  - Approved? -no-> Explain why -> Request rejected
+```
+
+The names are the steps; a name that ends in `?` is a decision, `start` and `end` are the events. `->` is sequence flow, `-->` a message (dashed), `-yes->` a label where the line leaves. Kinds: `task`, `user`, `service`, `manual`, `script`, `subprocess`; `decision`, `parallel`, `inclusive`, `event-based`; `start`, `end`, `timer`, `message`, `error`, `signal`; `document`, `note`. The happy path runs straight and a little heavier; the layout is the type's own and places everything, so nothing is pinned. Without `steps:` a presentation walks the happy path.
+
+It has BPMN's everyday shapes, not BPMN: no pools, boundary events or BPMN XML.
+
+Import: a Mermaid `flowchart` that decides something (diamonds, starts and ends are a good part of it) becomes a process, its subgraphs lanes; other flowcharts stay `systems`.
+
+Guide: [process.md](process.md). Examples: [examples/process](../examples/process)
+
+## State machine
+
+`type: states` · the states one thing can be in, and what moves it on.
+
+Use it for the lifecycle of an order, a ticket or a document, what a pull request or a contract can become and when, a connection or a device that retries, times out and recovers, or to check that no status is a dead end before it is built.
+
+Not for: who does what in which order, with decisions (`process`), messages between systems call by call (`sequence`), branches, merges and releases in a repository (`gitflow`), or what is delivered when (`roadmap`).
+
+```yaml
+type: states
+title: Order lifecycle
+states:                             # only what the transitions cannot say themselves
+  Awaiting payment: { entry: reserve stock }
+  Fulfilment:                       # a composite state: its substates are nested in it
+    states:
+      Picking: { do: collect the items }
+      Packed:
+  In stock?: choice                 # a kind: choice, final or history; a name ending in ? is a choice anyway
+transitions:                        # from -> to: event [guard] / action
+  - start -> Awaiting payment: order placed
+  - Awaiting payment -> In stock?: payment received
+  - In stock? -> Fulfilment: [yes]
+  - In stock? -> Refunded: "[no] / pay back"
+  - start -> Picking                # the start inside Fulfilment: where Picking is
+  - Picking -> Packed: all items scanned
+  - Fulfilment -> Shipped: handed to carrier
+  - Shipped -> end
+  - Refunded -> end
+```
+
+`start` and `end` are the initial and final pseudo-states of the level the state at the other end lives in. A state has one name in the whole diagram, so transitions name it without a path. `entry`, `do` and `exit` are listed in the state; `note:` hangs a remark on it; a transition to itself is a loop on the state. It uses the general layout, so a state you drag stays where you put it. Without `steps:` a presentation walks from the start along the first way out.
+
+Import: Mermaid `stateDiagram` and `stateDiagram-v2` (`[*]`, composite states, `<<choice>>`, notes; fork and join come in as states, concurrent regions are merged, with a warning).
+
+Guide: [states.md](states.md). Examples: [examples/states](../examples/states)
 
 ## Adding a type
 

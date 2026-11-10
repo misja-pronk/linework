@@ -190,6 +190,8 @@ export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
   const lanes = new Map(Object.entries(src.lanes ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { label: v } : (v ?? {})]));
   const { hops, names, bad } = readFlow(src.flow);
   for (const i of bad) ctx.error(['flow', i], 'A flow is steps with arrows between them: "a -> b -> c", "a -yes-> b", "a --> b" for a message, or "a -> b: label"');
+  // Quotes around the whole item take what stands after the colon into the name of the step.
+  for (const n of names) if (!n.key && /:\s/.test(n.id)) ctx.warn(['flow', n.item], `"${n.id}" is read as the name of a step: quote only what stands after the colon, like ${n.id.replace(/:\s+(.*)$/, ': "$1"')}`);
 
   // Steps in the order the flow names them, then what only `nodes:` knows.
   const entries = new Map(Object.entries(src.nodes ?? {}).map(([id, v]) => [id, nodeShorthand(v)]));

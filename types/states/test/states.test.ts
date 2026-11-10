@@ -139,6 +139,11 @@ describe('what it says about mistakes, and where', () => {
     expect(said).toEqual(['14:33 error Text that starts with [ ] and goes on after it needs quotes, like "[paid] / ship"']);
   });
 
+  it('says so when the quotes went around the whole transition', async () => {
+    const { said } = await draw('type: states\ntransitions:\n  - start -> A\n  - "A -> B: [paid] / ship"\n  - B -> end\n');
+    expect(said).toContain('4:5 warning "B: [paid] / ship" is read as the name of a state: quote only what stands after the colon, like B: "[paid] / ship"');
+  });
+
   it('points at what is no transition and at a kind that is none', async () => {
     const { said } = await draw('type: states\nstates:\n  A:\n  B: { kind: blob }\ntransitions:\n  - start -> A -> B\n  - A to B\n');
     expect(said).toEqual(['4:8 error "kind" must be one of: state, choice, final, history', '7:5 error "A to B" should look like "a -> b", or a chain "a -> b -> c"']);

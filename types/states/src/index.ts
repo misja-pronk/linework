@@ -177,6 +177,8 @@ export function buildStates(src: StatesSource, ctx: BuildContext): Graph {
   const known = readStates(src, (id, path, first) => ctx.error(path, `"${id}" is written twice${first.parent ? ` (also in "${first.parent}")` : ''}: a state has one name in the whole diagram`));
   const { hops: written, names, bad } = readTransitions(src.transitions);
   for (const i of bad) ctx.error(['transitions', i], 'A transition is two states with an arrow between them: "a -> b", or "a -> b: event [guard] / action"');
+  // Quotes around the whole item take what stands after the colon into the name of the state.
+  for (const n of names) if (!n.key && /:\s/.test(n.id)) ctx.warn(['transitions', n.item], `"${n.id}" is read as the name of a state: quote only what stands after the colon, like ${n.id.replace(/:\s+(.*)$/, ': "$1"')}`);
   for (const [id, k] of known) if (reserved(id)) ctx.error(k.path, `"${id}" is the ${reserved(id)} pseudo-state: it is written in transitions only, as "${reserved(id) === 'start' ? 'start -> …' : '… -> end'}"`);
 
   const firstAt = new Map<string, number>();
