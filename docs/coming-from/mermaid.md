@@ -33,6 +33,8 @@ What is read: `flowchart` and `graph`, `architecture-beta`, `stateDiagram`, `erD
 | `stateDiagram-v2` | `type: states`: states, composite states, start and end, guards |
 | `gantt`, `timeline` | `type: roadmap`: sections become lanes, `after` stays a dependency |
 | `gitGraph` | `type: gitflow`: branches, merges, tags |
+| `title:` in the front matter, `title …`, or a `%%` comment above the diagram | `title:`; without any, the file's name |
+| `click` | left out, with a warning: add `links:` to the node |
 | `journey` | `type: journey` |
 
 ## The same diagram, both ways
@@ -48,11 +50,13 @@ flowchart LR
     bus -.-> mail[Mailer]
 ```
 
-`carto import` gives, untouched:
+`carto import shop.mmd` gives, untouched:
 
 ```cartography
 type: systems
-title: Imported diagram
+title: shop
+direction: right
+captions: written
 
 groups:
   backend: { kind: group, label: Backend }
@@ -72,6 +76,8 @@ edges:
   - api -> bus: { label: OrderPlaced, style: async }
   - bus -> mail: { style: async }
 ```
+
+The kinds are guessed from the shapes and words (a cylinder is a database, `Orders API` an API): they give the icon, and `captions: written` keeps them from adding a caption the source never had. Leave it out and every card says its kind under its name.
 
 ## What you lose
 

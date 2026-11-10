@@ -296,9 +296,9 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
     const key = r.edge ? `e:${r.edge}` : `n:${r.node}`;
     marks.set(key, [...(marks.get(key) ?? []), r.id]);
   }
-  for (const nd of graph.nodes) if (marks.has(`n:${nd.id}`)) nd.marks = marks.get(`n:${nd.id}`);
-  for (const g of graph.groups) if (marks.has(`n:${g.id}`)) g.marks = marks.get(`n:${g.id}`);
-  for (const e of graph.edges) if (marks.has(`e:${e.id}`)) e.marks = marks.get(`e:${e.id}`);
+  for (const nd of graph.nodes) if (marks.has(`n:${nd.id}`)) nd.marks = [...(nd.marks ?? []), ...marks.get(`n:${nd.id}`)!];
+  for (const g of graph.groups) if (marks.has(`n:${g.id}`)) g.marks = [...(g.marks ?? []), ...marks.get(`n:${g.id}`)!];
+  for (const e of graph.edges) if (marks.has(`e:${e.id}`)) e.marks = [...(e.marks ?? []), ...marks.get(`e:${e.id}`)!];
   graph.threats = rows;
   const legend: LegendItem[] = [];
   if (trusted.size) legend.push({ label: 'Trust boundary', swatch: 'trust', tone: 'rose' });

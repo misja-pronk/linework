@@ -61,7 +61,7 @@ group Retry [3 times]
 end
 @enduml`);
     expect(d.boxes).toEqual({ shop: 'Shop' });
-    expect(d.participants.A).toEqual({ kind: 'service', box: 'shop' });
+    expect(d.participants.A).toEqual({ kind: 'service', label: 'A', box: 'shop' });
     expect(d.messages.slice(0, 6)).toEqual([
       { 'B -> A': 'back' },
       { 'A -x B': 'lost' },
@@ -271,5 +271,16 @@ describe('PlantUML files', () => {
     const md = importMarkdown('## Login\n\n```plantuml\n@startuml\nA -> B : hi\n@enduml\n```\n');
     expect(md).toHaveLength(1);
     expect(parse(md[0]!.yaml)).toMatchObject({ type: 'sequence', title: 'Login' });
+  });
+});
+
+describe('PlantUML participant names', () => {
+  it('keeps the name of a participant named after itself (actor User, database DB)', async () => {
+    const { yaml } = one('@startuml\nactor User\nparticipant "Web" as W\ndatabase DB\nUser -> W: login\nW -> DB: query\n@enduml\n');
+    const d = parse(yaml);
+    expect(d.participants).toEqual({ User: { kind: 'person', label: 'User' }, W: { kind: 'client', label: 'Web' }, DB: { kind: 'database', label: 'DB' } });
+    const seq = (await clean(yaml)).graph!.nodes[0]!.shape;
+    if (seq.kind !== 'sequence') throw new Error('not a sequence');
+    expect(seq.participants.map((p) => [p.label, p.caption])).toEqual([['User', undefined], ['Web', undefined], ['DB', undefined]]);
   });
 });

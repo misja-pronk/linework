@@ -251,3 +251,39 @@ describe('finding the language', () => {
     expect(importD2('# nothing', 'x')[0]).toEqual({ yaml: '', warnings: ['The D2 text has no shapes'] });
   });
 });
+
+describe('D2 review findings', () => {
+  const azure = `direction: right
+users: Users {shape: person}
+cloud: Azure {
+  fd: Front Door
+  app: App Service
+  db: SQL {shape: cylinder}
+  fd -> app: HTTPS
+  app -> db: SQL {style.stroke-dash: 3}
+}
+users -> cloud.fd
+vars: { d2-config: { theme-id: 4 } }
+`;
+  it('names Azure, AWS and GCP products by their own names; a dashed line stays dashed', async () => {
+    const { d, yaml, warnings } = one(azure);
+    expect(d).toMatchObject({ type: 'cloud', provider: 'azure', captions: 'written' });
+    expect(d.nodes.fd).toEqual({ kind: 'front-door', label: 'Front Door', in: 'cloud' });
+    expect(d.nodes.app).toMatchObject({ kind: 'app-service' });
+    expect(d.edges).toContainEqual({ 'app -> db': { label: 'SQL', line: 'dashed' } });
+    expect(warnings).toContain("vars.d2-config (D2's theme, layout engine and sketch mode) is left out: the theme and the layout are Cartography's");
+    // No caption the source never wrote, and none blanked one by one.
+    expect(yaml).not.toContain('caption:');
+    const r = await clean(yaml);
+    expect(r.graph!.nodes.find((n) => n.id === 'db')!.shape).not.toHaveProperty('caption', 'SQL Database');
+    expect(r.graph!.edges.find((e) => e.from.node === 'app')!.line).toBe('dashed');
+    const aws = one('aws: AWS {\n  t: Transit Gateway\n  f: Data Firehose\n  d: DynamoDB\n}\n').d;
+    expect([aws.nodes.t.kind, aws.nodes.f.kind, aws.nodes.d.kind]).toEqual(['transit-gateway', 'firehose', 'dynamodb']);
+    const gcp = one('gcp: Google Cloud {\n  a: Cloud Armor\n  l: Looker\n  o: Orders service\n}\n').d;
+    expect([gcp.nodes.a.kind, gcp.nodes.l.kind, gcp.nodes.o.kind]).toEqual(['cloud-armor', 'looker', 'service']);
+  });
+
+  it('a dashed line without a cloud is asynchronous', () => {
+    expect(one('a -> b: {style.stroke-dash: 3}\n').d.edges).toEqual([{ 'a -> b': { style: 'async' } }]);
+  });
+});

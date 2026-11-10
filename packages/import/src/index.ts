@@ -61,6 +61,12 @@ export function importMermaid(text: string, fallbackTitle?: string): Imported {
   }
   // A `%% title: …` comment names the diagram too, when the front matter does not.
   if (!front) title = /^\s*%%\s*title\s*:?\s+(.+?)\s*$/im.exec(src)?.[1] ?? title;
+  // Else a comment above the diagram says what it is: "%% Checkout flow".
+  if (!front && title === fallbackTitle) {
+    const above = src.split('\n');
+    const head = above.findIndex((l) => l.trim() && !/^\s*%%/.test(l));
+    title = (head < 0 ? above : above.slice(0, head)).map((l) => /^\s*%%(?!\{)\s*(.*\w.*?)\s*$/.exec(l)?.[1]).find(Boolean) ?? title;
+  }
   const lines = src
     .replace(/%%\{[\s\S]*?\}%%/g, '')
     .split('\n')
@@ -131,7 +137,7 @@ export function importText(text: string, name = ''): ImportedBlock[] {
   if (lang === 'markdown') return importMarkdown(text);
   if (lang === 'd2') return importD2(text, base).map((b) => ({ ...b, line: 0 }));
   if (lang === 'plantuml') return importPlantUml(text, base).map((b) => ({ ...b, line: 0 }));
-  return [{ ...importMermaid(text), line: 0 }];
+  return [{ ...importMermaid(text, base), line: 0 }];
 }
 
 /** Every ```mermaid, ```d2 and ```plantuml (or ~~~) block; the nearest heading above one becomes its title when it has none. */

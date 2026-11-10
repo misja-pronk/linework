@@ -79,6 +79,8 @@ describe('C4 views', () => {
     const r = await view('components');
     expect(ids(r).groups).toEqual(['shop', 'shop.api']);
     expect(ids(r).nodes).toEqual(['shop.api.orders', 'shop.api.repo', 'shop.db', 'shop.web', 'stripe']);
+    // "Calls" to the opened container says less than "Places orders" to its controller: only that one is drawn.
+    expect(ids(r).edges.filter((e) => e.startsWith('shop.web>'))).toEqual(['shop.web>shop.api.orders:Places orders']);
   });
 
   it('landscape: everything at the top, the internal part in an enterprise boundary', async () => {

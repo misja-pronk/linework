@@ -145,11 +145,12 @@ carto deck *.yaml -o deck.pptx               # every diagram; one slide per step
 
 | Format | With steps |
 | --- | --- |
-| SVG, PNG | One drawing: the whole, or one step with `--step n`. `--all-steps` writes a numbered file per step. The caption and `3 / 7` are part of the picture |
+| SVG, PNG | One drawing: where the steps end, or one step with `--step n`. `--all-steps` writes a numbered file per step. The caption and `3 / 7` are part of the picture |
 | PowerPoint | One slide per step. Shapes are native and stand in the same place on every slide, so the slides build up cleanly and stay editable. Title and caption are text on the slide and in the speaker notes; the steps of one drawing fade into each other |
 | PDF | One page per step, all the same size |
 
-- `--no-steps` gives one slide or page for the whole drawing.
+- Without `--step` (and in the editor, the docs gallery and an embed) the drawing is where the story ends: what a step showed and a later one hid (`hide:`) is not drawn, so today's lines and the proposal's are never shown at once; the rest is at full strength, without a caption. In the editor what was hidden stays, quiet, so it can still be picked and edited.
+- `--no-steps` gives one slide or page for the drawing, also where the steps end.
 - `--all-steps` with PowerPoint or PDF also steps through sequence diagrams and dynamic views, which otherwise stay one slide.
 - In the editor, SVG and PNG export the step on screen; PowerPoint and PDF get every step.
 

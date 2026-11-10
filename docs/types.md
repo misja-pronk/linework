@@ -77,6 +77,8 @@ Use it for any system overview: services, clients, queues, databases and externa
 
 Groups that end up side by side are drawn in the order they are written: the first one left, or on top in a left-to-right drawing. Move a group up in the file to move it to the front. Where the lines between two groups pull the other way, the lines win. This holds for every type made of nodes and groups (`azure`, `cloud`, `network`, `kubernetes`, …).
 
+A card with a label of its own says its kind under it (Orders DB, Database) unless the label already does. `captions: written` at the top draws only the captions written in the file: what an import writes, since its kinds are guesses. This too holds for every type made of nodes and groups, and for sequence participants.
+
 Not for: what runs in which Azure subnet (use `azure`), table columns (use `erd`), who may access what (use `access`).
 
 ```yaml

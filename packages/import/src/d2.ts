@@ -7,6 +7,8 @@
 // group names say AWS, Google Cloud or Azure), its sql_tables as an erd, each sequence_diagram as a
 // sequence. Steps become `steps:` that build the drawing up, scenarios become `views:`, and every
 // layer is a diagram of its own.
+import { config as azureConfig } from '@cartography/azure';
+import { awsNodes, config as cloudConfig, gcpNodes } from '@cartography/cloud';
 import { guessGroupKind, guessKind, systemsYaml, type SysEdge, type SysGroup, type SysNode } from './systems.ts';
 import { participantKind, sequenceYaml, type Participant, type Step } from './sequence.ts';
 import { Ids, scalar, slug, Warnings } from './text.ts';
@@ -336,7 +338,12 @@ class Reader {
         for (const x of e.block ?? []) if (x.type === 'key' && x.block) boards.set(`${head}\0${this.sub(x.path.join('.'))}`, [x.block]);
         continue;
       }
-      if (head === 'vars' && scope === b.root) continue;
+      if (head === 'vars' && scope === b.root) {
+        // Variables are filled in where ${x} uses them; D2's own settings among them are not ours to take.
+        if (e.path[1] === 'd2-config' || e.block?.some((x) => x.type === 'key' && x.path[0] === 'd2-config'))
+          this.warn.onceFor('d2-config', "vars.d2-config (D2's theme, layout engine and sketch mode) is left out: the theme and the layout are Cartography's");
+        continue;
+      }
       if (head === 'classes') {
         this.warn.onceFor('classes', 'Classes (classes: and class:) are left out: the theme styles by kind');
         continue;
@@ -551,7 +558,7 @@ function plainText(s: string): string {
 
 // ---------------------------------------------------------------- systems and cloud
 
-type Provider = 'aws' | 'gcp' | 'azure';
+export type Provider = 'aws' | 'gcp' | 'azure';
 
 /** Words in an icon's address: https://icons.terrastruct.com/aws%2FCompute%2FAWS-Lambda.svg → "aws compute aws lambda". */
 function iconWords(icon: string): string {
@@ -589,6 +596,34 @@ const PRODUCTS: Record<Provider, [string, RegExp][]> = {
   ],
   azure: [],
 };
+
+// Every other product of the cloud type, by its name without the word for what it is ("Front Door",
+// "Cosmos DB", "Cloud Armor", "Transit Gateway"): the longest name that the label or icon says wins.
+const GENERIC = /\s*(\(.*\)|\b(instance|service|function|bucket|volume|file system|database|cluster|table|queue|topic|registry|key|user pool|vm|account|rules)\b)\s*$/i;
+const VAGUE = new Set(['cloud', 'app', 'service', 'gateway', 'function', 'database', 'queue', 'topic', 'sql', 'container', 'storage', 'data', 'event', 'web', 'static web', 'network', 'managed', 'private', 'public']);
+const named = (table: Record<string, { label: string }>, kind = (k: string) => k): [string, RegExp][] =>
+  Object.entries(table)
+    .map(([k, v]) => {
+      const full = v.label.replace(/\s*\(.*\)$/, '').toLowerCase();
+      const core = full.replace(GENERIC, '').trim();
+      // "Cloud Function" without "function" says nothing: then the whole name.
+      return [kind(k), core && !VAGUE.has(core) ? core : full] as const;
+    })
+    .filter(([, n]) => n.length >= 3)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([k, n]) => [k, new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&').replace(/\s+/g, '\\s*')}s?\\b`)]);
+const AZURE_PLAIN = new Set(['user', 'users', 'internet', 'external', 'service']);
+const NAMED: Record<Provider, [string, RegExp][]> = {
+  aws: named(awsNodes),
+  gcp: named(gcpNodes),
+  // As the cloud type writes them: storage is azure-storage there, so a model's storage can be S3.
+  azure: named(Object.fromEntries(Object.entries(azureConfig.nodeKinds).filter(([k]) => !AZURE_PLAIN.has(k))), (k) => (['storage', 'load-balancer', 'dns', 'firewall'].includes(k) ? `azure-${k}` : k)),
+};
+/** The product a label or icon names, for one provider. */
+export function productKind(provider: Provider, text: string): string | undefined {
+  const t = text.toLowerCase();
+  return (PRODUCTS[provider].find(([, r]) => r.test(t)) ?? NAMED[provider].find(([, r]) => r.test(t)))?.[0];
+}
 
 // Systems kinds as the service that usually is one, per provider (as the cloud type's own aliases).
 const GENERAL = new Set(['users', 'user', 'client', 'internet', 'external', 'server', 'datastore', 'router', 'service']);
@@ -668,7 +703,7 @@ function systemsOf(b: Board, title: string, warn: Warnings, hidden: (o: Obj) => 
       : o.shape === 'cylinder' || o.shape === 'sql_table' ? (guess && STORES.has(guess) ? guess : 'database')
       : o.shape === 'queue' ? (guess === 'topic' ? 'topic' : 'queue')
       : (guess ?? (o.shape ? SHAPE_KIND[o.shape] : undefined) ?? 'service');
-    if (provider) kind = PRODUCTS[provider].find(([, r]) => r.test(`${words} ${label.toLowerCase()}`))?.[0] ?? cloudKind(kind, provider);
+    if (provider) kind = productKind(provider, `${words} ${label}`) ?? cloudKind(kind, provider);
     nodes.push({ id: idOf.get(o)!, label, kind, parent: parentOf(o) });
   }
 
@@ -687,13 +722,13 @@ function systemsOf(b: Board, title: string, warn: Warnings, hidden: (o: Obj) => 
       continue;
     }
     if (from === to) continue;
-    edges.push({ from, to, op: e.op, label: e.label ? plainText(e.label) : undefined, ...(e.dashed && !provider ? { style: 'async' as const } : {}) });
+    edges.push({ from, to, op: e.op, label: e.label ? plainText(e.label) : undefined, ...(e.dashed ? (provider ? { line: 'dashed' as const } : { style: 'async' as const }) : {}) });
   }
   if (lost) warn.add(`${lost} connection${lost > 1 ? 's' : ''} to text or into a sequence diagram ${lost > 1 ? 'were' : 'was'} left out`);
 
   const direction = b.direction === 'down' || b.direction === 'up' ? 'down' : 'right';
   if (b.direction === 'up' || b.direction === 'left') warn.onceFor('dir', `direction: ${b.direction} is drawn ${b.direction === 'up' ? 'down' : 'right'}: Cartography reads left to right or top to bottom`);
-  let yaml = systemsYaml({ title, direction, explicit: !!b.direction, groups, nodes, edges });
+  let yaml = systemsYaml({ title, direction, explicit: !!b.direction, groups, nodes, edges }, provider ? cloudConfig : undefined);
   if (provider) yaml = yaml.replace(/^type: systems\n/, `type: cloud\nprovider: ${provider}\n`);
 
   // Steps: the main board first, then what each step adds. Scenarios: one view each.

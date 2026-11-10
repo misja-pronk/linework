@@ -904,7 +904,13 @@ function Import({ theme, incoming, onOpen }: { theme: 'light' | 'dark'; incoming
   }, [text, drawing, keep, file]);
   const current = blocks[Math.min(block, blocks.length - 1)];
   const shown = useDrawing(current?.yaml || undefined, theme, undefined, current?.pins);
-  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: `${(drawing && (current.name ?? file?.replace(/\.[^.]+$/, ''))) || 'imported'}.yaml`.replace(/[\\/:]+/g, '-'), view, pins: current.pins });
+  // Named after the file it came from (and the page or block of it, when it has several); pasted text is "imported".
+  const stem = (): string | undefined => {
+    const base = file?.replace(/\.[^.]+$/, '');
+    if (drawing) return current?.name ?? base;
+    return blocks.length > 1 && current?.name ? [base, current.name].filter(Boolean).join('-') : base;
+  };
+  const open = (view: View) => current?.yaml && onOpen({ text: current.yaml, name: `${stem() || 'imported'}.yaml`.replace(/[\\/:\s]+/g, '-'), view, pins: current.pins });
   const choose = () => {
     const input = document.createElement('input');
     input.type = 'file';

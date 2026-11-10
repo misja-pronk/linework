@@ -353,6 +353,24 @@ describe('examples/deployment', () => {
     expect(edges.filter((e) => e.startsWith('cdn>api'))).toEqual([]);
   });
 
+  it('every environment at once says what only some environments have, in a tag and in the key', async () => {
+    const r = await show('aws.yaml');
+    const g = r.graph!;
+    expect(g.environments).toEqual(['prod', 'test', 'dev']);
+    expect(g.nodes.find((n) => n.id === 'cdn')!.marks).toEqual(['prod', 'test']);
+    expect(g.groups.find((x) => x.id === 'az-b')!.marks).toEqual(['prod']);
+    // What sits inside a marked zone is marked by it, not again.
+    expect(g.nodes.find((n) => n.id === 'api-b')!.marks).toBeUndefined();
+    expect(g.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!.marks).toEqual(['dev']);
+    expect(g.legend!.find((l) => l.swatch === 'mark')).toMatchObject({ tag: 'prod', label: 'Only in the environments named; unmarked: in all (prod, test, dev)' });
+    // One environment's view needs none of it.
+    const prod = (await show('aws.yaml', 'prod')).graph!;
+    expect(prod.environments).toBeUndefined();
+    expect([...prod.nodes, ...prod.groups, ...prod.edges].some((x) => x.marks?.length)).toBe(false);
+    // Outlined in ink: a threat mark is rose.
+    expect(r.svg).toContain('>dev</text>');
+  });
+
   it('the model links to both deployments', async () => {
     const r = await show('model.yaml', 'containers');
     expect(r.diagnostics).toEqual([]);
