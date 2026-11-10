@@ -1,8 +1,8 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import { besideShortLine, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, endsRoom, endStyle, endTagAt, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView } from '@cartography/render';
+import { chips, type BlockShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -222,6 +222,10 @@ class SlideDrawing {
         continue;
       }
       as(state?.nodes[n.id]);
+      if (s.kind === 'block') {
+        out.push(this.drawBlock(n, s, box).xml);
+        continue;
+      }
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : s.kind === 'flow' ? this.drawFlow(n, s, box) : this.drawMatrix(n, s, box)).xml);
       // Threat numbers on the top edge, as in the SVG.
       if (n.marks?.length && s.kind !== 'matrix') out.push(...this.tags(n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, 'threat').map((i) => i.xml));
@@ -758,6 +762,12 @@ class SlideDrawing {
     return this.group(name, this.marks(marks, { x: 0, y: 0 }, id));
   }
 
+  /** A block (a capability, a person, a team) as the marks render/block.ts lays out; its outline takes the node's id, so connectors bind to it. */
+  private drawBlock(n: GraphNode, s: BlockShape, b: Box): Item {
+    const name = s.label || n.kind || s.form;
+    return this.group(name, this.marks(blockMarks(s, b, this.theme), { x: 0, y: 0 }, this.idFor(`node:${n.id}`)));
+  }
+
   /** A journey as flat native shapes: the marks render/journey.ts lays out, one shape, text box or picture each. */
   private drawJourney(s: JourneyShape, b: Box): string {
     return this.marks(journeyScene(s, this.theme, this.state?.journey).marks, b).map((i) => i.xml).join('');
@@ -786,7 +796,7 @@ class SlideDrawing {
         if (item) out.push(item);
       } else if (m.t === 'text') {
         const gap = Math.max(0, this.pt(m.lh - 1.21 * m.size));
-        const paras: Para[] = m.lines.map((l, i) => ({ align: m.align === 'c' ? 'ctr' : m.align, before: i ? gap : 0, runs: [this.run(l, m.size, m.weight, m.fill, { tracking: m.tracking })] }));
+        const paras: Para[] = m.lines.map((l, i) => ({ align: m.align === 'c' ? 'ctr' : m.align, before: i ? gap : 0, runs: [this.run(l, m.size, m.weight, m.fill, { tracking: m.tracking, mono: m.mono })] }));
         out.push(this.sp({ name: m.lines.join(' ').slice(0, 60), frame: this.frame(b.x + m.x, b.y + m.y, m.w, m.lines.length * m.lh), geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text: { paras, anchor: 'ctr' } }));
       } else {
         const pts = m.d.flatMap((c) => (c[0] === 'Z' ? [] : c[0] === 'C' ? [[c[1], c[2]], [c[3], c[4]], [c[5], c[6]]] : [[c[1], c[2]]])) as [number, number][];
@@ -892,6 +902,7 @@ class SlideDrawing {
     const color = item.tone ? t.tones[item.tone].fg : t.edge;
     const tone = t.tones[item.tone ?? (item.swatch === 'badge' || item.swatch === 'tile' ? 'slate' : 'blue')];
     const box = (w: number, h: number, rx: number, fill: Fill | null, line: Line | null, dx = 0) => this.sp({ name: 'Swatch', frame: this.frame(x + dx, cy - h / 2, w, h), geom: this.roundRect({ x: 0, y: 0, width: w, height: h }, rx), fill, line });
+    if (item.swatch === 'block' && item.block) return this.marks(blockSample(item.block.form, t, x, cy, item.block.heat), { x: 0, y: 0 });
     if (item.swatch === 'badge') {
       const arrow = this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) });
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { color: t.surface }, { color: tone.fg, alpha: 0.55, width: this.L(1) }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { color: tone.bg }, null);

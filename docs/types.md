@@ -33,6 +33,8 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | What one person goes through and how it feels: onboarding, a request, a service blueprint | [Journey map](#journey-map) | `journey` |
 | Who does what, in which order, and where it branches: an approval in swimlanes, a decision flowchart, a runbook | [Process](#process) | `process` |
 | The states one thing can be in and what moves it on: the lifecycle of an order, a ticket, a connection | [State machine](#state-machine) | `states` |
+| What the business does, in levels, coloured by maturity, investment or cost; which systems support each capability | [Capability map](#capability-map) | `capabilities` |
+| Who reports to whom (vacancies, dotted lines), and which teams there are and how they interact (Team Topologies) | [Teams & org chart](#teams--org-chart) | `teams` |
 | DDD bounded contexts and how they integrate: upstream, downstream, ACL, OHS, shared kernel | [Context map](#context-map) | `context-map` |
 | A grid with a value per cell: a RACI chart, a CRUD matrix of services × data, an ownership table | [Matrix](#matrix) | `matrix` |
 | Trust boundaries and STRIDE threats on an architecture, with a threat table | [Architecture](#architecture), [C4](#c4-model) or [Azure](#azure-infrastructure) with a [threat overlay](threats.md) | `systems`, `c4`, `azure` |
@@ -58,6 +60,9 @@ Look-alikes that trip people up:
 - **Who may reach which resource, through which group or role** is Access; **who does what in a programme** (RACI) or **which service touches which data** (CRUD) is a Matrix.
 - **A threat model** is not a type of its own: mark trust boundaries and threats on the Architecture, C4 or Azure diagram you already have, and draw its threat table as a view.
 - **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
+- **What the business does** is a Capability map; **which systems do it and how they talk** is Architecture. A capability map names systems only as the support of a capability.
+- **Who reports to whom, and how teams work together** is Teams; **GitHub teams and their repositories** are GitHub design; **who may do what in Entra or Azure** is Access.
+- **A capability map and an org chart both look like boxes in boxes**: a capability says *what is done* and outlives any reorganisation; an org chart says *who does it* today. Draw both and link them, rather than one that mixes the two.
 
 ## Architecture
 
@@ -568,6 +573,56 @@ transitions:                        # from -> to: event [guard] / action
 Import: Mermaid `stateDiagram` and `stateDiagram-v2` (`[*]`, composite states, `<<choice>>`, notes; fork and join come in as states, concurrent regions are merged, with a warning).
 
 Guide: [states.md](states.md). Examples: [examples/states](../examples/states)
+
+## Capability map
+
+`type: capabilities` · what the business does, in levels, with a heatmap.
+
+Use it for a business capability map in a strategy deck, a heatmap of maturity, investment (invest, tolerate, migrate, eliminate), fit or run cost per capability, or to show which systems support which capability and where there is none.
+
+Not for: the systems themselves and how they talk (`systems`), who reports to whom or which teams there are (`teams`), or when the work happens (`roadmap`).
+
+```yaml
+type: capabilities
+title: Business capability map
+heat: maturity                      # or investment, fit, cost, systems, any property; a list makes views
+capabilities:
+  Customer:                         # level 1: an area (a column, or a band with layout: bands)
+    - Marketing: [Campaigns, Loyalty]   # level 2 with its level-3 chips
+    - Sales: { maturity: 4, systems: [crm] }
+  Finance:
+    - Accounting: { maturity: 5 }
+  Payroll: { parent: Finance, maturity: 3 }   # anywhere, with parent:
+```
+
+Levels 1–3 are laid out by the tree engine: equal widths per level, rows or lanes wrapped so the map comes out largest on a 16:9 slide. Every coloured box also says its value in a tag (a number, a word), and categories such as divest are hatched, so the map reads in black and white. `systems:` takes model element ids (from `include:` or `elements:`) or plain names; the `systems` view lists them under each capability.
+
+Guide: [capabilities.md](capabilities.md). Examples: [examples/capabilities](../examples/capabilities)
+
+## Teams & org chart
+
+`type: teams` · people and teams: an org chart, and a Team Topologies view.
+
+Use it for an org chart with vacancies and dotted-line reports, the team on an engagement (client and consultancy side by side), or a Team Topologies view of stream-aligned, platform, enabling and complicated-subsystem teams and how they interact.
+
+Not for: GitHub teams and repository permissions (`github`), who gets access to what (`access`), what the business does (`capabilities`), or who does which step of a process (`process`).
+
+```yaml
+type: teams
+people:
+  anna: Anna de Vries, CEO
+  bo: { name: Bo Jansen, role: CTO, reports: anna }
+  open: { role: Head of data, reports: anna, vacant: true }
+teams:
+  checkout: { kind: stream-aligned, caption: Basket to payment, size: 7 }
+  platform: platform
+interactions:
+  - checkout -> platform: x-as-a-service
+```
+
+With both `people:` and `teams:` the file has two views, `org` and `topology`. The org chart is a tidy tree; big ones hang reports in lists and wrap into rows to fit a slide. `F` on a person draws their branch and the line to the top. The topology view draws the book's shapes and puts interactions as zones between teams that meet (cross-hatched collaboration, bracketed X-as-a-Service, dotted facilitating), as lines in the same colours where they do not.
+
+Guide: [teams.md](teams.md). Examples: [examples/teams](../examples/teams)
 
 ## Context map
 

@@ -10,6 +10,12 @@ import { big, timed } from './perf.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples');
 const crossingBudget: Record<string, number> = {
+  'capabilities/e-commerce.yaml': 0,
+  'capabilities/enterprise.yaml': 0,
+  'capabilities/retail-bank.yaml': 0,
+  'teams/consultancy-team.yaml': 2, // the dotted lines from the client side cross the consultancy's reporting lines: that is what they say
+  'teams/platform-org.yaml': 0,
+  'teams/product-org.yaml': 0,
   'access/engineering.yaml': 0,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
@@ -112,6 +118,7 @@ const jogBudget: Record<string, number> = {
   'erd/saas.yaml': 5, // ends are fixed on their rows
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
+  'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
   'states/device-connection.yaml': 1, // returns to Idle share its side
   'states/document-approval.yaml': 2, // changes asked and withdrawn run back past In review
   'states/pull-request.yaml': 3, // the returns into In review and Closed

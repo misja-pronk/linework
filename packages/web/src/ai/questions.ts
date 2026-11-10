@@ -97,6 +97,18 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'events', label: 'What moves it from one state to the next', kind: 'long', placeholder: 'One per line is enough: payment received, picked and packed, handed to the carrier, customer cancels (only before shipping)…' },
     { id: 'include', label: 'Include', kind: 'chips', options: ['Guards (conditions)', 'Actions on a transition', 'A state with states inside', 'Entry and exit actions', 'Choice points', 'Notes'], initial: ['Guards (conditions)'] },
   ],
+  capabilities: () => [
+    { ...about, label: 'Whose capabilities, for what decision?', placeholder: 'E.g. a retail bank, to decide where to invest in the next three years.' },
+    { id: 'areas', label: 'Level-1 areas', kind: 'text', placeholder: 'Channels, Customer, Products, Payments, Risk, Support' },
+    { id: 'heat', label: 'Colour it by', kind: 'choice', options: ['Maturity (1–5)', 'Investment (invest, maintain, divest)', 'Cost', 'Nothing yet'], initial: 'Maturity (1–5)' },
+    { id: 'depth', label: 'Levels', kind: 'choice', options: ['Two', 'Three'], initial: 'Three' },
+  ],
+  teams: () => [
+    { ...about, label: 'Which organisation or team?', placeholder: 'E.g. product and technology of a web shop: about 40 people in 6 teams.' },
+    { id: 'view', label: 'Show it as', kind: 'choice', options: ['Org chart', 'Team Topologies', 'Both'], initial: 'Both' },
+    { id: 'people', label: 'Who reports to whom, roughly', kind: 'long', placeholder: 'CTO; under them a head of product and a head of engineering; an open role for an SRE coach…' },
+    { id: 'teams', label: 'Teams and how they work together', kind: 'long', placeholder: 'Checkout and Search are product teams; the platform team runs the paved road; Search collaborates with the ranking specialists.' },
+  ],
   azure: (t) => [
     { ...about, placeholder: 'E.g. an order platform on Container Apps with a public API, events on Service Bus and SQL.' },
     parts(t, 'Which Azure services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),

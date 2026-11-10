@@ -16,6 +16,7 @@ import { drawRoadmap } from './roadmap.ts';
 import { drawJourney } from './journey.ts';
 import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.ts';
 import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
+import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 
 export { legendItems, legendWidth } from './legend.ts';
@@ -165,6 +166,7 @@ export function drawSvg(graph: Graph, placed: Placed, theme: Theme, opts: SvgOpt
       // Drawn by the journey itself: this is where a click on a step lands.
       : shape.kind === 'journey-part' ? `<rect x="${r1(box.x)}" y="${r1(box.y)}" width="${r1(box.width)}" height="${r1(box.height)}" rx="10" fill="transparent"/>`
       : shape.kind === 'flow' ? drawFlow(shape, box, theme, `${id}-shadow`, placed.labels?.get(n.id))
+      : shape.kind === 'block' ? drawMarks(blockMarks(shape, box, theme), theme, `${id}-shadow`)
       : drawMatrix(shape, box, theme, `${id}-shadow`);
     // What stands back lies flat: no shadow, and an official icon fades with it.
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
@@ -741,7 +743,7 @@ const STEP_ROW = 24;
 function stepList(graph: Graph, theme: Theme) {
   const steps = graph.steps ?? [];
   if (!steps.length) return { width: 0, height: 0, draw: () => '' };
-  const names = new Map<string, string>([...graph.groups.map((g) => [g.id, g.label] as const), ...graph.nodes.map((n) => [n.id, n.shape.kind === 'card' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id] as const)]);
+  const names = new Map<string, string>([...graph.groups.map((g) => [g.id, g.label] as const), ...graph.nodes.map((n) => [n.id, n.shape.kind === 'card' || n.shape.kind === 'block' ? n.shape.label : n.shape.kind === 'table' ? n.shape.title : n.id] as const)]);
   const rows = steps.map((s) => ({ n: s.n, who: `${names.get(s.from) ?? s.from} → ${names.get(s.to) ?? s.to}`, what: s.label ?? '' }));
   const whoW = Math.max(...rows.map((r) => measureText(r.who, theme.size.caption, 600)));
   const width = 28 + whoW + 16 + Math.max(...rows.map((r) => measureText(r.what, theme.size.caption, 400)));

@@ -1,0 +1,69 @@
+type: capabilities
+title: Enterprise capability map
+subtitle: Baseline assessment 2026
+heat:
+  - maturity
+  - investment
+  - systems
+
+# The systems behind the capabilities: `systems:` names these, and the systems view lists them.
+elements:
+  crm: { kind: system, label: Salesforce }
+  cms: { kind: system, label: Contentful }
+  erp: { kind: system, label: SAP S/4HANA }
+  wms: { kind: system, label: Manhattan WMS }
+  hr: { kind: system, label: Workday }
+  bi: { kind: system, label: Power BI }
+  plm: { kind: system, label: Centric PLM }
+  itsm: { kind: system, label: ServiceNow }
+
+capabilities:
+  Strategy:
+    - Strategic planning: { maturity: 3, investment: maintain }
+    - Portfolio management: { maturity: 2, investment: invest, systems: [itsm] }
+    - Enterprise architecture: { maturity: 2, investment: invest }
+  Customer:
+    - Marketing:
+        maturity: 3
+        investment: invest
+        capabilities:
+          - Campaigns: { maturity: 3, investment: invest, systems: [crm, cms] }
+          - Segmentation: { maturity: 2, investment: invest, systems: [crm] }
+          - Loyalty: { maturity: 1, investment: invest }
+    - Sales:
+        maturity: 4
+        investment: maintain
+        capabilities:
+          - Lead management: { maturity: 4, investment: maintain, systems: [crm] }
+          - Quoting: { maturity: 3, investment: maintain, systems: [crm, erp] }
+    - Customer service:
+        maturity: 2
+        investment: invest
+        capabilities:
+          - Contact centre: { maturity: 2, investment: invest, systems: [crm] }
+          - Self-service: { maturity: 1, investment: invest, systems: [cms] }
+  Products:
+    - Product development: { maturity: 3, investment: invest, systems: [plm] }
+    - Pricing: { maturity: 2, investment: invest, systems: [erp] }
+    - Product data: { maturity: 2, investment: tolerate, systems: [plm, erp] }
+  Operations:
+    - Order management: { maturity: 4, investment: maintain, systems: [erp] }
+    - Fulfilment:
+        maturity: 3
+        investment: maintain
+        capabilities:
+          - Warehousing: { maturity: 4, investment: maintain, systems: [wms] }
+          - Transport: { maturity: 2, investment: migrate, systems: [wms, erp] }
+    - Procurement: { maturity: 3, investment: tolerate, systems: [erp] }
+  Finance:
+    - Accounting: { maturity: 5, investment: maintain, systems: [erp] }
+    - Planning and control: { maturity: 3, investment: maintain, systems: [erp, bi] }
+    - Treasury: { maturity: 4, investment: tolerate }
+  People:
+    - Recruitment: { maturity: 3, investment: maintain, systems: [hr] }
+    - Payroll: { maturity: 4, investment: divest, systems: [hr] }
+    - Learning: { maturity: 2, investment: invest, systems: [hr] }
+  Technology:
+    - Service management: { maturity: 3, investment: maintain, systems: [itsm] }
+    - Data and analytics: { maturity: 2, investment: invest, systems: [bi] }
+    - Security: { maturity: 3, investment: invest }

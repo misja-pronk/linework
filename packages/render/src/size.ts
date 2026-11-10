@@ -8,6 +8,7 @@ import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
 import { journeyScene } from './journey.ts';
 import { flowSize, laneHeader } from './flow.ts';
+import { blockSize } from './block.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -44,6 +45,7 @@ export function size(graph: Graph, theme: Theme): Sized {
     // Parts of a journey are placed by the journey's own layout.
     else if (shape.kind === 'journey-part') nodes.set(n.id, { width: 0, height: 0 });
     else if (shape.kind === 'flow') nodes.set(n.id, flowSize(shape, theme));
+    else if (shape.kind === 'block') nodes.set(n.id, blockSize(shape, theme));
     else {
       const m = matrixGeometry(shape, theme);
       nodes.set(n.id, { width: Math.round(m.width), height: Math.round(m.height) });

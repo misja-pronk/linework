@@ -1,0 +1,14 @@
+{
+  "name": "@cartography/capabilities",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@cartography/core": "workspace:*", "@cartography/tree": "workspace:*" },
+  "devDependencies": {
+    "@cartography/engine": "workspace:*",
+    "@cartography/render": "workspace:*",
+    "@cartography/theme": "workspace:*",
+    "yaml": "^2.9.1"
+  }
+}

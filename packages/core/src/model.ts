@@ -5,6 +5,7 @@ import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
 import type { JourneyPartShape, JourneyShape } from './journey.ts';
 import type { ThreatRow } from './threats.ts';
+import type { BlockShape } from './block.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
 export type Path = (string | number)[];
@@ -28,6 +29,10 @@ export interface Graph {
   walk?: GraphBeat[];
   /** The threat overlay's rows (see threats.ts): what the threat table and `carto threats` list. */
   threats?: ThreatRow[];
+  /** How a type's own layout is asked to arrange the drawing, as the source says (a capability map in bands, four areas to a row). */
+  arrange?: Record<string, string | number | boolean>;
+  /** The drawing is a tree along its solid lines (an org chart): a focus on one element keeps its whole branch and the line up to the top. */
+  tree?: boolean;
 }
 
 export interface GraphBeat {
@@ -80,7 +85,7 @@ export interface GraphGroup {
 export interface GraphNode {
   id: string;
   parent?: string;
-  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape | FlowShape;
+  shape: CardShape | TableShape | MatrixShape | SequenceShape | GitflowShape | RoadmapShape | JourneyShape | JourneyPartShape | FlowShape | BlockShape;
   links?: Link[];
   /** Longer text, shown as a tooltip and read by screen readers. */
   description?: string;
@@ -269,7 +274,9 @@ export interface LegendItem {
   /** A line sample (default), or a pill sample: filled or outlined like matrix cells. */
   line?: GraphEdge['line'];
   /** Pill samples (matrix text cells) or check samples (matrix check cells), filled or outlined; or a badge chip. */
-  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark';
+  swatch?: 'fill' | 'outline' | 'check' | 'check-outline' | 'badge' | 'tile' | 'boundary' | 'trust' | 'mark' | 'block';
+  /** A block sample (swatch 'block'): a team type, an interaction mode, a place on a heatmap. */
+  block?: { form: BlockShape['form']; heat?: BlockShape['heat'] };
   tone?: Tone;
   /** Weight of the line sample, as GraphEdge.width. */
   width?: number;

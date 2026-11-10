@@ -1,0 +1,46 @@
+type: capabilities
+title: Retail bank capability map
+subtitle: Investment decisions per capability, 2026–2028 plan
+layout: bands
+heat:
+  by: investment
+  values:
+    invest: green
+    maintain: sky
+    tolerate: amber
+    migrate: violet
+    eliminate: { tone: rose, pattern: hatch }
+
+capabilities:
+  Channels:
+    - Mobile banking: { investment: invest }
+    - Online banking: { investment: maintain }
+    - Branch network: { investment: eliminate }
+    - Contact centre: { investment: migrate }
+    - Partner APIs: { investment: invest }
+  Customer:
+    - Onboarding and KYC: { investment: invest }
+    - Customer data: { investment: invest }
+    - Advice: { investment: maintain }
+    - Complaints: { investment: tolerate }
+  Products:
+    - Current accounts: { investment: maintain }
+    - Savings: { investment: maintain }
+    - Mortgages: { investment: invest }
+    - Consumer credit: { investment: tolerate }
+    - Cards: { investment: migrate }
+  Payments:
+    - Domestic payments: { investment: maintain }
+    - Instant payments: { investment: invest }
+    - Cross-border: { investment: tolerate }
+    - Direct debits: { investment: maintain }
+  Risk and compliance:
+    - Credit risk: { investment: invest }
+    - Fraud detection: { investment: invest }
+    - AML monitoring: { investment: invest }
+    - Regulatory reporting: { investment: maintain }
+  Support:
+    - Finance and control: { investment: maintain }
+    - HR: { investment: tolerate }
+    - Procurement: { investment: tolerate }
+    - IT operations: { investment: migrate }
