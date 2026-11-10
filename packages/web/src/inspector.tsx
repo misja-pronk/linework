@@ -7,6 +7,8 @@ import { LinkList } from './link-list.tsx';
 import type { Link } from '@cartography/core';
 
 export interface InspectorProps {
+  /** Which selection this panel shows ("node:web"), so a caller can wait for it before moving the cursor in. */
+  selection?: string;
   id: string;
   /** What the drawing shows for it. */
   title: string;
@@ -78,6 +80,7 @@ export function Inspector(p: InspectorProps) {
   return (
     <aside
       className="inspector"
+      data-selection={p.selection}
       aria-label="Properties"
       onKeyDown={(e) => {
         // Esc anywhere in the panel (selects, buttons) also returns to the drawing. Other keys pass on,

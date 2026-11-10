@@ -2,7 +2,7 @@
 
 Architecture drawings repeat themselves: the same orders API shows up in the context diagram, the container diagram and the Azure deployment. Cartography lets you describe it once and reference it everywhere, while every diagram stays a plain YAML file of its own type. Four pieces make that work: `include:`, a shared `elements:` catalogue, `views:` and `links:`.
 
-The examples below are in [examples/model](../examples/model): `model.yaml`, `context.yaml`, `containers.yaml` and `deployment.yaml`.
+The examples below are in [examples/model](../examples/model): `model.yaml`, `context.yaml`, `containers.yaml` and `deployment.yaml`. [examples/deployment](../examples/deployment) deploys one model to Azure and to AWS, per environment (see [Deployments](#deployments-of-what-a-resource-runs)).
 
 ## include: other files
 
@@ -48,7 +48,7 @@ Element fields: `kind`, `label`, `description` (tooltip in SVG), `technology` (s
 
 ### Referencing elements
 
-Nodes and groups of the graph types (architecture `systems`, `azure`; Kubernetes later) reference elements instead of redefining them:
+Nodes and groups of the graph types (architecture `systems`, `azure`, `cloud`, `kubernetes`) reference elements instead of redefining them:
 
 ```yaml
 type: systems
@@ -70,6 +70,49 @@ nodes:
 - **Kinds map per type.** A kind the type knows is used as is; a group kind on a card works too (a `system` drawn closed). Otherwise the type's aliases apply: in Azure `database → sql-database`, `queue → service-bus`, `api → app-service`, `person → user`, …; in the architecture type `person → user`, `software-system → system`. A kind with no match is drawn as a neutral card, with a warning that suggests setting `kind:` on the node.
 - **Relations are drawn for you** between whatever the diagram shows. A relation to a part of something shown closed ends on that thing: `customer → shop.web` becomes `customer → shop` in a context diagram (C4's implied relations). An edge you write between the same two wins, so a deployment can say `api -> db: { style: private }`.
 - The model's relation `style` is kept when the type knows it (`sync`, `async`, `data` in the architecture type).
+
+## Deployments: `of:` what a resource runs
+
+`ref:` says a node **is** the element: one node per element. A deployment needs something else: this Container App **runs** the Orders API, and in production two of them do. That is `of:`, on a node or group of an `azure`, `cloud` or `kubernetes` diagram:
+
+```yaml
+type: cloud
+provider: aws
+include: [model.yaml]
+groups:
+  az-a: { kind: zone, zone: eu-west-1a }
+  az-b: { kind: zone, zone: eu-west-1b, env: prod }
+nodes:
+  api-a: { of: shop.api, kind: ecs, in: az-a }      # "Orders API", captioned "ECS service · .NET 9"
+  api-b: { of: shop.api, kind: ecs, in: az-b }      # the same container, a second time
+  db: { of: shop.db, in: az-a }                     # database → RDS, by the type's aliases
+  queue: { of: shop.bus, kind: sqs, label: orders-queue }   # own name: "order-events · SQS queue"
+views:
+  prod: { environment: prod, complete: true }
+  dev: { environment: dev, complete: [shop.api, shop.db] }
+```
+
+- **Name and caption.** The node takes the element's name. The caption says what it runs on when you set `kind:` yourself, then the element's technology (`Container App · .NET 9`). A node with its own `label:` keeps it and names the element in the caption. `caption:`, `description:` and anything else written on the node win, as with `ref:`.
+- **Link back.** The node links to the model file, at the view that shows the element when there is one (`model.yaml#containers`), after any `links:` of its own; its tooltip reads `Runs Orders API (shop.api): …`. The element's own links are not copied (they tend to point at this very deployment). The other way round is one line in the model: `links: ['azure.yaml#prod']` on the element.
+- **Any number of instances.** Several nodes may be `of:` the same element; `ref:` and `of:` can be used side by side, but not on one node.
+- **Relations are drawn between the instances.** `shop.api → shop.db` becomes a line from every node that runs the API to the nodes that run the database: the ones in the same group (zone, subnet, resource group) when there are any, otherwise all of them. So each zone's API talks to its own zone's cache and to the one shared database.
+- **Lines you write come first.** An edge written between the same two nodes wins (`api -> db: { style: private }`), and a relation is left out when the written lines already lead there: with `cdn -> alb -> api` written, the model's `web → api` is not drawn again from the CDN. `exclude: ['shop.api -> shop.bus']` takes a relation out by its element ids.
+- **Errors.** `of:` an id that is not in the model is an error on that line, as is `of:` without a model.
+
+### Environments
+
+One file can hold dev, test and production. `env:` on a node, group or edge says which environments have it (a name or a list); a view picks one with `environment:`.
+
+- What has no `env:` is in every environment. What sits in a group that is left out goes with it, and so do the lines to it.
+- An environment nothing is tagged for is simply what is left: `dev` without the extras of `prod`. A view with `environment:` in a file where nothing has `env:` at all gets a warning.
+- Without a view the diagram draws everything, every environment at once.
+- `carto render aws.yaml --all-views` writes one picture per environment.
+
+### Complete or not
+
+`complete: true` on a view claims that everything in the model runs somewhere in it. Every part (container, database, queue, …) that no node is `of:` (or `ref:`) gets a warning: `Nothing runs "shop.worker" (Mailer) in prod: add a node with of: shop.worker`. People and external systems are not expected to be deployed. `complete: [shop.api, shop.db]` checks only those, for an environment that leaves parts out on purpose. `carto validate` checks every view of a file, so a part that was added to the model and not deployed shows up in CI.
+
+A `kind: deployment` view of a C4 diagram takes `of:` on a deployment node and `complete:` in the same way; see [c4.md](c4.md#deployment-views).
 
 ## views: one file, several drawings
 

@@ -715,7 +715,7 @@ export function Preview(p: Props) {
         if (t.closest('.label-editor')) return;
         const svg = t.closest('svg');
         if (svg && t.tagName === 'text' && t.parentNode === svg) {
-          const firstG = [...svg.children].findIndex((c) => c.tagName === 'g');
+          const firstG = [...svg.children].findIndex((c) => c.tagName === 'g' && !c.hasAttribute('data-sheet'));
           const heads = [...svg.children].filter((c, i) => c.tagName === 'text' && (firstG < 0 || i < firstG));
           const i = heads.indexOf(t);
           if (i >= 0 && editLabel({ kind: i === 0 ? 'title' : 'subtitle', id: '' }, t)) return;

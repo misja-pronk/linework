@@ -6,9 +6,10 @@
 // as plain marks first (the journey's kind), so the slide writer places the same marks as native,
 // editable shapes.
 import type { Box, FlowShape, GraphGroup, NodeSize, Point } from '@cartography/core';
-import { baselineOffset, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import type { JourneyMark, JourneySeg } from './journey.ts';
+import { cardStroke } from './paint.ts';
 import { wrapText } from './size.ts';
 
 export const FLOW = {
@@ -80,11 +81,18 @@ export function flowSize(shape: FlowShape, theme: Theme): NodeSize {
   }
 }
 
+/** A lane's name as the theme writes group names (capitals, tracking), wrapped to a width. */
+function laneName(label: string, theme: Theme, width: number, max: number) {
+  const lab = groupLabel(theme, label);
+  // Tracking widens every letter; a line of a lane name has about a dozen.
+  const lines = wrapText(lab.text, lab.size, 600, width - lab.tracking * 12, max);
+  return { ...lab, lines, wide: Math.max(0, ...lines.map((l) => measureText(l, lab.size, 600, 'sans', lab.tracking))) };
+}
+
 /** The width of a lane's header: its name, wrapped, with room around it. */
 export function laneHeader(label: string, theme: Theme): number {
   const l = FLOW.lane;
-  const lines = wrapText(label, theme.size.group, 600, l.max - 2 * l.padX, 3);
-  return Math.min(l.max, Math.max(l.min, even(widest(lines, theme.size.group, 600) + 2 * l.padX)));
+  return Math.min(l.max, Math.max(l.min, even(laneName(label, theme, l.max - 2 * l.padX, 3).wide + 2 * l.padX)));
 }
 
 const poly = (pts: [number, number][]): JourneySeg[] => [...pts.map(([x, y], i) => [i ? 'L' : 'M', x, y] as JourneySeg), ['Z']];
@@ -98,7 +106,7 @@ export function flowMarks(shape: FlowShape, b: Box, theme: Theme, beside?: Box):
   const tone = theme.tones[shape.tone];
   const cx = b.x + b.width / 2;
   const cy = b.y + b.height / 2;
-  const card = { fill: theme.surface, stroke: theme.border, sw: theme.stroke.card, shadow: true };
+  const card = { fill: theme.surface, stroke: cardStroke(theme, tone), sw: theme.stroke.card, shadow: true };
   const diamond = (r: number) => poly([[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]]);
   const line = (x1: number, y1: number, x2: number, y2: number, stroke: string, sw: number) => m.push({ t: 'path', d: [['M', x1, y1], ['L', x2, y2]], stroke, sw });
 
@@ -196,20 +204,25 @@ export function flowMarks(shape: FlowShape, b: Box, theme: Theme, beside?: Box):
 export function laneMarks(g: GraphGroup, b: Box, theme: Theme, across: boolean, header: number): JourneyMark[] {
   const tone = theme.tones[g.tone];
   const l = FLOW.lane;
-  const m: JourneyMark[] = [{ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: Math.min(theme.radius.group, 12), fill: tone.wash, stroke: tone.line, sw: theme.stroke.group, dash: g.border === 'dashed', name: g.label }];
+  // A lane is ground like any group: the theme's fill for the outermost level, its one outline, its way with names.
+  const edge = groupLine(theme, tone);
+  const rule = edge ?? theme.border;
+  const ink = groupLabelInk(theme, tone);
+  const m: JourneyMark[] = [{ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: Math.min(theme.radius.group, 12), fill: groupFill(theme, 0, tone), ...(edge ? { stroke: edge, sw: theme.stroke.group } : {}), dash: g.border === 'dashed', name: g.label }];
   if (across) {
-    const lines = wrapText(g.label, theme.size.group, 600, header - 2 * l.padX, Math.max(1, Math.min(3, Math.floor((b.height - 8) / l.line))));
-    m.push({ t: 'path', d: [['M', b.x + header, b.y + 1], ['L', b.x + header, b.y + b.height - 1]], stroke: tone.line, sw: theme.stroke.group });
-    m.push({ t: 'text', x: b.x + l.padX, y: b.y + (b.height - lines.length * l.line) / 2, w: header - 2 * l.padX, lines, size: theme.size.group, weight: 600, fill: theme.text, align: 'c', lh: l.line });
+    const name = laneName(g.label, theme, l.max - 2 * l.padX, Math.max(1, Math.min(3, Math.floor((b.height - 8) / l.line))));
+    m.push({ t: 'path', d: [['M', b.x + header, b.y + 1], ['L', b.x + header, b.y + b.height - 1]], stroke: rule, sw: theme.stroke.group });
+    m.push({ t: 'text', x: b.x + l.padX, y: b.y + (b.height - name.lines.length * l.line) / 2, w: header - 2 * l.padX, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
   } else {
-    m.push({ t: 'path', d: [['M', b.x + 1, b.y + header], ['L', b.x + b.width - 1, b.y + header]], stroke: tone.line, sw: theme.stroke.group });
-    m.push({ t: 'text', x: b.x + 8, y: b.y + (header - l.line) / 2, w: b.width - 16, lines: wrapText(g.label, theme.size.group, 600, b.width - 16, 1), size: theme.size.group, weight: 600, fill: theme.text, align: 'c', lh: l.line });
+    const name = laneName(g.label, theme, b.width - 16, 1);
+    m.push({ t: 'path', d: [['M', b.x + 1, b.y + header], ['L', b.x + b.width - 1, b.y + header]], stroke: rule, sw: theme.stroke.group });
+    m.push({ t: 'text', x: b.x + 8, y: b.y + (header - l.line) / 2, w: b.width - 16, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
   }
   return m;
 }
 
 const paint = (m: { fill?: string; stroke?: string; sw?: number; dash?: boolean }) =>
-  `fill="${m.fill ?? 'none'}"${m.stroke ? ` stroke="${m.stroke}" stroke-width="${r1(m.sw ?? 1)}" stroke-linecap="round" stroke-linejoin="round"` : ''}${m.dash ? ' stroke-dasharray="5 4"' : ''}`;
+  `fill="${m.fill ?? 'none'}"${m.stroke ? ` stroke="${m.stroke}" stroke-width="${r1(m.sw ?? 1)}" stroke-linecap="round" stroke-linejoin="round"` : ''}`;
 
 const pathOf = (d: JourneySeg[]) => d.map((c) => (c[0] === 'Z' ? 'Z' : `${c[0]}${c.slice(1).map((n) => r1(n as number)).join(' ')}`)).join('');
 
@@ -217,9 +230,10 @@ const pathOf = (d: JourneySeg[]) => d.map((c) => (c[0] === 'Z' ? 'Z' : `${c[0]}$
 export function drawMarks(marks: JourneyMark[], theme: Theme, shadow: string): string {
   let s = '';
   for (const m of marks) {
-    if (m.t === 'rect') s += `<rect x="${r1(m.x)}" y="${r1(m.y)}" width="${r1(m.w)}" height="${r1(m.h)}"${m.r ? ` rx="${r1(Math.min(m.r, m.w / 2, m.h / 2))}"` : ''} ${paint(m)}${m.shadow && theme.shadow.opacity > 0 ? ` filter="url(#${shadow})"` : ''}/>`;
+    const dash = m.t !== 'rect' && m.t !== 'path' ? '' : m.dash && m.stroke ? ` stroke-dasharray="${look(theme).group.dash}"` : '';
+    if (m.t === 'rect') s += `<rect x="${r1(m.x)}" y="${r1(m.y)}" width="${r1(m.w)}" height="${r1(m.h)}"${m.r ? ` rx="${r1(Math.min(m.r, m.w / 2, m.h / 2))}"` : ''} ${paint(m)}${dash}${m.shadow && theme.shadow.opacity > 0 ? ` filter="url(#${shadow})"` : ''}/>`;
     else if (m.t === 'circle') s += `<circle cx="${r1(m.cx)}" cy="${r1(m.cy)}" r="${r1(m.r)}" ${paint(m)}/>`;
-    else if (m.t === 'path') s += `<path d="${pathOf(m.d)}" ${paint(m)}/>`;
+    else if (m.t === 'path') s += `<path d="${pathOf(m.d)}" ${paint(m)}${dash}/>`;
     else if (m.t === 'icon') {
       const k = m.size / 24;
       s += `<g transform="translate(${r1(m.x)} ${r1(m.y)}) scale(${r1(k * 1000) / 1000})" fill="none" stroke="${m.color}" stroke-width="${r1(m.sw / k)}" stroke-linecap="round" stroke-linejoin="round">${icon(m.name) ?? ''}</g>`;
@@ -227,7 +241,7 @@ export function drawMarks(marks: JourneyMark[], theme: Theme, shadow: string): s
       const x = m.align === 'c' ? m.x + m.w / 2 : m.align === 'r' ? m.x + m.w : m.x;
       const anchor = m.align === 'c' ? ' text-anchor="middle"' : m.align === 'r' ? ' text-anchor="end"' : '';
       for (const [i, l] of m.lines.entries())
-        s += `<text x="${r1(x)}" y="${r1(m.y + m.lh * i + m.lh / 2 + baselineOffset(m.size))}" font-size="${m.size}" font-weight="${m.weight}" fill="${m.fill}"${anchor}>${esc(l)}</text>`;
+        s += `<text x="${r1(x)}" y="${r1(m.y + m.lh * i + m.lh / 2 + baselineOffset(m.size))}" font-size="${m.size}" font-weight="${m.weight}" fill="${m.fill}"${anchor}${m.tracking ? ` letter-spacing="${m.tracking}"` : ''}>${esc(l)}</text>`;
     }
   }
   return s;

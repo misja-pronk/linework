@@ -34,11 +34,12 @@ Build it with `pnpm --filter @cartography/embed build`; `packages/embed/dist` th
 
 | File | Size | Gzip | What |
 | --- | --- | --- | --- |
-| `carto-diagram.js` | 24 kB | 9 kB | The element. This is what the page loads. |
-| `carto-engine.js` | 1.45 MB | 0.88 MB | Parser, layout (Graphviz as WebAssembly), renderer, icons, Inter. Loaded by the element when the first diagram comes near the screen, once per page however many diagrams it has. Keep it next to `carto-diagram.js`. |
-| `carto-diagram.standalone.js` | 1.48 MB | 0.89 MB | Both in one file, for a page that has to be a single file. |
+| `carto-diagram.js` | 26 kB | 10 kB | The element. This is what the page loads. |
+| `carto-engine.js` | 1.9 MB | 1.1 MB | Parser, layout (Graphviz as WebAssembly), renderer, icons and the faces of the default look (Instrument Sans, Geist Mono) and of the classic one (Inter). Loaded by the element when the first diagram comes near the screen, once per page however many diagrams it has. Keep it next to `carto-diagram.js`. |
+| `carto-font-barlow.js`, `carto-font-ibm-plex-sans.js`, `carto-font-ibm-plex-mono.js` | 137, 293 and 136 kB | 95, 206 and 99 kB | The faces of Transit (Barlow) and Drafting (IBM Plex). Fetched only when a diagram uses that look; keep them next to the engine. Without them such a diagram still draws, in the fonts of the page. |
+| `carto-diagram.standalone.js` | 2.5 MB | 1.5 MB | Everything in one file, for a page that has to be a single file. |
 
-The engine is big because it is the whole tool: most of it is Graphviz (WebAssembly) and the icon set. A page with only static drawings from the plugins loads none of it.
+The engine is big because it is the whole tool: most of it is Graphviz (WebAssembly), the fonts and the icon set. A page with only static drawings from the plugins loads none of it.
 
 ### Attributes
 
@@ -51,7 +52,7 @@ The engine is big because it is the whole tool: most of it is Graphviz (WebAssem
 | `loading="eager"` | Draw at once. Without it the engine loads when the element scrolls near the screen. |
 | `layout` | Another sidecar file than `name.layout.json`, or `none`. |
 | `cross-origin` | Allow a `src` on another site (see [Security](#security)). |
-| `fonts="page"` | Do not add Inter; use the page's fonts. |
+| `fonts="page"` | Do not add the theme's typefaces; use the page's fonts. |
 | `data-bundle` | Written by the plugins and `carto embed`: the diagram and every file it reads, so nothing is fetched. |
 
 Inline YAML goes in a `<script type="text/yaml">` child. More files can ride along the same way: `<script type="text/yaml" data-file="model.yaml">` for an include, `type="application/json" data-file="shop.layout.json"` for a sidecar.
@@ -68,7 +69,7 @@ Inline YAML goes in a `<script type="text/yaml">` child. More files can ride alo
 
 ### Fonts
 
-Diagrams are measured and drawn in Inter, as in the editor and the CLI. The component registers the Inter that ships inside the engine under a name of its own (`Carto Inter`), so labels fit their boxes whatever the page uses, and the page's own fonts are left alone. A brand theme's fonts are loaded the same way. With `fonts="page"` the text falls back to the page's Inter, then to system fonts; labels may then be a little wider or narrower than their boxes.
+Diagrams are measured and drawn in the typefaces of their theme, as in the editor and the CLI: Instrument Sans and Geist Mono for the default look, Inter for classic, Barlow or IBM Plex for Transit and Drafting (see [themes](themes.md)). The component registers the faces that ship with the engine under names of their own (`Carto Instrument Sans`, `Carto Geist Mono`), so labels fit their boxes whatever the page uses, and the page's own fonts are left alone. A brand theme's fonts are loaded the same way. With `fonts="page"` the text falls back to a face of that name on the page, then to system fonts; labels may then be a little wider or narrower than their boxes.
 
 ## Build-time plugins
 
@@ -110,7 +111,7 @@ One diagram can ask for something else than the site's options, on the fence lin
 | `outDir`, `publicPath` | | Where `file` output is written, and the address that folder is served at. |
 | `interactive` | `false` | Wrap the drawing in `<carto-diagram>` with everything it needs. The page must load `carto-diagram.js` for it to come alive; without it the static drawing stays. |
 | `dark` | `auto` | How the page says it is dark. `auto`: the system setting, overruled by `data-theme`, `data-bs-theme`, `data-md-color-scheme` or a `dark`/`light` class. `media`: the system setting only (with `file` output this gives a `<picture>`). Anything else is a CSS selector that matches a dark page, such as `.dark`. |
-| `fonts` | `embed` | `embed` adds Inter to the page once (about 114 kB, under the name `CartoInter`). `none` leaves the text to the page's fonts: right for a site that already uses Inter. |
+| `fonts` | `embed` | `embed` adds the typefaces of the site's theme to the page once, under names of their own: `CartoInstrumentSans` and `CartoGeistMono` for the default look (about 190 kB), `CartoInter` for classic (about 112 kB). A drawing in another theme carries its own faces. `none` leaves the text to the page's fonts: right for a site that already loads the same typefaces. |
 | `description` | `false` | Add the drawing in words below it, in a `<details>`. |
 | `strict` | `true` | A diagram with errors stops the build. Off: a readable message in the page and a build warning. |
 | `root` | where the build runs | Diagrams may only read files below this folder. |
@@ -142,7 +143,7 @@ import cartography from '@cartography/docs-plugins/markdown-it';
 export default {
   head: [['script', { type: 'module', src: '/carto/carto-diagram.js' }]],
   markdown: {
-    config: (md) => md.use(cartography, { vue: true, dark: '.dark', fonts: 'none' }),
+    config: (md) => md.use(cartography, { vue: true, dark: '.dark' }),
   },
 };
 ```
@@ -171,8 +172,8 @@ extra_javascript:
 Use the component directly ([examples/docs/static](../examples/docs/static/index.html)), or let the CLI write the HTML:
 
 ```sh
-carto embed shop.yaml                 # → shop.html: one file with the drawing, zoom and drill-down (about 1.6 MB)
-carto embed shop.yaml --static        # the drawing alone, light and dark, no script (about 125 kB, most of it Inter)
+carto embed shop.yaml                 # → shop.html: one file with the drawing, zoom and drill-down (about 2.8 MB)
+carto embed shop.yaml --static        # the drawing alone, light and dark, no script (about 225 kB, most of it the fonts)
 carto embed shop.yaml --fragment      # only the <figure>, to paste into a page of your own
 carto embed --css                     # the stylesheet that goes with fragments
 cat shop.yaml | carto embed - --fragment --static

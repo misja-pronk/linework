@@ -89,13 +89,28 @@ export interface ViewSpec {
   exclude?: string[];
   /** Elements drawn as a boundary with their children inside, instead of one card. */
   expand?: string[];
+  /** A deployment view of one environment: entries with another `env:` are left out. */
+  environment?: string;
+  /** The view claims to deploy everything: true for every part of every system, or the elements it is about. */
+  complete?: true | string[];
   at: Path;
+}
+
+/** A view of an included file, by name: where an instance links back to. */
+export interface IncludedView {
+  file: string;
+  name: string;
+  kind?: ViewKind;
+  of?: string;
+  expand?: string[];
 }
 
 export interface Catalogue {
   elements: Map<string, ModelElement>;
   relations: ModelRelation[];
   views: Map<string, ViewSpec>;
+  /** Views of included files. They stay those files' own; nodes with `of:` link to the one that shows their element. */
+  includedViews?: IncludedView[];
 }
 
 export interface ModelContext extends Catalogue {
@@ -164,6 +179,19 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(technology ? { technology } : {}), style, at: at(['relations', i]), index: cat.relations.length });
     }
 
+  if (included && data.views && typeof data.views === 'object' && !Array.isArray(data.views))
+    for (const [name, raw] of Object.entries(data.views as Record<string, unknown>)) {
+      const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      const kind = viewKinds.find((k) => k === o.kind);
+      (cat.includedViews ??= []).push({
+        file,
+        name,
+        ...(kind ? { kind } : {}),
+        ...(typeof o.of === 'string' ? { of: o.of } : {}),
+        ...(Array.isArray(o.expand) ? { expand: o.expand.map(String) } : typeof o.expand === 'string' ? { expand: [o.expand] } : {}),
+      });
+    }
+
   if (!included && data.views && typeof data.views === 'object' && !Array.isArray(data.views))
     for (const [name, raw] of Object.entries(data.views as Record<string, unknown>)) {
       if (cat.views.has(name)) {
@@ -197,6 +225,8 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         include: list('include'),
         exclude: list('exclude'),
         expand: list('expand'),
+        ...(typeof o.environment === 'string' ? { environment: o.environment } : {}),
+        ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
         at: at(['views', name]),
       });
     }
@@ -314,6 +344,11 @@ const viewSchema = {
     },
     nodes: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(4), description: 'Deployment view: deployment nodes, nested, with instances of model elements' },
     edges: { type: 'array', items: edgeItemSchema(relationProps), description: 'Deployment view: lines between deployment nodes or instances' },
+    environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
+    complete: {
+      anyOf: [{ type: 'boolean' }, { type: 'string' }, { type: 'array', items: { type: 'string' } }],
+      description: 'Warn about parts of the model that nothing runs here: true for every system, or the elements it is about, e.g. [shop]',
+    },
   },
   additionalProperties: false,
 };
@@ -326,6 +361,7 @@ function deploymentNodeSchema(depth: number): object {
     description: { type: 'string' },
     count: { type: 'integer', minimum: 1, description: 'How many of these run, shown as ×3' },
     instances: { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }], description: 'Model elements running here, e.g. [shop.api]' },
+    of: { type: 'string', description: 'The model element this node itself runs, e.g. shop.db for a managed database' },
     icon: { type: 'string' },
     tone: { enum: tones },
     tags,

@@ -2,6 +2,7 @@
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 import { render, themes } from '@cartography/engine';
 import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
+import type { FamilyBytes } from '@cartography/export';
 import { brand } from './brand.ts';
 
 export interface ExportInput {
@@ -76,21 +77,27 @@ export async function exportSlide(input: ExportInput): Promise<Blob> {
 
 /** A slide with native, editable shapes (one per step when the drawing has steps); icon PNG fallbacks drawn by the browser's canvas. */
 export async function exportPptx(input: ExportInput, name?: string): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'none' });
+  const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
   const { toPptx } = await import('@cartography/export');
-  const data = await toPptx({ ...r, name }, { theme: input.theme, rasterize });
+  const data = await toPptx({ ...r, name }, { theme: r.theme ?? input.theme, rasterize });
   return new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 }
 
-/** Vector PDF, one page fitted to the drawing (one per step when it has steps), with Inter embedded. */
+/** Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own faces embedded. */
 export async function exportPdf(input: ExportInput, name?: string): Promise<Blob> {
-  const r = await render(input.text, { theme: input.theme, sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, fonts: 'none' });
+  const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error('Nothing to export: fix the problems first');
-  const [{ toPdf }, { fontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
+  const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
-  const [regular, medium, semibold] = await Promise.all(fontFiles.map(async (u) => new Uint8Array(await (await fetch(u)).arrayBuffer())));
-  const data = await toPdf({ ...r, name }, { theme: input.theme, fonts: { 400: regular!, 500: medium!, 600: semibold! } });
+  const bytes = async (u: URL) => new Uint8Array(await (await fetch(u)).arrayBuffer());
+  const theme = r.theme ?? themes[input.theme];
+  const [regular, medium, semibold] = await Promise.all(fontFiles.map(bytes));
+  const families: FamilyBytes = {};
+  for (const family of pdfFamilies(theme)) {
+    families[family] = Object.fromEntries(await Promise.all(Object.entries(bundledFontFiles[family] ?? {}).map(async ([w, u]) => [w, await bytes(u)] as const)));
+  }
+  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }
 

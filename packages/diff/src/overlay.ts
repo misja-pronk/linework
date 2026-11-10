@@ -2,7 +2,8 @@
 // lays marks over them. What a mark means never rests on its colour alone: each kind has its own sign
 // (+ ~ −), its own outline (solid, dashed, dotted) and is named in the key.
 import type { Box, Graph, Placed, Point } from '@cartography/core';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
+import { baselineOffset, fitText, measureText, themeTextFonts, withTextFonts, type Theme } from '@cartography/theme';
+import { dotGrid, drawSheet, sheetPad } from '@cartography/render';
 import type { GraphDiff, Status } from './structure.ts';
 
 /** A rendered diagram: what `render` of the engine returns, as far as the overlay needs it. */
@@ -272,15 +273,20 @@ function key(theme: Theme, diff: GraphDiff, x: number, cy: number, against?: str
 
 const keyWidth = (theme: Theme, diff: GraphDiff, against?: string) => key(theme, diff, 0, 0, against).width;
 
-/** A drawing's SVG without its root element, to place it inside another. */
+/**
+ * A drawing's SVG without its root element, to place it inside another. Its sheet marks (corner
+ * marks or a frame) are left out: they belong to the whole picture, which draws its own.
+ */
 function inner(svg: string): string {
-  return svg.slice(svg.indexOf('>') + 1, svg.lastIndexOf('</svg>'));
+  return svg.slice(svg.indexOf('>') + 1, svg.lastIndexOf('</svg>')).replace(/<g data-sheet="">.*?<\/g>/s, '');
 }
 
+/** The picture's own page: canvas, the look's dot grid and its sheet marks around everything. */
 function root(svg: string, width: number, height: number, theme: Theme, body: string): string {
   const open = svg.slice(0, svg.indexOf('>') + 1);
   const attrs = open.replace(/\s(width|height|viewBox)="[^"]*"/g, '').replace(/>$/, ` width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
-  return `${attrs}<rect width="${width}" height="${height}" fill="${theme.canvas}"/>${body}</svg>`;
+  const dots = dotGrid(width, height, theme, 'diff');
+  return `${attrs}${dots.defs ? `<defs>${dots.defs}</defs>` : ''}<rect width="${width}" height="${height}" fill="${theme.canvas}"/>${dots.body}${body}${drawSheet(width, height, theme)}</svg>`;
 }
 
 /**
@@ -291,8 +297,15 @@ function root(svg: string, width: number, height: number, theme: Theme, body: st
 export function drawDiff(before: Drawing | undefined, after: Drawing | undefined, diff: GraphDiff, opts: OverlayOptions = {}): Picture {
   const base = after ?? before;
   if (!base) throw new Error('Nothing to draw: neither drawing rendered');
+  // Tags and the key are measured in the faces the drawing itself is set in.
+  return withTextFonts(themeTextFonts(base.theme), () => overlay(base, before, after, diff, opts));
+}
+
+function overlay(base: Drawing, before: Drawing | undefined, after: Drawing | undefined, diff: GraphDiff, opts: OverlayOptions): Picture {
   const { theme, origin } = base;
-  const pad = theme.space.pad;
+  // A framed sheet keeps everything clear of its frame, the key included.
+  const frame = sheetPad(theme);
+  const pad = theme.space.pad + frame;
   const gone = before && after ? ghosts(before, after, diff) : { svg: '', bounds: undefined, row: [] as Ghost[], boxes: [] as Box[] };
   const over = marksSvg(base, marksFor(diff, after ? 'after' : 'before'), gone.boxes);
 
@@ -322,12 +335,13 @@ export function drawDiff(before: Drawing | undefined, after: Drawing | undefined
   }
 
   const width = Math.ceil(Math.max(left + right, rowWidth + 2 * pad, keyWidth(theme, diff, opts.against) + 2 * pad));
-  const height = Math.ceil(top + bottom + rowHeight + KEY);
+  const height = Math.ceil(top + bottom + rowHeight + KEY + frame);
+  const foot = height - frame - KEY;
   const body =
     `<g transform="translate(${r1(left)} ${r1(top)})">${inner(base.svg)}<g data-diff-overlay="" transform="translate(${origin.x} ${origin.y})">${gone.svg}${over}</g></g>` +
     (rows.length ? `<g transform="translate(${pad} ${r1(top + bottom)})">${rows.join('')}</g>` : '') +
-    `<line x1="${pad}" x2="${width - pad}" y1="${r1(height - KEY)}" y2="${r1(height - KEY)}" stroke="${theme.border}"/>` +
-    key(theme, diff, pad, height - KEY / 2, opts.against).svg;
+    `<line x1="${pad}" x2="${width - pad}" y1="${r1(foot)}" y2="${r1(foot)}" stroke="${theme.border}"/>` +
+    key(theme, diff, pad, foot + KEY / 2, opts.against).svg;
   return { svg: root(base.svg, width, height, theme, body), width, height };
 }
 
@@ -338,8 +352,14 @@ export function drawDiff(before: Drawing | undefined, after: Drawing | undefined
 export function sideBySide(before: Drawing | undefined, after: Drawing | undefined, diff: GraphDiff, opts: OverlayOptions = {}): Picture {
   const base = after ?? before;
   if (!base) throw new Error('Nothing to draw: neither drawing rendered');
+  return withTextFonts(themeTextFonts(base.theme), () => panels(base, before, after, diff, opts));
+}
+
+function panels(base: Drawing, before: Drawing | undefined, after: Drawing | undefined, diff: GraphDiff, opts: OverlayOptions): Picture {
   const theme = base.theme;
-  const pad = theme.space.pad;
+  // A framed sheet keeps the names above and the key below clear of its frame.
+  const frame = sheetPad(theme);
+  const pad = theme.space.pad + frame;
   const HEAD = 34;
   const panel = (d: Drawing | undefined, side: 'before' | 'after') => ({
     width: d?.width ?? 320,
@@ -352,20 +372,21 @@ export function sideBySide(before: Drawing | undefined, after: Drawing | undefin
   const [a, b] = [panel(before, 'before'), panel(after, 'after')];
   // Wide drawings go under each other: next to each other they would be too small to read in a comment.
   const row = opts.arrange === 'row' || (opts.arrange !== 'column' && Math.max(a.width, b.width) <= 1.2 * Math.max(a.height, b.height));
-  const [bx, by] = row ? [a.width, 0] : [0, a.height + HEAD];
+  const [bx, by] = row ? [a.width, frame] : [0, frame + a.height + HEAD];
   const width = Math.ceil(Math.max(row ? a.width + b.width : Math.max(a.width, b.width), keyWidth(theme, diff, opts.against) + 2 * pad));
-  const height = Math.ceil((row ? Math.max(a.height, b.height) + HEAD : a.height + b.height + 2 * HEAD) + KEY);
+  const height = Math.ceil((row ? Math.max(a.height, b.height) + HEAD : a.height + b.height + 2 * HEAD) + KEY + 2 * frame);
+  const foot = height - frame - KEY;
   const head = (p: { name: string }, x: number, y: number) => textAt(x + pad, y + HEAD / 2 + 6, p.name, theme.size.subtitle, 600, theme.textMuted);
   const rule = row
-    ? `<line x1="${a.width}" x2="${a.width}" y1="${pad / 2}" y2="${height - KEY}" stroke="${theme.border}"/>`
-    : `<line x1="${pad}" x2="${width - pad}" y1="${a.height + HEAD}" y2="${a.height + HEAD}" stroke="${theme.border}"/>`;
+    ? `<line x1="${a.width}" x2="${a.width}" y1="${frame + theme.space.pad / 2}" y2="${foot}" stroke="${theme.border}"/>`
+    : `<line x1="${pad}" x2="${width - pad}" y1="${by}" y2="${by}" stroke="${theme.border}"/>`;
   const body =
-    head(a, 0, 0) +
-    `<g data-diff-panel="before" transform="translate(0 ${HEAD})">${a.body}</g>` +
+    head(a, 0, frame) +
+    `<g data-diff-panel="before" transform="translate(0 ${frame + HEAD})">${a.body}</g>` +
     rule +
     head(b, bx, by) +
     `<g data-diff-panel="after" transform="translate(${bx} ${by + HEAD})">${b.body}</g>` +
-    `<line x1="${pad}" x2="${width - pad}" y1="${height - KEY}" y2="${height - KEY}" stroke="${theme.border}"/>` +
-    key(theme, diff, pad, height - KEY / 2, opts.against).svg;
+    `<line x1="${pad}" x2="${width - pad}" y1="${foot}" y2="${foot}" stroke="${theme.border}"/>` +
+    key(theme, diff, pad, foot + KEY / 2, opts.against).svg;
   return { svg: root(base.svg, width, height, theme, body), width, height };
 }

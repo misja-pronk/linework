@@ -2,12 +2,16 @@ import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { render, type RenderResult } from '@cartography/engine';
-import { fontFiles } from '@cartography/theme/node';
-import { toPdf, toPptx, type FontBytes } from '../src/index.ts';
+import { themes } from '@cartography/theme';
+import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
+import { pdfFamilies, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
 import { clean, fitConnector } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
-const draw = async (f: string): Promise<RenderResult> => render(example(f), { fonts: 'none', load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
+const draw = async (f: string, theme?: string): Promise<RenderResult> => render(example(f), { fonts: 'none', theme, load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
+/** The theme's own faces, read the way the CLI does. */
+const families = (theme: (typeof themes)[string]): FamilyBytes =>
+  Object.fromEntries(pdfFamilies(theme).map((f) => [f, Object.fromEntries(Object.entries(bundledFontFiles[f]!).map(([w, u]) => [w, fs.readFileSync(decodeURIComponent(u.pathname))]))]));
 const fonts = (): FontBytes => {
   const [a, b, c] = fontFiles.map((u) => fs.readFileSync(decodeURIComponent(u.pathname)));
   return { 400: a!, 500: b!, 600: c! };
@@ -76,14 +80,47 @@ describe('pptx', () => {
     for (const e of g.edges) if (e.label) expect(texts).toContain(e.label);
     expect(texts).toContain(g.title);
     for (const l of g.legend ?? []) expect(texts).toContain(l.label);
-    // Pictures for icons, cards with rounded corners and a soft shadow.
+    // Pictures for icons, cards with rounded corners.
     expect(slide).toContain('<p:pic>');
     expect(slide).toContain('prst="roundRect"');
-    expect(slide).toContain('<a:outerShdw');
+  });
+
+  it('follows the look: Survey by default, the theme\'s faces, tints, tiles, labels and arrowheads', async () => {
+    const survey = parts(await toPptx(await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map((f) => draw(f)))));
+    const slide = survey.text('ppt/slides/slide1.xml');
+    const t = themes.survey!;
+    // Text in the theme's own face, with a sans named as the substitute's shape; type columns in the monospace face.
+    expect(slide).toContain('<a:latin typeface="Instrument Sans" panose="020B0604020202020204" pitchFamily="34"');
+    expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Geist Mono" panose="020B0609020204030204" pitchFamily="49"');
+    // Groups lie on the paper tints, with their names in spaced capitals; flat cards, no tile behind the icons.
+    expect(slide.toUpperCase()).toContain(`<A:SRGBCLR VAL="${t.group!.tints![0]!.slice(1).toUpperCase()}"/>`);
+    expect(slide).toMatch(/spc="\d+"/);
+    expect(slide).not.toContain('<a:outerShdw');
+    expect(slide).not.toContain('name="Tile"');
+    // The legend is a KEY under a rule.
+    expect(slide).toContain('<a:t>KEY</a:t>');
+
+    // Classic keeps its soft shadow, tinted tiles and Inter.
+    const classic = parts(await toPptx(await draw('systems/web-shop.yaml', 'classic'), { theme: themes.classic })).text('ppt/slides/slide1.xml');
+    expect(classic).toContain('<a:outerShdw');
+    expect(classic).toContain('name="Tile"');
+    expect(classic).toContain('typeface="Inter"');
+    expect(classic).not.toContain('<a:t>KEY</a:t>');
+
+    // Transit: slim arrowheads, roundels, labels in capitals. Drafting: open arrowheads.
+    const transit = parts(await toPptx(await draw('systems/web-shop.yaml', 'transit'), { theme: themes.transit })).text('ppt/slides/slide1.xml');
+    expect(transit).toContain('<a:tailEnd type="triangle" w="med" len="lg"/>');
+    expect(transit).toContain('typeface="Barlow"');
+    expect(transit).toContain('<a:t>ORDERPLACED</a:t>');
+    const drafting = parts(await toPptx(await draw('systems/web-shop.yaml', 'drafting'), { theme: themes.drafting })).text('ppt/slides/slide1.xml');
+    expect(drafting).toContain('<a:tailEnd type="arrow"');
+    expect(drafting).toContain('typeface="IBM Plex Mono"');
+    // A font of your own choosing wins.
+    expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Arial' })).text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
   });
 
   it('one slide per diagram, a title slide on request, notes, 4:3', async () => {
-    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map(draw));
+    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map((f) => draw(f)));
     const { files, text } = parts(await toPptx(list, { title: 'Architecture', subtitle: 'Q4', aspect: '4:3' }));
     const slides = Object.keys(files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p));
     expect(slides).toHaveLength(4);
@@ -154,17 +191,30 @@ function pdfText(pdf: string): string[] {
 }
 
 describe('pdf', () => {
-  it('one page per diagram, Inter embedded, text extractable', async () => {
-    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map(draw));
-    const bytes = await toPdf(list, { fonts: fonts(), compress: false, date: new Date('2026-11-09T12:00:00Z') });
+  it('one page per diagram, the theme\'s faces embedded, text extractable', async () => {
+    const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map((f) => draw(f)));
+    const bytes = await toPdf(list, { fonts: fonts(), families: families(themes.survey!), compress: false, date: new Date('2026-11-09T12:00:00Z') });
     const pdf = Buffer.from(bytes).toString('latin1');
     expect(pdf.startsWith('%PDF-')).toBe(true);
     expect(pdf.match(/\/Type \/Page\b/g)).toHaveLength(2);
-    expect(pdf).toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-SemiBold/);
+    // Survey: Instrument Sans for the words, Geist Mono for line labels and column types; no Inter left.
+    expect(pdf).toMatch(/\/BaseFont \/[A-Z]{6}\+InstrumentSans-SemiBold/);
+    expect(pdf).toMatch(/\/BaseFont \/[A-Z]{6}\+GeistMono-/);
+    expect(pdf).not.toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-/);
     expect(pdf).toContain('/FontFile2');
     // svg-to-pdfkit places glyph by glyph, so the pieces join without spaces.
     const text = pdfText(pdf).join('');
     for (const s of ['Web shop', 'Storefront', 'OrderPlaced', 'customer_id', '2026-11-09']) expect(text).toContain(s);
+  });
+
+  it('classic stays in Inter, and a theme whose faces are not handed over falls back to it', async () => {
+    const classic = Buffer.from(await toPdf(await draw('systems/web-shop.yaml', 'classic'), { theme: themes.classic, fonts: fonts(), compress: false })).toString('latin1');
+    expect(classic).toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-SemiBold/);
+    expect(pdfFamilies(themes.classic!)).toEqual([]);
+    expect(pdfFamilies(themes.survey!)).toEqual(['Instrument Sans', 'Geist Mono']);
+    const bare = Buffer.from(await toPdf(await draw('systems/web-shop.yaml'), { fonts: fonts(), compress: false })).toString('latin1');
+    expect(bare).toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-SemiBold/);
+    expect(pdfText(bare).join('')).toContain('OrderPlaced');
   });
 
   it('a4 and a3 are landscape sheets', async () => {

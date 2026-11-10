@@ -4,10 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { icon } from '@cartography/icons';
 import { render } from '@cartography/engine';
-import { measureText, themes } from '@cartography/theme';
+import { measureText, themes, themeTextFonts, withTextFonts } from '@cartography/theme';
 import { JOURNEY_ROWS, journeyAvatarNames, journeyScene, type JourneyMark, type JourneyScene } from '@cartography/render';
 import { journeyAvatars, journeyBeats, journeyMood, type JourneyShape } from '@cartography/core';
 import { journey, journeyReferences, journeyScale, journeyViewsOf, parseFeel, stepShorthand, touchpointIcon } from '../src/index.ts';
+
+// Text is measured in the faces of the look the drawing is made in, as the engine does.
+const inLook = <T,>(fn: () => T): T => withTextFonts(themeTextFonts(themes.light), fn);
 
 const examples = path.resolve(import.meta.dirname, '../../../examples/journey');
 const example = (name: string) => fs.readFileSync(path.join(examples, `${name}.yaml`), 'utf8');
@@ -16,7 +19,7 @@ const names = fs.readdirSync(examples).filter((f) => f.endsWith('.yaml')).map((f
 async function draw(yaml: string, opts: { view?: string; step?: number } = {}) {
   const r = await render(yaml, { fonts: 'none', ...opts });
   const shape = r.graph?.nodes[0]?.shape as JourneyShape;
-  return { r, shape, scene: shape ? journeyScene(shape, themes.light, opts.step) : undefined };
+  return { r, shape, scene: shape ? inLook(() => journeyScene(shape, themes.light, opts.step)) : undefined };
 }
 
 const day = `type: journey
@@ -43,7 +46,7 @@ const said = (scene: JourneyScene) => texts(scene).flatMap((m) => m.lines).join(
 
 /** Where a text mark's ink is: its lines as wide as they measure, placed by its alignment. */
 function ink(m: TextMark) {
-  const w = Math.max(...m.lines.map((l) => measureText(l, m.size, m.weight)));
+  const w = inLook(() => Math.max(...m.lines.map((l) => measureText(l, m.size, m.weight))));
   const x = m.align === 'l' ? m.x : m.align === 'c' ? m.x + (m.w - w) / 2 : m.x + m.w - w;
   return { x, y: m.y, w, h: m.lines.length * m.lh };
 }

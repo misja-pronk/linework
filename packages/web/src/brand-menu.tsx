@@ -1,16 +1,15 @@
 // Theme picker and icon folder, in one small top-bar menu. Choices apply to the canvas and every export.
-import { useState } from 'react';
-import { builtinSpecs } from '@cartography/theme';
+import { Fragment, useState } from 'react';
+import { themeCatalog } from '@cartography/theme';
 import { Icon } from './icon.tsx';
 import { Menu } from './menu.tsx';
 import { canUseFolders, type Workspace } from './files.ts';
 import { chooseBuiltin, chooseFile, forgetIcons, pickIconFolder, reconnectIcons, themeFiles, useBrand } from './brand.ts';
 
-const BUILTIN = [
-  ['light', 'Light'],
-  ['dark', 'Dark'],
-  ...Object.keys(builtinSpecs).map((k) => [k, k[0]!.toUpperCase() + k.slice(1)]),
-] as const;
+/** The built-in looks by name, as a person reads them: "survey-dark" is "Survey dark". */
+const BUILTIN = themeCatalog.map((t) => [t.name, t.name[0]!.toUpperCase() + t.name.slice(1).replace(/-/g, ' '), t.description] as const);
+/** A rule before each new family (Survey, Transit, Drafting, Classic, then the colourways). */
+const family = (name: string) => name.split('-')[0]!;
 
 export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: string): void }) {
   const [open, setOpen] = useState(false);
@@ -42,10 +41,14 @@ export function BrandMenu({ ws, onError }: { ws?: Workspace; onError?(message: s
             {mark(!b.choice)} The diagram's own
           </button>
           <hr />
-          {BUILTIN.map(([k, name]) => (
-            <button key={k} role="menuitem" onClick={run(() => chooseBuiltin(k))}>
-              {mark(b.choice === k)} {name}
-            </button>
+          {BUILTIN.map(([k, name, description], i) => (
+            <Fragment key={k}>
+              {i > 0 && family(k) !== family(BUILTIN[i - 1]![0]) && ['transit', 'drafting', 'classic', 'slate'].includes(k) && <hr />}
+              <button role="menuitem" onClick={run(() => chooseBuiltin(k))} title={description} data-theme-name={k}>
+                {mark(b.choice === k)} {name}
+                {k === 'survey' ? <span className="menu-note"> default</span> : null}
+              </button>
+            </Fragment>
           ))}
           {files.length > 0 && <hr />}
           {files.map((f) => (

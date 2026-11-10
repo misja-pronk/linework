@@ -9,13 +9,15 @@
 //     signin: { kind: dynamic, steps: ['customer -> online.web: Opens the app', …] }
 //     prod: { kind: deployment, nodes: { aws: { technology: eu-west-1, nodes: { … instances: [online.api] } } } }
 //
+// In a deployment view a node can also be the instance itself: `rds: { technology: RDS, of: online.db }`.
+//
 // Views of a lower level link to the next one down for drill-down (context → containers → components).
 import { parseEdge } from './edges.ts';
 import { withTechnology, type ModelContext, type ViewKind, type ViewSpec } from './catalogue.ts';
 import type { BuildContext } from './diagram-type.ts';
 import type { Path } from './model.ts';
 import type { Entry, GraphSource, GraphTypeConfig } from './graph-source.ts';
-import { fromElement, resolveSource, type Origins } from './views.ts';
+import { checkComplete, fromElement, instanceOf, resolveSource, type Origins } from './views.ts';
 
 type Out = GraphSource & { origin: Origins };
 
@@ -142,6 +144,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
   const known = (k: string) => !!cfg.groupKinds[k] || !!cfg.nodeKinds[k];
   // Element id → where it runs, in order; `root` is the outermost deployment node (an environment, a region).
   const placed = new Map<string, { node: string; root: string; at: Path }[]>();
+  // Element id → the deployment nodes that are an instance of it themselves (`of:`).
+  const direct = new Map<string, { id: string; root: string }[]>();
   const roots = new Map<string, string>();
   const walk = (map: unknown, parent: string | undefined, base: Path) => {
     if (!map || typeof map !== 'object' || Array.isArray(map)) return;
@@ -163,10 +167,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
       const count = typeof o.count === 'number' && o.count > 1 ? `×${o.count}` : undefined;
       const technology = typeof o.technology === 'string' ? o.technology : undefined;
       const caption = [technology, count].filter(Boolean).join(' · ');
-      const entry: Entry = {
-        ...(kind ? { kind } : { icon: 'server' }),
-        label: typeof o.label === 'string' ? o.label : key,
-        ...(caption ? { caption } : {}),
+      const rest: Entry = {
         ...(technology ? { technology } : {}),
         ...(count ? { count: o.count as number } : {}),
         ...(parent ? { in: parent } : {}),
@@ -176,8 +177,18 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
         ...(Array.isArray(o.tags) ? { tags: o.tags.map(String) } : {}),
         ...(Array.isArray(o.links) ? { links: o.links } : {}),
       };
-      out[leaf ? 'nodes' : 'groups']![key] = entry;
-      out.origin[leaf ? 'nodes' : 'groups'][key] = path;
+      const el = typeof o.of === 'string' ? els.get(o.of) : undefined;
+      if (typeof o.of === 'string' && !el) ctx.warn([...path, 'of'], els.size ? `There is no element "${o.of}" in the model` : `"${o.of}" needs a model: add include: [model.yaml] or elements:`);
+      if (el) direct.set(el.id, [...(direct.get(el.id) ?? []), { id: key, root: roots.get(key)! }]);
+      const coll = leaf ? 'nodes' : 'groups';
+      const name = el?.label ?? el?.name;
+      // The element's name when the node has its own, what it is built with (or runs on), how many.
+      const running = [typeof o.label === 'string' && o.label !== name ? name : undefined, technology ?? el?.technology, count].filter(Boolean).join(' · ');
+      out[coll]![key] = el
+        ? // The node is the instance itself: the element's name, and its kind unless the node says its own.
+          instanceOf(el, { ...(typeof o.kind === 'string' || !leaf ? (kind ? { kind } : { icon: 'server' }) : {}), ...(typeof o.label === 'string' ? { label: o.label } : {}), ...(running ? { caption: running } : {}), ...rest }, coll, cfg, ctx, path)
+        : { ...(kind ? { kind } : { icon: 'server' }), label: typeof o.label === 'string' ? o.label : key, ...(caption ? { caption } : {}), ...rest };
+      out.origin[coll][key] = path;
       for (const [j, id] of list.entries()) {
         if (!els.has(id)) ctx.warn([...path, 'instances', j], els.size ? `There is no element "${id}" in the model` : `"${id}" needs a model: add include: [model.yaml] or elements:`);
         else placed.set(id, [...(placed.get(id) ?? []), { node: key, root: roots.get(key)!, at: [...path, 'instances', j] }]);
@@ -202,6 +213,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
       }),
     );
   }
+  for (const [elId, list] of direct) instances.set(elId, [...(instances.get(elId) ?? []), ...list]);
+  checkComplete(v, els, (id) => instances.has(id), 'add it to instances: or a node with of:', ctx);
   // A relation of a component is drawn from the container it is deployed in.
   const running = (id: string) => {
     for (let cur: string | undefined = id; cur; cur = els.get(cur)?.parent) if (instances.has(cur)) return { el: cur, list: instances.get(cur)! };
