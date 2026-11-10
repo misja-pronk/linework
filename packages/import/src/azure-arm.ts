@@ -4,7 +4,7 @@
 // concat, format, resourceId, modules (nested deployments) with what they are given and what they
 // give back. What depends on the deployment (uniqueString of a resource group id) reads `…`; what
 // cannot be known at all (a reference to something deployed elsewhere) keeps the expression's words.
-import { Estate, readDetails } from './azure-estate.ts';
+import { Estate, readDetails, TARGET_RG, TARGET_SUB } from './azure-estate.ts';
 import { subnet } from './azure-graph.ts';
 import { isObj, str, type Obj } from './keep.ts';
 
@@ -184,7 +184,8 @@ function evaluate(node: Node, scope: Scope): unknown {
       // A module's outputs: worked out from its own template.
       const deployment = /\/providers\/Microsoft\.Resources\/deployments\/([^/]+)$/i.exec(id)?.[1] ?? (scope.deployments.has(what) ? what : undefined);
       if (deployment && scope.deployments.has(deployment)) return { outputs: scope.deployments.get(deployment)!(), __ref: deployment };
-      return { id, name: id.split('/').pop(), __ref: `reference(${id.split('/').pop()})`, ...(node.name === 'resourceinfo' ? {} : { properties: {} }) };
+      // What it will be once deployed is not known; which resource it is, is: {reference(/subscriptions/…).defaultHostName}.
+      return { id, name: id.split('/').pop(), __ref: `reference(${id})` };
     }
     case 'resourcegroup':
       return { name: scope.rg, id: `/subscriptions/${scope.sub}/resourceGroups/${scope.rg}`, location: unknown('location') };
@@ -362,8 +363,6 @@ function deep(v: unknown, scope: Scope): unknown {
 
 // ---------------------------------------------------------------- resources
 
-export const TARGET_RG = '(target resource group)';
-export const TARGET_SUB = '(subscription)';
 
 /** Reads a template (and the modules in it) into the estate; the number of resources read. */
 export function readTemplate(estate: Estate, template: Obj, given: Obj = {}, at: { rg?: string; sub?: string } = {}, unresolved = new Set<string>()): number {
@@ -395,7 +394,12 @@ export function readTemplate(estate: Estate, template: Obj, given: Obj = {}, at:
       ? `/subscriptions/${scope.sub}/resourceGroups/${scope.rg}/providers/Microsoft.Resources/deployments/${name}`
       : resourceIdOf(scope, [type, ...names], 'rg');
     // An extension resource is on what its scope names.
-    const on = r.scope !== undefined ? asString(value(r.scope, scope)) : undefined;
+    let on = r.scope !== undefined ? asString(value(r.scope, scope)) : undefined;
+    // Bicep writes the scope of an extension resource as Namespace/type/name, without the rest of the id.
+    if (on && !on.startsWith('/') && !scope.symbols.has(on)) {
+      const [ns, ...rest] = on.split('/');
+      on = resourceIdOf(scope, [[ns, ...rest.filter((_, j) => j % 2 === 0)].join('/'), ...rest.filter((_, j) => j % 2 === 1)], 'rg');
+    }
     const scoped = on ? `${scope.symbols.get(on) ?? on}${rid.slice(rid.indexOf('/providers/'))}` : rid;
     return { type, name, id: scoped };
   };

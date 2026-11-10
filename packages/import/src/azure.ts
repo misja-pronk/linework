@@ -4,8 +4,8 @@
 // and lines for what the export says goes where. Importing again over that diagram keeps what was
 // changed by hand. Nothing is fetched: every file is read where it is.
 import { config as azureType } from '@cartography/azure';
-import { readTemplate, isParameters, isTemplate, TARGET_RG } from './azure-arm.ts';
-import { Estate, normPath, parseId, type AzContainer, type AzResource, type Change } from './azure-estate.ts';
+import { readTemplate, isParameters, isTemplate } from './azure-arm.ts';
+import { Estate, normPath, TARGET_RG, TARGET_SUB, parseId, type AzContainer, type AzResource, type Change } from './azure-estate.ts';
 import { graphRows, hasResources, onlyContainers, readGraph } from './azure-graph.ts';
 import { hasAzurerm, readTerraform } from './azure-terraform.ts';
 import type { ExportFile, ImportedExport } from './access.ts';
@@ -59,7 +59,8 @@ function parse(files: ExportFile[], warn: Warnings) {
     const rows = graphRows(json);
     if (rows) {
       const n = readGraph(estate, rows);
-      read.push({ file: f.path, what: onlyContainers(rows) ? 'subscriptions, resource groups and management groups' : 'Resource Graph resources', count: onlyContainers(rows) ? rows.length : n });
+      const what = onlyContainers(rows) ? 'subscriptions, resource groups and management groups' : rows.every((r) => /diagnosticsettings$/i.test(String(r.type))) ? 'diagnostic settings' : 'Resource Graph resources';
+      read.push({ file: f.path, what, count: onlyContainers(rows) ? rows.length : n });
     } else if (isParameters(json)) {
       for (const [k, v] of Object.entries(json.parameters as Obj)) if (isObj(v) && 'value' in v) given[k] = v.value;
       read.push({ file: f.path, what: 'template parameters', count: Object.keys(json.parameters as Obj).length });
@@ -72,7 +73,7 @@ function parse(files: ExportFile[], warn: Warnings) {
   for (const t of templates) {
     const unresolved = new Set<string>();
     read.push({ file: t.path, what: 'ARM template', count: readTemplate(estate, t.json, given, {}, unresolved) });
-    if (unresolved.size) warn.add(`${t.path}: not everything could be worked out without deploying (${[...unresolved].slice(0, 5).join(', ')}${unresolved.size > 5 ? ', …' : ''}); those names keep the expression's words in {braces}`);
+    if (unresolved.size) warn.add(`${t.path}: some values are only known when it is deployed (${[...unresolved].slice(0, 5).join(', ')}${unresolved.size > 5 ? ', …' : ''}): a name made from one keeps the expression's words in {braces}`);
   }
   return { estate, read, skipped, problems };
 }
@@ -160,6 +161,9 @@ const KINDS: Record<string, Spec | ((r: AzResource) => Spec)> = {
   'microsoft.network/privateendpoints': { kind: 'private-endpoint' },
   'microsoft.network/dnszones': { kind: 'dns' },
   'microsoft.network/privatednszones': { kind: 'dns', caption: 'Private DNS zone' },
+  'microsoft.network/dnsresolvers': { kind: 'dns', caption: 'DNS private resolver' },
+  'microsoft.network/applicationgatewaywebapplicationfirewallpolicies': { kind: 'firewall', caption: 'WAF policy', plumbing: true },
+  'microsoft.network/frontdoorwebapplicationfirewallpolicies': { kind: 'firewall', caption: 'WAF policy', plumbing: true },
   'microsoft.network/azurefirewalls': { kind: 'firewall' },
   'microsoft.network/firewallpolicies': { kind: 'firewall', caption: 'Firewall policy', plumbing: true },
   'microsoft.network/bastionhosts': { kind: 'bastion' },
@@ -273,6 +277,8 @@ interface Item {
 }
 
 const BADGE: Record<Change, string> = { create: '+ create', update: '~ update', replace: '± replace', delete: '− delete' };
+/** What a plan does, also in colour, so it shows from across the room; the words say it without colour. */
+const TONE: Record<string, string> = { '+ create': 'green', '~ update': 'amber', '± replace': 'amber', '− delete': 'rose' };
 
 export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: { estate: Estate } & Pick<ImportedExport, 'read' | 'skipped' | 'problems'>, opts: AzureOptions = {}): ImportedExport {
   const nothing = (message: string): ImportedExport => ({ yaml: '', warnings: [...warn.list, message], problems, read, skipped, summary: '' });
@@ -321,7 +327,8 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     for (const ref of r.refs) {
       const hit = estate.resolve(ref.id);
       if (!hit) {
-        outside++;
+        // What Azure makes by itself (a private endpoint's network interface, a disk) is often not exported: not worth a word.
+        if (!/\/(networkinterfaces|disks|publicipaddresses|userassignedidentities)\//i.test(ref.id)) outside++;
         continue;
       }
       const to = owner(hit);
@@ -330,6 +337,8 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
       rels.set(from.key, [...(rels.get(from.key) ?? []), { rel, to: rel === 'subnet' ? hit : to, path: ref.path }]);
     }
     if (from !== r) {
+      // A plan that changes a part (a Front Door origin, a database) changes what it is part of.
+      if (r.change && !from.change && r.type !== 'microsoft.insights/diagnosticsettings') from.change = 'update';
       for (const b of r.backends) from.backends.add(b);
       for (const v of r.vaults) from.vaults.add(v);
     }
@@ -416,17 +425,20 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     if (!s) mark(home);
   }
   for (const v of vnets) mark(placeIn(containerKey(byKey.get(v)!)));
+  // Management groups tell the story of a landing zone; above one subscription they are only a frame.
+  if ([...usedContainers].filter((k) => estate.containers.get(k)?.kind === 'subscription').length < 2) for (const k of [...usedContainers]) if (estate.containers.get(k)?.kind === 'management-group') usedContainers.delete(k);
   const containers = [...usedContainers].map((k) => estate.containers.get(k)!).filter(Boolean);
-  const isPlaceholder = (c: AzContainer) => c.name === TARGET_RG || c.name === '(subscription)';
+  const isPlaceholder = (c: AzContainer) => c.key.endsWith(`/${TARGET_RG}`) || c.key === `/subscriptions/${TARGET_SUB}`;
   for (const c of containers) {
     const parent = c.parent && usedContainers.has(c.parent) && !(depth < 2 && c.kind === 'resource-group') ? c.parent : undefined;
-    const label = c.name === TARGET_RG ? 'Target resource group' : c.name === '(subscription)' ? 'Subscription' : c.name;
+    const label = !isPlaceholder(c) ? c.name : c.kind === 'resource-group' ? 'Target resource group' : 'Subscription';
     items.push({ key: c.key, group: true, kind: c.kind, name: isPlaceholder(c) ? label : c.name, label, caption: isPlaceholder(c) ? 'where the template is deployed' : undefined, in: parent, else: [c.kind] });
   }
 
   // Captions of subnets: range, security group, route out (through the firewall, where a route says so), delegation.
   const firewalls = all.filter((r) => r.type === 'microsoft.network/azurefirewalls');
-  const short = (s: string | undefined) => s?.replace(/^Microsoft\./, '');
+  const DELEGATED: Record<string, string> = { 'microsoft.web/serverfarms': 'App Service', 'microsoft.dbforpostgresql/flexibleservers': 'PostgreSQL', 'microsoft.dbformysql/flexibleservers': 'MySQL', 'microsoft.databricks/workspaces': 'Databricks', 'microsoft.network/dnsresolvers': 'DNS resolver', 'microsoft.app/environments': 'Container Apps', 'microsoft.containerinstance/containergroups': 'Container Instances', 'microsoft.sql/managedinstances': 'SQL Managed Instance', 'microsoft.netapp/volumes': 'NetApp Files' };
+  const short = (s: string | undefined) => s && (DELEGATED[s.toLowerCase()] ?? words(s));
   for (const v of [...vnets].map((k) => byKey.get(k)!)) {
     items.push({ key: v.key, group: true, kind: 'vnet', name: v.name, label: v.name, caption: v.cidr ? `Virtual network · ${v.cidr}` : undefined, in: placeIn(containerKey(v)), badges: v.change ? [BADGE[v.change]] : undefined, else: [v.rg ?? 'vnet', 'vnet'] });
   }
@@ -434,7 +446,7 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     const nsg = relTo(s, 'nsg')[0];
     const table = relTo(s, 'route-table')[0];
     const via = table && firewalls.find((f) => [...f.ips].some((ip) => table.hops.has(ip)));
-    const parts = [s.cidr, nsg && `NSG ${nsg.name}`, via ? `UDR → ${via.name}` : table && `UDR ${table.name}`, s.delegation && `for ${short(s.delegation)}`].filter(Boolean);
+    const parts = [s.cidr, nsg && `NSG ${nsg.name}`, via ? `UDR → ${via.name}` : table && `UDR ${table.name}`, s.delegation && `delegated to ${short(s.delegation)}`].filter(Boolean);
     items.push({ key: s.key, group: true, kind: 'subnet', name: s.name, label: s.name, caption: parts.length ? parts.join(' · ') : undefined, in: vnetOf(s)!.key, badges: s.change ? [BADGE[s.change]] : undefined, else: [vnetOf(s)!.name, 'subnet'] });
   }
 
@@ -448,22 +460,23 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     }
     if (r.type === 'microsoft.web/sites') return planOf(r)?.sku ?? r.sku;
     if (r.type === 'microsoft.network/localnetworkgateways') return r.cidr;
+    if (r.type === 'microsoft.cdn/profiles') return /premium/i.test(r.sku ?? '') ? 'Premium' : undefined;
     if (/^microsoft\.(storage|network\/(publicip|privateendpoints|privatednszones))/.test(r.type)) return undefined;
-    return r.sku && !/^(standard|basic|default|free)$/i.test(r.sku) ? r.sku.replace(/_/g, ' ') : undefined;
+    return r.sku && !/^(standard|basic|default|free|pergb2018|standalone|s0)$/i.test(r.sku) ? r.sku.replace(/_/g, ' ') : undefined;
   };
   for (const r of picked) {
     const spec = specOf.get(r.key)!;
     const base = spec.caption ?? kindLabel(spec.kind);
     const extra = detail(r);
-    const pe = r.type === 'microsoft.network/privateendpoints' ? relTo(r, 'target')[0] : undefined;
-    const caption = pe ? `Private endpoint → ${pe.name}` : extra ? `${base} · ${extra}` : spec.caption;
+    const caption = extra ? `${base} · ${extra}` : spec.caption;
     items.push({ key: r.key, group: false, kind: spec.kind, name: r.name, label: r.name, caption, in: homeOf.get(r.key), badges: r.change ? [BADGE[r.change]] : undefined, else: [r.rg ?? spec.kind, spec.kind] });
   }
-  const hidden = all.filter((r) => specOf.get(r.key)?.plumbing && owner(r) === r && chosen(r) && !opts.all);
+  const hidden = all.filter((r) => specOf.get(r.key)?.plumbing && owner(r) === r && chosen(r) && !opts.all && !(r.type === 'microsoft.sql/servers/databases' && r.name.toLowerCase() === 'master'));
   if (hidden.length) {
     const kinds = new Map<string, number>();
-    for (const r of hidden) kinds.set(kindLabel(specOf.get(r.key)!.kind), (kinds.get(kindLabel(specOf.get(r.key)!.kind)) ?? 0) + 1);
-    warn.add(`${plural(hidden.length, 'resource')} of plumbing left out (${[...kinds].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(', ')}): --all draws them`);
+    for (const r of hidden) kinds.set(specOf.get(r.key)!.caption ?? kindLabel(specOf.get(r.key)!.kind), (kinds.get(specOf.get(r.key)!.caption ?? kindLabel(specOf.get(r.key)!.kind)) ?? 0) + 1);
+    const name = (k: string, n: number) => k + (n > 1 ? (/s$/.test(k) ? 'es' : 's') : '');
+    warn.add(`${plural(hidden.length, 'resource')} of plumbing left out (${[...kinds].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${name(k, n)}`).join(', ')}): --all draws them`);
   }
   if (outside) warn.onceFor('outside', `${plural(outside, 'reference')} to resources that are not in these files left out: export those subscriptions too to see them`);
 
@@ -477,10 +490,17 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   };
   const inNetwork = (r: AzResource) => homeSubnet.has(r.key);
   const backendOf = (b: string): AzResource | undefined => {
-    const hit = hosts.get(b) ?? ips.get(b);
+    // A template's host name of something it deploys itself: {reference(<its id>).defaultHostName}.
+    const ref = /reference\((\/subscriptions\/[^)]+)\)/i.exec(b)?.[1];
+    const hit = ref ? (() => { const r = estate.resolve(ref); return r && owner(r); })() : (hosts.get(b) ?? ips.get(b));
     if (!hit) return undefined;
-    // An IP of a network interface stands for its machine.
-    return hit.type === 'microsoft.network/networkinterfaces' ? (vmOf(hit) ?? hit) : hit;
+    // An IP of a network interface stands for its machine; without one, for what is drawn alone in its subnet (an AKS ingress).
+    if (hit.type !== 'microsoft.network/networkinterfaces') return hit;
+    const vm = vmOf(hit);
+    if (vm) return vm;
+    const s = subnetOf(hit);
+    const there = s ? picked.filter((r) => homeSubnet.get(r.key) === s) : [];
+    return there.length === 1 ? there[0] : hit;
   };
   const fronted = new Set<string>();
   for (const r of picked) {
@@ -527,18 +547,21 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   const into = new Map<string, string>();
   const byHome = new Map<string | undefined, Item[]>();
   for (const it of items) if (!it.group && it.key !== 'internet') byHome.set(it.in, [...(byHome.get(it.in) ?? []), it]);
+  // Private endpoints and private DNS zones come by the dozen and say the same each time: four in one place are one card, whatever else is there.
+  const always = opts.collapseAbove === undefined ? new Set(['private-endpoint', 'dns']) : new Set<string>();
   for (const [home, list] of byHome) {
-    if (list.length <= limit) continue;
+    if (list.length <= limit && !list.some((it) => always.has(it.kind) && list.filter((x) => x.kind === it.kind).length >= 4)) continue;
     const kinds = new Map<string, Item[]>();
     // Never what a plan changes: that is what the picture is for.
     for (const it of list) if (!it.badges) kinds.set(it.kind + (it.caption?.split(' · ')[0] ?? ''), [...(kinds.get(it.kind + (it.caption?.split(' · ')[0] ?? '')) ?? []), it]);
-    const where = home ? items.find((i) => i.key === home)?.name : undefined;
+    const at = home ? items.find((i) => i.key === home) : undefined;
+    const where = at?.kind === 'subnet' ? `${byKey.get(at.in!)?.name}/${at.name}` : at?.name;
     for (const same of kinds.values()) {
-      if (same.length < 3) continue;
+      if (same.length < 3 || (list.length <= limit && (!always.has(same[0]!.kind) || same.length < 4))) continue;
       const k = same[0]!;
       const what = k.caption?.split(' · ')[0] ?? kindLabel(k.kind);
       const key = `${home ?? ''}#${k.kind}#${what}`;
-      items.push({ key, group: false, kind: k.kind, name: `${where ?? 'all'}-${slug(what).toLowerCase()}s`, label: `${same.length} × ${what}`, caption: pattern(same.map((s) => s.name)), in: home, else: ['all'] });
+      items.push({ key, group: false, kind: k.kind, name: `${where?.replace('/', '-') ?? 'all'}-${slug(what).toLowerCase()}s`, label: `${same.length} × ${what}`, caption: pattern(same.map((s) => s.name)), in: home, else: ['all'] });
       for (const s of same) {
         into.set(s.key, key);
         items.splice(items.indexOf(s), 1);
@@ -553,6 +576,7 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   const badges = ['identity', 'management'].filter((s) => lines.some((l) => l.style === s));
   const kept = Kept.open('azure', opts.existing, { title: opts.title ?? titleOf(estate), subtitle: subtitleOf(estate), ...(badges.length ? { badges } : {}) });
   if (typeof kept === 'string') return { ...nothing(kept), problems: [...problems, { message: kept, severity: 'error' }] };
+  if (kept.fresh && badges.length) (kept.doc.get('badges', true) as { flow: boolean }).flow = true;
   const before = { groups: kept.before('groups'), nodes: kept.before('nodes') };
   const was = (id: string): (Obj & { at: 'groups' | 'nodes' }) | undefined => (before.groups[id] ? { ...before.groups[id], at: 'groups' } : before.nodes[id] ? { ...before.nodes[id], at: 'nodes' } : undefined);
   const made = (e: Obj | undefined) => !!e && Array.isArray(e.tags) && e.tags.includes(IMPORTED);
@@ -602,7 +626,9 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
     const old = was(id);
     if (old && old.at !== to) kept.drop(old.at, id);
     const tags = [...new Set([IMPORTED, ...(Array.isArray(old?.tags) ? old.tags.map(String) : [])])];
-    kept.put(to, id, { kind: it.kind, label: it.label, caption: it.caption, in: it.in && idOf.get(it.in), badges: it.badges, tags }, ['kind', 'caption', 'in', 'badges', 'tags']);
+    // The tone is the import's while it marks a change of a plan; one chosen by hand stays.
+    const marked = !!it.badges || (Array.isArray(old?.badges) && old.badges.some((b) => String(b) in TONE));
+    kept.put(to, id, { kind: it.kind, label: it.label, caption: it.caption, in: it.in && idOf.get(it.in), badges: it.badges, tone: it.badges ? TONE[it.badges[0]!] : undefined, tags }, ['kind', 'caption', 'in', 'badges', 'tags', ...(marked ? ['tone'] : [])]);
   }
 
   // Lines: those of a style the import speaks for, between what it made, follow it; any other one stays.
@@ -611,6 +637,8 @@ export function drawAzure(warn: Warnings, { estate, read, skipped, problems }: {
   for (const l of lines) {
     const from = at(l.from);
     const to = at(l.to);
+    // From or to a counted card, one label per line would say eight things at one place.
+    if (into.has(l.from) || into.has(l.to)) delete l.label;
     if (!from || !to || from === to) continue;
     const same = [...ends.keys()].find((k) => k.startsWith(`${from} ${to} `) || k.startsWith(`${to} ${from} ${l.style} `));
     if (same) continue;
@@ -666,7 +694,8 @@ function pattern(names: string[]): string {
   let tail = 0;
   while (tail < short - head && sorted.every((n) => n.at(-1 - tail) === sorted[0]!.at(-1 - tail))) tail++;
   const first = sorted[0]!;
-  while (head > 0 && /[A-Za-z0-9]/.test(first[head - 1]!) && /[A-Za-z0-9]/.test(first[head] ?? '')) head--;
+  // Cut where a word ends (pe-shop-* rather than pe-shop-s*), unless the names have no words: stkestrel*.
+  if (/[-_.]/.test(first.slice(0, head))) while (head > 0 && /[A-Za-z0-9]/.test(first[head - 1]!) && /[A-Za-z0-9]/.test(first[head] ?? '')) head--;
   if (head + tail >= 3) return `${first.slice(0, head)}*${tail ? first.slice(-tail) : ''}`;
   return `${sorted.slice(0, 2).join(', ')} and ${sorted.length - 2} more`;
 }

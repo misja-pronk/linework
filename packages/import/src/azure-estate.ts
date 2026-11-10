@@ -4,6 +4,10 @@
 // the attribute it was found under and the id it names, so the drawing can tell a subnet from a target.
 import { isObj, str, type Obj } from './keep.ts';
 
+/** Where a template or a plan goes when it does not say: words that cannot be a real subscription id or resource group name. */
+export const TARGET_SUB = 'target-subscription';
+export const TARGET_RG = 'target-resource-group';
+
 export type Change = 'create' | 'update' | 'delete' | 'replace';
 
 export interface AzResource {
@@ -231,6 +235,8 @@ export function readDetails(r: AzResource, row: Obj): void {
   const p = props(row);
   const sku = isObj(row.sku) ? (str(row.sku.name) ?? str(row.sku.tier)) : str(row.sku);
   if (sku && !r.sku) r.sku = sku;
+  // Gateways and firewalls keep theirs among the properties; a firewall is known by its tier (Premium), not AZFW_VNet.
+  if (!r.sku && isObj(p.sku)) r.sku = str(r.type === 'microsoft.network/azurefirewalls' ? p.sku.tier : p.sku.name);
   if (str(row.kind) && !r.kind) r.kind = str(row.kind);
   if (str(row.location) && !r.location) r.location = str(row.location);
   const space = get(p, 'addressSpace.addressPrefixes') ?? get(p, 'localNetworkAddressSpace.addressPrefixes');

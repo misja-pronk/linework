@@ -10,7 +10,7 @@ import { configDir, importIcons, listPacks, readPack } from './packs.ts';
 import { drift, findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw, mermaidBlock, toDrawio, toExcalidraw, toMermaid, toSafeSvg, toScene, type ImportedDiagram, type Scene } from '@cartography/interop';
-import { GIT_LOG_FORMAT, importAccess, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
+import { GIT_LOG_FORMAT, importAccess, importAzure, isAzureContainers, isAzureExport, importDataMesh, importGithub, isAccessExport, isGithubExport, type GithubOptions, type ImportedExport, importGitLog, importKubernetes, importMarkdown, importMermaid, importNetwork, importStructurizr, importTerraform, isDataMeshFile, isKubernetes, isNetworkInventory, isTerraform } from '@cartography/import';
 import { execFileSync } from 'node:child_process';
 import { compare, formatDiff, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
@@ -38,6 +38,8 @@ const help = `carto — architecture diagrams that look good
   carto render <folder> [-o access.svg]         a folder of saved az / Graph / AzureHound JSON as who reaches what,
                                                 or of gh api responses as the GitHub organisation (same options as
                                                 carto import <folder> below; --write access.yaml keeps the diagram)
+  carto render <folder|export.json> [-o x.png]  Azure resources (az graph query, az bicep build, terraform show -json)
+                                                as an azure diagram, with the options of carto import below
   carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
@@ -53,7 +55,7 @@ const help = `carto — architecture diagrams that look good
                [--drift --fix]                  drop those entries from <file>.layout.json
   carto diff <before.yaml> <after.yaml>         what changed between two versions, by id: added, removed and
                                                 changed nodes, groups and lines
-  carto diff <old-folder> <new-folder>          two exports (access or GitHub) imported and compared; for access
+  carto diff <old-folder> <new-folder>          two exports (access, GitHub or Azure; two Azure export files too) imported and compared; for access
                                                 and GitHub also who gained and lost what, effective access, in words
                [-o diff.svg|diff.md] [--view access]  the picture, the words as markdown; --view access: the matrix
                                                 with gained, lost and changed cells marked
@@ -80,6 +82,13 @@ const help = `carto — architecture diagrams that look good
                [--depth 1|2|3] [--group-by access|none] [--as github|access]
                                                 how deep scopes go; those that reach the same as one; a GitHub
                                                 organisation as who reaches which repository (a matrix)
+                                                Azure: az graph query JSON (resources and resourcecontainers), az bicep
+                                                build output (ARM templates), terraform show -json with azurerm: an azure
+                                                diagram, <folder|file>.yaml; again updates it, your edits and pins stay
+               [--subscription <name|id,…>] [--rg <name|glob,…>] [--depth 1|2|3] [--all] [--collapse-above 12]
+                                                only some subscriptions or resource groups; containers down to
+                                                subscriptions, resource groups or (3) networks and subnets; --all also
+                                                NICs, disks, NSGs, public IPs, plans; above 12 in one place, 3+ of a kind are one card
   carto import <file.drawio|.excalidraw…> [--keep-positions] [-o out|-] [--force]
                                                 a draw.io file (every page) or an Excalidraw file to YAML, with a
                                                 report of what was mapped and what was left out; --keep-positions
@@ -151,6 +160,9 @@ const { positionals, values } = parseArgs({
     'collapse-above': { type: 'string' },
     'group-by': { type: 'string' },
     as: { type: 'string' },
+    all: { type: 'boolean' },
+    subscription: { type: 'string' },
+    rg: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
 });
@@ -374,8 +386,9 @@ function dataFiles(dir: string): string[] {
   return out;
 }
 
-/** The diagram of a folder lives next to it, under its name: mesh/ → mesh.yaml. */
+/** The diagram of a folder lives next to it, under its name: mesh/ → mesh.yaml; of one export file too: resources.json → resources.yaml. */
 function besideFolder(folder: string): string {
+  if (!isFolder(folder) && /\.json$/i.test(folder)) return folder.replace(/\.json$/i, '.yaml');
   const clean = path.normalize(folder).replace(/[\\/]+$/, '');
   return (clean === '.' || path.basename(clean) === '..' ? path.resolve(folder) : clean) + '.yaml';
 }
@@ -431,7 +444,7 @@ async function importMesh(inputs: string[]): Promise<boolean> {
   return mesh.clean && !check.diagnostics.some((d) => d.severity === 'error');
 }
 
-type ExportKind = 'access' | 'github';
+type ExportKind = 'access' | 'github' | 'azure';
 
 /** Every file under a folder an access or GitHub export can be: JSON, and CODEOWNERS where gh keeps it. */
 function exportFiles(dir: string): string[] {
@@ -445,17 +458,20 @@ function exportFiles(dir: string): string[] {
   return out;
 }
 
-/** What a set of files (or folders) is, by what most of its JSON files are: GitHub responses, or access exports. */
+/** What a set of files (or folders) is, by what most of its JSON files are: GitHub responses, access exports, or Azure resources. */
 function exportKind(inputs: string[]): ExportKind | undefined {
   let github = 0;
   let access = 0;
+  let azure = 0;
   for (const f of inputs.flatMap((x) => (isFolder(x) ? exportFiles(x) : [x]))) {
     if (!/\.json$/i.test(f)) continue;
     const text = fs.readFileSync(f, 'utf8');
-    if (isGithubExport(text)) github++;
-    else if (isAccessExport(text)) access++;
+    if (isAzureExport(text)) azure++;
+    else if (isGithubExport(text)) github++;
+    // Subscriptions and resource groups name what Azure resources are in, as much as whose roles are on them.
+    else if (isAccessExport(text) && !isAzureContainers(text)) access++;
   }
-  return github > access ? 'github' : access ? 'access' : undefined;
+  return azure > access && azure >= github ? 'azure' : github > access ? 'github' : access ? 'access' : undefined;
 }
 
 /** The flags an access or GitHub import takes; a word it does not know is said and stops the run. */
@@ -471,7 +487,7 @@ function exportOptions(): GithubOptions | string {
   const opts = { principals: pick('principals', ['auto', 'all', 'groups']), groupBy: pick('group-by', ['access', 'none']), as: pick('as', ['github', 'access']), depth: num('depth'), collapseAbove: num('collapse-above') };
   const wrong = Object.values(opts).find((v) => typeof v === 'string' && v.startsWith('--'));
   if (wrong) return wrong as string;
-  return { ...(opts as GithubOptions), title: values.title, scope: values.scope };
+  return { ...(opts as GithubOptions), title: values.title, scope: values.scope, all: values.all, subscription: values.subscription, rg: values.rg } as GithubOptions;
 }
 
 /**
@@ -482,13 +498,13 @@ function exportOptions(): GithubOptions | string {
 function exportOf(inputs: string[], kind: ExportKind, diagram: string | undefined, existing: 'merge' | 'if-same' | 'fresh', base?: string): (ImportedExport & { clean: boolean; type: string }) | undefined {
   const opts = exportOptions();
   if (typeof opts === 'string') return (console.error(opts), undefined);
-  const type = kind === 'github' && opts.as !== 'access' ? 'github' : 'access';
+  const type = kind === 'azure' ? 'azure' : kind === 'github' && opts.as !== 'access' ? 'github' : 'access';
   let was = base ?? (existing !== 'fresh' && diagram && fs.existsSync(diagram) ? fs.readFileSync(diagram, 'utf8') : undefined);
   if (existing === 'if-same' && was && !new RegExp(`^type:\\s*${type}\\s*$`, 'm').test(was)) was = undefined;
   const list = inputs.flatMap((f) => (isFolder(f) ? exportFiles(f).map((p) => ({ p, at: f })) : [{ p: f, at: path.dirname(f) }])).filter((x) => !diagram || path.resolve(x.p) !== path.resolve(diagram));
   // Which team or repository a file is about shows from the folders it is in, below the one given.
   const files = list.map((x) => ({ path: path.relative(x.at, x.p).split(path.sep).join('/'), text: fs.readFileSync(x.p, 'utf8') }));
-  const r = kind === 'github' ? importGithub(files, { ...opts, existing: was }) : importAccess(files, { ...opts, existing: was });
+  const r = kind === 'azure' ? importAzure(files, { ...(opts as Parameters<typeof importAzure>[1]), existing: was }) : kind === 'github' ? importGithub(files, { ...opts, existing: was }) : importAccess(files, { ...opts, existing: was });
   const where = inputs.join(', ');
   for (const p of r.problems) console.error(`${p.file ? path.join(inputs.length === 1 && isFolder(inputs[0]!) ? inputs[0]! : '', p.file) : where}  ${p.severity === 'error' ? red('error') : yellow('warning')}  ${p.message}`);
   for (const w of r.warnings) console.error(`${where}  ${yellow('warning')}  ${w}`);
@@ -498,9 +514,10 @@ function exportOf(inputs: string[], kind: ExportKind, diagram: string | undefine
 
 /** carto import <folder | export files>: one access or GitHub diagram, updated when it is there already. */
 async function importExport(inputs: string[], kind: ExportKind): Promise<boolean> {
-  const folder = inputs.length === 1 && isFolder(inputs[0]!) ? inputs[0]! : undefined;
+  // One Azure export file is its own diagram, next to it: plan.json → plan.yaml.
+  const folder = inputs.length === 1 && (isFolder(inputs[0]!) || kind === 'azure') ? inputs[0]! : undefined;
   const stdout = values.out === '-';
-  const name = `${kind === 'github' && values.as !== 'access' ? 'github' : 'access'}.yaml`;
+  const name = `${kind === 'azure' ? 'azure' : kind === 'github' && values.as !== 'access' ? 'github' : 'access'}.yaml`;
   const out = values.out && !stdout ? (path.extname(values.out) ? values.out : path.join(values.out, name)) : folder && !stdout ? besideFolder(folder) : path.join(stdout ? '.' : path.dirname(inputs[0]!), name);
   const r = exportOf(inputs, kind, out, stdout || values.force ? 'fresh' : 'merge');
   if (!r) return false;
@@ -514,7 +531,7 @@ async function importExport(inputs: string[], kind: ExportKind): Promise<boolean
   return r.clean && !check.diagnostics.some((d) => d.severity === 'error');
 }
 
-/** carto render <folder> of access or GitHub exports. --write keeps the diagram it is drawn from. */
+/** carto render <folder> of access, GitHub or Azure exports (or one Azure export file). --write keeps the diagram it is drawn from. */
 async function renderExport(folder: string, kind: ExportKind): Promise<boolean> {
   const diagram = values.write ?? besideFolder(folder);
   const r = exportOf([folder], kind, diagram, values.write ? 'merge' : 'if-same');
@@ -576,10 +593,11 @@ async function diffFiles(): Promise<number> {
     }
   }
   // Two folders of exports: each imported, the newer over the older so the same things keep their ids.
-  const folders = !ref && files.every(isFolder);
+  // Two Azure export files (a Resource Graph answer, a template, a Terraform state) are compared the same way.
+  const folders = !ref && files.every((f) => isFolder(f) || (/\.json$/i.test(f) && fs.existsSync(f) && exportKind([f]) === 'azure'));
   if (folders) {
     const kind = exportKind([files[1]!]) ?? exportKind([files[0]!]);
-    if (!kind) return (console.error(`Neither ${files[0]} nor ${files[1]} holds access exports or gh api responses`), 1);
+    if (!kind) return (console.error(`Neither ${files[0]} nor ${files[1]} holds access exports, gh api responses or Azure resources`), 1);
     const before = exportOf([files[0]!], kind, undefined, 'fresh');
     const after = exportOf([files[1]!], kind, undefined, 'fresh', before?.yaml);
     if (!before || !after) return 1;
@@ -1045,7 +1063,7 @@ async function main(): Promise<number> {
       const manifests = files.filter((f) => !exports.includes(f) && !mesh.includes(f) && !drawings.includes(f) && !plans.includes(f) && /\.(ya?ml|json)$/i.test(f) && isKubernetes(fs.readFileSync(f, 'utf8')));
       const inventories = files.filter((f) => !exports.includes(f) && !mesh.includes(f) && !drawings.includes(f) && (/\.csv$/i.test(f) || (/\.json$/i.test(f) && !plans.includes(f) && !manifests.includes(f) && isNetworkInventory(fs.readFileSync(f, 'utf8')))));
       let ok = mesh.length ? await importMesh(mesh) : true;
-      for (const kind of ['access', 'github'] as const) {
+      for (const kind of ['access', 'github', 'azure'] as const) {
         const list = exports.filter((f) => kinds.get(f) === kind);
         // Folders each their own diagram; loose files together, as one.
         for (const f of list.filter(isFolder)) ok = (await importExport([f], kind)) && ok;
@@ -1062,9 +1080,9 @@ async function main(): Promise<number> {
       if (!files.length) return (console.error(help), 1);
       if (!themeFlag()) return 1;
       let ok = true;
-      if (values.write && !(files.length === 1 && isFolder(files[0]!))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
+      if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
       for (const f of files) {
-        const kind = isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? exportKind([f]) : undefined;
+        const kind = isFolder(f) && !dataFiles(f).some((x) => isDataMeshFile(fs.readFileSync(x, 'utf8'))) ? exportKind([f]) : /\.json$/i.test(f) && exportKind([f]) === 'azure' ? 'azure' : undefined;
         ok = (await (kind ? renderExport(f, kind) : isFolder(f) ? renderMesh(f) : renderFile(f))) && ok;
       }
       return ok ? 0 : 1;

@@ -1,0 +1,564 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.9.8",
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "azurerm_resource_group.app",
+          "mode": "managed",
+          "type": "azurerm_resource_group",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod",
+            "name": "rg-bookings-prod",
+            "location": "westeurope"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_resource_group.network",
+          "mode": "managed",
+          "type": "azurerm_resource_group",
+          "name": "network",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network",
+            "name": "rg-bookings-network",
+            "location": "westeurope"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_network_security_group.app",
+          "mode": "managed",
+          "type": "azurerm_network_security_group",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app",
+            "name": "nsg-bookings-app",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-network",
+            "security_rule": []
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_virtual_network.main",
+          "mode": "managed",
+          "type": "azurerm_virtual_network",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod",
+            "name": "vnet-bookings-prod",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-network",
+            "address_space": [
+              "10.20.0.0/22"
+            ],
+            "subnet": []
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_subnet.app",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+            "name": "snet-app",
+            "resource_group_name": "rg-bookings-network",
+            "virtual_network_name": "vnet-bookings-prod",
+            "address_prefixes": [
+              "10.20.0.0/24"
+            ],
+            "delegation": [
+              {
+                "name": "web",
+                "service_delegation": [
+                  {
+                    "name": "Microsoft.Web/serverFarms",
+                    "actions": [
+                      "Microsoft.Network/virtualNetworks/subnets/action"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_subnet.pe",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "pe",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "name": "snet-pe",
+            "resource_group_name": "rg-bookings-network",
+            "virtual_network_name": "vnet-bookings-prod",
+            "address_prefixes": [
+              "10.20.1.0/24"
+            ],
+            "delegation": []
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_subnet_network_security_group_association.app",
+          "mode": "managed",
+          "type": "azurerm_subnet_network_security_group_association",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+            "subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+            "network_security_group_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_subnet_network_security_group_association.pe",
+          "mode": "managed",
+          "type": "azurerm_subnet_network_security_group_association",
+          "name": "pe",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "network_security_group_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/networkSecurityGroups/nsg-bookings-app"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_log_analytics_workspace.main",
+          "mode": "managed",
+          "type": "azurerm_log_analytics_workspace",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+            "name": "log-bookings-prod",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "sku": "PerGB2018",
+            "retention_in_days": 90
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_application_insights.main",
+          "mode": "managed",
+          "type": "azurerm_application_insights",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Insights/components/appi-bookings-prod",
+            "name": "appi-bookings-prod",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "application_type": "web",
+            "workspace_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_service_plan.main",
+          "mode": "managed",
+          "type": "azurerm_service_plan",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/serverFarms/asp-bookings-prod",
+            "name": "asp-bookings-prod",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "os_type": "Linux",
+            "sku_name": "P1v3",
+            "worker_count": 2
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_linux_web_app.bookings",
+          "mode": "managed",
+          "type": "azurerm_linux_web_app",
+          "name": "bookings",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/sites/app-kestrel-bookings",
+            "name": "app-kestrel-bookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "service_plan_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/serverFarms/asp-bookings-prod",
+            "default_hostname": "app-kestrel-bookings.azurewebsites.net",
+            "https_only": true,
+            "virtual_network_subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-app",
+            "app_settings": {
+              "ConnectionStrings__Bookings": "@Microsoft.KeyVault(VaultName=kv-kestrel-bookings;SecretName=sql-connection)",
+              "Storage__BlobEndpoint": "https://stkestrelbookings.blob.core.windows.net/"
+            },
+            "identity": [
+              {
+                "type": "SystemAssigned",
+                "principal_id": "c6f0befa-5045-f0da-dfbd-f5c7e87f4e16",
+                "tenant_id": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+                "identity_ids": []
+              }
+            ],
+            "site_config": [
+              {
+                "always_on": true,
+                "application_stack": [
+                  {
+                    "dotnet_version": "8.0"
+                  }
+                ]
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_monitor_diagnostic_setting.site",
+          "mode": "managed",
+          "type": "azurerm_monitor_diagnostic_setting",
+          "name": "site",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/sites/app-kestrel-bookings|to-log-analytics",
+            "name": "to-log-analytics",
+            "target_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Web/sites/app-kestrel-bookings",
+            "log_analytics_workspace_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+            "enabled_log": [
+              {
+                "category_group": "allLogs"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_key_vault.main",
+          "mode": "managed",
+          "type": "azurerm_key_vault",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings",
+            "name": "kv-kestrel-bookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "sku_name": "standard",
+            "tenant_id": "e9ca66e0-999d-1b25-4834-993f20d9b69b",
+            "vault_uri": "https://kv-kestrel-bookings.vault.azure.net/",
+            "enable_rbac_authorization": true,
+            "public_network_access_enabled": false
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_monitor_diagnostic_setting.kv",
+          "mode": "managed",
+          "type": "azurerm_monitor_diagnostic_setting",
+          "name": "kv",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings|to-log-analytics",
+            "name": "to-log-analytics",
+            "target_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings",
+            "log_analytics_workspace_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+            "enabled_log": [
+              {
+                "category_group": "allLogs"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_mssql_server.main",
+          "mode": "managed",
+          "type": "azurerm_mssql_server",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+            "name": "sql-kestrel-bookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "version": "12.0",
+            "fully_qualified_domain_name": "sql-kestrel-bookings.database.windows.net",
+            "public_network_access_enabled": false
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_mssql_database.bookings",
+          "mode": "managed",
+          "type": "azurerm_mssql_database",
+          "name": "bookings",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings/databases/bookings",
+            "name": "bookings",
+            "server_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+            "sku_name": "GP_S_Gen5_2"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_monitor_diagnostic_setting.sql",
+          "mode": "managed",
+          "type": "azurerm_monitor_diagnostic_setting",
+          "name": "sql",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings|to-log-analytics",
+            "name": "to-log-analytics",
+            "target_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+            "log_analytics_workspace_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.OperationalInsights/workspaces/log-bookings-prod",
+            "enabled_log": [
+              {
+                "category_group": "allLogs"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_storage_account.main",
+          "mode": "managed",
+          "type": "azurerm_storage_account",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Storage/storageAccounts/stkestrelbookings",
+            "name": "stkestrelbookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "account_tier": "Standard",
+            "account_replication_type": "ZRS",
+            "primary_blob_endpoint": "https://stkestrelbookings.blob.core.windows.net/",
+            "public_network_access_enabled": false
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_storage_account.old",
+          "mode": "managed",
+          "type": "azurerm_storage_account",
+          "name": "old",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Storage/storageAccounts/stkestrelbookingsold",
+            "name": "stkestrelbookingsold",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "account_tier": "Standard",
+            "account_replication_type": "LRS",
+            "primary_blob_endpoint": "https://stkestrelbookingsold.blob.core.windows.net/"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_private_endpoint.sql",
+          "mode": "managed",
+          "type": "azurerm_private_endpoint",
+          "name": "sql",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-sql-bookings",
+            "name": "pe-sql-bookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "private_service_connection": [
+              {
+                "name": "pe-sql-bookings",
+                "private_connection_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Sql/servers/sql-kestrel-bookings",
+                "subresource_names": [
+                  "sqlServer"
+                ],
+                "is_manual_connection": false,
+                "private_ip_address": "10.20.1.4"
+              }
+            ],
+            "network_interface": [
+              {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-sql-bookings.nic",
+                "name": "pe-sql-bookings.nic"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_private_endpoint.kv",
+          "mode": "managed",
+          "type": "azurerm_private_endpoint",
+          "name": "kv",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-kv-bookings",
+            "name": "pe-kv-bookings",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "private_service_connection": [
+              {
+                "name": "pe-kv-bookings",
+                "private_connection_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.KeyVault/vaults/kv-kestrel-bookings",
+                "subresource_names": [
+                  "vault"
+                ],
+                "is_manual_connection": false,
+                "private_ip_address": "10.20.1.5"
+              }
+            ],
+            "network_interface": [
+              {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-kv-bookings.nic",
+                "name": "pe-kv-bookings.nic"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_private_endpoint.blob",
+          "mode": "managed",
+          "type": "azurerm_private_endpoint",
+          "name": "blob",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/privateEndpoints/pe-st-bookings-blob",
+            "name": "pe-st-bookings-blob",
+            "location": "westeurope",
+            "resource_group_name": "rg-bookings-prod",
+            "subnet_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-network/providers/Microsoft.Network/virtualNetworks/vnet-bookings-prod/subnets/snet-pe",
+            "private_service_connection": [
+              {
+                "name": "pe-st-bookings-blob",
+                "private_connection_resource_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Storage/storageAccounts/stkestrelbookings",
+                "subresource_names": [
+                  "blob"
+                ],
+                "is_manual_connection": false,
+                "private_ip_address": "10.20.1.6"
+              }
+            ],
+            "network_interface": [
+              {
+                "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Network/networkInterfaces/pe-st-bookings-blob.nic",
+                "name": "pe-st-bookings-blob.nic"
+              }
+            ]
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_cdn_frontdoor_profile.main",
+          "mode": "managed",
+          "type": "azurerm_cdn_frontdoor_profile",
+          "name": "main",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings",
+            "name": "afd-kestrel-bookings",
+            "resource_group_name": "rg-bookings-prod",
+            "sku_name": "Premium_AzureFrontDoor"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_cdn_frontdoor_origin_group.default",
+          "mode": "managed",
+          "type": "azurerm_cdn_frontdoor_origin_group",
+          "name": "default",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/originGroups/og-default",
+            "name": "og-default",
+            "cdn_frontdoor_profile_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings"
+          },
+          "sensitive_values": {}
+        },
+        {
+          "address": "azurerm_cdn_frontdoor_origin.app",
+          "mode": "managed",
+          "type": "azurerm_cdn_frontdoor_origin",
+          "name": "app",
+          "provider_name": "registry.terraform.io/hashicorp/azurerm",
+          "schema_version": 0,
+          "values": {
+            "tags": {},
+            "id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/originGroups/og-default/origins/app",
+            "name": "app",
+            "cdn_frontdoor_origin_group_id": "/subscriptions/3209c48f-63fb-a1fa-be63-249618e2a277/resourceGroups/rg-bookings-prod/providers/Microsoft.Cdn/profiles/afd-kestrel-bookings/originGroups/og-default",
+            "host_name": "app-kestrel-bookings.azurewebsites.net",
+            "origin_host_header": "app-kestrel-bookings.azurewebsites.net"
+          },
+          "sensitive_values": {}
+        }
+      ]
+    }
+  }
+}

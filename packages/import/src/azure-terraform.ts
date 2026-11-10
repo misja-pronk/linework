@@ -2,7 +2,7 @@
 // terraform reader's own walk (modules, references in the configuration of a plan), and puts each
 // azurerm resource in Azure's words: its resource type, its resource id. A plan also says what it
 // will do to each resource; what it deletes is read from what was there before.
-import { Estate, hostOf, walkRefs, type AzResource, type Change } from './azure-estate.ts';
+import { Estate, hostOf, TARGET_SUB, walkRefs, type AzResource, type Change } from './azure-estate.ts';
 import { isObj, str, type Obj } from './keep.ts';
 import { link, readConfig, readResources, type Resource } from './terraform.ts';
 
@@ -153,13 +153,13 @@ export function readTerraform(estate: Estate, doc: Obj): number {
 
   // Subscription: from any id that is known; a plan's new resources are in the same one as the rest.
   const subs = new Set(az.map((r) => /^\/subscriptions\/([^/]+)/i.exec(str(r.values.id) ?? '')?.[1]?.toLowerCase()).filter(Boolean) as string[]);
-  const sub = subs.size === 1 ? [...subs][0]! : subs.size ? undefined : '(subscription)';
+  const sub = subs.size === 1 ? [...subs][0]! : subs.size ? undefined : TARGET_SUB;
   const rgSub = new Map<string, string>();
   for (const r of az) {
     const m = /^\/subscriptions\/([^/]+)\/resourceGroups\/([^/]+)/i.exec(str(r.values.id) ?? '');
     if (m) rgSub.set(m[2]!.toLowerCase(), m[1]!.toLowerCase());
   }
-  const rgId = (rg: string) => `/subscriptions/${rgSub.get(rg.toLowerCase()) ?? sub ?? '(subscription)'}/resourceGroups/${rg}`;
+  const rgId = (rg: string) => `/subscriptions/${rgSub.get(rg.toLowerCase()) ?? sub ?? TARGET_SUB}/resourceGroups/${rg}`;
 
   /** The resource id: as the state has it, else made the way Azure makes it. */
   const ids = new Map<string, string>();
