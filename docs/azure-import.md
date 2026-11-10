@@ -1,6 +1,6 @@
 # What runs where in Azure: importing Resource Graph, Bicep and Terraform
 
-What is deployed is already written down, in exports the tools you have can make: Azure Resource Graph, the JSON `az bicep build` compiles, `terraform show -json`. Cartography reads those files and draws an [azure diagram](types.md): management groups, subscriptions, resource groups, networks and subnets, each resource in the one it is in, and lines for what the export says goes where. Nothing is fetched and nothing leaves your machine: you run the export, Cartography reads the files. It never calls Azure, never runs Bicep or Terraform.
+What is deployed is already written down, in exports the tools you have can make: Azure Resource Graph, the JSON `az bicep build` compiles, `terraform show -json`. Cartography reads those files and draws an [azure diagram](types.md): management groups, subscriptions, resource groups, networks and subnets, each resource in the one it is in, and lines for what the export says goes where. Nothing is fetched and nothing leaves your machine: you run the export, Cartography reads the files. It never calls Azure, never runs Bicep or Terraform. To have Cartography run `az graph query` for you instead, with your own login and read-only: [live import](live-import.md).
 
 ```sh
 carto render exports/ -o estate.png             # the picture, nothing else is written

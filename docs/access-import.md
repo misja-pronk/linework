@@ -1,6 +1,6 @@
 # Who reaches what: importing Azure, Entra ID and GitHub access
 
-Access is already written down, in the exports the tools you have can make: `az role assignment list`, Microsoft Graph, AzureHound, `gh api`. Cartography reads a folder of those files and draws who reaches what: an [access diagram](types.md) for Azure and Entra ID, a GitHub diagram for an organisation. Nothing is fetched and nothing leaves your machine: you run the export, Cartography reads the files.
+Access is already written down, in the exports the tools you have can make: `az role assignment list`, Microsoft Graph, AzureHound, `gh api`. Cartography reads a folder of those files and draws who reaches what: an [access diagram](types.md) for Azure and Entra ID, a GitHub diagram for an organisation. Nothing is fetched and nothing leaves your machine: you run the export, Cartography reads the files. Or let it run the same commands with your own `az` or `gh` login, read-only: [live import](live-import.md).
 
 ```sh
 carto render exports/ -o access.svg            # the picture, nothing else is written

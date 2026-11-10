@@ -415,5 +415,6 @@ function over(existing: string | undefined, title: string, namespaces: string[],
   const had = new Set(stay.map((e) => JSON.stringify(e)));
   kept.list('edges', [...stay, ...fresh.filter((e) => !had.has(JSON.stringify(e)))]);
   kept.tidy(['groups', 'nodes']);
-  return kept.text();
+  // A labelled line the way the file import writes it: `- a -> b: HTTPS`, not `- { a -> b: HTTPS }`.
+  return kept.text().replace(/^(\s*- )\{ ([\w.-]+ -> [\w.-]+: [^{}[\]]*) \}$/gm, '$1$2');
 }
