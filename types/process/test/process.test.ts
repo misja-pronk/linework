@@ -316,6 +316,25 @@ describe('the layout', () => {
     }
   });
 
+  it('keeps a label longer than its line off the arrowhead, the steps and the other lines', async () => {
+    const { r } = await boxes(leave.replace('  - Approve -->', '  - Explain -> Waited: after a week without an answer\n  - Approve -->').replace('  Explain: manager', '  Explain: manager\n  Waited: timer'));
+    expect(r.diagnostics).toEqual([]);
+    const e = r.graph!.edges.find((x) => x.to.node === 'Waited')!;
+    const l = r.placed!.edges.get(e.id)!.label!;
+    const hit = (b: { x: number; y: number; width: number; height: number }) => l.x < b.x + b.width && b.x < l.x + l.width && l.y < b.y + b.height && b.y < l.y + l.height;
+    for (const [id, b] of r.placed!.nodes) expect(hit(b), `on ${id}`).toBe(false);
+    for (const [id, b] of r.placed!.labels!) expect(hit(b), `on the name of ${id}`).toBe(false);
+    for (const [id, line] of r.placed!.edges) {
+      // Its own line it may lie on, as long as the arrowhead shows.
+      if (id === e.id) expect(hit({ ...line.points.at(-1)!, width: 0, height: 0 }), 'on its arrowhead').toBe(false);
+      else
+        for (let i = 1; i < line.points.length; i++) {
+          const [p, q] = [line.points[i - 1]!, line.points[i]!];
+          expect(hit({ x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), width: Math.abs(q.x - p.x), height: Math.abs(q.y - p.y) }), `across ${id}`).toBe(false);
+        }
+    }
+  });
+
   it('draws the same picture twice, and moves little when a step is added at the end of a branch', async () => {
     const one = await boxes(leave);
     const two = await boxes(leave);

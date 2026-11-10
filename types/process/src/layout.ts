@@ -470,6 +470,7 @@ export function flowLayout(sized: Sized): Placed {
   }
   for (const [i, lane] of lanes.entries()) placed.groups.set(lane.id, box({ u: 0, v: laneBox[i]!.top, du: totalU, dv: laneBox[i]!.bottom - laneBox[i]!.top }));
 
+  const crossing: { id: string; piece: number; c: UV; l: UV }[] = [];
   for (const [id, list] of routes) {
     const e = list[0]!.edge;
     const at = list.map(where);
@@ -486,15 +487,32 @@ export function flowLayout(sized: Sized): Placed {
         const d = { u: Math.sign(q.u - p.u), v: Math.sign(q.v - p.v) };
         c = { u: p.u + d.u * (8 + l.u / 2), v: p.v + d.v * (6 + l.v / 2) };
       } else {
-        // On the middle of its longest piece.
+        // On the middle of its longest piece, of those long enough to hold it: a label wider than
+        // the piece it lies along would hide the arrowhead, and crosses a piece the other way instead.
         let k = 0;
         const len = (i: number) => Math.abs(pts[i + 1]!.u - pts[i]!.u) + Math.abs(pts[i + 1]!.v - pts[i]!.v);
-        for (let i = 1; i + 1 < pts.length; i++) if (len(i) > len(k) + 1) k = i;
+        const holds = (i: number) => len(i) >= (pts[i + 1]!.v === pts[i]!.v ? l.u : l.v) + 16;
+        for (let i = 1; i + 1 < pts.length; i++) if (holds(i) === holds(k) ? len(i) > len(k) + 1 : holds(i)) k = i;
         c = { u: (pts[k]!.u + pts[k + 1]!.u) / 2, v: (pts[k]!.v + pts[k + 1]!.v) / 2 };
+        if (pts[k + 1]!.u === pts[k]!.u) crossing.push({ id, piece: k, c, l });
       }
       out.label = box({ u: c.u - l.u / 2, v: c.v - l.v / 2, du: l.u, dv: l.v });
     }
     placed.edges.set(id, out);
+  }
+  // A label that lies across its line moves beside it when it would cut through another line or lie on a step.
+  const touch = (a: Box, b: Box) => a.x < b.x + b.width + 3 && b.x < a.x + a.width + 3 && a.y < b.y + b.height + 3 && b.y < a.y + a.height + 3;
+  const reach = (p: Point, q: Point): Box => ({ x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), width: Math.abs(q.x - p.x), height: Math.abs(q.y - p.y) });
+  for (const { id, piece, c, l } of crossing) {
+    const at = (du: number) => box({ u: c.u + du - l.u / 2, v: c.v - l.v / 2, du: l.u, dv: l.v });
+    const free = (du: number) => {
+      const b = at(du);
+      if ([...placed.nodes.values(), ...placed.labels!.values()].some((n) => touch(b, n))) return false;
+      return ![...placed.edges].some(([other, e]) => e.points.some((p, i) => i > 0 && !(other === id && i - 1 === piece && !du) && touch(b, reach(e.points[i - 1]!, p))));
+    };
+    const aside = l.u / 2 + 8;
+    const du = [0, aside, -aside].find(free);
+    if (du) placed.edges.get(id)!.label = at(du);
   }
   // Back to itself: a small loop over the top.
   for (const e of loops) {
