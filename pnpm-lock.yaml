@@ -106,6 +106,9 @@ importers:
       '@cartography/access':
         specifier: workspace:*
         version: link:../../types/access
+      '@cartography/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
