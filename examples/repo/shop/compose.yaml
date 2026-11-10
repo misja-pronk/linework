@@ -1,0 +1,111 @@
+# Local development: the whole shop on one machine. `docker compose up`, then http://localhost:8080.
+name: shop
+
+x-service: &service
+  restart: unless-stopped
+  networks: [backend]
+  environment: &env
+    LOG_LEVEL: debug
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4317
+
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [web, orders]
+    networks: [frontend, backend]
+
+  web:
+    build: ./services/web
+    <<: *service
+    networks: [frontend]
+    environment:
+      ORDERS_URL: http://orders:8000
+      AUTH_URL: http://keycloak:8080/realms/shop
+
+  orders:
+    build:
+      context: ./services/orders
+    <<: *service
+    environment:
+      <<: *env
+      DATABASE_URL: postgres://shop:shop@postgres:5432/orders
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+
+  payments:
+    build: ./services/payments
+    <<: *service
+    environment:
+      DATABASE_URL: postgres://shop:shop@postgres:5432/payments
+      STRIPE_API_KEY: ${STRIPE_API_KEY}
+    depends_on: [postgres, rabbitmq]
+
+  worker:
+    build: ./services/worker
+    <<: *service
+    command: ["worker", "--queues", "orders,emails"]
+    depends_on: [rabbitmq, mailpit]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "shop"]
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    networks: [backend]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - mqdata:/var/lib/rabbitmq
+    networks: [backend]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: start-dev --import-realm
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./deploy/realm.json:/opt/keycloak/data/import/realm.json:ro
+    networks: [frontend, backend]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+    profiles: [dev]
+    networks: [backend]
+
+  otel:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    profiles: [monitoring]
+    networks: [backend]
+
+volumes:
+  pgdata:
+  mqdata:
+
+networks:
+  frontend:
+  backend:
+    internal: true

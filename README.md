@@ -37,12 +37,14 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Compare with an earlier version or a snapshot | `⇧⌘D`, `carto diff` | [compare](docs/compare.md) |
 | Ask Claude for a change (your own API key) | `⌘J` | [ai](docs/ai.md) |
 | One model, many diagrams; a folder as one model | `⌘P`, `⌘↓`, `⌘↑`, `⇧F2` | [model](docs/model.md), [workspace](docs/workspace.md) |
+| Architecture review: rule packs, findings by pillar, fixes | `⇧W`, `carto review` | [review](docs/review.md) |
 | Threat models, trust boundaries, STRIDE | `carto threats`, `--view threats` | [threats](docs/threats.md) |
 | Animate steps or layers (GIF, MP4, WebM) | Export → Animation, `carto animate` | [animate](docs/animate.md) |
 | Describe a diagram in plain words | Export → Describe in words, `carto describe` | [describe](docs/describe.md) |
 | One interactive HTML file to send | Export → Interactive HTML, `carto export --to html` | [html export](docs/html-export.md) |
 | Wiki pages: Markdown, Confluence | `carto export --to md\|confluence` | [wiki export](docs/wiki-export.md) |
 | PowerPoint and PDF, a slide per step; a client's template | Export, `carto deck` | [powerpoint templates](docs/powerpoint-templates.md) |
+| Diagrams from a repository's code (Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows) | ⌘K → Diagrams from the code, `carto import .` | [repo import](docs/repo-import.md) |
 | draw.io, Excalidraw, Mermaid, both ways | `carto export --to drawio`, `carto import` | [interop](docs/interop.md) |
 | A share link (the diagram travels in the `#fragment`) | Export → Copy share link, `carto share` | [share](docs/share.md) |
 | Themes, a client's colours and logo, vendor icons | **Theme**, `carto themes`, `carto icons` | [themes](docs/themes.md), [icons](docs/icons.md) |
@@ -52,7 +54,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 **A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels on the lines, a key. Lines that share a path are spaced evenly or merge into a trunk; supporting links (Key Vault, logging) can be badges on the card. Transit, Drafting and a hand-drawn Sketch are built in. See [style](docs/style.md), [the comparison with Mermaid and D2](docs/comparison/README.md) and [the benchmark](docs/benchmark.md), including where Cartography loses.
 
-**From what you already have**: Mermaid, D2, PlantUML, Structurizr DSL, draw.io and Excalidraw files; Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history; ODPS and ODCS data products and contracts (`carto render mesh/`); Azure and Entra ID access exports (az, Graph, AzureHound), Azure resources (Resource Graph, ARM / Bicep, azurerm Terraform) and GitHub organisations (`gh api`). Importing again keeps your edits; `carto import --live k8s|azure|access|github` reads with your own logged-in tools, read-only. See [access import](docs/access-import.md), [Azure import](docs/azure-import.md) and [live import](docs/live-import.md), and the guides for people coming from [Mermaid](docs/coming-from/mermaid.md), [D2](docs/coming-from/d2.md), [draw.io](docs/coming-from/drawio.md), [PlantUML](docs/coming-from/plantuml.md) and [Structurizr](docs/coming-from/structurizr.md).
+**From what you already have**: Mermaid, D2, PlantUML, Structurizr DSL, draw.io and Excalidraw files; Kubernetes manifests, Terraform state or plan JSON, network inventories (CSV, NetBox), git history; ODPS and ODCS data products and contracts (`carto render mesh/`); Azure and Entra ID access exports (az, Graph, AzureHound), Azure resources (Resource Graph, ARM / Bicep, azurerm Terraform) and GitHub organisations (`gh api`). Importing again keeps your edits; `carto import --live k8s|azure|access|github` reads with your own logged-in tools, read-only. See [access import](docs/access-import.md), [Azure import](docs/azure-import.md) and [live import](docs/live-import.md), and the guides for people coming from [Mermaid](docs/coming-from/mermaid.md), [D2](docs/coming-from/d2.md), [draw.io](docs/coming-from/drawio.md), [PlantUML](docs/coming-from/plantuml.md) and [Structurizr](docs/coming-from/structurizr.md), or with nothing drawn yet but [a code repository](docs/repo-import.md).
 
 **In your docs**: a remark plugin (Docusaurus, Astro, MDX) and a markdown-it plugin (VitePress, Eleventy) draw a fenced `cartography` block or `![Web shop](./shop.yaml)` as SVG while the site builds; `<carto-diagram src="shop.yaml">` draws in the browser with zoom and drill-down. See [embed](docs/embed.md) and [examples/docs](examples/docs).
 

@@ -1,0 +1,26 @@
+type: github
+title: Shop on GitHub
+subtitle: Who works on the repository and where it deploys
+
+groups:
+  org: { kind: org, label: acme }
+  shop: { kind: repo, label: acme/shop, in: org }
+  azure: { kind: cloud, label: Azure }
+
+nodes:
+  devs: { kind: team, label: Shop developers, in: org }
+  platform: { kind: team, label: Platform, in: org }
+  rules: { kind: ruleset, label: main protected, caption: 1 review · CI green, in: shop }
+  ci: { kind: workflow, label: ci.yml, caption: on pull request, in: shop }
+  deploy: { kind: workflow, label: deploy.yml, caption: on push to main, in: shop }
+  staging: { kind: environment, label: staging, in: shop }
+  production: { kind: environment, label: production, caption: required reviewers · Platform, in: shop }
+  apps: { kind: cloud-target, label: Container Apps and AKS, in: azure }
+
+edges:
+  - devs -> shop: { label: write, style: access }
+  - platform -> shop: { label: admin, style: access }
+  - rules -> ci: { label: required check, style: protects }
+  - deploy -> staging: { style: deploy }
+  - deploy -> production: { style: deploy }
+  - production -> apps: { label: OIDC, style: oidc }

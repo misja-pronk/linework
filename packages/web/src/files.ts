@@ -6,8 +6,8 @@ import type { LayoutSidecar } from '@cartography/core';
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
 
-/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md). */
-const TEXT = /\.(ya?ml|json|md)$/i;
+/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md); review rules (.cartography/rules.yaml); the code a repository is drawn from (Bicep, Helm's .tpl, Dockerfiles). */
+const TEXT = /\.(ya?ml|json|md|bicep|bicepparam|tpl|tf)$|^Dockerfile$/i;
 const SKIP = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'out']);
 const MAX_FILES = 800;
 const MAX_BYTES = 2_000_000;
@@ -22,10 +22,13 @@ export interface Workspace {
 /** Paths of the diagrams in a workspace: YAML with a top-level "type:" (snapshots of one, in <name>.snapshots/, are not). */
 export function diagrams(ws: Workspace): string[] {
   return [...ws.files]
-    .filter(([p, f]) => /\.ya?ml$/i.test(p) && /^type:\s*[\w-]+/m.test(f.text) && !/\.(odcs|block)\.ya?ml$/i.test(p) && !/(^|\/)[^/]+\.snapshots\//.test(p))
+    .filter(([p, f]) => /\.ya?ml$/i.test(p) && /^type:\s*[\w-]+/m.test(f.text) && !/\.(odcs|block)\.ya?ml$/i.test(p) && !/(^|\/)[^/]+\.snapshots\//.test(p) && !isCodeYaml(p, f.text))
     .map(([p]) => p)
     .sort((a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b));
 }
+
+/** YAML of a repository's code that has a top-level type: too: a Helm chart's Chart.yaml (type: application), a manifest. */
+const isCodeYaml = (path: string, text: string) => /(^|\/)Chart\.yaml$/.test(path) || /^apiVersion\s*:/m.test(text);
 
 export async function pickFolder(): Promise<Workspace | undefined> {
   try {
@@ -45,7 +48,8 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
     for await (const [name, h] of (d as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }).entries()) {
       if (files.size >= MAX_FILES) return;
       if (h.kind === 'directory') {
-        if (depth < 6 && !SKIP.has(name) && !name.startsWith('.')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
+        // .github holds the workflows a repository is drawn from, .cartography the review rules; other hidden folders are left alone.
+        if (depth < 6 && !SKIP.has(name) && (!name.startsWith('.') || name === '.github' || name === '.cartography')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
       } else if (TEXT.test(name) || /^codeowners$/i.test(name) || name === '.adr-dir') {
         const file = await (h as FileSystemFileHandle).getFile();
         if (file.size <= MAX_BYTES) files.set(prefix + name, { handle: h as FileSystemFileHandle, text: await file.text() });

@@ -1501,11 +1501,14 @@ button.rail {
   padding: 6px 6px 0;
   border-bottom: 1px solid var(--border);
   min-width: 0;
+  /* Should a panel get narrower than the collapsed tabs, the strip scrolls rather than clipping. */
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-/* Narrower than the four labels (Ask Claude was cut off at 1280 and 1512): only the chosen tab says its
+/* Narrower than the five labels (Ask Claude was cut off at 1280 and 1512): only the chosen tab says its
    name, the others are icon and count with the name as tooltip; narrower still, icons only. The names
    stay readable to screen readers. */
-@container side (max-width: 400px) {
+@container side (max-width: 480px) {
   .side-tabs button:not([aria-selected='true']) .tab-label {
     position: absolute;
     width: 1px;

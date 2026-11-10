@@ -251,6 +251,23 @@ describe('carto import and diff of access and GitHub exports', () => {
     expect(read('tenant.yaml')).toContain('label: Developers');
   }, 60_000);
 
+  it('imports a code repository into diagrams/, and again keeps what was changed by hand', () => {
+    fs.cpSync(path.join(root, 'examples/repo/shop'), path.join(tmp, 'shop'), { recursive: true, filter: (src) => !src.includes(`${path.sep}diagrams`) });
+    const dry = carto('import', 'shop', '--dry-run');
+    expect(dry.code).toBe(0);
+    expect(dry.out).toContain('compose.yaml → shop/diagrams/services.yaml 9 services, 2 stores, 2 networks (not written: --dry-run)');
+    expect(exists('shop/diagrams')).toBe(false);
+    const first = carto('import', 'shop', '--values', 'shop/deploy/helm/shop/values-prod.yaml');
+    expect(first.code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'shop/diagrams')).sort()).toEqual(['events.yaml', 'infra-azure.yaml', 'kubernetes.yaml', 'services.yaml', 'shop-api-callbacks.yaml', 'shop-api.yaml', 'shop-chart.yaml', 'workflow-ci.yaml', 'workflow-deploy.yaml']);
+    expect(read('shop/diagrams/shop-chart.yaml')).toMatch(/replicas: "?4-20/);
+    expect(first.out).toContain('also: infra/dns: Terraform source');
+    write('shop/diagrams/services.yaml', read('shop/diagrams/services.yaml').replace('  web: { kind: client, label: web,', '  web: { kind: client, label: Storefront,'));
+    const again = carto('import', 'shop');
+    expect(again.out).toContain('services.yaml 9 services, 2 stores, 2 networks, what was added by hand kept');
+    expect(read('shop/diagrams/services.yaml')).toContain('label: Storefront');
+  }, 90_000);
+
   it('says a flag it does not know, and stops', () => {
     const r = carto('import', az('kestrel'), '--principals', 'some', '-o', '-');
     expect(r.code).toBe(1);
@@ -363,8 +380,8 @@ describe('carto errors and help', () => {
     expect(top.code).toBe(0);
     expect(top.out).toMatch(/^Draw {4}render/m);
     for (const g of ['Create', 'Draw', 'Export', 'Check', 'Look']) expect(top.out).toMatch(new RegExp(`^${g} `, 'm'));
-    // One line per command in five groups, the three export-* folded into export --to: 26 lines, one screen.
-    expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(26);
+    // One line per command in five groups, the three export-* folded into export --to: 27 lines with review, one screen.
+    expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(27);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');

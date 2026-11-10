@@ -1,0 +1,28 @@
+CI
+
+Process diagram: From ci.yml: 4 jobs, 2 with a matrix. 6 elements, with 7 connections.
+
+Elements
+- On pull request, push to main (start event)
+- lint
+- Unit tests (matrix ×6: os × node)
+- API contract
+- Build images (matrix ×4: service)
+- End event
+
+Main path
+1. On pull request, push to main
+2. lint
+3. Build images
+4. End event
+
+Connections
+- On pull request, push to main leads to lint, leads to Unit tests and leads to API contract.
+- lint leads to Build images.
+- Unit tests leads to Build images.
+- API contract leads to Build images.
+- Build images leads to End event.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

@@ -4,7 +4,7 @@ import { importDataMesh, isDataMeshFile, type ImportedMesh, type MeshFile } from
 
 const TEXT = /\.(ya?ml|json)$/i;
 /** What a drop reads: these, and drawings from draw.io, Excalidraw and Mermaid, which the editor imports. */
-const READ = /\.(ya?ml|json|drawio|dio|xml|excalidraw|mmd|mermaid|d2|puml|plantuml)$/i;
+const READ = /\.(ya?ml|json|drawio|dio|xml|excalidraw|mmd|mermaid|d2|puml|plantuml|bicep|bicepparam|tpl)$|^Dockerfile$/i;
 const NOTE = /\.layout\.json$/i;
 const MAX_FILES = 400;
 const MAX_BYTES = 2_000_000;
@@ -53,7 +53,7 @@ export async function dropped(data: DataTransfer): Promise<MeshFile[]> {
   };
   const walk = async (e: FileSystemEntry, prefix: string, depth: number): Promise<void> => {
     if (e.isFile) return add(prefix + e.name, await new Promise<File>((ok, fail) => (e as FileSystemFileEntry).file(ok, fail)));
-    if (depth > 6 || e.name.startsWith('.') || e.name === 'node_modules') return;
+    if (depth > 6 || (e.name.startsWith('.') && e.name !== '.github') || e.name === 'node_modules') return;
     const reader = (e as FileSystemDirectoryEntry).createReader();
     // A folder is read a batch at a time, until a batch comes back empty.
     for (;;) {

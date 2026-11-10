@@ -1,0 +1,25 @@
+type: azure
+title: Shop in Azure
+subtitle: From the Bicep source
+badges: [identity]
+
+groups:
+  subscription: { kind: subscription, label: Subscription, caption: where the template is deployed, tags: [imported] }
+  target-resource-group: { kind: resource-group, label: Target resource group, caption: where the template is deployed, in: subscription, tags: [imported] }
+  vnet-shop-prod: { kind: vnet, label: vnet-shop-prod, caption: Virtual network · 10.40.0.0/16, in: target-resource-group, tags: [imported] }
+  snet-apps: { kind: subnet, label: snet-apps, caption: 10.40.0.0/23, in: vnet-shop-prod, tags: [imported] }
+  snet-data: { kind: subnet, label: snet-data, caption: 10.40.2.0/24 · delegated to PostgreSQL, in: vnet-shop-prod, tags: [imported] }
+
+nodes:
+  kv-shop-prod: { kind: key-vault, label: kv-shop-prod, in: target-resource-group, tags: [imported] }
+  log-shop-prod: { kind: log-analytics, label: log-shop-prod, in: target-resource-group, tags: [imported] }
+  redis-shop-prod: { kind: redis, label: redis-shop-prod, in: target-resource-group, tags: [imported] }
+  ca-shop-prod-orders: { kind: container-app, label: ca-shop-prod-orders, in: snet-apps, tags: [imported] }
+  ca-shop-prod-payments: { kind: container-app, label: ca-shop-prod-payments, in: snet-apps, tags: [imported] }
+  ca-shop-prod-web: { kind: container-app, label: ca-shop-prod-web, in: snet-apps, tags: [imported] }
+  psql-shop-prod: { kind: postgres, label: psql-shop-prod, caption: PostgreSQL · Standard D2ds v5, in: snet-data, tags: [imported] }
+
+edges:
+  - ca-shop-prod-orders -> kv-shop-prod: { label: secrets, style: identity }
+  - ca-shop-prod-payments -> kv-shop-prod: { label: secrets, style: identity }
+  - ca-shop-prod-web -> kv-shop-prod: { label: secrets, style: identity }
