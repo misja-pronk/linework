@@ -120,13 +120,19 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
               Finish <kbd>↵</kbd>
             </button>
           ) : (
-            <button className="button primary" onClick={next}>
-              Next <kbd>↵</kbd>
-            </button>
+            <>
+              {/* Every answer has a default: done now, without the questions left (a trackpad's ⌘↵). */}
+              <button className="button ghost" onClick={() => keys.current.finish()} title="Use the defaults for the questions left and open the drawing (⌘↵)">
+                Finish with defaults <kbd>⌘↵</kbd>
+              </button>
+              <button className="button primary" onClick={next}>
+                Next <kbd>↵</kbd>
+              </button>
+            </>
           )}
         </footer>
         <p className="fine wizard-source" title={wizard.source}>
-          After {wizard.source.split(/[,:(]/)[0]}. Every answer has a default: <kbd>⌘↵</kbd> finishes now.
+          After {wizard.source.split(/[,:(]/)[0]}.
         </p>
       </div>
       <div className="ask-preview wizard-preview">

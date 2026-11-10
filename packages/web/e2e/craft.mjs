@@ -257,7 +257,10 @@ await page.screenshot({ path: `${out}/c0-start.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Shift+KeyG');
   await wait(200);
-  if ((await page.locator('.zoom button[aria-label="Snap to grid"]').getAttribute('aria-pressed')) !== 'true') fail('⇧G did not turn on the grid');
+  // The switch is in ⋯ (no longer on the zoom bar): it shows the grid as on.
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  if ((await page.locator('.menu [role=menuitemcheckbox]:has-text("Snap to grid")').getAttribute('aria-checked')) !== 'true') fail('⇧G did not turn on the grid');
+  await page.keyboard.press('Escape');
   const b = await rect('b');
   await drag(centre(b), { x: centre(b).x + 37, y: centre(b).y + 61 }, 10, { alt: false });
   const pin = (await pins()).nodes?.b;

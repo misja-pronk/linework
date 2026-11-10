@@ -1054,6 +1054,9 @@ kbd {
 .canvas-tools [role='menuitem'].tool-folded {
   display: none;
 }
+.canvas-tools .menu button {
+  white-space: nowrap;
+}
 span.tool-more {
   display: contents;
 }

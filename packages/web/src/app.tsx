@@ -2318,9 +2318,14 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* Decisions and Compare, at every width (the trackpad way in with nothing selected; ⋯ takes the room the clock had); in a narrow drawing also the tools that fold away, in the same order. */}
+              {/* Decisions in one click, with its count, like Notes (review 3: it hid in ⋯). */}
+              <button className={decisionsOpen ? 'tool active' : 'tool'} onClick={() => decisionsTool.toggle()} title={`Architecture decisions (${keyHint('decisions')})`} aria-pressed={decisionsOpen} aria-label={`Decisions${decisionsTool.count ? `, ${decisionsTool.count}` : ''}`}>
+                <Icon name="scroll-text" />
+                {decisionsTool.count > 0 && <span className="tool-count">{decisionsTool.count}</span>}
+              </button>
+              {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
-                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: decisions, compare with an earlier version">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More: compare with an earlier version, zoom to the selection, grid, minimap">
                   <span className="more-dots" aria-hidden="true">⋯</span>
                 </button>
                 {toolsMore && (
@@ -2338,11 +2343,18 @@ export function App() {
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
                       </button>
                     )}
-                    <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
-                      <Icon name="scroll-text" /> {decisionsOpen ? 'Hide the decisions' : 'Decisions'}{decisionsTool.count ? ` (${decisionsTool.count})` : ''} <kbd>{keyHint('decisions')}</kbd>
-                    </button>
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
                       <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'} <kbd>{keyHint('compare')}</kbd>
+                    </button>
+                    <hr />
+                    <button role="menuitem" onClick={() => (setToolsMore(false), previewControl.current?.zoomToSelection())} disabled={!selection.length}>
+                      <Icon name="focus" /> Zoom to the selection <kbd>{keyHint('zoom-selection')}</kbd>
+                    </button>
+                    <button role="menuitemcheckbox" aria-checked={!!craft.grid} onClick={() => (setToolsMore(false), craft.toggle('grid'))}>
+                      <Icon name="grid-3x3" /> Snap to grid {craft.grid && <Icon name="check" size={14} />} <kbd>{keyHint('grid')}</kbd>
+                    </button>
+                    <button role="menuitemcheckbox" aria-checked={!!craft.minimap} onClick={() => (setToolsMore(false), craft.toggle('minimap'))}>
+                      <Icon name="map" /> Minimap {craft.minimap && <Icon name="check" size={14} />} <kbd>{keyHint('minimap')}</kbd>
                     </button>
                   </Menu>
                 )}
@@ -2597,7 +2609,7 @@ export function App() {
       </main>
 
       <footer className="statusbar">
-        <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={() => setModal('problems')}>
+        <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={() => setModal('problems')} title={rendered ? `Drawn in ${rendered.ms} ms` : undefined}>
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${errors} error${errors === 1 ? '' : 's'}${warnings ? `, ${warnings} warning${warnings === 1 ? '' : 's'}` : ''}` : 'No problems'}
         </button>
@@ -2621,7 +2633,6 @@ export function App() {
         <button className="status-link" onClick={() => setModal('shortcuts')} title="Keyboard shortcuts">
           <Icon name="keyboard" size={13} /> ?
         </button>
-        {rendered && <span>{rendered.ms} ms</span>}
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 

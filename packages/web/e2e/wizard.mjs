@@ -116,8 +116,11 @@ await page.keyboard.press('Escape');
 await page.waitForSelector('.wizard');
 await shows('Fabrikam', 'answers kept after the AI mode');
 
-// 8. ⌘↵ finishes: the diagram opens in the builder.
-await page.keyboard.press('ControlOrMeta+Enter');
+// 8. "Finish with defaults" beside Next (⌘↵ does the same): the diagram opens in the builder. Review 3:
+// only the hint said it could finish early; a trackpad needs a button.
+const early = page.locator('.wizard-nav button', { hasText: 'Finish with defaults' });
+if (!(await early.isVisible())) fail('no visible "Finish with defaults" beside Next');
+await early.click();
 await page.waitForSelector('.start', { state: 'detached' });
 await page.waitForSelector('.drawing svg');
 await wait(1200);
