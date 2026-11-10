@@ -1,0 +1,38 @@
+---
+title: Cloud platform
+---
+flowchart TB
+    user((User)) --> cdn[CDN]
+    ops((Operator)) --> bastion
+    cdn --> lb
+    subgraph cloud [Cloud account]
+        subgraph vpc [VPC]
+            subgraph public [Public subnet]
+                lb[Load balancer]
+                bastion[Bastion host]
+            end
+            subgraph private [Private subnet]
+                web[Web app]
+                api[API]
+                jobs[Job runner]
+                mq[[Job queue]]
+            end
+            subgraph datasubnet [Data subnet]
+                pg[(Postgres)]
+                redis[(Redis)]
+            end
+        end
+        s3[(Object storage)]
+        secrets[Secrets manager]
+    end
+    lb --> web
+    web --> api
+    api --> pg
+    api --> redis
+    api --> mq
+    mq --> jobs
+    jobs --> pg
+    jobs --> s3
+    api --> secrets
+    jobs --> secrets
+    bastion --> pg
