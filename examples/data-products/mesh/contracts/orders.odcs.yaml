@@ -1,0 +1,81 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+apiVersion: v3.1.0
+kind: DataContract
+id: 5c1e9f20-orders
+name: orders
+version: 2.1.0
+status: active
+domain: Sales
+dataProduct: Orders
+description:
+  purpose: Orders of the web shop and their lines; an order is final once it is placed.
+schema:
+  - id: orders_tbl
+    name: orders
+    physicalType: table
+    properties:
+      - id: order_id_pk
+        name: order_id
+        logicalType: string
+        physicalType: uuid
+        primaryKey: true
+        required: true
+        quality:
+          - metric: duplicateValues
+            mustBe: 0
+      - name: customer_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+        # A field of another contract: the file, then the object and the property by id.
+        relationships:
+          - type: foreignKey
+            to: customers.odcs.yaml#/schema/customers_tbl/properties/customer_id_pk
+      - name: total
+        logicalType: number
+        physicalType: decimal(10,2)
+        required: true
+        quality:
+          - description: total is never negative
+      - name: currency
+        logicalType: string
+        physicalType: char(3)
+        required: true
+      - name: ordered_at
+        logicalType: date
+        physicalType: timestamp
+        required: true
+  - id: order_lines_tbl
+    name: order_lines
+    physicalType: table
+    properties:
+      - name: line_id
+        logicalType: string
+        physicalType: uuid
+        primaryKey: true
+        required: true
+      - name: order_id
+        logicalType: string
+        physicalType: uuid
+        required: true
+      - name: sku
+        logicalType: string
+        physicalType: varchar(40)
+        required: true
+      - name: quantity
+        logicalType: integer
+        physicalType: int
+        required: true
+    # On the schema object both ends are written.
+    relationships:
+      - type: foreignKey
+        from: order_lines.order_id
+        to: orders.order_id
+slaProperties:
+  - property: latency
+    value: 15
+    unit: min
+  - property: availability
+    value: 99.9%
+team:
+  name: Sales engineering

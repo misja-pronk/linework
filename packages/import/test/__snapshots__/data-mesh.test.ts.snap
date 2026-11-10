@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`examples/data-products/mesh > imports without a word 1`] = `
+"type: data-products
+title: Data mesh
+
+domains:
+  customer: { label: Customer }
+  sales: { label: Sales }
+  finance: { label: Finance }
+
+sources:
+  crm-accounts: { label: CRM accounts, caption: Outside these files }
+  webshop-order-events: { label: Webshop order events, caption: Outside these files }
+  payment-provider-settlements: { label: Payment provider settlements, caption: Outside these files }
+
+products:
+  customer-360:
+    label: Customer 360
+    class: consumer-aligned
+    domain: customer
+    owner: CRM team
+    version: 0.9.0
+    status: draft
+    file: mesh/products/customer-360.odps.yaml
+    inputs: [orders.orders, customers]
+    outputs:
+      profiles: { kind: table, contract: customer-profiles }
+  customers:
+    label: Customers
+    class: source-aligned
+    domain: customer
+    owner: CRM team
+    version: 1.4.0
+    file: mesh/products/customers.odps.yaml
+    inputs: [crm-accounts]
+    outputs:
+      customers: { kind: table, contract: customers }
+  exchange-rates:
+    label: Exchange rates
+    class: source-aligned
+    owner: Treasury
+    version: "1.0"
+    file: mesh/products/exchange-rates.odps.yaml
+    outputs:
+      rates-api: { kind: api, label: Rates API }
+  orders:
+    label: Orders
+    class: source-aligned
+    domain: sales
+    owner: Sales engineering
+    version: 2.1.0
+    file: mesh/products/orders.odps.yaml
+    inputs: [webshop-order-events]
+    outputs:
+      orders: { kind: table, contract: orders }
+      order-placed: { kind: topic, label: order placed }
+  payments:
+    label: Payments
+    class: source-aligned
+    domain: finance
+    owner: Finance data
+    version: 3.2.0
+    file: mesh/products/payments.odps.yaml
+    inputs: [payment-provider-settlements]
+    outputs:
+      settled-payments: { kind: table, label: settled payments, contract: settled-payments }
+  revenue:
+    label: Revenue
+    class: consumer-aligned
+    domain: finance
+    owner: Finance data
+    version: 1.2.0
+    file: mesh/products/revenue.odps.yaml
+    inputs: [orders.orders, payments, exchange-rates]
+    outputs:
+      revenue-by-day: { kind: api, label: revenue by day }
+
+contracts:
+  customer-profiles: { file: mesh/contracts/customer-profiles.odcs.yaml }
+  customers: { file: mesh/contracts/customers.odcs.yaml }
+  orders: { file: mesh/contracts/orders.odcs.yaml }
+  settled-payments: { file: mesh/contracts/payments.odcs.yaml }
+"
+`;

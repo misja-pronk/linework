@@ -6,6 +6,7 @@
 //   importMarkdown(text)   every ```mermaid block in a Markdown file
 //   importKubernetes(text) manifests (kubectl, helm template, kustomize build) → kubernetes
 //   importNetwork(text)    CSV/YAML inventory (name,type,ip,zone,uplink) or NetBox JSON → network
+//   importDataMesh(files)  data product files (ODPS) and data contracts (ODCS) → data-products
 import { importArchitecture } from './architecture.ts';
 import { importEr } from './er.ts';
 import { importFlowchart } from './flowchart.ts';
@@ -24,6 +25,7 @@ export { guessKind } from './systems.ts';
 export { importKubernetes, isKubernetes } from './kubernetes.ts';
 export { importNetwork, isNetworkInventory, networkKind } from './network.ts';
 export { importStructurizr, isStructurizr } from './structurizr.ts';
+export { dataFileKind, importDataMesh, isDataMeshFile, type DataFileKind, type ImportedMesh, type MeshFile, type MeshOptions, type MeshProblem } from './data-mesh.ts';
 export { GIT_LOG_FORMAT, importGitLog, type GitLogOptions } from './git.ts';
 
 export function importMermaid(text: string, fallbackTitle?: string): Imported {

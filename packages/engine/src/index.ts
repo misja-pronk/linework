@@ -59,9 +59,6 @@ export function schemaOf(type: DiagramType): Record<string, unknown> {
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
-/** An included diagram may have a focus of its own; here it is only read past. */
-const withFocus = (schema: object) => ({ ...schema, properties: { focus: focusSchema, ...(schema as { properties?: object }).properties } });
-
 export interface RenderOptions extends SvgOptions {
   /** Used when the diagram names no `theme:` of its own: light, dark, a built-in brand theme, or a Theme. */
   theme?: string | Theme;
@@ -177,13 +174,15 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
+  // An included diagram of this type may have what this one may: the model keys, and a focus and steps of its own (only read past here).
+  const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, ...modelOnly(keys).properties, ...props } };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
   let includes: string[] | undefined;
   let onlyViews = false;
   if (Object.keys(rest).some(isModelKey)) {
-    const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : withFocus(type.schema)), report, self: opts.file, text });
+    const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : included), report, self: opts.file, text });
     built = isModel ? { ...composed.data, type: type.id } : composed.data;
     origin = composed.origin;
     includes = composed.files;

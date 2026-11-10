@@ -1,0 +1,37 @@
+# Open Data Product Standard v1 — https://bitol-io.github.io/open-data-product-standard/
+apiVersion: v1.0.0
+kind: DataProduct
+id: 3b7d0a52-orders
+name: Orders
+version: 2.1.0
+status: active
+domain: Sales
+description:
+  purpose: Every order placed in the web shop, with its lines, minutes after checkout.
+inputPorts:
+  - name: Webshop order events
+    version: 1.0.0
+    contractId: webshop-order-events
+outputPorts:
+  - name: orders
+    description: Orders and order lines as tables.
+    type: tables
+    version: 2.1.0
+    contractId: 5c1e9f20-orders
+  - name: order placed
+    description: One event per placed order.
+    type: Kafka topic
+    version: 1.0.0
+managementPorts:
+  - name: observability
+    content: observability
+    url: https://data.shop.example/orders/health
+support:
+  - channel: sales-data
+    tool: slack
+    url: https://shop.example/chat/sales-data
+team:
+  name: Sales engineering
+  members:
+    - username: mila@shop.example
+      role: owner

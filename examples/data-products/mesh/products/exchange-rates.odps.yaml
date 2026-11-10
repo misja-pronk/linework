@@ -1,0 +1,27 @@
+# Open Data Product Specification 4.0 (Linux Foundation) — https://opendataproducts.org/v4.0/
+schema: https://opendataproducts.org/v4.0/schema/odps.yaml
+version: "4.0"
+product:
+  details:
+    en:
+      name: Exchange rates
+      productID: fx-rates
+      valueProposition: Daily closing rates against the euro, ready at 18:00 CET.
+      visibility: organisation
+      status: production
+      productVersion: "1.0"
+      type: derived data
+  contract:
+    id: fx-daily-rates
+    type: ODCS
+    contractVersion: 3.1.0
+    contractURL: https://data.shop.example/contracts/fx-daily-rates.yaml
+  dataAccess:
+    default:
+      name:
+        en: Rates API
+      outputPorttype: API
+      format: JSON
+  dataHolder:
+    en:
+      legalName: Treasury

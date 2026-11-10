@@ -28,6 +28,8 @@ const crossingBudget: Record<string, number> = {
   'data-products/customer-detailed.yaml': 0,
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 0,
+  'data-products/mesh.yaml': 0,
+  'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
   'erd/orders.yaml': 0,
   'erd/saas.yaml': 6,
   'erd/shop-schemas.yaml': 0,
