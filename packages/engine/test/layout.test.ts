@@ -81,7 +81,6 @@ const crossingBudget: Record<string, number> = {
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
   'deployment/aws.yaml': 1, // Users' line to the load balancer steps aside right above the public subnet
-  'deployment/aws.yaml#dev': 1,
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -133,6 +132,12 @@ describe('layout quality', () => {
   it('keeps the wide deployment view within 2600 px', async () => {
     const r = await render(c4, { fonts: 'none', view: 'production' });
     expect(r.placed!.width).toBeLessThan(2600);
+  });
+  it('runs straight between two cards in line, past the titles of the groups in between', async () => {
+    const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
+    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev' });
+    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb-a')!;
+    expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
   it('writes one label where lines that say the same run into one target', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');

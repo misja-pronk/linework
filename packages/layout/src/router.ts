@@ -442,14 +442,22 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     if (ff == null && tf != null) set('from', tf);
     else if (tf == null && ff != null) set('to', ff);
     else if (ff == null && tf == null) {
-      // Both free: meet in the middle of the overlap, if there is one.
+      // Both free: meet in the overlap, if there is one, as near the middle of the first as a
+      // straight line can run all the way: clear of the header texts and cards in between.
       const [a0, a1] = range(e.from);
       const [b0, b1] = range(e.to);
       const lo = Math.max(a0, b0);
       const hi = Math.min(a1, b1);
       if (hi >= lo) {
         const ca = pos.get(`${e.id}:from`)![along];
-        const v = Math.min(hi, Math.max(lo, ca));
+        const [fb, tb] = [e.from.box, e.to.box];
+        const [r0, r1] = along === 'x' ? [Math.min(fb.y + fb.height, tb.y + tb.height), Math.max(fb.y, tb.y)] : [Math.min(fb.x + fb.width, tb.x + tb.width), Math.max(fb.x, tb.x)];
+        const between = [...texts.map((t) => [t, 8] as const), ...[...input.obstacles].filter(([id]) => id !== e.from.node && id !== e.to.node).map(([, b]) => [b, MARGIN] as const)]
+          .filter(([b]) => (along === 'x' ? b.y < r1 && b.y + b.height > r0 : b.x < r1 && b.x + b.width > r0))
+          .map(([b, air]) => (along === 'x' ? [b.x - air, b.x + b.width + air] : [b.y - air, b.y + b.height + air]) as [number, number]);
+        const open = [lo, hi, ...between.flat()].filter((c) => c >= lo && c <= hi && !between.some(([a, z]) => c > a && c < z));
+        const mid = Math.min(hi, Math.max(lo, ca));
+        const v = between.some(([a, z]) => mid > a && mid < z) && open.length ? open.reduce((m, c) => (Math.abs(c - mid) < Math.abs(m - mid) ? c : m)) : mid;
         set('from', v);
         set('to', v);
       }
