@@ -189,7 +189,9 @@ if (!(await yaml()).includes('title: Payments')) fail('title not renamed in plac
   await p2.keyboard.press('Enter');
   await p2.waitForSelector('.template-card');
   const cards = await p2.locator('.template-card .template-meta').allInnerTexts();
-  if (cards.some((c) => c.includes('web-shop.yaml'))) fail('the Azure template and web-shop.yaml (the same drawing) are both offered: ' + cards.join(' | '));
+  // web-shop.yaml was the Azure template's drawing; since it got layers: (tags and a security, data
+  // and ops layer) it shows something the template does not, so both are offered. No card twice, though.
+  if (new Set(cards).size !== cards.length) fail('a start is offered twice: ' + cards.join(' | '));
   const titles = await p2.locator('.template-card .template-title').allInnerTexts();
   if (new Set(titles).size !== titles.length) fail('two starts with the same name: ' + titles.join(' | '));
   await p2.screenshot({ path: `${out}/start-azure.png` });
