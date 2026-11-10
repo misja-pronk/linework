@@ -2,7 +2,7 @@ import { names, type Answers, type Wizard } from '../engine.ts';
 import { comment, entry, file, flow, ids, scalar, slug } from '../yaml.ts';
 import { azureGeographies } from '../regions.ts';
 
-const SOURCE = 'Microsoft Cloud Adoption Framework, "Azure landing zone architecture" (learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/), 2025 revision';
+const SOURCE = 'Microsoft Cloud Adoption Framework, "Azure landing zone architecture" (learn.microsoft.com/azure/cloud-adoption-framework/ready/landing-zone/)';
 
 export const azureLandingZone: Wizard = {
   id: 'azure-landing-zone',
