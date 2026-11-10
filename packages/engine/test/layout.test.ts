@@ -28,6 +28,8 @@ const crossingBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
   'azure/web-shop.yaml': 0,
+  'transitions/app-modernisation.yaml': 1, // the to-be on the placement of every stage, the moved Orders DB laid out in both its groups: Payments' line to the events crosses Orders' to the database
+  'transitions/datacenter-exit.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
@@ -119,6 +121,7 @@ const headerBudget: Record<string, number> = {
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
+  'transitions/app-modernisation.yaml': 3, // the to-be on the placement of every stage: lines into the platform step aside past the places the legacy cards and the moved Orders DB leave empty
   // The Harbour Bank workspace example (examples/workspace), as drawn when it was added.
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
@@ -181,6 +184,7 @@ const joinBudget: Record<string, number> = {
 
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
+  'transitions/datacenter-exit.yaml': 1, // the to-be on the placement of every stage: two labels of lines into the spoke share a corner
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
   'c4/kestrel-bank.yaml#containers': 1,
   'kubernetes/inference.yaml': 1,

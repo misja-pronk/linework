@@ -1,0 +1,55 @@
+type: systems
+title: Order system modernisation
+subtitle: The monolith is strangled one capability at a time
+
+# Elements can say when they come and go themselves (from: / until:), next to what a stage changes.
+groups:
+  legacy: { kind: system, label: Legacy platform }
+  platform: { kind: system, label: New platform }
+
+nodes:
+  shop: { kind: client, label: Web shop }
+  gateway: { kind: gateway, label: API gateway, from: strangle }
+  monolith: { kind: service, label: Order monolith, in: legacy }
+  oracle: { kind: database, label: Oracle, in: legacy }
+  payments: { kind: service, label: Payments, in: platform, from: strangle }
+  orders: { kind: service, label: Orders, in: platform, from: split }
+  events: { kind: queue, label: Order events, in: platform, from: split }
+  postgres: { kind: database, label: Orders DB, in: legacy, from: strangle }
+  batch: { kind: service, label: Nightly batch, in: legacy, until: split }
+
+edges:
+  - shop -> monolith: { label: HTTPS }
+  - monolith -> oracle: SQL
+  - batch -> oracle
+  - shop -> gateway: { label: HTTPS }
+  - gateway -> monolith
+  - gateway -> payments
+  - payments -> postgres
+  - gateway -> orders
+  - orders -> postgres
+  - orders -> events
+  - payments -> events
+
+stages:
+  - id: as-is
+    title: As-is
+    when: 2026-Q1
+    description: One monolith on Oracle does everything; a nightly batch reconciles orders.
+  - id: strangle
+    title: Strangler
+    when: 2026-Q2
+    description: An API gateway goes in front. Payments is the first capability out, on its own Postgres.
+    remove: ['shop -> monolith']
+  - id: split
+    title: Orders out
+    when: 2026-Q3
+    description: Orders leaves the monolith and publishes events; the batch is no longer needed.
+    change:
+      gateway: { label: API gateway (all traffic) }
+      postgres: { in: platform }
+  - id: to-be
+    title: To-be
+    when: 2026-Q4
+    description: The monolith and Oracle are switched off.
+    remove: [legacy]

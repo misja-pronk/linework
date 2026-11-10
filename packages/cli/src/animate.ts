@@ -15,6 +15,8 @@ export interface AnimateFlags {
   out: string;
   layers?: boolean;
   walk?: string;
+  /** Through the diagram's stages: what comes fades in, what goes fades out, nothing moves. */
+  stages?: boolean;
   hold?: number;
   transition?: number;
   fps?: number;
@@ -63,6 +65,10 @@ const rasterize = (extra: string[]) => (svg: string, width: number): Raster => {
 /** The beats asked for: a walk, the layers, or the steps (written, else those the drawing implies). */
 async function beatsOf(text: string, opts: RenderOptions, r: RenderResult, flags: AnimateFlags, say: Say): Promise<Animated['beats'] | undefined> {
   if (flags.walk) return walkBeats(r.graph!, flags.walk, say.error);
+  if (flags.stages) {
+    if (!r.stageStates?.length) return say.error('--stages: this diagram has no stages: (see docs/transitions.md)'), undefined;
+    return stepBeats(r.stageStates);
+  }
   if (flags.layers) {
     const list = r.layers?.list ?? [];
     if (!list.length) return say.error('--layers: this diagram has no layers: (see docs/layers.md)'), undefined;
@@ -79,7 +85,7 @@ async function beatsOf(text: string, opts: RenderOptions, r: RenderResult, flags
 export async function animate(text: string, opts: RenderOptions, flags: AnimateFlags, shown: string, say: Say): Promise<boolean> {
   const ext = path.extname(flags.out).slice(1).toLowerCase();
   if (!['gif', 'mp4', 'webm'].includes(ext)) throw new Error(`-o ${flags.out}: an animation is a .gif, .mp4 or .webm`);
-  const r = await render(text, { ...opts, fonts: 'none', step: undefined });
+  const r = await render(text, { ...opts, fonts: 'none', step: undefined, ...(flags.stages ? { stage: 'union' } : {}) });
   say.diagnostics(r);
   if (!r.graph || !r.placed || !r.theme || r.diagnostics.some((d) => d.severity === 'error')) return say.error('nothing written'), false;
   const beats = await beatsOf(text, opts, r, flags, say);

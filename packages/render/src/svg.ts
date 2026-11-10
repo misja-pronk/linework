@@ -18,6 +18,7 @@ import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.
 import { drawTags, endsRoom, endStyle, endTagAt, markStyle, tagsWidth, TAG, type TagStyle } from './tags.ts';
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
+import { stageBlock, stageStripWidth, type StageStrip } from './stages.ts';
 import { sketchSvg } from './sketch.ts';
 
 export { legendItems, legendWidth } from './legend.ts';
@@ -39,6 +40,8 @@ export interface SvgOptions {
   images?: { nodes?: Map<string, string>; groups?: Map<string, string> };
   /** Draw one step of the diagram's steps: hidden things leave their space empty, the rest stands back behind what is in focus. */
   stepView?: StepView;
+  /** A stage of the diagram's `stages:` (or their overview): the timeline under the drawing, with the stage's title and description. */
+  stageStrip?: StageStrip;
 }
 
 export interface SvgResult {
@@ -72,11 +75,11 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   const margin = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
   const list = view ? { width: 0, height: 0, draw: () => '' } : stepList(graph, theme);
   // What the page is wide anyway; a legend that is a key wraps to it.
-  const room = Math.max(placed.width + margin.left + margin.right + side, brand ? brand.width : titleWidth(graph, theme), list.width);
+  const room = Math.max(placed.width + margin.left + margin.right + side, brand ? brand.width : titleWidth(graph, theme), list.width, opts.stageStrip ? stageStripWidth(opts.stageStrip) : 0);
   const above = legendBlock(where === 'top' ? graph.legend! : [], theme, 'top', room);
   const below = legendBlock(where === 'bottom' ? graph.legend! : [], theme, 'bottom', room);
   const width = Math.ceil(Math.max(room, above.width, below.width) + 2 * pad);
-  const caption = view && view.caption !== false ? captionBlock(view, theme, width - 2 * pad) : undefined;
+  const caption = view && view.caption !== false ? captionBlock(view, theme, width - 2 * pad) : opts.stageStrip ? stageBlock(opts.stageStrip, theme, width - 2 * pad) : undefined;
   const height = Math.ceil(Math.max(placed.height + margin.top + margin.bottom + list.height + (caption?.height ?? 0), column ? column.height : 0) + header + above.height + below.height + footer + 2 * pad);
   const origin = { x: pad + margin.left, y: pad + header + above.height + margin.top };
   const ground = groundOf(graph, placed, theme);

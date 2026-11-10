@@ -1,0 +1,75 @@
+type: azure
+title: Data centre exit
+subtitle: From the VMware racks in Amsterdam to an Azure landing zone in three stages
+
+# Everything that is there at any stage is written once; each stage says what it changes.
+# carto render datacenter-exit.yaml --stage q2, --stage overview, or carto stages datacenter-exit.yaml -o out/
+groups:
+  dc: { kind: on-premises, label: Data centre Amsterdam }
+  racks: { kind: boundary, label: VMware cluster, in: dc }
+  azure: { kind: subscription, label: Landing zone }
+  hub: { kind: vnet, label: Hub network, in: azure }
+  spoke: { kind: resource-group, label: rg-orders, in: azure }
+
+nodes:
+  users: { kind: users, label: Customers }
+  staff: { kind: user, label: Staff }
+  edge-fw: { kind: firewall, label: Perimeter firewall, in: dc }
+  ad: { kind: vm, label: Active Directory, in: racks }
+  web-vm: { kind: vm, label: Web server, in: racks }
+  app-vm: { kind: vm, label: Order service, in: racks }
+  sql-vm: { kind: sql-server, label: SQL Server 2016, in: racks }
+  files: { kind: vm, label: File server, in: racks }
+  tapes: { kind: storage, label: Backup tapes, in: dc }
+  vpn: { kind: vpn-gateway, label: VPN gateway, in: hub }
+  firewall: { kind: firewall, label: Azure Firewall, in: hub }
+  storage: { kind: storage, label: File shares, in: spoke }
+  web: { kind: app-service, label: Web shop, in: spoke }
+  orders: { kind: container-app, label: Order service, in: spoke }
+  db: { kind: sql-database, label: Orders, in: spoke }
+  front-door: { kind: front-door, label: Front Door }
+  entra: { kind: entra-id, label: Entra ID }
+  vault: { kind: key-vault, label: Secrets, in: spoke }
+
+edges:
+  - users -> edge-fw: { label: HTTPS }
+  - edge-fw -> web-vm
+  - web-vm -> app-vm
+  - app-vm -> sql-vm: { label: SQL }
+  - staff -> files: { label: SMB }
+  - files -> tapes: { label: nightly }
+  - edge-fw -> vpn: { label: site-to-site }
+  - vpn -> firewall
+  - staff -> storage: { label: SMB over VPN }
+  - users -> web: { label: HTTPS }
+  - web -> orders: { label: REST }
+  - orders -> db: { label: SQL }
+  - orders -> vault: { label: secrets, style: identity }
+  - users -> front-door: { label: HTTPS }
+  - front-door -> web
+  - staff -> entra: { label: sign-in }
+
+stages:
+  - id: as-is
+    title: As-is
+    when: 2026-Q1
+    description: Everything runs on six VMs in one data centre. Backups go to tape; the lease ends in December.
+  - id: q2
+    title: Landing zone
+    when: 2026-Q2
+    description: The landing zone comes up next to the data centre, linked by a site-to-site VPN. File shares move first.
+    add: [azure, hub, vpn, firewall]
+    replace: { files: storage, tapes: storage }
+  - id: q3
+    title: Workloads move
+    when: 2026-Q3
+    description: The web shop, the order service and its database move to platform services in the orders spoke.
+    replace: { web-vm: web, app-vm: orders, sql-vm: db }
+    add: [vault]
+  - id: to-be
+    title: To-be
+    when: 2026-Q4
+    description: Front Door takes the traffic, Entra ID replaces Active Directory and the data centre closes.
+    add: [front-door]
+    replace: { ad: entra }
+    remove: [dc, vpn, 'users -> web']
