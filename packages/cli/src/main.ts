@@ -66,7 +66,8 @@ const helpAll = `carto — architecture diagrams that look good
                [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
-                                                --notes: the open review notes too. More: docs/html-export.md
+                                                --notes: the open review notes too; --decisions: the folder's
+                                                architecture decisions, as a page and in the details. More: docs/html-export.md
   carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
@@ -1487,7 +1488,7 @@ async function main(): Promise<number> {
       if (!fs.existsSync(f)) return (console.error(`${f}: no such file or folder`), 1);
       if (!themeFlag()) return 1;
       const { exportHtmlFile } = await import('./html-export.ts');
-      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale } });
+      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, decisions: values.decisions, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale } });
       for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red('error')}  ${p.message}`);
       if (!r.stats.drawings) return (console.error(`${f}: nothing to draw`), 1);
       const s = r.stats;

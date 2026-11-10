@@ -7,6 +7,7 @@ import { base64, drawnShapes, exportHtml, shareIcons, type Payload } from '../sr
 import { viewerScript } from '../src/generated/viewer.ts';
 import { tokens } from '../src/style.ts';
 import { themes } from '@cartography/theme';
+import { readDecisions } from '@cartography/core';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
@@ -180,4 +181,19 @@ edges:
     expect(on.html).not.toContain('secret');
     expect(JSON.stringify(p)).not.toContain('secret resolved remark');
   });
+
+  it('carries decisions: a page of their own, markers and the shapes they are on', async () => {
+    const dir = path.join(root, 'examples/workspace/decisions');
+    const decisions = readDecisions(fs.readdirSync(dir).map((f) => [`decisions/${f}`, fs.readFileSync(path.join(dir, f), 'utf8')]), 'decisions');
+    const opts = { entries: ['containers.yaml'], nearby: ['model.yaml'], read: reader('examples/workspace') };
+    expect(payloadOf((await exportHtml(opts)).html).decisions).toBeUndefined();
+    const { html } = await exportHtml({ ...opts, decisions });
+    const p = payloadOf(html);
+    expect(p.decisions!.map((d) => `${d.n} ${d.said}`)).toEqual(['1 Accepted', '2 Superseded by 3', '3 Accepted', '4 Proposed']);
+    expect(p.decisions![2]!.about).toContain('Settlement engine → Payment events');
+    expect(p.decisions![2]!.blocks.some((b) => b.kind === 'heading')).toBe(true);
+    const payments = p.drawings.find((d) => d.view === 'payments')!;
+    expect(payments.decisions).toContainEqual({ n: 3, shape: 'n:payments.events' });
+    expect(payments.light).toContain('data-decision="2" data-status="superseded"');
+  }, 30_000);
 });

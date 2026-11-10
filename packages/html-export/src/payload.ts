@@ -1,6 +1,7 @@
 // What the page carries, as the viewer reads it: every drawing pre-rendered (light and dark, whole
 // and per step), what each drawn shape stands for, and the elements of the model with where they
 // appear. Shared by the packer (Node or the editor) and the viewer script in the page.
+import type { MdBlock } from '@cartography/core';
 
 export interface Payload {
   v: 1;
@@ -17,6 +18,21 @@ export interface Payload {
   icons: string[];
   /** Review notes are drawn and listed. */
   notes: boolean;
+  /** Architecture decisions of the folder: a Decisions page, and on the drawings and in the details. */
+  decisions?: PDecision[];
+}
+
+export interface PDecision {
+  n: number;
+  title: string;
+  status: 'proposed' | 'accepted' | 'rejected' | 'deprecated' | 'superseded';
+  /** "Superseded by 3", "Accepted". */
+  said: string;
+  date?: string;
+  /** What it is about, as a reader says it ("Customer store", "Gateway → Engine"). */
+  about: string[];
+  /** The text, as blocks of simple markdown (headings, paragraphs, lists): nothing that runs. */
+  blocks: MdBlock[];
 }
 
 export interface PFile {
@@ -57,6 +73,8 @@ export interface PDrawing extends Picture {
   /** The levels above, for breadcrumbs: the element and the drawing about it. */
   trail?: { label: string; to?: number }[];
   notes?: PNote[];
+  /** Decisions drawn on it (by number), and the shape each is on. */
+  decisions?: { n: number; shape?: string }[];
 }
 
 export interface PElement {
