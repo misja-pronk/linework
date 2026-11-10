@@ -448,8 +448,9 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   const titleY = shape.caption ? b.y + head / 2 - 7 : b.y + head / 2;
   s += img ? image(img, b.x + t.padX - 1, titleY - 9, 18, 18) : drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
   s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text);
+  // A table as wide as its caption was rounded to whole pixels: half a pixel short is not a reason to cut it.
   if (shape.caption)
-    s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX), theme.size.caption, 400, theme.textMuted);
+    s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX + 1), theme.size.caption, 400, theme.textMuted);
 
   let y = b.y + head;
   const marks = markWidth(shape);

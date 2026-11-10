@@ -188,6 +188,8 @@ export interface GraphEdge {
   icon?: string;
   /** Its number in a dynamic view, drawn in a small circle on the line. */
   step?: number;
+  /** Says nothing about what comes before what (a key between two contracts): the layout does not rank by it. */
+  loose?: boolean;
   path: Path;
 }
 
