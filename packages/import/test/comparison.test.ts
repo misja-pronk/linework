@@ -35,7 +35,7 @@ const cases: Budget[] = [
   // A dense mesh of lines back and forth: dot left to right does not untangle it (Mermaid gets 2).
   { file: 'benchmark/src/event-mesh.mmd', type: 'systems', direction: 'right', crossings: 6, aspect: 4.2, edit: 'stockTopic --> forecast[Demand forecast]', moved: 0.21 },
   // Redrawn from scratch after the edit, dot orders the nested groups differently (the editor keeps the drawing before).
-  { file: 'benchmark/src/cloud-platform.mmd', type: 'systems', direction: 'down', crossings: 3, aspect: 1, edit: 'api --> search[(Search index)]', moved: 0.3 }, // drawn afresh, the edited one is wrapped into two columns for a slide (its text was too small)
+  { file: 'benchmark/src/cloud-platform.mmd', type: 'systems', direction: 'down', crossings: 4, aspect: 1.3, edit: 'api --> search[(Search index)]', moved: 0.3 }, // wrapped into two columns for a slide (its text was too small): wider, at a crossing more; drawn afresh after the edit, it is cut differently
   // A decision flowchart of plain steps: a process, wrapped into two rows that read on.
   { file: 'benchmark/src/ci-pipeline.mmd', type: 'process', direction: 'right', crossings: 0, aspect: 2.1, edit: 'smoke --> notify[Notify the team]', moved: 0.01 },
 ];

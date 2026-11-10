@@ -38,6 +38,11 @@ export interface WrapOptions {
    * from the row before come into stands nearest it, and they need not cross the row's own line to reach it.
    */
   flip?: boolean;
+  /**
+   * Cut across the flow instead: a left-to-right drawing far taller than its page (domains stacked
+   * one under the other) is cut between its bands, and the bands stand side by side.
+   */
+  transpose?: boolean;
 }
 
 /**
@@ -64,7 +69,7 @@ export function wrapScopes(p: Placement, graph: Graph): string[] {
  * its blocks where they were relative to each other; undefined when there is nothing to cut.
  */
 export function wrap(p: Placement, graph: Graph, parts: number, gap: number, header: number, pad: number, minWidth: Map<string, number>, opts: WrapOptions = {}): Placement | undefined {
-  const down = graph.direction === 'down';
+  const down = (graph.direction === 'down') !== !!opts.transpose;
   const parentOf = new Map<string, string | undefined>([...graph.groups.map((g) => [g.id, g.parent] as const), ...graph.nodes.map((n) => [n.id, n.parent] as const)]);
   const inside = (id: string, g: string) => {
     for (let x = parentOf.get(id); x; x = parentOf.get(x)) if (x === g) return true;
