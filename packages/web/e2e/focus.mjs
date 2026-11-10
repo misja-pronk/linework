@@ -96,7 +96,21 @@ await wait(400);
   if (!c.includes('Focused on Orders API') || !c.includes('4 of 7') || !c.includes('1 hop') || !c.includes('Both ways') || !c.includes('Esc')) fail('the chip should say what is in focus, how far and the way back: ' + c);
   if (!(await page.locator('.drawing svg').innerHTML()).includes('Focus on Orders API')) fail('the drawing should say under its title what it is cut down to');
   check('the YAML stays as it is', await yaml(), text);
+  // With the inspector open the chip goes under the toolbar, and the drawing (its title too) is fitted below both.
+  await wait(400);
+  const box = (q) => page.locator(q).boundingBox();
+  const title = await page.locator('.drawing svg > text').first().boundingBox();
+  let [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
+  if (tag.y < bar.y + bar.height && tag.x < bar.x + bar.width) fail(`the chip overlaps the toolbar: ${JSON.stringify([bar, tag])}`);
+  if (title.y < tag.y + tag.height + 8) fail(`the title is crowded under the chip: chip bottom ${tag.y + tag.height}, title top ${title.y}`);
   await page.screenshot({ path: `${out}/f1-focus.png` });
+  // Without the inspector there is room beside the toolbar: the chip sits there.
+  await page.keyboard.press('Escape');
+  await wait(400);
+  [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
+  if (Math.abs(bar.y - tag.y) > 2 || tag.x < bar.x + bar.width) fail(`the chip should sit beside the toolbar: ${JSON.stringify([bar, tag])}`);
+  await page.screenshot({ path: `${out}/f1b-focus-wide.png` });
+  await select('api');
 }
 
 // 3. + and − reach further and less far; 0 hops is the element alone.
@@ -144,6 +158,39 @@ await wait(400);
   await page.keyboard.press('Escape');
   await drawn('Esc leaves the focus', ALL);
   check('no chip after Esc', await chip(), '');
+}
+
+// 5b. P keeps the focus set by keys: the presenter draws the neighbourhood and says so; A shows everything and back.
+{
+  const shown = () => page.evaluate(() => [...document.querySelectorAll('.present-frame:last-child [data-node]')].map((n) => n.getAttribute('data-node')).sort().join(' '));
+  const presented = async (what, want) => {
+    try {
+      await page.waitForFunction((want) => [...document.querySelectorAll('.present-frame:last-child [data-node]')].map((n) => n.getAttribute('data-node')).sort().join(' ') === want, want, { timeout: 5000 });
+    } catch {
+      fail(`${what}: expected ${want}, got ${await shown()}`);
+    }
+  };
+  await select('api');
+  await page.keyboard.press('f');
+  await page.keyboard.press('+');
+  await drawn('two hops before presenting', 'api bus customer db mail web');
+  await page.keyboard.press('p');
+  await presented('the presenter keeps the focus', 'api bus customer db mail web');
+  const said = (await page.locator('.present-focus').innerText().catch(() => '')).replace(/\s+/g, ' ');
+  if (!said.includes('Focused on Orders API') || !said.includes('2 hops')) fail('the presenter should say what it is focused on: ' + said);
+  await page.screenshot({ path: `${out}/f2b-present-focus.png` });
+  await page.keyboard.press('a');
+  await presented('A in the presenter shows everything', ALL);
+  if (!(await page.locator('.present-focus').innerText().catch(() => '')).includes('Everything shown')) fail('the presenter should say everything is shown');
+  await page.keyboard.press('a');
+  await presented('A again brings the focus back', 'api bus customer db mail web');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.present', { state: 'detached', timeout: 3000 }).catch(() => fail('Esc did not leave the presenter'));
+  await drawn('the editor still has the focus after presenting', 'api bus customer db mail web');
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await drawn('left the focus after presenting', ALL);
 }
 
 // 6. From the palette, with its keys shown; the export is the neighbourhood on screen.
@@ -205,6 +252,22 @@ await wait(400);
 {
   const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/data-products/mesh');
   const files = ['products', 'contracts'].flatMap((d) => fs.readdirSync(path.join(dir, d)).map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, d, f), 'utf8') })));
+  const dropMesh = () => page.evaluate((files) => {
+    const data = new DataTransfer();
+    for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
+    const at = document.querySelector('.app');
+    at.dispatchEvent(new DragEvent('dragover', { dataTransfer: data, bubbles: true, cancelable: true }));
+    at.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
+  }, files);
+  // The open diagram has changes that are in no file: a drop asks before it replaces them, and No keeps them.
+  const unsaved = await yaml();
+  let asked = '';
+  page.once('dialog', (d) => ((asked = d.message()), d.dismiss()));
+  await dropMesh();
+  await wait(800);
+  if (!asked.includes('not saved')) fail('dropping over unsaved changes should ask first: ' + (asked || 'nothing asked'));
+  check('No keeps the unsaved diagram', await yaml(), unsaved);
+  page.once('dialog', (d) => d.accept());
   await page.evaluate((files) => {
     const data = new DataTransfer();
     for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
@@ -228,13 +291,24 @@ await wait(400);
   await page.screenshot({ path: `${out}/f6-mesh-lineage.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // The detailed view reads the contracts that came with the drop.
-  await page.keyboard.press('Meta+Backslash');
-  await page.click('.cm-content');
-  await page.keyboard.press('Meta+End');
-  await page.keyboard.type('\nview: detailed');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the detailed view did not read the dropped contracts'));
+  // The detailed view reads the contracts that came with the drop: V shows it without touching the YAML.
+  const before = await yaml();
+  await page.locator('.preview').focus();
+  await page.keyboard.press('v');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the dropped contracts'));
+  if ((await page.locator('.view-picker select').inputValue().catch(() => '')) !== 'detailed') fail('the view picker should say Detailed');
+  check('V leaves the YAML as it is', await yaml(), before);
+  await page.keyboard.press('v');
+  await page.waitForFunction(() => !document.querySelector('.drawing [data-node^="contract:"]'), null, { timeout: 5000 }).catch(() => fail('V again should go back to the overview'));
+  // From the palette, then kept in the YAML on request.
+  await palette('show the detailed view');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show the detailed view'));
+  check('the palette leaves the YAML as it is', await yaml(), before);
+  await palette('write view: detailed');
   await wait(600);
+  if (!/^view: detailed/m.test(await yaml())) fail('writing the view should put view: detailed in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
+  if (!(await page.locator('.drawing [data-node^="contract:"]').count())) fail('the drawing should stay detailed once the view is written');
+  await page.keyboard.press('Meta+Backslash');
   await page.screenshot({ path: `${out}/f7-mesh-detailed.png` });
   // After a reload the contracts are still there: they are kept with the document.
   await page.reload();

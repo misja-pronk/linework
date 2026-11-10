@@ -307,12 +307,12 @@ export function applyThreats(graph: Graph, src: Record<string, unknown>, kinds: 
 }
 
 /** The views a diagram with a threat overlay offers: the drawing and its threat table. */
-export function threatViews(src: Record<string, unknown>): { name: string; title?: string }[] {
+export function threatViews(src: Record<string, unknown>): { name: string; title?: string; table?: boolean }[] {
   const has = (v: unknown) => !!v && typeof v === 'object' && Object.values(v).some((e) => !!e && typeof e === 'object' && ('threats' in e || 'trust' in e));
   const edges = Array.isArray(src.edges) && (src.edges as unknown[]).some((e) => !!e && typeof e === 'object' && Object.values(e).some((v) => !!v && typeof v === 'object' && 'threats' in v));
   const kinds = (v: unknown) => !!v && typeof v === 'object' && Object.values(v).some((e) => e === 'trust-boundary' || (!!e && typeof e === 'object' && (e as { kind?: unknown }).kind === 'trust-boundary'));
   const on = kinds(src.groups) || src.threats != null || src.trust != null || src['threat-rules'] != null || has(src.nodes) || has(src.groups) || edges;
-  return on ? [{ name: 'diagram', title: 'Data flow diagram' }, { name: 'threats', title: 'Threat table' }] : [];
+  return on ? [{ name: 'diagram', title: 'Data flow diagram' }, { name: 'threats', title: 'Threat table', table: true }] : [];
 }
 
 export const statusTone: Record<ThreatStatus, Tone> = { open: 'rose', mitigated: 'green', accepted: 'amber', transferred: 'slate', suggested: 'slate' };

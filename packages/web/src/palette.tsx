@@ -92,7 +92,7 @@ export function Palette({ commands, onClose, placeholder = 'Type a command or an
                 onClick={() => run(c)}
               >
                 <Icon name={c.icon ?? 'command'} />
-                <span className="palette-label">{c.label}</span>
+                <span className="palette-label" title={c.label}>{c.label}</span>
                 {c.hint && <span className="palette-hint">{c.hint}</span>}
                 {c.shortcut && <kbd>{c.shortcut}</kbd>}
               </div>

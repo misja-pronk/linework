@@ -31,14 +31,20 @@ export function exportKind(files: ExportFile[]): ExportKind | undefined {
 export function exportFrom(files: ExportFile[], options: { existing?: string; title?: string } = {}): Exported | undefined {
   const kind = exportKind(files);
   if (!kind) return undefined;
-  const input = files.filter((f) => /\.json$/i.test(f.path) || /(^|\/)codeowners$/i.test(f.path));
+  const input = files.filter((f) => (/\.json$/i.test(f.path) && !/\.layout\.json$/i.test(f.path)) || /(^|\/)codeowners$/i.test(f.path));
   const r = kind === 'azure' ? importAzure(input, options) : kind === 'github' ? importGithub(input, options) : importAccess(input, options);
   return { ...r, kind, file: `${kind}.yaml` };
 }
 
-/** The first thing worth saying of an import besides what it holds: a problem, else a warning. */
+/** Everything an import has to say, problems first: the toast says the first, the problems list shows them all. */
+export const exportNotes = (r: ImportedExport): string[] => [
+  ...r.problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message)),
+  ...r.warnings,
+  ...r.skipped.filter((k) => !r.problems.some((p) => p.file === k.file)).map((k) => `${k.file}: left out, ${k.why}`),
+];
+
+/** The first thing worth saying of an import besides what it holds: a problem, else a warning, else a file left out. */
 export const exportRemark = (r: ImportedExport): string => {
-  const first = r.problems[0]?.message ?? r.warnings[0];
-  const more = r.problems.length + r.warnings.length - 1;
-  return first ? `. ${first}${more > 0 ? ` (and ${more} more)` : ''}` : '';
+  const [first, ...more] = exportNotes(r);
+  return first ? `. ${first}${more.length ? ` (and ${more.length} more)` : ''}` : '';
 };

@@ -553,6 +553,10 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A long line (a problem, an import note) is read in full where the keys are. */
+.palette-item[aria-selected='true'] .palette-label {
+  white-space: normal;
+}
 .palette-hint {
   margin-left: auto;
   font-size: 12px;
@@ -870,10 +874,23 @@ kbd {
   pointer-events: none;
 }
 
-.canvas-tools {
+/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
+.canvas-top {
   position: absolute;
   left: 16px;
+  right: 16px;
   top: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.canvas-top > * {
+  pointer-events: auto;
+}
+.canvas-tools {
   display: flex;
   gap: 2px;
   padding: 3px;
@@ -913,13 +930,11 @@ kbd {
 
 /* Under the tools: what the drawing is cut down to, and the way back. */
 .focus-chip {
-  position: absolute;
-  left: 16px;
-  top: 60px;
   display: flex;
   align-items: center;
   gap: 2px;
-  max-width: calc(100% - 32px);
+  min-width: 0;
+  max-width: 100%;
   padding: 3px 3px 3px 10px;
   background: var(--surface);
   border: 1px solid var(--accent);
@@ -2762,7 +2777,8 @@ button.type-pill:hover {
   transition: opacity 300ms ease;
 }
 .present.idle .present-tools,
-.present.idle .present-help {
+.present.idle .present-help,
+.present.idle .present-focus {
   opacity: 0;
 }
 .present-tools {
@@ -2822,6 +2838,42 @@ button.type-pill:hover {
   inset: 0;
   background: #000;
   cursor: none;
+}
+.present-focus {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 3px 3px 10px;
+  border: 1px solid var(--present-line, var(--border));
+  border-radius: var(--radius);
+  background: var(--present-canvas, var(--surface));
+  color: var(--present-muted, var(--text-muted));
+  font-size: 13px;
+  transition: opacity 300ms ease;
+}
+.present-focus strong {
+  color: var(--present-text, var(--text));
+  font-weight: 600;
+}
+.present-focus button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.present-focus button:hover {
+  color: var(--present-text, var(--text));
+  background: color-mix(in srgb, var(--present-text, var(--text)) 8%, transparent);
 }
 
 /* The read-only viewer of a share link. */
