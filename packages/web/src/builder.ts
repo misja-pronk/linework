@@ -106,7 +106,9 @@ function addEntryUnsafe(text: string, type: DiagramType, item: PaletteItem, pare
   const kk = kindKey(type, item.collection, item.kind);
   if (kk) value[kk] = item.kind;
   // Where the name is what the drawing says, there is no label to write.
-  if (!type.freeNames) value.label = item.label;
+  // A collection of people names its entries with name:, not label:.
+  const props = new Set(entrySchemas(type, item.collection).flatMap((s) => Object.keys(s.properties ?? {})));
+  if (!type.freeNames) value[!props.has('label') && props.has('name') ? 'name' : 'label'] = item.label;
   if (parent) {
     const pk = parentKey(type, item.collection, parent.collection);
     if (pk) value[pk] = parent.id;
@@ -158,8 +160,21 @@ function referencesTo(doc: Document, type: DiagramType, collection: string, id: 
   return type.references(doc.toJS() as never).filter((r) => r.collection === collection && r.id === id);
 }
 
-/** An entry of a collection, also one nested in an entry of the same collection (a state in a composite state). */
-export const isEntryPath = (path: Path): boolean => path.length >= 2 && path.length % 2 === 0 && typeof path.at(-1) === 'string' && path.every((s, i) => i % 2 === 1 || s === path[0]);
+/**
+ * An entry of a collection, also one nested in an entry of the same collection (a state in a composite
+ * state), or written in a list inside one as "- Name: { … }" (a capability inside its area).
+ */
+export const isEntryPath = (path: Path): boolean => {
+  if (path.length < 2 || typeof path[0] !== 'string' || typeof path.at(-1) !== 'string') return false;
+  for (let i = 1; i < path.length; ) {
+    if (typeof path[i] !== 'string') return false;
+    if (++i === path.length) return true;
+    // On into the entry: its nested collection, or an item of the list it holds.
+    if (path[i] !== path[0] && typeof path[i] !== 'number') return false;
+    i++;
+  }
+  return false;
+};
 
 const ID = /^[A-Za-z0-9_-]+$/;
 /** A name as a reader says it: words with spaces, and nothing YAML or an arrow would trip over. */
@@ -232,7 +247,12 @@ function deleteEntryUnsafe(text: string, type: DiagramType, path: Path): string 
   // List items last, highest index first, so earlier indexes stay valid.
   for (const p of [...items.values()].sort((a, b) => (b.at(-1) as number) - (a.at(-1) as number))) doc.deleteIn(p);
   // A step that only the flow names has no entry of its own to take away.
-  if (doc.hasIn(path)) doc.deleteIn(path);
+  if (doc.hasIn(path)) {
+    doc.deleteIn(path);
+    // "- Name: { … }" taken out of a list leaves nothing of its item: the item goes too.
+    const holder = doc.getIn(path.slice(0, -1), true);
+    if (typeof path.at(-2) === 'number' && isMap(holder) && !holder.items.length) doc.deleteIn(path.slice(0, -1));
+  }
   else if (!refs.length) return undefined;
   return str(doc);
 }
@@ -493,7 +513,7 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
   if (typeof plan === 'string') return { error: plan };
 
   // The entry that holds the list may still be shorthand ("alice: user").
-  if (plan.path.length > 2) entryMap(doc, type, plan.path.slice(0, 2));
+  if (plan.path.length > 2 || (plan.key != null && plan.path.length === 2)) entryMap(doc, type, plan.path.slice(0, 2));
   const at = doc.getIn(plan.path, true);
   if (plan.key != null) {
     if (at == null) doc.setIn(plan.path, doc.createNode({}));

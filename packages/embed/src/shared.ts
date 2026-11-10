@@ -149,6 +149,12 @@ export function describe(graph: Graph): Description {
       elements.push({ id: n.id, label, detail: [s.label ? what : '', s.caption, ...(s.lines ?? [])].filter(Boolean).join(', '), ...(parent ? { in: parent } : {}), description: n.description, links: n.links ?? [] });
       continue;
     }
+    if (s.kind === 'block') {
+      // A heatmap value and a vacancy are said in words as well: a reader cannot see the colour or the dashes.
+      names.set(n.id, s.label);
+      elements.push({ id: n.id, label: s.label, detail: [s.vacant ? 'vacancy' : '', s.caption, s.heat?.text, ...(s.lines ?? [])].filter(Boolean).join(', '), ...(parent ? { in: parent } : {}), description: n.description, links: n.links ?? [] });
+      continue;
+    }
     const label = s.kind === 'card' ? s.label : s.kind === 'table' ? s.title : (s.corner ?? n.id);
     const detail =
       s.kind === 'card'

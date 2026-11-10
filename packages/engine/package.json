@@ -27,7 +27,9 @@
     "@cartography/roadmap": "workspace:*",
     "@cartography/journey": "workspace:*",
     "@cartography/process": "workspace:*",
-    "@cartography/states": "workspace:*"
+    "@cartography/states": "workspace:*",
+    "@cartography/capabilities": "workspace:*",
+    "@cartography/teams": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^5.1.0"
