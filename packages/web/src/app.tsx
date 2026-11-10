@@ -1514,7 +1514,7 @@ export function App() {
         return e.preventDefault();
       }
       // "P" presents, from anywhere but a text field.
-      if (e.key.toLowerCase() === 'p' && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (e.key.toLowerCase() === 'p' && !e.shiftKey && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
         present();
         return e.preventDefault();
       }
