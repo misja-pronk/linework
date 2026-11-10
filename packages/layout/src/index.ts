@@ -6,10 +6,10 @@ import { compact } from './compact.ts';
 import { alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { disorder, measure, plainLine, score } from './metrics.ts';
+import { disorder, labelMetrics, measure, plainLine, score } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
-import { wrap } from './wrap.ts';
+import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
 
 export * from './dot.ts';
 export * from './pins.ts';
@@ -71,12 +71,15 @@ interface VariantKey {
   mirror: boolean;
   /** Cut into this many rows (columns, top-down) by wrap.ts; 0 when not. */
   wrap: number;
+  /** How it was cut: a chain too, inside which group. */
+  wrapOpts: WrapOptions;
 }
 
 function parseKey(key: string | undefined): VariantKey | undefined {
-  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d))?$/.exec(key ?? '');
+  const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d)(c?)(l?)(?:@(.+))?)?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
-  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0) } : undefined;
+  const wrapOpts: WrapOptions = { ...(m?.[7] ? { chains: true } : {}), ...(m?.[8] ? { loose: true } : {}), ...(m?.[9] ? { scope: m[9] } : {}) };
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0), wrapOpts } : undefined;
 }
 
 /** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
@@ -116,7 +119,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // would score now. Moving a pin never redraws the rest.
     const d = open ? was.direction : graph.direction;
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn);
-    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap) ?? best;
+    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
     // A long chain drawn left to right can end up many times wider than tall, and a deep tree drawn
@@ -129,8 +132,10 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     const wide = graph.direction === 'right' && best.placed.width >= WIDE * best.placed.height;
     // Shape alone asks for another try only on a first drawing of a diagram small enough to draw twice.
     const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF;
+    let turnedAlt: Choice | undefined;
     if (open && (stayIn === other || wide || reshape)) {
       const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other);
+      turnedAlt = alt;
       const [a, b] = target == null ? [0, 0] : [off(alt.placed, graph, target), off(best.placed, graph, target)];
       // Without a drawing before, the one that fits the target shape (within OFF) and is clearly
       // nearer it wins, when it is no worse. Otherwise the better drawing: its shape is why the other
@@ -138,13 +143,21 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       // that one. A long chain, far off either way, goes top-down there as it always did.
       const fits = (x: number, y: number) => !was && x <= OFF && x < y - NEARER;
       if (fits(a, b) && noWorse(alt, best)) best = alt;
+      // Or, on a first drawing, when it reads clearly better on the page (larger text, for what it costs).
+      else if (!was && target != null && readsBetter(alt, best, target)) best = alt;
       // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins.
       else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
-    if (!was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > OFF) best = wrapped(best, spacing, target) ?? best;
+    if (!was && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > WRAP_OFF) {
+      const kept = best;
+      best = wrapped(best, spacing, target) ?? best;
+      // The other direction, wrapped, may read better still (a drawing far off the page's shape both ways).
+      const other = turnedAlt && turnedAlt !== kept && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target) : undefined;
+      if (other && readsBetter(other, best, target)) best = other;
+    }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
-    else if (was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap) ?? best;
+    else if (was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
   }
 
   const s = best.sized;
@@ -184,33 +197,87 @@ function off(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number):
 
 /** How much nearer the target shape (log ratio) another drawing has to come to be worth its change. */
 const NEARER = 0.2;
-/** A wrapped drawing may take at most this much more area than the drawing in one row. */
-const ROOM = 1.25;
 
-/** The drawing cut into two or three rows (columns, top-down) when one of those is nearer the target and no worse. */
+/**
+ * How large a drawing comes out on a page of the target shape: the scale it is drawn at to fit a
+ * page 720 px high (a 16:9 slide is 1280 by 720). Text size on the slide goes with it.
+ */
+export function pageScale(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
+  const width = p.width + 80;
+  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
+  return Math.min((720 * target) / width, 720 / height);
+}
+
+/** What one crossing costs in readability, in doublings of the page scale: one crossing is worth 19% larger text. */
+export const CROSSING_COST = 0.25;
+/** And one line running back against the flow (the line down to the next row of a wrapped chain). */
+export const BACKWARD_COST = 0.05;
+/** And empty room: per share of the drawing far from everything (metrics voids), as a block left alone on a row leaves. */
+export const VOID_COST = 1.5;
+/** A wrapped drawing must read this much better (in doublings of scale: 11% larger text) to be kept. */
+const WRAP_GAIN = 0.15;
+
+/**
+ * How well a drawing reads on a page of the target shape, higher is better: the size it is drawn at
+ * (log2 of the page scale) less what its crossings, its lines against the flow and its empty room cost. Wrapping
+ * trades one for the other: rows make the text larger but may cost a crossing or a line back.
+ */
+export function slideReadability(scale: number, crossings: number, backward: number, voids = 0): number {
+  return Math.log2(scale) - CROSSING_COST * crossings - BACKWARD_COST * backward - VOID_COST * voids;
+}
+
+/** Further than this from the target shape (log ratio), wrapping into rows or columns is tried. */
+const WRAP_OFF = Math.log(1.3);
+
+type Flaw = 'edgeThroughNode' | 'labelOverlaps' | 'overlaps' | 'headerHits' | 'borderHits' | 'jogs' | 'labelOnBend';
+const FLAWS: Flaw[] = ['edgeThroughNode', 'labelOverlaps', 'overlaps', 'headerHits', 'borderHits', 'jogs', 'labelOnBend'];
+
+/** How a drawing reads on the page (slideReadability), or undefined when it has a flaw (FLAWS, touching labels) the other is free of. */
+function readability(c: Choice, than: Choice, target: number): number | undefined {
+  const g = c.sized.graph;
+  const m = measure(g, c.placed, c.sized.groupHeader, c.sized.groupMinWidth);
+  const m0 = measure(than.sized.graph, than.placed, than.sized.groupHeader, than.sized.groupMinWidth);
+  if (FLAWS.some((k) => m[k] > m0[k])) return undefined;
+  if (labelMetrics(g, c.placed).labelTouching > labelMetrics(than.sized.graph, than.placed).labelTouching) return undefined;
+  return slideReadability(pageScale(c.placed, g, target), m.crossings, m.backward, m.voids);
+}
+
+function readsBetter(a: Choice, b: Choice, target: number): boolean {
+  const ra = readability(a, b, target);
+  if (ra == null) return false;
+  const mb = measure(b.sized.graph, b.placed, b.sized.groupHeader, b.sized.groupMinWidth);
+  return ra > slideReadability(pageScale(b.placed, b.sized.graph, target), mb.crossings, mb.backward, mb.voids) + WRAP_GAIN + 1e-9;
+}
+
+/**
+ * The drawing cut into rows (columns, top-down), at the top level or inside a group that takes most
+ * of its length, when that reads clearly better on the page (slideReadability) without any new error
+ * (lines through boxes, covered labels, overlaps).
+ */
 function wrapped(best: Choice, spacing: Spacing, target: number): Choice | undefined {
   const s = best.sized;
+  const m0 = measure(s.graph, best.placed, s.groupHeader, s.groupMinWidth);
   let found: Choice | undefined;
-  for (const parts of [2, 3]) {
-    const c = rewrap(best, spacing, parts);
-    if (!c) continue;
-    const placed = c.placed;
-    const ref = found ?? best;
-    // And it may not mostly add room: what it saves in length it should not spend twice over in height.
-    const roomy = placed.width * placed.height > ROOM * best.placed.width * best.placed.height;
-    if (!roomy && off(placed, s.graph, target) < off(ref.placed, s.graph, target) - NEARER && noWorse(c, best)) found = c;
-  }
+  let bar = slideReadability(pageScale(best.placed, s.graph, target), m0.crossings, m0.backward, m0.voids) + WRAP_GAIN;
+  const scopes: (string | undefined)[] = [undefined, ...wrapScopes(best.p, s.graph)];
+  for (const scope of scopes)
+    for (const [chains, loose] of [[false, false], [true, false], [true, true]])
+      for (const parts of [2, 3, 4]) {
+        const c = rewrap(best, spacing, parts, { scope, chains, loose });
+        const r = c && readability(c, best, target);
+        if (c && r != null && r > bar + 1e-9) [found, bar] = [c, r];
+      }
   return found;
 }
 
 /** The drawing cut into `parts` rows (columns), its key saying so, so the next drawing can be cut the same way. */
-function rewrap(best: Choice, spacing: Spacing, parts: number): Choice | undefined {
+function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}): Choice | undefined {
   const s = best.sized;
-  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth);
+  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
   if (!q) return undefined;
   const placed = normalise({ ...q, edges: route(s, q) });
   const sc = score(measure(s.graph, placed, s.groupHeader, s.groupMinWidth));
-  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d$/, '')}w${parts}`, sized: s };
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
 }
 
 /** A drawing with no more crossings than another and none of the errors (lines through boxes, covered labels, overlaps) that one is free of. */
@@ -365,7 +432,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
       const sc = score(m);
       // Close to the previous drawing counts; with only its variant known, being that variant does
       // (in a mirror or not: that follows the order in the source, which may have changed).
-      const way = (k: string) => k.replace(/w\d$/, '').replace(/m?-?$/, '');
+      const way = (k: string) => k.replace(/w\d.*$/, '').replace(/m?-?$/, '');
       const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && way(prev.variant) !== way(key) ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }

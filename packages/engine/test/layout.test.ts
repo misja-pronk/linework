@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, throughVia, type RouteRequest } from '@cartography/layout';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
 import { render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, timed } from './perf.ts';
 
@@ -174,6 +174,15 @@ const returns: Record<string, number> = {
   'states/order-lifecycle.yaml': 1,
   'states/pull-request.yaml': 4,
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
+  // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
+  'cloud/multi-cloud.yaml': 3,
+  'deployment/azure.yaml': 1,
+  'deployment/azure.yaml#prod': 1,
+  'model/containers.yaml': 2,
+  'network/campus.yaml': 2,
+  'systems/threat-model.yaml': 2,
+  'c4/kestrel-bank.yaml#payment': 2,
+  'deployment/model.yaml#containers': 2,
 };
 
 describe('layout quality', () => {
@@ -501,6 +510,18 @@ describe('slide shape', () => {
     expect(shape(wide)).toBeGreaterThan(3);
     const bad = await render(pipeline.replace('direction: right', 'direction: right\naspect: square'), { fonts: 'none' });
     expect(bad.diagnostics.map((d) => d.message).join()).toMatch(/aspect/);
+  });
+  it('weighs crossings, lines back and empty room against the size on the page', () => {
+    // Twice the size is worth a crossing and more; a crossing is not worth 10% more size.
+    expect(slideReadability(1, 1, 0)).toBeGreaterThan(slideReadability(0.5, 0, 0));
+    expect(slideReadability(1.1, 1, 0)).toBeLessThan(slideReadability(1, 0, 0));
+    expect(slideReadability(1, 0, 0, 0.3)).toBeLessThan(slideReadability(1, 0, 0));
+  });
+  it('fits the wide examples nearer a slide', async () => {
+    for (const [file, most] of [['cloud/multi-cloud.yaml', 2.2], ['states/pull-request.yaml', 2.4], ['systems/web-shop.yaml', 2.2]] as const) {
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+      expect(shape(r), file).toBeLessThan(most);
+    }
   });
   it('knows how small the text gets on a 16:9 slide', async () => {
     const small = await render('type: azure\nnodes:\n  a: app-service\n  b: sql-database\nedges:\n  - a -> b\n', { fonts: 'none' });

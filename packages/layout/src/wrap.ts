@@ -15,17 +15,50 @@ interface Block {
   box: Box;
 }
 
+const grid = (n: number) => Math.round(n / 8) * 8;
+
 const union = (list: Box[]): Box => {
   const x = Math.min(...list.map((b) => b.x));
   const y = Math.min(...list.map((b) => b.y));
   return { x, y, width: Math.max(...list.map((b) => b.x + b.width)) - x, height: Math.max(...list.map((b) => b.y + b.height)) - y };
 };
 
+export interface WrapOptions {
+  /** The group whose contents are wrapped; by default the top level (or the one group holding everything). */
+  scope?: string;
+  /** Cut a plain chain too (one block a column): its lines then run back to the start of the next row. */
+  chains?: boolean;
+  /**
+   * Cut between blocks that overlap along the flow too (groups dot laid out on a diagonal), and close
+   * the empty room left across in each row. Each block is then a column of its own.
+   */
+  loose?: boolean;
+}
+
+/**
+ * The groups worth wrapping inside of: those that take up at least half the drawing's length along
+ * the flow and hold two or more blocks. Cutting the top level alone cannot shorten a drawing that is
+ * mostly one long group (a cloud account with its ingest, lake and serve stages in a row).
+ */
+export function wrapScopes(p: Placement, graph: Graph): string[] {
+  const down = graph.direction === 'down';
+  const [at, size] = down ? (['y', 'height'] as const) : (['x', 'width'] as const);
+  const all = union([...p.nodes.values(), ...p.groups.values()]);
+  return graph.groups
+    .filter((g) => {
+      const b = p.groups.get(g.id);
+      if (!b || b[size] < 0.5 * all[size]) return false;
+      const kids = [...graph.groups.filter((c) => c.parent === g.id && p.groups.has(c.id)), ...graph.nodes.filter((n) => n.parent === g.id && p.nodes.has(n.id))];
+      return kids.length >= 2 && kids.length < graph.nodes.length + graph.groups.length && b[at] >= all[at] - 1;
+    })
+    .map((g) => g.id);
+}
+
 /**
  * The placement in `parts` rows (a left-to-right drawing) or columns (top-down), each part keeping
  * its blocks where they were relative to each other; undefined when there is nothing to cut.
  */
-export function wrap(p: Placement, graph: Graph, parts: number, gap: number, header: number, pad: number, minWidth: Map<string, number>): Placement | undefined {
+export function wrap(p: Placement, graph: Graph, parts: number, gap: number, header: number, pad: number, minWidth: Map<string, number>, opts: WrapOptions = {}): Placement | undefined {
   const down = graph.direction === 'down';
   const parentOf = new Map<string, string | undefined>([...graph.groups.map((g) => [g.id, g.parent] as const), ...graph.nodes.map((n) => [n.id, n.parent] as const)]);
   const inside = (id: string, g: string) => {
@@ -33,7 +66,7 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
     return false;
   };
   // The level to wrap: the top, or inside the one group that holds everything.
-  let scope: string | undefined;
+  let scope: string | undefined = opts.scope;
   for (;;) {
     const top = [...graph.groups.filter((g) => g.parent === scope && p.groups.has(g.id)), ...graph.nodes.filter((n) => n.parent === scope && p.nodes.has(n.id))];
     if (top.length === 1 && graph.groups.some((g) => g.id === top[0]!.id)) scope = top[0]!.id;
@@ -50,12 +83,12 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const columns: Block[][] = [];
   let end = -Infinity;
   for (const b of sorted) {
-    if (b.box[at] < end - 1) columns[columns.length - 1]!.push(b);
+    if (!opts.loose && b.box[at] < end - 1) columns[columns.length - 1]!.push(b);
     else columns.push([b]);
     end = Math.max(end, b.box[at] + b.box[size]);
   }
   // A plain chain (one block a column) reads best in one line: cut, it would run back to its start.
-  if (columns.length < parts || columns.every((c) => c.length === 1)) return undefined;
+  if (columns.length < parts || (!opts.chains && !opts.loose && columns.every((c) => c.length === 1))) return undefined;
   // Cut where the parts come out most even in length along the flow.
   const spans = columns.map((c) => union(c.map((b) => b.box)));
   const total = spans[spans.length - 1]![at] + spans[spans.length - 1]![size] - spans[0]![at];
@@ -70,8 +103,9 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const rows = [0, ...cuts, columns.length].slice(1).map((e, i, a) => columns.slice(i ? a[i - 1]! : 0, e).flat());
   if (rows.some((r) => !r.length)) return undefined;
   // A part far shorter than the longest is a block left on a row of its own: that only adds room.
+  // (Cutting a chain or across blocks is weighed by how the result reads on the page instead.)
   const lengths = rows.map((r) => union(r.map((b) => b.box))[size]);
-  if (Math.min(...lengths) < BALANCE * Math.max(...lengths)) return undefined;
+  if (!opts.chains && !opts.loose && Math.min(...lengths) < BALANCE * Math.max(...lengths)) return undefined;
 
   // Each part starts at the start of the flow; the next one comes below (beside, top-down).
   const nodes = new Map(p.nodes);
@@ -81,16 +115,41 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const origin = union(blocks.map((b) => b.box));
   let next = origin[across];
   for (const row of rows) {
+    if (opts.loose) closeAcross(row, nodes, groups, at, size, across, thick, gap);
     const box = union(row.map((b) => b.box));
-    const dx = down ? next - box.x : origin.x - box.x;
-    const dy = down ? origin.y - box.y : next - box.y;
+    // Whole grid steps, so centres tidied onto the 8px grid stay on it.
+    const dx = grid(down ? next - box.x : origin.x - box.x);
+    const dy = grid(down ? origin.y - box.y : next - box.y);
     for (const b of row)
       for (const id of b.ids) {
         const m = nodes.has(id) ? nodes : groups;
         const o = m.get(id)!;
         m.set(id, { ...o, x: o.x + dx, y: o.y + dy });
       }
-    next += box[thick] + gap;
+    next = Math.max(next + box[thick] + gap, (down ? box.x + dx : box.y + dy) + box[thick] + gap);
+  }
+  // Wrapped inside a group that does not hold everything: what comes after that group along the
+  // flow closes up by what it got shorter, and what lies beyond it across moves out of its way.
+  const own = scope ? groups.get(scope) : undefined;
+  const ancestors = new Set<string>();
+  for (let g = scope; g; g = parentOf.get(g)) ancestors.add(g);
+  if (own && scope) {
+    const moved = new Set(blocks.flatMap((b) => b.ids));
+    const u = union(blocks.map((b) => (nodes.get(b.ids[0]!) ?? groups.get(b.ids[0]!))!));
+    const end0 = own[at] + own[size];
+    const end1 = u[at] + u[size] + pad;
+    const far0 = own[across] + own[thick];
+    const far1 = u[across] + u[thick] + pad;
+    const shrink = Math.floor((end0 - end1) / 8) * 8;
+    const grow = Math.ceil((far1 - far0) / 8) * 8;
+    for (const m of [nodes, groups])
+      for (const [id, b] of m) {
+        if (moved.has(id) || ancestors.has(id)) continue;
+        let o = b;
+        if (o[across] >= far0 - 1 && o[at] < end0 && o[at] + o[size] > own[at]) o = { ...o, [across]: o[across] + grow };
+        if (o[at] >= end0 - 1) o = { ...o, [at]: o[at] - shrink };
+        m.set(id, o);
+      }
   }
   // The groups around the wrapped level fit around it again, innermost first.
   for (let g = scope; g; g = parentOf.get(g)) {
@@ -101,4 +160,27 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   }
   const all = union([...nodes.values(), ...groups.values()]);
   return { nodes, groups, width: all.width, height: all.height };
+}
+
+/**
+ * The blocks of one row moved together across, in the order they stand, each as near the row's start
+ * as the blocks before it that share its stretch along the flow allow: the room left by blocks that
+ * went to another row closes up.
+ */
+function closeAcross(row: Block[], nodes: Map<string, Box>, groups: Map<string, Box>, at: 'x' | 'y', size: 'width' | 'height', across: 'x' | 'y', thick: 'width' | 'height', gap: number) {
+  const start = Math.min(...row.map((b) => b.box[across]));
+  const done: Box[] = [];
+  for (const b of [...row].sort((x, y) => x.box[across] - y.box[across])) {
+    const want = Math.max(start, ...done.filter((d) => d[at] < b.box[at] + b.box[size] && b.box[at] < d[at] + d[size]).map((d) => d[across] + d[thick] + gap));
+    const by = Math.ceil((want - b.box[across]) / 8) * 8;
+    if (by < 0) {
+      for (const id of b.ids) {
+        const m = nodes.has(id) ? nodes : groups;
+        const o = m.get(id)!;
+        m.set(id, { ...o, [across]: o[across] + by });
+      }
+      b.box = { ...b.box, [across]: b.box[across] + by };
+    }
+    done.push(b.box);
+  }
 }
