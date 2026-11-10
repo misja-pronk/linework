@@ -352,7 +352,9 @@ await wait(400);
   if (await page.locator('.doc-name .dirty').count()) fail('still unsaved after ⌘S');
   const first = await inFolder().catch(() => '');
   if (!/^type: data-products/m.test(first)) fail('⌘S did not write data-mesh.yaml into the folder');
-  // Again, with something added by hand (the YAML is still open from the step before): it stays.
+  // Again, with something added by hand: it stays. Next to the side panel in a folder the YAML may be
+  // folded for room: its rail opens it.
+  if (await page.locator('button.yaml-rail').count()) await page.click('button.yaml-rail');
   await page.click('.cm-content');
   await page.keyboard.press('Meta+End');
   await page.keyboard.type('\n# reviewed by the data office');

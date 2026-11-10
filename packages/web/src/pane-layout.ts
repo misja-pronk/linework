@@ -1,6 +1,8 @@
 // How the window is shared between the file list, the YAML (or the shapes), the drawing and the side
 // panel. The drawing comes first: it keeps at least MIN_CANVAS, and what is around it gives way in a
 // fixed order — the file list folds to a rail, the YAML narrows, and only then does the YAML fold too.
+// With the side panel and a folder, a YAML that would be too narrow to read folds before the drawing
+// gives way (review 3: at 1512 the YAML wrapped every line and the drawing had half the window).
 // The decisions reserve room for the side panel whether or not it is open, so selecting something
 // never reshuffles the left of the window: only the drawing narrows for the panel.
 
@@ -10,6 +12,8 @@ export const FILES = 208;
 export const RAIL = 40;
 export const SHAPES = 248;
 export const MIN_EDITOR = 280;
+/** Narrower than this, next to the side panel in a folder, the YAML wraps nearly every line: it folds instead. */
+export const READABLE_EDITOR = 400;
 export const SIDE = 300;
 const SPLITTER = 1;
 
@@ -53,13 +57,16 @@ export function paneLayout(w: PaneWants): Panes {
   const filesW = () => (filesMode === 'list' ? FILES : filesMode === 'rail' ? RAIL : 0);
   const wantsEditor = code && !w.editor.folded;
   // The file list folds first: when the YAML (or the shapes) would not keep its least next to it.
-  if (filesMode === 'list' && room(FILES) - (wantsEditor ? MIN_EDITOR + SPLITTER : 0) < 0) filesMode = 'rail';
+  // Unless the YAML folds anyway (too narrow to read next to the side panel): then the list keeps its place.
+  const yamlFolds = wantsEditor && !w.forceEditor && w.side && w.folder && room(RAIL) - SPLITTER < READABLE_EDITOR;
+  if (filesMode === 'list' && room(FILES) - (yamlFolds ? RAIL : wantsEditor ? MIN_EDITOR + SPLITTER : 0) < 0) filesMode = 'rail';
   let editorMode: Panes['editorMode'] = !code ? 'none' : w.editor.folded && !w.forceEditor ? 'rail' : 'open';
   let editor = 0;
   let squeezed = false;
   if (editorMode === 'open') {
     const max = room(filesW()) - SPLITTER;
-    if (max < MIN_EDITOR && !w.forceEditor) {
+    const tooNarrow = max < MIN_EDITOR || (w.side && w.folder && max < READABLE_EDITOR && w.editor.width > max);
+    if (tooNarrow && !w.forceEditor) {
       editorMode = 'rail';
       squeezed = true;
     } else editor = Math.round(Math.max(MIN_EDITOR, Math.min(w.editor.width, max)));

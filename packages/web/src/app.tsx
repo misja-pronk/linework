@@ -1690,7 +1690,9 @@ export function App() {
     selection,
     pathOf: (s) => pathOf(s),
     theme,
-    apply: (next, nodePins) => apply(next, nodePins ? withPins(nodePins) : undefined),
+    // An inserted block grows the drawing: fit it again (review 3: it ran past the edge, under the
+    // minimap); dropped at a point it stays where dropped, kept in view.
+    apply: (next, nodePins) => (nodePins ? previewControl.current?.keepInView(true) : previewControl.current?.fitNext(), apply(next, nodePins ? withPins(nodePins) : undefined)),
     selectPaths: (paths) => setPendingPaths(paths.map((p) => JSON.stringify(p))),
     notify,
   });
@@ -2113,9 +2115,10 @@ export function App() {
               onClick={() => (paneLayout({ width: windowWidth, folder: true, files: 'list', view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen }).filesMode === 'list' ? setFilesPref('list') : setFilesOver((o) => !o))}
               aria-expanded={filesOver}
               title={`The diagrams in ${ws.name}`}
+              aria-label={`Files: ${diagrams(ws).length} diagrams in ${ws.name}`}
             >
-              <Icon name="folder-open" size={16} />
-              <span className="rail-label">{ws.name}</span>
+              <Icon name="file-code" size={16} />
+              <span className="rail-label">Files · {diagrams(ws).length}</span>
             </button>
           </nav>
         )}
@@ -2146,7 +2149,7 @@ export function App() {
         {panes.editorMode === 'rail' && (
           <button
             className="rail rail-button yaml-rail"
-            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : setYamlFolded(false))}
+            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : (setYamlFolded(false), setForceYaml(true)))}
             title={panes.editorSqueezed ? 'Show the YAML (the window is narrow: the drawing gets less room)' : 'Show the YAML'}
             aria-label="Show the YAML"
           >
@@ -2414,16 +2417,16 @@ export function App() {
           <div className="side" role="region" aria-label="Side panel">
             <div className="side-tabs" role="tablist" aria-label="Side panel">
               <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
-                <Icon name="file-sliders" size={14} /> Properties
+                <Icon name="file-sliders" size={14} /> <span className="tab-label">Properties</span>
               </button>
               <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
-                <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
+                <Icon name="message-square" size={14} /> <span className="tab-label">Notes</span>{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
               <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={`Architecture decisions (${keyHint('decisions')})`}>
-                <Icon name="scroll-text" size={14} /> Decisions{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
+                <Icon name="scroll-text" size={14} /> <span className="tab-label">Decisions</span>{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
               </button>
               <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
-                <Icon name="sparkles" size={14} /> Ask Claude
+                <Icon name="sparkles" size={14} /> <span className="tab-label">Ask Claude</span>
               </button>
             </div>
           {askKept && (

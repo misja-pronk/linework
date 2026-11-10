@@ -1479,6 +1479,7 @@ button.rail {
 
 /* The one panel on the right: properties, notes or Ask, on tabs. */
 .side {
+  container: side / inline-size;
   min-height: 0;
   min-width: 0;
   display: flex;
@@ -1496,8 +1497,33 @@ button.rail {
   gap: 2px;
   padding: 6px 6px 0;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+/* Narrower than the four labels (Ask Claude was cut off at 1280 and 1512): only the chosen tab says its
+   name, the others are icon and count with the name as tooltip; narrower still, icons only. The names
+   stay readable to screen readers. */
+@container side (max-width: 400px) {
+  .side-tabs button:not([aria-selected='true']) .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@container side (max-width: 250px) {
+  .side-tabs .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 .side-tabs button {
+  position: relative;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 5px;

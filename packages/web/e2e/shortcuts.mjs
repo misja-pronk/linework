@@ -182,6 +182,8 @@ await step('⌘P searches in a folder', async () => {
 await step('⌘] in the YAML indents, in a folder too', async () => {
   const file = async () => page.locator('.doc-name').innerText();
   const before = await file();
+  // Next to the side panel in a folder the YAML may be folded for room: its rail opens it.
+  if (await page.locator('button.yaml-rail').count()) await page.click('button.yaml-rail');
   await page.click('.cm-line >> nth=2');
   await page.keyboard.press('Home');
   const line = await page.locator('.cm-activeLine').innerText();
