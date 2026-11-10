@@ -39,7 +39,7 @@ The list on the right says each change in words, with the names the drawing show
 - *Renamed “Orders” to “Orders service”*
 - *Removed Legacy VM from rg-shop (and its connection)*
 
-Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list. Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
+Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list; so do the key under the picture, the Markdown summary, the slides and `carto diff -o changes.md` (its table, element by element, still lists every line). Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
 
 | Key | |
 |---|---|

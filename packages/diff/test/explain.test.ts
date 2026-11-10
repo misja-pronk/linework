@@ -1,7 +1,7 @@
 // The diff in plain sentences, and as Markdown for a change advisory board.
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compare, explain, explainMarkdown, explainText } from '../src/index.ts';
+import { compare, explain, explainMarkdown, explainText, toldCounts, toldSummary } from '../src/index.ts';
 
 // The two versions the structural diff tests use.
 const src = fs.readFileSync(new URL('./diff.test.ts', import.meta.url), 'utf8');
@@ -32,7 +32,14 @@ describe('explain', () => {
     const c = await compare(pick('before'), pick('after'));
     expect(explainText(c.diff, c.before?.graph, c.after?.graph)).toMatch(/^Added subnet snet-edge in rg-shop; added Sessions .*; removed Reports from rg-shop \(and its connection\)\.$/);
     const md = explainMarkdown(c.diff, c.before?.graph, c.after?.graph, { against: 'snapshot before-review' });
-    expect(md).toMatch(/^## Changes to Web shop since snapshot before-review\n\n3 added, 2 removed, 3 changed\.\n\n- Added subnet snet-edge in rg-shop\n/);
+    // Counted as the list tells it: Reports and its line are one removal (the table below has both).
+    expect(md).toMatch(/^## Changes to Web shop since snapshot before-review\n\n3 added, 1 removed, 3 changed\.\n\n- Added subnet snet-edge in rg-shop\n/);
+    expect(toldCounts(c.diff, c.before?.graph, c.after?.graph)).toEqual({ added: 3, removed: 1, changed: 3 });
+    expect(toldSummary(c.diff, c.before?.graph, c.after?.graph)).toBe('3 added, 1 removed, 3 changed');
+    // The picture's key says the same.
+    const svg = c.picture()!.svg;
+    const key = svg.slice(svg.indexOf('data-diff-key'));
+    expect([...key.matchAll(/>(\d+)<\/text>/g)].map((m) => m[1]).slice(0, 3)).toEqual(['3', '3', '1']);
     expect(md).toContain('### Element by element');
     expect(md).toContain('| + added | node | `cache` | Sessions |');
   });
