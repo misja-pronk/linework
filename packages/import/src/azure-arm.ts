@@ -164,7 +164,7 @@ function evaluate(node: Node, scope: Scope): unknown {
     }
     case 'format': {
       const [f, ...rest] = args();
-      return asString(f).replace(/\{(\d+)(:[^}]*)?\}/g, (_, i: string) => asString(rest[Number(i)]));
+      return asString(f).replace(/\{\{|\}\}|\{(\d+)(:[^}]*)?\}/g, (m, i: string | undefined) => (i === undefined ? m[0]! : asString(rest[Number(i)])));
     }
     case 'resourceid':
       return resourceIdOf(scope, args(), 'rg');
@@ -258,6 +258,14 @@ function evaluate(node: Node, scope: Scope): unknown {
     }
     case 'not':
       return args()[0] !== true;
+    case 'less':
+    case 'greater':
+    case 'lessorequals':
+    case 'greaterorequals': {
+      const [a, b] = args();
+      const c = typeof a === 'number' && typeof b === 'number' ? a - b : asString(a).localeCompare(asString(b));
+      return node.name === 'less' ? c < 0 : node.name === 'greater' ? c > 0 : node.name === 'lessorequals' ? c <= 0 : c >= 0;
+    }
     case 'and':
       return args().every((x) => x === true);
     case 'or':
