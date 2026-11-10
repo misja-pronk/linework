@@ -52,6 +52,8 @@ import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { useTrace } from './trace/use-trace.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
+import { useDecisionsTool } from './decisions-panel.tsx';
+import { AnimateDialog } from './animate-dialog.tsx';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, type Workspace } from './files.ts';
 
@@ -208,6 +210,7 @@ export function App() {
   const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const [more, setMore] = useState(false);
   /** The drawing's tools that fold into ⋯ when the pane is narrow. */
   const [toolsMore, setToolsMore] = useState(false);
@@ -329,6 +332,7 @@ export function App() {
   // ------------------------------------------------------------ review notes
 
   const [notesOpen, setNotesOpen] = useState(false);
+  const [decisionsOpen, setDecisionsOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
   const [noteMine, setNoteMine] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
@@ -736,7 +740,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...layering.options, notes: notesInExports ? review.notes : undefined });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...layering.options, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -781,7 +785,7 @@ export function App() {
   const savePdf = attempt('Export', async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const saveHtml = (folder?: boolean) =>
     attempt('Export', async () => {
-      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, folder });
+      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport?.list, folder });
       download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
     })();
   const copySvg = attempt('Copy', async () => {
@@ -1354,6 +1358,8 @@ export function App() {
       case 'note': addNote(); break;
       case 'notes': toggleNotes(); break;
       case 'review': toggleReview(); break;
+      case 'decisions': decisionsTool.toggle(); break;
+      case 'decision-new': decisionsTool.newAbout(); break;
       case 'edit':
         if (!selected) return;
         if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
@@ -1525,12 +1531,13 @@ export function App() {
   );
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
-  /** One panel on the right, with tabs: the selection's properties, the review notes, or Ask. */
-  const sideTab: 'properties' | 'notes' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : 'properties';
+  /** One panel on the right, with tabs: the selection's properties, the review notes, the decisions, or Ask. */
+  const sideTab: 'properties' | 'notes' | 'decisions' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : 'properties';
   const showInspector = sideTab === 'properties' && inspector && hasProperties;
-  const sideOpen = asking || notesOpen || showInspector;
+  const sideOpen = asking || notesOpen || decisionsOpen || showInspector;
   const showSide = (tab: typeof sideTab) => {
     setAsking(tab === 'ask');
+    setDecisionsOpen(tab === 'decisions');
     if (tab === 'ask') setAskKept(true);
     if (tab !== 'notes' && notesOpen) toggleNotes();
     else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
@@ -1561,6 +1568,8 @@ export function App() {
 
   // ------------------------------------------------------------ the folder as one model (workspace/)
 
+  /** The decisions tool, for where-used (made after the workspace tools, which it reads). */
+  const decisionsRef = useRef<ReturnType<typeof useDecisionsTool>>(undefined);
   const wsTools = useWorkspaceTools({
     ws,
     file: ws && doc.path ? doc.path : docId,
@@ -1594,7 +1603,38 @@ export function App() {
       for (const [id, kind] of ids) if (node(id) !== id) review.rename(kind, id, node(id));
     },
     notify,
+    whereExtra: (el) => decisionsRef.current?.whereSection(el),
+    openDecision: (file) => {
+      const d = wsTools.index.decisions.find((x) => x.file === file);
+      if (d) decisionsTool.show(d.number);
+      return !!d;
+    },
   });
+
+  // Architecture decisions (decisions-panel.tsx): the panel, the markers, their keys and commands.
+  const decisionsTool = useDecisionsTool({
+    ws,
+    index: wsTools.index,
+    file: ws && doc.path ? doc.path : docId,
+    drawn,
+    selected,
+    selection,
+    select: (s) => select(s),
+    zoomToSelection: () => previewControl.current?.zoomToSelection(),
+    focusDrawing,
+    refresh: (w) => setWs({ ...w }),
+    notify,
+    open: decisionsOpen,
+    setOpen: setDecisionsOpen,
+  });
+  decisionsRef.current = decisionsTool;
+  // One panel on the right at a time: notes and decisions take turns.
+  useEffect(() => {
+    if (notesOpen && decisionsTool.open) decisionsTool.close();
+  }, [notesOpen]);
+  useEffect(() => {
+    if (decisionsTool.open && notesOpen) toggleNotes();
+  }, [decisionsTool.open]);
 
   // Trace a request through the drawing into a sequence diagram (trace/).
   const trace = useTrace({
@@ -1674,6 +1714,7 @@ export function App() {
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: 'Export', label: written ? 'Export PDF, a page per step' : 'Export PDF', icon: 'file-text', run: savePdf },
+    { id: 'animate', group: 'Export', label: 'Animation (GIF / MP4)…', hint: 'the steps or layers, a short blend between them', icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
     { id: 'html', group: 'Export', label: 'Interactive HTML (.html)', hint: 'one file to send: every view and step, zoom, search, drill-down', icon: 'globe', run: () => saveHtml() },
     ...(ws ? [{ id: 'html-folder', group: 'Export', label: `Interactive HTML of ${ws.name}`, hint: 'every diagram in the folder, with a contents page', icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: 'Export', label: 'Copy as PNG', icon: 'copy', run: copyPng },
@@ -1703,6 +1744,7 @@ export function App() {
     { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
+    ...decisionsTool.commands,
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
     { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
     { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
@@ -1974,6 +2016,9 @@ export function App() {
                 <button role="menuitem" onClick={() => saveHtml()} title="One file to send: every view and step, zoom, search, drill-down">
                   <Icon name="globe" /> Interactive HTML (.html)
                 </button>
+                <button role="menuitem" onClick={() => setAnimating(true)} title="The steps or layers, a short blend between them">
+                  <Icon name="circle-play" /> Animation (GIF / MP4)
+                </button>
                 <details>
                   {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
                   <summary onClick={(e) => e.stopPropagation()}>
@@ -2156,7 +2201,12 @@ export function App() {
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
-            overlay={(scale) => <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />}
+            overlay={(scale) => (
+              <>
+                <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
+                {decisionsTool.markers(scale)}
+              </>
+            )}
             onContextMenu={(s, at, client) => {
               if (s) select(s, false);
               setNoteMenu({ x: client.x, y: client.y, s, at });
@@ -2237,6 +2287,9 @@ export function App() {
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
                       </button>
                     )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
+                      <Icon name="scroll-text" /> {decisionsOpen ? 'Hide the decisions' : 'Decisions'}{decisionsTool.count ? ` (${decisionsTool.count})` : ''} <kbd>{keyHint('decisions')}</kbd>
+                    </button>
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
                       <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'}
                     </button>
@@ -2325,6 +2378,9 @@ export function App() {
               <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
                 <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
+              <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={`Architecture decisions (${keyHint('decisions')})`}>
+                <Icon name="scroll-text" size={14} /> Decisions{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
+              </button>
               <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
                 <Icon name="sparkles" size={14} /> Ask Claude
               </button>
@@ -2353,6 +2409,7 @@ export function App() {
               }}
             />
           )}
+        {sideTab === 'decisions' && decisionsTool.panel}
         {notesOpen && !asking && (
           <NotesPanel
             review={review}
@@ -2533,6 +2590,7 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
+      {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
       {trace.dialog}
       {noteMenu && (

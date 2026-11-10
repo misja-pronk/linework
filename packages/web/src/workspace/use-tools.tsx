@@ -49,6 +49,10 @@ export interface Host {
   noteIds(): string[];
   refresh(ws: Workspace): void;
   notify(message: string, o?: { tone?: 'error'; action?: { label: string; run(): void } }): void;
+  /** More for "where is this used" about an element (the decisions about it). */
+  whereExtra?(element: string): ReactNode;
+  /** Opens a decision file (a search hit) where decisions are read; false when it is not one. */
+  openDecision?(file: string): boolean;
 }
 
 const references = (type: string, data: unknown) => findType(type)?.references?.(data as never);
@@ -70,6 +74,7 @@ export function useWorkspaceTools(h: Host) {
   const [arrivals, setArrivals] = useState(0);
   const go = useCallback(async (p: Place, focus = false) => {
     const host = hostRef.current;
+    if (/\.md$/i.test(p.file) && host.openDecision?.(p.file)) return;
     pending.current = { ...p, focus };
     if (p.file !== host.file) {
       if (!host.ws) return host.notify(`${p.file} is not open here: open its folder`, { tone: 'error' });
@@ -254,7 +259,7 @@ export function useWorkspaceTools(h: Host) {
     <Crumbs crumbs={crumbs} back={history.canBack ? () => void history.back() : undefined} forward={history.canForward ? () => void history.forward() : undefined} onGo={(p) => void go(p)} />
   );
 
-  const wherePanel: ReactNode = selectedElement ? <WhereUsed index={index} element={selectedElement} here={here} onGo={(p) => void go(p)} onRename={() => rename()} /> : null;
+  const wherePanel: ReactNode = selectedElement ? <WhereUsed index={index} element={selectedElement} here={here} onGo={(p) => void go(p)} onRename={() => rename()} extra={h.whereExtra?.(selectedElement)} /> : null;
 
   const dialogs: ReactNode = (
     <>

@@ -7,7 +7,7 @@ import { Icon } from '../icon.tsx';
 import { useRestoreFocus } from '../menu.tsx';
 import type { Place } from './use-workspace.ts';
 
-const ICON: Record<WsHit['kind'], string> = { element: 'box', view: 'layers', file: 'file-code', entry: 'map-pin' };
+const ICON: Record<WsHit['kind'], string> = { element: 'box', view: 'layers', file: 'file-code', entry: 'map-pin', decision: 'scroll-text' };
 
 /** "containers.yaml › api", as a place reads. */
 export const placeName = (p: { file: string; view?: string }) => (p.view ? `${p.file.replace(/\.ya?ml$/i, '')} › ${p.view}` : p.file);

@@ -4,7 +4,8 @@
 // export writes storage-format pages and their attachments for an import the user runs. No network.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDiagramFile } from '@cartography/core';
+import { decisionsOnDrawing, isDiagramFile } from '@cartography/core';
+import { decisionsFor } from './decisions.ts';
 import { altText, describe, escapeHtml, escapeMarkdown, pngWithText, toHtml, toMarkdown, toText, type Description } from '@cartography/describe';
 import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
 
@@ -18,8 +19,22 @@ export interface WikiFlags {
   title?: string;
 }
 
-/** The words of a drawing, as render gave it. */
-export const told = (r: RenderResult, file: string): Description => describe({ ...r, name: path.basename(file) });
+/** The architecture decisions about this drawing (docs/decisions.md), one line each; none when the folder has no decisions. */
+function decisionsOf(r: RenderResult, file: string) {
+  if (!r.graph) return undefined;
+  try {
+    const { decisions, rel } = decisionsFor(file);
+    if (!decisions.length) return undefined;
+    const on = decisionsOnDrawing(decisions, r.graph, { file: rel, view: r.view });
+    const seen = [...new Map(on.map((x) => [x.decision.number, x.decision])).values()];
+    return seen.map((d) => ({ id: `ADR-${String(d.number).padStart(4, '0')}`, title: d.title, status: d.status }));
+  } catch {
+    return undefined;
+  }
+}
+
+/** The words of a drawing, as render gave it, with the decisions about it. */
+export const told = (r: RenderResult, file: string): Description => describe({ ...r, name: path.basename(file), decisions: decisionsOf(r, file) });
 
 /** A PNG that carries its title and description (PNG text chunks). */
 export async function describedPng(r: RenderResult, file: string, bytes: Uint8Array): Promise<Uint8Array> {
