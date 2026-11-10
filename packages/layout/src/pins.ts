@@ -50,7 +50,8 @@ const CLEAR = 16;
  * Nothing lies on anything it is not in. A group that grew around a pinned node (or was moved by
  * hand) can come to lie over a node or group beside it: what is not pinned moves out of its way, the
  * shortest way out, carrying what it holds, and the groups around it grow to keep holding it. When
- * both are pinned, the newer pin gives way and is named in the result, so the editor can say so.
+ * a pinned group runs over something pinned, the newer pin gives way and is named in the result, so
+ * the editor can say so.
  */
 export function clearOverlaps(graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, fixed: Set<string>, pinnedGroups: Set<string>, order: string[], header: number, pad: number, gap: number): string[] {
   const parent = new Map<string, string | undefined>([...graph.groups.map((g) => [g.id, g.parent] as const), ...graph.nodes.map((n) => [n.id, n.parent] as const)]);
@@ -70,10 +71,9 @@ export function clearOverlaps(graph: Graph, nodes: Map<string, Box>, groups: Map
     for (const g of ids) {
       for (const x of ids) {
         if (x === g || within(x, g) || within(g, x)) continue;
-        // Two nodes are makeRoom's (and the layout's) to keep apart; a group is in this pair.
-        if (!isGroup(g) && !isGroup(x)) {
-          if (!(fixed.has(g) && fixed.has(x))) continue;
-        }
+        // Two nodes are makeRoom's (and the layout's) to keep apart, and two pinned ones lie where they
+        // were put (aligned onto one line before they are spread out, say): a group is in this pair.
+        if (!isGroup(g) && !isGroup(x)) continue;
         if (overlap(box(g), box(x))) {
           pair = [g, x];
           break;

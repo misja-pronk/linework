@@ -64,16 +64,30 @@ describe('free placement', () => {
     expect(measure(after.graph!, after.placed!).overlaps).toBe(0);
   });
 
-  it('moves the newer of two pins that would lie on top of each other, and says so', async () => {
+  it('leaves two pins on top of each other where they were put (aligned, before they are spread out)', async () => {
     const first = await render(withSql, { fonts: 'none' });
     const app = at(first, 'app');
-    const sidecar: LayoutSidecar = { version: 1, nodes: { app: { x: app.x, y: app.y }, users: { x: app.x + 20, y: app.y + 10 } } };
+    // Both in the resource group: nothing but each other is in the way.
+    const sidecar: LayoutSidecar = { version: 1, nodes: { app: { x: app.x, y: app.y }, sql: { x: app.x + 20, y: app.y + 10 } } };
     const r = await render(withSql, { fonts: 'none', sidecar });
     expect(at(r, 'app')).toMatchObject({ x: app.x, y: app.y });
-    expect(r.placed!.nudged).toEqual(['users']);
+    expect(at(r, 'sql')).toMatchObject({ x: app.x + 20, y: app.y + 10 });
+    expect(r.placed!.nudged).toBeUndefined();
+  });
+
+  it('moves a pinned group that grew over another pinned element out of its way, and says so', async () => {
+    const first = await render(withSql, { fonts: 'none' });
+    const users = at(first, 'users');
+    const rg = at(first, 'rg');
+    // Users pinned first, then the resource group pinned right on top of it.
+    const sidecar: LayoutSidecar = { version: 1, nodes: { users: { x: users.x, y: users.y } }, groups: { rg: { x: users.x - 10, y: users.y - 20 } } };
+    const r = await render(withSql, { fonts: 'none', sidecar });
+    expect(at(r, 'users')).toMatchObject({ x: users.x, y: users.y });
+    // The resource group, or the subscription around it, gives way: never the older pin.
+    expect(r.placed!.nudged).toHaveLength(1);
     expect(r.diagnostics.map((d) => d.message).join()).toMatch(/pinned on top of another/);
-    const [a, u] = [at(r, 'app'), at(r, 'users')];
-    expect(a.x < u.x + u.width && u.x < a.x + a.width && a.y < u.y + u.height && u.y < a.y + a.height).toBe(false);
+    expect(boxOverlaps(r.graph!, r.placed!)).toEqual([]);
+    expect(rg.width).toBeGreaterThan(0);
   });
 
   it('draws the rest afresh around the pins when the memory is dropped (Tidy)', async () => {

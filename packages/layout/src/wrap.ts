@@ -76,6 +76,14 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   for (const g of graph.groups) if (g.parent === scope && p.groups.has(g.id)) blocks.push({ ids: [g.id, ...[...p.nodes.keys(), ...p.groups.keys()].filter((id) => inside(id, g.id))], box: p.groups.get(g.id)! });
   for (const n of graph.nodes) if (n.parent === scope && p.nodes.has(n.id)) blocks.push({ ids: [n.id], box: p.nodes.get(n.id)! });
   if (blocks.length < 2) return undefined;
+  // Only cards, one after the other (a path): cut, it snakes back at every cut, and reads best drawn as it came.
+  if ((opts.chains || opts.loose) && blocks.every((b) => b.ids.length === 1 && p.nodes.has(b.ids[0]!))) {
+    const ids = new Set(blocks.map((b) => b.ids[0]!));
+    const lines = graph.edges.filter((e) => ids.has(e.from.node) && ids.has(e.to.node) && e.from.node !== e.to.node);
+    const degree = new Map<string, number>();
+    for (const e of lines) for (const id of [e.from.node, e.to.node]) degree.set(id, (degree.get(id) ?? 0) + 1);
+    if (lines.length === ids.size - 1 && [...degree.values()].every((d) => d <= 2)) return undefined;
+  }
 
   // Columns along the flow: blocks that overlap along it stand in one and are never cut apart.
   const [at, size] = down ? (['y', 'height'] as const) : (['x', 'width'] as const);
