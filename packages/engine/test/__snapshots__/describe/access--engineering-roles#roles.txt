@@ -1,0 +1,13 @@
+Engineering access
+
+Roles, groups and access packages, roles × permissions: What each Azure role may do, its own permissions and the ones it includes. A table of 3 rows by 4 columns.
+
+By row (Role by permission)
+Columns: read, write, deploy and manage access.
+- Reader: read: yes
+- Contributor (includes Reader): read: yes, inherited; write: yes; deploy: yes
+- Owner (includes Contributor): read: yes, inherited; write: yes, inherited; deploy: yes, inherited; manage access: yes
+
+Key
+- Indigo check mark: Granted by the role
+- Indigo outlined check mark: Included from another role

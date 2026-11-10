@@ -1,0 +1,32 @@
+Device connection
+
+States diagram: How a field sensor connects to the platform, keeps the link alive and recovers when it drops. 8 states in 1 group, with 13 transitions.
+
+Groups and elements
+- Start
+- Disconnected: entry / radio off
+- Connecting: entry / start the 10 s timer; do / TLS handshake
+- Connected
+  - Start of Connected
+  - Idle: do / send a heartbeat every 30 s
+  - Sending: entry / open the batch; exit / clear the buffer
+  - Receiving update: do / download firmware
+- Backing off: entry / double the wait
+
+Main path
+1. Start
+2. Disconnected
+3. Connecting: wake up
+4. Idle: handshake done
+5. Backing off: link lost
+
+Transitions
+- Start moves to Disconnected.
+- Disconnected moves to Connecting on wake up.
+- Connecting moves to Connected on handshake done and moves to Backing off on timeout.
+- Connected moves to Backing off on link lost.
+- Backing off moves to Disconnected on wait over [5 tries] and moves to Connecting on wait over [under 5 tries].
+- Start of Connected moves to Idle.
+- Idle moves to Idle on heartbeat, moves to Sending on buffer full and moves to Receiving update on update offered.
+- Sending moves to Idle on batch acknowledged.
+- Receiving update moves to Idle on update verified.

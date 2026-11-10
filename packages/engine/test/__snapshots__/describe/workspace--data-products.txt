@@ -1,0 +1,22 @@
+Harbour Bank data products
+
+Data products diagram. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Core banking (Domain · team-data)
+  - Core ledger (Source · Database)
+  - Transactions (Source-aligned)
+  - Daily balances (Consumer-aligned)
+  - Payments hub (payment events)
+- Finance dashboard (Dashboard)
+
+Connections
+- Core ledger connects to Transactions.
+- Transactions connects to Daily balances.
+- Daily balances connects to Finance dashboard.
+- Payments hub connects to Transactions (events).
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

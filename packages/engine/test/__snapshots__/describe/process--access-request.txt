@@ -1,0 +1,39 @@
+Access request
+
+Process diagram: From request to access, approved by the line manager. 9 elements in 3 lanes, with 8 connections.
+
+Lanes and steps
+- Employee (lane)
+  - Start event
+  - Request access
+  - Confirm access
+  - End event
+- Line manager (lane)
+  - Check request
+  - Approved? (decision decision)
+  - Explain why
+  - Request rejected (end event)
+- IT service desk (lane)
+  - Grant access
+
+Main path
+1. Start event
+2. Request access
+3. Check request
+4. Approved?
+5. Grant access: Approved? yes
+6. Confirm access
+7. End event
+
+Connections
+- Start event leads to Request access.
+- Request access leads to Check request.
+- Check request leads to Approved?
+- Approved? leads to Grant access (yes) and leads to Explain why (no).
+- Grant access leads to Confirm access.
+- Explain why leads to Request rejected.
+- Confirm access leads to End event.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

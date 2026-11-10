@@ -1,0 +1,13 @@
+Harbour Bank access
+
+Roles, groups and access packages, who × where: Who × where. A table of 3 rows by 3 columns.
+
+By row (Who by where)
+Columns: Harbour Online, Payments hub and Core ledger.
+- sg-team-digital (Security group): Harbour Online: Operator
+- sg-team-payments (Security group): Payments hub: Operator
+- sg-auditors (Security group): Payments hub: Reader; Core ledger: Reader
+
+Key
+- Indigo filled pill: Assigned directly
+- Indigo outlined pill: Through a group, access package or parent scope

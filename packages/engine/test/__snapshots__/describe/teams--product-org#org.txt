@@ -1,0 +1,28 @@
+Product and technology
+
+Org chart: Org chart and team topology, Q3 2026. 13 people and 1 open role, led by Anna de Vries.
+
+Who reports to whom
+Each person, with the people who report to them under them.
+- Anna de Vries, Chief product and technology officer
+  - Bo Jansen, Head of product
+    - Dana Smit, Product lead Checkout (Checkout)
+    - Eli Bakker, Product lead Search (Search)
+    - Finn Mulder, Product lead Accounts (Accounts)
+  - Cem Yilmaz, Head of engineering
+    - Fay Visser, Platform lead (Platform)
+    - Gus Peeters, Engineering manager (Checkout)
+    - Hana Sato, Engineering manager (Search)
+    - Ivo de Boer, Data science lead (Ranking)
+    - Vacancy: SRE coach (Enablement, open role)
+  - Dewi Kartika, Head of design
+    - Jade Lin, Product designer
+    - Kai Vermeer, UX researcher
+
+Dotted lines
+- Fay Visser also reports to Bo Jansen.
+
+Key
+- Solid line: Reports to
+- Dotted line: Dotted-line report
+- Person block: Vacancy

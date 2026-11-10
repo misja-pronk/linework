@@ -1,0 +1,45 @@
+Web shop data mesh
+
+Data products, detailed: Detailed. 15 elements in 3 groups, with 18 connections.
+
+Groups and elements
+- CRM accounts (Outside the mesh)
+- Customer (Domain)
+  - Customers (Source-aligned · v1.4.0 · CRM team)
+  - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
+  - customers (Data contract · v1.4.0 · confidential)
+  - customer profiles (Data contract · v0.9.0)
+- Campaign tool (Application)
+- Webshop order events (Outside the mesh)
+- Sales (Domain)
+  - Orders (Source-aligned · v2.1.0 · Sales engineering)
+  - orders (Data contract · v2.1.0)
+- Finance (Domain)
+  - Revenue (Consumer-aligned · v1.2.0 · Finance data)
+  - Payments (Source-aligned · v3.2.0 · Finance data)
+  - settled payments (Data contract · v3.2.0 · restricted)
+- CFO dashboard (Dashboard)
+- Payment provider settlements (Outside the mesh)
+- Exchange rates (Source-aligned · v1.0 · Treasury)
+
+Connections
+- CRM accounts connects to Customers.in:0.
+- Customers.out:customers connects to Customer 360.in:1 and is linked with customers.
+- Customer 360.out:profiles connects to Campaign tool and is linked with customer profiles.
+- customer profiles.field:0:customer_id connects to customers.field:0:customer_id.
+- Webshop order events connects to Orders.in:0.
+- Orders.out:orders connects to Customer 360.in:0, connects to Revenue.in:0 and is linked with orders.
+- Revenue.out:revenue-by-day connects to CFO dashboard.
+- orders connects to customers.field:0:customer_id and connects to orders.field:0:order_id.
+- Payment provider settlements connects to Payments.in:0.
+- Payments.out:settled-payments connects to Revenue.in:1 and is linked with settled payments.
+- settled payments.field:0:order_id connects to orders.field:0:order_id.
+- Exchange rates.out:rates-api connects to Revenue.in:2.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract
+- Solid violet line with ticks: Foreign key

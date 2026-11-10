@@ -1,0 +1,28 @@
+E-commerce capabilities
+
+Capability map, supporting systems: Supporting systems. 5 areas and 18 capabilities.
+
+Areas and capabilities
+- Attract
+  - Search engine marketing (systems: Google Ads): Supported by Google Ads
+  - Content (systems: Contentful): Supported by Contentful
+  - Personalisation (systems: Dynamic Yield): Supported by Dynamic Yield
+- Sell
+  - Catalogue
+    - Product information (systems: Akeneo): Supported by Akeneo
+    - Search and filters (systems: Algolia): Supported by Algolia
+  - Checkout
+    - Basket (systems: Commerce engine): Supported by Commerce engine
+    - Payment (systems: Adyen): Supported by Adyen
+    - Promotions (systems: Commerce engine): Supported by Commerce engine
+- Deliver
+  - Order management (systems: Legacy OMS, SAP): Supported by Legacy OMS, SAP
+  - Warehouse (systems: WMS): Supported by WMS
+  - Carrier management (systems: Sendcloud): Supported by Sendcloud
+- Serve
+  - Customer service (systems: Zendesk): Supported by Zendesk
+  - Returns (systems: Legacy OMS): Supported by Legacy OMS
+  - Reviews (systems: Trustpilot): Supported by Trustpilot
+- Run
+  - Finance (systems: SAP): Supported by SAP
+  - Analytics (systems: Snowflake, Looker): Supported by Snowflake, Looker

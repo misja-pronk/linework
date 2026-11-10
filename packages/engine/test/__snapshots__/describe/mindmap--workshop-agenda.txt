@@ -1,0 +1,21 @@
+Platform strategy workshop
+
+Mind map: Agenda for the day, read top to bottom. Around Platform strategy, 5 branches and 17 topics in all.
+
+Topics
+- Where we stand
+  - Survey results (30 minutes)
+  - Incidents of the last quarter
+  - What teams build themselves
+- Where we want to be
+  - Golden paths for three stacks
+  - Self-service environments
+  - Lead time under a day
+- Choices to make
+  - Build or buy the portal
+  - One cluster per team or shared
+  - Who owns the paved road
+- Lunch (12:30 to 13:15)
+- Commitments
+  - Owners per choice
+  - Next review in six weeks

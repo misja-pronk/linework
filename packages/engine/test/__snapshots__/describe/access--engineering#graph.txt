@@ -1,0 +1,40 @@
+Engineering access
+
+Roles, groups and access packages, who gets what, as a graph: Entra ID access packages and Azure roles. 14 elements in 2 groups, with 14 connections.
+
+Groups and elements
+- Engineering (department = Engineering)
+- Engineering (Catalog)
+  - Manager approves (180 days · review quarterly)
+  - Developer access (Access package)
+  - Manager → sg-platform-admins approves (30 days)
+  - Platform admin (Access package)
+- sg-developers (Security group)
+- GitHub Enterprise (Application)
+- Test (Subscription)
+- Production (Subscription)
+  - rg-shop (Resource group)
+- sg-platform-admins (Role-assignable group)
+- Contoso partners (Connected organisation)
+- Alice (User)
+- Bob (Contoso) (Guest)
+- GitHub deploy (Service principal)
+
+Connections
+- Engineering (department = Engineering) connects to Manager approves.
+- Manager approves connects to Developer access.
+- Developer access connects to sg-developers and connects to GitHub Enterprise (User).
+- sg-developers connects to Manager → sg-platform-admins approves, connects to Test (Contributor) and connects to Production (Reader).
+- Manager → sg-platform-admins approves connects to Platform admin.
+- Platform admin connects to sg-platform-admins.
+- sg-platform-admins connects to Production (Owner).
+- Contoso partners connects to Manager approves.
+- Alice connects to Developer access.
+- Bob (Contoso) connects to Developer access.
+- GitHub deploy connects to rg-shop (Contributor).
+
+Key
+- Solid green line with beads: Holds package
+- Dashed line: Can request
+- Solid violet line with ticks: Package grants
+- Solid sky line: Role assignment

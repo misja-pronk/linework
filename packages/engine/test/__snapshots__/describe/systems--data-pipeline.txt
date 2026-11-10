@@ -1,0 +1,35 @@
+Telemetry pipeline
+
+Architecture diagram: From connected devices to dashboards and models. 11 elements in 3 groups, with 10 connections.
+
+Groups and elements
+- Smart meters (Device)
+- Ingestion (Domain)
+  - Collector API
+  - readings (Kafka)
+- Analytics platform (System)
+  - Stream enrichment (Worker)
+  - Lakehouse (Zone)
+    - Raw zone (S3)
+    - Curated tables (Iceberg)
+  - Nightly compaction (Scheduled job)
+  - Load forecast (AI model)
+- Grafana (Monitoring)
+- Dashboards (Web app)
+- Grid operators (External system)
+
+Connections
+- Smart meters calls Collector API over MQTT.
+- Collector API sends messages to readings.
+- readings sends messages to Stream enrichment.
+- Stream enrichment sends data to Raw zone and connects to Grafana (Supporting: metrics).
+- Raw zone sends data to Nightly compaction.
+- Nightly compaction sends data to Curated tables.
+- Curated tables calls Dashboards (SQL) and sends data to Load forecast.
+- Grid operators sends data to Collector API over SFTP.
+
+Key
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow
+- Dotted line: Supporting

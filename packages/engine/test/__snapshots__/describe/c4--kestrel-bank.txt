@@ -1,0 +1,26 @@
+Kestrel Bank — system landscape
+
+C4 model: Who uses what, at a glance. 7 elements in 1 group, with 6 connections.
+
+Groups and elements
+- Personal customer (Person): Holds current and savings accounts at Kestrel Bank
+- Kestrel Bank (Enterprise)
+  - Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
+  - Core ledger (Software System): Holds every account and books every transaction
+  - Branch advisor (Person): Helps customers in the branch and on the phone
+  - Advisor desk (Software System): Customer records and cases for branch staff
+- Postbird (Software System, external): Sends transactional email
+- Push gateway (Software System, external): Delivers notifications to iOS and Android
+
+Connections
+- Personal customer connects to Kestrel Online (Banks online [HTTPS], Banks on the phone).
+- Kestrel Online connects to Core ledger (Reads and books [ISO 20022 over MQ]), connects to Postbird (Sends email [SMTP]) and connects to Push gateway (Sends pushes [HTTPS]).
+- Branch advisor connects to Advisor desk (Looks up customers).
+- Advisor desk connects to Core ledger (Reads accounts [SOAP]).
+
+Key
+- Indigo icon: Person
+- Blue icon: Software system
+- Icon, greyed: External system
+- Boundary box: Boundary
+- Solid line: Relationship

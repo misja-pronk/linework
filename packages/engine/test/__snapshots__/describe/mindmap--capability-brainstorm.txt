@@ -1,0 +1,28 @@
+What could the data platform offer?
+
+Mind map: Capability brainstorm, two levels shown. Around Data platform, 6 branches and 24 topics in all.
+
+Topics
+- Ingest
+  - Batch loads (+2)
+  - Streaming (+2)
+  - SaaS connectors
+- Store
+  - Lakehouse tables
+  - Feature store
+  - Archive (+2)
+- Serve
+  - SQL warehouse
+  - APIs on data products
+  - Reverse ETL
+- Govern
+  - Catalogue and lineage
+  - Access requests
+  - Data contracts (+3)
+- Learn
+  - Notebooks
+  - Model training
+  - Experiment tracking
+- Observe
+  - Pipeline health
+  - Cost per product

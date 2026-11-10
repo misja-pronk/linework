@@ -1,0 +1,27 @@
+Product and technology
+
+Team topology: Team Topologies. 6 teams, with 5 interactions.
+
+Teams
+- Checkout (Basket to payment · Lead: Dana Smit, 7 people, stream-aligned team)
+- Search (Find and compare · Lead: Eli Bakker, 6 people, stream-aligned team)
+- Accounts (Sign-up and profile · Lead: Finn Mulder, 5 people, stream-aligned team)
+- Ranking (Search ranking models, 3 people, complicated-subsystem team)
+- Enablement (SRE practices, 2 people, enabling team)
+- Platform (Paved road: build, deploy, run · Lead: Fay Visser, 8 people, platform team)
+
+Interactions
+- Enablement and Checkout: facilitating.
+- Enablement and Search: facilitating.
+- Checkout and Search: collaboration.
+- Search and Ranking: collaboration.
+- Accounts and Platform: X-as-a-Service.
+
+Key
+- Stream block: Stream-aligned team
+- Platform block: Platform team
+- Enabling block: Enabling team
+- Subsystem block: Complicated-subsystem team
+- Collaboration block: Collaboration
+- Service block: X-as-a-Service
+- Facilitating block: Facilitating

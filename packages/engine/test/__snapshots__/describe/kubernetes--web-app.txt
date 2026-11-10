@@ -1,0 +1,37 @@
+Web shop
+
+Kubernetes diagram: One namespace, from ingress to Postgres. 12 elements in 2 groups, with 21 connections.
+
+Groups and elements
+- Customers (Users)
+- prod-eu-1 (Cluster)
+  - shop (Namespace)
+    - shop (Ingress · shop.example.com)
+    - web (Service · :80)
+    - api (Service · :80→8080)
+    - web (Deployment · ×2 · web:2.3.0)
+    - api (Deployment · api:1.4.2 · :8080)
+    - postgres (Service · :5432)
+    - redis (StatefulSet · redis:7.4 · :6379)
+    - postgres (StatefulSet · postgres:16.4)
+    - order-worker (Deployment · ×2 · api:1.4.2)
+    - invoice-run (CronJob · 0 3 * * *)
+- Stripe (External)
+
+Connections
+- Customers send traffic to shop (Ingress) over HTTPS.
+- shop (Ingress) sends traffic to web (Service) (/), sends traffic to api (Service) (/api) and mounts shop-tls.
+- web (Service) sends traffic to web (Deployment).
+- api (Service) sends traffic to api (Deployment).
+- api (Deployment) sends traffic to postgres (Service) (SQL), sends traffic to redis, sends traffic to Stripe (payments), mounts api-config, mounts db-credentials, signs in with shop-api and is scaled by HPA ×3–12.
+- postgres (Service) sends traffic to postgres (StatefulSet).
+- redis mounts data · 5Gi.
+- postgres (StatefulSet) mounts data · 50Gi and mounts db-credentials.
+- order-worker sends traffic to postgres (Service) and mounts db-credentials.
+- invoice-run sends traffic to postgres (Service) and mounts db-credentials.
+
+Key
+- Solid blue line: Traffic
+- Badge: Mounts badge
+- Amber badge: Identity badge
+- Green badge: Scales badge

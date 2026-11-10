@@ -11,6 +11,7 @@
   "dependencies": {
     "@cartography/access": "workspace:*",
     "@cartography/core": "workspace:*",
+    "@cartography/describe": "workspace:*",
     "@cartography/docs-plugins": "workspace:*",
     "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",

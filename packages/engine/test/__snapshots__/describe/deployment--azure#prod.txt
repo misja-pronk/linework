@@ -1,0 +1,34 @@
+Web shop on Azure
+
+Azure infrastructure diagram: Production. 9 elements in 5 groups, with 8 connections.
+
+Groups and elements
+- Users
+- Front Door and WAF (Front Door)
+- Shop (Subscription)
+  - rg-shop (Resource group)
+    - Storefront (Static Web App · React): Runs Storefront (shop.web): Shows the catalogue and takes orders
+    - vnet-shop (Virtual network)
+      - snet-apps (Subnet)
+        - Orders API (Container App · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
+      - snet-data (Subnet)
+        - Orders DB (PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
+        - Read replica (PostgreSQL)
+    - kv-shop (Key Vault)
+    - order-events (Service Bus): Runs order-events (shop.bus): One message for every placed order
+    - Mailer (Function App · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
+
+Connections
+- Users send traffic to Front Door and WAF over HTTPS.
+- Front Door and WAF sends traffic to Storefront.
+- Storefront connects to Orders API (Calls [REST]).
+- Orders API connects to Orders DB (Private network: SQL), signs in with kv-shop and connects to order-events (OrderPlaced).
+- Orders DB sends data to Read replica (replication).
+- order-events connects to Mailer (OrderPlaced).
+
+Key
+- Solid line: Connection
+- Solid sky line with beads: Public traffic
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow
+- Amber badge: Identity badge

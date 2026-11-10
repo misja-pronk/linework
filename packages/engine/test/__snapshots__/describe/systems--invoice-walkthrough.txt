@@ -1,0 +1,41 @@
+Checkout without waiting
+
+Architecture diagram: Proposal for the steering group. 9 elements in 2 groups, with 10 connections.
+
+Groups and elements
+- Customers (Users)
+- Web shop (System)
+  - Storefront (Web app)
+  - Orders (Service)
+  - Orders DB (Database)
+  - New (Zone)
+    - order-events (Queue)
+    - Invoicing (Worker)
+    - Notifier (Worker)
+- ERP (Finance)
+- Mail provider (Email)
+
+Connections
+- Customers connect to Storefront over HTTPS.
+- Storefront calls Orders (REST).
+- Orders sends data to Orders DB (SQL), calls ERP (create invoice), calls Mail provider (confirmation) and sends OrderPlaced to order-events.
+- order-events sends messages to Invoicing and sends messages to Notifier.
+- Invoicing calls ERP (create invoice).
+- Notifier calls Mail provider (confirmation).
+
+Walkthrough
+1. Checkout today: A customer orders, and the Orders service does everything before it answers.
+2. The order itself is quick: Storing the order takes 40 ms. This part works and stays as it is.
+3. Then checkout waits for Finance: The invoice is created in the ERP while the customer looks at a spinner.
+  - ERP: Maintenance 02:00 to 04:00: checkout fails
+4. And for the mail provider: A slow confirmation mail is a slow checkout. Two outside systems decide how fast the shop feels.
+5. Proposal: say what happened, and answer: Orders publishes OrderPlaced and answers the customer right away.
+6. Invoices and mail follow on their own: Two small workers pick up the event. When the ERP is down they wait and try again; no order is lost.
+  - order-events: Kept for 7 days
+7. What the customer notices: Checkout answers in under 100 ms, also at night. Nothing changes in the storefront or the order data.
+
+Key
+- Solid line with beads: Connection
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow

@@ -1,0 +1,64 @@
+First deploy on the internal developer platform
+
+Journey map, storyboard: Storyboard. Ravi Menon's journey through 4 phases and 8 steps.
+
+Persona: Ravi Menon
+- Role: Tech lead of a product team
+- Goal: A new service in production this sprint, without a ticket queue
+- Says: “If the paved road is slower than my own script, I will take the script.”
+
+By phase
+- Discover
+  - Hears about the platform in a guild demo (feels curious, 3 of 5)
+    - Thinks: “Looks good in a demo. Will it fit our service?”
+    - Through Guild meeting
+    - With Platform team
+  - Reads the getting-started guide (feels hopeful, 4 of 5)
+    - Says: “One page, and it starts with a working example.”
+    - Through Developer portal and Docs
+    - Works well: Guide is short and tested every night
+- Create
+  - Creates the service from a template (feels impressed, 5 of 5)
+    - Says: “Repository, pipeline and dashboard in five minutes.”
+    - Through Developer portal and GitHub
+    - Works well: Template comes with pipeline and alerts
+    - Works well: No ticket needed
+    - Measured: 5 min
+  - Connects the database and secrets (feels stuck, 2 of 5)
+    - Thinks: “Which of the three vaults is ours?”
+    - Through Terminal and Slack
+    - With Platform support
+    - Pain: Secret names differ per environment
+    - Pain: Database request is still a ticket
+    - Idea: Database as a self-service resource
+    - Measured: 1 ticket, 1 day
+- Ship
+  - Opens a pull request and gets a preview (feels confident, 4 of 5)
+    - Says: “The reviewer can click through the change.”
+    - Through Delivery pipeline and Preview environment
+    - Works well: Preview environment per pull request
+  - Promotes the release to production (feels careful, 3 of 5)
+    - Thinks: “Who approves this, and how long does that take?”
+    - Through Deploy dashboard
+    - With Product owner
+    - Pain: Approval rule is unclear for new services
+    - Idea: Automatic approval when checks are green
+    - Measured: 2 hours waiting
+- Run
+  - Watches the service on the standard dashboard (feels in control, 5 of 5)
+    - Says: “Dashboards and alerts were there before I asked.”
+    - Through Grafana and Alerts
+    - Works well: Golden signals out of the box
+  - Looks up what the service costs (feels puzzled, 3 of 5)
+    - Thinks: “The report is per cluster, not per team.”
+    - Through Cost report
+    - Pain: Cost is not shown per service
+    - Idea: Cost per service in the portal
+
+Feeling
+Lowest at “Connects the database and secrets” (2 of 5); highest at “Creates the service from a template” (5 of 5).
+
+Metrics
+- Time to first deploy: 2 days
+- Tickets raised: 1
+- Teams on the platform: 14 of 40

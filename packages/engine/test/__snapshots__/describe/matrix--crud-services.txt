@@ -1,0 +1,20 @@
+Order platform — CRUD matrix
+
+Matrix: Which service creates, reads, updates and deletes which data. A table of 8 rows by 7 columns.
+
+By row (Service by data)
+Columns: Party (Customer, Address); Catalogue (Product, Price); Sales (Order, Payment); Fulfilment (Shipment).
+- Accounts service (team Identity): Customer: C (Create), R (Read), U (Update), D (Delete); Address: C (Create), R (Read), U (Update), D (Delete)
+- Catalogue service (team Merchandise): Product: C (Create), R (Read), U (Update), D (Delete); Price: R (Read)
+- Pricing engine (team Merchandise): Product: R (Read); Price: C (Create), R (Read), U (Update)
+- Checkout (team Sales): Customer: R (Read); Address: R (Read); Product: R (Read); Price: R (Read); Order: C (Create); Payment: C (Create)
+- Orders service (team Sales): Customer: R (Read); Order: R (Read), U (Update), D (Delete); Payment: R (Read); Shipment: R (Read)
+- Billing (team Finance): Customer: R (Read); Order: R (Read); Payment: R (Read), U (Update)
+- Shipping (team Logistics): Address: R (Read); Order: R (Read), U (Update); Shipment: C (Create), R (Read), U (Update)
+- Reporting (team Data): Customer: R (Read); Product: R (Read); Order: R (Read); Payment: R (Read); Shipment: R (Read)
+
+Key
+- Tag C: Create
+- Tag R: Read
+- Tag U: Update
+- Tag D: Delete

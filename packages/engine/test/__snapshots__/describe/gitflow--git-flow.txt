@@ -1,0 +1,39 @@
+Git Flow at Acme Payments
+
+Git branching diagram: The canonical flow, plus this sprint's work on top. 8 branches and 23 commits.
+
+Branches
+- main (long-lived, 4 commits)
+- hotfix/1.1.1 (hotfix, 1 commit)
+- release/1.1 (release, 2 commits)
+- release/1.2 (release, 1 commit)
+- develop (long-lived, 9 commits)
+- feature/login (feature, 2 commits)
+- feature/search (feature, 2 commits)
+- feature/refunds (feature, 2 commits)
+
+History
+Oldest first.
+1. main: Initial release, tagged v1.0.0.
+2. develop: Set up CI, branches off main.
+3. feature/login: Login form, branches off develop.
+4. develop: Update deps.
+5. feature/search: Search index, branches off develop.
+6. feature/login: Validation, PR review.
+7. develop: merges feature/login, Deploy to test.
+8. feature/search: Search UI.
+9. release/1.1: Bump to 1.1.0, branches off develop, Deploy to staging.
+10. develop: merges feature/search.
+11. release/1.1: Fix typo.
+12. main: merges release/1.1, tagged v1.1.0.
+13. develop: merges release/1.1.
+14. hotfix/1.1.1: Fix crash, branches off main.
+15. main: merges hotfix/1.1.1, tagged v1.1.1.
+16. develop: merges hotfix/1.1.1.
+17. develop: Next sprint.
+18. feature/refunds: Refund API, branches off develop.
+19. feature/refunds: Partial refunds, PR review.
+20. develop: merges feature/refunds, Deploy to test.
+21. release/1.2: Bump to 1.2.0, branches off develop.
+22. main: merges release/1.2, tagged v1.2.0.
+23. develop: merges release/1.2.

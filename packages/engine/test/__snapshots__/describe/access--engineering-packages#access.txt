@@ -1,0 +1,15 @@
+Engineering access
+
+Roles, groups and access packages, who × where: Who × where. A table of 5 rows by 4 columns.
+
+By row (Who by where)
+Columns: Production, rg-shop, Test and GitHub Enterprise.
+- sg-developers (Security group): Production: Reader; rg-shop: Reader, inherited (from Production); Test: Contributor
+- sg-platform-admins (Role-assignable group): Production: Owner; rg-shop: Owner, inherited (from Production)
+- Alice (User): Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
+- Bob (Contoso) (Guest): Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
+- GitHub deploy (Service principal): rg-shop: Contributor
+
+Key
+- Indigo filled pill: Assigned directly
+- Indigo outlined pill: Through a group, access package or parent scope

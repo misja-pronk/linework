@@ -93,6 +93,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/diff':
         specifier: workspace:*
         version: link:../diff
@@ -163,6 +166,12 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  packages/describe:
+    dependencies:
+      '@cartography/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/diff:
     dependencies:
@@ -265,6 +274,9 @@ importers:
       '@cartography/data-products':
         specifier: workspace:*
         version: link:../../types/data-products
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/erd':
         specifier: workspace:*
         version: link:../../types/erd
@@ -332,6 +344,9 @@ importers:
       '@cartography/core':
         specifier: workspace:*
         version: link:../core
+      '@cartography/describe':
+        specifier: workspace:*
+        version: link:../describe
       '@cartography/icons':
         specifier: workspace:*
         version: link:../icons

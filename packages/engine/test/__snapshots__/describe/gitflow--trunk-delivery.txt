@@ -1,0 +1,7 @@
+Trunk-based delivery
+
+Git branching diagram: How a change on main reaches production. 2 pipelines through 5 stages.
+
+Pipelines
+- main: Build → Contract tests → Auto deploy → Smoke tests, then 5% of traffic → SLOs green, then Full rollout.
+- feat/*: Build → Pre-merge checks; merges into main.

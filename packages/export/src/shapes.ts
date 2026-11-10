@@ -261,6 +261,6 @@ export function connector(c: ConnectorSpec): string {
 }
 
 /** Several shapes that move as one; the group's box is the union of its children's. */
-export function group(id: number, name: string, box: Frame, children: string[]): string {
-  return `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${id}" name="${esc(name)}"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(box, true)}</p:grpSpPr>${children.join('')}</p:grpSp>`;
+export function group(id: number, name: string, box: Frame, children: string[], descr?: string): string {
+  return `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${id}" name="${esc(name)}"${descr ? ` descr="${esc(descr)}"` : ''}/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(box, true)}</p:grpSpPr>${children.join('')}</p:grpSp>`;
 }

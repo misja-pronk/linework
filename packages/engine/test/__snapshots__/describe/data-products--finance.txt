@@ -1,0 +1,24 @@
+Finance data products
+
+Data products diagram: The payments contract is read from an Open Data Contract Standard file. 6 elements in 1 group, with 5 connections.
+
+Groups and elements
+- Finance (Domain · Finance data team)
+  - Payment provider (settlement events)
+  - Payments (Source-aligned · v3)
+  - Revenue (Consumer-aligned)
+  - settled payments (Data contract · v3.2.0 · restricted)
+  - General ledger (Source · ERP)
+- CFO dashboard (Dashboard)
+
+Connections
+- Payment provider connects to Payments.in:0.
+- Payments.out:settlements connects to Revenue.in:0 and is linked with settled payments.
+- Revenue.out:daily connects to CFO dashboard.
+- General ledger connects to Revenue.in:1.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract

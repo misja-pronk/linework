@@ -1,0 +1,32 @@
+Web shop
+
+C4 model. 8 elements in 1 group, with 7 connections.
+
+Groups and elements
+- Customer (Person): Buys things in the web shop
+- Web shop (Software System): Sells products online and handles orders
+  - Storefront (Container: React): Shows the catalogue and takes orders
+  - Orders API (Container: .NET 9): Places orders and charges cards
+  - Orders DB (Container: PostgreSQL 16): Orders and customers
+  - order-events (Container): One message for every placed order
+  - Mailer (Container: .NET 9): Sends receipts for placed orders
+- Stripe (Software System, external): Charges cards
+- SendGrid (Software System, external): Delivers email
+
+Connections
+- Customer connects to Storefront (Browses and orders [HTTPS]).
+- Storefront connects to Orders API (Calls [REST]).
+- Orders API connects to Orders DB (Reads and writes [SQL]), sends OrderPlaced to order-events and connects to Stripe (Charges cards).
+- order-events sends OrderPlaced to Mailer.
+- Mailer connects to SendGrid (Sends receipts).
+
+Key
+- Indigo icon: Person
+- Icon, greyed: External system
+- Sky icon: Container
+- Sky icon: Web app
+- Violet icon: Database
+- Violet icon: Queue
+- Boundary box: Boundary
+- Solid line: Relationship
+- Dashed line: Asynchronous

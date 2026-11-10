@@ -1,0 +1,49 @@
+AWS landing zone
+
+AWS and Google Cloud diagram: Organization, accounts and the shared network. 14 elements in 14 groups, with 9 connections.
+
+Groups and elements
+- Acme (Organization)
+  - Security (Organizational unit)
+    - Log archive (222222222222)
+      - Organization trail (CloudTrail)
+      - Log bucket (S3 bucket)
+    - Audit (333333333333)
+      - Threat detection (GuardDuty)
+      - Findings (Security Hub)
+  - Workloads (Organizational unit)
+    - shop-prod (555555555555)
+      - vpc-prod (VPC · 10.10.0.0/16)
+        - Web shop (EKS)
+    - shop-dev (666666666666)
+      - vpc-dev (VPC · 10.20.0.0/16)
+        - Web shop (dev) (EKS)
+  - Infrastructure (Organizational unit)
+    - Network (444444444444)
+      - Transit gateway
+      - Egress (VPC · 10.0.0.0/22)
+        - Inspection (Network Firewall)
+        - Central egress (NAT gateway)
+      - Direct Connect (1 Gbps)
+  - Management (111111111111)
+    - Guardrails (Control Tower)
+    - Single sign-on (IAM Identity Center)
+- Data centre (On-premises · 172.16.0.0/16)
+  - Core router
+- Internet
+
+Connections
+- Organization trail sends data to Log bucket.
+- Threat detection sends data to Findings.
+- vpc-prod connects to Transit gateway (Private network: attachment).
+- Transit gateway connects to Inspection (Private network: 0.0.0.0/0) and connects to Direct Connect (VPN / interconnect).
+- Inspection connects to Central egress (Private network).
+- Direct Connect connects to Core router (VPN / interconnect: BGP).
+- Central egress sends traffic to Internet.
+- vpc-dev connects to Transit gateway (Private network).
+
+Key
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow
+- Dashed orange line with beads: VPN / interconnect

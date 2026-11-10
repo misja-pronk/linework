@@ -1,0 +1,35 @@
+E-commerce capabilities
+
+Capability map, heatmap: Fit: Heatmap: Fit. 5 areas and 18 capabilities.
+
+Areas and capabilities
+- Attract
+  - Search engine marketing (4): Supported by Google Ads
+  - Content (3): Supported by Contentful
+  - Personalisation (2): Supported by Dynamic Yield
+- Sell
+  - Catalogue
+    - Product information (3): Supported by Akeneo
+    - Search and filters (4): Supported by Algolia
+  - Checkout
+    - Basket (4): Supported by Commerce engine
+    - Payment (5): Supported by Adyen
+    - Promotions (2): Supported by Commerce engine
+- Deliver
+  - Order management (2): Supported by Legacy OMS, SAP
+  - Warehouse (3): Supported by WMS
+  - Carrier management (3): Supported by Sendcloud
+- Serve
+  - Customer service (3): Supported by Zendesk
+  - Returns (1): Supported by Legacy OMS
+  - Reviews (4): Supported by Trustpilot
+- Run
+  - Finance (4): Supported by SAP
+  - Analytics (3): Supported by Snowflake, Looker
+
+Key
+- Shade 1 of 5 (lightest): Fit: 1 Poor
+- Shade 2 of 5: 2 Weak
+- Shade 3 of 5: 3 Adequate
+- Shade 4 of 5: 4 Good
+- Shade 5 of 5 (strongest): 5 Excellent

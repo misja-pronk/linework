@@ -1,0 +1,88 @@
+Requesting access to a production system
+
+Journey map, today and future: Today's ticket route next to the self-service route with access packages. Sam de Vries's journey through 5 phases and 6 steps.
+
+Persona: Sam de Vries
+- Role: Engineer who needs production access for an on-call shift
+- Goal: Be able to act when the pager goes off tonight
+- Says: “I do not mind rules. I mind not knowing where my request is.”
+
+Today
+- Need
+  - Finds out which access is needed (feels guessing, 2 of 5)
+    - Thinks: “Which of these forty groups do I need?”
+    - Through Wiki and Slack
+    - With Colleague
+    - Pain: Group names say nothing about what they allow
+- Request
+  - Files a ticket with a free-text reason (feels resigned, 2 of 5)
+    - Thinks: “I hope I picked the right category.”
+    - Through Service desk portal
+    - Pain: Free-text form, often sent back
+    - Pain: No overview of what is already requested
+- Approve
+  - Waits for the manager to approve (feels blocked, 1 of 5)
+    - Thinks: “The shift starts tonight and nobody has answered.”
+    - Through Email
+    - With Manager
+    - Pain: Approver is on leave, no delegate
+    - Pain: No status anywhere
+    - Measured: 3 days
+  - Chases the system owner for a second approval (feels frustrated, 1 of 5)
+    - Says: “Can you please look at ticket 48213?”
+    - Through Email and Slack
+    - With System owner
+    - Pain: Two approvals in sequence, by hand
+    - Measured: 2 days
+- Use
+  - Gets permanent access from the service desk (feels relieved, 3 of 5)
+    - Says: “It works. I will keep this forever, just in case.”
+    - Through Azure portal
+    - With Service desk
+    - Pain: Standing access that nobody takes away
+- Review
+  - Is asked a year later why the access exists (feels caught out, 2 of 5)
+    - Thinks: “I do not remember. Probably that one shift.”
+    - Through Email
+    - With Auditor
+    - Pain: Reviews are yearly spreadsheets
+
+With access packages
+- Need
+  - Picks the on-call package from the catalogue (feels clear, 4 of 5)
+    - Says: “On-call for Payments. That is the one.”
+    - Through Access catalogue
+    - Works well: Packages are named after the job to do
+- Request
+  - Requests it with one click and a reason (feels quick, 4 of 5)
+    - Through My Access
+    - Works well: Status is visible at every moment
+- Approve
+  - Is approved by the on-call lead from the phone (feels fast, 5 of 5)
+    - Says: “Approved before I finished my coffee.”
+    - Through Teams approval
+    - With On-call lead
+    - Works well: One approver, with a delegate
+    - Works well: Policy checks run automatically
+    - Measured: 15 min
+- Use
+  - Activates the role for the shift only (feels in control, 5 of 5)
+    - Says: “Eight hours, logged, and gone afterwards.”
+    - Through Privileged access
+    - Works well: Access ends by itself
+- Review
+  - Sees the access expire and confirms the review (feels calm, 4 of 5)
+    - Through Access review
+    - With On-call lead
+    - Works well: Reviews are short and continuous
+
+Feeling
+Lowest at “Waits for the manager to approve” (1 of 5); highest at “Gets permanent access from the service desk” (3 of 5).
+
+Metrics
+- Lead time: 5 days
+- Hand-offs: 4
+- Standing access: Yes
+- Lead time: 15 minutes
+- Hand-offs: 1
+- Standing access: No

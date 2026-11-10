@@ -1,0 +1,40 @@
+Web shop on AWS
+
+AWS and Google Cloud diagram: Production, three availability zones. 9 elements in 12 groups, with 10 connections.
+
+Groups and elements
+- Users
+- CDN and WAF (CloudFront)
+- shop-prod (123456789012)
+  - eu-west-1 (Region)
+    - vpc-shop (VPC · 10.0.0.0/16)
+      - Load balancer (Application Load Balancer · public)
+      - eu-west-1a (Availability zone)
+        - Private subnet (10.0.10.0/24)
+          - Web shop (ECS service · 2 tasks)
+        - Isolated subnet (10.0.20.0/24)
+          - Orders (reader) (Aurora cluster)
+      - eu-west-1b (Availability zone)
+        - Private subnet (10.0.11.0/24)
+          - Web shop (ECS service · 2 tasks)
+        - Isolated subnet (10.0.21.0/24)
+          - Orders (writer) (Aurora cluster)
+      - eu-west-1c (Availability zone)
+        - Private subnet (10.0.12.0/24)
+          - Web shop (ECS service · 2 tasks)
+        - Isolated subnet (10.0.22.0/24)
+          - Orders (reader) (Aurora cluster)
+
+Connections
+- Users send traffic to CDN and WAF over HTTPS.
+- CDN and WAF sends traffic to Load balancer.
+- Load balancer connects to Web shop (ECS service) (Private network), connects to Web shop (ECS service) (Private network) and connects to Web shop (ECS service) (Private network).
+- Web shop (ECS service) connects to Orders (writer) (Private network).
+- Web shop (ECS service) connects to Orders (writer) (Private network: SQL).
+- Web shop (ECS service) connects to Orders (writer) (Private network).
+- Orders (writer) sends data to Orders (reader) (Aurora cluster) and sends data to Orders (reader) (Aurora cluster) (replication).
+
+Key
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow

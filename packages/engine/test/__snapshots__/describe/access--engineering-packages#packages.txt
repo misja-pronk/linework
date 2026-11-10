@@ -1,0 +1,8 @@
+Engineering access
+
+Roles, groups and access packages, packages × grants: What each Entra ID access package grants. A table of 2 rows by 3 columns.
+
+By row (Package by grants)
+Columns: sg-developers, GitHub Enterprise and sg-platform-admins.
+- Developer access (Engineering · 180 days): sg-developers: Member; GitHub Enterprise: User
+- Platform admin (Engineering · 30 days): sg-platform-admins: Member

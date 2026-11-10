@@ -1,0 +1,33 @@
+E-commerce context map
+
+Context map: Bounded contexts and how they integrate. 7 elements in 2 groups, with 6 connections.
+
+Groups and elements
+- Sales (Domain)
+  - Catalogue (Supporting subdomain)
+  - Ordering (Core domain)
+  - Pricing (Core domain)
+- Fulfilment (Domain)
+  - Shipping (Supporting subdomain)
+  - Warehouse ERP (Legacy system)
+- Billing (Generic subdomain)
+- Payment provider (External system)
+
+Connections
+- Catalogue (upstream, open host service, published language) and Ordering (downstream): Customer/Supplier.
+- Ordering (upstream) and Shipping (downstream): Customer/Supplier.
+- Ordering (upstream) and Billing (downstream): Customer/Supplier.
+- Pricing is linked with Ordering (Partnership).
+- Warehouse ERP (upstream) and Shipping (downstream, anticorruption layer): stock levels.
+- Payment provider (upstream) and Billing (downstream, conformist).
+
+Key
+- Tag U: Upstream
+- Tag D: Downstream
+- Tag OHS: Open host service
+- Tag PL: Published language
+- Tag ACL: Anticorruption layer
+- Tag CF: Conformist
+- Violet icon: Core domain
+- Blue icon: Supporting subdomain
+- Icon: Generic subdomain

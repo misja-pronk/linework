@@ -1,0 +1,36 @@
+Data platform
+
+Azure infrastructure diagram: From sources to reports. 11 elements in 5 groups, with 10 connections.
+
+Groups and elements
+- Sources (Boundary)
+  - ERP (External system)
+  - CRM (External system)
+  - Web shop events (App Service)
+- Data (Subscription)
+  - rg-ingest (Resource group)
+    - Pipelines (Data Factory)
+    - Clickstream (Event Hubs)
+  - rg-lake (Resource group)
+    - Raw zone (Storage account)
+    - Spark jobs (Transform)
+    - Curated zone (Storage account)
+  - rg-serve (Resource group)
+    - Warehouse (SQL Database)
+    - Product search (AI Search)
+- Analysts (Users)
+
+Connections
+- ERP connects to Pipelines (nightly).
+- Pipelines sends data to Raw zone.
+- Raw zone sends data to Spark jobs.
+- Spark jobs sends data to Curated zone.
+- Curated zone sends data to Warehouse and sends data to Product search.
+- Warehouse connects to Analysts (reports).
+- CRM connects to Pipelines (hourly).
+- Web shop events sends data to Clickstream (events).
+- Clickstream sends data to Raw zone.
+
+Key
+- Solid line: Connection
+- Solid violet line with ticks: Data flow

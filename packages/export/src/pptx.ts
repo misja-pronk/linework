@@ -7,7 +7,8 @@ import { icon } from '@cartography/icons';
 import { wrap } from '@cartography/render';
 import { inThemeFonts, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
-import { shape, type Run } from './shapes.ts';
+import { group, shape, type Run } from './shapes.ts';
+import { altOf } from './alt.ts';
 import { contentSize, drawDiagram, PX, type IconRef, type SlideImages } from './slide.ts';
 import { pages } from './steps.ts';
 
@@ -27,6 +28,10 @@ export interface Drawing {
   images?: SlideImages;
   /** What a layer drawn with dim-others leaves faded, as render() returns it: faded on every slide or page of the drawing. */
   faded?: Faded;
+  /** The drawing in words for alt text (docs/describe.md); made from the graph when left out. */
+  alt?: string;
+  /** The diagram type, as render() returns it: the alt text says what kind of drawing it is. */
+  type?: { id: string; name: string };
   /** Review notes, a line each: added to the speaker notes when an export asks for them. */
   remarks?: string[];
   /** Draws on the finished SVG before it goes on the page (review note markers in a PDF). */
@@ -160,12 +165,15 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
     const area = { x: MARGIN, y: top, w: W - 2 * MARGIN, h: H - MARGIN - top - below };
     // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
-    tree += await inThemeFonts(theme, () => {
+    // The drawing is one group with alt text: a screen reader hears what the diagram shows, then each shape's own.
+    const whole = next();
+    const drawing = await inThemeFonts(theme, () => {
       const c = contentSize(graph, placed, theme, view);
       const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
       const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: area.y + (area.h - c.height * k) / 2 + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)) };
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
+    tree += group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [drawing], altOf(d, 1500, view));
     if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
     if (told && state) {
       const y = H - MARGIN - below + 0.18 * INCH;

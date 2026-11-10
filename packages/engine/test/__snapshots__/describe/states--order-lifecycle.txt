@@ -1,0 +1,33 @@
+Order lifecycle
+
+States diagram: The states an order can be in, and what moves it on. 9 states in 1 group, with 10 transitions.
+
+Groups and elements
+- Start
+- Awaiting payment: entry / reserve stock
+- Fulfilment
+  - Start of Fulfilment
+  - Picking: do / collect the items
+  - Packed: entry / print the label
+- Cancelled: entry / release stock
+- Shipped
+- End
+- Delivered
+
+Main path
+1. Start
+2. Awaiting payment: order placed
+3. Picking: payment received
+4. Shipped: handed to carrier
+5. Delivered: signed for
+6. End
+
+Transitions
+- Start moves to Awaiting payment on order placed.
+- Awaiting payment moves to Fulfilment on payment received and moves to Cancelled on 30 min without payment.
+- Fulfilment moves to Cancelled on customer cancels and moves to Shipped on handed to carrier.
+- Cancelled moves to End.
+- Shipped moves to Delivered on signed for.
+- Delivered moves to End.
+- Start of Fulfilment moves to Picking.
+- Picking moves to Packed on all items scanned.

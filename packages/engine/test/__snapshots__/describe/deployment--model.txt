@@ -1,0 +1,19 @@
+Web shop
+
+C4 model. 4 elements, with 3 connections.
+
+Elements
+- Customer (Person): Buys things in the web shop
+- Web shop (Software System): Sells products online and handles orders
+- Stripe (Software System, external): Charges cards
+- SendGrid (Software System, external): Delivers email
+
+Connections
+- Customer connects to Web shop (Browses and orders [HTTPS]).
+- Web shop connects to Stripe (Charges cards) and connects to SendGrid (Sends receipts).
+
+Key
+- Indigo icon: Person
+- Blue icon: Software system
+- Icon, greyed: External system
+- Solid line: Relationship

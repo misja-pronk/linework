@@ -1,0 +1,40 @@
+Nightly export handshake
+
+Sequence diagram: A partner drops a file; we load it in parallel and confirm or reject the batch. 5 participants and 16 messages.
+
+Participants
+- Partner SFTP (External system)
+- Data platform
+  - Ingest trigger (Function)
+  - Orchestrator (Worker)
+  - Raw zone (Storage)
+  - Warehouse (Database)
+
+Message flow
+In order, top to bottom.
+- 1. Partner SFTP sends to Ingest trigger: orders_2026-11-09.csv + .done marker.
+- 2. Ingest trigger calls Raw zone: Copy file and checksum.
+- 3. Raw zone replies to Ingest trigger: stored.
+- 4. Ingest trigger sends to Orchestrator: BatchArrived(batch 8812).
+- 5. Orchestrator calls Raw zone: Read manifest.
+- 6. Raw zone replies to Orchestrator: 3 files, 1.2 GB.
+- In parallel: orders
+  - 7. Orchestrator calls Warehouse: COPY orders.
+  - 8. Warehouse replies to Orchestrator: 1,204,331 rows.
+- And: order_lines
+  - 9. Orchestrator calls Warehouse: COPY order_lines.
+  - 10. Warehouse replies to Orchestrator: 4,881,020 rows.
+- 11. Orchestrator calls Warehouse: Run quality checks.
+- 12. Warehouse replies to Orchestrator: Results.
+- Alternative: All checks pass
+  - 13. Orchestrator calls Warehouse: Swap staging into production.
+  - 14. Orchestrator sends to Partner SFTP: ACK batch 8812.
+- Else: Row counts differ from the manifest
+  - 15. Orchestrator calls Raw zone: Move batch to quarantine.
+  - 16. Orchestrator sends to Partner SFTP: NACK batch 8812, reason.
+- See Retry and back-off policy (over Partner SFTP and Orchestrator)
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

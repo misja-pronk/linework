@@ -1,0 +1,33 @@
+Customer data products and their contracts
+
+Data products diagram: From operational systems to fit-for-purpose products. 10 elements in 3 groups, with 10 connections.
+
+Groups and elements
+- Sales (Domain · Sales engineering)
+  - Webshop (Source · Application)
+  - orders (Source-aligned)
+  - orders (Data contract · v2.1.0 · internal)
+- Customer (Domain · CRM team)
+  - Customer 360 (Aggregate)
+  - Salesforce (Source · SaaS)
+  - customers (Source-aligned)
+  - customers (Data contract · v1.4.0 · confidential)
+- Sales dashboard (Dashboard)
+- Marketing (Domain)
+  - Churn risk (Consumer-aligned)
+- Campaign tool (Application)
+
+Connections
+- Webshop connects to orders.in:0.
+- orders.out:orders connects to Customer 360.in:0, connects to Sales dashboard and is linked with orders.
+- Customer 360.out:profile connects to Sales dashboard and connects to Churn risk.in:0.
+- Churn risk.out:scores connects to Campaign tool.
+- Salesforce connects to customers.in:0.
+- customers.out:customers connects to Customer 360.in:1 and is linked with customers.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract

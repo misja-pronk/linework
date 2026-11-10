@@ -1,0 +1,49 @@
+Web shop threat model
+
+Architecture, data flow diagram: STRIDE review of checkout, release 4.2. 10 elements in 5 groups, with 9 connections.
+
+Groups and elements
+- Internet (Trust boundary)
+  - Shopper (Users)
+  - Shop admin (User)
+- Edge (DMZ) (Trust boundary)
+  - CDN + WAF (CDN)
+  - Storefront (Web app)
+- Application zone (Trust boundary)
+  - API gateway
+  - Orders service: threats T6
+  - Data zone (Trust boundary)
+    - Orders DB (Database): threats T7
+    - Session cache
+  - Back office (Service)
+- Payment provider (Trust boundary)
+  - Stripe (Payments)
+
+Connections
+- Shopper connects to CDN + WAF over HTTPS.
+- CDN + WAF connects to Storefront over HTTPS.
+- Storefront connects to API gateway (REST over TLS) [threats T1, T2].
+- API gateway connects to Orders service over gRPC.
+- Orders service connects to Orders DB (SQL over TLS) [threats T4], connects to Session cache (RESP) and connects to Stripe over HTTPS [threats T5].
+- Shop admin connects to Back office over HTTPS [threats T3].
+- Back office connects to Orders DB (SQL over TLS).
+
+Trust boundaries
+- Internet
+- Edge (DMZ)
+- Application zone
+- Data zone
+- Payment provider
+
+Threats
+- T1 on Storefront → API gateway: Stolen access token replayed from another device (Spoofing). Status open; mitigation: short-lived tokens bound to the client (DPoP).
+- T2 on Storefront → API gateway: Checkout flooded by bots (Denial of service). Status mitigated; mitigation: rate limits per client at the gateway.
+- T3 on Shop admin → Back office: Admin login phished (Spoofing, Elevation of privilege). Status open; mitigation: SSO with phishing-resistant MFA (FIDO2).
+- T4 on Orders service → Orders DB: SQL injection through order notes (Tampering). Status mitigated; mitigation: parameterised queries only.
+- T5 on Orders service → Stripe: Customer disputes a charge nobody can trace (Repudiation). Status accepted; mitigation: signed audit log of every charge request.
+- T6 on Orders service: Order ids guessed to read other orders (IDOR) (Elevation of privilege). Status open; mitigation: check ownership on every read.
+- T7 on Orders DB: Backups copied out of the data zone (Information disclosure). Status transferred; mitigation: encrypted backups, keys in KMS.
+
+Key
+- Rose heavy dashed boundary: Trust boundary
+- Numbered tag: Threat, see the threat table

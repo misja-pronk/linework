@@ -1,0 +1,13 @@
+Inside the web shop
+
+Architecture diagram. 3 elements in 1 group, with 2 connections.
+
+Groups and elements
+- Web shop (System)
+  - Storefront (Web app)
+  - Orders API
+  - Orders DB (Database)
+
+Connections
+- Storefront connects to Orders API (REST).
+- Orders API connects to Orders DB (SQL).

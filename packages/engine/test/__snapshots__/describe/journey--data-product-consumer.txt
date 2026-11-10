@@ -1,0 +1,73 @@
+Finding and using a data product
+
+Journey map: An analyst answers a churn question with the Customer 360 data product. Mei Tanaka's journey through 5 phases and 9 steps.
+
+Persona: Mei Tanaka
+- Role: Marketing analyst, consumer of data products
+- Goal: Answer the churn question before the quarterly review
+- Says: “I do not need all the data. I need data I can trust by Thursday.”
+
+By phase
+- Find
+  - Searches the catalogue for customer data (feels hopeful, 3 of 5)
+    - Thinks: “Five results called customer. Which one is the real one?”
+    - Through Data catalogue
+    - Pain: Duplicates and old tables in the results
+    - Idea: Mark certified products in search
+  - Asks a colleague which product to use (feels unsure, 2 of 5)
+    - Says: “Use Customer 360, the others are leftovers.”
+    - Through Teams chat
+    - With Senior analyst
+    - Pain: The right product is tribal knowledge
+    - Measured: Half a day
+- Understand
+  - Reads the product page and the data contract (feels reassured, 4 of 5)
+    - Says: “Owner, refresh time and quality checks, all on one page.”
+    - Through Customer 360 product page and Data contract
+    - Works well: Clear owner and service levels
+    - Works well: Sample data without a request
+  - Checks freshness and quality scores (feels confident, 4 of 5)
+    - Thinks: “Refreshed at six this morning. Good enough.”
+    - Through Quality dashboard
+    - Works well: Quality is measured, not promised
+    - Measured: 99.2% complete
+- Get access
+  - Requests access to the output port (feels impatient, 2 of 5)
+    - Thinks: “Why do I have to explain the purpose three times?”
+    - Through Access portal and Email
+    - With Data product owner
+    - Pain: Purpose is asked in three forms
+    - Pain: No status after submitting
+    - Idea: One request with the purpose attached to the contract
+    - Measured: 4 days waiting
+  - Gets approval and a connection string (feels relieved, 3 of 5)
+    - Says: “Finally. Now where do I paste this?”
+    - Through Email
+    - With Data product owner
+    - Pain: Connection details arrive by email
+- Use
+  - Queries the product from a notebook (feels productive, 5 of 5)
+    - Says: “The join keys just work.”
+    - Through Notebook and SQL endpoint
+    - Works well: Stable schema with clear keys
+    - Works well: Examples in the product page
+    - Measured: First query in 20 min
+  - Combines it with campaign data (feels puzzled, 3 of 5)
+    - Thinks: “Customer id here, account id there.”
+    - Through Notebook and Campaign product
+    - Pain: Identifiers differ across domains
+    - Idea: Shared customer key in every contract
+- Give feedback
+  - Shares the result and rates the product (feels heard, 4 of 5)
+    - Says: “I left a note about the missing key. The owner replied the same day.”
+    - Through Dashboard and Data catalogue
+    - With Marketing lead
+    - Works well: Feedback reaches the owning team
+
+Feeling
+Lowest at “Asks a colleague which product to use” (2 of 5); highest at “Queries the product from a notebook” (5 of 5).
+
+Metrics
+- Question to first query: 6 days
+- Of which waiting: 4 days
+- Products looked at: 5

@@ -1,0 +1,29 @@
+Build, buy or reuse?
+
+Process diagram: The questions an architecture board asks before a new application is funded. 10 elements, with 9 connections.
+
+Elements
+- Start event
+- Is there a business owner? (decision decision)
+- Do we already have this capability? (decision decision)
+- Do not start (no owner means no budget)
+- Does it set us apart? (decision decision)
+- Reuse it (extend the existing platform)
+- Build it (on the container platform)
+- Is there a product that fits? (decision decision)
+- Buy it (SaaS behind the API layer)
+- Build the minimum (the smallest thing that works)
+
+Main path
+1. Start event
+2. Is there a business owner?
+3. Do we already have this capability?: Is there a business owner? yes
+4. Does it set us apart?: Do we already have this capability? no
+5. Build it: Does it set us apart? yes
+
+Connections
+- Start event leads to Is there a business owner?
+- Is there a business owner? leads to Do we already have this capability? (yes) and leads to Do not start (no).
+- Do we already have this capability? leads to Does it set us apart? (no) and leads to Reuse it (yes).
+- Does it set us apart? leads to Build it (yes) and leads to Is there a product that fits? (no).
+- Is there a product that fits? leads to Buy it (yes) and leads to Build the minimum (no).
