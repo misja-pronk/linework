@@ -1,7 +1,7 @@
 // A block: a fixed fragment of one diagram type (a hub with its firewall and bastion, an App Service
 // with its Key Vault and SQL behind private endpoints), kept as blocks/<name>.block.yaml and inserted
 // as plain YAML. `${name}` in ids and labels is a parameter, asked for on insert (docs/blocks.md).
-import { parse, stringify } from 'yaml';
+import { Document, isCollection, isMap as isYamlMap, isSeq, parse, type YAMLMap } from 'yaml';
 import { parseSource, validate, type DiagramType, type Point } from '@cartography/core';
 
 export interface BlockParam {
@@ -148,7 +148,19 @@ export function blockDiagram(block: Block, given: Record<string, string> = {}): 
 }
 
 /** The same, as YAML text: what `carto render` and the palette's preview draw. */
-export const blockDiagramText = (block: Block, given?: Record<string, string>) => stringify(blockDiagram(block, given), { lineWidth: 0, flowCollectionPadding: true });
+export const blockDiagramText = (block: Block, given?: Record<string, string>) => diagramYaml(blockDiagram(block, given));
+
+/** YAML as diagrams are written: one line per entry and per line, a blank line before each section. */
+export function diagramYaml(data: Record<string, unknown>): string {
+  const doc = new Document(data);
+  for (const pair of (doc.contents as YAMLMap).items) {
+    const v = pair.value;
+    if (isYamlMap(v)) for (const p of v.items) if (isCollection(p.value)) p.value.flow = true;
+    else if (isSeq(v))
+      for (const it of v.items) if (isYamlMap(it) && it.items.length === 1 && isCollection(it.items[0]!.value)) it.items[0]!.value.flow = true;
+  }
+  return doc.toString({ lineWidth: 0, flowCollectionPadding: true }).replace(/\n(?=(?!type:|title:|description:|tags:|params:|provider:)[A-Za-z$][^\s:]*:)/g, '\n\n');
+}
 
 /** Ids a value may take when a parameter ends up in an id. */
 const ID = /^[A-Za-z0-9_-]+$/;
