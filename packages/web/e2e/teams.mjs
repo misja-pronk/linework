@@ -1,5 +1,6 @@
 // An org chart and its Team Topologies view in the builder: a person picked and edited, a report
-// added under a picked manager, a focus on that manager's branch, and a team's type changed in the
+// added under a picked manager (and a first report under someone in a list) with the other cards
+// staying where they were, a focus on that manager's branch, and a team's type changed in the
 // topology view:
 // node e2e/teams.mjs <outDir>
 import { chromium } from '@playwright/test';
@@ -15,6 +16,26 @@ const stored = (k) => page.evaluate((k) => JSON.parse(localStorage.getItem(`cart
 const yaml = async () => (await wait(600), (await stored('doc'))?.text ?? '');
 const node = (id) => page.locator(`.drawing [data-node="${id}"]`);
 const field = (name) => page.locator(`.inspector .field:has(> span:text-is("${name}"))`).first().locator('input, textarea, select').first();
+// Where every card's centre is in the drawing's own units (the zoom taken out).
+const where = () =>
+  page.locator('.drawing [data-node]').evaluateAll((els) =>
+    Object.fromEntries(
+      els.map((e) => {
+        const b = e.getBBox();
+        return [e.getAttribute('data-node'), { x: b.x + b.width / 2, y: b.y + b.height / 2 }];
+      }),
+    ),
+  );
+// Share of the cards in both drawings that moved more than 16 units, the common slide taken out.
+const drift = (a, b) => {
+  const d = Object.keys(a)
+    .filter((id) => b[id])
+    .map((id) => ({ x: b[id].x - a[id].x, y: b[id].y - a[id].y }));
+  const med = (v) => [...v].sort((p, q) => p - q)[v.length >> 1];
+  const mx = med(d.map((p) => p.x));
+  const my = med(d.map((p) => p.y));
+  return d.filter((p) => Math.hypot(p.x - mx, p.y - my) > 16).length / d.length;
+};
 const rest = async () => {
   await page.locator('.preview').focus();
   await page.keyboard.press('Escape');
@@ -57,6 +78,7 @@ await page.screenshot({ path: `${out}/t1-org.png` });
 // 2. A person added with a manager picked: they report to that manager and hang under the card.
 {
   await rest();
+  const was = await where();
   await node('dewi').click();
   await wait();
   await page.keyboard.press('a');
@@ -67,7 +89,32 @@ await page.screenshot({ path: `${out}/t1-org.png` });
   const added = await node('person').boundingBox();
   const boss = await node('dewi').boundingBox();
   if (!(added.y > boss.y + boss.height)) fail('the new person does not stand under the manager');
+  // The new person joins Dewi's list: nobody else moves.
+  const moved = drift(was, await where());
+  if (moved > 0.08) fail(`adding a person moved ${Math.round(moved * 100)}% of the other cards`);
   await page.screenshot({ path: `${out}/t3-added.png` });
+}
+
+// 2b. A first report for someone in a list: Dana keeps her place with the report hung under her; only
+// the cards under her in the list make room.
+{
+  await rest();
+  const was = await where();
+  await node('dana').click();
+  await wait();
+  await page.keyboard.press('a');
+  await page.keyboard.type('person');
+  await page.keyboard.press('Enter');
+  const id = /^ {2}([\w-]+): \{ name: Person, reports: dana \}/m.exec(await yaml())?.[1];
+  if (!id) fail('adding under Dana did not write reports: dana');
+  await page.waitForSelector(`.drawing [data-node="${id}"]`);
+  await wait(400);
+  const now = await where();
+  if (Math.hypot(now.dana.x - was.dana.x - (now.bo.x - was.bo.x), now.dana.y - was.dana.y - (now.bo.y - was.bo.y)) > 16) fail('Dana left her place in the list');
+  if (!(now[id].y > now.dana.y && now[id].x > now.dana.x)) fail('the first report does not hang under Dana');
+  const moved = drift(was, now);
+  if (moved > 0.3) fail(`a first report moved ${Math.round(moved * 100)}% of the other cards`);
+  await page.screenshot({ path: `${out}/t3b-first-report.png` });
 }
 
 // 3. Focus on a manager: their branch and the line to the top, nobody beside it.
