@@ -3854,6 +3854,22 @@ button.type-pill:hover {
   align-items: center;
   gap: 4px;
 }
+.note-composer-name {
+  flex: 1;
+  min-width: 0;
+  margin-right: auto;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--editor-bg);
+  color: var(--text);
+}
+.note-composer-name:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
 .note-composer-actions .fine {
   margin: 0 auto 0 0;
   font-size: 11px;

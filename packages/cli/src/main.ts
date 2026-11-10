@@ -31,15 +31,15 @@ const helpAll = `carto — architecture diagrams that look good
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
+               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
+                                                pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
                                                 whatever the diagram's icons: says
-               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
                [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>-<layer>.svg;
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
-               [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
-                                                pptx and pdf get a slide (page) per step by themselves
                [--svg-safe]                     an SVG that PowerPoint, Word and Keynote take whole: no CSS, no
                                                 filters or markers, system fonts, one group per node and line
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
@@ -177,6 +177,9 @@ const helpAll = `carto — architecture diagrams that look good
                [--yes] [--dry-run] [--timeout 120]  --dry-run: only shown); --into imports over a diagram, your
                [--keep-raw <dir>]               edits stay; --keep-raw saves the answers (no secret values,
                                                 ever) for carto import <dir>. Allow-list: docs/live-import.md
+  carto export <file.yaml…|folder> --to html|md|confluence|drawio|excalidraw|mermaid [-o out]
+                                                one command for every export: html is export-html, md is
+                                                export-md, confluence is export-confluence (their options apply)
   carto export <file.yaml…> -o out.drawio|.excalidraw|.mmd|.md
                [--format drawio|excalidraw|mermaid] [--view name] [--theme name]
                                                 the drawing for another tool: draw.io (every view a page) and
@@ -223,53 +226,76 @@ const usage = new Map<string, string>();
 
 /** The commands, grouped, one line each: what `carto --help` shows. */
 const groups: [string, [string, string][]][] = [
+  ['Create', [
+    ['new', 'start from a template or a wizard'],
+    ['types', 'which diagram type to pick'],
+    ['import', 'Mermaid, draw.io, Terraform, Azure, … to YAML'],
+    ['blocks', 'reusable fragments: list, show, save, insert'],
+  ]],
   ['Draw', [
     ['render', 'a diagram to SVG, PNG, PowerPoint or PDF'],
     ['deck', 'several diagrams in one deck'],
     ['animate', 'steps or layers as a GIF, MP4 or WebM'],
     ['watch', 'render again on every save'],
+  ]],
+  ['Export', [
+    ['export', '--to html|md|confluence|drawio|excalidraw|mermaid'],
+    ['describe', 'the diagram in plain words'],
     ['embed', 'a web page that carries the drawing'],
-    ['export-html', 'one HTML file to send, every view inside'],
-    ['export-md', 'Markdown pages with pictures, for a wiki or a repo'],
-    ['export-confluence', 'Confluence pages with their attachments'],
-    ['share', 'a link that opens the diagram in the web app'],
+    ['share', 'a link that opens it in the web app'],
   ]],
   ['Check', [
     ['validate', 'check files and their views'],
     ['diff', 'what changed between two versions'],
-    ['describe', 'the diagram in plain words'],
-    ['threats', 'the threat table as markdown'],
-    ['trace', 'a request through the architecture, as a sequence diagram'],
-    ['notes', 'review notes as markdown'],
+    ['trace', 'a request through it, as a sequence diagram'],
+    ['threats', 'the threat table'],
+    ['notes', 'review notes'],
     ['decisions', 'architecture decisions: log, table, new'],
-  ]],
-  ['Start and convert', [
-    ['new', 'start from a template'],
-    ['types', 'which diagram type to pick'],
-    ['import', 'Mermaid, draw.io, Excalidraw, Terraform, Azure, … to YAML'],
-    ['blocks', 'reusable fragments: list, show, save and insert'],
-    ['export', 'to draw.io, Excalidraw or Mermaid'],
   ]],
   ['Look', [
     ['themes', 'built-in themes'],
     ['icons', 'import and list vendor icon packs'],
   ]],
 ];
-const commands = groups.flatMap(([, list]) => list.map(([c]) => c));
+/** Older names, still taken: `carto export --to html` is the same as `carto export-html`. */
+const aliases: [string, string][] = [
+  ['export-html', 'export --to html'],
+  ['export-md', 'export --to md'],
+  ['export-confluence', 'export --to confluence'],
+];
+const commands = [...groups.flatMap(([, list]) => list.map(([c]) => c)), ...aliases.map(([c]) => c)];
 
 const help = `carto — architecture diagrams that look good
-
 Usage: carto <command> [files…] [options]
 
-${groups.map(([title, list]) => `${title}:\n${list.map(([c, what]) => `  ${c.padEnd(17)} ${what}`).join('\n')}`).join('\n\n')}
+${groups.map(([title, list]) => list.map(([c, what], i) => `${(i ? '' : title).padEnd(8)}${c.padEnd(11)}${what}`).join('\n')).join('\n')}
 
-carto <command> --help   the options of one command
-carto help all           every command with every option
-- for a file (or -o -) is standard input or output; a drawing with errors is not written
+carto <command> --help: its options · carto help all: everything · - is stdin or stdout
 Example: carto render shop.yaml -o shop.png`;
 
+/**
+ * How many entries of a command's help (a usage line, or an option line with what follows it) are
+ * the ones most people need: the rest is under "More options". Commands not listed show all as common.
+ */
+const commonEntries: Record<string, number> = { render: 4, deck: 2, animate: 3, diff: 3, import: 2, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, export: 3, 'export-html': 2, validate: 1, trace: 2 };
+
+/** One command's help: what it does, its common options, then the rest. */
+function commandHelp(cmd: string): string {
+  const lines = usage.get(cmd)!.split('\n');
+  // An entry starts at a usage line or an option line; lines indented further belong to the one above.
+  const entries: string[][] = [];
+  for (const line of lines) (/^ {2}carto |^ {15}\S/.test(line) || !entries.length ? entries.push([line]) : entries.at(-1)!.push(line));
+  const what = cmd === 'export' ? 'every export: HTML, Markdown, Confluence, draw.io, Excalidraw, Mermaid' : groups.flatMap(([, l]) => l).find(([c]) => c === cmd)?.[1];
+  const alias = aliases.find(([c]) => c === cmd)?.[1];
+  const head = `carto ${cmd}${what ? ` — ${what}` : alias ? ` (also: carto ${alias})` : ''}`;
+  const n = commonEntries[cmd] ?? entries.length;
+  const common = entries.slice(0, n).flat().join('\n');
+  const more = entries.slice(n).flat().join('\n');
+  return `${head}\n\nCommon options:\n${common}${more ? `\n\nMore options:\n${more}` : ''}`;
+}
+
 /** Help for one command, or the short help. */
-const helpFor = (cmd?: string) => (cmd && usage.has(cmd) ? `${usage.get(cmd)}\n\nAll commands: carto --help` : help);
+const helpFor = (cmd?: string) => (cmd && usage.has(cmd) ? `${commandHelp(cmd)}\n\nAll commands: carto --help` : help);
 
 /** The command meant by a typo: the nearest by edit distance, when it is close. */
 function nearest(word: string): string | undefined {
@@ -395,7 +421,16 @@ const parsed = (() => {
 })();
 const { positionals, values } = parsed;
 
-const [command, ...files] = positionals;
+const [typed, ...files] = positionals;
+/** `carto export --to html|md|confluence` is the export command of that name; --to drawio|excalidraw|mermaid is --format. */
+const exportTo = ['html', 'md', 'confluence', 'drawio', 'excalidraw', 'mermaid'];
+const command = typed === 'export' && values.to && ['html', 'md', 'confluence'].includes(values.to) ? `export-${values.to}` : typed;
+if (typed === 'export' && values.to && !exportTo.includes(values.to)) {
+  const picture = ['svg', 'png', 'pptx', 'pdf'].includes(values.to) ? ` (a picture or deck: carto render <file> -o out.${values.to})` : '';
+  console.error(`carto: --to ${values.to} is not an export; use one of: ${exportTo.join(', ')}${picture}`);
+  process.exit(1);
+}
+if (typed === 'export' && values.to && !command?.startsWith('export-')) values.format = values.to;
 const useColor = process.stderr.isTTY;
 const red = (s: string) => (useColor ? `\x1b[31m${s}\x1b[0m` : s);
 const yellow = (s: string) => (useColor ? `\x1b[33m${s}\x1b[0m` : s);
@@ -441,7 +476,8 @@ function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): 
  */
 async function traceCommand(): Promise<number> {
   const [f] = files;
-  if (!f || (!values.from && !values.steps)) return (console.error(helpFor('trace')), 1);
+  if (f && !values.from && !values.steps) return (console.error(`carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram's steps\nOptions: carto trace --help`), 1);
+  if (!f) return (console.error(helpFor('trace')), 1);
   const t = await traceable(fs.readFileSync(f, 'utf8'), { load: loaderFor(f), file: path.basename(f), view: values.view });
   const errors = t.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length) return (report(f, errors), 1);
@@ -653,7 +689,9 @@ const formats: Format[] = ['svg', 'png', 'pptx', 'pdf'];
 
 /** -o deck.pptx says the format as clearly as --format pptx; the extension wins for one file. */
 function formatFor(): Format {
-  const ext = values.out && files.length === 1 ? path.extname(values.out).slice(1).toLowerCase() : '';
+  const ext = values.out && files.length === 1 && values.out !== '-' ? path.extname(values.out).slice(1).toLowerCase() : '';
+  if (!formats.includes(values.format as Format)) throw new UsageError(`--format ${values.format} is not one carto ${command} writes; use one of: ${formats.join(', ')}`);
+  if (ext && !formats.includes(ext as Format)) throw new UsageError(`-o ${values.out}: carto ${command} writes ${formats.join(', ')}, not .${ext}`);
   return formats.find((f) => f === ext) ?? formats.find((f) => f === values.format) ?? 'svg';
 }
 
@@ -1671,6 +1709,7 @@ async function main(): Promise<number> {
       if (!fs.existsSync(f)) return (console.error(`${f}: no such file`), 1);
       const ext = values.out && values.out !== '-' ? path.extname(values.out).slice(1).toLowerCase() : '';
       const asked = values.format === 'markdown' ? 'md' : values.format;
+      if (asked !== 'svg' && !['text', 'md', 'html'].includes(asked)) throw new UsageError(`--format ${values.format}: carto describe writes text, md or html`);
       const format = asked === 'text' || asked === 'md' || asked === 'html' ? asked : ext === 'md' || ext === 'markdown' ? 'md' : ext === 'html' || ext === 'htm' ? 'html' : 'text';
       const { describeFile } = await import('./wiki.ts');
       const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
@@ -1819,6 +1858,8 @@ async function main(): Promise<number> {
     }
     case 'render': {
       if (!files.length) return (console.error(helpFor(command)), 1);
+      if (!formats.includes(values.format as Format)) throw new UsageError(`--format ${values.format} is not one carto render writes; use one of: ${formats.join(', ')}`);
+      if (!(Number(values.scale) > 0)) throw new UsageError(`--scale ${values.scale}: give a number above 0, e.g. --scale 2`);
       if (!themeFlag()) return 1;
       let ok = true;
       if (values.write && !(files.length === 1 && (isFolder(files[0]!) || exportKind([files[0]!]) === 'azure'))) return (console.error('--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml'), 1);
@@ -1884,10 +1925,12 @@ function unknown(cmd: string): number {
 /** What went wrong, in one line: a file that is not there, a folder where a file was meant, … */
 function friendly(e: unknown): string {
   const err = e as NodeJS.ErrnoException;
-  const where = err.path ? path.relative(process.cwd(), err.path) || err.path : undefined;
+  const near = err.path ? path.relative(process.cwd(), err.path) : undefined;
+  const where = err.path ? (near && !near.startsWith('..') ? near : err.path) : undefined;
   if (err.code === 'ENOENT') return `${where ?? 'file'}: no such file or folder`;
   if (err.code === 'EISDIR') return `${where ?? 'that'} is a folder; give a file`;
   if (err.code === 'ENOTDIR') return `${where ?? 'that'}: a file is in the way where a folder is needed`;
+  if (err.code === 'EEXIST') return `${where ?? 'that'}: a file is in the way where a folder is needed (-o names a folder when it has no extension)`;
   if (err.code === 'EACCES' || err.code === 'EPERM') return `${where ?? 'file'}: not allowed to read or write it`;
   return err.message ?? String(e);
 }

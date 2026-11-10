@@ -26,6 +26,10 @@ edges:
 `;
 
 describe('printing edits in place', () => {
+  it('says why a file of several YAML documents cannot be edited, instead of "cannot be stringified"', () => {
+    expect(() => edit('a: 1\n---\nb: 2\n', (d) => d.set('c', 3))).toThrow(/more than one YAML document/);
+  });
+
   it('changes only the touched entry', () => {
     const t = edit(file, (d) => d.setIn(['nodes', 'web', 'label'], 'Shop'));
     expect(t).toBe(file.replace('web:   { kind: app-service }     # the web', 'web: { kind: app-service, label: Shop } # the web'));
