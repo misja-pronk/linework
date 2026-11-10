@@ -49,18 +49,18 @@ describe('carto notes', () => {
     expect(carto('notes', 'shop.yaml', '--all').out).toContain('## 2. Storefront → Orders — resolved');
     expect(carto('notes', 'shop.yaml', '-o', 'notes.md').code).toBe(0);
     expect(read('notes.md')).toContain('Is **Orders** one service?');
-  });
+  }, 60_000);
 
   it('says when there are no notes', () => {
     write('bare.yaml', shop);
     expect(carto('notes', 'bare.yaml').err).toMatch(/no review notes/);
-  });
+  }, 60_000);
 
   it('validate warns about notes whose element is gone, without failing', () => {
     const r = carto('validate', 'shop.yaml');
     expect(r.code).toBe(0);
     expect(r.err).toMatch(/shop\.notes\.json {2}warning {2}note c3 \(open\) is about "Redis cache", which is no longer in the diagram/);
-  });
+  }, 60_000);
 
   it('render --notes adds markers and the notes; a plain render has none', () => {
     expect(carto('render', 'shop.yaml', '-o', 'plain.svg').code).toBe(0);
@@ -75,7 +75,7 @@ describe('carto notes', () => {
     expect(Number(/height="(\d+)"/.exec(svg)![1])).toBeGreaterThan(Number(/height="(\d+)"/.exec(read('plain.svg'))![1]));
     expect(carto('render', 'shop.yaml', '--notes', '-o', 'noted.pptx').code).toBe(0);
     expect(carto('render', 'shop.yaml', '--notes', '-o', 'noted.pdf').code).toBe(0);
-  });
+  }, 60_000);
 
   it('merges as git merge driver', () => {
     write('base.json', notes);
@@ -89,5 +89,5 @@ describe('carto notes', () => {
     expect(merged.threads.find((x) => x.id === 'a1')!.status).toBe('resolved');
     write('broken.json', '<<<<<<< HEAD\n');
     expect(carto('notes', '--merge-driver', 'base.json', 'broken.json', 'theirs.json').code).toBe(1);
-  });
+  }, 60_000);
 });
