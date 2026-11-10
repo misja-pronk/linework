@@ -191,3 +191,13 @@ describe('gained and lost access', () => {
     expect((await render('type: access\nview: packages\n', { fonts: 'none' })).empty).toBe(true);
   });
 });
+
+describe('subtitles of a type\'s own views', () => {
+  it('keeps the file\'s subtitle on the view drawn by default, also where that is not the first', async () => {
+    const text = fs.readFileSync(new URL('../../../examples/capabilities/enterprise.yaml', import.meta.url), 'utf8');
+    const plain = (await render(text, { fonts: 'none' })).graph!.subtitle;
+    expect(plain).toBe('Baseline assessment 2026');
+    expect((await render(text, { fonts: 'none', view: 'maturity' })).graph!.subtitle).toBe(plain);
+    expect((await render(text, { fonts: 'none', view: 'investment' })).graph!.subtitle).toBe('Heatmap: Investment');
+  });
+});

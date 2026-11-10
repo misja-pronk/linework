@@ -353,7 +353,8 @@ capabilities:
   freeNames: true,
   refKeys: { parent: ['capabilities'] },
   views(src) {
-    const out = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h) => ({ name: h.by, title: `Heatmap: ${h.title ?? h.by}` }))];
+    // The first heat is what the file draws by default.
+    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: `Heatmap: ${heatScale(h, []).title}`, ...(i ? {} : { default: true }) }))];
     const any = (map: Record<string, Entry> | undefined): boolean => JSON.stringify(map ?? {}).includes('"systems"');
     if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: 'Supporting systems' });
     return out.length > 1 ? out : [];

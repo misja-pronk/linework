@@ -1,6 +1,6 @@
 type: capabilities
 title: E-commerce capabilities
-subtitle: Attract, sell, deliver, serve and run the shop
+subtitle: Run cost per capability and the systems behind it
 heat:
   - { by: cost, title: Run cost per year }
   - fit

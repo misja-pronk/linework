@@ -81,7 +81,7 @@ heat:
     eliminate: { tone: rose, pattern: hatch, label: Switch off }
 ```
 
-`scale:` (sequential, diverging, categorical), `min:`/`max:`, `labels:` (words for numbers), `tone:` (hue of a sequential scale), `reverse:` (higher is worse) and `unit:` (what the numbers are in, for the key: `€`, `%`, `FTE`; read from the values when they share one) are the other keys. A view other than the default one is subtitled by its own name (Heatmap: Fit), so the diagram's `subtitle:` belongs to the first. **Several heats are several views**: `heat: [maturity, investment]` gives the views `maturity` and `investment` (plus `map`, without colour); the first is the default drawing.
+`scale:` (sequential, diverging, categorical), `min:`/`max:`, `labels:` (words for numbers), `tone:` (hue of a sequential scale), `reverse:` (higher is worse) and `unit:` (what the numbers are in, for the key: `€`, `%`, `FTE`; read from the values when they share one) are the other keys. A view other than the default one is subtitled by its own name (Heatmap: Fit), so the diagram's `subtitle:` belongs to the default drawing. **Several heats are several views**: `heat: [maturity, investment]` gives the views `maturity` and `investment` (plus `map`, without colour); the first is the default drawing.
 
 ![The investment view](capabilities/investment.png)
 
