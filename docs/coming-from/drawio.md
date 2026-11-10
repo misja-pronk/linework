@@ -32,7 +32,7 @@ The type is guessed per page: shapes from the Azure, AWS, Google Cloud, Kubernet
 - **Pixel control.** You cannot put a box at an exact spot by typing; you drag it in the editor and the place is kept next to the file, but the rest is laid out on rules.
 - **Free drawing.** Loose text, arrows with a loose end, shapes without text, free lines and pictures are left out on import (and listed in the report).
 - **Styling per shape**: colours, fonts and sizes come from the theme. A brand theme puts a client's colours, font and logo on everything at once ([themes.md](../themes.md)).
-- **Everyone's familiarity.** draw.io needs no explanation; YAML does, for some readers. The editor's *Build visually* mode and draw.io export soften this.
+- **Everyone's familiarity.** draw.io needs no explanation; YAML does, for some readers. The editor's *Builder* (build visually, no YAML) and draw.io export soften this.
 
 ## What you gain
 

@@ -6,7 +6,7 @@ import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride,
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
-import { ArrangeBar, arrangeCommands, arrangeKey, craftKey, useCraftPrefs } from './craft-actions.tsx';
+import { ArrangeBar, arrangeCommands, arrangeKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
 import { Start, type Incoming, type Opened, type View } from './start.tsx';
 import { isDrawio, isExcalidraw } from '@cartography/interop';
@@ -28,6 +28,8 @@ const EXPORT_ENTRY = {
   azure: { label: (name: string) => `Azure resources in ${name}`, hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
 };
 import { ViewPicker } from './view-picker.tsx';
+import { is, keyHint, shortcutFor } from './keys.ts';
+import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
 import { useLayers } from './layers-control.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
@@ -94,6 +96,33 @@ function useSystemDark() {
 }
 
 /** Debounced value that passes straight through when `key` changes (another document). */
+/** The window's width, for sharing it out between the panes (pane-layout.ts). */
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return w;
+}
+
+/**
+ * Puts a toast just under the drawing's tools, at their left: where the eyes are after an action, and
+ * never over the zoom bar, the hint or a panel. Without a drawing on screen (a phone on the YAML tab)
+ * it stays at the bottom of the window.
+ */
+function dockToast(el: HTMLDivElement | null) {
+  if (!el) return;
+  const top = [...document.querySelectorAll('.canvas-top > *')].filter((x) => (x as HTMLElement).offsetParent);
+  const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
+  if (!top.length || !pane?.width) return el.classList.remove('docked');
+  el.classList.add('docked');
+  el.style.top = `${Math.max(...top.map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
+  el.style.left = `${pane.left + 16}px`;
+  el.style.maxWidth = `${pane.width - 32}px`;
+}
+
 function useDebounced<T>(value: T, ms: number, key: unknown): T {
   const [state, setState] = useState({ value, key });
   if (state.key !== key) setState({ value, key });
@@ -172,8 +201,6 @@ export function App() {
   const [pane, setPane] = useState<'yaml' | 'drawing'>('drawing');
   /** The first-visit hint, until it is dismissed once. */
   const [hint, setHint] = useState(() => !store.get('hinted'));
-  /** The hint's height: a toast stands clear above it (see .with-hint .toast). */
-  const [hintHeight, setHintHeight] = useState(72);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);
@@ -184,6 +211,8 @@ export function App() {
   const [menu, setMenu] = useState(false);
   const [animating, setAnimating] = useState(false);
   const [more, setMore] = useState(false);
+  /** The drawing's tools that fold into ⋯ when the pane is narrow. */
+  const [toolsMore, setToolsMore] = useState(false);
   /** The type pill's card: what this type is for, and the way to the type guide. */
   const [typeCard, setTypeCard] = useState(false);
   /** Opened from the type pill: the dialog marks the open diagram's type. */
@@ -192,6 +221,16 @@ export function App() {
   /** All an import or export had to say (the toast says the first), for the document it was about: listed with the problems. */
   const [notes, setNotes] = useState<{ doc: string; title: string; items: string[] }>();
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
+  /** The file list and the YAML as people left them: open, or folded to a rail (pane-layout.ts). */
+  const [filesPref, setFilesPrefState] = useState<'list' | 'rail'>(() => (store.get('files') === 'rail' ? 'rail' : 'list'));
+  const setFilesPref = (v: 'list' | 'rail') => (setFilesPrefState(v), store.set('files', v));
+  const [yamlFolded, setYamlFoldedState] = useState(() => store.get<boolean>('yaml-folded') === true);
+  const setYamlFolded = (v: boolean) => (setYamlFoldedState(v), store.set('yaml-folded', v), setForceYaml(false));
+  /** The YAML opened from its rail although there is no room: it stays open until folded again. */
+  const [forceYaml, setForceYaml] = useState(false);
+  /** The file list over the drawing, opened from its rail when there is no room for it beside. */
+  const [filesOver, setFilesOver] = useState(false);
+  const windowWidth = useWindowWidth();
   const editor = useRef<EditorHandle>(null);
   const openedText = useRef<string | null>(null);
   const [ws, setWs] = useState<Workspace>();
@@ -229,11 +268,15 @@ export function App() {
   const [presenting, setPresenting] = useState(false);
   /** The Ask panel (⌘J), and a question the palette put in it. */
   const [asking, setAsking] = useState(false);
+  /** The Ask panel stays mounted (its conversation kept) behind another tab until it is closed. */
+  const [askKept, setAskKept] = useState(false);
   const [askSeed, setAskSeed] = useState<{ text: string; n: number }>();
   const askWith = (q?: string) => {
     setAsking(true);
+    setAskKept(true);
     if (q) setAskSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 }));
   };
+  const toggleAsk = () => (asking ? setAsking(false) : askWith());
   // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
   const [lens, setLens] = useState<{ doc: string; view?: string; focus: { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null }>();
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
@@ -247,7 +290,8 @@ export function App() {
   }, [pins, draft]);
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
-  const docFile = (doc.path ?? doc.starter ?? doc.name).split('/').pop();
+  // The file name people see (and Claude is told): a template is "sequence.yaml", never its id "template:sequence".
+  const docFile = (doc.path ?? (doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined) ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
   /** Layers switched on here (layers-control.tsx), on top of what the YAML says. */
@@ -282,6 +326,7 @@ export function App() {
   const pinnedIds = useMemo(() => new Set([...Object.keys(vpins?.nodes ?? {}), ...Object.keys(vpins?.groups ?? {})]), [vpins?.nodes, vpins?.groups]);
   const craft = useCraftPrefs();
   const previewControl = useRef<PreviewControl>(null);
+  const dragStartedInView = useRef(false);
 
   // ------------------------------------------------------------ review notes
 
@@ -368,7 +413,8 @@ export function App() {
   };
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(undefined), toast.action || toast.tone ? 7000 : 2600);
+    // Gone within five seconds; one with an action to take waits a little longer for it.
+    const t = setTimeout(() => setToast(undefined), toast.action ? 8000 : toast.tone ? 5000 : 3500);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -840,6 +886,7 @@ export function App() {
    * stay). The drawing before is forgotten, so the rest is placed as a new drawing would place it.
    */
   const tidyLayout = () => {
+    previewControl.current?.fitNext();
     setFresh((n) => n + 1);
     if (!vpins) return void acted();
     const { layout: _, ...kept } = vpins;
@@ -848,8 +895,9 @@ export function App() {
   };
   /** Tidy all: unpins everything and lays it out afresh, as one undo step. */
   const tidyAll = () => {
+    previewControl.current?.fitNext();
     resetLayout();
-    if (vpins) notify('Unpinned everything and laid it out afresh (⌘Z undoes it)');
+    if (vpins) notify(pinCount ? `Unpinned ${count(pinCount, 'element')} and laid it all out afresh` : 'Laid it all out afresh', { action: { label: 'Undo', run: () => editor.current?.undo() } });
   };
   /** Pins the selected nodes and groups where they are, or unpins them when all are pinned: the layout places them again. */
   const togglePin = () => {
@@ -1138,7 +1186,10 @@ export function App() {
 
   const move = (id: string, at: Point, done: boolean, group?: string | null) => {
     const moved = movedWith(id, at);
+    // A drawing wholly in view before a drag fits again when the drag took it past the edge.
+    if (!done && !draft) dragStartedInView.current = previewControl.current?.wholly() ?? false;
     if (!done) return setDraft({ nodes: moved });
+    previewControl.current?.keepInView(dragStartedInView.current);
     setDraft(undefined);
     const nextPins = withPins(moved);
     // Moving and changing group are one step: one undo puts both back.
@@ -1267,42 +1318,51 @@ export function App() {
 
   const onCanvasKey = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
+    const arrange = arrangeKey(e);
+    if (arrange) {
+      arrangeSelection(arrange);
+      return e.preventDefault();
+    }
+    // The drawing's keys, by the table in keys.ts (the sheet shows the same).
+    const id = shortcutFor(e, drawn?.focus ? ['drawing', 'focus'] : ['drawing']);
     const step = e.shiftKey ? NUDGE * 5 : NUDGE;
-    if (mod(e) && e.key.toLowerCase() === 'z') e.shiftKey ? editor.current?.redo() : editor.current?.undo();
-    else if (mod(e) && e.key.toLowerCase() === 'y') editor.current?.redo();
-    else if (mod(e) && e.key.toLowerCase() === 'd') duplicate();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'c') copy();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'v') paste();
-    else if (mod(e) && !e.shiftKey && e.key.toLowerCase() === 'a') selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false);
-    else if (e.key === 'Delete' || e.key === 'Backspace') selection.length > 1 ? removeAll() : remove();
-    else if (e.key === 'Escape') selection.length || !focusOn ? setSelection([]) : leaveFocus();
-    else if (e.key.toLowerCase() === 'f' && !mod(e) && !e.altKey) focusOnSelection();
-    else if ((e.key === '+' || e.key === '=' || e.key === '-') && !mod(e) && !e.altKey && drawn?.focus) focusHops(e.key === '-' ? -1 : 1);
-    else if (e.key === 'd' && !mod(e) && !e.altKey && drawn?.focus) focusDirection();
-    else if (arrangeKey(e)) arrangeSelection(arrangeKey(e)!);
-    else if (craftKey(e) === 'lock') toggleLock();
-    else if (e.code === 'KeyL' && e.shiftKey && !mod(e) && !e.altKey) togglePin();
-    else if (layers.onKey(e)) void 0;
-    else if (e.code === 'KeyT' && !mod(e) && !e.altKey) e.shiftKey ? tidyAll() : tidyLayout();
-    else if (craftKey(e) === 'grid' || craftKey(e) === 'minimap' || craftKey(e) === 'page') craft.toggle(craftKey(e) as 'grid' | 'minimap' | 'page');
-    else if (e.altKey && e.key.startsWith('Arrow')) focusToward(e.key.slice(5).toLowerCase() as Direction);
-    else if ((e.key === '[' || e.key === ']') && !mod(e)) stepBy(e.key === ']' ? 1 : -1);
-    else if (e.key === 's' && !mod(e) && !e.altKey) addStepFromSelection();
-    else if (e.key === 'v' && !mod(e) && !e.altKey) nextView();
-    else if (e.key === 'ArrowLeft') nudge(-step, 0);
-    else if (e.key === 'ArrowRight') nudge(step, 0);
-    else if (e.key === 'ArrowUp') nudge(0, -step);
-    else if (e.key === 'ArrowDown') nudge(0, step);
-    else if (e.key === 'Tab' && !mod(e)) {
-      if (!cycle(e.shiftKey ? -1 : 1)) return;
-    } else if (e.key === 'a' && !mod(e) && !e.altKey) addShape();
-    else if (e.key === 'c' && !mod(e) && !e.altKey && selected?.kind === 'node') setModal('connect');
-    else if (e.key === 'n' && !mod(e) && !e.altKey) addNote();
-    else if (e.key === 'N' && !mod(e) && !e.altKey) toggleNotes();
-    else if (e.key === 'R' && !mod(e) && !e.altKey) toggleReview();
-    else if (e.key === 'F2' && !e.shiftKey && selected) (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
-    else if (e.key === 'Enter' && selected) (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
-    else return;
+    switch (id) {
+      case 'undo': editor.current?.undo(); break;
+      case 'redo': editor.current?.redo(); break;
+      case 'duplicate': duplicate(); break;
+      case 'copy': copy(); break;
+      case 'paste': paste(); break;
+      case 'select-all': selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false); break;
+      case 'delete': selection.length > 1 ? removeAll() : remove(); break;
+      case 'escape': selection.length || !focusOn ? setSelection([]) : leaveFocus(); break;
+      case 'focus': focusOnSelection(); break;
+      case 'focus-hops': focusHops(e.key === '-' ? -1 : 1); break;
+      case 'focus-direction': focusDirection(); break;
+      case 'lock': toggleLock(); break;
+      case 'pin': togglePin(); break;
+      case 'tidy': tidyLayout(); break;
+      case 'grid':
+      case 'minimap':
+      case 'page': craft.toggle(id); break;
+      case 'nearest': focusToward(e.key.slice(5).toLowerCase() as Direction); break;
+      case 'step-by': stepBy(e.key === ']' ? 1 : -1); break;
+      case 'step': addStepFromSelection(); break;
+      case 'next-view': nextView(); break;
+      case 'nudge': nudge(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0); break;
+      case 'cycle': if (!cycle(e.shiftKey ? -1 : 1)) return; break;
+      case 'add': addShape(); break;
+      case 'connect': if (selected?.kind !== 'node') return; setModal('connect'); break;
+      case 'layers': if (!layers.onKey(e)) return; break;
+      case 'note': addNote(); break;
+      case 'notes': toggleNotes(); break;
+      case 'review': toggleReview(); break;
+      case 'edit':
+        if (!selected) return;
+        if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
+        else (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
+        break;
+      default: return;
+    }
     e.preventDefault();
   };
 
@@ -1421,7 +1481,10 @@ export function App() {
     const n = (drawn?.step ?? stepList.length) + 1;
     const next = addStep(textNow(), stepsPath(drawn?.view), { title: names.length === 1 ? names[0]! : names.length === 2 ? names.join(' and ') : `Step ${n}`, focus }, drawn?.step);
     editSteps(next, n);
-    if (next) setNaming(n);
+    if (next) {
+      setNaming(n);
+      notify(`Step ${n} added: ${names.length === 1 ? names[0] : names.length === 2 ? names.join(' and ') : `${names.length} elements stand out`}`, { action: { label: 'Undo', run: () => editor.current?.undo() } });
+    }
   };
   const present = () => {
     if (!drawn?.svg) return notify('Nothing to present yet: fix the problems in the YAML first', { tone: 'error' });
@@ -1462,8 +1525,20 @@ export function App() {
         : [],
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, text],
   );
-  // The Ask panel takes the right side while it is open: the inspector and notes would squeeze the drawing between the two.
-  const showInspector = !asking && (notesOpen || !!(selected && inspector && type && (selNode || selGroup || selEdge)) || (selection.length > 1 && inspector));
+  /** The selection has properties to show (one element, or several to arrange). */
+  const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
+  /** One panel on the right, with tabs: the selection's properties, the review notes, or Ask. */
+  const sideTab: 'properties' | 'notes' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : 'properties';
+  const showInspector = sideTab === 'properties' && inspector && hasProperties;
+  const sideOpen = asking || notesOpen || showInspector;
+  const showSide = (tab: typeof sideTab) => {
+    setAsking(tab === 'ask');
+    if (tab === 'ask') setAskKept(true);
+    if (tab !== 'notes' && notesOpen) toggleNotes();
+    else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
+    if (tab === 'properties') setInspector(true);
+  };
+  const panes = paneLayout({ width: windowWidth, folder: !!ws, files: filesPref, view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen });
   /** A diagram with nothing in it yet: the canvas says how to start. */
   const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
   const quick = useMemo(() => {
@@ -1578,25 +1653,25 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? 'Close the Ask panel' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: '⌘J', run: () => (asking ? setAsking(false) : askWith()) },
+    { id: 'ask', group: 'Claude', label: asking ? 'Close Ask Claude' : 'Ask Claude…', hint: 'a change or a question about the diagram, with your API key', icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     { id: 'ask-explain', group: 'Claude', label: 'Explain this diagram', icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
     { id: 'ask-review', group: 'Claude', label: 'Review for threats, single points of failure, missing monitoring', icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
     ...wsTools.commands,
     ...trace.commands,
     { id: 'new', group: 'File', label: 'New diagram…', hint: 'template, then AI, builder or YAML', icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
-      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: '⌘\\', run: () => setView('code') }
-      : { id: 'view-visual', group: 'View', label: 'Build visually (hide the YAML)', icon: 'mouse-pointer-2', shortcut: '⌘\\', run: () => setView('visual') },
-    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: '⌘O', run: openFile },
-    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: '⌘S', run: saveYaml },
+      ? { id: 'view-code', group: 'View', label: 'Show the YAML', icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
+      : { id: 'view-visual', group: 'View', label: 'Builder (hide the YAML)', icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
+    { id: 'open', group: 'File', label: 'Open file…', hint: 'a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import', icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
+    { id: 'save', group: 'File', label: ws && doc.path ? `Save ${doc.path}` : 'Save', icon: 'save', shortcut: keyHint('save'), run: saveYaml },
     { id: 'download', group: 'File', label: 'Download YAML', icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: 'File', label: 'Open folder…', icon: 'folder-open', run: () => void openFolder() }] : []),
     ...(ws && meshInWs ? [{ id: 'mesh', group: 'File', label: `Data mesh map of ${ws.name}`, hint: 'its data products and contracts (ODPS, ODCS) in data-mesh.yaml', icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
     ...(ws && exportInWs ? [{ id: 'export', group: 'File', label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: EXPORT_ENTRY[exportInWs].hint, icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: `Files in ${ws.name}`, label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: 'File', label: 'Save layout (.layout.json)', icon: 'save', run: saveLayout }] : []),
-    { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: '⌘E', run: saveSvg },
-    { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: '⇧⌘E', run: savePng },
+    { id: 'svg', group: 'Export', label: 'Export SVG', icon: 'download', shortcut: keyHint('export-svg'), run: saveSvg },
+    { id: 'png', group: 'Export', label: 'Export PNG (2×)', icon: 'image', shortcut: keyHint('export-png'), run: savePng },
     { id: 'slide', group: 'Export', label: `PNG on the page (${pageName})`, icon: 'monitor', run: saveSlide },
     { id: 'page-svg', group: 'Export', label: `SVG on the page (${pageName})`, icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: 'Export', label: written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)', icon: 'layout-template', run: savePptx },
@@ -1612,13 +1687,13 @@ export function App() {
     { id: 'mermaid', group: 'Export', label: 'Export Mermaid (.mmd)', icon: 'file-code', run: saveMermaid },
     { id: 'share', group: 'Export', label: 'Copy share link', hint: 'read-only, the diagram travels in the link', icon: 'link', run: copyShare },
     { id: 'copy-mermaid', group: 'Export', label: 'Copy as Mermaid', hint: 'a fenced block for a README', icon: 'copy', run: copyMermaid },
-    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: 'P', run: present },
+    { id: 'present', group: 'Present', label: 'Present full screen', hint: stepList.length ? `${count(stepList.length, 'step')}` : drawn?.views?.length ? 'its views in order' : 'step by step', icon: 'play', shortcut: keyHint('present'), run: present },
     ...(type && !drawn?.stepsImplied
-      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: 'S', run: addStepFromSelection }]
+      ? [{ id: 'step-add', group: 'Present', label: selection.length ? 'Add a step from the selection' : 'Add a step', hint: 'what is selected stands out in it', icon: 'plus', shortcut: keyHint('step'), run: addStepFromSelection }]
       : []),
     ...(stepList.length
       ? [
-          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: ']', run: () => stepBy(1) },
+          { id: 'step-next', group: 'Present', label: 'Next step', icon: 'layers', shortcut: keyHint('step-by'), run: () => stepBy(1) },
           { id: 'step-previous', group: 'Present', label: 'Previous step', icon: 'layers', shortcut: '[', run: () => stepBy(-1) },
           ...(drawn?.step ? [{ id: 'step-none', group: 'Present', label: 'Show the whole drawing', hint: 'no step', icon: 'layers', run: () => pickStep(undefined) }] : []),
           ...stepList.map((x, i) => ({ id: `step:${i + 1}`, group: 'Steps', label: `${i + 1}. ${x.title ?? x.caption ?? 'Step'}`, hint: x.title ? x.caption : undefined, icon: 'layers', run: () => pickStep(i + 1) })),
@@ -1626,47 +1701,47 @@ export function App() {
       : []),
     ...comparing.commands,
     ...layers.commands,
-    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: 'N', run: () => addNote() },
-    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: '⇧N', run: toggleNotes },
-    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: '⇧R', run: toggleReview },
+    { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
+    { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
+    { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
     { id: 'notes-export', group: 'Notes', label: notesInExports ? 'Exports without review notes' : 'Exports with review notes', hint: 'numbered markers and the notes under the drawing', icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: 'Notes', label: 'Download review notes (.notes.json)', hint: 'kept in this browser until then', icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
     ...openNotes.map((t) => ({ id: `note:${t.id}`, group: 'Open notes', label: t.text.split('\n')[0]!, hint: t.author, icon: 'message-square', run: () => openNote(t.id) })),
-    { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: '⌘Z', run: () => editor.current?.undo() },
-    { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: '⇧⌘Z', run: () => editor.current?.redo() },
-    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'sparkles', shortcut: 'T', run: tidyLayout },
-    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'lay it all out afresh; ⌘Z undoes it', icon: 'pin-off', shortcut: '⇧T', run: tidyAll }] : []),
-    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: '⇧L', run: togglePin },
+    { id: 'undo', group: 'Edit', label: 'Undo', icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
+    { id: 'redo', group: 'Edit', label: 'Redo', icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
+    { id: 'tidy', group: 'Arrange', label: 'Tidy', hint: 'lay out again what is not pinned; pins stay', icon: 'layout-grid', shortcut: keyHint('tidy'), run: tidyLayout },
+    ...(vpins || drawnLayout?.held ? [{ id: 'reset', group: 'Arrange', label: 'Tidy all (unpin everything)', hint: 'unpin everything and lay it all out afresh; Undo in the message', icon: 'pin-off', run: tidyAll }] : []),
+    { id: 'pin', group: 'Arrange', label: selection.length && selection.every((s) => (s.kind === 'node' ? vpins?.nodes?.[s.id] : vpins?.groups?.[s.id])) ? 'Unpin the selection' : 'Pin the selection where it is', icon: 'pin', shortcut: keyHint('pin'), run: togglePin },
     ...arrangeCommands(arrangeSelection),
-    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: '⇧⌘L', run: toggleLock },
+    { id: 'lock', group: 'Arrange', label: selection.length && selection.every((s) => locked.has(s.id)) ? 'Unlock the selection' : 'Lock the selection in place', icon: 'lock', shortcut: keyHint('lock'), run: toggleLock },
     ...(selected?.kind === 'edge' && bent.has(selected.id) ? [{ id: 'reset-line', group: 'Arrange', label: 'Reset line (route it automatically)', icon: 'route', run: () => pinTo(withEdge(selected.id, undefined)) }] : []),
-    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: '⇧1', run: () => previewControl.current?.fit() },
+    { id: 'zoom-fit', group: 'View', label: 'Zoom to fit', icon: 'maximize', shortcut: keyHint('fit'), run: () => previewControl.current?.fit() },
     ...viewList()
       .filter((v) => v !== viewName)
       .map((v) => ({ id: `view-${v ?? 'as-written'}`, group: 'View', label: v === undefined ? 'Show the diagram as written' : `Show the ${viewTitle(v)} view`, hint: 'the YAML stays as it is', icon: 'layers', run: () => showView(v) })),
-    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: 'V', run: nextView }] : []),
+    ...(viewList().length > 1 ? [{ id: 'view-next', group: 'View', label: 'Next view', hint: `now ${viewTitle(viewName)}`, icon: 'layers', shortcut: keyHint('next-view'), run: nextView }] : []),
     ...(ownView ? [{ id: 'view-keep', group: 'View', label: `Write view: ${viewName} into the YAML`, hint: 'so it opens like this', icon: 'save', run: keepView }] : []),
-    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: '⇧2', run: () => previewControl.current?.zoomToSelection() },
-    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: 'F', run: focusOnSelection },
+    { id: 'zoom-selection', group: 'View', label: 'Zoom to selection', icon: 'focus', shortcut: keyHint('zoom-selection'), run: () => previewControl.current?.zoomToSelection() },
+    { id: 'focus', group: 'Focus', label: selection.length === 1 && selected && selected.kind !== 'edge' ? `Focus on ${selected.kind === 'node' ? nodeName(selected.id) : (drawn?.graph?.groups.find((g) => g.id === selected.id)?.label ?? selected.id)}` : 'Focus on the selection', hint: 'only it and what is around it', icon: 'focus', shortcut: keyHint('focus'), run: focusOnSelection },
     ...(drawn?.focus
       ? [
           { id: 'focus-more', group: 'Focus', label: 'Focus: one hop more', hint: drawn.focus.hops === Infinity ? 'everything connected is shown' : `now ${drawn.focus.hops}`, icon: 'plus', shortcut: '+', run: () => focusHops(1) },
           { id: 'focus-fewer', group: 'Focus', label: 'Focus: one hop fewer', icon: 'minus', shortcut: '−', run: () => focusHops(-1) },
-          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: 'D', run: focusDirection },
+          { id: 'focus-direction', group: 'Focus', label: 'Focus: both ways, upstream or downstream', hint: `now ${drawn.focus.direction}`, icon: 'arrow-left-right', shortcut: keyHint('focus-direction'), run: focusDirection },
         ]
       : []),
-    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: 'Esc', run: leaveFocus }] : []),
-    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: '⇧G', run: () => craft.toggle('grid') },
-    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: '⇧M', run: () => craft.toggle('minimap') },
-    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: '⇧P', run: () => craft.toggle('page') },
+    ...(focusOn ? [{ id: 'focus-leave', group: 'Focus', label: drawn?.focus ? (drawn.focus.written ? 'Show everything (the YAML has a focus)' : 'Leave the focus') : 'Back to the focus of the YAML', icon: drawn?.focus ? 'x' : 'focus', shortcut: keyHint('escape'), run: leaveFocus }] : []),
+    { id: 'grid', group: 'View', label: craft.grid ? 'Stop snapping to the grid' : 'Snap to the 8px grid', icon: 'grid-3x3', shortcut: keyHint('grid'), run: () => craft.toggle('grid') },
+    { id: 'minimap', group: 'View', label: craft.minimap ? 'Hide the minimap' : 'Show the minimap', icon: 'map', shortcut: keyHint('minimap'), run: () => craft.toggle('minimap') },
+    { id: 'page', group: 'View', label: craft.page ? 'Hide the page' : `Show the page (${pageName})`, hint: 'and text too small on it', icon: 'monitor', shortcut: keyHint('page'), run: () => craft.toggle('page') },
     { id: 'theme-light', group: 'View', label: 'Light theme', icon: 'sun', run: () => setPref('light') },
     { id: 'theme-dark', group: 'View', label: 'Dark theme', icon: 'moon', run: () => setPref('dark') },
     { id: 'theme-system', group: 'View', label: 'Theme follows system', icon: 'monitor', run: () => setPref('system') },
-    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: '?', run: () => setTimeout(() => setModal('shortcuts')) },
+    { id: 'shortcuts', group: 'View', label: 'Keyboard shortcuts', icon: 'keyboard', shortcut: keyHint('sheet'), run: () => setTimeout(() => setModal('shortcuts')) },
     { id: 'problems', group: 'View', label: 'Show problems', hint: shownNotes ? `and ${shownNotes.items.length} from the import` : undefined, icon: 'circle-exclamation-point', run: () => setModal('problems') },
     ...(type?.palette ?? []).map((item, i) => ({ id: `add:${i}`, group: 'Add', label: item.label, hint: item.collection, icon: item.icon, run: () => add(item) })),
     ...(selected?.kind === 'node'
-      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: 'C', run: () => setTimeout(() => setModal('connect')) }]
+      ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => setModal('connect')) }]
       : []),
     ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => select({ kind: 'group', id: g.id }) })),
     ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => select({ kind: 'node', id: n.id }) })),
@@ -1696,57 +1771,41 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // F6 moves between the editor, the drawing and the properties, like panes in other apps.
-      if (e.key === 'F6') {
-        const panes = ['.cm-content', '.preview', '.inspector input, .inspector select'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
-        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.inspector') && p.closest('.inspector')!.contains(document.activeElement)));
+      if (is(e, 'next-pane')) {
+        const panes = ['.cm-content', '.preview', '.side input, .side select, .side textarea'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
+        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.side') && p.closest('.side')!.contains(document.activeElement)));
         panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
         return e.preventDefault();
       }
-      // "?" opens the shortcuts, unless someone is typing.
-      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content');
-      if (!modal && !presenting && (wsTools.onKey(e, mod(e), !!typing) || trace.onKey(e, mod(e), !!typing))) return e.preventDefault();
-      if (e.key === '?' && !typing && !modal) {
-        setModal('shortcuts');
-        return e.preventDefault();
-      }
-      // "P" presents, from anywhere but a text field.
-      if (e.key.toLowerCase() === 'p' && !e.shiftKey && !typing && !modal && !mod(e) && !e.altKey && !e.ctrlKey && !e.metaKey) {
-        present();
-        return e.preventDefault();
-      }
-      if (e.defaultPrevented || e.altKey || !mod(e)) return;
-      const k = e.key.toLowerCase();
-      if (k === 'k' && !e.shiftKey) setModal((m) => (m === 'palette' ? undefined : 'palette'));
-      else if (k === 'j' && !e.shiftKey) setAsking((a) => !a);
-      else if (k === 's' && !e.shiftKey) saveYaml();
-      else if (k === 'o' && !e.shiftKey) openFile();
-      else if (k === 'e') e.shiftKey ? savePng() : saveSvg();
-      else if (e.key === '\\') setView(view === 'visual' ? 'code' : 'visual');
+      // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
+      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
+      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || trace.onKey(e, mod(e), !!typing))) return e.preventDefault();
+      if (e.defaultPrevented) return;
+      const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
+      if (!id || (modal && id !== 'palette') || presenting) return;
+      if (id === 'sheet') setModal('shortcuts');
+      else if (id === 'present') present();
+      else if (id === 'palette') setModal((m) => (m === 'palette' ? undefined : 'palette'));
+      else if (id === 'ask') toggleAsk();
+      else if (id === 'save') saveYaml();
+      else if (id === 'open') openFile();
+      else if (id === 'export-svg') saveSvg();
+      else if (id === 'export-png') savePng();
+      else if (id === 'switch-view') setView(view === 'visual' ? 'code' : 'visual');
       else return;
       e.preventDefault();
     };
-    // ⌘↩ presents too, also while typing YAML: caught before the editor takes it for a new line.
-    const onPresentKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter' || !mod(e) || e.shiftKey || e.altKey || modal || presenting) return;
-      // In a note, ⌘↩ sends it.
-      if ((e.target as HTMLElement | null)?.closest?.('.note-composer')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      present();
-    };
     window.addEventListener('keydown', onKey);
-    window.addEventListener('keydown', onPresentKey, true);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keydown', onPresentKey, true);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   });
 
   // Splitter between editor and drawing, by pointer or arrow keys.
   const dragSplit = (e: React.PointerEvent) => {
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => setSplit(Math.min(0.7, Math.max(0.2, ev.clientX / window.innerWidth)));
+    // The YAML's wanted width, from its left edge (the file list is beside it in a folder).
+    const left = el.parentElement!.getBoundingClientRect().left + panes.files;
+    const move = (ev: PointerEvent) => setSplit(Math.min(0.7, Math.max(0.15, (ev.clientX - left) / window.innerWidth)));
     const up = () => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', up);
@@ -1772,8 +1831,7 @@ export function App() {
   const typeId = type?.id;
   return (
     <div
-      className={hint && !adding && !modal ? 'app with-hint' : 'app'}
-      style={{ ['--split' as string]: `${split * 100}%`, ['--hint-h' as string]: `${hintHeight}px` }}
+      className="app"
       onDragOverCapture={onDragFiles}
       onDragLeaveCapture={(e) => e.relatedTarget == null && setDropping(false)}
       onDropCapture={onDropFiles}
@@ -1789,7 +1847,7 @@ export function App() {
           {dirty && <span className="dirty" title="Unsaved changes (⌘S saves)" aria-label="Unsaved changes" />}
           {type && (
             <div className="menu-anchor type-anchor">
-              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={type.tagline} aria-expanded={typeCard} aria-haspopup="menu">
+              <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${type.name}, written type: ${type.id}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
                 {type.name}
               </button>
               {typeCard && (
@@ -1798,6 +1856,7 @@ export function App() {
                     <strong>
                       <Icon name={type.icon ?? 'layout-template'} size={15} /> {type.name}
                     </strong>
+                    <code className="type-yaml" title="What the YAML says">type: {type.id}</code>
                     {type.tagline && <p>{type.tagline}</p>}
                   </div>
                   <button role="menuitem" onClick={() => (setTypeCard(false), setGuiding(true), setModal('templates'))}>
@@ -1821,17 +1880,17 @@ export function App() {
             </button>
           )}
           <div className="segmented view-switch" role="radiogroup" aria-label="Way of working">
-            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Build visually (⌘\\)">
+            <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => setView('visual')} title="Builder: the drawing and the shapes to drag onto it (⌘\\)">
               <Icon name="mouse-pointer-2" /> Builder
             </button>
             <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => setView('code')} title="YAML and drawing side by side (⌘\\)">
               <Icon name="code" /> YAML
             </button>
           </div>
-          <button className="button ghost wide-only" onClick={() => setModal('templates')}>
+          <button className="button ghost wide-only" onClick={() => setModal('templates')} title="A new diagram: from a template, a wizard, an example or an import">
             <Icon name="file-plus" /> New
           </button>
-          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Command palette">
+          <button className="button ghost wide-only" onClick={() => setModal('palette')} title="Commands, elements and templates (⌘K)">
             <Icon name="search" /> Commands <kbd>⌘K</kbd>
           </button>
           {/* On a phone the actions above fold into one menu. */}
@@ -1873,31 +1932,13 @@ export function App() {
             </button>
             {menu && (
               <Menu onClose={() => setMenu(false)}>
+                <div className="menu-heading">Image</div>
                 <button role="menuitem" onClick={saveSvg}>
-                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>⌘E</kbd>
+                  <Icon name="download" /> {safeSvg ? 'SVG, Office-safe' : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
                 </button>
                 <button role="menuitem" onClick={savePng}>
-                  <Icon name="image" /> PNG 2× <kbd>⇧⌘E</kbd>
+                  <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
                 </button>
-                <button role="menuitem" onClick={saveSlide}>
-                  <Icon name="monitor" /> PNG on the page ({pageName})
-                </button>
-                <button role="menuitem" onClick={savePageSvg}>
-                  <Icon name="monitor" /> SVG on the page ({pageName})
-                </button>
-                <button role="menuitem" onClick={savePptx}>
-                  <Icon name="layout-template" /> {written ? 'PowerPoint slides, one per step (.pptx)' : 'PowerPoint slide (.pptx)'}
-                </button>
-                <button role="menuitem" onClick={savePdf}>
-                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
-                </button>
-                <button role="menuitem" onClick={() => setAnimating(true)}>
-                  <Icon name="circle-play" /> Animation (GIF / MP4)
-                </button>
-                <button role="menuitem" onClick={() => saveHtml()}>
-                  <Icon name="globe" /> Interactive HTML (.html)
-                </button>
-                <hr />
                 <button role="menuitem" onClick={copyPng}>
                   <Icon name="copy" /> Copy as PNG
                 </button>
@@ -1916,26 +1957,50 @@ export function App() {
                 >
                   <Icon name={safeSvg ? 'check' : 'square'} /> Office-safe SVG
                 </button>
-                <hr />
-                <button role="menuitem" onClick={saveDrawio}>
-                  <Icon name="workflow" /> draw.io (.drawio)
+                <div className="menu-heading">Document, on the page ({pageName})</div>
+                <button role="menuitem" onClick={savePptx}>
+                  <Icon name="layout-template" /> {written ? 'PowerPoint, a slide per step (.pptx)' : 'PowerPoint (.pptx)'}
                 </button>
-                <button role="menuitem" onClick={saveExcalidraw}>
-                  <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                <button role="menuitem" onClick={savePdf}>
+                  <Icon name="file-text" /> {written ? 'PDF, a page per step' : 'PDF'}
                 </button>
-                <button role="menuitem" onClick={saveMermaid}>
-                  <Icon name="file-code" /> Mermaid (.mmd)
+                <button role="menuitem" onClick={saveSlide}>
+                  <Icon name="monitor" /> PNG of the page
                 </button>
-                <button role="menuitem" onClick={copyMermaid}>
-                  <Icon name="copy" /> Copy as Mermaid
+                <button role="menuitem" onClick={savePageSvg}>
+                  <Icon name="monitor" /> SVG of the page
                 </button>
-                <hr />
+                <div className="menu-heading">Share</div>
                 <button role="menuitem" onClick={copyShare} title="The diagram goes in the link itself: nothing is uploaded">
                   <Icon name="link" /> Copy share link
                 </button>
+                <button role="menuitem" onClick={() => saveHtml()} title="One file to send: every view and step, zoom, search, drill-down">
+                  <Icon name="globe" /> Interactive HTML (.html)
+                </button>
+                <button role="menuitem" onClick={() => setAnimating(true)} title="The steps or layers, a short blend between them">
+                  <Icon name="circle-play" /> Animation (GIF / MP4)
+                </button>
+                <details>
+                  {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
+                  <summary onClick={(e) => e.stopPropagation()}>
+                    <Icon name="workflow" /> Other tools: draw.io, Excalidraw, Mermaid <Icon name="chevron-down" size={14} />
+                  </summary>
+                  <button role="menuitem" onClick={saveDrawio}>
+                    <Icon name="workflow" /> draw.io (.drawio)
+                  </button>
+                  <button role="menuitem" onClick={saveExcalidraw}>
+                    <Icon name="square-dashed" /> Excalidraw (.excalidraw)
+                  </button>
+                  <button role="menuitem" onClick={saveMermaid}>
+                    <Icon name="file-code" /> Mermaid (.mmd)
+                  </button>
+                  <button role="menuitem" onClick={copyMermaid}>
+                    <Icon name="copy" /> Copy as Mermaid
+                  </button>
+                </details>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
-                  <Icon name="save" /> Save <kbd>⌘S</kbd>
+                  <Icon name="save" /> Save <kbd>{keyHint('save')}</kbd>
                 </button>
                 <button role="menuitem" onClick={downloadYaml}>
                   <Icon name="download" /> Download YAML
@@ -1959,21 +2024,39 @@ export function App() {
           <Icon name="image" /> Drawing
         </button>
       </nav>
-      <main className={`workspace view-${view}${showInspector ? ' with-inspector' : ''}${ws ? ' with-files' : ''} show-${pane}`}>
-        {ws && (
-          <nav className="files" aria-label={`Diagrams in ${ws.name}`}>
+      <main
+        className={`workspace view-${view}${sideOpen ? ' with-side' : ''}${ws ? ' with-files' : ''} files-is-${panes.filesMode} yaml-is-${panes.editorMode} show-${pane}`}
+        style={{ ['--cols' as string]: paneColumns(panes, sideOpen) }}
+      >
+        {ws && panes.filesMode === 'rail' && (
+          <nav className="rail files-rail" aria-label={`Diagrams in ${ws.name}`}>
+            <button
+              className="rail-button"
+              onClick={() => (paneLayout({ width: windowWidth, folder: true, files: 'list', view, editor: { width: split * windowWidth, folded: yamlFolded }, forceEditor: forceYaml, side: inspector || sideOpen }).filesMode === 'list' ? setFilesPref('list') : setFilesOver((o) => !o))}
+              aria-expanded={filesOver}
+              title={`The diagrams in ${ws.name}`}
+            >
+              <Icon name="folder-open" size={16} />
+              <span className="rail-label">{ws.name}</span>
+            </button>
+          </nav>
+        )}
+        {ws && (panes.filesMode === 'list' || filesOver) && (
+          <nav className={panes.filesMode === 'list' ? 'files' : 'files over'} aria-label={`Diagrams in ${ws.name}`} onKeyDown={(e) => e.key === 'Escape' && filesOver && (setFilesOver(false), e.stopPropagation())}>
             <header>
-              <Icon name="folder-open" size={14} /> {ws.name}
+              <Icon name="folder-open" size={14} /> <span className="files-name">{ws.name}</span>
+              <button className="icon-button small" onClick={() => (filesOver ? setFilesOver(false) : setFilesPref('rail'))} title={filesOver ? 'Close the file list' : 'Fold the file list to the side'} aria-label="Fold the file list">
+                <Icon name="panel-left-close" size={14} />
+              </button>
             </header>
             {diagrams(ws).map((p) => (
-              <button key={p} className={doc.path === p ? 'file active' : 'file'} onClick={() => void openInFolder(ws, p)} title={p} aria-current={doc.path === p}>
+              <button key={p} className={doc.path === p ? 'file active' : 'file'} onClick={() => (setFilesOver(false), void openInFolder(ws, p))} title={p} aria-current={doc.path === p}>
                 <Icon name="file-code" size={14} />
                 <span>{p}</span>
                 {doc.path === p && dirty && <span className="dirty" />}
               </button>
             ))}
             {diagrams(ws).length === 0 && <p className="files-empty">No diagrams yet. Start from a template, then save.</p>}
-            {wsTools.wherePanel}
           </nav>
         )}
         {view === 'visual' && type && (
@@ -1981,7 +2064,23 @@ export function App() {
             <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
           </aside>
         )}
-        <section className="pane editor-pane" aria-label="YAML">
+        {panes.editorMode === 'rail' && (
+          <button
+            className="rail rail-button yaml-rail"
+            onClick={() => (panes.editorSqueezed ? setForceYaml(true) : setYamlFolded(false))}
+            title={panes.editorSqueezed ? 'Show the YAML (the window is narrow: the drawing gets less room)' : 'Show the YAML'}
+            aria-label="Show the YAML"
+          >
+            <Icon name="code" size={16} />
+            <span className="rail-label">YAML</span>
+          </button>
+        )}
+        <section className="pane editor-pane" aria-label="YAML" hidden={panes.editorMode === 'rail'}>
+          {view === 'code' && (
+            <button className="icon-button small fold-yaml" onClick={() => setYamlFolded(true)} title="Fold the YAML to the side: more room for the drawing" aria-label="Fold the YAML">
+              <Icon name="panel-left-close" size={14} />
+            </button>
+          )}
           <Editor
             ref={editor}
             initial={text}
@@ -2003,6 +2102,7 @@ export function App() {
         </section>
         <div
           className="splitter"
+          hidden={panes.editorMode === 'rail'}
           onPointerDown={dragSplit}
           role="separator"
           tabIndex={0}
@@ -2085,8 +2185,8 @@ export function App() {
             <div className="canvas-top">
             {wsTools.crumbBar}
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
-              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-expanded={adding} disabled={!type}>
-                <Icon name="plus" /> Add <kbd>A</kbd>
+              <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title="Add a shape (A)" aria-label="Add a shape" aria-expanded={adding} disabled={!type}>
+                <Icon name="plus" /> <span className="tool-label">Add</span> <kbd>A</kbd>
               </button>
               <button className="tool" onClick={() => editor.current?.undo()} title="Undo (⌘Z)" aria-label="Undo">
                 <Icon name="undo-2" />
@@ -2095,34 +2195,60 @@ export function App() {
                 <Icon name="redo-2" />
               </button>
               <button className="tool" onClick={tidyLayout} title="Tidy: lay out again what is not pinned, pins stay (T)" aria-label="Tidy">
-                <Icon name="sparkles" />
+                <Icon name="layout-grid" />
               </button>
               {(vpins || drawnLayout?.held) && (
-                <button className="tool" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⇧T, ⌘Z undoes it)" aria-label="Reset layout">
+                <button className="tool tool-more" onClick={tidyAll} title="Tidy all: unpin everything and lay it out afresh (⌘Z undoes it)" aria-label="Tidy all">
                   <Icon name="pin-off" />
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
               {layers.button}
-              <button className={drawn?.focus ? 'tool active' : 'tool'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" disabled={!selection.length && !focusOn}>
-                <Icon name="focus" /> Focus <kbd>F</kbd>
+              <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" aria-label="Focus" disabled={!selection.length && !focusOn}>
+                <Icon name="focus" /> <span className="tool-label">Focus</span> <kbd>F</kbd>
               </button>
               {!stepList.length && (
-                <button className="tool" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" disabled={!type}>
-                  <Icon name="layers" /> Step <kbd>S</kbd>
+                <button className="tool tool-more" onClick={addStepFromSelection} title="A step to present: what is selected stands out in it (S)" aria-label="Add a step" disabled={!type}>
+                  <Icon name="layers" /> <span className="tool-label">Step</span> <kbd>S</kbd>
                 </button>
               )}
-              {comparing.button}
-              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" disabled={!drawn?.svg}>
-                <Icon name="play" /> Present <kbd>P</kbd>
+              <span className="tool-more">{comparing.button}</span>
+              <button className="tool" onClick={present} title="Present full screen, step by step (P or ⌘↩)" aria-label="Present" disabled={!drawn?.svg}>
+                <Icon name="play" /> <span className="tool-label">Present</span> <kbd>P</kbd>
               </button>
-              <button className={asking ? 'tool active' : 'tool'} onClick={() => setAsking((a) => !a)} title="Ask Claude for a change or about the diagram (⌘J)" aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> Ask <kbd>⌘J</kbd>
+              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={`Ask Claude for a change or about the diagram (${keyHint('ask')})`} aria-label="Ask Claude" aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> <span className="tool-label">Ask</span> <kbd>{keyHint('ask')}</kbd>
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title="Review notes (⇧N); N adds one on the selection" aria-pressed={notesOpen} aria-label={`Notes, ${openNotes.length} open${unreadNotes ? `, ${unreadNotes} unread` : ''}`}>
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
+              {/* A narrow drawing: the tools that fold away are here, in the same order. */}
+              <div className="menu-anchor tool-overflow">
+                <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More tools">
+                  <span className="more-dots" aria-hidden="true">⋯</span>
+                </button>
+                {toolsMore && (
+                  <Menu onClose={() => setToolsMore(false)}>
+                    {(vpins || drawnLayout?.held) && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), tidyAll())}>
+                        <Icon name="pin-off" /> Tidy all
+                      </button>
+                    )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), focusOnSelection())} disabled={!selection.length && !focusOn}>
+                      <Icon name="focus" /> Focus <kbd>F</kbd>
+                    </button>
+                    {!stepList.length && (
+                      <button role="menuitem" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
+                        <Icon name="layers" /> Add a step <kbd>S</kbd>
+                      </button>
+                    )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
+                      <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'}
+                    </button>
+                  </Menu>
+                )}
+              </div>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
             {!adding && layers.chip}
@@ -2136,7 +2262,7 @@ export function App() {
             )}
             </div>
             {hint && !adding && !modal && (
-              <div className="hint" role="note" ref={(el) => void (el && el.offsetHeight !== hintHeight && setHintHeight(el.offsetHeight))}>
+              <div className="hint" role="note">
                 <span>
                   {view === 'visual' ? (
                     <>
@@ -2195,8 +2321,23 @@ export function App() {
               onDelete={(n) => editSteps(deleteStep(textNow(), stepsPath(drawn?.view), n))}
             />
           )}
-          {asking && (
+        </section>
+        {sideOpen && (
+          <div className="side" role="region" aria-label="Side panel">
+            <div className="side-tabs" role="tablist" aria-label="Side panel">
+              <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => showSide('properties')} disabled={!hasProperties} title={hasProperties ? 'What is selected' : 'Select something to see its properties'}>
+                <Icon name="file-sliders" size={14} /> Properties
+              </button>
+              <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={`Review notes (${keyHint('notes')})`}>
+                <Icon name="message-square" size={14} /> Notes{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
+              </button>
+              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={`Ask Claude (${keyHint('ask')})`}>
+                <Icon name="sparkles" size={14} /> Ask Claude
+              </button>
+            </div>
+          {askKept && (
             <AskPanel
+              hidden={sideTab !== 'ask'}
               text={text}
               type={type}
               file={docFile}
@@ -2213,11 +2354,11 @@ export function App() {
               onRef={(r) => select(r)}
               onClose={() => {
                 setAsking(false);
+                setAskKept(false);
                 focusDrawing();
               }}
             />
           )}
-        </section>
         {notesOpen && !asking && (
           <NotesPanel
             review={review}
@@ -2247,14 +2388,14 @@ export function App() {
             onClose={toggleNotes}
           />
         )}
-            {showInspector && !notesOpen && selected && type && (selNode || selGroup || selEdge) && (
+        {showInspector && selected && type && (selNode || selGroup || selEdge) && (
           <Inspector
             key={`${selected.kind}:${selected.id}`}
             selection={`${selected.kind}:${selected.id}`}
             id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : kindLabel(selectedPath)}
+            kindLabel={selEdge ? (selEdge.label ? `Line · ${selEdge.label}` : 'Line') : wsTools.definedElsewhere ? (wsTools.definedElsewhere.kind ?? 'element').replace(/-/g, ' ') : kindLabel(selectedPath)}
             fields={fields}
             renamable={isEntry}
             freeName={!!type.freeNames}
@@ -2307,9 +2448,12 @@ export function App() {
               editor.current?.pin(withViewPins(pins, drawn?.view, next && { ...next, locked: next.locked?.filter((id) => id !== selected.id) }));
             }}
             onClose={() => setInspector(false)}
-          />
+            definedIn={wsTools.definedElsewhere}
+          >
+            {wsTools.wherePanel}
+          </Inspector>
         )}
-        {showInspector && !notesOpen && selection.length > 1 && (
+        {showInspector && selection.length > 1 && (
           <aside className="inspector" aria-label="Selection">
             <header>
               <span className="inspector-icon">
@@ -2345,6 +2489,8 @@ export function App() {
               </button>
             </footer>
           </aside>
+        )}
+          </div>
         )}
       </main>
 
@@ -2442,7 +2588,7 @@ export function App() {
         </div>
       )}
       {toast && (
-        <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'}>
+        <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'} ref={dockToast} key={toast.message}>
           {toast.message}
           {toast.action && (
             <button

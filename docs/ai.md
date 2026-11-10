@@ -2,10 +2,10 @@
 
 Cartography can use Claude in two places in the web editor, both with your own Anthropic API key:
 
-- **Describe it** in the start dialog: answer a few questions and Claude writes a first diagram.
-- **Ask** (⌘J, the Ask button on the canvas, or "Ask Claude…" in the command palette): ask for a change to the open diagram, or ask a question about it.
+- **Ask Claude** in the start dialog: describe the diagram in a few answers and Claude writes a first one.
+- **Ask Claude** in the editor (⌘J, Ctrl+I on Windows and Linux; the *Ask Claude* button or tab of the side panel, or "Ask Claude…" in the command palette): ask for a change to the open diagram, or ask a question about it. In a folder, the files it includes (its model) are sent with it, and the line under the box lists exactly what is sent.
 
-Nothing else in the app talks to the network. Without a key, both still work as "copy the prompt": paste it into any chat assistant and paste the answer back (Describe it).
+Nothing else in the app talks to the network. Without a key, both still work as "copy the prompt": paste it into any chat assistant and paste the answer back (Ask Claude in the start dialog).
 
 ## Ask
 

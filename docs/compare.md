@@ -6,7 +6,7 @@ What changed in a diagram since the review, since the last commit, since last qu
 
 ## Compare with…
 
-**⇧⌘D**, the **Compare** button in the drawing's toolbar, or *Compare with…* in the command palette (⌘K). It offers:
+**⇧⌘D** (with the drawing in focus: elsewhere it stays the browser's), the **Compare** button in the drawing's toolbar, or *Compare with…* in the command palette (⌘K). It offers:
 
 | Version | What it is |
 |---|---|
@@ -39,7 +39,7 @@ The list on the right says each change in words, with the names the drawing show
 - *Renamed “Orders” to “Orders service”*
 - *Removed Legacy VM from rg-shop (and its connection)*
 
-Lines that went with a removed element are counted with it, not listed one by one. Click a change, or step with the keys, and the drawing moves to it and marks it.
+Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list. Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
 
 | Key | |
 |---|---|

@@ -61,13 +61,18 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
   const set = (id: string, v: Answer) => setAnswers((a) => ({ ...a, [id]: v }));
   const keep = () => store.set('wizard-answers', { ...saved(), [wizard.id]: answers });
   const result = (view: WizardResult['view']): WizardResult => (keep(), { yaml, name: `${wizard.id}.yaml`, view });
-  const next = () => (last ? onOpen(result('visual')) : setAt((i) => i + 1));
+  /** How the drawing opens when finished: as the person last worked (building visually, or the YAML). */
+  const [how, setHowState] = useState<WizardResult['view']>(() => (store.get<string>('view') === 'code' ? 'code' : 'visual'));
+  const setHow = (v: WizardResult['view']) => (setHowState(v), store.set('view', v));
+  /** The preview at full size, to read it, or fitted to its box. */
+  const [close, setClose] = useState(false);
+  const next = () => (last ? onOpen(result(how)) : setAt((i) => i + 1));
   const back = () => setAt((i) => Math.max(wizards.length > 1 ? -1 : 0, i - 1));
   const canBack = at > (wizards.length > 1 ? -1 : 0);
 
   // Esc steps back through the questions before the dialog takes it back a step; ⌘↵ finishes from anywhere.
-  const keys = useRef({ back, canBack, finish: () => onOpen(result('visual')) });
-  keys.current = { back, canBack, finish: () => onOpen(result('visual')) };
+  const keys = useRef({ back, canBack, finish: () => onOpen(result(how)) });
+  keys.current = { back, canBack, finish: () => onOpen(result(how)) };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && keys.current.canBack) {
@@ -111,7 +116,7 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
           </button>
           <span className="spacer" />
           {last ? (
-            <button className="button primary" onClick={next} title="Open the drawing in the builder">
+            <button className="button primary" onClick={next} title={how === 'code' ? 'Open the drawing with its YAML' : 'Open the drawing to build on'}>
               Finish <kbd>↵</kbd>
             </button>
           ) : (
@@ -125,20 +130,31 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
         </p>
       </div>
       <div className="ask-preview wizard-preview">
-        <div className="mode-preview" aria-live="polite" aria-label="Preview of the drawing">
+        <div
+          className={close ? 'mode-preview close' : 'mode-preview'}
+          aria-live="polite"
+          aria-label="Preview of the drawing"
+          role="button"
+          tabIndex={0}
+          title={close ? 'Click to fit the drawing again' : 'Click to read it at full size'}
+          onClick={() => setClose((c) => !c)}
+          onKeyDown={(e) => (e.key === ' ' || (e.key === 'Enter' && !e.metaKey && !e.ctrlKey)) && (e.preventDefault(), setClose((c) => !c))}
+        >
           {drawing.svg ? <div dangerouslySetInnerHTML={{ __html: drawing.svg }} /> : <div className="thumb-wait" />}
         </div>
         {drawing.problem && <p className="fine">{drawing.problem}</p>}
         <footer>
-          <button className="button ghost" onClick={() => onAsk(result('visual'))} title="Describe what else it needs; Claude starts from this drawing">
-            <Icon name="sparkles" /> Refine with Claude
-          </button>
+          <div className="segmented" role="radiogroup" aria-label="Open it">
+            <button role="radio" aria-checked={how === 'visual'} className={how === 'visual' ? 'active' : ''} onClick={() => setHow('visual')}>
+              <Icon name="mouse-pointer-2" /> Builder
+            </button>
+            <button role="radio" aria-checked={how === 'code'} className={how === 'code' ? 'active' : ''} onClick={() => setHow('code')}>
+              <Icon name="code" /> YAML
+            </button>
+          </div>
           <span className="spacer" />
-          <button className="button ghost" onClick={() => onOpen(result('code'))}>
-            <Icon name="code" /> Open in YAML
-          </button>
-          <button className="button primary" onClick={() => onOpen(result('visual'))}>
-            <Icon name="mouse-pointer-2" /> Open in builder <kbd>⌘↵</kbd>
+          <button className="button ghost" onClick={() => onAsk(result(how))} title="Describe what else it needs; Claude starts from this drawing">
+            <Icon name="sparkles" /> Ask Claude to refine it
           </button>
         </footer>
       </div>

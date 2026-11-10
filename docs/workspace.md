@@ -14,7 +14,7 @@ What each view shows is worked out from the view as written (its kind, `of:`, `i
 
 ## Search (⌘P)
 
-⌘P (or ⇧⌘F, or *Search …* in the command palette) searches every diagram of the folder: elements by id, name, label, technology, owner, tag, kind and description; views by name and title; files; and the entries of the other diagrams (people, groups, data products).
+⌘P (or ⇧⌘F, or *Search …* in the command palette) searches every diagram of the folder (without a folder open, ⌘P is the browser's Print again and ⇧⌘F searches the one diagram): elements by id, name, label, technology, owner, tag, kind and description; views by name and title; files; and the entries of the other diagrams (people, groups, data products).
 
 - Names first: a whole match beats a start, a start beats a word inside, a word beats letters in order (`bnkapi` finds the Banking API). Elements come before views, files and other entries; an element shown in more drawings comes a little higher.
 - Each element lists the drawings it is in, best first: the view about it, the view about its system, the landscape or context, other views, other diagrams.

@@ -24,7 +24,7 @@ A wizard asks the questions a consultant would ask (how many regions, hub and sp
 
 - **Keyboard**: arrows choose, number keys pick an option (`Y` / `N` for yes or no), `Space` turns an option of a multiple choice on or off, `Enter` goes to the next question, `Esc` back one. `⌘↵` (Ctrl+Enter) finishes at any point: every question has a default.
 - **Trackpad**: the options are big buttons; *Back* and *Next* sit under the question, and the bars at the top jump to any question.
-- *Open in builder*, *Open in YAML*, or **Refine with Claude**: the AI mode, with the wizard's drawing in the prompt as the draft to start from.
+- **Finish** (or `⌘↵`) opens the drawing in the **Builder** or as **YAML**, as chosen under the preview (it remembers how you last worked); **Ask Claude to refine it** opens the AI mode with the wizard's drawing in the prompt as the draft to start from. A click on the preview shows it at full size.
 - Answers are remembered per wizard in this browser.
 
 A type with several wizards (Azure has three) asks which one first.

@@ -15,6 +15,18 @@
   box-shadow: var(--shadow-sheet);
   overflow: hidden;
 }
+/* In the side panel: a tab of it, not a card over the drawing. */
+.side > .ask-panel {
+  position: static;
+  width: auto;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.ask-panel[hidden] {
+  display: none;
+}
 .ask-panel > header {
   display: flex;
   align-items: center;
