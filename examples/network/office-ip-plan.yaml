@@ -1,6 +1,6 @@
 type: network
 title: Small office IP plan
-subtitle: The same kind of file as small-office.yaml, drawn as a table
+subtitle: Utrecht office, every device's addresses by interface and VLAN
 view: table   # graph (default) or table
 
 groups:

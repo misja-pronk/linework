@@ -81,3 +81,15 @@ describe('builder delete and rename follow place-references', () => {
     expect(await errors(t)).toEqual([]);
   });
 });
+
+describe('ERD connect', () => {
+  it('connects from a table that has no columns yet (review 3: it said "Connect one table to another")', async () => {
+    const { connectEntries } = await import('../src/builder.ts');
+    const erd = findType('erd')!;
+    const text = 'type: erd\ntables:\n  orders:\n  customers:\n    columns:\n      id: uuid pk\n';
+    const r = connectEntries(text, erd, 'orders', 'customers');
+    expect(r).not.toHaveProperty('error');
+    expect((r as { text: string }).text).toContain('customer_id: uuid fk customers');
+    expect(await errors((r as { text: string }).text)).toEqual([]);
+  });
+});
