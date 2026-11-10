@@ -74,6 +74,11 @@ export function writeTemplateDeck(t: PptxTemplate, slides: DeckSlide[], media: R
     const list = child(parseXml(pres), 'p:presentation/p:sldIdLst');
     if (list) pres = splice(pres, list, '<p:sldIdLst/>');
     for (const s of t.slides) {
+      // Their notes go with them, so the new notes can take the names.
+      for (const r of relsOf(files, s).filter((x) => x.part && x.type.endsWith('/notesSlide'))) {
+        delete files[r.part!];
+        delete files[relsPath(r.part!)];
+      }
       delete files[s];
       delete files[relsPath(s)];
     }
