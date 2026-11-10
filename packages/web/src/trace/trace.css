@@ -1,0 +1,116 @@
+/* Trace a request: the routes beside the sequence diagram of the one picked. */
+.palette.trace-dialog {
+  width: min(1320px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 64px);
+  outline: none;
+}
+.trace-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 10px;
+}
+.trace-what {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.trace-head kbd {
+  margin-left: auto;
+}
+.trace-body {
+  display: grid;
+  grid-template-columns: minmax(200px, 270px) 1fr;
+  height: min(620px, calc(100vh - 220px));
+  min-height: 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.trace-routes {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+.trace-routes li[role='option'] {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 2px 8px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.trace-routes li[role='option']:hover {
+  background: var(--bg);
+}
+.trace-routes li.active {
+  background: var(--accent-soft);
+}
+.trace-n {
+  grid-row: span 2;
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+.trace-count {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.trace-note {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 8px 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.trace-note .icon {
+  flex: none;
+  margin-top: 1px;
+}
+.trace-preview {
+  overflow: hidden;
+  padding: 12px;
+  min-height: 0;
+  background: var(--bg);
+}
+.trace-preview {
+  cursor: zoom-in;
+}
+.trace-preview.actual {
+  overflow: auto;
+  cursor: zoom-out;
+}
+.trace-preview.actual svg {
+  width: auto;
+  height: auto;
+}
+.trace-preview svg {
+  /* Fitted whole into the pane, whatever its proportions: the viewBox keeps the drawing's. */
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.trace-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.trace-actions .button {
+  min-height: 36px;
+}
+@media (max-width: 720px) {
+  .trace-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .trace-routes {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    max-height: 30vh;
+  }
+}
