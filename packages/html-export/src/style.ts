@@ -18,9 +18,19 @@ export interface Tokens {
   mono: string;
 }
 
+/** A theme file is the author's, but its values go into a stylesheet: colours and font stacks only, nothing that closes a rule. */
+const colour = (c: string, fallback: string) => (/^(#[0-9a-f]{3,8}|[a-z]+|(rgb|hsl)a?\([\d\s.,%/]+\))$/i.test(c.trim()) ? c.trim() : fallback);
+const stack = (f: string, fallback: string) => (/^[\w\s'",.-]+$/.test(f) ? f : fallback);
+
 export function tokens(t: Theme): Tokens {
   const dark = t.mode === 'dark';
   const accent = (t as { accent?: string }).accent ?? t.tones.amber.fg;
+  const k = raw(t, dark, accent);
+  const safe = Object.fromEntries(Object.entries(k).map(([key, v]) => [key, key === 'sans' || key === 'mono' ? stack(v, key === 'mono' ? 'ui-monospace, monospace' : 'system-ui, sans-serif') : colour(v, dark ? '#888888' : '#777777')]));
+  return safe as unknown as Tokens;
+}
+
+function raw(t: Theme, dark: boolean, accent: string): Tokens {
   return {
     canvas: t.canvas,
     surface: t.surface,
@@ -182,7 +192,10 @@ table.index{width:100%;border-collapse:collapse;background:var(--canvas);border:
 .results .none{padding:18px;color:var(--muted)}
 .dialog .foot{display:flex;gap:14px;padding:9px 16px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
 .keys{padding:18px 22px 22px}
-.keys h3{margin:0 0 12px;font-size:16px}
+.keys .head{display:flex;align-items:center;justify-content:space-between;margin:-6px -8px 10px 0}
+.keys h3{margin:0;font-size:16px}
+.keys h3.sub{margin:20px 0 10px;font-size:13px}
+.keys dt kbd+kbd{margin-left:3px}
 .keys dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;margin:0}
 .keys dt{text-align:right}
 .keys dd{margin:0;color:var(--muted)}
@@ -208,7 +221,9 @@ noscript p{margin:40px;font:16px var(--sans)}
 .app.side-open .side{display:block;position:fixed;top:52px;bottom:0;left:0;width:260px;z-index:5}
 .side{display:none}
 .btn.search{min-width:0}
-.btn.search span,.btn.search kbd{display:none}
+.btn.search span,.btn.search kbd,.btn span,.btn.printer{display:none}
+.top{gap:2px;padding:0 6px}
+.btn{padding:0 8px}
 .panel.open{position:fixed;right:0;top:52px;bottom:0;width:min(340px,100vw);z-index:6}
 .home{padding:28px 16px 48px}
 .steps{max-width:calc(100% - 24px);bottom:58px}

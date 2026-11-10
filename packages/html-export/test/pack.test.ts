@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { gunzipSync, strFromU8 } from 'fflate';
 import { base64, drawnShapes, exportHtml, shareIcons, type Payload } from '../src/index.ts';
 import { viewerScript } from '../src/generated/viewer.ts';
+import { tokens } from '../src/style.ts';
+import { themes } from '@cartography/theme';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
@@ -49,6 +51,14 @@ describe('packing', () => {
 
   it('reads the shapes of a drawing, ids unescaped', () => {
     expect(drawnShapes('<g data-node="a&amp;b"><g data-group="g1"></g><g data-node="a&amp;b">')).toEqual(['n:a&b', 'g:g1']);
+  });
+
+  it('lets only colours and font stacks from a theme into the stylesheet', () => {
+    const t = tokens({ ...themes.light!, canvas: 'red;}body{display:none', text: 'rgb(1, 2, 3)', font: { ...themes.light!.font, family: "x}</style><script>" } });
+    expect(t.canvas).toBe('#777777');
+    expect(t.text).toBe('rgb(1, 2, 3)');
+    expect(t.sans).toBe('system-ui, sans-serif');
+    expect(tokens(themes.light!).sans).toBe(themes.light!.font.family);
   });
 
   it('carries the viewer as built from its source', async () => {

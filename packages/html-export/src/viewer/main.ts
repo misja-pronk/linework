@@ -178,7 +178,7 @@ function frame() {
   present.addEventListener('click', () => startPresenting());
   const dark = button('btn', 'Light or dark (D)', icon('contrast'));
   dark.addEventListener('click', toggleLook);
-  const print = button('btn', 'Print, a page per view', icon('printer'));
+  const print = button('btn printer', 'Print, a page per view', icon('printer'));
   print.addEventListener('click', () => {
     buildPrint();
     window.print();
@@ -1011,7 +1011,7 @@ function closeSearch() {
 const KEYS: [string, string][] = [
   ['← →', 'previous and next step, then the next view'],
   ['[ ]', 'previous and next view'],
-  ['↑ ↓, ⇧ ← →', 'move the drawing'],
+  ['↑ ↓ ⇧← ⇧→', 'move the drawing'],
   ['+ − 0 1', 'zoom in, out, fit, actual size'],
   ['/', 'search'],
   ['Tab', 'the next element in the drawing'],
@@ -1021,11 +1021,19 @@ const KEYS: [string, string][] = [
   ['D', 'light or dark'],
   ['Esc', 'close, stop presenting'],
 ];
+const POINTER: [string, string][] = [
+  ['Two fingers', 'move the drawing (or drag it)'],
+  ['Pinch, ⌘ scroll', 'zoom'],
+  ['Click', 'what an element is, and where else it appears'],
+  ['Double-click', 'open what it leads to: the view a level down'],
+  ['Presenting', 'click to go on, on the left third to go back'],
+];
 
 function keysBox() {
   const close = button('btn x', 'Close (Esc)', icon('x'));
   close.addEventListener('click', () => showKeys(false));
-  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-label': 'Keys' }, h('div', { class: 'head' }, h('h3', {}, 'Keys')), h('dl', {}, ...KEYS.flatMap(([k, what]) => [h('dt', {}, ...k.split(' ').map((x) => (/^[,]$/.test(x) ? ' ' : h('kbd', {}, x)))), h('dd', {}, what)]))));
+  const list = (rows: [string, string][], keys: boolean) => h('dl', {}, ...rows.flatMap(([k, what]) => [h('dt', {}, ...(keys ? k.split(' ').map((x) => h('kbd', {}, x)) : [k])), h('dd', {}, what)]));
+  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-label': 'Keys' }, h('div', { class: 'head' }, h('h3', {}, 'Keys'), close), list(KEYS, true), h('h3', { class: 'sub' }, 'Trackpad and mouse'), list(POINTER, false)));
   els.keys.addEventListener('pointerdown', (e) => e.target === els.keys && showKeys(false));
 }
 
