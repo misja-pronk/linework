@@ -387,6 +387,19 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
         : { x: box.x + t, y: box.y + box.height };
       pos.set(`${s.edge.id}:${s.end}`, p);
     });
+    // A group's side is long: there a line leaves in line with its other end when that end lies
+    // along the side, and the lines beside it make room, as long as all keep their order and stay
+    // on the side. A line straight out of a group has room for its label; one that jogs a few
+    // pixels has not.
+    if (list.length > 1 && !input.obstacles.has(list[0]!.edge[list[0]!.end].node)) {
+      const axis = along ? 'y' : 'x';
+      const straight = list.map((s) => s.other[axis] >= lo && s.other[axis] <= hi);
+      const wanted = list.map((s, i) => (straight[i] ? s.other[axis] : pos.get(`${s.edge.id}:${s.end}`)![axis]));
+      for (let i = 1; i < list.length; i++) if (!straight[i]) wanted[i] = Math.max(wanted[i]!, wanted[i - 1]! + 2 * LANE);
+      for (let i = list.length - 2; i >= 0; i--) if (!straight[i]) wanted[i] = Math.min(wanted[i]!, wanted[i + 1]! - 2 * LANE);
+      if (straight.includes(true) && wanted.every((v, i) => v >= lo && v <= hi && (!i || v - wanted[i - 1]! >= 2 * LANE)))
+        list.forEach((s, i) => pos.set(`${s.edge.id}:${s.end}`, { ...pos.get(`${s.edge.id}:${s.end}`)!, [axis]: wanted[i]! }));
+    }
   }
   for (const [member, first] of shared) pos.set(member, pos.get(first)!);
 
