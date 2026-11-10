@@ -10,6 +10,7 @@ const GROUPS: [string, string][] = [
   ['Anywhere', 'also while typing, for the keys with ⌘; ? and P not in a text field'],
   ['Drawing', 'when the drawing has focus: click it, or F6'],
   ['Focus', ''],
+  ['Layers', 'the panel keys work while it is open'],
   ['Arrange', 'the selected shapes'],
   ['Steps', ''],
   ['Review notes', ''],
@@ -20,7 +21,7 @@ const GROUPS: [string, string][] = [
   ['Mouse and trackpad', ''],
 ];
 
-const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip', note: 'in a note', focus: 'in a focus', compare: 'comparing' };
+const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip', note: 'in a note', focus: 'in a focus', compare: 'comparing', 'layers-panel': 'in the panel' };
 
 export function Shortcuts({ onClose }: { onClose(): void }) {
   useRestoreFocus();

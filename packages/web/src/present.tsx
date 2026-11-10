@@ -11,6 +11,7 @@ import { registerThemeFonts } from './fonts.ts';
 import { Icon } from './icon.tsx';
 import { linkTarget } from './links.ts';
 import { useRestoreFocus } from './menu.tsx';
+import type { LayersOptions } from './layers-control.tsx';
 
 /** A diagram to present: its text and what it needs to draw like it does in the editor. */
 export interface PresentDoc {
@@ -30,6 +31,8 @@ export interface PresentProps {
   step?: number;
   /** A focus set in the editor (F, +, −, D) for that view, as render takes it: its slides keep it. */
   focus?: unknown;
+  /** Layers switched on in the editor for that view: its slides keep them. */
+  layers?: LayersOptions;
   /** Another diagram, for a link that leads there; nothing when it is not at hand. */
   open?(path: string): PresentDoc | undefined;
   onClose(): void;
@@ -40,6 +43,10 @@ interface Slide {
   step?: number;
   /** The editor's focus, on the slides of the view it was set in. */
   focus?: unknown;
+  /** Layers to draw it through: the editor's, or one layer per slide when the deck goes through them (L). */
+  layers?: LayersOptions;
+  /** A slide of its own for one layer, after the view's steps. */
+  layer?: boolean;
 }
 
 interface Deck {
@@ -106,15 +113,17 @@ export function Present(p: PresentProps) {
   const [ringBox, setRingBox] = useState<{ left: number; top: number; width: number; height: number }>();
   /** A: the editor's focus set aside, everything drawn; A again brings it back. */
   const [whole, setWhole] = useState(false);
+  /** L: after each view's steps, a slide per layer of it (security, data, phase 2…). */
+  const [byLayer, setByLayer] = useState(false);
   useRestoreFocus();
 
   const draw = useCallback(
     (d: Deck, i: number, slide = d.slides[i]!) => {
       const focus = slide.focus !== undefined && !whole ? { focus: slide.focus } : {};
-      const key = `${d.id}:${i}${focus.focus ? ':focus' : ''}`;
+      const key = `${d.id}:${i}${focus.focus ? ':focus' : ''}${slide.layers ? `:@${slide.layers.layers?.join('+')}` : ''}`;
       let hit = cache.current.get(key);
       if (!hit) {
-        hit = render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus }).then(async (r) => {
+        hit = render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus, ...slide.layers }).then(async (r) => {
           // A linked diagram can have a theme of its own: the page needs its faces before the slide shows.
           await registerThemeFonts(r.theme);
           return r;
@@ -128,7 +137,7 @@ export function Present(p: PresentProps) {
 
   /** The slides of a diagram: its views in order (as written first), a slide per step where a view has steps. */
   const outline = useCallback(
-    async (doc: PresentDoc): Promise<Deck | undefined> => {
+    async (doc: PresentDoc, layered = false): Promise<Deck | undefined> => {
       const d: Deck = { id: ++decks, doc, slides: [] };
       const whole = (view?: string) => render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view, fonts: 'none' });
       let first = await whole();
@@ -149,6 +158,7 @@ export function Present(p: PresentProps) {
         if (view !== undefined && r.svg === first.svg && d.slides[0]?.view === undefined) d.slides = d.slides.filter((s) => s.view !== undefined);
         const n = r.steps?.length ?? 0;
         for (let step = 1; step <= Math.max(1, n); step++) d.slides.push({ view, ...(n ? { step } : {}) });
+        if (layered) for (const l of (r.layers?.list ?? []).filter((x) => x.count > 0)) d.slides.push({ view, layers: { layers: [l.name] }, layer: true });
       }
       return d.slides.length ? d : undefined;
     },
@@ -169,6 +179,7 @@ export function Present(p: PresentProps) {
       if (!live) return;
       if (!d) return say('Nothing to present yet: fix the problems in the editor first');
       if (p.focus !== undefined) for (const s of d.slides) if (s.view === p.view) s.focus = p.focus;
+      if (p.layers) for (const s of d.slides) if (s.view === p.view && !s.layer) s.layers = p.layers;
       const start = d.slides.findIndex((s) => s.view === p.view && (s.step ?? 1) === (p.step ?? 1));
       setDeck(d);
       setAt(Math.max(0, start >= 0 ? start : d.slides.findIndex((s) => s.view === p.view)));
@@ -204,10 +215,13 @@ export function Present(p: PresentProps) {
   const top = frames.at(-1);
   const count = top?.deck.slides.length ?? 0;
   const state = top?.result.step ? top.result.steps?.[top.result.step - 1] : undefined;
-  const title = state?.title;
-  const caption = state?.caption;
+  // A layer's slide says which layer it is, and what its caption says.
+  const shownLayers = top?.deck.slides[top.at]?.layer ? top.result.layers : undefined;
+  const layer = shownLayers?.list.find((l) => l.name === shownLayers.active[0]);
+  const title = state?.title ?? (layer ? `${layer.title ?? layer.name} layer` : undefined);
+  const caption = state?.caption ?? layer?.caption;
   // Room for the words under the drawing wherever the deck has steps, so the drawing keeps its place; a view says its title itself.
-  const band = !!top && top.deck.slides.some((s) => s.step);
+  const band = !!top && top.deck.slides.some((s) => s.step || s.layer);
 
   /** What can be followed on this slide: linked elements that are drawn at this step. */
   const linked = (): Linked[] => {
@@ -252,6 +266,25 @@ export function Present(p: PresentProps) {
       setAt(Math.max(0, t.view ? d.slides.findIndex((s) => s.view === t.view) : 0));
     });
   };
+  /** L: the deck with a slide per layer after each view's steps, or without them again; the slide on screen stays. */
+  const throughLayers = () => {
+    if (!deck) return;
+    const now = deck.slides[at];
+    const next = !byLayer;
+    void outline(deck.doc, next).then((d) => {
+      if (!d) return;
+      if (!d.slides.some((s) => s.layer) && next) return say('This diagram has no layers: (tags and a layers: block, see docs/layers.md)');
+      for (const s of d.slides) {
+        const old = deck.slides.find((o) => o.view === s.view && o.step === s.step && !o.layer);
+        if (old && !s.layer) Object.assign(s, { focus: old.focus, layers: old.layers });
+      }
+      setByLayer(next);
+      setDeck(d);
+      const i = d.slides.findIndex((s) => s.view === now?.view && s.step === now?.step && !!s.layer === !!now?.layer && (!s.layer || s.layers?.layers?.[0] === now?.layers?.layers?.[0]));
+      setAt(Math.max(0, i >= 0 ? i : d.slides.findIndex((s) => s.view === now?.view)));
+      say(next ? 'A slide per layer after each view' : 'Layers left out of the deck');
+    });
+  };
   const back = () => {
     const last = trail.at(-1);
     if (!last) return go(at - 1);
@@ -288,6 +321,7 @@ export function Present(p: PresentProps) {
       else if (id === 'present-ends') go(e.key === 'Home' ? 0 : count - 1);
       else if (id === 'present-blank') setBlank(true);
       else if (id === 'present-whole' && focusable) setWhole((w) => !w);
+      else if (id === 'present-layers') throughLayers();
       else if (id === 'present-full') {
         windowed.current = !!document.fullscreenElement;
         if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
@@ -420,7 +454,7 @@ export function Present(p: PresentProps) {
         </div>
       )}
       <div className="present-help" aria-hidden="true">
-        <kbd>→</kbd> <kbd>Space</kbd> next · <kbd>←</kbd> back · number + <kbd>↵</kbd> jump · <kbd>B</kbd> blank
+        <kbd>→</kbd> <kbd>Space</kbd> next · <kbd>←</kbd> back · number + <kbd>↵</kbd> jump · <kbd>L</kbd> {byLayer ? 'no layer slides' : 'through the layers'} · <kbd>B</kbd> blank
         {focusable && (
           <>
             {' · '}

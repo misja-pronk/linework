@@ -30,6 +30,7 @@ const EXPORT_ENTRY = {
 import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
+import { useLayers } from './layers-control.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
 import { renamePins } from './ai/ask.ts';
@@ -290,7 +291,9 @@ export function App() {
   const docFile = (doc.path ?? (doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined) ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked);
+  /** Layers switched on here (layers-control.tsx), on top of what the YAML says. */
+  const layering = useLayers(docId, viewName);
+  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, layering.options);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -303,7 +306,8 @@ export function App() {
   // Positions go into the sidecar once asked for (carto render --stable wrote them), and when the
   // drawing was kept from an earlier one: the variant alone would not draw it again.
   const tracked = vpins?.layout?.at !== undefined;
-  const layoutNote = () => (drawnLayout ? packLayout(drawnLayout, tracked || !!drawnLayout.held) : vpins?.layout);
+  // A drawing of only some layers is not how the whole view is drawn: its note stays the whole one's.
+  const layoutNote = () => (drawnLayout && !(drawn?.layers?.mode === 'only' && drawn.layers.active.length) ? packLayout(drawnLayout, tracked || !!drawnLayout.held) : vpins?.layout);
   /**
    * Pins with the note of the drawing they were set on, so the same placement is drawn under them
    * next time: without it the first pin could redraw everything else. Null when nothing is left to keep.
@@ -731,7 +735,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, notes: notesInExports ? review.notes : undefined });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...layering.options, notes: notesInExports ? review.notes : undefined });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(`${what} failed: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' }));
   const saveYaml = () => void save();
@@ -1345,6 +1349,7 @@ export function App() {
       case 'cycle': if (!cycle(e.shiftKey ? -1 : 1)) return; break;
       case 'add': addShape(); break;
       case 'connect': if (selected?.kind !== 'node') return; setModal('connect'); break;
+      case 'layers': if (!layers.onKey(e)) return; break;
       case 'note': addNote(); break;
       case 'notes': toggleNotes(); break;
       case 'review': toggleReview(); break;
@@ -1611,6 +1616,7 @@ export function App() {
     notify,
     onSelect: (s) => select(s),
   });
+  const layers = layering.ui(drawn, comparing.active);
 
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
@@ -1660,6 +1666,7 @@ export function App() {
         ]
       : []),
     ...comparing.commands,
+    ...layers.commands,
     { id: 'note-add', group: 'Notes', label: selected ? 'Add a note on the selection' : 'Add a note', icon: 'message-square', shortcut: keyHint('note'), run: () => addNote() },
     { id: 'notes', group: 'Notes', label: notesOpen ? 'Hide the notes' : 'Show the notes', hint: `${openNotes.length} open`, icon: 'message-square', shortcut: keyHint('notes'), run: toggleNotes },
     { id: 'review-mode', group: 'Notes', label: reviewMode ? 'Leave review mode' : 'Review mode', hint: 'only the notes stand out', icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
@@ -1702,8 +1709,8 @@ export function App() {
     ...(selected?.kind === 'node'
       ? [{ id: 'connect', group: 'Edit', label: `Connect ${nodeName(selected.id)} to…`, icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => setModal('connect')) }]
       : []),
-    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', run: () => select({ kind: 'group', id: g.id }) })),
-    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', run: () => select({ kind: 'node', id: n.id }) })),
+    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: 'Go to', label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => select({ kind: 'group', id: g.id }) })),
+    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: 'Go to', label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => select({ kind: 'node', id: n.id }) })),
     ...starters.map((s) => ({
       id: `starter:${s.id}`,
       group: 'Start from',
@@ -2159,6 +2166,7 @@ export function App() {
                 </button>
               )}
               <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={(name) => setPicked({ doc: docId, name })} />
+              {layers.button}
               <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={focusOnSelection} title="Focus: only what is selected and what is around it (F)" aria-label="Focus" disabled={!selection.length && !focusOn}>
                 <Icon name="focus" /> <span className="tool-label">Focus</span> <kbd>F</kbd>
               </button>
@@ -2206,6 +2214,7 @@ export function App() {
               </div>
             </div>
             {!adding && <FocusChip focus={drawn?.focus} off={focusAsked === null && !!drawn?.focusWritten} onHops={focusHops} onDirection={focusDirection} onLeave={leaveFocus} />}
+            {!adding && layers.chip}
             {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
             {!!rendered && !!drawn?.svg && drawn !== result && (
               <div className="canvas-note">
@@ -2359,6 +2368,7 @@ export function App() {
             onResetLine={selected.kind === 'edge' && bent.has(selected.id) ? () => pinTo(withEdge(selected.id, undefined)) : undefined}
             links={(selNode ?? selGroup)?.links}
             onFollowLink={follow}
+            tags={layers.tags}
             onField={(key, value) =>
               type &&
               selectedPath &&
@@ -2476,7 +2486,7 @@ export function App() {
         <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
       </footer>
 
-      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} open={presentOther} onClose={() => setPresenting(false)} />}
+      {presenting && <Present doc={{ text: textNow(), path: here, file: docFile, sidecar: pins, load }} theme={theme} view={drawn?.view ?? viewNow()} step={drawn?.step} focus={focusAsked} layers={layering.options} open={presentOther} onClose={() => setPresenting(false)} />}
       {modal === 'palette' && <Palette commands={buildCommands()} onClose={closeModal} />}
       {comparing.dialogs}
       {modal === 'connect' && selected?.kind === 'node' && (

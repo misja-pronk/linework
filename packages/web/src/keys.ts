@@ -24,6 +24,8 @@ export type KeyContext =
   | 'editor'
   /** Writing a review note. */
   | 'note'
+  /** The layers panel is open (L). */
+  | 'layers-panel'
   /** A step's chip under the drawing has focus. */
   | 'step-chip'
   /** Presenting full screen: these keys and no others. */
@@ -104,6 +106,15 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'page', keys: ['shift+p'], what: 'The page (16:9 unless aspect: says), and text too small on it', context: 'drawing', group: 'Arrange' },
   { id: 'no-snap', keys: [], show: '⌥ while dragging', what: 'No snapping to guides or grid', context: 'mouse', group: 'Mouse and trackpad' },
 
+  // ------------------------------------------------------------ layers
+  { id: 'layers', keys: ['l'], what: 'The layers panel (when the diagram has layers:)', context: 'drawing', group: 'Layers' },
+  { id: 'layer-toggle', keys: ['digit1', 'digit2', 'digit3', 'digit4', 'digit5', 'digit6', 'digit7', 'digit8', 'digit9'], show: '1–9', what: 'Switch a layer on or off', context: 'layers-panel', group: 'Layers' },
+  { id: 'layer-only', keys: ['alt+digit1', 'alt+digit2', 'alt+digit3', 'alt+digit4', 'alt+digit5', 'alt+digit6', 'alt+digit7', 'alt+digit8', 'alt+digit9'], show: '⌥1–⌥9', what: 'Show that layer alone', context: 'layers-panel', group: 'Layers' },
+  { id: 'layers-all', keys: ['digit0'], what: 'The whole drawing', context: 'layers-panel', group: 'Layers' },
+  { id: 'layers-mode', keys: ['d'], what: 'Only what is on the layers, or the rest faded in place', context: 'layers-panel', group: 'Layers' },
+  { id: 'layers-close', keys: ['escape', 'l'], show: 'Esc / L', what: 'Close the panel', context: 'layers-panel', group: 'Layers' },
+  { id: 'tag-search', keys: [], show: '#tag in ⌘K', what: 'Elements with that tag', context: 'mouse', group: 'Layers' },
+
   // ------------------------------------------------------------ notes
   { id: 'note', keys: ['n'], what: 'Add a note on the selection (nothing selected: in the middle of the view)', context: 'drawing', group: 'Review notes' },
   { id: 'notes', keys: ['shift+n'], what: 'Notes panel', context: 'drawing', group: 'Review notes' },
@@ -126,6 +137,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'present-jump', keys: ['digit'], show: '3 ↵', what: 'Jump to a number', context: 'present', group: 'Presenting' },
   { id: 'present-blank', keys: ['b', '.'], show: 'B or .', what: 'Blank the screen', context: 'present', group: 'Presenting' },
   { id: 'present-whole', keys: ['a'], what: 'Everything, or the focus set with F', context: 'present', group: 'Presenting' },
+  { id: 'present-layers', keys: ['l'], what: 'A slide per layer after each view, or none', context: 'present', group: 'Presenting' },
   { id: 'present-full', keys: ['f'], what: 'Full screen on or off', context: 'present', group: 'Presenting' },
   { id: 'present-links', keys: ['tab', 'shift+tab'], show: 'Tab ↵ / ⌘-click', what: 'Follow a link (⌫ comes back)', context: 'present', group: 'Presenting' },
   { id: 'present-back', keys: ['backspace'], what: 'Back from a link', context: 'present', group: 'Presenting' },
@@ -266,6 +278,7 @@ export const TOGETHER: Record<string, KeyContext[]> = {
   'drawing in a focus': ['anywhere', 'not-typing', 'drawing', 'focus', 'folder', 'folder-anywhere'],
   yaml: ['anywhere', 'editor', 'folder-anywhere'],
   note: ['anywhere', 'note', 'folder-anywhere'],
+  'layers panel': ['anywhere', 'layers-panel'],
   'step chip': ['anywhere', 'not-typing', 'step-chip', 'folder', 'folder-anywhere'],
   present: ['present'],
   compare: ['anywhere', 'compare'],

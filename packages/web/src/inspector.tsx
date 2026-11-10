@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Field } from './builder.ts';
 import { Icon } from './icon.tsx';
 import { LinkList } from './link-list.tsx';
+import { TagChips } from './tag-chips.tsx';
 import { store } from './store.ts';
 import type { Link } from '@cartography/core';
 
@@ -46,6 +47,8 @@ export interface InspectorProps {
   definedIn?: { file: string; line?: number; open(): void };
   /** More about it below the form: where else it is used, in a folder. */
   children?: React.ReactNode;
+  /** Tags written in the file, to complete `tags:` from. */
+  tags?: string[];
 }
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -124,6 +127,8 @@ export function Inspector(p: InspectorProps) {
         </select>
       ) : f.kind === 'toggle' ? (
         <input type="checkbox" role="switch" checked={f.value} onChange={(e) => p.onField(f.key, e.target.checked || undefined)} />
+      ) : f.kind === 'list' && f.key === 'tags' ? (
+        <TagChips value={f.value} known={p.tags ?? []} onChange={(v) => p.onField(f.key, v.length ? v : undefined)} />
       ) : f.kind === 'list' ? (
         <TextInput
           // Items with a comma in them (sentences) are kept whole: the list is then split on semicolons.

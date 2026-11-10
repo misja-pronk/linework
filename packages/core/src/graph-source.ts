@@ -328,6 +328,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
       ...(badge ? { badge } : {}),
       ...(style ? { kind: style.label } : {}),
       ...(step ? { step } : {}),
+      ...(Array.isArray(spec.props.tags) && spec.props.tags.length ? { tags: spec.props.tags.map(String) } : {}),
       ...envMarks(spec.props.env),
       path: spec.path,
     });
