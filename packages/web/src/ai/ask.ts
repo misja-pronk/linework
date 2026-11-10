@@ -8,6 +8,7 @@ import { render } from '@cartography/engine';
 import { ASK_SYSTEM } from './ask-prompt.ts';
 import { applyOperations, checkCall, TOOLS, type ToolCall } from './edit-tools.ts';
 import type { ModelId } from './claude.ts';
+import { t } from '../i18n/index.ts';
 
 type Message = Anthropic.Beta.BetaMessageParam;
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
@@ -126,11 +127,11 @@ export async function ask(c: Conversation, content: string, opts: AskOptions): P
       if (e instanceof Anthropic.APIError || opts.signal.aborted || ++unreadable > 2) throw e;
       continue;
     }
-    if (message.stop_reason === 'refusal') throw new Error('Claude declined this request. Try asking differently.');
+    if (message.stop_reason === 'refusal') throw new Error(t('Claude declined this request. Try asking differently.'));
     const calls = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
     c.messages.push({ role: 'assistant', content: message.content });
     if (!calls.length) {
-      if (message.stop_reason === 'max_tokens') text += '\n\n(The answer was cut off.)';
+      if (message.stop_reason === 'max_tokens') text += `\n\n${t('(The answer was cut off.)')}`;
       return { kind: 'answer', text: text.trim() };
     }
     // Several calls in one turn are one change, applied in order; the first that fails fails it.

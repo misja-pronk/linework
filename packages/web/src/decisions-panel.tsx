@@ -29,6 +29,7 @@ import { Icon } from './icon.tsx';
 import { store } from './store.ts';
 import { keyHint } from './keys.ts';
 import { useDecisions, type Decisions } from './decisions-state.ts';
+import { say, t as tr } from './i18n/index.ts';
 import './decisions.css';
 
 type Sel = { kind: 'node' | 'group' | 'edge'; id: string };
@@ -42,6 +43,8 @@ const FILTERS: [DecisionFilter, string][] = [
   ['history', 'History'],
   ['all', 'All'],
 ];
+/** The status as the panel says it, in the editor's language (the YAML keeps its own word). */
+const said = (d: Decision) => (d.status === 'superseded' && d.supersededBy ? tr('Superseded by {n}', { n: d.supersededBy }) : say(statusSaid(d)));
 const passes = (d: Decision, f: DecisionFilter) => (f === 'all' ? true : f === 'standing' ? decisionStands(d) : f === 'history' ? !decisionStands(d) : d.status === f);
 
 export interface DecisionHost {
@@ -204,7 +207,7 @@ export function useDecisionsTool(h: DecisionHost) {
   const goTo = (concern: string) => {
     if (!graph) return;
     const t = resolveConcern(concern, graph, at);
-    if (!t || t.kind === 'view') return h.notify(t ? 'That is this view' : `${concern} is not in this drawing`);
+    if (!t || t.kind === 'view') return h.notify(t ? tr('That is this view') : tr('{concern} is not in this drawing', { concern }));
     h.select(t);
     requestAnimationFrame(() => h.zoomToSelection());
   };
@@ -214,10 +217,10 @@ export function useDecisionsTool(h: DecisionHost) {
   };
 
   const commands: Command[] = [
-    { id: 'decisions', group: 'Decisions', label: open ? 'Hide the decisions' : 'Show the decisions', hint: `${decisions.list.length} in ${decisions.inFolder ? decisions.dir + '/' : 'this browser'}`, icon: 'scroll-text', shortcut: keyHint('decisions'), run: toggle },
-    { id: 'decision-new', group: 'Decisions', label: h.selection.length ? 'New decision about the selection…' : 'New decision…', hint: 'the next number, from the template', icon: 'file-plus', shortcut: keyHint('decision-new'), run: () => newAbout() },
-    { id: 'decisions-export', group: 'Decisions', label: withExports ? 'Exports without decisions' : 'Exports with decisions', hint: 'markers, a key and the decisions under the drawing', icon: 'download', run: () => setExports(!withExports) },
-    ...decisions.list.map((d) => ({ id: `decision-${d.number}`, group: 'Decisions', label: `${d.number}. ${d.title}`, hint: statusSaid(d), icon: 'scroll-text', run: () => show(d.number) })),
+    { id: 'decisions', group: tr('Decisions'), label: open ? tr('Hide the decisions') : tr('Show the decisions'), hint: tr('{count} in {where}', { count: decisions.list.length, where: decisions.inFolder ? decisions.dir + '/' : tr('this browser') }), icon: 'scroll-text', shortcut: keyHint('decisions'), run: toggle },
+    { id: 'decision-new', group: tr('Decisions'), label: h.selection.length ? tr('New decision about the selection…') : tr('New decision…'), hint: tr('the next number, from the template'), icon: 'file-plus', shortcut: keyHint('decision-new'), run: () => newAbout() },
+    { id: 'decisions-export', group: tr('Decisions'), label: withExports ? tr('Exports without decisions') : tr('Exports with decisions'), hint: tr('markers, a key and the decisions under the drawing'), icon: 'download', run: () => setExports(!withExports) },
+    ...decisions.list.map((d) => ({ id: `decision-${d.number}`, group: tr('Decisions'), label: `${d.number}. ${d.title}`, hint: said(d), icon: 'scroll-text', run: () => show(d.number) })),
   ];
 
   const markers = (scale: number): ReactNode => {
@@ -233,8 +236,8 @@ export function useDecisionsTool(h: DecisionHost) {
           className={`decision-marker${active === d.number ? ' active' : ''}`}
           data-decision={d.number}
           style={{ left: p.x, top: p.y, transform: `scale(${1 / scale})` }}
-          aria-label={`Decision ${d.number}, ${statusSaid(d)}: ${d.title}, about ${s.about}`}
-          title={`${d.number}. ${d.title} (${statusSaid(d)})`}
+          aria-label={tr('Decision {n}, {status}: {title}, about {about}', { n: d.number, status: said(d), title: d.title, about: s.about })}
+          title={`${d.number}. ${d.title} (${said(d)})`}
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
@@ -255,12 +258,12 @@ export function useDecisionsTool(h: DecisionHost) {
     if (!list.length) return null;
     return (
       <>
-        <h4>Decisions {list.length}</h4>
+        <h4>{tr('Decisions {count}', { count: list.length })}</h4>
         {list.map((d) => (
-          <button key={d.number} className="where-row" onClick={() => show(d.number)} title={`Open decision ${d.number}`}>
+          <button key={d.number} className="where-row" onClick={() => show(d.number)} title={tr('Open decision {n}', { n: d.number })}>
             <DecisionMark n={d.number} status={d.status} />
             <span>{d.title}</span>
-            <span className="where-as">{statusLabel[d.status].toLowerCase()}</span>
+            <span className="where-as">{say(statusLabel[d.status]).toLowerCase()}</span>
           </button>
         ))}
       </>
@@ -323,25 +326,25 @@ function DecisionsPanel(p: PanelProps) {
   const about = (d: Decision) => sel.some((c) => d.concerns.includes(c) || decisionsAbout([d], c).length > 0);
   const shown = decisions.list.filter((d) => passes(d, p.filter)).filter((d) => !p.onlySelection || about(d));
   const opened = p.active !== undefined ? decisions.get(p.active) : undefined;
-  const selName = graph && p.host.selected ? targetName(p.host.selected, graph) : sel.length > 1 ? `${sel.length} selected` : undefined;
+  const selName = graph && p.host.selected ? targetName(p.host.selected, graph) : sel.length > 1 ? tr('{count} selected', { count: sel.length }) : undefined;
 
   return (
-    <aside className="inspector decisions-panel" aria-label="Decisions">
+    <aside className="inspector decisions-panel" aria-label={tr('Decisions')}>
       <header>
         <span className="inspector-icon">
           <Icon name="scroll-text" />
         </span>
         <div className="inspector-title">
-          <strong>Decisions</strong>
+          <strong>{tr('Decisions')}</strong>
           <span>
-            {decisions.list.length} in {decisions.inFolder ? `${decisions.dir}/` : 'this browser'}
-            {here.size ? `, ${here.size} on this drawing` : ''}
+            {tr('{count} in {where}', { count: decisions.list.length, where: decisions.inFolder ? `${decisions.dir}/` : tr('this browser') })}
+            {here.size ? tr(', {count} on this drawing', { count: here.size }) : ''}
           </span>
         </div>
-        <button className="icon-button" onClick={() => p.onNew()} aria-label="New decision" title={`New decision${sel.length ? ' about the selection' : ''} (⌥⇧D)`}>
+        <button className="icon-button" onClick={() => p.onNew()} aria-label={tr('New decision')} title={sel.length ? tr('New decision about the selection (⌥⇧D)') : tr('New decision (⌥⇧D)')}>
           <Icon name="file-plus" />
         </button>
-        <button className="icon-button" onClick={p.onClose} aria-label="Close decisions" title="Close (⇧D)">
+        <button className="icon-button" onClick={p.onClose} aria-label={tr('Close decisions')} title={tr('Close (⇧D)')}>
           <Icon name="x" />
         </button>
       </header>
@@ -352,16 +355,16 @@ function DecisionsPanel(p: PanelProps) {
       ) : (
         <>
           <div className="notes-tools">
-            <div className="segmented" role="radiogroup" aria-label="Show">
+            <div className="segmented" role="radiogroup" aria-label={tr('Show')}>
               {FILTERS.map(([f, label]) => (
                 <button key={f} role="radio" aria-checked={p.filter === f} className={p.filter === f ? 'active' : ''} onClick={() => p.onFilter(f)}>
-                  {label}
+                  {say(label)}
                 </button>
               ))}
             </div>
             {selName && (
-              <button className={p.onlySelection ? 'chip active' : 'chip'} aria-pressed={p.onlySelection} onClick={() => p.onOnlySelection(!p.onlySelection)} title="Only the decisions about what is selected">
-                <Icon name="map-pin" size={13} /> About {selName}
+              <button className={p.onlySelection ? 'chip active' : 'chip'} aria-pressed={p.onlySelection} onClick={() => p.onOnlySelection(!p.onlySelection)} title={tr('Only the decisions about what is selected')}>
+                <Icon name="map-pin" size={13} /> {tr('About {name}', { name: selName })}
               </button>
             )}
           </div>
@@ -369,8 +372,8 @@ function DecisionsPanel(p: PanelProps) {
             {!shown.length && (
               <p className="notes-empty">
                 {decisions.list.length
-                  ? 'Nothing here with this filter.'
-                  : `No decisions yet. Select what a decision is about and press ⌥⇧D, or use the + above. ${decisions.inFolder ? `They are written to ${decisions.dir}/.` : 'Open a folder to keep them next to the diagrams; until then they stay in this browser.'}`}
+                  ? tr('Nothing here with this filter.')
+                  : tr('No decisions yet. Select what a decision is about and press ⌥⇧D, or use the + above. {where}', { where: decisions.inFolder ? tr('They are written to {dir}/.', { dir: decisions.dir }) : tr('Open a folder to keep them next to the diagrams; until then they stay in this browser.') })}
               </p>
             )}
             {shown.map((d) => (
@@ -379,10 +382,10 @@ function DecisionsPanel(p: PanelProps) {
                 <span className="decision-row-text">
                   <strong>{d.title}</strong>
                   <span>
-                    {statusSaid(d)}
+                    {said(d)}
                     {d.date ? ` · ${d.date}` : ''}
-                    {d.concerns.length ? ` · ${d.concerns.length} concern${d.concerns.length === 1 ? '' : 's'}` : ''}
-                    {here.has(d.number) ? ' · on this drawing' : ''}
+                    {d.concerns.length ? ` · ${tr('{count} concern|{count} concerns', { count: d.concerns.length })}` : ''}
+                    {here.has(d.number) ? ` · ${tr('on this drawing')}` : ''}
                   </span>
                   {decisionSummary(d, 120) && <span className="decision-row-summary">{decisionSummary(d, 120)}</span>}
                 </span>
@@ -393,7 +396,7 @@ function DecisionsPanel(p: PanelProps) {
       )}
       <footer className="notes-footer">
         <label>
-          <input type="checkbox" checked={p.withExports} onChange={(e) => p.onWithExports(e.target.checked)} /> Exports include decisions
+          <input type="checkbox" checked={p.withExports} onChange={(e) => p.onWithExports(e.target.checked)} /> {tr('Exports include decisions')}
         </label>
       </footer>
     </aside>
@@ -415,14 +418,14 @@ function NewDecision(p: PanelProps & { draft: Draft }) {
   return (
     <div className="notes-body decision-new">
       <p className="decision-new-head">
-        <DecisionMark n={Math.max(0, ...p.decisions.list.map((d) => d.number)) + 1} status="proposed" /> {old ? `Supersedes ${old.number}. ${old.title}` : 'New decision, proposed'}
+        <DecisionMark n={Math.max(0, ...p.decisions.list.map((d) => d.number)) + 1} status="proposed" /> {old ? tr('Supersedes {n}. {title}', { n: old.number, title: old.title }) : tr('New decision, proposed')}
       </p>
-      <label htmlFor="decision-title">Title: what was decided</label>
+      <label htmlFor="decision-title">{tr('Title: what was decided')}</label>
       <input
         id="decision-title"
         autoFocus
         value={title}
-        placeholder="e.g. Use PostgreSQL for the customer store"
+        placeholder={tr('e.g. Use PostgreSQL for the customer store')}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -430,19 +433,19 @@ function NewDecision(p: PanelProps & { draft: Draft }) {
           else if (e.key === 'Escape') p.onDraft(undefined);
         }}
       />
-      <span className="decision-label">About</span>
+      <span className="decision-label">{tr('About')}</span>
       <Concerns {...p} concerns={p.draft.concerns} onRemove={(c) => p.onDraft({ ...p.draft, concerns: p.draft.concerns.filter((x) => x !== c) })} />
-      {!p.draft.concerns.length && <p className="notes-empty">Nothing selected: it can be linked to elements later.</p>}
+      {!p.draft.concerns.length && <p className="notes-empty">{tr('Nothing selected: it can be linked to elements later.')}</p>}
       <div className="note-actions">
         <button className="button primary small" disabled={!title.trim() || busy} onClick={() => void make()}>
-          Create <kbd>↵</kbd>
+          {tr('Create')} <kbd>↵</kbd>
         </button>
         <button className="button ghost small" onClick={() => p.onDraft(undefined)}>
-          Cancel
+          {tr('Cancel')}
         </button>
       </div>
       <p className="notes-empty">
-        Written as {p.decisions.inFolder ? `${p.decisions.dir}/` : 'a file kept in this browser, '}NNNN-title.md from the template (context, options, decision, consequences){old ? `; ${old.number} is marked superseded` : ''}.
+        {tr('Written as {where}NNNN-title.md from the template (context, options, decision, consequences){old}.', { where: p.decisions.inFolder ? `${p.decisions.dir}/` : tr('a file kept in this browser, '), old: old ? tr('; {n} is marked superseded', { n: old.number }) : '' })}
       </p>
     </div>
   );
@@ -457,11 +460,11 @@ function Concerns(p: PanelProps & { concerns: string[]; onRemove?(c: string): vo
         const name = t && graph ? targetName(t, graph) : (readConcern(c)?.kind === 'edge' ? c.replace(/\s*->\s*/, ' → ') : c);
         return (
           <span key={c} className={`chip decision-concern${t ? '' : ' elsewhere'}`}>
-            <button onClick={() => p.onGo(c)} disabled={!t || t.kind === 'view'} title={t ? `Select ${name} (${c})` : `${c}: not in this drawing`}>
+            <button onClick={() => p.onGo(c)} disabled={!t || t.kind === 'view'} title={t ? tr('Select {name} ({id})', { name, id: c }) : tr('{id}: not in this drawing', { id: c })}>
               {name}
             </button>
             {p.onRemove && (
-              <button className="decision-unlink" onClick={() => p.onRemove!(c)} aria-label={`Unlink ${name}`} title="Unlink">
+              <button className="decision-unlink" onClick={() => p.onRemove!(c)} aria-label={tr('Unlink {name}', { name })} title={tr('Unlink')}>
                 <Icon name="x" size={12} />
               </button>
             )}
@@ -492,18 +495,18 @@ function Opened(p: PanelProps & { d: Decision }) {
   return (
     <div className="notes-body decision-open" data-decision-open={d.number}>
       <button className="note-go decision-back" onClick={() => p.onActive(undefined)}>
-        <Icon name="arrow-left" size={13} /> All decisions
+        <Icon name="arrow-left" size={13} /> {tr('All decisions')}
       </button>
       <h3 className="decision-title">
         <DecisionMark n={d.number} status={d.status} /> {d.title}
       </h3>
       <div className="decision-status">
         <label>
-          <span className="sr-only">Status</span>
-          <select value={d.status} aria-label="Status" onChange={(e) => void decisions.setStatus(d.number, e.target.value as DecisionStatus)}>
+          <span className="sr-only">{tr('Status')}</span>
+          <select value={d.status} aria-label={tr('Status')} onChange={(e) => void decisions.setStatus(d.number, e.target.value as DecisionStatus)}>
             {decisionStatuses.map((s) => (
               <option key={s} value={s}>
-                {statusLabel[s]}
+                {say(statusLabel[s])}
               </option>
             ))}
           </select>
@@ -511,37 +514,37 @@ function Opened(p: PanelProps & { d: Decision }) {
         {d.date && <span>{d.date}</span>}
         {by && (
           <button className="note-go" onClick={() => p.onActive(by.number)}>
-            superseded by {by.number}
+            {tr('superseded by {n}', { n: by.number })}
           </button>
         )}
         {d.supersedes.map((n) => (
           <button key={n} className="note-go" onClick={() => p.onActive(n)}>
-            supersedes {n}
+            {tr('supersedes {n}', { n })}
           </button>
         ))}
       </div>
-      <span className="decision-label">About</span>
+      <span className="decision-label">{tr('About')}</span>
       <Concerns {...p} concerns={d.concerns} onRemove={(c) => void decisions.unlink(d.number, c)} />
       <div className="note-actions">
         {sel.length > 0 && (
-          <button className="button ghost small" onClick={() => void Promise.all(sel.map((c) => decisions.link(d.number, c)))} title={`Link ${sel.join(', ')}`}>
-            <Icon name="link" size={14} /> Link the selection
+          <button className="button ghost small" onClick={() => void Promise.all(sel.map((c) => decisions.link(d.number, c)))} title={tr('Link {list}', { list: sel.join(', ') })}>
+            <Icon name="link" size={14} /> {tr('Link the selection')}
           </button>
         )}
         {decisionStands(d) && (
-          <button className="button ghost small" onClick={() => p.onNew(d.number)} title="A new decision that replaces this one; this one is marked superseded">
-            <Icon name="git-branch" size={14} /> Supersede…
+          <button className="button ghost small" onClick={() => p.onNew(d.number)} title={tr('A new decision that replaces this one; this one is marked superseded')}>
+            <Icon name="git-branch" size={14} /> {tr('Supersede…')}
           </button>
         )}
         {!decisions.inFolder && (
           <button className="button ghost small" onClick={() => decisions.download(d.number)}>
-            <Icon name="download" size={14} /> Download
+            <Icon name="download" size={14} /> {tr('Download')}
           </button>
         )}
       </div>
-      <div className="segmented decision-mode" role="radiogroup" aria-label="Read or edit">
+      <div className="segmented decision-mode" role="radiogroup" aria-label={tr('Read or edit')}>
         <button role="radio" aria-checked={mode === 'read'} className={mode === 'read' ? 'active' : ''} onClick={() => setMode('read')}>
-          Preview
+          {tr('Preview')}
         </button>
         <button
           role="radio"
@@ -557,7 +560,7 @@ function Opened(p: PanelProps & { d: Decision }) {
           <textarea
             autoFocus
             className="decision-source"
-            aria-label={`Markdown of decision ${d.number}`}
+            aria-label={tr('Markdown of decision {n}', { n: d.number })}
             value={text}
             spellCheck
             onChange={(e) => setText(e.target.value)}
@@ -574,10 +577,10 @@ function Opened(p: PanelProps & { d: Decision }) {
           />
           <div className="note-actions">
             <button className="button primary small" disabled={!dirty} onClick={() => void save()}>
-              Save <kbd>⌘S</kbd>
+              {tr('Save')} <kbd>⌘S</kbd>
             </button>
             <button className="button ghost small" onClick={() => (setText(d.text), setMode('read'))}>
-              Cancel
+              {tr('Cancel')}
             </button>
             <span className="decision-file">{d.file}</span>
           </div>

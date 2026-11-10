@@ -10,6 +10,7 @@ import { dynamicView, traceableGraph, traceAsk, viewName, type TraceAsk, type Tr
 import { Palette, type Command } from '../palette.tsx';
 import { Icon } from '../icon.tsx';
 import { printPreserving } from '../yaml-print.ts';
+import { t as tr } from '../i18n/index.ts';
 import type { Workspace } from '../files.ts';
 import type { Place } from '../workspace/use-workspace.ts';
 import { TraceDialog } from './trace-dialog.tsx';
@@ -62,7 +63,7 @@ export function useTrace(h: TraceHost) {
   const ends = (h.selection.filter((s) => s.kind !== 'edge' && t?.graph.elements.has(s.id)) ?? []).map((s) => s.id);
 
   const start = (ask: TraceAsk) => {
-    if (!t) return h.notify('Wait for the drawing, then trace', { tone: 'error' });
+    if (!t) return h.notify(tr('Wait for the drawing, then trace'), { tone: 'error' });
     const r = traceAsk(t, ask);
     if (r.error) return h.notify(r.error, { tone: 'error' });
     setAsking(ask);
@@ -90,7 +91,7 @@ export function useTrace(h: TraceHost) {
   const showInSource = (ref: string) => {
     if (!traced) return;
     const file = h.inFolder ? joinPath(dirOf(h.file), traced.file) : traced.file;
-    if (!h.ws?.files.has(file)) return h.notify(`${file} is not open here: open its folder to go there`, { tone: 'error' });
+    if (!h.ws?.files.has(file)) return h.notify(tr('{file} is not open here: open its folder to go there', { file }), { tone: 'error' });
     // A trace of a whole model: the view of that file that draws the element, if one does.
     const shown = traced.view ?? [...h.index.shows].find(([k, m]) => k.startsWith(`${file}#`) && m.has(ref))?.[0].split('#')[1];
     h.go({ file, ...(shown ? { view: shown } : {}), node: ref });
@@ -99,22 +100,22 @@ export function useTrace(h: TraceHost) {
   const commands: Command[] = [
     ...(ends.length === 2
       ? [
-          { id: 'trace-ab', group: 'Trace', label: `Trace a request from ${name(ends[0]!)} to ${name(ends[1]!)}`, hint: 'as a sequence diagram, routes to pick from', icon: 'arrow-left-right', shortcut: '⇧Q', run: () => start({ from: ends[0], to: ends[1] }) },
-          { id: 'trace-ba', group: 'Trace', label: `Trace a request from ${name(ends[1]!)} to ${name(ends[0]!)}`, icon: 'arrow-left-right', run: () => start({ from: ends[1], to: ends[0] }) },
+          { id: 'trace-ab', group: tr('Trace'), label: tr('Trace a request from {from} to {to}', { from: name(ends[0]!), to: name(ends[1]!) }), hint: tr('as a sequence diagram, routes to pick from'), icon: 'arrow-left-right', shortcut: '⇧Q', run: () => start({ from: ends[0], to: ends[1] }) },
+          { id: 'trace-ba', group: tr('Trace'), label: tr('Trace a request from {from} to {to}', { from: name(ends[1]!), to: name(ends[0]!) }), icon: 'arrow-left-right', run: () => start({ from: ends[1], to: ends[0] }) },
         ]
       : ends.length === 1
         ? [
-            { id: 'trace-until', group: 'Trace', label: `Trace a request from ${name(ends[0]!)} until it ends`, hint: 'every call followed to a store, an external system or a person', icon: 'arrow-left-right', shortcut: '⇧Q', run: () => start({ from: ends[0] }) },
-            { id: 'trace-to', group: 'Trace', label: `Trace a request from ${name(ends[0]!)} to…`, hint: 'pick where it ends', icon: 'arrow-left-right', run: () => setChoosing(ends[0]) },
+            { id: 'trace-until', group: tr('Trace'), label: tr('Trace a request from {from} until it ends', { from: name(ends[0]!) }), hint: tr('every call followed to a store, an external system or a person'), icon: 'arrow-left-right', shortcut: '⇧Q', run: () => start({ from: ends[0] }) },
+            { id: 'trace-to', group: tr('Trace'), label: tr('Trace a request from {from} to…', { from: name(ends[0]!) }), hint: tr('pick where it ends'), icon: 'arrow-left-right', run: () => setChoosing(ends[0]) },
           ]
         : []),
-    ...(t?.steps?.length ? [{ id: 'trace-steps', group: 'Trace', label: t.graph.steps ? 'Trace this dynamic view as a sequence diagram' : 'Trace the steps as a sequence diagram', hint: 'their routes in order, with replies', icon: 'arrow-left-right', run: () => start({ steps: true }) }] : []),
+    ...(t?.steps?.length ? [{ id: 'trace-steps', group: tr('Trace'), label: t.graph.steps ? tr('Trace this dynamic view as a sequence diagram') : tr('Trace the steps as a sequence diagram'), hint: tr('their routes in order, with replies'), icon: 'arrow-left-right', run: () => start({ steps: true }) }] : []),
     ...(traced
       ? [
-          ...traced.refs.map((p) => ({ id: `trace-src:${p.id}`, group: 'Traced from', label: `Show ${p.label} in ${baseName(traced.file)}`, hint: p.ref, icon: 'map-pin', run: () => showInSource(p.ref) })),
+          ...traced.refs.map((p) => ({ id: `trace-src:${p.id}`, group: tr('Traced from'), label: tr('Show {name} in {file}', { name: p.label, file: baseName(traced.file) }), hint: p.ref, icon: 'map-pin', run: () => showInSource(p.ref) })),
         ]
       : []),
-    ...traces.map((p) => ({ id: `trace-of:${p}`, group: 'Traces of this diagram', label: `Open ${p}`, icon: 'arrow-left-right', run: () => h.go({ file: p }) })),
+    ...traces.map((p) => ({ id: `trace-of:${p}`, group: tr('Traces of this diagram'), label: tr('Open {file}', { file: p }), icon: 'arrow-left-right', run: () => h.go({ file: p }) })),
   ];
 
   /** Context menu: what the commands offer for what was right-clicked. */
@@ -123,15 +124,15 @@ export function useTrace(h: TraceHost) {
       <>
         {ends.length === 2 ? (
           <button role="menuitem" onClick={() => (close(), start({ from: ends[0], to: ends[1] }))}>
-            <Icon name="arrow-left-right" /> Trace a request from {name(ends[0]!)} to {name(ends[1]!)}
+            <Icon name="arrow-left-right" /> {tr('Trace a request from {from} to {to}', { from: name(ends[0]!), to: name(ends[1]!) })}
           </button>
         ) : (
           <>
             <button role="menuitem" onClick={() => (close(), start({ from: ends[0] }))}>
-              <Icon name="arrow-left-right" /> Trace a request from {name(ends[0]!)} until it ends
+              <Icon name="arrow-left-right" /> {tr('Trace a request from {from} until it ends', { from: name(ends[0]!) })}
             </button>
             <button role="menuitem" onClick={() => (close(), setChoosing(ends[0]))}>
-              <Icon name="arrow-left-right" /> Trace a request from {name(ends[0]!)} to…
+              <Icon name="arrow-left-right" /> {tr('Trace a request from {from} to…', { from: name(ends[0]!) })}
             </button>
           </>
         )}
@@ -146,18 +147,18 @@ export function useTrace(h: TraceHost) {
     doc.setIn(['views', n], doc.createNode(d.value));
     h.replace(printPreserving(h.text, doc), n);
     setAsking(undefined);
-    h.notify(`Added the dynamic view ${n}: ⌘Z takes it out again`);
+    h.notify(tr('Added the dynamic view {name}: ⌘Z takes it out again', { name: n }));
   };
 
   const dialog: ReactNode = (
     <>
       {choosing && t && (
         <Palette
-          placeholder={`Trace from ${name(choosing)} to…`}
+          placeholder={tr('Trace from {from} to…', { from: name(choosing) })}
           onClose={() => setChoosing(undefined)}
           commands={[...t.graph.elements.values()]
             .filter((e) => e.id !== choosing)
-            .map((e) => ({ id: `to:${e.id}`, group: `From ${name(choosing)} to`, label: e.label, hint: e.id, icon: 'arrow-left-right', run: () => start({ from: choosing, to: e.id }) }))}
+            .map((e) => ({ id: `to:${e.id}`, group: tr('From {from} to', { from: name(choosing) }), label: e.label, hint: e.id, icon: 'arrow-left-right', run: () => start({ from: choosing, to: e.id }) }))}
         />
       )}
       {asking && t && (
@@ -185,7 +186,7 @@ export function useTrace(h: TraceHost) {
   /** ⇧Q: trace from the selection (two elements: between them; one: until it ends). */
   const onKey = (e: KeyboardEvent, mod: boolean, typing: boolean): boolean => {
     if (typing || mod || e.altKey || !e.shiftKey || e.key.toLowerCase() !== 'q' || asking || choosing) return false;
-    if (!ends.length) return h.notify('Select one element to trace from, or two to trace between (⇧-click the second)'), true;
+    if (!ends.length) return h.notify(tr('Select one element to trace from, or two to trace between (⇧-click the second)')), true;
     start(ends.length === 2 ? { from: ends[0], to: ends[1] } : { from: ends[0] });
     return true;
   };

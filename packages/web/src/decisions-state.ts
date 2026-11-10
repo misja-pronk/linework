@@ -18,6 +18,7 @@ import {
 } from '@cartography/core';
 import { writeInFolder, type Workspace } from './files.ts';
 import { store } from './store.ts';
+import { t } from './i18n/index.ts';
 
 export interface Decisions {
   list: Decision[];
@@ -53,7 +54,7 @@ export function useDecisions(ws: Workspace | undefined, index: WorkspaceIndex, h
         try {
           await writeInFolder(ws, file, text);
         } catch (e) {
-          h.notify(`Could not write ${file}: ${e instanceof Error ? e.message : String(e)}`, { tone: 'error' });
+          h.notify(t('Could not write {file}: {error}', { file, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
           return;
         }
         h.refresh(ws);

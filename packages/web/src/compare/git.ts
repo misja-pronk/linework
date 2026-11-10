@@ -4,6 +4,7 @@
 // DecompressionStream. Enough to show a file as it was at HEAD and at the commits that changed it.
 // Not handled, and said so: SHA-256 repositories, and a .git that is a file pointing elsewhere
 // (a worktree or submodule), which a folder picked in the browser cannot reach.
+import { t } from '../i18n/index.ts';
 
 /** What a repository is read through: files of the .git folder by path ("objects/pack/x.idx"). */
 export interface GitFiles {
@@ -140,8 +141,8 @@ export class Repo {
   /** A repository from its .git folder; throws with what is wrong when it cannot be read. */
   static async open(files: GitFiles): Promise<Repo> {
     const config = await text(files, 'config');
-    if (config === undefined || (await files.file('HEAD')) === undefined) throw new Error('No git repository here');
-    if (/objectformat\s*=\s*sha256/i.test(config)) throw new Error('This repository uses SHA-256 object names, which the browser reader does not read');
+    if (config === undefined || (await files.file('HEAD')) === undefined) throw new Error(t('No git repository here'));
+    if (/objectformat\s*=\s*sha256/i.test(config)) throw new Error(t('This repository uses SHA-256 object names, which the browser reader does not read'));
     const repo = new Repo(files);
     for (const f of (await files.list('objects/pack')).filter((f) => f.endsWith('.idx'))) {
       const name = f.slice(0, -4);
@@ -215,7 +216,7 @@ export class Repo {
         }
       }
     }
-    if (!o) throw new Error(`Object ${oid.slice(0, 7)} is not in the repository (a shallow clone?)`);
+    if (!o) throw new Error(t('Object {oid} is not in the repository (a shallow clone?)', { oid: oid.slice(0, 7) }));
     // Trees and commits are read again and again while walking history; blobs are not kept.
     if (o.type !== 'blob') {
       if (this.cache.size > 4000) this.cache.clear();
@@ -358,9 +359,9 @@ export async function gitFilesIn(dir: FileSystemDirectoryHandle): Promise<{ file
   } catch {
     try {
       await dir.getFileHandle('.git');
-      return { why: 'This folder is a git worktree or submodule: its repository lives elsewhere. Open the main checkout to compare with commits.' };
+      return { why: t('This folder is a git worktree or submodule: its repository lives elsewhere. Open the main checkout to compare with commits.') };
     } catch {
-      return { why: 'The open folder is not the top of a git repository' };
+      return { why: t('The open folder is not the top of a git repository') };
     }
   }
   const walk = async (path: string): Promise<FileSystemDirectoryHandle | undefined> => {
