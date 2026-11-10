@@ -122,7 +122,7 @@ carto render shop.yaml --focus api --hops 2            # any diagram of boxes an
 | `D` | Both ways, upstream, downstream |
 | `Esc` | Back to the whole drawing (first press clears the selection) |
 
-A chip at the top of the drawing says what is shown (*Focused on Revenue · 2 hops upstream · 5 of 12*) with the same actions as buttons, and each of them is in the command palette (`⌘K`) under *Focus*. The focus you set with keys is a way of looking: it is not written to the YAML, and an export (`⌘E`) is what you see. When the file itself has a `focus:`, `Esc` shows everything and `Esc` again goes back to it.
+A chip at the top of the drawing says what is shown (*Focused on Revenue*, how many of the elements are drawn, the hops and the direction) with the same actions as buttons, and each of them is in the command palette (`⌘K`) under *Focus*. The focus you set with keys is a way of looking: it is not written to the YAML, and an export (`⌘E`) is what you see. When the file itself has a `focus:`, `Esc` shows everything and `Esc` again goes back to it.
 
 ## What is read from a data product (ODPS)
 
