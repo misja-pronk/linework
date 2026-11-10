@@ -138,6 +138,26 @@ function isSidecar(text: string): boolean {
   }
 }
 
+/** Writes the review notes next to a diagram (<name>.notes.json), or removes the file when none are left. */
+export async function saveNotesInFolder(ws: Workspace, notesFile: string, text: string | undefined) {
+  if (text) {
+    const h = await handleFor(ws, notesFile, true);
+    if (!h) throw new Error(`Cannot write ${notesFile}`);
+    await write(h, text);
+    ws.files.set(notesFile, { handle: h, text });
+  } else if (ws.files.has(notesFile)) {
+    try {
+      const parts = notesFile.split('/');
+      let d = ws.dir;
+      for (const seg of parts.slice(0, -1)) d = await d.getDirectoryHandle(seg);
+      await d.removeEntry(parts.at(-1)!);
+    } catch {
+      /* already gone */
+    }
+    ws.files.delete(notesFile);
+  }
+}
+
 /** The file as it is on disk now (not the cached copy). */
 export async function diskText(ws: Workspace, path: string): Promise<string | undefined> {
   const h = ws.files.get(path)?.handle;
