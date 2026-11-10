@@ -447,14 +447,16 @@ export function overviewGraph(union: Graph, plan: StagePlan): Graph {
     if (!s) return [];
     const own = plan.copies.get(id) ?? id;
     const changedIn = plan.stages.flatMap((st, k) => (k > s.from && (s.until == null || k < s.until) && plan.changed[k]!.has(own) ? [st.short] : []));
-    return [...(s.from > 0 ? [`+ ${plan.stages[s.from]!.short}`] : []), ...changedIn.map((x) => `~ ${x}`), ...(s.until != null ? [`− ${plan.stages[s.until]!.short}`] : [])];
+    // Gone from here because it moves to another group then: said so, not that it goes.
+    const moves = s.until != null && [...plan.copies].some(([copy, of]) => of === own && plan.span.get(copy)?.from === s.until && !plan.copies.has(id));
+    return [...(s.from > 0 ? [`+ ${plan.stages[s.from]!.short}`] : []), ...changedIn.map((x) => `~ ${x}`), ...(s.until != null ? [`${moves ? 'moves' : '−'} ${plan.stages[s.until]!.short}`] : [])];
   };
   const marked = <T extends { id: string; marks?: string[] }>(x: T): T => {
     const m = mark(x.id);
     return m.length ? { ...x, marks: [...(x.marks ?? []), ...m] } : x;
   };
   const words = new Set<string>();
-  for (const s of plan.stages) for (const sign of ['+', '−', '~']) words.add(`${sign} ${s.short}`);
+  for (const s of plan.stages) for (const sign of ['+', '−', '~', 'moves']) words.add(`${sign} ${s.short}`);
   // A line that comes and goes with its ends says nothing of its own: only one that does otherwise is marked.
   const spanOf = (id: string) => plan.span.get(id);
   const own = (e: GraphEdge) => {

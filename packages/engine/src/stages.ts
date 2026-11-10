@@ -46,7 +46,7 @@ export function stageStrip(plan: StagePlan, at: StageAt, span?: [number, number]
   if (typeof at !== 'number') {
     const first = plan.stages[0]!.title;
     const last = plan.stages.at(-1)!.title;
-    return { stops, heading: 'Migration overview', caption: `Everything from ${first} to ${last}. On each element: + the stage it is added in, − the stage it is gone in, ~ the stage it changes in.` };
+    return { stops, heading: 'Migration overview', caption: `Everything from ${first} to ${last}. On each element: + the stage it is added in, − the stage it is gone in, ~ the stage it changes in; moves: to another group, drawn there too.` };
   }
   return { stops, at };
 }
