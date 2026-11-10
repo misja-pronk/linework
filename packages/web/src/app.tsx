@@ -2261,13 +2261,6 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* Decisions belong to a folder: the button shows there, or once one is kept in this browser (⇧D, the side panel's tab and ⌘K always). */}
-              {(ws || decisionsTool.count > 0 || decisionsOpen) && (
-                <button className={decisionsOpen ? 'tool active' : 'tool'} onClick={decisionsTool.toggle} title={`Architecture decisions (${keyHint('decisions')}); ${keyHint('decision-new')} writes one about the selection`} aria-pressed={decisionsOpen} aria-label={`Decisions, ${decisionsTool.count}`}>
-                  <Icon name="scroll-text" />
-                  {decisionsTool.count > 0 && <span className="tool-count decisions">{decisionsTool.count}</span>}
-                </button>
-              )}
               {/* A narrow drawing: the tools that fold away are here, in the same order. */}
               <div className="menu-anchor tool-overflow">
                 <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label="More tools" title="More tools">
@@ -2288,6 +2281,9 @@ export function App() {
                         <Icon name="layers" /> Add a step <kbd>S</kbd>
                       </button>
                     )}
+                    <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
+                      <Icon name="scroll-text" /> {decisionsOpen ? 'Hide the decisions' : 'Decisions'}{decisionsTool.count ? ` (${decisionsTool.count})` : ''} <kbd>{keyHint('decisions')}</kbd>
+                    </button>
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
                       <Icon name="clock" /> {comparing.active ? 'Stop comparing' : 'Compare with an earlier version'}
                     </button>

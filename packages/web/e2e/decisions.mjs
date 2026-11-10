@@ -172,7 +172,14 @@ const browser = await chromium.launch();
   });
 
   await step('new decision about the selection', async () => {
-    await page.click('.drawing [data-node="payments.engine"]');
+    // Selected by search (⌥↵ only selects), as a keyboard user does; the panel stays open.
+    await page.keyboard.press('Meta+p');
+    await page.waitForSelector('.ws-search');
+    await page.keyboard.type('settlement engine');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Alt+Enter');
+    await settle();
+    check((await selectedId()) === 'payments.engine', `editor: the engine is selected again (${await selectedId()})`);
     await canvasKey('Alt+Shift+D');
     await page.waitForSelector('#decision-title');
     check((await page.locator('.decision-new .decision-concern').allInnerTexts()).join() === 'Settlement engine', 'editor: the new decision is about the selection');

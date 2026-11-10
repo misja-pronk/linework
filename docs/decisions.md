@@ -73,7 +73,7 @@ carto decisions examples/workspace -o decisions.png    # or .svg, .pptx, .pdf
 
 | Do this | Keyboard | Trackpad / mouse |
 | --- | --- | --- |
-| Show or hide the Decisions panel | <kbd>⇧D</kbd> (with a selection: its decisions first) | the page button in the canvas toolbar |
+| Show or hide the Decisions panel | <kbd>⇧D</kbd> (with a selection: its decisions first) | the *Decisions* tab of the side panel (it shows when something is selected); in a narrow window also the toolbar's ⋯ |
 | New decision about the selection | <kbd>⌥⇧D</kbd> | the + in the panel |
 | Open a decision | its marker, or a row of the panel | click |
 | Edit its Markdown | *Markdown*, then <kbd>⌘S</kbd> (<kbd>Esc</kbd> cancels) | *Markdown*, *Save* |
