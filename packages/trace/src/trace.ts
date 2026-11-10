@@ -390,7 +390,7 @@ function option(g: TraceGraph, calls: Call[], items: Item[], notes: string[]): T
   visit(items);
   // A route reads as the chain it is; a tree or a story by where it starts and how many it reaches.
   const chain = calls.every((c, i) => i === 0 || c.from === calls[i - 1]!.to);
-  const summary = chain ? [calls[0]!.from, ...calls.map((c) => c.to)].map((id) => labelOf(g, id)).join(' → ') : `${labelOf(g, calls[0]!.from)} → ${ids.length - 1} others, ${calls.length} calls`;
+  const summary = chain ? [calls[0]!.from, ...calls.map((c) => c.to)].map((id) => labelOf(g, id)).join(' → ') : `${labelOf(g, calls[0]!.from)} → ${ids.length - 1} ${ids.length === 2 ? 'other' : 'others'}`;
   return { summary, ids, items, notes: [...new Set(notes)], calls };
 }
 
