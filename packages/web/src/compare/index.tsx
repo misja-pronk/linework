@@ -288,8 +288,8 @@ export function useCompare(ctx: CompareContext) {
   );
 
   const button = (
-    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title="Compare with an earlier version (⇧⌘D)" aria-pressed={!!baseline}>
-      <Icon name="clock" /> Compare
+    <button className={baseline ? 'tool active' : 'tool'} onClick={() => (baseline ? setBaseline(undefined) : void choose())} title="Compare with an earlier version (⇧⌘D)" aria-label="Compare with an earlier version" aria-pressed={!!baseline}>
+      <Icon name="clock" />
     </button>
   );
 
