@@ -32,6 +32,10 @@ A YAML file is a diagram when it has a top-level `type:` that names a diagram ty
 - **Theme**: the diagram's own `theme:` wins; without one the preview is light or dark as VS Code is. `cartography.preview.theme` forces one.
 - **Open in editor** opens the diagram in the web editor as a share link (see below).
 
+## Review notes
+
+When a diagram has a `<name>.notes.json`, the preview draws its open notes as numbered bubbles (hover one for its text), and each thread shows as a read-only comment on the YAML line of what it is about, so the Comments panel lists them all. Notes are written in the web editor; see [notes.md](notes.md).
+
 ## Present
 
 **Cartography: Present** (or **Present** in the preview's toolbar) opens the diagram on its own, the editor maximized: → / Space / Page Down for the next step, ← for the previous, Home / End, Esc to stop. The step's title and caption show under the drawing. `cartography.present.fullScreen` also turns VS Code full screen.
