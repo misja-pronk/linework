@@ -29,3 +29,6 @@ export * from './decisions.ts';
 export * from './stages.ts';
 export * from './place-refs.ts';
 export * from './kind-aliases.ts';
+export * from './entry-edit.ts';
+export * from './edit.ts';
+export * from './questions.ts';

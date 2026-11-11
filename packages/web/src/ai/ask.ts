@@ -176,9 +176,4 @@ export async function ask(c: Conversation, content: string, opts: AskOptions): P
   return { kind: 'refused', text: text.trim(), errors };
 }
 
-/** Pins that follow renamed ids: what was pinned as the old id is pinned as the new one. */
-export function renamePins<T extends { nodes?: Record<string, unknown>; groups?: Record<string, unknown>; locked?: string[] }>(pins: T | undefined, renames: Map<string, string>): T | undefined {
-  if (!pins || !renames.size) return pins;
-  const move = <V>(m: Record<string, V> | undefined) => (m ? Object.fromEntries(Object.entries(m).map(([k, v]) => [renames.get(k) ?? k, v])) : m);
-  return { ...pins, ...(pins.nodes ? { nodes: move(pins.nodes) } : {}), ...(pins.groups ? { groups: move(pins.groups) } : {}), ...(pins.locked ? { locked: pins.locked.map((k) => renames.get(k) ?? k) } : {}) };
-}
+export { renamePins } from '@cartography/core';

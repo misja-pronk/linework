@@ -2,19 +2,12 @@
 // (the default: comments, order and hand edits elsewhere keep their bytes) or the whole file at once
 // for a restructure. Inputs stream eagerly, so nothing the API hands back is trusted: every call is
 // checked against these shapes here, applied to the text, and the result goes through the engine.
-import { isMap, isSeq, parseDocument, YAMLSeq, type Document } from 'yaml';
 import type Anthropic from '@anthropic-ai/sdk';
-import type { DiagramType } from '@cartography/core';
-import { deleteEntry, isEntryPath, renameEntry } from '../builder.ts';
-import { printPreserving } from '../yaml-print.ts';
+import type { Operation } from '@cartography/core';
+
+export { applyOperations, type Operation } from '@cartography/core';
 
 type Path = (string | number)[];
-
-export type Operation =
-  | { op: 'set'; path: Path; value: unknown }
-  | { op: 'append'; path: Path; value: unknown }
-  | { op: 'delete'; path: Path }
-  | { op: 'rename'; path: Path; to: string };
 
 export type ToolCall = { name: 'edit_diagram'; summary: string; operations: Operation[] } | { name: 'replace_diagram'; summary: string; yaml: string };
 
@@ -112,69 +105,3 @@ export function checkCall(name: string, input: unknown): ToolCall | { error: str
   return { name, summary, operations };
 }
 
-export interface Applied {
-  text: string;
-  /** Ids renamed on the way, old → new, so pins can follow them. */
-  renames: Map<string, string>;
-}
-
-const show = (p: Path) => JSON.stringify(p);
-
-/**
- * A value as the file would have it written: the short line form "a -> b: label" is a one-key map in
- * YAML (a string would come out quoted), and a flat entry is one flow line where its siblings are.
- */
-function nodeFor(doc: Document, parent: unknown, value: unknown) {
-  const line = typeof value === 'string' ? /^([^:#\n]+?-+>[^:#\n]+?):\s+(.+)$/.exec(value) : null;
-  if (line) return doc.createNode({ [line[1]!.trim()]: line[2]!.trim() });
-  const flat = isObj(value) && Object.values(value).every((v) => v === null || typeof v !== 'object' || (Array.isArray(v) && v.every((x) => typeof x !== 'object')));
-  const siblings = isMap(parent) ? parent.items.map((i) => i.value) : [];
-  const flow = flat && (siblings.length === 0 || siblings.some((v) => isMap(v) && v.flow));
-  return doc.createNode(value, { flow });
-}
-
-/** Applies the operations in order; the first that cannot be done stops it, with the reason. */
-export function applyOperations(text: string, type: DiagramType, ops: Operation[]): Applied | { error: string } {
-  let out = text;
-  const renames = new Map<string, string>();
-  for (const [i, o] of ops.entries()) {
-    const at = `operations[${i}] (${o.op} ${show(o.path)})`;
-    if (o.op === 'rename') {
-      if (!isEntryPath(o.path)) return { error: `${at}: rename works on an entry, e.g. ["nodes", "api"].` };
-      const next = renameEntry(out, type, o.path, o.to);
-      if (next === undefined) return { error: `${at}: cannot rename to "${o.to}": the entry does not exist, the new id is taken, or it is not a valid id (letters, digits, - and _).` };
-      const from = String(o.path.at(-1));
-      // A chain of renames (a → b, then b → c) is one rename from the first id.
-      const first = [...renames].find(([, to]) => to === from)?.[0];
-      renames.set(first ?? from, o.to);
-      out = next;
-      continue;
-    }
-    const doc = parseDocument(out);
-    if (doc.errors.length) return { error: `${at}: the YAML does not parse: ${doc.errors[0]!.message}` };
-    if (o.op === 'delete') {
-      if (!doc.hasIn(o.path)) return { error: `${at}: there is nothing at that path.` };
-      // An entry goes with the lines and references to it, as a delete in the builder does.
-      const next = isEntryPath(o.path) ? deleteEntry(out, type, o.path) : undefined;
-      if (next !== undefined) {
-        out = next;
-        continue;
-      }
-      doc.deleteIn(o.path);
-    } else if (o.op === 'set') {
-      const parent = o.path.length > 1 ? doc.getIn(o.path.slice(0, -1), true) : doc.contents;
-      const last = o.path.at(-1)!;
-      if (parent !== undefined && parent !== null && typeof last === 'number' && !isSeq(parent)) return { error: `${at}: ${show(o.path.slice(0, -1))} is not a list.` };
-      if (isSeq(parent) && typeof last === 'number' && last > parent.items.length) return { error: `${at}: the list has ${parent.items.length} items; use append to add one.` };
-      if (isSeq(parent) && typeof last === 'string') return { error: `${at}: ${show(o.path.slice(0, -1))} is a list; address its items by number.` };
-      doc.setIn(o.path, nodeFor(doc, parent, o.value));
-    } else {
-      const list = doc.getIn(o.path, true);
-      if (list === undefined) doc.setIn(o.path, doc.createNode([nodeFor(doc, undefined, o.value)]));
-      else if (isSeq(list)) (list as YAMLSeq).add(nodeFor(doc, list, o.value));
-      else return { error: `${at}: ${isMap(list) ? 'that is a map; use set with a new key' : 'that is not a list'}.` };
-    }
-    out = printPreserving(out, doc);
-  }
-  return { text: out, renames };
-}

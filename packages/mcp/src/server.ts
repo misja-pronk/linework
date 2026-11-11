@@ -3,12 +3,11 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { questionsFor } from '@cartography/core';
 import { findType, themes, types } from '@cartography/engine';
-
-const themeNames = Object.keys(themes) as [string, ...string[]];
-import { questionsFor } from '../../web/src/ai/questions.ts';
 import { getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
 
+const themeNames = Object.keys(themes) as [string, ...string[]];
 const version = '0.0.0';
 
 const instructions = `Cartography turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
