@@ -1,35 +1,62 @@
 type: azure
 title: Data platform
-subtitle: From sources to reports
+subtitle: Northwind · from sources to reports through a bronze, silver and gold lake, all on private networking
+direction: right
+
+# Left to right: sources → ingestion → lake (bronze) → Databricks → lake (silver, gold) → serving.
+# Processing is Azure Databricks with Unity Catalog: the most common choice for a lakehouse on
+# Azure today. Microsoft Fabric would replace Databricks and the SQL warehouse with one workspace.
+# Private networking: the storage account and Key Vault have public access off and private
+# endpoints, Databricks is VNet-injected without public IPs, Data Factory runs in a managed VNet.
+# Adding a source: a card in sources and a line to Data Factory (batch) or Event Hubs (streaming).
 
 groups:
   sources: { kind: boundary, label: Sources }
-  sub: { kind: subscription, label: Data }
-  ingest: { kind: resource-group, label: rg-ingest, in: sub }
-  lake: { kind: resource-group, label: rg-lake, in: sub }
-  serve: { kind: resource-group, label: rg-serve, in: sub }
+  sub: { kind: subscription, label: sub-data-prd, caption: Landing zone · Corp }
+  rg-process: { kind: resource-group, label: rg-data-process, in: sub }
+  rg-ingest: { kind: resource-group, label: rg-data-ingest, in: sub }
+  rg-lake: { kind: resource-group, label: rg-data-lake, in: sub }
+  lake: { kind: boundary, label: stnwlakeprd, caption: ADLS Gen2 · private endpoints, in: rg-lake }
+  rg-serve: { kind: resource-group, label: rg-data-serve, in: sub }
 
 nodes:
-  erp: { kind: external, label: ERP, in: sources }
-  crm: { kind: external, label: CRM, in: sources }
-  web: { kind: app-service, label: Web shop events, in: sources }
-  adf: { kind: data-factory, label: Pipelines, in: ingest }
-  hub: { kind: event-hub, label: Clickstream, in: ingest }
-  raw: { kind: storage, label: Raw zone, in: lake }
-  curated: { kind: storage, label: Curated zone, in: lake }
-  spark: { kind: service, label: Spark jobs, caption: Transform, in: lake }
-  dw: { kind: sql-database, label: Warehouse, in: serve }
-  search: { kind: ai-search, label: Product search, in: serve }
-  bi: { kind: users, label: Analysts }
+  erp: { kind: external, label: ERP, caption: On-premises · SQL Server, in: sources }
+  crm: { kind: external, label: CRM, caption: SaaS · REST API, in: sources }
+  web: { kind: app-service, label: Web shop, caption: Clickstream events, in: sources }
+
+  adf: { kind: data-factory, label: adf-nw-data, caption: Managed VNet · self-hosted IR, in: rg-ingest }
+  evh: { kind: event-hub, label: evh-clickstream, in: rg-ingest }
+
+  bronze: { kind: storage, label: bronze, caption: Raw · as delivered, in: lake }
+  silver: { kind: storage, label: silver, caption: Cleaned · conformed, in: lake }
+  gold: { kind: storage, label: gold, caption: Business-ready · Delta, in: lake }
+
+  dbw: { kind: service, icon: layers, tone: blue, label: dbw-nw-data, caption: Databricks · Unity Catalog · VNet-injected, in: rg-process }
+
+  sqlwh: { kind: service, icon: database, tone: indigo, label: Serverless SQL warehouse, caption: Databricks SQL, in: rg-serve }
+  bi: { kind: users, label: Power BI, caption: Reports · DirectQuery }
 
 edges:
-  - erp -> adf: { label: nightly }
-  - crm -> adf: { label: hourly }
-  - web -> hub: { label: events, style: data }
-  - adf -> raw: { style: data }
-  - hub -> raw: { style: data }
-  - raw -> spark: { style: data }
-  - spark -> curated: { style: data }
-  - curated -> dw: { style: data }
-  - curated -> search: { style: data }
-  - dw -> bi: { label: reports }
+  - erp -> adf: { label: nightly, style: data }
+  - crm -> adf: { label: hourly, style: data }
+  - web -> evh: { label: events, style: data }
+  - adf -> bronze: { style: data }
+  - evh -> bronze: { style: data }
+  # Databricks jobs move the data up the medallion; the workspace governs the lake through Unity Catalog
+  - bronze -> silver: { label: clean, style: data }
+  - silver -> gold: { label: model, style: data }
+  - dbw ..> lake: { label: jobs · Unity Catalog, style: management }
+  - gold -> sqlwh: { style: data }
+  - sqlwh -> bi: { style: data }
+
+steps:
+  - One subscription with a resource group per stage, and the lake in the middle.
+  - title: Ingest
+    caption: Data Factory copies batch sources into bronze; web shop events stream in through Event Hubs.
+    path: [erp -> adf -> bronze, crm -> adf, web -> evh -> bronze]
+  - title: Refine
+    caption: Databricks jobs clean bronze into silver and model silver into gold, governed by Unity Catalog.
+    path: [dbw -> lake, bronze -> silver -> gold]
+  - title: Serve
+    caption: Analysts query gold through a serverless SQL warehouse from Power BI.
+    path: gold -> sqlwh -> bi

@@ -26,7 +26,7 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'azure/aks-baseline.yaml': 0,
   'azure/app-landing-zone.yaml': 0,
-  'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
+  'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
   'azure/landing-zone.yaml': 0,
   'azure/microservices.yaml': 4,
@@ -237,7 +237,6 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
   'workspace/containers.yaml#payments': 3,
-  'azure/data-platform.yaml': 2, // wrapped into two rows for a slide (3.95:1 at 4.4 pt -> 1.67:1 at 5.2 pt): the lines down to the lake and the serving group run back
 };
 
 describe('layout quality', () => {
@@ -338,7 +337,7 @@ describe('layout quality', () => {
     expect(ragged).toEqual([]);
   });
   it('starts the cards of one column on one line, left to right', async () => {
-    // Drawn for a slide it turns top-down: asked left to right, the sources share their left edge.
+    // Drawn left to right, the sources share their left edge.
     const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
     const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
