@@ -66,7 +66,7 @@ const END_GAP = 6;
  * Where the tags at one end of a line go: on the line, just clear of the element, centred across it.
  * `tip` is the end of the line, `from` the point before it. Returns the left edge and centre.
  */
-export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & { text?: string })[] = [], marker: Marker = 'none'): { x: number; cy: number } | undefined {
+export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & { text?: string })[] = [], marker: Marker = 'none', lines: Box[] = []): { x: number; cy: number } | undefined {
   const w = tagsWidth(tags);
   // Past a UML end (a diamond, a triangle), so the tag does not cover it.
   const gap = END_GAP + markerLength(marker);
@@ -76,7 +76,14 @@ export function endTagAt(tags: string[], tip: Point, from: Point, taken: (Box & 
   const along = level ? Math.abs(from.x - tip.x) : Math.abs(from.y - tip.y);
   const hit = (b: Box) => taken.some((t) => b.x < t.x + t.width && t.x < b.x + b.width && b.y < t.y + t.height && t.y < b.y + b.height);
   // Level: the row lies along the line, starting just clear of the element. Upright: across it.
-  const place = (shift: number) => (level ? { x: dx > 0 ? tip.x + gap + shift : tip.x - gap - w - shift, cy: tip.y } : { x: tip.x - w / 2, cy: tip.y + (dy || 1) * (gap + TAG.H / 2 + shift) });
+  // Upright, the row is centred across the line, unless another line comes in beside it: then it
+  // sits wholly on the far side of its own line, where it cannot be read as the neighbour's.
+  const across = (b: Box) => lines.some((l) => b.x - 4 < l.x + l.width && l.x < b.x + b.width + 4 && b.y < l.y + l.height && l.y < b.y + b.height);
+  const rowAt = (x: number, shift: number) => ({ x, cy: tip.y + (dy || 1) * (gap + TAG.H / 2 + shift) });
+  const box = (p: { x: number; cy: number }) => ({ x: p.x, y: p.cy - TAG.H / 2, width: w, height: TAG.H });
+  const xs = [tip.x - w / 2, tip.x + 5, tip.x - 5 - w];
+  const ux = level ? 0 : (xs.find((x) => !across(box(rowAt(x, 0)))) ?? xs[0]!);
+  const place = (shift: number) => (level ? { x: dx > 0 ? tip.x + gap + shift : tip.x - gap - w - shift, cy: tip.y } : rowAt(ux, shift));
   // Lines that leave on one trunk share their first tags: drawn once.
   const first = place(0);
   if (taken.some((t) => t.text === tags.join(' ') && Math.abs(t.x - first.x) < 1 && Math.abs(t.y + TAG.H / 2 - first.cy) < 1)) return undefined;

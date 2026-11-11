@@ -27,13 +27,14 @@ interface Budget {
 
 const cases: Budget[] = [
   { file: 'comparison/src/microservices.mmd', type: 'systems', direction: 'right', crossings: 0, aspect: 3.5, edit: 'orders --> audit[Audit log]', moved: 0.02 },
-  { file: 'comparison/src/data-platform.mmd', type: 'systems', direction: 'down', crossings: 0, aspect: 1, edit: 'wh --> reverse[Reverse ETL]', moved: 0.05 },
+  { file: 'comparison/src/data-platform.mmd', type: 'systems', direction: 'down', crossings: 0, aspect: 1, edit: 'wh --> reverse[Reverse ETL]', moved: 0.35 }, // drawn afresh with Reverse ETL it is cut into two rows for a slide (the editor keeps the drawing before)
   { file: 'comparison/src/leave-request.mmd', type: 'process', direction: 'right', crossings: 0, aspect: 3.2, edit: 'done --> payroll[Tell payroll]', moved: 0.01 },
   { file: 'comparison/src/login-flow.mmd', type: 'process', direction: 'down', crossings: 0, aspect: 0.9, edit: 'home --> logout[Sign out]', moved: 0.01 },
-  // Still very wide: a chain left to right with long labels, and the shared layout does not cut a chain into rows.
-  { file: 'comparison/src/order-states.mmd', type: 'states', direction: 'right', crossings: 0, aspect: 9.5, edit: 'Delivered --> Returned: customer returns', moved: 0.02 },
+  // A chain left to right with long labels, cut into two rows for a slide (it was 9:1): the line out of
+  // Awaiting payment crosses two on its way to Cancelled.
+  { file: 'comparison/src/order-states.mmd', type: 'states', direction: 'right', crossings: 2, aspect: 9.5, edit: 'Delivered --> Returned: customer returns', moved: 0.15 }, // drawn afresh after the edit, the rows are cut elsewhere
   // A dense mesh of lines back and forth: dot left to right does not untangle it (Mermaid gets 2).
-  { file: 'benchmark/src/event-mesh.mmd', type: 'systems', direction: 'right', crossings: 6, aspect: 4.2, edit: 'stockTopic --> forecast[Demand forecast]', moved: 0.21 },
+  { file: 'benchmark/src/event-mesh.mmd', type: 'systems', direction: 'right', crossings: 7, aspect: 4.2, edit: 'stockTopic --> forecast[Demand forecast]', moved: 0.33 }, // lines keep clear of the cards they pass: one crossing more; drawn afresh after the edit, dot's other order wins
   // Redrawn from scratch after the edit, dot orders the nested groups differently (the editor keeps the drawing before).
   { file: 'benchmark/src/cloud-platform.mmd', type: 'systems', direction: 'down', crossings: 4, aspect: 1.3, edit: 'api --> search[(Search index)]', moved: 0.3 }, // wrapped into two columns for a slide (its text was too small): wider, at a crossing more; drawn afresh after the edit, it is cut differently
   // A decision flowchart of plain steps: a process, wrapped into two rows that read on.

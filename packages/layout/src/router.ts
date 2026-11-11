@@ -78,6 +78,8 @@ const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
 const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it seems to belong to that one
+const LABEL_NEAR = 16; // and keeps this far when it can
+const CROWD = 1; // per pixel nearer than that, per line
 const STRUCK = 56; // a label wider than this on a vertical line reads as crossed out: beside the line is better
 const PART = 48; // siblings part at least this far from the end they do not share
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
@@ -89,6 +91,11 @@ const ALONG = 3; // per pixel of running along the header strip of a group the l
 const OUTSIDE = 10; // a track this far outside each group border, to go around the group
 const MEETS = 30; // a line out of the side another comes in at (see chooseSides)
 const SLIDE = 40; // a step aside shorter than this, right out of a card, is taken out by sliding the line's end
+const CLEAR = 24; // lines keep this far from the sides of cards they pass: nearer, they seem to come out of them
+const RING = 1; // per pixel of running that near a card (not on a sibling's trunk: that one is at home there)
+const RUN_ON = 64; // a line starting this near another's end, on its track, reads as that line running on
+const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
+const RUN_ASIDE = 12; // a lane aside: nearer than this
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -184,10 +191,14 @@ function routeWith(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: 
         // seem to end in the sibling's own mark (a crow's foot), as if one line had two.
         const key = trunk.get(e.id) ?? '';
         const marked = key.startsWith('in|') && (e.style?.split('|')[2] ?? 'none') !== 'none';
-        const friends = (members.get(key) ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c).map((c) => (marked ? trim(grid, c, PART, true) : c));
+        const mates = (members.get(key) ?? []).filter((id) => id !== e.id).map((id) => used.get(id)).filter((c): c is number[] => !!c);
+        const friends = mates.map((c) => (marked ? trim(grid, c, PART, true) : c));
+        // Running on from a sibling is what a trunk does.
+        for (const c of mates) markRunOn(grid, c, -1);
         for (const c of friends) mark(grid, c, 1, true);
-        const found = search(grid, p, strange(e), SHARE);
+        const found = search(grid, p, strange(e), SHARE, Infinity, [e.from.node, e.to.node]);
         for (const c of friends) mark(grid, c, -1, true);
+        for (const c of mates) markRunOn(grid, c, 1);
         if (found) {
           mark(grid, found.cells, 1);
           used.set(e.id, found.cells);
@@ -357,7 +368,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     for (const pair of list) {
       const sideways = meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
       // Only a way cheaper than the best so far is worth finding.
-      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways);
+      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
       if (!found) continue;
       const cost = found.cost + sideways;
       if (cost < bestCost) [best, bestCost] = [pair, cost];
@@ -660,6 +671,16 @@ interface Grid {
   vZoneLen: Float32Array;
   hUsed: Uint16Array;
   vUsed: Uint16Array;
+  /** What running close along a card costs, and whose card that is (index + 1; -1 for several). */
+  hRing: Float32Array;
+  vRing: Float32Array;
+  hRingOf: Int32Array;
+  vRingOf: Int32Array;
+  /** Card index by node id. */
+  cards: Map<string, number>;
+  /** Stretches on from the ends of routed lines, on their track (see markRunOn). */
+  hRun: Uint16Array;
+  vRun: Uint16Array;
   /** Usage by siblings of the line being routed (a subset of hUsed/vUsed). */
   hFriend: Uint16Array;
   vFriend: Uint16Array;
@@ -733,6 +754,13 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
     vZoneLen: new Float32Array(n),
     hUsed: new Uint16Array(n),
     vUsed: new Uint16Array(n),
+    hRing: new Float32Array(n),
+    vRing: new Float32Array(n),
+    hRingOf: new Int32Array(n),
+    vRingOf: new Int32Array(n),
+    cards: new Map([...input.obstacles.keys()].map((id, i) => [id, i + 1])),
+    hRun: new Uint16Array(n),
+    vRun: new Uint16Array(n),
     hFriend: new Uint16Array(n),
     vFriend: new Uint16Array(n),
     cost: new Float64Array(n * 4),
@@ -757,6 +785,23 @@ function buildGrid(input: RouterInput, points: Point[]): Grid {
     if (inside) soft.push({ ...t, weight: TEXT / SOFT });
     else block(t.x, t.y, t.x + t.width, t.y + t.height);
   }
+  // Close along a card's side: allowed (tight spots need it), but a line there seems to belong to
+  // the card. Its own lines are at home there; where two cards' rings meet, every line pays.
+  boxes.forEach((b, i) => {
+    const r = grow(b, CLEAR);
+    const [rx1, ry1] = [r.x + r.width, r.y + r.height];
+    const own = (arr: Int32Array, e: number) => (arr[e] = arr[e] === 0 || arr[e] === i + 1 ? i + 1 : -1);
+    for (let y = lowerBound(ys, r.y); y < H && ys[y]! <= ry1; y++)
+      for (let x = Math.max(0, lowerBound(xs, r.x) - 1); x < W - 1 && xs[x]! < rx1; x++) {
+        const len = Math.max(0, Math.min(xs[x + 1]!, rx1) - Math.max(xs[x]!, r.x));
+        if (len) (g.hRing[y * W + x] = g.hRing[y * W + x]! + RING * len), own(g.hRingOf, y * W + x);
+      }
+    for (let x = lowerBound(xs, r.x); x < W && xs[x]! <= rx1; x++)
+      for (let y = Math.max(0, lowerBound(ys, r.y) - 1); y < H - 1 && ys[y]! < ry1; y++) {
+        const len = Math.max(0, Math.min(ys[y + 1]!, ry1) - Math.max(ys[y]!, r.y));
+        if (len) (g.vRing[y * W + x] = g.vRing[y * W + x]! + RING * len), own(g.vRingOf, y * W + x);
+      }
+  });
   // Group headers and borders: allowed, but every pixel inside one costs.
   for (const r of soft) {
     const rx1 = r.x + r.width;
@@ -907,6 +952,31 @@ function mark(g: Grid, cells: number[], delta: 1 | -1, friend = false) {
     if (ay === by) for (let x = Math.min(ax, bx); x < Math.max(ax, bx); x++) h[ay * g.W + x] = h[ay * g.W + x]! + delta;
     else for (let y = Math.min(ay, by); y < Math.max(ay, by); y++) v[y * g.W + ax] = v[y * g.W + ax]! + delta;
   }
+  if (!friend) markRunOn(g, cells, delta);
+}
+
+/**
+ * Two lines on one track with a short gap between their ends read as one line (Kestrel Online's
+ * line up to the ledger and the email line down to Postbird, in one channel): the track RUN_ON on
+ * past each end of a line's straight pieces is marked, and another line pays for starting there.
+ */
+function markRunOn(g: Grid, cells: number[], delta: 1 | -1) {
+  for (let i = 2; i < cells.length; i += 2) {
+    const [ax, ay, bx, by] = [cells[i - 2]!, cells[i - 1]!, cells[i]!, cells[i + 1]!];
+    if (ax === bx && ay === by) continue;
+    const flat = ay === by;
+    const [vals, at, lo, hi] = flat ? [g.xs, ay, Math.min(ax, bx), Math.max(ax, bx)] : [g.ys, ax, Math.min(ay, by), Math.max(ay, by)];
+    const arr = flat ? g.hRun : g.vRun;
+    // On its own track, and (half as dear) on the tracks right beside it: a lane aside it still runs on.
+    const across = flat ? g.ys : g.xs;
+    for (let t = at - 1; t <= at + 1; t++) {
+      if (t < 0 || t >= across.length || Math.abs(across[t]! - across[at]!) >= RUN_ASIDE) continue;
+      const d = t === at ? 2 * delta : delta;
+      const idx = (k: number) => (flat ? t * g.W + k : k * g.W + t);
+      for (let k = lo - 1; k >= 0 && vals[lo]! - vals[k + 1]! < RUN_ON; k--) arr[idx(k)] = arr[idx(k)]! + d;
+      for (let k = hi; k < vals.length - 1 && vals[k]! - vals[hi]! < RUN_ON; k++) arr[idx(k)] = arr[idx(k)]! + d;
+    }
+  }
 }
 
 // ---------------------------------------------------------------- search
@@ -923,7 +993,8 @@ interface Found {
   cost: number;
 }
 
-function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = Infinity): Found | undefined {
+function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = Infinity, ends: [string, string] = ['', '']): Found | undefined {
+  const [ownA, ownB] = ends.map((id) => g.cards.get(id) ?? 0);
   // What is left to go is guessed at full price, which finds a line of its own fast. For a line that
   // is to run on its siblings' the guess must not be dearer than running there, or the search stops
   // at the first way in it finds instead of the best one.
@@ -975,7 +1046,8 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
         if (g.hBlocked[e]) continue;
         const len = Math.abs(xs[nx]! - xs[x]!);
         const f = g.hFriend[e]!;
-        c += (f ? len * share : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f);
+        c += (f ? len * share : len) + g.hSoft[e]! + OVERLAP * len * (g.hUsed[e]! - f) + RUN_ON_COST * len * g.hRun[e]!;
+        if (!f && g.hRingOf[e] && g.hRingOf[e] !== ownA && g.hRingOf[e] !== ownB) c += g.hRing[e]!;
         if (strange) c += g.hZoneLen[e]! * strange.h[g.hZone[e]!]!;
         // Crossing a vertical line that runs straight through the point we step onto (a trunk-mate's
         // line is joined there, not crossed).
@@ -985,7 +1057,8 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
         if (g.vBlocked[e]) continue;
         const len = Math.abs(ys[ny]! - ys[y]!);
         const f = g.vFriend[e]!;
-        c += (f ? len * share : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f);
+        c += (f ? len * share : len) + g.vSoft[e]! + OVERLAP * len * (g.vUsed[e]! - f) + RUN_ON_COST * len * g.vRun[e]!;
+        if (!f && g.vRingOf[e] && g.vRingOf[e] !== ownA && g.vRingOf[e] !== ownB) c += g.vRing[e]!;
         if (strange) c += g.vZoneLen[e]! * strange.v[g.vZone[e]!]!;
         if (nx > 0 && nx < W - 1 && g.hUsed[ny * W + nx - 1]! > g.hFriend[ny * W + nx - 1]! && g.hUsed[ny * W + nx]! > g.hFriend[ny * W + nx]!) c += CROSS;
       }
@@ -1159,7 +1232,20 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     let crossed: Set<string> | undefined;
     for (const l of lines) if (!own.has(l.edge) && overlap(r, l.box)) (crossed ??= new Set()).add(l.edge);
     n += crossed?.size ?? 0;
-    return n ? 1000 + 40 * n : 0;
+    return n ? 1000 + 40 * n : crowd(r);
+  };
+  // Clear of other lines but near one, a label could be read as that one's: the nearer, the worse.
+  const crowd = (r: Box) => {
+    const near = new Map<string, number>();
+    for (const l of lines) {
+      if (own.has(l.edge)) continue;
+      const b = l.box;
+      const d = Math.max(b.x + LABEL_AIR - (r.x + r.width), r.x - (b.x + b.width - LABEL_AIR), b.y + LABEL_AIR - (r.y + r.height), r.y - (b.y + b.height - LABEL_AIR), 0);
+      if (d < LABEL_NEAR) near.set(l.edge, Math.max(near.get(l.edge) ?? 0, LABEL_NEAR - d));
+    }
+    let n = 0;
+    for (const v of near.values()) n += v;
+    return CROWD * n;
   };
   for (const e of input.edges) {
     const route = routes.get(e.id);
