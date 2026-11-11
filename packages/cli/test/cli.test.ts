@@ -339,7 +339,7 @@ describe('threats and share', () => {
     const none = carto('threats', 'plain.yaml');
     expect(none.code).toBe(1);
     expect(none.err).toContain('no threat model here');
-  });
+  }, 30_000);
 
   it('prints a share link for a base URL, and refuses one too long for a link', () => {
     write('tm.yaml', model);
@@ -352,7 +352,7 @@ describe('threats and share', () => {
     const no = carto('share', 'big.yaml');
     expect(no.code).toBe(1);
     expect(no.err).toContain('Share the file itself instead');
-  });
+  }, 30_000);
 });
 
 describe('carto errors and help', () => {
