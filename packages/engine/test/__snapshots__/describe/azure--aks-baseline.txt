@@ -1,0 +1,52 @@
+AKS baseline
+
+Azure infrastructure diagram: Northwind orders platform · private cluster, WAF in front, egress through the hub firewall, no secrets in pods. 10 elements in 8 groups, with 10 connections.
+
+Groups and elements
+- Customers (Users)
+- sub-orders-prd (Landing zone · Corp)
+  - vnet-aks-weu (10.2.0.0/16 · peered to the hub)
+    - snet-appgw (10.2.0.0/24)
+      - agw-orders (WAF v2 · public IP)
+    - snet-nodes (10.2.16.0/20 · rt 0.0.0.0/0 → firewall)
+      - aks-orders-prd (Private cluster · Azure CNI Overlay)
+        - ingress-nginx (App routing · internal LB)
+        - orders-api (Deployment · 3 replicas)
+    - snet-pe (10.2.1.0/24)
+      - pe-kv (Private endpoint)
+      - pe-acr (Private endpoint)
+  - rg-orders-shared (Resource group)
+    - id-orders (Federated with sa/orders-api)
+    - kv-orders-prd (RBAC · CSI secrets driver)
+    - crordersprd (Premium · public access off)
+- sub-connectivity (Platform)
+  - afw-hub (FQDN rules · AKS service tag)
+
+Connections
+- Customers send traffic to agw-orders over HTTPS.
+- agw-orders connects to ingress-nginx (Private network: HTTPS).
+- ingress-nginx connects to orders-api (Private network).
+- orders-api signs in with id-orders and connects to pe-kv (Private network: secrets).
+- id-orders signs in with kv-orders-prd (Secrets User).
+- pe-kv connects to kv-orders-prd (Private network).
+- aks-orders-prd connects to pe-acr (Private network: image pull) and connects to afw-hub (Private network: egress · UDR).
+- pe-acr connects to crordersprd (Private network).
+
+Walkthrough
+1. A private AKS cluster in its own spoke, with a subnet per role.
+2. In: Customers reach the WAF on Application Gateway; it forwards to the ingress controller on an internal load balancer.
+3. Secrets without secrets: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
+4. Images: Nodes pull images from the registry over a private endpoint; the registry has public access off.
+5. Out: The node subnet's route table sends all egress to the hub firewall, which allows only what is needed.
+
+Layers
+Ways to look at this drawing by tag.
+- Ingress: One public entry, the WAF on Application Gateway; the ingress controller sits on an internal load balancer. (tags ingress; 4 elements).
+- Egress: Nothing leaves the cluster except through the hub firewall, which allows only the FQDNs AKS and the apps need. (tags egress; 1 element).
+- Identity: Pods sign in as id-orders through workload identity; no secrets in the cluster. (tags identity; 4 elements).
+
+Key
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Dotted amber line: Identity
+- Amber badge: Identity badge
