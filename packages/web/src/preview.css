@@ -179,7 +179,7 @@
   transform: translateY(-100%);
   border-radius: 6px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-fill);
   font-weight: 600;
   white-space: nowrap;
 }

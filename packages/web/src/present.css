@@ -186,7 +186,7 @@
 .present-blank {
   position: absolute;
   inset: 0;
-  background: #000;
+  background: var(--blank);
   cursor: none;
 }
 .present-focus {
