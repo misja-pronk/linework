@@ -63,4 +63,3 @@ A context map has its own words (bounded context, upstream, conformist), and the
 ## Limits
 
 - Where several lines meet one side of a context close together, their end tags can crowd; a tag that would cover another slides along its own line, up to the middle of the line.
-- draw.io and Excalidraw exports keep the lines and labels but not the end tags.

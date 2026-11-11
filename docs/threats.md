@@ -102,4 +102,3 @@ The table lists every threat by number with what it is about (an element, or a l
 
 - The rules read labels and flags, not protocols: `label: REST` over plain HTTP and over TLS look the same. Say `encrypted: true` where it matters.
 - Trust boundaries are groups: a boundary that cuts through a group, or a boundary between two elements without a group around either, cannot be drawn.
-- draw.io and Excalidraw exports carry the boundaries as groups but not the threat tags.

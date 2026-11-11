@@ -1,0 +1,23 @@
+type: process
+title: Leave request
+direction: right
+
+lanes:
+  Employee: Employee
+  Manager: Manager
+  HR: HR
+
+nodes:
+  Wants time off: { in: Employee, kind: start }
+  Ask for leave: Employee
+  Pick other dates: Employee
+  Enough days left?: Manager
+  Team covered?: Manager
+  Approve: Manager
+  Book the days: HR
+  Leave booked: { in: HR, kind: end }
+
+flow:
+  - Wants time off -> Ask for leave -> Enough days left? -yes-> Team covered? -yes-> Approve -> Book the days -> Leave booked
+  - Enough days left? -no-> Pick other dates -> Ask for leave
+  - Team covered? -no-> Pick other dates

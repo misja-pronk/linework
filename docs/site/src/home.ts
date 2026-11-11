@@ -13,18 +13,10 @@ const ARROW = icon('<path d="M5 12h14M13 6l6 6-6 6"/>');
 const FEATURES: [string, string, string, string][] = [
   ['book-open', 'In your docs', 'A markdown-it and a remark plugin draw <code>```cartography</code> blocks as inline SVG at build time, light and dark. This site is built with them.', 'embed.html'],
   ['git-pull-request', 'In pull requests', '<code>carto diff</code> says what changed in words and as a marked-up picture; a GitHub Action posts it. Edits keep the rest of the drawing in place.', 'ci.html'],
-  ['file-code', 'From what you have', 'Mermaid, Structurizr DSL, draw.io, Excalidraw, Terraform, Kubernetes manifests, Azure Resource Graph, Entra and GitHub exports.', 'interop.html'],
-  ['download', 'To where it goes', 'SVG, PNG, PDF, a 16:9 slide or one slide per step in PowerPoint, an Office-safe SVG, and editable draw.io files.', 'steps.html'],
+  ['file-code', 'From what you have', 'Your own AI converts Mermaid, D2, draw.io or Terraform, and checks the result against the schema through the MCP server.', 'ai.html#from-other-tools'],
+  ['download', 'To where it goes', 'SVG, PNG, PDF, a 16:9 slide or one slide per step in PowerPoint, and an Office-safe SVG.', 'steps.html'],
   ['link', 'As a link', 'The whole diagram rides in the link’s #fragment, which never reaches a server. The reader gets a viewer and can open it in the editor.', 'share.html'],
   ['bot', 'With an assistant', 'An MCP server checks what an AI wrote against the schema and scores its layout before you see it.', 'mcp.html'],
-];
-
-const GUIDES: [string, string][] = [
-  ['mermaid', 'Mermaid'],
-  ['d2', 'D2'],
-  ['drawio', 'draw.io'],
-  ['plantuml', 'PlantUML'],
-  ['structurizr', 'Structurizr'],
 ];
 
 export async function home(o: { root: string; gallery: TypeEntry[]; benchmark?: string }): Promise<string> {
@@ -71,10 +63,5 @@ export async function home(o: { root: string; gallery: TypeEntry[]; benchmark?: 
   <div class="features">${features}</div>
 </section>
 
-${o.benchmark ?? ''}
-
-<section class="band">
-  <div class="band-head"><p class="eyebrow">Coming from another tool</p><h2>Bring your diagrams along</h2><p>What maps to what, the import command, and an honest list of what you lose and what you gain.</p></div>
-  <div class="guides">${GUIDES.map(([f, n]) => `<a class="guide" href="coming-from/${f}.html"><span>${n}</span>${ARROW}</a>`).join('')}</div>
-</section>`;
+${o.benchmark ?? ''}`;
 }

@@ -9,7 +9,7 @@ A diagram is one YAML file. Cartography validates it against the type's JSON Sch
 everything itself and draws SVG or PNG. You never write positions, sizes or colours per element.
 
 Use the **MCP tools** when the `cartography` server is connected (`list_types`, `get_schema`,
-`new_diagram`, `validate`, `render`, `import_mermaid`, `edit_diagram`, `describe`, `diff`,
+`new_diagram`, `validate`, `render`, `edit_diagram`, `describe`, `diff`,
 `get_context`, `propose`). Otherwise use the CLI (bottom of this file).
 
 To change an existing diagram, prefer `edit_diagram` (edits by YAML path) to rewriting the file:
@@ -75,8 +75,7 @@ packages | roles` picks the drawing (graph, who × where matrix, packages matrix
 **data-products**: products have `class: source-aligned | aggregate | consumer-aligned`, `domain:`,
 `inputs: [source, product, product.port]` and `outputs:` (ports, optionally with `contract:`).
 `view: overview | detailed`; `detail: [id]` shows only some products in detail. A contract may point
-to an ODCS file with `file:` (relative to the diagram). A folder of ODPS and ODCS files is drawn as
-one map with `carto render <folder>`, or made into a diagram with `carto import <folder>`.
+to an ODCS file with `file:` (relative to the diagram).
 
 **Focus** (every type of boxes and lines): `focus: orders`, or `focus: { on: [orders, tag:pii],
 hops: 2 | all, direction: both | upstream | downstream }`, at the top or inside a view, draws only
@@ -116,11 +115,11 @@ dragged in the editor live in `<name>.layout.json` next to the file; leave that 
   direction and says when it is clearly better; trust that over intuition.
 - **Ids stay stable** across edits, so the user's manual positions keep applying.
 
-## 5. From Mermaid
+## 5. From Mermaid, D2, draw.io or Terraform
 
-`import_mermaid(text)` converts flowchart/graph, architecture-beta and erDiagram into `systems` or
-`erd` YAML and lists what it dropped. Validate the result, then improve it: real kinds instead of
-generic ones, groups, styles, badges.
+There is no importer: read the other file and write the YAML yourself. Pick the type, map each shape
+to a real kind (not a generic one), keep the ids, add groups, styles and badges, then `validate`
+until it is clean and `render` to check the picture. Say what you could not carry over.
 
 ## 6. Without MCP: the CLI
 
@@ -132,9 +131,7 @@ pnpm carto types                               # list types
 pnpm carto new systems diagram.yaml            # template to a file (stdout without a file)
 pnpm carto validate diagram.yaml               # file:line:col  error  message; exit 1 on errors
 pnpm carto render diagram.yaml -f png -t dark  # → diagram.png (svg default; -o out path or dir)
-pnpm carto import flow.mmd -o flow.yaml        # Mermaid (or .md with mermaid blocks) → YAML
 pnpm carto render diagram.yaml --focus api --hops 2   # only api and what is within two lines of it
-pnpm carto render mesh/ -o mesh.png            # a folder of ODPS/ODCS files as one data mesh map
 ```
 
 The CLI has no layout-quality report: render a PNG and look at it instead. Schemas are in

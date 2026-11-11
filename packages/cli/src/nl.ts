@@ -44,22 +44,16 @@ export const nl = {
   '--pick takes a route number: 1, 2, …': '--pick neemt een routenummer: 1, 2, …',
   '--{name} is a number from {min} to {max}, not "{value}"': '--{name} is een getal van {min} tot {max}, niet "{value}"',
   '--icons is official or lucide, not "{value}"': '--icons is official of lucide, niet "{value}"',
-  '--timeout takes seconds, not "{value}"': '--timeout neemt seconden, niet "{value}"',
   '--template is a PowerPoint template, .potx or .pptx: {file}': '--template is een PowerPoint-sjabloon, .potx of .pptx: {file}',
   '-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/': '-o {out} noemt één bestand, maar {why}: geef een map, bijvoorbeeld -o {folder}/',
   '--all-views writes one per view': '--all-views schrijft er een per weergave',
   '--all-layers writes one per layer': '--all-layers schrijft er een per laag',
   'several diagrams make several files': 'meer diagrammen geven meer bestanden',
   '-o - writes one picture to standard output: give a folder for --all-views or --all-steps': '-o - schrijft één plaatje naar standaarduitvoer: geef een map voor --all-views of --all-steps',
-  '-o - writes one drawing to standard output: give a folder for --all-views': '-o - schrijft één tekening naar standaarduitvoer: geef een map voor --all-views',
   'Unknown theme "{name}", use one of: {themes}, or a .theme.yaml file': 'Onbekend thema "{name}", kies uit: {themes}, of een .theme.yaml-bestand',
   'Unknown type "{name}". Types: {types}': 'Onbekend type "{name}". Typen: {types}',
-  '--write keeps the diagram of one folder of exports or data product files: carto render <folder> --write mesh.yaml': '--write bewaart het diagram van één map met exports of dataproductbestanden: carto render <folder> --write mesh.yaml',
   'carto animate takes one diagram': 'carto animate neemt één diagram',
   'carto deck needs -o <file>.pptx or -o <file>.pdf': 'carto deck heeft -o <file>.pptx of -o <file>.pdf nodig',
-  'carto import --live reads from the tool, not from files: --into <diagram.yaml> imports over one': 'carto import --live leest uit het programma, niet uit bestanden: --into <diagram.yaml> importeert over een diagram heen',
-  'Say which format: -o out.drawio, .excalidraw, .mmd or .md, or --format {formats}': 'Zeg welk formaat: -o out.drawio, .excalidraw, .mmd of .md, of --format {formats}',
-  'One saved diagram: carto diff --live <source> <saved.yaml>': 'Eén bewaard diagram: carto diff --live <source> <saved.yaml>',
   'Name the diagrams: carto diff --git <ref> <file.yaml…>': 'Noem de diagrammen: carto diff --git <ref> <file.yaml…>',
   'Name the diagrams: carto diff --snapshot <label> <file.yaml…>': 'Noem de diagrammen: carto diff --snapshot <label> <file.yaml…>',
   'Two files: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> or carto diff --snapshot <label> <file.yaml…>': 'Twee bestanden: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> of carto diff --snapshot <label> <file.yaml…>',
@@ -75,12 +69,9 @@ export const nl = {
   '{file}: a file is in the way where a folder is needed': '{file}: er staat een bestand waar een map nodig is',
   '{file}: not allowed to read or write it': '{file}: geen toestemming om te lezen of te schrijven',
   '{file} already exists': '{file} bestaat al',
-  '{file} already exists, use --force to overwrite': '{file} bestaat al, overschrijf het met --force',
-  '{file} already exists: --into {file} imports over it (your edits stay), --force starts it over': '{file} bestaat al: --into {file} importeert eroverheen (je wijzigingen blijven), --force begint opnieuw',
   'Created {file}': '{file} gemaakt',
   'not found': 'niet gevonden',
   'not found, here or in {ref}': 'niet gevonden, hier of in {ref}',
-  'not found: leave out --into to start a new diagram': 'niet gevonden: laat --into weg om een nieuw diagram te beginnen',
   'not valid JSON: {message}': 'geen geldige JSON: {message}',
   'standard output': 'standaarduitvoer',
   ok: 'ok',
@@ -108,8 +99,6 @@ export const nl = {
   '{count} slide|{count} slides': "{count} dia|{count} dia's",
   '{count} file|{count} files': '{count} bestand|{count} bestanden',
   '{count} threat|{count} threats': '{count} dreiging|{count} dreigingen',
-  '{shapes} shapes, {lines} connectors': '{shapes} vormen, {lines} verbindingen',
-  '{shapes} shapes, {lines} arrows': '{shapes} vormen, {lines} pijlen',
   'watching… Ctrl+C to stop': 'kijkt mee… Ctrl+C om te stoppen',
 
   // validate
@@ -137,18 +126,8 @@ export const nl = {
   'against {what}': 'tegen {what}',
   '"{ref}" is not a commit, branch or tag here': '"{ref}" is hier geen commit, branch of tag',
   'carto diff --git needs a git repository': 'carto diff --git heeft een git-repository nodig',
-  'Neither {a} nor {b} holds access exports, gh api responses or Azure resources': 'Noch {a} noch {b} bevat access-exports, gh api-antwoorden of Azure-resources',
   'no snapshot "{label}" ({path}); there are: {list}': 'geen snapshot "{label}" ({path}); er zijn: {list}',
   'no snapshot "{label}" ({path}); take one in the editor with ⇧⌘S': 'geen snapshot "{label}" ({path}); maak er een in de editor met ⇧⌘S',
-
-  // import
-  'nothing to draw: no Compose file, Helm chart, manifests, Bicep, OpenAPI, AsyncAPI or workflow found': 'niets te tekenen: geen Compose-bestand, Helm-chart, manifests, Bicep, OpenAPI, AsyncAPI of workflow gevonden',
-  '(not written: --dry-run)': '(niet geschreven: --dry-run)',
-  'also: {hint}': 'ook: {hint}',
-  'no workspace model found': 'geen workspace-model gevonden',
-  'no ```mermaid, ```d2 or ```plantuml blocks found': 'geen ```mermaid-, ```d2- of ```plantuml-blokken gevonden',
-  'no pages found': "geen pagina's gevonden",
-  'git log failed in {repo}: {message}': 'git log mislukte in {repo}: {message}',
 
   // types, themes, icons
   'Nothing matches "{query}"; architecture (systems) is the usual start.': 'Niets past bij "{query}"; architectuur (systems) is het gewone begin.',
@@ -205,7 +184,6 @@ export const nl = {
   'Not a question of {wizard}, ignored: {ids}. Questions: {questions}': 'Geen vraag van {wizard}, genegeerd: {ids}. Vragen: {questions}',
   Create: 'Maken',
   'start from a template or a wizard': 'beginnen met een sjabloon of een wizard',
-  'Mermaid, draw.io, Terraform, Azure, … to YAML': 'Mermaid, draw.io, Terraform, Azure, … naar YAML',
   'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
@@ -232,10 +210,10 @@ export const nlHelp: Record<string, string> = {
                                                 en de stages in woorden; --from/--to: alleen die overgang.
                                                 Decks en animaties: carto deck --stages, carto animate --stages.
                                                 Meer: docs/transitions.md`,
-  [`  carto export <file.yaml…|folder> --to html|md|confluence|drawio|excalidraw|mermaid [-o out]
+  [`  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
                                                 one command for every export: html is export-html, md is
                                                 export-md, confluence is export-confluence (their options apply)`]:
-    `  carto export <file.yaml…|folder> --to html|md|confluence|drawio|excalidraw|mermaid [-o out]
+    `  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
                                                 één opdracht voor elke export: html is export-html, md is
                                                 export-md, confluence is export-confluence (hun opties gelden)`,
   'Usage: carto <command> [files…] [options] [--lang en|nl]': 'Gebruik: carto <command> [files…] [options] [--lang en|nl]',
@@ -295,20 +273,6 @@ export const nlHelp: Record<string, string> = {
                [--layout "Title Only"]          lettertypen en kleuren (de pptx: van een huisstijlthema noemt er ook een);
                [--keep-look] [--keep-slides]    --layout kiest de indeling, --keep-look houdt het eigen thema van het
                                                 diagram, --keep-slides de eigen dia's van het sjabloon vooraan`,
-  [`  carto render <folder> [-o mesh.svg]           a folder of data product and data contract files (ODPS, ODCS) as one
-               [--write mesh.yaml]              data mesh map; --write keeps the diagram, and updates it the next time`]:
-    `  carto render <folder> [-o mesh.svg]           een map met bestanden van dataproducten en datacontracten (ODPS, ODCS)
-               [--write mesh.yaml]              als één data-mesh-kaart; --write bewaart het diagram en werkt het daarna bij`,
-  [`  carto render <folder> [-o access.svg]         a folder of saved az / Graph / AzureHound JSON as who reaches what,
-                                                or of gh api responses as the GitHub organisation (same options as
-                                                carto import <folder> below; --write access.yaml keeps the diagram)`]:
-    `  carto render <folder> [-o access.svg]         een map met bewaarde az / Graph / AzureHound JSON als wie wat bereikt,
-                                                of met gh api-antwoorden als de GitHub-organisatie (dezelfde opties als
-                                                carto import <folder> hieronder; --write access.yaml bewaart het diagram)`,
-  [`  carto render <folder|export.json> [-o x.png]  Azure resources (az graph query, az bicep build, terraform show -json)
-                                                as an azure diagram, with the options of carto import below`]:
-    `  carto render <folder|export.json> [-o x.png]  Azure-resources (az graph query, az bicep build, terraform show -json)
-                                                als azure-diagram, met de opties van carto import hieronder`,
   [`  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--stages]                           a slide per stage of its stages: and per transition, the overview,
@@ -444,14 +408,6 @@ export const nlHelp: Record<string, string> = {
                                                 changed nodes, groups and lines`]:
     `  carto diff <before.yaml> <after.yaml>         wat er veranderde tussen twee versies, per id: toegevoegde,
                                                 verwijderde en gewijzigde elementen, groepen en lijnen`,
-  [`  carto diff <old-folder> <new-folder>          two exports (access, GitHub or Azure; two Azure export files too) imported and compared; for access
-                                                and GitHub also who gained and lost what, effective access, in words
-               [-o diff.svg|diff.md] [--view access]  the picture, the words as markdown; --view access: the matrix
-                                                with gained, lost and changed cells marked`]:
-    `  carto diff <old-folder> <new-folder>          twee exports (access, GitHub of Azure; ook twee Azure-exportbestanden) geïmporteerd en vergeleken;
-                                                voor access en GitHub ook wie wat kreeg en verloor, effectieve toegang, in woorden
-               [-o diff.svg|diff.md] [--view access]  het plaatje, de woorden als markdown; --view access: de matrix
-                                                met gekregen, verloren en gewijzigde cellen gemarkeerd`,
   [`  carto diff --git <ref> <file.yaml…>           the same against the file at a branch, tag or commit (includes too);
                                                 --since <ref> says the same`]:
     `  carto diff --git <ref> <file.yaml…>           hetzelfde tegen het bestand op een branch, tag of commit (ook includes);
@@ -471,12 +427,6 @@ export const nlHelp: Record<string, string> = {
                [--json] [--view name] [--fresh] [--exit-code]
                                                 --fresh legt de nieuwere tekening opnieuw uit in plaats van wat er
                                                 stond op zijn plek te houden; --exit-code geeft exit 1 als er iets veranderde`,
-  [`  carto diff --live <k8s|azure|access|github> <saved.yaml>   drift: what changed in the cluster, the estate or
-               [the --live options of carto import] [-o drift.png] [--exit-code]   the organisation since the
-                                                diagram was saved (read live, as carto import --live does)`]:
-    `  carto diff --live <k8s|azure|access|github> <saved.yaml>   drift: wat er veranderde in het cluster, de omgeving of
-               [the --live options of carto import] [-o drift.png] [--exit-code]   de organisatie sinds het
-                                                diagram werd bewaard (live gelezen, zoals carto import --live doet)`,
   [`  carto notes <file.yaml…> [-o notes.md]       the review notes of <file>.notes.json as markdown, open ones
                [--open | --all]                 (default), or resolved ones too`]:
     `  carto notes <file.yaml…> [-o notes.md]       de reviewnotities uit <file>.notes.json als markdown, de open
@@ -505,107 +455,6 @@ export const nlHelp: Record<string, string> = {
     `  carto new --wizard <name> [file.yaml]         beantwoord een paar vragen, krijg een af diagram (Azure-landingszone,
                [--answers answers.json] [-y]    AKS-baseline, AWS, C4, data mesh, …); --wizard list noemt
                                                 ze; --answers of -y: geen vragen, de rest standaard`,
-  [`  carto import <file.mmd|.d2|.puml|.md|.dsl|.yaml…> [-o out|-] [--force]
-                                                Mermaid (flowchart, architecture-beta, stateDiagram,
-                                                erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to YAML;
-                                                D2 (boxes, sql_table, sequence_diagram; layers: one file each);
-                                                PlantUML (sequence, component, deployment, C4, state, activity,
-                                                entity; every @startuml block); .md: every mermaid, d2 and
-                                                plantuml block; Kubernetes manifests: all files in one diagram;
-                                                .csv inventory or NetBox JSON: a network diagram;
-                                                terraform show -json (state or plan, AWS and Google Cloud): a cloud diagram;
-                                                a folder (or files) of data products and contracts (ODPS, ODCS):
-                                                one data mesh diagram, <folder>.yaml; again updates it, your edits stay;
-                                                a folder (or files) of az role assignment / Graph / AzureHound JSON:
-                                                an access diagram; of gh api responses (or one combined JSON): github
-               [--principals auto|all|groups]   members drawn, or folded into their groups (auto: above --collapse-above, 30)
-               [--scope <prefix|name>]          one part: /subscriptions/…, rg-shop, or repositories shop-*
-               [--depth 1|2|3] [--group-by access|none] [--as github|access]
-                                                how deep scopes go; those that reach the same as one; a GitHub
-                                                organisation as who reaches which repository (a matrix)
-                                                Azure: az graph query JSON (resources and resourcecontainers), az bicep
-                                                build output (ARM templates), terraform show -json with azurerm: an azure
-                                                diagram, <folder|file>.yaml; again updates it, your edits and pins stay
-               [--subscription <name|id,…>] [--rg <name|glob,…>] [--depth 1|2|3] [--all] [--collapse-above 12]
-                                                only some subscriptions or resource groups; containers down to
-                                                subscriptions, resource groups or (3) networks and subnets; --all also
-                                                NICs, disks, NSGs, public IPs, plans; above 12 in one place, 3+ of a kind are one card`]:
-    `  carto import <file.mmd|.d2|.puml|.md|.dsl|.yaml…> [-o out|-] [--force]
-                                                Mermaid (flowchart, architecture-beta, stateDiagram,
-                                                erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) naar YAML;
-                                                D2 (boxes, sql_table, sequence_diagram; layers: elk een eigen bestand);
-                                                PlantUML (sequence, component, deployment, C4, state, activity,
-                                                entity; elk @startuml-blok); .md: elk mermaid-, d2- en
-                                                plantuml-blok; Kubernetes-manifests: alle bestanden in één diagram;
-                                                .csv-inventaris of NetBox JSON: een netwerkdiagram;
-                                                terraform show -json (state of plan, AWS en Google Cloud): een clouddiagram;
-                                                een map (of bestanden) met dataproducten en contracten (ODPS, ODCS):
-                                                één data-mesh-diagram, <folder>.yaml; opnieuw werkt het bij, je wijzigingen
-                                                blijven;
-                                                een map (of bestanden) met az role assignment / Graph / AzureHound JSON:
-                                                een toegangsdiagram; met gh api-antwoorden (of één gecombineerde JSON): github
-               [--principals auto|all|groups]   leden getekend, of opgevouwen in hun groepen (auto: boven --collapse-above, 30)
-               [--scope <prefix|name>]          één deel: /subscriptions/…, rg-shop, of repositories shop-*
-               [--depth 1|2|3] [--group-by access|none] [--as github|access]
-                                                hoe diep scopes gaan; die hetzelfde bereiken als één; een GitHub-
-                                                organisatie als wie welke repository bereikt (een matrix)
-                                                Azure: az graph query JSON (resources en resourcecontainers), uitvoer van az bicep
-                                                build (ARM-templates), terraform show -json met azurerm: een azure-
-                                                diagram, <folder|file>.yaml; opnieuw werkt het bij, je wijzigingen en
-                                                vastgezette posities blijven
-               [--subscription <name|id,…>] [--rg <name|glob,…>] [--depth 1|2|3] [--all] [--collapse-above 12]
-                                                alleen sommige subscriptions of resourcegroepen; containers tot
-                                                subscriptions, resourcegroepen of (3) netwerken en subnets; --all ook
-                                                NIC's, schijven, NSG's, publieke IP's, plannen; boven 12 op één plek worden
-                                                3+ van een soort één kaart`,
-  [`  carto import <repo> [--diagrams diagrams/]    a code repository: a diagram of each Compose file (systems), Helm
-               [--values values-prod.yaml]      chart (rendered here; kubernetes), folder of manifests, Bicep entry
-               [--dry-run] [--force]            file (azure), OpenAPI / AsyncAPI file (systems; callbacks as a
-                                                sequence) and GitHub Actions workflow (process), into diagrams/;
-                                                again updates them, your edits stay (--force: start over);
-                                                --values: read over every chart's own. More: docs/repo-import.md`]:
-    `  carto import <repo> [--diagrams diagrams/]    een coderepository: een diagram van elk Compose-bestand (systems), elke Helm-
-               [--values values-prod.yaml]      chart (hier gerenderd; kubernetes), map met manifests, Bicep-startbestand
-               [--dry-run] [--force]            (azure), OpenAPI- / AsyncAPI-bestand (systems; callbacks als
-                                                sequence) en GitHub Actions-workflow (process), in diagrams/;
-                                                opnieuw werkt ze bij, je wijzigingen blijven (--force: opnieuw beginnen);
-                                                --values: gelezen over de eigen waarden van elke chart. Meer: docs/repo-import.md`,
-  [`  carto render <repo> [-o pictures/]            the same diagrams drawn, without writing them`]:
-    `  carto render <repo> [-o pictures/]            dezelfde diagrammen getekend, zonder ze te schrijven`,
-  [`  carto import <file.drawio|.excalidraw…> [--keep-positions] [-o out|-] [--force]
-                                                a draw.io file (every page) or an Excalidraw file to YAML, with a
-                                                report of what was mapped and what was left out; --keep-positions
-                                                writes where the shapes stood to <file>.layout.json as pins`]:
-    `  carto import <file.drawio|.excalidraw…> [--keep-positions] [-o out|-] [--force]
-                                                een draw.io-bestand (elke pagina) of een Excalidraw-bestand naar YAML, met een
-                                                verslag van wat overgenomen is en wat niet; --keep-positions schrijft
-                                                waar de vormen stonden naar <file>.layout.json als vastgezette posities`,
-  [`  carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
-                                                a repository's history as a git branching diagram`]:
-    `  carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200] [-o out]
-                                                de geschiedenis van een repository als git-branchdiagram`,
-  [`  carto import --live github --org o           read live with your own kubectl, az or gh and its login, read-only:
-               [--into diagram.yaml] [-o out|-]  the commands are shown and asked for first (--yes: not asked;
-               [--yes] [--dry-run] [--timeout 120]  --dry-run: only shown); --into imports over a diagram, your
-               [--keep-raw <dir>]               edits stay; --keep-raw saves the answers (no secret values,
-                                                ever) for carto import <dir>. Allow-list: docs/live-import.md`]:
-    `  carto import --live github --org o           live gelezen met je eigen kubectl, az of gh en hun login, alleen lezen:
-               [--into diagram.yaml] [-o out|-]  de commando's worden eerst getoond en gevraagd (--yes: niet gevraagd;
-               [--yes] [--dry-run] [--timeout 120]  --dry-run: alleen getoond); --into importeert over een diagram heen,
-               [--keep-raw <dir>]               je wijzigingen blijven; --keep-raw bewaart de antwoorden (nooit geheime
-                                                waarden) voor carto import <dir>. Toegestane commando's: docs/live-import.md`,
-  [`  carto export <file.yaml…> -o out.drawio|.excalidraw|.mmd|.md
-               [--format drawio|excalidraw|mermaid] [--view name] [--theme name]
-                                                the drawing for another tool: draw.io (every view a page) and
-                                                Excalidraw keep shapes, groups and attached lines where they are;
-                                                Mermaid (.mmd, or .md as a fenced block) for a README on GitHub.
-                                                What a format cannot hold is said on stderr. More: docs/interop.md`]:
-    `  carto export <file.yaml…> -o out.drawio|.excalidraw|.mmd|.md
-               [--format drawio|excalidraw|mermaid] [--view name] [--theme name]
-                                                de tekening voor een ander programma: draw.io (elke weergave een pagina) en
-                                                Excalidraw houden vormen, groepen en vastgemaakte lijnen waar ze staan;
-                                                Mermaid (.mmd, of .md als codeblok) voor een README op GitHub.
-                                                Wat een formaat niet kan bevatten staat op stderr. Meer: docs/interop.md`,
   [`  carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported`]:
     `  carto icons [azure|aws|gcp|kubernetes]        waar je elke officiële iconenset downloadt, en wat er geïmporteerd is`,
   [`  carto icons import <folder|file.zip> [--pack azure]

@@ -1,14 +1,14 @@
 # Cartography next to Mermaid and D2
 
 Eleven everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
-The Cartography column is **not hand-tuned**: it is the Mermaid source run through `carto import`
-and rendered as is. The imported YAML is in [`cartography/`](cartography/).
+The Cartography column is **not hand-tuned**: it is the Mermaid source converted to YAML once, by the
+importer Cartography had then, and rendered as is. The YAML is in [`cartography/`](cartography/).
 
 | Source | What |
 | --- | --- |
 | [`src/*.mmd`](src/) | Mermaid, rendered with the `mermaid` npm package (default theme) in headless Chromium |
 | [`src/*.d2`](src/) | D2 0.9, default layout (dagre) and theme |
-| [`cartography/*.yaml`](cartography/) | `carto import src/<name>.mmd`, default light theme |
+| [`cartography/*.yaml`](cartography/) | `src/<name>.mmd` converted, untouched, default light theme |
 
 Regenerate everything with `pnpm compare` (needs `d2` on the PATH for the D2 column: `brew install d2`).
 

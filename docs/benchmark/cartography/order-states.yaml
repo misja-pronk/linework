@@ -1,0 +1,24 @@
+type: states
+title: Order lifecycle
+direction: right
+
+states:
+  Fulfilment:
+    states:
+      Picking:
+      Packed:
+  Cancelled: { note: Stock is released }
+
+transitions:
+  - start -> Awaiting payment: order placed
+  - Awaiting payment -> Fulfilment: payment received
+  - Awaiting payment -> Cancelled: 30 min without payment
+  - start -> Picking
+  - Picking -> Packed: all items scanned
+  - Packed -> Picking: item missing [damaged]
+  - Fulfilment -> Shipped: handed to carrier
+  - Fulfilment -> Cancelled: customer cancels
+  - Shipped -> Shipped: delayed / tell the customer
+  - Shipped -> Delivered: signed for
+  - Delivered -> end
+  - Cancelled -> end

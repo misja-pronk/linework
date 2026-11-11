@@ -1,9 +1,0 @@
-{
-  "login": "kestrel-logistics",
-  "id": 1001,
-  "name": "Kestrel Logistics",
-  "type": "Organization",
-  "default_repository_permission": "none",
-  "two_factor_requirement_enabled": true,
-  "members_can_create_repositories": false
-}

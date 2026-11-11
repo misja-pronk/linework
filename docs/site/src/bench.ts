@@ -12,7 +12,6 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { chromium, type Page } from '@playwright/test';
 import { render } from '@cartography/engine';
-import { importMermaid } from '@cartography/import';
 import { displacement, measure, type Displacement, type Drawing, type Metrics, type Rect } from './geometry.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -49,7 +48,7 @@ export const CASES: Case[] = [
 
 export type ToolId = 'cartography' | 'mermaid' | 'd2-dagre' | 'd2-elk' | 'd2-tala';
 export const TOOLS: { id: ToolId; name: string; note: string }[] = [
-  { id: 'cartography', name: 'Cartography', note: 'The Mermaid source through `carto import`, default theme, no hand-tuning' },
+  { id: 'cartography', name: 'Cartography', note: 'The Mermaid source converted to YAML once, untouched (`docs/benchmark/cartography`), default theme, no hand-tuning' },
   { id: 'mermaid', name: 'Mermaid', note: 'The `mermaid` npm package, default config, in headless Chromium' },
   { id: 'd2-dagre', name: 'D2 · dagre', note: 'D2 default layout' },
   { id: 'd2-elk', name: 'D2 · ELK', note: 'D2 with `--layout elk`' },
@@ -256,11 +255,11 @@ for (const c of CASES) {
       let after: string;
       let kept: string | undefined;
       if (t.id === 'cartography') {
-        const yaml = importMermaid(mmd).yaml;
+        const yaml = fs.readFileSync(path.join(outDir, 'cartography', `${c.id}.yaml`), 'utf8');
         const r = await render(yaml, { interactive: true });
         if (!r.svg) throw new Error(r.diagnostics.map((d) => d.message).join('; '));
         before = r.svg;
-        const edited = importMermaid(mmdEdited).yaml;
+        const edited = fs.readFileSync(path.join(outDir, 'cartography', `${c.id}-edited.yaml`), 'utf8');
         after = (await render(edited, { interactive: true, previous: null })).svg!;
         kept = (await render(edited, { interactive: true, previous: r.placed?.memory })).svg!;
       } else if (t.id === 'mermaid') {

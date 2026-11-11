@@ -8,7 +8,6 @@ It is not a BPMN modeller. There are no pools, boundary events, data stores or c
 carto new process access.yaml                  # a starter with lanes and a decision
 carto render access.yaml --format png          # svg, png, pdf, pptx
 carto render access.yaml --all-steps --format pptx   # one slide per step of the happy path
-carto import flow.mmd                          # a Mermaid flowchart with decisions lands as a process
 ```
 
 ## The YAML reads like the process
@@ -128,7 +127,7 @@ SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, eve
 
 ## From Mermaid
 
-`carto import flow.mmd` (and Import in the editor) reads a Mermaid `flowchart` or `graph`. It becomes a process when it decides something: at least one `{diamond}` or question, and decisions, starts and ends together are two or more and at least a quarter of the nodes. Otherwise it stays an architecture diagram (`systems`), as does a flowchart where a line ends on a subgraph: a lane is not something a flow can point at.
+A Mermaid `flowchart` that decides something maps onto a process like this. Give your own AI the file and this table ([ai.md](ai.md)).
 
 | Mermaid | Process |
 | --- | --- |
@@ -140,7 +139,7 @@ SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, eve
 | `subgraph` | lane; a subgraph inside a subgraph is not kept, its steps stand in the outer lane |
 | `-->\|label\|`, `-- label -->` | the label on the line |
 
-`flowchart TD` is not kept: an imported process runs left to right. Add `direction: down` to have it top to bottom again. A diamond with one way in and one way out decides nothing and comes in as a task.
+A process runs left to right; `direction: down` is `flowchart TD`. A diamond with one way in and one way out decides nothing: make it a task.
 
 ## Examples
 

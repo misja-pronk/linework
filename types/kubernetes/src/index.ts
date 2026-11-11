@@ -199,7 +199,7 @@ export const guidance = {
   useWhen: [
     'How traffic reaches workloads: ingress → service → deployment',
     'A namespace or whole platform (ingress, certs, observability)',
-    'Manifests or helm/kustomize output, via carto import',
+    'What the manifests, Helm charts or kustomize output deploy',
   ],
   notFor: [
     { text: 'Azure resources around the cluster (VNets, managed DBs)', use: 'azure' },

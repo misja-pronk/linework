@@ -104,15 +104,9 @@ A package is a dashed group around its classes, nested with `parent:`.
 - A class *implementing* a class, or *extending* an interface: a warning that says which word fits.
 - `values:` on something that is not an enum: a warning.
 
-## Importing
-
-- **Mermaid** `classDiagram`: classes with `{ … }` bodies and `Class : +member` lines, `<<interface>>` and other annotations, generics `~T~`, `namespace`, relations with multiplicities and labels, `direction`. Notes, styles and links are named in the report.
-- **PlantUML** class diagrams: `class`, `abstract class`, `interface`, `enum`, `record`, `<<stereotype>>`, members (`- String name` or `- name : String`, `{static}`, `{abstract}`), `extends` / `implements`, `package` and `namespace`, relations with direction words (`-up->`) and colours (`-[#red]->`) taken out.
-- **D2** `shape: class`: fields and methods (`+name: type`, `method(a int): (x, y int)`; no sign means public) become members. A D2 file of only classes becomes a class diagram; classes beside other boxes stay boxes in the architecture and come in as a class diagram of their own as well.
-
 ## Exporting
 
-PowerPoint draws each class as native shapes: the header, a text box per member (with its visibility), the rule between compartments, and the UML ends as small shapes on the lines. draw.io gets its own table rows and its `block`, `diamond` and `open` ends; Excalidraw its outlined triangle and diamond heads. Mermaid export writes a `classDiagram` with namespaces, stereotypes, members and multiplicities (role names have no place there; the report says so).
+PowerPoint draws each class as native shapes: the header, a text box per member (with its visibility), the rule between compartments, and the UML ends as small shapes on the lines.
 
 ## Class, ERD or C4?
 

@@ -61,7 +61,7 @@ With `include:` a model, a row or column whose id names a model element (its ful
 
 ## Exports
 
-PowerPoint gets a real table, with merged cells for the groups and each value as bold text in its tone, so the chart can be edited in the deck. PDF, SVG and PNG are the drawing; draw.io and Excalidraw get its text in place.
+PowerPoint gets a real table, with merged cells for the groups and each value as bold text in its tone, so the chart can be edited in the deck. PDF, SVG and PNG are the drawing.
 
 ## Not for
 

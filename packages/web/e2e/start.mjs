@@ -129,21 +129,11 @@ await page.getByRole('button', { name: /Open in YAML/ }).click();
 await wait(800);
 await page.screenshot({ path: `${out}/8-dark.png` });
 
-// 5. Import from Mermaid.
-await page.getByRole('button', { name: 'New' }).click();
-await page.getByRole('button', { name: /Import from Mermaid/ }).click();
-await page.getByRole('button', { name: 'Try the example' }).click();
-await wait(900);
-if (!(await page.locator('.ask-preview svg').count())) fail('imported Mermaid not drawn');
-await page.screenshot({ path: `${out}/9-import.png` });
-await page.getByRole('button', { name: /Open in builder/ }).click();
-await wait(800);
-if (!(await yaml()).includes('type: systems')) fail('import not opened');
 // Asked in the app's own dialog, not the browser's confirm() (review 3).
 if (!asked.some((m) => m.includes('azure.yaml has changes'))) fail('opening over the edited azure.yaml should ask first, in the app: ' + JSON.stringify(asked));
 if (native.length) fail(`the browser's own dialog came up: ${JSON.stringify(native)}`);
 
-// 6. Start blank: an empty diagram of the chosen type in the builder, with a start on the canvas.
+// 5. Start blank: an empty diagram of the chosen type in the builder, with a start on the canvas.
 await page.emulateMedia({ colorScheme: 'light' });
 await page.getByRole('button', { name: 'New' }).click();
 if (await page.locator('.template-card', { hasText: /^Empty/ }).count()) fail('the picker still shows Empty cards');

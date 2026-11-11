@@ -4,7 +4,8 @@
   "type": "module",
   "license": "MIT",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./svg-safe": "./src/svg-safe.ts"
   },
   "dependencies": {
     "@cartography/core": "workspace:*",

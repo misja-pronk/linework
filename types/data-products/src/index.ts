@@ -31,7 +31,7 @@ import {
 } from '@cartography/core';
 import { findField, readOdcs, type ContractModel } from './odcs.ts';
 
-export { isOdcs, readOdcs, type ContractModel, type ContractRelation } from './odcs.ts';
+export { readOdcs, type ContractModel, type ContractRelation } from './odcs.ts';
 
 export const classes: KindTable = {
   'source-aligned': { label: 'Source-aligned', icon: 'package', tone: 'teal', keywords: ['raw', 'operational'] },
@@ -99,8 +99,6 @@ interface Product extends Named {
   version?: string | number;
   /** Where it is in its life when that is worth saying: draft, proposed, deprecated, retired. */
   status?: string;
-  /** The data product file (ODPS) it was imported from; importing again updates it from there. */
-  file?: string;
   detail?: boolean;
   inputs?: Ref[];
   outputs?: Record<string, string | Port | null>;
@@ -522,7 +520,6 @@ const schema = {
             owner: { type: 'string' },
             version: { type: ['string', 'number'] },
             status: { type: 'string', description: 'Shown after the class, e.g. draft or deprecated' },
-            file: { type: 'string', description: 'The data product file (ODPS) it was imported from; carto import updates it from there' },
             detail: { type: 'boolean', description: 'Show this product in detail in the overview' },
             inputs: { type: 'array', items: ref, description: 'Input ports: where the data comes from' },
             outputs: ids({
@@ -588,7 +585,7 @@ export const dataProducts: DiagramType<DataProductSource> = {
     { text: 'The tables inside one database', use: 'erd' },
     { text: 'ETL jobs and services as boxes', use: 'systems' },
   ],
-  keywords: ['data product', 'data mesh', 'domain', 'contract', 'odcs', 'odps', 'port', 'lineage', 'consumer', 'dataset', 'dashboard', 'report', 'analytics', 'warehouse', 'lakehouse', 'sla'],
+  keywords: ['data product', 'data mesh', 'domain', 'contract', 'odcs', 'port', 'lineage', 'consumer', 'dataset', 'dashboard', 'report', 'analytics', 'warehouse', 'lakehouse', 'sla'],
   schema,
   palette,
   build,

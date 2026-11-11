@@ -8,7 +8,7 @@ import { findType, themes, types } from '@cartography/engine';
 import { editDiagram } from './edit.ts';
 import { discoveredLink, proposeChange, type LiveLink } from './live.ts';
 import { describeDiagram, diffDiagrams } from './insight.ts';
-import { getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
+import { getSchema, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
 
 const themeNames = Object.keys(themes) as [string, ...string[]];
 const version = '0.0.0';
@@ -247,21 +247,6 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     safely(async (args) => {
       const r = await diffDiagrams(args, cwd);
       return { content: [{ type: 'text', text: `${args.file} against ${r.against}: ${r.summary}` }, ...json(r).content] };
-    }),
-  );
-
-  server.registerTool(
-    'import_mermaid',
-    {
-      title: 'Import Mermaid',
-      description: 'Converts a Mermaid diagram (flowchart/graph, stateDiagram, architecture-beta, erDiagram, sequenceDiagram, gitGraph, gantt, timeline, journey) to Cartography YAML, with warnings for what could not be carried over. Validate the result before rendering.',
-      inputSchema: { text: z.string().describe('The Mermaid source, without the ``` fence') },
-      annotations: { readOnlyHint: true },
-    },
-    safely(({ text }) => {
-      const r = importMermaidText(text);
-      if (!r.yaml) return failed(r.warnings.join('\n') || 'Nothing could be imported');
-      return { content: [{ type: 'text', text: r.yaml }, ...(r.warnings.length ? [{ type: 'text' as const, text: `Warnings:\n${r.warnings.map((w) => `- ${w}`).join('\n')}` }] : [])] };
     }),
   );
 

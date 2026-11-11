@@ -90,6 +90,21 @@ For a new diagram, the start dialog's **Your AI** asks a few questions about wha
 them as a prompt with the schema and an example, and takes the answer back: paste it, see it drawn,
 open it.
 
+## From other tools
+
+Cartography has no importers. Your own AI converts a Mermaid, D2, PlantUML, Structurizr, draw.io,
+Excalidraw or Terraform file, a Kubernetes manifest or a Compose file well: give it the file and say
+which type to draw. It reads the type's schema with `get_schema`, writes the YAML, and checks it with
+`validate` (problems, and how the layout reads) until it is clean. Ask it to keep the ids, to pick
+real kinds instead of generic boxes, and to say what it left out.
+
+```text
+Convert docs/checkout.mmd into a Cartography systems diagram in docs/checkout.yaml.
+Keep the ids, group by subgraph, and validate it.
+```
+
+Without MCP, **Copy for your AI** with the file pasted under it does the same in any chat.
+
 ## Privacy
 
 Cartography never talks to the network. Nothing is sent anywhere by the editor, the VS Code

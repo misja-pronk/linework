@@ -1,0 +1,36 @@
+type: systems
+title: Event mesh
+direction: right
+captions: written
+
+nodes:
+  orders: { kind: service, label: Order service }
+  ordersTopic: { kind: topic, label: orders topic }
+  payments: { kind: payments, label: Payment service }
+  paymentsTopic: { kind: topic, label: payments topic }
+  inventory: { kind: service, label: Inventory service }
+  stockTopic: { kind: topic, label: stock topic }
+  shipping: { kind: service, label: Shipping service }
+  shipmentsTopic: { kind: topic, label: shipments topic }
+  analytics: { kind: step, label: Analytics }
+  notify: { kind: step, label: Notifications }
+  ledger: { kind: step, label: Ledger }
+  search: { kind: search, label: Search index }
+
+edges:
+  - orders -> ordersTopic
+  - payments -> paymentsTopic
+  - inventory -> stockTopic
+  - shipping -> shipmentsTopic
+  - ordersTopic -> payments
+  - ordersTopic -> inventory
+  - ordersTopic -> analytics
+  - ordersTopic -> notify
+  - paymentsTopic -> orders
+  - paymentsTopic -> ledger
+  - paymentsTopic -> analytics
+  - stockTopic -> orders
+  - stockTopic -> search
+  - shipmentsTopic -> orders
+  - shipmentsTopic -> notify
+  - shipmentsTopic -> analytics

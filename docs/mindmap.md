@@ -56,11 +56,9 @@ Like the org chart, a mind map keeps to the drawing before: a branch stays on it
 
 Pick a topic to give it a note, an icon, a colour or a side. `A` adds a topic under the one picked (as `parent:`); drag a line from a topic to a branch to hang the branch there.
 
-## Importing and exporting
+## Exporting
 
-- **Mermaid** `mindmap`: the indents are the levels; shapes (`(( ))`, `[ ]`, `{{ }}`) are taken off, `::icon()` is named in the report.
-- **PlantUML** `@startmindmap`: `*`, `+` and `-` topics, `left side`, boxless `_` topics, multi-line `:…;` topics.
-- **Export**: PowerPoint, draw.io and Excalidraw get a shape per topic and the lines as drawn; Mermaid export writes a `mindmap`.
+PowerPoint gets a shape per topic and the lines as drawn.
 
 ## Mind map, capability map or teams?
 

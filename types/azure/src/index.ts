@@ -60,7 +60,7 @@ export const config: GraphTypeConfig = {
     'nat-gateway': { label: 'NAT gateway', icon: 'network', tone: 'sky' },
     expressroute: { label: 'ExpressRoute', icon: 'cable', tone: 'sky' },
     mysql: { label: 'MySQL', icon: 'database', tone: 'indigo' },
-    // Plumbing: what an import leaves out unless asked for everything (carto import --all).
+    // Plumbing: plans, network interfaces, disks, public IPs, route tables.
     'app-service-plan': { label: 'App Service plan', icon: 'layers', tone: 'blue' },
     nic: { label: 'Network interface', icon: 'ethernet-port', tone: 'slate' },
     disk: { label: 'Managed disk', icon: 'hard-drive', tone: 'slate' },

@@ -1,8 +1,6 @@
-# Made by: carto import examples/data-products/mesh
-# What the files say is updated by running that again; what is added here by hand stays.
 type: data-products
 title: Web shop data mesh
-subtitle: Six data products over three domains, read from their ODPS and ODCS files
+subtitle: Six data products over three domains, with their ODCS contracts
 
 domains:
   customer: { label: Customer }
@@ -17,12 +15,11 @@ sources:
 products:
   customer-360:
     label: Customer 360
-    class: aggregate # by hand: it joins two domains, the files do not say so
+    class: aggregate # it joins two domains
     domain: customer
     owner: CRM team
     version: 0.9.0
     status: draft
-    file: mesh/products/customer-360.odps.yaml
     inputs: [orders.orders, customers]
     outputs:
       profiles: { kind: table, contract: customer-profiles }
@@ -32,7 +29,6 @@ products:
     domain: customer
     owner: CRM team
     version: 1.4.0
-    file: mesh/products/customers.odps.yaml
     inputs: [crm-accounts]
     outputs:
       customers: { kind: table, contract: customers }
@@ -41,7 +37,6 @@ products:
     class: source-aligned
     owner: Treasury
     version: "1.0"
-    file: mesh/products/exchange-rates.odps.yaml
     outputs:
       rates-api: { kind: api, label: Rates API }
   orders:
@@ -50,7 +45,6 @@ products:
     domain: sales
     owner: Sales engineering
     version: 2.1.0
-    file: mesh/products/orders.odps.yaml
     inputs: [webshop-order-events]
     outputs:
       orders: { kind: table, contract: orders }
@@ -61,7 +55,6 @@ products:
     domain: finance
     owner: Finance data
     version: 3.2.0
-    file: mesh/products/payments.odps.yaml
     inputs: [payment-provider-settlements]
     outputs:
       settled-payments: { kind: table, label: settled payments, contract: settled-payments }
@@ -71,12 +64,10 @@ products:
     domain: finance
     owner: Finance data
     version: 1.2.0
-    file: mesh/products/revenue.odps.yaml
     inputs: [orders.orders, payments, exchange-rates]
     outputs:
       revenue-by-day: { kind: api, label: revenue by day }
 
-# Added by hand: who uses the data is not in the product files.
 consumers:
   cfo: { kind: dashboard, label: CFO dashboard, uses: [revenue] }
   campaigns: { kind: application, label: Campaign tool, uses: [customer-360] }

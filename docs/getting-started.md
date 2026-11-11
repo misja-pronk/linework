@@ -56,8 +56,7 @@ The type decides what can go in a diagram and how it is laid out: Azure, AWS and
 
 ## Where to next
 
-- Already have diagrams? Read the guide for [Mermaid](coming-from/mermaid.md), [D2](coming-from/d2.md), [draw.io](coming-from/drawio.md), [PlantUML](coming-from/plantuml.md) or [Structurizr](coming-from/structurizr.md).
-- No diagrams yet, but code? `carto import .` in a repository draws its Compose file, Helm chart, Bicep, OpenAPI, AsyncAPI and workflows: [diagrams from a code repository](repo-import.md).
+- Already have diagrams in Mermaid, D2, draw.io, PlantUML, Structurizr or Terraform? Your own AI converts them: [from other tools](ai.md#from-other-tools).
 - Draw the same systems in several diagrams: [one model, many diagrams](model.md).
 - Put diagrams in your docs site, drawn at build time: [embed.md](embed.md).
 - Check diagrams and show what changed in pull requests: [ci.md](ci.md).

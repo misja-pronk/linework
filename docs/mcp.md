@@ -22,7 +22,6 @@ drawing before you see it.
 | `propose(file, edits, summary?)` | Shows `edit_diagram`'s edits in the open editor as a proposal: the drawing with the diff marks and the YAML diff. Returns `accepted` or `rejected` once the user decides; `not-open` or `no-editor` when the file is not open, so use `edit_diagram` then. Checked first: a change that does not validate is not shown |
 | `describe(yaml \| file, view?, …)` | The diagram in words (Markdown), as `carto describe` |
 | `diff(file, before? \| ref?, view?)` | What changed against another file or against the file at a git ref, element by element and in sentences, as `carto diff` |
-| `import_mermaid(text)` | Mermaid flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram and the others `carto import` reads → Cartography YAML, plus warnings |
 
 Resources: `cartography://types` and `cartography://schema/{type}`. Prompt: `create-diagram`
 (asks what to draw, picks a type, asks the type's questions, then runs the validate → render loop).

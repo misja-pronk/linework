@@ -1,13 +1,12 @@
 // Renders docs/comparison/src/<name>.mmd with Mermaid itself (in headless Chromium), <name>.d2 with D2
-// when the d2 binary is installed, and the same Mermaid imported into Cartography, side by side in png/.
-// Cartography's YAML is written to cartography/ untouched, so what you see is what the import gives.
+// when the d2 binary is installed, and the same diagram in Cartography, side by side in png/.
+// Cartography's YAML in cartography/ was converted from the Mermaid once and is not hand-tuned.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { chromium, type Page } from '@playwright/test';
 import { render } from '@cartography/engine';
-import { importMermaid } from '@cartography/import';
 import { toPng } from './png.ts';
 
 const SCALE = 1.5;
@@ -16,7 +15,6 @@ const dir = path.join(root, 'docs/comparison');
 const png = path.join(dir, 'png');
 const yamlDir = path.join(dir, 'cartography');
 fs.mkdirSync(png, { recursive: true });
-fs.mkdirSync(yamlDir, { recursive: true });
 
 const mermaidJs = createRequire(import.meta.url).resolve('mermaid/dist/mermaid.min.js');
 const hasD2 = (() => {
@@ -63,12 +61,10 @@ for (const file of fs.readdirSync(path.join(dir, 'src')).filter((f) => f.endsWit
     fs.rmSync(out);
   }
 
-  const imported = importMermaid(text);
-  fs.writeFileSync(path.join(yamlDir, `${name}.yaml`), imported.yaml);
-  const r = await render(imported.yaml, { fonts: 'none' });
+  const r = await render(fs.readFileSync(path.join(yamlDir, `${name}.yaml`), 'utf8'), { fonts: 'none' });
   for (const d of r.diagnostics) console.error(`${name}: ${d.message}`);
   fs.writeFileSync(path.join(png, `${name}-cartography.png`), toPng(r.svg!, SCALE));
-  console.log(`${name}${imported.warnings.length ? `  (import: ${imported.warnings.join('; ')})` : ''}`);
+  console.log(name);
 }
 
 await browser.close();

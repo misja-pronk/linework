@@ -1,53 +1,14 @@
 # Data products, contracts and lineage
 
-A data mesh is usually already written down: a file per data product ([ODPS](#what-is-read-from-a-data-product-odps)) and a file per data contract ([ODCS](#what-is-read-from-a-data-contract-odcs)), in a repository. Cartography reads that folder and draws the map: the products per domain, their ports, which product reads which, and the contracts behind the ports. No catalogue, no server, nothing leaves your machine.
+A data mesh as one map: the products per domain, their ports, which product reads which, and the contracts behind the ports. A contract can be an Open Data Contract Standard file ([ODCS](#what-is-read-from-a-data-contract-odcs)) next to the diagram: its schema, guarantees and checks are read from there. No catalogue, no server, nothing leaves your machine.
 
 ```sh
-carto render examples/data-products/mesh -o mesh.svg
+carto render examples/data-products/mesh.yaml -o mesh.svg
 ```
 
-![The mesh map of the example folder](data-products/mesh.png)
+![The mesh map of the example](data-products/mesh.png)
 
-The folder is [examples/data-products/mesh](../examples/data-products/mesh): six products (Bitol ODPS v1) and four contracts (ODCS 3.1) of a fictional web shop. Nothing in it was written for Cartography.
-
-## A folder becomes a map
-
-```sh
-carto render mesh/ -o mesh.svg                 # the picture, nothing else is written
-carto render mesh/ -o mesh.png --write mesh.yaml   # and keep the diagram it was drawn from
-carto import mesh/                             # only the diagram: mesh.yaml beside the folder
-carto import products/*.yaml contracts/*.yaml  # loose files: data-mesh.yaml
-carto import mesh/ -o -                        # to the terminal
-```
-
-Files are recognised by what is in them, not by their name: `.yaml`, `.yml` and `.json`, in the folder and the folders under it. Anything else in the folder is passed over. A file that cannot be read is reported with its name, the rest is still drawn, and the command exits with 1.
-
-What the map shows:
-
-- **A product per ODPS file**, in the domain it names. A contract no product has a port for becomes a product of its own (or joins the product it names in `dataProduct`), so a folder of contracts alone draws too.
-- **Lineage** from the ports. An input port names a contract; the product whose output port has that contract is what it reads. An input nobody in the folder offers is drawn as a source with the caption *Outside the mesh*: no product in the folder provides it, so the edge of what you know is visible.
-- **The class of a product** (source-aligned, aggregate, consumer-aligned) is not in either standard. On the first import it is read from where the product stands: one that reads no other product is source-aligned, one that reads products and is read itself is an aggregate, one that only reads is consumer-aligned. Change it in the diagram and it stays changed.
-
-### Running it again
-
-The diagram that `carto import` or `--write` made is yours to edit. Running the same command again brings it up to date with the files and keeps what you added:
-
-| The files win | Yours stays |
-| --- | --- |
-| label, domain, owner, version, status of a product | title, subtitle, `views:`, `focus:`, `steps:` |
-| its ports and which contract each has | consumers, and products and sources you wrote yourself |
-| what reads what | a product's `class`, `caption`, and `detail:` |
-| products and contracts that are gone from the folder go | a port's label and kind where the file gives none |
-
-A product keeps the id its file was first given, so positions you pinned in the editor (`mesh.layout.json`) and references you wrote by hand hold when a product is renamed. `--force` starts over.
-
-### In the editor
-
-- **Open** (`⌘O`) takes several files at once: pick the product and contract files and they open as one map.
-- **Drop** files or a folder anywhere on the page.
-- **Open folder…** (in the command palette, `⌘K`) on a folder that has data products or contracts and no diagram yet makes `data-mesh.yaml` in it, unsaved until you press `⌘S`. *Data mesh map of ‹folder›* in the palette brings it up to date later, the same way the command line does.
-
-The files stay with the document, so the detailed view can read the contracts, also after a reload.
+The diagram is [examples/data-products/mesh.yaml](../examples/data-products/mesh.yaml): six products of a fictional web shop over three domains, with four contracts (ODCS 3.1) in [mesh/contracts](../examples/data-products/mesh/contracts). Your products are written down already, as ODPS files or in a catalogue? Ask your own AI to write the diagram from them ([ai.md](ai.md)).
 
 ## Ports, contracts and keys
 
@@ -124,37 +85,6 @@ carto render shop.yaml --focus api --hops 2            # any diagram of boxes an
 
 A chip at the top of the drawing says what is shown (*Focused on Revenue*, how many of the elements are drawn, the hops and the direction) with the same actions as buttons, and each of them is in the command palette (`⌘K`) under *Focus*. The focus you set with keys is a way of looking: it is not written to the YAML, and an export (`⌘E`) is what you see. When the file itself has a `focus:`, `Esc` shows everything and `Esc` again goes back to it.
 
-## What is read from a data product (ODPS)
-
-Two standards carry the name. Both are read; which one a file is, is seen from its content.
-
-**Open Data Product Standard v1** (Bitol, Linux Foundation AI & Data): `kind: DataProduct`.
-
-| In the file | In the diagram |
-| --- | --- |
-| `name` (else `id`) | The product and its label |
-| `domain` | The domain it is drawn in |
-| `team.name`, else the member with the owner role | Owner |
-| `version`, `status` | In the caption; a status is shown unless it is active |
-| `inputPorts[].name`, `.contractId` | An input, linked to the product that offers that contract |
-| `outputPorts[].name`, `.type`, `.contractId` | An output port, its kind (table, topic, API, files…, read from `type`) and its contract |
-| `outputPorts[].inputContracts[]` | Lineage as well |
-
-Not read: `description`, `tags`, `managementPorts`, `support`, `team.members` beyond the owner, `productCreatedTs`, `customProperties`, `authoritativeDefinitions`.
-
-**Open Data Product Specification 3.x and 4.x** (Linux Foundation, opendataproducts.org): a `product:` with `details` or a language block such as `en`.
-
-| In the file | In the diagram |
-| --- | --- |
-| `name`, `productID` | The product |
-| `categories[0]`, else `dataHolder.businessDomain` | Domain |
-| `dataHolder.legalName` | Owner |
-| `productVersion` or `version`, `status` | In the caption |
-| `dataAccess` (one in 3.x, named ways in 4.x) | Output ports |
-| `contract.id` | The contract of the first port |
-
-Not read: pricing plans, licence, SLA, data quality, support, payment gateways. This specification has no input ports, so its lineage is yours to add in the diagram: `inputs:` you write stay through the next import.
-
 ## What is read from a data contract (ODCS)
 
 **Open Data Contract Standard** (Bitol) 2.x, 3.0 and 3.1: `kind: DataContract`, with `schema[].properties[]` (3.x) or `dataset[].columns[]` (2.x).
@@ -176,8 +106,6 @@ Not read: `servers`, `roles`, `price`, `support`, `description`, `tags`, `author
 
 ## The standards
 
-- Open Data Product Standard (Bitol): <https://bitol-io.github.io/open-data-product-standard/>
 - Open Data Contract Standard (Bitol): <https://bitol-io.github.io/open-data-contract-standard/>
-- Open Data Product Specification (Linux Foundation): <https://opendataproducts.org/>
 
-Writing a data-products diagram by hand, without any of these files: see [Data products](types.md#data-products) and [examples/data-products](../examples/data-products).
+Writing a data-products diagram: see [Data products](types.md#data-products) and [examples/data-products](../examples/data-products).

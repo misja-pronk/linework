@@ -9,7 +9,7 @@
     {
       "id": "cartography",
       "name": "Cartography",
-      "note": "The Mermaid source through `carto import`, default theme, no hand-tuning"
+      "note": "The Mermaid source converted to YAML once, untouched (`docs/benchmark/cartography`), default theme, no hand-tuning"
     },
     {
       "id": "mermaid",

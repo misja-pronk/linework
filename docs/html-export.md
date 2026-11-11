@@ -79,7 +79,7 @@ Sizes, measured on the examples:
 | `examples/systems/web-shop.yaml` | 1 | 246 kB |
 | `examples/systems/invoice-walkthrough.yaml` | 1 and 7 steps | 254 kB |
 | `examples/workspace` (folder) | 14 | 273 kB |
-| an Azure import of 129 resources, 123 cards | 1 | 291 kB |
+| an Azure estate of 129 resources, 123 cards | 1 | 291 kB |
 
 About 200 kB of that is the fonts; each drawing adds a few kB.
 

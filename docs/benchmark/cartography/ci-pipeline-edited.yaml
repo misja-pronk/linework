@@ -1,0 +1,11 @@
+type: process
+title: Delivery pipeline
+direction: right
+
+flow:
+  - Push -> Lint -> All green? -yes-> Deploy to staging -> End-to-end tests -> Approved? -yes-> Deploy to production -> Smoke tests -fails-> Roll back
+  - Push -> Unit tests -> All green?
+  - Push -> Build image -> Image scan -> All green?
+  - All green? -no-> Fix and push again -> Push
+  - Approved? -no-> Fix and push again
+  - Smoke tests -> Notify the team

@@ -92,6 +92,17 @@ It is good enough to see where things land, not a full renderer (no autofit, eff
 The templates in the tests are made up (*Exemplar Group*, *Polder Advies*); a real company's template never goes
 into the repository.
 
+## An SVG for PowerPoint, Word and Keynote
+
+PowerPoint, Word and Keynote take an SVG, but drop or misdraw much of what a browser draws: style sheets, CSS variables, filters, markers, `foreignObject`, web fonts. `--svg-safe` (in the editor: the *SVG for PowerPoint / Word* switch in the Export menu, remembered) writes the same drawing without them:
+
+- every style is a presentation attribute (`fill="…"`), variables become their value;
+- no filters, patterns, gradients, clip paths, masks, markers or links; shadows and the dot grid go;
+- text is in Arial (or Courier New for code), which every machine has;
+- one group per node and per line, so *Ungroup* in PowerPoint gives shapes you can recolour.
+
+`--outline-text` goes one step further: every word becomes a path in the theme's own font, so the drawing looks exactly as in Cartography on any machine. The text can then no longer be edited or searched.
+
 ## Limits
 
 - Fonts are named, not embedded, as in every deck Cartography writes: where the template's face is not installed,

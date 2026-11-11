@@ -73,7 +73,7 @@ describe('carto --lang', () => {
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');
     expect(render.out).toContain('               [--view name | --all-views]      één weergave van het diagram');
-    expect(render.out).not.toMatch(/^ {2}carto import/m);
+    expect(render.out).not.toMatch(/^ {2}carto deck/m);
     expect(render.out).toMatch(/Alle commando's: carto --help\n$/);
     expect(carto({}, '--lang', 'nl', 'render', 'missing.yaml').err).toBe('carto: missing.yaml: bestand of map bestaat niet\n');
     expect(carto({}, '--lang', 'nl', 'render', 'x.yaml', '--bogus').err).toBe("carto: Onbekende optie '--bogus'\nOpties: carto render --help\n");

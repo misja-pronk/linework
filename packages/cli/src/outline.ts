@@ -5,7 +5,7 @@ import * as fontkit from 'fontkit';
 import wawoff2 from 'wawoff2';
 import { bundledFontFiles } from '@cartography/theme/node';
 import type { FontFace, Theme } from '@cartography/theme';
-import type { SafeSvgOptions, TextFont } from '@cartography/interop';
+import type { SafeSvgOptions, TextFont } from '@cartography/export/svg-safe';
 
 interface Glyph {
   id: number;

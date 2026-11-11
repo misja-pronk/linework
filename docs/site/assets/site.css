@@ -369,13 +369,6 @@ h3 .chip { height: 20px; font-size: 11px; font-family: var(--mono); font-weight:
 .feature h3 { margin: 12px 0 6px; font-size: 17px; font-weight: 600; }
 .feature p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
 .feature code { font-size: 12.5px; }
-.guides { display: flex; flex-wrap: wrap; gap: 12px; }
-.guide {
-  display: inline-flex; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px;
-  color: var(--ink); font-weight: 600; font-size: 16px; background: var(--page);
-}
-.guide:hover { background: var(--paper-1); text-decoration: none; }
-.guide .i { color: var(--accent); }
 
 /* ------------------------------------------------------------------ gallery */
 

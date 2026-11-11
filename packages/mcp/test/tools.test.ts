@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { types } from '@cartography/engine';
-import { createPrompt, getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, resolvePath, validateDiagram } from '../src/index.ts';
+import { createPrompt, getSchema, listTypes, newDiagram, renderDiagram, resolvePath, validateDiagram } from '../src/index.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-mcp-'));
@@ -145,13 +145,7 @@ describe('render', () => {
   });
 });
 
-describe('import and prompt', () => {
-  it('imports Mermaid into valid YAML', async () => {
-    const r = importMermaidText('flowchart LR\n  A[Web] --> B[(Orders DB)]\n');
-    expect(r.yaml).toMatch(/^type: systems/m);
-    expect((await validateDiagram({ yaml: r.yaml })).ok).toBe(true);
-  });
-
+describe('prompt', () => {
   it('carries the per-type questions', () => {
     const p = createPrompt('our order platform');
     expect(p).toContain('our order platform');

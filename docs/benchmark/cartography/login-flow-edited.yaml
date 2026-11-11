@@ -1,0 +1,12 @@
+type: process
+title: Sign-in flow
+direction: down
+
+nodes:
+  User opens app: start
+
+flow:
+  - User opens app -> Valid session? -yes-> Show home screen -> Sign out
+  - Valid session? -no-> Login page -> Redirect to identity provider -> MFA required? -yes-> Ask one-time code -> Code correct? -yes-> Issue tokens -> Show home screen
+  - MFA required? -no-> Issue tokens
+  - Code correct? -> Ask one-time code: "no, retry"

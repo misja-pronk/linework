@@ -16,7 +16,6 @@
     "@cartography/docs-plugins": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/icons": "workspace:*",
-    "@cartography/import": "workspace:*",
     "@cartography/theme": "workspace:*",
     "markdown-it": "^15.0.3"
   },

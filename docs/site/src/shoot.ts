@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test';
 const dist = path.resolve(import.meta.dirname, '../dist');
 const [outDir = path.join(dist, '../shots'), ...only] = process.argv.slice(2);
 fs.mkdirSync(outDir, { recursive: true });
-const pages = only.length ? only : ['index.html', 'types.html', 'embed.html', 'gallery/index.html', 'gallery/systems.html', 'benchmark.html', 'coming-from/mermaid.html'];
+const pages = only.length ? only : ['index.html', 'types.html', 'embed.html', 'gallery/index.html', 'gallery/systems.html', 'benchmark.html'];
 
 const browser = await chromium.launch();
 const errors: string[] = [];

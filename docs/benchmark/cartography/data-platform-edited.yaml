@@ -1,0 +1,40 @@
+type: systems
+title: Analytics platform
+direction: down
+captions: written
+
+groups:
+  sources: { kind: group, label: Sources }
+  ingest: { kind: group, label: Ingestion }
+  lake: { kind: group, label: Lakehouse }
+  serve: { kind: group, label: Serving }
+
+nodes:
+  crm: { kind: external, label: Salesforce CRM, in: sources }
+  shop: { kind: database, label: Shop database, in: sources }
+  events: { kind: topic, label: Clickstream events, in: sources }
+  cdc: { kind: step, label: Debezium CDC, in: ingest }
+  kafka: { kind: topic, label: Kafka topics, in: ingest }
+  batch: { kind: job, label: Nightly batch job, in: ingest }
+  raw: { kind: storage, label: Raw zone S3, in: lake }
+  dbt: { kind: step, label: dbt transformations, in: lake }
+  wh: { kind: warehouse, label: Snowflake warehouse, in: lake }
+  bi: { kind: client, label: Looker dashboards, in: serve }
+  ml: { kind: ai, label: Churn model, in: serve }
+  api: { kind: api, label: Metrics API, in: serve }
+  reverse: { kind: job, label: Reverse ETL }
+
+edges:
+  - shop -> cdc
+  - cdc -> kafka
+  - events -> kafka
+  - crm -> batch
+  - kafka -> raw
+  - batch -> raw
+  - raw -> dbt
+  - dbt -> wh
+  - wh -> bi
+  - wh -> ml
+  - wh -> api
+  - ml -> crm: { label: scores, style: async }
+  - wh -> reverse

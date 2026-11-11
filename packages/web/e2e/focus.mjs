@@ -1,7 +1,7 @@
 // Focus: F cuts the drawing down to the selection and what is around it, + and − reach further or less
 // far, D turns it upstream or downstream, F on a neighbour walks on, Esc goes back; the YAML stays as it
-// is and the export is what is on screen. Then data product and contract files dropped on the page
-// become one data mesh map: node e2e/focus.mjs <outDir>
+// is and the export is what is on screen. Then a data products diagram dropped on the page, its
+// lineage and its detailed view: node e2e/focus.mjs <outDir>
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -259,11 +259,11 @@ await wait(400);
   }
 }
 
-// 9. Data products and contracts (ODPS, ODCS) dropped on the page: one data mesh map, its contracts read for the detailed view.
+// 9. A data products diagram dropped on the page: focus on its lineage, and the detailed view with its contracts.
 {
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/data-products/mesh');
-  const files = ['products', 'contracts'].flatMap((d) => fs.readdirSync(path.join(dir, d)).map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, d, f), 'utf8') })));
-  const dropMesh = () => page.evaluate((files) => {
+  const file = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/data-products/customer.yaml');
+  const files = [{ name: 'customer.yaml', text: fs.readFileSync(file, 'utf8') }];
+  const drop = () => page.evaluate((files) => {
     const data = new DataTransfer();
     for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
     const at = document.querySelector('.app');
@@ -273,7 +273,7 @@ await wait(400);
   // The open diagram has changes that are in no file: a drop asks before it replaces them, and No keeps them.
   const unsaved = await yaml();
   // Asked in the app's own dialog (review 3: it was the browser's confirm()); Keep editing keeps them.
-  await dropMesh();
+  await drop();
   const ask = page.locator('.confirm-dialog');
   await ask.waitFor({ timeout: 3000 }).catch(() => {});
   const asked = (await ask.count()) ? await ask.innerText() : '';
@@ -282,35 +282,25 @@ await wait(400);
   await wait(500);
   check('Keep editing keeps the unsaved diagram', await yaml(), unsaved);
   const stopDrop = discarding();
-  await page.evaluate((files) => {
-    const data = new DataTransfer();
-    for (const f of files) data.items.add(new File([f.text], f.name, { type: 'text/yaml' }));
-    const at = document.querySelector('.app');
-    at.dispatchEvent(new DragEvent('dragover', { dataTransfer: data, bubbles: true, cancelable: true }));
-    at.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
-  }, files);
-  await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the dropped data products were not drawn'));
+  await drop();
+  await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the dropped diagram was not drawn'));
   stopDrop();
-  const said = await page.locator('.toast').innerText().catch(() => '');
-  if (!said.includes('6 data products, 4 contracts')) fail('the drop should say what it made: ' + said);
   await wait(600);
-  const doc = await stored();
-  if (!/^type: data-products/m.test(doc.text ?? '')) fail('the drop should open a data-products diagram');
-  check('the files stay with the document', Object.keys(doc.doc?.files ?? {}).length, 10);
-  await page.screenshot({ path: `${out}/f5-mesh.png` });
-  await select('revenue');
+  if (!/^type: data-products/m.test((await stored()).text ?? '')) fail('the drop should open the data-products diagram');
+  await page.screenshot({ path: `${out}/f5-products.png` });
+  await select('churn');
   await page.keyboard.press('f');
   await page.keyboard.press('d');
   await wait(600);
-  if (!(await chip()).includes('Focused on Revenue') || !(await chip()).includes('Upstream')) fail('focus on a data product: ' + (await chip()));
-  await page.screenshot({ path: `${out}/f6-mesh-lineage.png` });
+  if (!(await chip()).includes('Focused on Churn risk') || !(await chip()).includes('Upstream')) fail('focus on a data product: ' + (await chip()));
+  await page.screenshot({ path: `${out}/f6-lineage.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // The detailed view reads the contracts that came with the drop: V shows it without touching the YAML.
+  // V shows the detailed view without touching the YAML.
   const before = await yaml();
   await page.locator('.preview').focus();
   await page.keyboard.press('v');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the dropped contracts'));
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the contracts'));
   if ((await page.locator('.view-picker select').inputValue().catch(() => '')) !== 'detailed') fail('the view picker should say Detailed');
   check('V leaves the YAML as it is', await yaml(), before);
   await page.keyboard.press('v');
@@ -324,64 +314,7 @@ await wait(400);
   if (!/^view: detailed/m.test(await yaml())) fail('writing the view should put view: detailed in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
   if (!(await page.locator('.drawing [data-node^="contract:"]').count())) fail('the drawing should stay detailed once the view is written');
   await page.keyboard.press('Meta+Backslash');
-  await page.screenshot({ path: `${out}/f7-mesh-detailed.png` });
-  // After a reload the contracts are still there: they are kept with the document.
-  await page.reload();
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the dropped contracts were lost in a reload'));
-}
-
-// 10. A folder with only data products and contracts: opening it draws them, and ⌘S keeps the map as data-mesh.yaml in it.
-{
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../examples/data-products/mesh');
-  const files = Object.fromEntries(['products', 'contracts'].flatMap((d) => fs.readdirSync(path.join(dir, d)).map((f) => [`${d}/${f}`, fs.readFileSync(path.join(dir, d, f), 'utf8')])));
-  const inFolder = () =>
-    page.evaluate(async () => {
-      const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('mesh');
-      return (await (await d.getFileHandle('data-mesh.yaml')).getFile()).text().catch(() => '');
-    });
-  await page.evaluate(async (files) => {
-    const opfs = await navigator.storage.getDirectory();
-    for await (const [name] of opfs.entries()) await opfs.removeEntry(name, { recursive: true });
-    const dir = await opfs.getDirectoryHandle('mesh', { create: true });
-    for (const [p, text] of Object.entries(files)) {
-      const parts = p.split('/');
-      const d = await dir.getDirectoryHandle(parts[0], { create: true });
-      const w = await (await d.getFileHandle(parts[1], { create: true })).createWritable();
-      await w.write(text);
-      await w.close();
-    }
-    window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('mesh');
-  }, files);
-  // The map of the drop is not kept: this is about the folder.
-  const stop = discarding();
-  await palette('open folder');
-  await page.waitForSelector('.drawing [data-node="customer-360"]', { timeout: 10000 }).catch(() => fail('the data products of the folder were not drawn'));
-  // The open folder may ask once more (its first file over the dropped map): still discarded.
-  await page.waitForTimeout(800);
-  stop();
-  const said = await page.locator('.toast').innerText().catch(() => '');
-  if (!said.includes('6 data products, 4 contracts in mesh')) fail('opening the folder should say what it made: ' + said);
-  if (!(await page.locator('.doc-name .dirty').count())) fail('the new map is not in the folder yet: it should show as unsaved');
-  await page.keyboard.press('Meta+s');
-  await wait(600);
-  if (await page.locator('.doc-name .dirty').count()) fail('still unsaved after ⌘S');
-  const first = await inFolder().catch(() => '');
-  if (!/^type: data-products/m.test(first)) fail('⌘S did not write data-mesh.yaml into the folder');
-  // Again, with something added by hand: it stays. Next to the side panel in a folder the YAML may be
-  // folded for room: its rail opens it.
-  if (!(await page.locator('.cm-content').isVisible()) && (await page.locator('button.yaml-rail').count())) await page.click('button.yaml-rail');
-  if (!(await page.locator('.cm-content').isVisible())) await page.click('.view-switch button:has-text("YAML")');
-  await page.waitForTimeout(300);
-  await page.click('.cm-content');
-  await page.keyboard.press('Meta+End');
-  await page.keyboard.type('\n# reviewed by the data office');
-  await page.keyboard.press('Meta+s');
-  await wait(600);
-  await palette('data mesh map of mesh');
-  await wait(800);
-  const again = await yaml();
-  if (!again.includes('# reviewed by the data office') || !/^type: data-products/m.test(again)) fail('making the map again should keep what was added by hand');
-  if (!(await page.locator('.toast').innerText().catch(() => '')).includes('kept')) fail('making the map again should say that edits are kept');
+  await page.screenshot({ path: `${out}/f7-detailed.png` });
 }
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all focus steps ok');

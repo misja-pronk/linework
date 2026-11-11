@@ -165,26 +165,8 @@ export const nlShow = {
   'Stop using {name}': '{name} niet meer gebruiken',
 
   // repo-dialog.tsx
-  'Diagrams from the code': 'Diagrammen uit de code',
-  'Diagrams from the code in {name}': 'Diagrammen uit de code in {name}',
-  '{count} found: one diagram for each source.': '{count} gevonden: één diagram per bron.',
-  'Picked ones are written to {folder}; importing again keeps what you changed by hand.': 'De gekozen diagrammen komen in {folder}; opnieuw importeren houdt wat je met de hand hebt gewijzigd.',
-  'Picked ones are written to the folder; importing again keeps what you changed by hand.': 'De gekozen diagrammen komen in de map; opnieuw importeren houdt wat je met de hand hebt gewijzigd.',
-  'Open one to look at it; open the folder to write them all.': 'Open er een om hem te bekijken; open de map om ze allemaal te schrijven.',
   Diagrams: 'Diagrammen',
-  'Helm chart': 'Helm-chart',
-  'ARM template': 'ARM-sjabloon',
-  'your edits kept': 'je wijzigingen blijven',
-  '{count} note|{count} notes': '{count} opmerking|{count} opmerkingen',
-  'Open this one (O)': 'Deze openen (O)',
   Open: 'Openen',
-  'Also found, not drawn ({count})': 'Ook gevonden, niet getekend ({count})',
-  'picks@hint': 'kiezen',
-  'opens@hint': 'openen',
-  'all@hint': 'alles',
-  'Write {count} diagram to {folder}|Write {count} diagrams to {folder}': '{count} diagram naar {folder} schrijven|{count} diagrammen naar {folder} schrijven',
-  'Write {count} diagram|Write {count} diagrams': '{count} diagram schrijven|{count} diagrammen schrijven',
-  'Open {name}': '{name} openen',
 
   // icon-packs-dialog.tsx, icon-packs.ts
   '{vendor} icons: {have} of {of} kinds have an icon': 'Iconen van {vendor}: {have} van {of} soorten hebben een icoon',

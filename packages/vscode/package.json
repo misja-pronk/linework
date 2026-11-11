@@ -1,7 +1,7 @@
 {
   "name": "@cartography/vscode",
   "displayName": "Cartography",
-  "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, export, import, and ```cartography blocks in the Markdown preview",
+  "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, export, and ```cartography blocks in the Markdown preview",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -65,11 +65,6 @@
         "category": "Cartography"
       },
       {
-        "command": "cartography.import",
-        "title": "Import from Mermaid, D2, PlantUML, draw.io, Excalidraw or Structurizr…",
-        "category": "Cartography"
-      },
-      {
         "command": "cartography.copyShareLink",
         "title": "Copy Share Link",
         "category": "Cartography"
@@ -100,11 +95,6 @@
         }
       ],
       "explorer/context": [
-        {
-          "command": "cartography.import",
-          "when": "resourceExtname =~ /^\\.(mmd|mermaid|d2|puml|plantuml|drawio|dio|excalidraw|dsl)$/",
-          "group": "navigation@90"
-        },
         {
           "command": "cartography.showPreview",
           "when": "resourceFilename =~ /\\.carto\\.ya?ml$/",
@@ -210,8 +200,6 @@
     "@cartography/docs-plugins": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
-    "@cartography/import": "workspace:*",
-    "@cartography/interop": "workspace:*",
     "@cartography/mcp": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",

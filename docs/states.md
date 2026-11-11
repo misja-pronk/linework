@@ -8,7 +8,6 @@ It answers "which states are there, and how do you get from one to another". Who
 carto new states order.yaml                    # a starter with a composite state
 carto render order.yaml --format png           # svg, png, pdf, pptx
 carto render order.yaml --all-steps --format pptx    # one slide per state on the way from start to end
-carto import machine.mmd                       # a Mermaid stateDiagram
 ```
 
 ## The YAML reads like the machine
@@ -127,7 +126,7 @@ SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, ps
 
 ## From Mermaid
 
-`carto import machine.mmd` (and Import in the editor) reads `stateDiagram` and `stateDiagram-v2`.
+A Mermaid `stateDiagram` (or `stateDiagram-v2`) maps onto states like this. Give your own AI the file and this table ([ai.md](ai.md)).
 
 | Mermaid | States |
 | --- | --- |
@@ -139,14 +138,14 @@ SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, ps
 | `note right of s1 … end note`, `note left of s1: text` | `note` on the state |
 | `direction TB` | `direction: down` |
 
-What it cannot keep, it says in a warning:
+What has no counterpart:
 
-- `<<fork>>` and `<<join>>` come in as plain states with their lines: there are no fork and join bars.
-- Concurrent regions (`--` inside a composite state) are merged into one.
-- `classDef`, `class` and `style` are skipped: the theme decides the look.
-- `direction RL` is drawn left to right and `BT` top to bottom.
+- `<<fork>>` and `<<join>>`: there are no fork and join bars; plain states with their lines do.
+- Concurrent regions (`--` inside a composite state): one region.
+- `classDef`, `class` and `style`: the theme decides the look.
+- `direction RL` and `BT`: drawn left to right and top to bottom.
 
-A Mermaid state diagram that names no direction is drawn top to bottom by Mermaid and left to right here: that is what a slide wants. Add `direction: down` to have it back.
+A Mermaid state diagram that names no direction is drawn top to bottom by Mermaid and left to right here: that is what a slide wants. `direction: down` draws it top to bottom.
 
 ## Examples
 

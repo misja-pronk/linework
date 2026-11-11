@@ -64,15 +64,6 @@ exports[`the examples under review > stay quiet: at most three findings a file, 
     "azure.prod-single-region",
     "azure.no-diagnostics",
   ],
-  "repo/shop/diagrams/infra-azure.yaml": [
-    "azure.data-without-private-endpoint",
-  ],
-  "repo/shop/diagrams/kubernetes.yaml": [
-    "k8s.no-network-policy",
-  ],
-  "repo/shop/diagrams/shop-chart.yaml": [
-    "k8s.no-network-policy",
-  ],
   "transitions/datacenter-exit.yaml": [
     "azure.data-without-private-endpoint",
     "azure.data-without-private-endpoint",

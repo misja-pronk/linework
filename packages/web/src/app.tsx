@@ -8,8 +8,7 @@ import { Preview, type LabelTarget, type PreviewControl, type Selection } from '
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
 import { ArrangeBar, arrangeCommands, arrangeKey, useCraftPrefs } from './craft-actions.tsx';
 import { Palette, type Command } from './palette.tsx';
-import { Start, type Incoming, type Opened, type View } from './start.tsx';
-import { isDrawio, isExcalidraw } from '@cartography/interop';
+import { Start, type Opened, type View } from './start.tsx';
 import { Inspector } from './inspector.tsx';
 import { AddMenu } from './add-menu.tsx';
 import { Menu } from './menu.tsx';
@@ -17,18 +16,9 @@ import { Shortcuts } from './shortcuts.tsx';
 import { Icon } from './icon.tsx';
 import { useRender } from './use-render.ts';
 import { FocusChip, hopsBy, nextDirection, type Focus } from './focus-chip.tsx';
-import { dropped, folderOf, hasMesh, memoryLoader, meshFrom } from './mesh.ts';
+import { dropped } from './drop.ts';
 import { SLIDE_MIN_PT } from '@cartography/engine';
-import { exportFrom, exportKind, exportNotes, exportRemark } from './exports.ts';
-import { isRepo, scanRepo, type RepoDiagram } from '@cartography/import';
-import { RepoDialog, type RepoOffer } from './repo-dialog.tsx';
 
-/** The command palette's entry for the exports in the open folder, by what they are. */
-const EXPORT_ENTRY = {
-  access: { label: (name: string) => t('Who reaches what in {name}', { name }), hint: 'its az, Graph or AzureHound exports in access.yaml', icon: 'shield-user' },
-  github: { label: (name: string) => t('GitHub organisation of {name}', { name }), hint: 'its gh api responses in github.yaml', icon: 'folder-git-2' },
-  azure: { label: (name: string) => t('Azure resources in {name}', { name }), hint: 'its az graph query, az bicep build or terraform show -json output in azure.yaml', icon: 'cloud' },
-};
 import { ViewPicker } from './view-picker.tsx';
 import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
@@ -47,7 +37,7 @@ import { linkTarget } from './links.ts';
 import { entryAt, entryRanges } from './ranges.ts';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { folderBytes, TemplateItems, useTemplateChoice } from './pptx-template.tsx';
-import { baseName, download, exportDrawio, exportExcalidraw, exportMermaid, exportPageSvg, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName, type Handed } from './export.ts';
+import { baseName, download, exportPageSvg, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName } from './export.ts';
 import { addEntry, canMove, drawnAs, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, editChainLine, isChainLine, isEntryPath, moveEntry, pasteEntries, type Clip, edgeFields, fieldsFor, isScalarAt, parentKey, renameEntry, setEdgeField, setField } from './builder.ts';
 import { store } from './store.ts';
 import { decodeShare, SHARE_LIMIT, shareLink } from '@cartography/core';
@@ -67,7 +57,7 @@ import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { t, say, useUiLang, withUiLang, type Message } from './i18n/index.ts';
-import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, sidecarPath, writeInFolder, type Workspace } from './files.ts';
+import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, sidecarPath, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -77,8 +67,6 @@ interface Doc {
   starter?: string;
   /** Path inside the open folder. */
   path?: string;
-  /** The data product and contract files it was imported from, by path: its contracts are read from there. */
-  files?: Record<string, string>;
 }
 
 interface Saved {
@@ -270,17 +258,9 @@ export function App() {
   }, []);
 
   const load = useMemo(
-    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : doc.files ? memoryLoader(doc.files) : undefined),
-    [ws, doc.path, doc.starter, doc.files],
+    () => (ws && doc.path ? folderLoader(ws, doc.path) : doc.starter ? exampleLoader(doc.starter) : undefined),
+    [ws, doc.path, doc.starter],
   );
-  /** The open folder holds data products or data contracts (ODPS, ODCS): it can be drawn as one map. */
-  const meshInWs = useMemo(() => !!ws && hasMesh([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws]);
-  /** The open folder holds access exports or gh api responses: they can be drawn as one access or GitHub diagram. */
-  const exportInWs = useMemo(() => (ws && !meshInWs ? exportKind([...ws.files].map(([path, f]) => ({ path, text: f.text }))) : undefined), [ws, meshInWs]);
-  /** The open folder is a code repository (Compose, Helm, Bicep, OpenAPI, workflows …): a diagram can be made of each. */
-  const repoInWs = useMemo(() => !!ws && !meshInWs && isRepo([...ws.files].map(([path, f]) => ({ path, text: f.text }))), [ws, meshInWs]);
-  /** Diagrams from the code, offered in a dialog: written into the folder, or one opened. */
-  const [repoOffer, setRepoOffer] = useState<RepoOffer>();
   // Views: the one asked for (per document) and the one drawn (a diagram of only views draws its first).
   // Pins live per view in the sidecar; everything below works on the drawn view's pins.
   const docId = doc.path ?? doc.starter ?? doc.name;
@@ -630,7 +610,7 @@ export function App() {
     if (!(await leave())) return;
     fileHandle.current = undefined;
     setView(o.view);
-    open(withUiLang(o.text), { name: o.name, starter: o.starter }, o.pins, o.blank);
+    open(withUiLang(o.text), { name: o.name, starter: o.starter }, undefined, o.blank);
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };
@@ -664,7 +644,7 @@ export function App() {
           setWs(await scan(ws.dir));
         } else {
           fileHandle.current = r.handle;
-          setDoc({ name: r.name, ...(doc.files ? { files: doc.files } : {}) });
+          setDoc({ name: r.name });
         }
       } else download(yamlName(doc.name), now, 'text/yaml');
       setSavedText(now);
@@ -693,7 +673,6 @@ export function App() {
       setRemembered(next.dir);
       const first = diagrams(next)[0];
       if (first) openInFolder(next, first);
-      else if (meshInFolder(next) || repoInFolder(next) || exportInFolder(next)) return;
       else notify(t('No diagrams in {name} yet: start from a template and save it there', { name: next.name }));
     } catch (e) {
       notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
@@ -716,123 +695,10 @@ export function App() {
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
   };
 
-  /** A file from another tool goes through the Import panel: pages, positions and what was left out are shown first. */
-  const [incoming, setIncoming] = useState<Incoming>();
-  const foreign = (name: string, text: string) => /\.(drawio|dio|excalidraw|mmd|mermaid|d2|puml|plantuml)$/i.test(name) || (!/\.ya?ml$/i.test(name) && (isDrawio(text) || isExcalidraw(text)));
-  const OTHER = { 'application/xml': ['.drawio', '.dio', '.xml'], 'application/json': ['.excalidraw'], 'text/plain': ['.mmd', '.mermaid', '.d2', '.puml', '.plantuml'] };
-
-  /** data-mesh.yaml in the open folder: its data products and contracts as one map, made or brought up to date. False: the folder has none. */
-  const meshInFolder = (w: Workspace): boolean => {
-    const path = 'data-mesh.yaml';
-    const was = w.files.get(path)?.text;
-    if (was != null && !/^type:\s*data-products\s*$/m.test(was)) return (notify(t('{path} in {folder} is another kind of diagram: rename it first', { path, folder: w.name }), { tone: 'error' }), true);
-    const mesh = meshFrom([...w.files].filter(([p]) => p !== path).map(([p, f]) => ({ path: p, text: f.text })), was != null ? { existing: was } : {});
-    if (!mesh?.yaml) return false;
-    fileHandle.current = undefined;
-    open(mesh.yaml, { name: path, path }, readSidecar(w, path));
-    // Not on disk yet, or not like this: ⌘S writes it into the folder.
-    setSavedText(was ?? null);
-    const more = remember(path, t('From the data products and contracts'), meshNotes(mesh.problems));
-    notify(`${t('{summary} in {folder} → {path}', { summary: mesh.summary, folder: w.name, path })}${was != null ? t(', what you added by hand is kept') : ''}${meshRemarks(mesh.problems)}`, { ...more, ...(mesh.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
-    focusDrawing();
-    return true;
-  };
-  /** access.yaml or github.yaml in the open folder: its exports as one diagram, made or brought up to date. False: the folder has none. */
-  const exportInFolder = (w: Workspace): boolean => {
-    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
-    const kind = exportKind(files);
-    if (!kind) return false;
-    const path = `${kind}.yaml`;
-    const was = w.files.get(path)?.text;
-    if (was != null && !new RegExp(`^type:\\s*${kind}\\s*$`, 'm').test(was)) return (notify(t('{path} in {folder} is another kind of diagram: rename it first', { path, folder: w.name }), { tone: 'error' }), true);
-    const r = exportFrom(files.filter((f) => f.path !== path), was != null ? { existing: was } : {});
-    if (!r?.yaml) return (notify(`${t('Nothing to draw in {folder}', { folder: w.name })}${r ? exportRemark(r) : ''}`, { tone: 'error', ...(r ? remember(doc.name, t('From the exports (nothing drawn)'), exportNotes(r)) : {}) }), true);
-    fileHandle.current = undefined;
-    open(r.yaml, { name: path, path }, readSidecar(w, path));
-    setSavedText(was ?? null);
-    const more = remember(path, t('From the exports'), exportNotes(r));
-    notify(`${t('{summary} in {folder} → {path}', { summary: r.summary, folder: w.name, path })}${was != null ? t(', what you added by hand is kept') : ''}${exportRemark(r)}`, { ...more, ...(r.problems.some((p) => p.severity === 'error') ? { tone: 'error' } : {}) });
-    focusDrawing();
-    return true;
-  };
-  /** A code repository in the open folder: its diagrams offered, to be written into diagrams/. False: it is none. */
-  const repoInFolder = (w: Workspace): boolean => {
-    const files = [...w.files].map(([p, f]) => ({ path: p, text: f.text }));
-    if (!isRepo(files)) return false;
-    const scan = scanRepo(files, { name: w.name, existing: (file) => w.files.get(file)?.text });
-    if (!scan.diagrams.length) return false;
-    setRepoOffer({ scan, name: w.name, write: true });
-    return true;
-  };
-  const writeRepo = async (chosen: RepoDiagram[]) => {
-    const w = ws;
-    setRepoOffer(undefined);
-    if (!w || !chosen.length) return;
-    if (!(await leave())) return;
-    try {
-      for (const d of chosen) await writeInFolder(w, d.file, d.yaml);
-    } catch (e) {
-      return notify(t('Writing the diagrams failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
-    }
-    const first = chosen[0]!;
-    fileHandle.current = undefined;
-    open(first.yaml, { name: first.file.split('/').pop()!, path: first.file }, readSidecar(w, first.file));
-    setSavedText(first.yaml);
-    const kept = chosen.filter((d) => d.kept).length;
-    const notes = chosen.flatMap((d) => d.warnings.map((x) => `${d.file}: ${x}`));
-    notify(`${t('{count} diagram from the code in {folder} → {dir}|{count} diagrams from the code in {folder} → {dir}', { count: chosen.length, folder: w.name, dir: first.file.includes('/') ? first.file.slice(0, first.file.lastIndexOf('/') + 1) : w.name })}${kept ? t(', what you added by hand is kept in {file}', { file: kept }) : ''}`, remember(first.file, t('From the code'), notes));
-    focusDrawing();
-  };
-  const openRepoDiagram = async (d: RepoDiagram) => {
-    const offer = repoOffer;
-    setRepoOffer(undefined);
-    if (!(await leave())) return;
-    fileHandle.current = undefined;
-    // In a folder it opens where it will be written (⌘S writes it); dropped, it is a new document.
-    if (offer?.write && ws) {
-      open(d.yaml, { name: d.file.split('/').pop()!, path: d.file }, readSidecar(ws, d.file));
-      setSavedText(ws.files.get(d.file)?.text ?? null);
-    } else open(d.yaml, { name: d.file.split('/').pop()! }, undefined, false, t('{summary}, from {sources}', { summary: d.summary, sources: d.sources.join(', ') }), { title: t('From the code'), items: d.warnings });
-    focusDrawing();
-  };
-  const meshRemarks = (problems: { file?: string; message: string }[]) =>
-    problems.length ? `. ${problems[0]!.file ? `${problems[0]!.file}: ` : ''}${problems[0]!.message}${problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}` : '';
-  const meshNotes = (problems: { file?: string; message: string }[]) => problems.map((p) => (p.file ? `${p.file}: ${p.message}` : p.message));
-
-  /** Files picked or dropped. A drawing from draw.io, Excalidraw or Mermaid is imported; data products and contracts (ODPS, ODCS) become one data mesh map; otherwise the first diagram opens. */
+  /** Files picked or dropped: the first diagram opens. */
   const openTexts = async (files: { path: string; text: string }[], handle?: FileSystemFileHandle) => {
-    // A folder of data products may hold a drawing too: the mesh goes first.
-    const other = hasMesh(files) ? undefined : files.find((f) => foreign(f.path, f.text));
-    if (other) {
-      setIncoming({ name: other.path.split('/').pop()!, text: other.text });
-      setModal('templates');
-      return;
-    }
-    const folder = folderOf(files);
-    const mesh = meshFrom(files);
-    if (mesh?.yaml) {
-      if (!(await leave())) return;
-      fileHandle.current = undefined;
-      open(mesh.yaml, { name: `${folder ?? 'data-mesh'}.yaml`, files: mesh.files }, undefined, false, `${t('{summary} as one map', { summary: mesh.summary })}${meshRemarks(mesh.problems)}`, { title: t('From the data products and contracts'), items: meshNotes(mesh.problems) });
-      return focusDrawing();
-    }
-    if (mesh) return notify(`${t('Nothing to draw')}${meshRemarks(mesh.problems) || t(': no data product or contract could be read')}`, { tone: 'error', ...remember(doc.name, t('From the data products and contracts (nothing drawn)'), meshNotes(mesh.problems)) });
-    // Access exports (az, Graph, AzureHound) or gh api responses: one access or GitHub diagram.
-    const exported = exportFrom(files);
-    if (exported?.yaml) {
-      if (!(await leave())) return;
-      fileHandle.current = undefined;
-      open(exported.yaml, { name: `${folder ?? exported.kind}.yaml` }, undefined, false, `${exported.summary}${exportRemark(exported)}`, { title: t('From the exports'), items: exportNotes(exported) });
-      return focusDrawing();
-    }
-    if (exported) return notify(`${t('Nothing to draw')}${exportRemark(exported)}`, { tone: 'error', ...remember(doc.name, t('From the exports (nothing drawn)'), exportNotes(exported)) });
-    // A code repository dropped: its diagrams offered, one to open.
-    if (isRepo(files)) {
-      const scan = scanRepo(files, { name: folder });
-      if (scan.diagrams.length) return setRepoOffer({ scan, name: folder ?? 'the drop', write: false });
-    }
     const diagram = files.find((f) => /\.ya?ml$/i.test(f.path) && /^type:\s*[\w-]+/m.test(f.text)) ?? (files.length === 1 && /\.ya?ml$/i.test(files[0]!.path) ? files[0] : undefined);
-    if (!diagram) return notify(t('Nothing to open there: drop a diagram (.yaml), or data product and data contract files (ODPS, ODCS)'), { tone: 'error' });
+    if (!diagram) return notify(t('Nothing to open there: drop a diagram (.yaml)'), { tone: 'error' });
     if (!(await leave())) return;
     fileHandle.current = files.length === 1 ? handle : undefined;
     open(diagram.text, { name: diagram.path.split('/').pop()! });
@@ -863,10 +729,7 @@ export function App() {
         try {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
-            types: [
-              { description: t('Cartography diagram, data products and contracts, or access, GitHub and Azure exports (JSON)'), accept: { 'text/yaml': ['.yaml', '.yml'], 'application/json': ['.json'] } },
-              { description: 'draw.io, Excalidraw, Mermaid, D2 or PlantUML, to import', accept: OTHER },
-            ],
+            types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
           await openTexts(files, hs[0]);
@@ -878,7 +741,7 @@ export function App() {
     }
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml,.json,text/yaml,.drawio,.dio,.xml,.excalidraw,.mmd,.mermaid,.d2,.puml,.plantuml';
+    input.accept = '.yaml,.yml,text/yaml';
     input.multiple = true;
     input.onchange = async () => {
       const files = await Promise.all([...(input.files ?? [])].map(async (f) => ({ path: f.name, text: await f.text() })));
@@ -898,29 +761,6 @@ export function App() {
   // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
   const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
   const saveSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
-  /** Another tool's file is there; what it could not hold is said, not hidden. */
-  const handed = (what: string, h: Handed) =>
-    h.warnings.length ? notify(h.warnings.length > 1 ? t('{what}. {warning}, and {count} more left out', { what, warning: h.warnings[0]!, count: h.warnings.length - 1 }) : t('{what}. {warning}', { what, warning: h.warnings[0]! }), { action: { label: 'OK', run: () => {} }, ...remember(doc.name, t('{what}: left out', { what }), h.warnings) }) : notify(what);
-  const saveDrawio = attempt(t('Export'), async () => {
-    const h = await exportDrawio(exportInput());
-    download(`${baseName(doc.name)}.drawio`, h.data, 'application/xml');
-    handed(t('Saved for draw.io'), h);
-  });
-  const saveExcalidraw = attempt(t('Export'), async () => {
-    const h = await exportExcalidraw(exportInput());
-    download(`${baseName(doc.name)}.excalidraw`, h.data, 'application/json');
-    handed(t('Saved for Excalidraw'), h);
-  });
-  const saveMermaid = attempt(t('Export'), async () => {
-    const h = await exportMermaid(exportInput());
-    download(`${baseName(doc.name)}.mmd`, h.data, 'text/plain');
-    handed(t('Saved as Mermaid'), h);
-  });
-  const copyMermaid = attempt(t('Copy'), async () => {
-    const h = await exportMermaid(exportInput());
-    await navigator.clipboard.writeText('```mermaid\n' + h.data + '```\n');
-    handed(t('Mermaid copied, paste it into a README'), h);
-  });
   const savePng = attempt(t('Export'), async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt(t('Export'), async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const pptxTemplate = useTemplateChoice(ws, (m) => notify(m, { tone: 'error' }));
@@ -1914,13 +1754,10 @@ export function App() {
     view === 'visual'
       ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
       : { id: 'view-visual', group: t('View'), label: t('Builder (hide the YAML)'), icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => setView('visual') },
-    { id: 'open', group: t('File'), label: t('Open file…'), hint: t('a diagram; data products and contracts; az, Graph, AzureHound or gh api JSON; draw.io, Excalidraw or Mermaid to import'), icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
+    { id: 'open', group: t('File'), label: t('Open file…'), icon: 'folder-open', shortcut: keyHint('open'), run: openFile },
     { id: 'save', group: t('File'), label: ws && doc.path ? t('Save {path}', { path: doc.path }) : t('Save'), icon: 'save', shortcut: keyHint('save'), run: saveYaml },
     { id: 'download', group: t('File'), label: t('Download YAML'), icon: 'download', run: downloadYaml },
     ...(canUseFolders ? [{ id: 'folder', group: t('File'), label: t('Open folder…'), icon: 'folder-open', run: () => void openFolder() }] : []),
-    ...(ws && meshInWs ? [{ id: 'mesh', group: t('File'), label: t('Data mesh map of {folder}', { folder: ws.name }), hint: t('its data products and contracts (ODPS, ODCS) in data-mesh.yaml'), icon: 'waypoints', run: () => void leave().then((ok) => ok && meshInFolder(ws)) }] : []),
-    ...(ws && repoInWs ? [{ id: 'repo', group: t('File'), label: t('Diagrams from the code in {folder}', { folder: ws.name }), hint: t('Compose, Helm, Bicep, OpenAPI, AsyncAPI, workflows → diagrams/'), icon: 'folder-git-2', run: () => void leave().then((ok) => ok && repoInFolder(ws)) }] : []),
-    ...(ws && exportInWs ? [{ id: 'export', group: t('File'), label: EXPORT_ENTRY[exportInWs].label(ws.name), hint: say(EXPORT_ENTRY[exportInWs].hint), icon: EXPORT_ENTRY[exportInWs].icon, run: () => void leave().then((ok) => ok && exportInFolder(ws)) }] : []),
     ...(ws ? diagrams(ws).map((p) => ({ id: `file:${p}`, group: t('Files in {folder}', { folder: ws.name }), label: p, icon: 'file-code', run: () => void openInFolder(ws, p) })) : []),
     ...(pins ? [{ id: 'save-layout', group: t('File'), label: t('Save layout (.layout.json)'), icon: 'save', run: saveLayout }] : []),
     { id: 'svg', group: t('Export'), label: t('Export SVG'), icon: 'download', shortcut: keyHint('export-svg'), run: saveSvg },
@@ -1937,11 +1774,7 @@ export function App() {
     { id: 'copy-wiki', group: t('Export'), label: t('Copy for Confluence / Notion'), hint: t('the picture and the description in one paste'), icon: 'book-open', run: copyForWiki },
     { id: 'copy-svg', group: t('Export'), label: t('Copy as SVG'), icon: 'copy', run: copySvg },
     { id: 'svg-safe', group: t('Export'), label: safeSvg ? t('SVG as drawn (SVG for PowerPoint / Word off)') : t('SVG for PowerPoint / Word on'), hint: t('an SVG that PowerPoint, Word and Keynote take whole'), icon: 'monitor', run: toggleSafeSvg },
-    { id: 'drawio', group: t('Export'), label: t('Export for draw.io (.drawio)'), hint: t('editable shapes, every view a page'), icon: 'workflow', run: saveDrawio },
-    { id: 'excalidraw', group: t('Export'), label: t('Export for Excalidraw (.excalidraw)'), icon: 'square-dashed', run: saveExcalidraw },
-    { id: 'mermaid', group: t('Export'), label: t('Export Mermaid (.mmd)'), icon: 'file-code', run: saveMermaid },
     { id: 'share', group: t('Export'), label: t('Copy share link'), hint: t('read-only, the diagram travels in the link'), icon: 'link', run: copyShare },
-    { id: 'copy-mermaid', group: t('Export'), label: t('Copy as Mermaid'), hint: t('a fenced block for a README'), icon: 'copy', run: copyMermaid },
     { id: 'present', group: t('Present'), label: t('Present full screen'), hint: stepList.length ? count(stepList.length, '{count} step|{count} steps') : drawn?.views?.length ? t('its views in order') : t('step by step'), icon: 'play', shortcut: keyHint('present'), run: present },
     ...(type && !drawn?.stepsImplied
       ? [{ id: 'step-add', group: t('Present'), label: selection.length ? t('Add a step from the selection') : t('Add a step'), hint: t('what is selected stands out in it'), icon: 'plus', shortcut: keyHint('step'), run: addStepFromSelection }]
@@ -2076,7 +1909,6 @@ export function App() {
 
   const closeModal = () => {
     setModal(undefined);
-    setIncoming(undefined);
     setGuiding(false);
     store.set('started', true);
   };
@@ -2246,24 +2078,6 @@ export function App() {
                 <button role="menuitem" onClick={copyForWiki} title={t('The picture and the description in one paste, for Confluence, Notion or Google Docs')}>
                   <Icon name="book-open" /> {t('Copy for Confluence / Notion')}
                 </button>
-                <details>
-                  {/* Opening the fold keeps the menu open; a format in it closes the menu as the others do. */}
-                  <summary onClick={(e) => e.stopPropagation()}>
-                    <Icon name="workflow" /> {t('Other tools: draw.io, Excalidraw, Mermaid')} <Icon name="chevron-down" size={14} />
-                  </summary>
-                  <button role="menuitem" onClick={saveDrawio}>
-                    <Icon name="workflow" /> draw.io (.drawio)
-                  </button>
-                  <button role="menuitem" onClick={saveExcalidraw}>
-                    <Icon name="square-dashed" /> Excalidraw (.excalidraw)
-                  </button>
-                  <button role="menuitem" onClick={saveMermaid}>
-                    <Icon name="file-code" /> Mermaid (.mmd)
-                  </button>
-                  <button role="menuitem" onClick={copyMermaid}>
-                    <Icon name="copy" /> {t('Copy as Mermaid')}
-                  </button>
-                </details>
                 <hr />
                 <button role="menuitem" onClick={saveYaml}>
                   <Icon name="save" /> {t('Save')} <kbd>{keyHint('save')}</kbd>
@@ -2845,7 +2659,6 @@ export function App() {
         />
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
-      {repoOffer && <RepoDialog offer={repoOffer} onWrite={(chosen) => void writeRepo(chosen)} onOpen={(d) => void openRepoDiagram(d)} onClose={() => setRepoOffer(undefined)} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
@@ -2870,7 +2683,7 @@ export function App() {
           </Menu>
         </div>
       )}
-      {modal === 'templates' && <Start key={incoming?.name} theme={theme} incoming={incoming} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
+      {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
           placeholder={diagnostics.length || shownNotes || wsTools.folderProblems.length ? t('Filter problems…') : t('No problems: everything draws')}

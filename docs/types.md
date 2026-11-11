@@ -79,7 +79,7 @@ Use it for any system overview: services, clients, queues, databases and externa
 
 Groups that end up side by side are drawn in the order they are written: the first one left, or on top in a left-to-right drawing. Move a group up in the file to move it to the front. Where the lines between two groups pull the other way, the lines win. This holds for every type made of nodes and groups (`azure`, `cloud`, `network`, `kubernetes`, …).
 
-A card with a label of its own says its kind under it (Orders DB, Database) unless the label already does. `captions: written` at the top draws only the captions written in the file: what an import writes, since its kinds are guesses. This too holds for every type made of nodes and groups, and for sequence participants.
+A card with a label of its own says its kind under it (Orders DB, Database) unless the label already does. `captions: written` at the top draws only the captions written in the file: for a diagram whose kinds are guesses, say one converted from another tool. This too holds for every type made of nodes and groups, and for sequence participants.
 
 Not for: what runs in which Azure subnet (use `azure`), table columns (use `erd`), who may access what (use `access`).
 
@@ -103,7 +103,7 @@ Examples: [examples/systems](../examples/systems)
 
 `type: c4` · one model, C4 views: context, containers, components, deployment.
 
-Use it when you work the way Structurizr, LikeC4 or IcePanel do: describe people, software systems, containers and components once, then draw a landscape, a system context, a container or component diagram, a numbered dynamic view or a deployment view from it. Cards read like C4 (`[Container: Spring Boot]` and a short description), external systems are greyed, boundaries are dashed, the legend fills itself and each card links down to the next level. Structurizr DSL imports with `carto import workspace.dsl`.
+Use it when you work the way Structurizr, LikeC4 or IcePanel do: describe people, software systems, containers and components once, then draw a landscape, a system context, a container or component diagram, a numbered dynamic view or a deployment view from it. Cards read like C4 (`[Container: Spring Boot]` and a short description), external systems are greyed, boundaries are dashed, the legend fills itself and each card links down to the next level.
 
 Not for: a quick sketch without levels (use `systems`), Azure resources and networks (use `azure`).
 
@@ -184,8 +184,6 @@ edges:
   - alb -> web: { style: private }
 ```
 
-Import what Terraform knows with `terraform show -json > state.json` (or `terraform show -json plan.out`) and `carto import state.json`: VPCs, zones and subnets become containers (public, private or isolated by their route out), about a hundred AWS and Google resource types become services in the right one, and lines follow references, event sources, listeners and security group rules. Ids come from the resource addresses, so pins survive a re-import. It reads the file only; nothing calls a cloud API.
-
 Examples: [examples/cloud](../examples/cloud) · deployments of a model: [examples/deployment](../examples/deployment)
 
 ## Network
@@ -219,8 +217,6 @@ edges:
   - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20] }
   - core -- ap
 ```
-
-Import an inventory with `carto import inventory.csv` (columns `name,type,ip,zone,uplink`, optionally `model`, `vlan`, `cidr`, `tier`, `speed`; `uplink` may name a port as `core01:Gi1/0/1`) or a NetBox export (`{ devices, cables, ip_addresses }`, each as JSON from the API).
 
 Examples: [examples/network](../examples/network)
 
@@ -399,8 +395,6 @@ view: delivery
 pipelines:
   main: [build, test, { stage: production, label: Deploy, gate: Approval }]
 ```
-
-Import: `carto import --git <repo> [--since 2026-01-01] [--branches main,develop] [--max 200]` reads `git log` and recovers branches (each head claims its first-parent history; merged and deleted branches are named from their merge message), forks, merges and tags, and collapses runs of plain commits into "n commits". Mermaid `gitGraph` imports with `carto import`.
 
 Examples: [examples/gitflow](../examples/gitflow)
 

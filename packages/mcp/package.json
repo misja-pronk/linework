@@ -17,7 +17,6 @@
     "@cartography/describe": "workspace:*",
     "@cartography/diff": "workspace:*",
     "@cartography/engine": "workspace:*",
-    "@cartography/import": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.2",

@@ -1,0 +1,44 @@
+type: systems
+title: Order platform
+direction: right
+captions: written
+
+groups:
+  platform: { kind: cluster, label: Kubernetes cluster }
+  data: { kind: group, label: Data stores }
+
+nodes:
+  customer: { kind: user, label: Customer }
+  web: { kind: client, label: Web shop }
+  app: mobile
+  gw: { kind: gateway, label: API Gateway, in: platform }
+  orders: { kind: service, label: Order Service, in: platform }
+  catalog: { kind: service, label: Catalog Service, in: platform }
+  payments: { kind: payments, label: Payment Service, in: platform }
+  bus: { kind: topic, label: "Kafka: order-events", in: platform }
+  shipping: { kind: worker, label: Shipping worker, in: platform }
+  notify: { kind: worker, label: Notification worker, in: platform }
+  ordersdb: { kind: database, label: Orders DB, in: data }
+  catalogdb: { kind: database, label: Catalog DB, in: data }
+  cache: { kind: cache, label: Redis cache, in: data }
+  stripe: { kind: payments, label: Stripe }
+  mail: { kind: email, label: SendGrid email }
+  audit: { kind: monitoring, label: Audit log }
+
+edges:
+  - customer -> web
+  - customer -> app
+  - web -> gw
+  - app -> gw
+  - gw -> orders
+  - gw -> catalog
+  - orders -> payments
+  - orders -> bus: { label: OrderPlaced, style: async }
+  - bus -> shipping: { style: async }
+  - bus -> notify: { style: async }
+  - orders -> ordersdb
+  - catalog -> catalogdb
+  - catalog -> cache
+  - payments -> stripe: { label: charge, style: sync }
+  - notify -> mail
+  - orders -> audit

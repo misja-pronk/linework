@@ -1,14 +1,11 @@
 // The commands: preview and present, a new diagram from a template, export (SVG, PNG, PowerPoint),
-// import from other tools, and the share link the web editor opens.
-import fs from 'node:fs';
+// and the share link the web editor opens.
 import path from 'node:path';
 import * as vscode from 'vscode';
 import { SHARE_LIMIT, shareLink, withViewPins } from '@cartography/core';
 import { render, type RenderResult } from '@cartography/engine';
 import { toPptx } from '@cartography/export';
-import { sidecarName } from './detect.ts';
 import { readSidecar, renderOptions, writeSidecar, type DrawAsk } from './draw.ts';
-import { IMPORT_FILTERS, importText } from './importing.ts';
 import { isDiagramDoc } from './language.ts';
 import { scheme, type Preview } from './preview.ts';
 import { settings } from './settings.ts';
@@ -140,41 +137,6 @@ export function registerCommands(context: vscode.ExtensionContext, previews: Pre
     await saveAs(doc, suffixOf(r), 'pptx', 'PowerPoint', () => toPptx([{ ...r, name: path.basename(doc.fileName) }], { theme: r.theme ?? scheme(), ...(p ? { rasterize: (svg: string, w: number, h: number) => p.rasterize(svg, w, h) } : {}) }));
   });
 
-  on('cartography.import', async (arg) => {
-    const files = arg instanceof vscode.Uri ? [arg] : await vscode.window.showOpenDialog({ canSelectMany: true, title: 'Import into Cartography', filters: IMPORT_FILTERS });
-    if (!files?.length) return;
-    const keep = await vscode.window.showQuickPick(['Let Cartography lay it out', 'Keep the positions (draw.io, Excalidraw)'], { title: 'Layout' });
-    if (!keep) return;
-    let first: vscode.Uri | undefined;
-    const notes: string[] = [];
-    for (const f of files) {
-      const results = importText(f.fsPath, Buffer.from(await vscode.workspace.fs.readFile(f)).toString('utf8'), { keepPositions: keep.startsWith('Keep') });
-      for (const r of results) {
-        notes.push(...r.notes.map((n) => `${r.name}: ${n}`));
-        if (!r.yaml) continue;
-        const out = path.join(path.dirname(f.fsPath), r.name);
-        if (fs.existsSync(out)) {
-          const answer = await vscode.window.showWarningMessage(`${r.name} already exists.`, { modal: true }, 'Overwrite');
-          if (answer !== 'Overwrite') continue;
-        }
-        fs.writeFileSync(out, r.yaml);
-        if (r.sidecar) writeSidecar(out, r.sidecar);
-        else if (fs.existsSync(sidecarName(out))) fs.rmSync(sidecarName(out));
-        first ??= vscode.Uri.file(out);
-      }
-    }
-    if (notes.length) {
-      const channel = output();
-      channel.appendLine(`Import ${new Date().toLocaleTimeString()}`);
-      for (const n of notes) channel.appendLine(`  ${n}`);
-    }
-    if (!first) return void vscode.window.showErrorMessage(`Nothing could be imported${notes[0] ? `: ${notes[0]}` : ''}`);
-    const doc = await vscode.workspace.openTextDocument(first);
-    await vscode.window.showTextDocument(doc, vscode.ViewColumn.Active);
-    await previews.open(doc, 'preview', vscode.ViewColumn.Beside);
-    if (notes.length) void vscode.window.showInformationMessage(`Imported, with ${notes.length} note${notes.length > 1 ? 's' : ''} on what was kept and dropped`, 'Show').then((a) => a && output().show());
-  });
-
   on('cartography.copyShareLink', async (arg) => {
     const doc = await target(previews, arg);
     const url = doc && (await link(doc));
@@ -200,6 +162,3 @@ export function registerCommands(context: vscode.ExtensionContext, previews: Pre
     p?.schedule(true);
   });
 }
-
-let channel: vscode.OutputChannel | undefined;
-export const output = () => (channel ??= vscode.window.createOutputChannel('Cartography'));

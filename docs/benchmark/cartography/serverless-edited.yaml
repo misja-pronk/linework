@@ -1,0 +1,31 @@
+type: systems
+title: Photo uploads
+captions: written
+
+groups:
+  aws: { kind: cloud, label: AWS }
+  api: { kind: zone, label: API tier, in: aws }
+  storage: { kind: zone, label: Storage tier, in: aws }
+
+nodes:
+  users: users
+  cdn: { kind: cdn, label: CloudFront CDN, in: aws }
+  gateway: { kind: gateway, label: API Gateway, in: api }
+  upload: { kind: function, label: Upload function, in: api }
+  resize: { kind: function, label: Resize function, in: api }
+  bucket: { kind: storage, label: S3 photos bucket, in: storage }
+  meta: { kind: database, label: DynamoDB metadata, in: storage }
+  queue: { kind: queue, label: SQS resize queue, in: api }
+  audit: { kind: monitoring, label: Audit log, in: storage }
+
+edges:
+  - users -> cdn
+  - cdn -> gateway
+  - gateway -> upload
+  - upload -> bucket
+  - upload -> queue
+  - queue -> resize
+  - resize -> meta
+  - resize -> bucket
+  - cdn -> bucket
+  - meta -> audit

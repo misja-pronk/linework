@@ -5,7 +5,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseSidecar, parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@cartography/core';
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { importMermaid } from '@cartography/import';
 import { measure, score, type LayoutMetrics } from '@cartography/layout';
 import { toPng } from './png.ts';
 
@@ -42,8 +41,6 @@ export function getSchema(id: string) {
 }
 
 export const newDiagram = (id: string) => typeOrThrow(id).template;
-
-export const importMermaidText = (text: string) => importMermaid(text);
 
 // --- Input: YAML text or a file, with relative paths kept inside the working directory -------------
 

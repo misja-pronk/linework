@@ -70,11 +70,10 @@ With the YAML extension (`redhat.vscode-yaml`) installed, each diagram gets its 
 | Export as SVG… | The drawing as on screen (view, step, focus), fonts embedded. |
 | Export as PNG… | Drawn by the preview's own browser canvas (opened if needed), at `cartography.export.pngScale`. No native code in the extension; `carto render --format png` uses resvg and the bundled TTFs instead, so its text can differ slightly. |
 | Export as PowerPoint (.pptx)… | Native shapes and text, a slide per written step. With the preview open the icons also get a PNG fallback for older Office. |
-| Import from Mermaid, D2, PlantUML, draw.io, Excalidraw or Structurizr… | Like `carto import`: `.mmd`, `.d2`, `.puml`, the ```` ```mermaid ````, ```` ```d2 ```` and ```` ```plantuml ```` blocks of a Markdown file, `.dsl`, `.drawio` (a file per page), `.excalidraw`. Optionally keeps the drawing's positions as pins. Notes on what was dropped go to the **Cartography** output channel. Also in the Explorer's context menu. |
 | Copy Share Link | The diagram (and its pins) in a link's `#fragment`, for the web editor at `cartography.shareBase`. A browser never sends the fragment to a server. |
 | Open in Cartography Editor | The same link, opened in the browser. |
 
-PDF export, `--svg-safe` SVG, drawio/Excalidraw/Mermaid export and icon packs from the CLI's config folder are CLI-only: run `carto` for those.
+PDF export, `--svg-safe` SVG and icon packs from the CLI's config folder are CLI-only: run `carto` for those.
 
 ## Markdown preview
 

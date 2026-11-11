@@ -1,6 +1,6 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
-// And the drawing for other tools: draw.io, Excalidraw, Mermaid, and an SVG that Office takes whole.
+// And an SVG that Office takes whole.
 import { decisionLines, render, SLIDE_MIN_PT, themes, withDecisions, withReviewNotes, type DrawingAt, type RenderResult } from '@cartography/engine';
 import { noteLines, type Decision, type LayoutMemory, type LayoutSidecar, type NotesFile } from '@cartography/core';
 import type { FamilyBytes, SlideText } from '@cartography/export';
@@ -187,48 +187,11 @@ export async function exportPdf(input: ExportInput, name?: string): Promise<Blob
 }
 
 /** What another tool's format could not hold, said to the person once the file is there. */
-export interface Handed {
-  data: string;
-  warnings: string[];
-}
-
-/** The whole drawing, not one step of it, and without embedded fonts: the other tool brings its own. */
-const plain = (input: ExportInput) => ({ ...options(input), step: undefined, fonts: 'none' as const });
-
-/** draw.io: editable shapes, containers and attached connectors; every view of the file is a page. */
-export async function exportDrawio(input: ExportInput): Promise<Handed> {
-  const first = await render(input.text, plain(input));
-  if (!first.graph || !first.svg) throw new Error(t('Nothing to export: fix the problems first'));
-  const { toDrawio, toScene } = await import('@cartography/interop');
-  // The view on screen is the drawing as it stands; the others are drawn fresh.
-  const drawn = first.views?.length ? await Promise.all(first.views.map((v) => (v.name === first.view ? first : render(input.text, { ...plain(input), view: v.name, previous: undefined })))) : [first];
-  const scenes = drawn.filter((r) => r.graph && r.svg && (r === first || !r.empty)).map((r) => toScene(r));
-  return { data: toDrawio(scenes), warnings: [...new Set(scenes.flatMap((s) => s.warnings))] };
-}
-
-/** Excalidraw: the view on screen as rectangles, bound text and bound arrows, frames for groups. */
-export async function exportExcalidraw(input: ExportInput): Promise<Handed> {
-  const r = await render(input.text, plain(input));
-  if (!r.graph || !r.svg) throw new Error(t('Nothing to export: fix the problems first'));
-  const { toExcalidraw, toScene } = await import('@cartography/interop');
-  const scene = toScene(r);
-  return { data: toExcalidraw(scene), warnings: scene.warnings };
-}
-
-/** Mermaid text of the view on screen, for a README: what is in the drawing, not where it stands. */
-export async function exportMermaid(input: ExportInput): Promise<Handed> {
-  const r = await render(input.text, plain(input));
-  if (!r.graph) throw new Error(t('Nothing to export: fix the problems first'));
-  const { toMermaid } = await import('@cartography/interop');
-  const m = toMermaid(r);
-  return { data: m.text, warnings: m.warnings };
-}
-
 /** An SVG that PowerPoint, Word and Keynote take whole: no CSS, no effects, system fonts, a group per node. */
 export async function exportSafeSvg(input: ExportInput): Promise<string> {
   const r = noted(await render(input.text, { ...options(input), fonts: 'none' }), input);
   if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
-  const { toSafeSvg } = await import('@cartography/interop');
+  const { toSafeSvg } = await import('@cartography/export/svg-safe');
   return toSafeSvg(r.svg);
 }
 

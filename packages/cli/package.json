@@ -22,8 +22,6 @@
     "@cartography/html-export": "workspace:*",
     "@cartography/i18n": "workspace:*",
     "@cartography/icons": "workspace:*",
-    "@cartography/import": "workspace:*",
-    "@cartography/interop": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/mcp": "workspace:*",
     "@cartography/review": "workspace:*",

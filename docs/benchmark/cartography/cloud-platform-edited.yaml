@@ -1,0 +1,44 @@
+type: systems
+title: Cloud platform
+direction: down
+captions: written
+
+groups:
+  cloud: { kind: cloud, label: Cloud account }
+  vpc: { kind: zone, label: VPC, in: cloud }
+  public: { kind: zone, label: Public subnet, in: vpc }
+  private: { kind: zone, label: Private subnet, in: vpc }
+  datasubnet: { kind: zone, label: Data subnet, in: vpc }
+
+nodes:
+  user: user
+  cdn: cdn
+  ops: { kind: user, label: Operator }
+  bastion: { kind: server, label: Bastion host, in: public }
+  lb: { kind: load-balancer, in: public }
+  web: { kind: client, in: private }
+  api: { kind: api, in: private }
+  jobs: { kind: job, label: Job runner, in: private }
+  mq: { kind: queue, label: Job queue, in: private }
+  pg: { kind: database, label: Postgres, in: datasubnet }
+  redis: { kind: cache, label: Redis, in: datasubnet }
+  s3: { kind: storage, in: cloud }
+  secrets: { kind: secrets, label: Secrets manager, in: cloud }
+  search: { kind: search, label: Search index }
+
+edges:
+  - user -> cdn
+  - ops -> bastion
+  - cdn -> lb
+  - lb -> web
+  - web -> api
+  - api -> pg
+  - api -> redis
+  - api -> mq
+  - mq -> jobs
+  - jobs -> pg
+  - jobs -> s3
+  - api -> secrets
+  - jobs -> secrets
+  - bastion -> pg
+  - api -> search
