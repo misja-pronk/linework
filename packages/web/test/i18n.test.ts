@@ -38,7 +38,7 @@ describe("the editor's Dutch", () => {
 
 describe('the catalog parts', () => {
   it('give the same English the same Dutch', async () => {
-    const parts = await Promise.all(['shell', 'app', 'dialogs', 'panels', 'show'].map((p) => import(`../src/i18n/nl-${p}.ts`).then((m) => Object.values(m)[0] as Record<string, string>)));
+    const parts = await Promise.all(['shell', 'app', 'dialogs', 'panels', 'show', 'session'].map((p) => import(`../src/i18n/nl-${p}.ts`).then((m) => Object.values(m)[0] as Record<string, string>)));
     const seen = new Map<string, string>();
     const differ: string[] = [];
     for (const part of parts) for (const [id, dutch] of Object.entries(part)) seen.has(id) && seen.get(id) !== dutch ? differ.push(`${id}: ${seen.get(id)} / ${dutch}`) : seen.set(id, dutch);

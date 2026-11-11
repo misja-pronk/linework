@@ -15,6 +15,7 @@ const GROUPS: [string, string][] = [
   ['Layers', 'the panel keys work while it is open'],
   ['Arrange', 'the selected shapes'],
   ['Steps', ''],
+  ['Session', 'drawing live: ⇧S, then the drawing’s keys are these'],
   ['Presenting', 'full screen'],
   ['Comparing versions', ''],
   ['YAML editor', 'when the YAML has focus'],

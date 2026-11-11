@@ -2,6 +2,7 @@
 // one (Tab), a sibling beside it (Enter), a name typed over a box (with an optional kind prefix such
 // as "fw: Edge firewall"), a kind changed, and boxes put into a group. The drawing's graph says where
 // a box is (its group, what points at it); the YAML stays the source of truth.
+import { parseDocument } from 'yaml';
 import type { DiagramType, Graph, PaletteItem } from '@cartography/core';
 import { addEntry, connectEntries, drawnAs, fieldsFor, isEntryPath, kindKey, parentKey, renameEntry, setField } from './builder.ts';
 
@@ -93,6 +94,26 @@ export function plainItem(type: DiagramType): PaletteItem | undefined {
   return shapes[0] ?? type.palette[0];
 }
 
+/** The group a sketch makes when nothing says which: a plain boundary where the type has one. */
+export function plainGroup(type: DiagramType): PaletteItem | undefined {
+  const groups = groupKinds(type);
+  for (const k of ['boundary', 'group', 'system', 'resource-group', 'zone', 'area', 'domain', 'lane']) {
+    const hit = groups.find((p) => p.kind === k);
+    if (hit) return hit;
+  }
+  return groups[0];
+}
+
+/** The graph the type builds from a text, without drawing it: to go on from an edit before it is drawn. */
+export function graphOf(text: string, type: DiagramType): Graph | undefined {
+  try {
+    const doc = parseDocument(text);
+    return doc.errors.length ? undefined : type.build(doc.toJS() as never, { error() {}, warn() {} });
+  } catch {
+    return undefined;
+  }
+}
+
 /** The palette item an element is, from its kind and collection; undefined when the palette has no such item. */
 export function itemOf(type: DiagramType, graph: Graph, id: string): PaletteItem | undefined {
   const n = graph.nodes.find((x) => x.id === id);
@@ -122,9 +143,9 @@ function addFrom(text: string, type: DiagramType, item: PaletteItem, parent: { c
   return { text: out, path: added.path, ...(drawn ? { id: drawn.id } : {}) };
 }
 
-/** The first box on a blank sheet (or one more, unconnected). */
-export function addFirst(text: string, type: DiagramType, item = plainItem(type)): Sketched | undefined {
-  return item ? addFrom(text, type, item, undefined, undefined) : undefined;
+/** The first box on a blank sheet (or one more, unconnected, in `parent` when given). */
+export function addFirst(text: string, type: DiagramType, item = plainItem(type), parent?: { collection: string; id: string }): Sketched | undefined {
+  return item ? addFrom(text, type, item, parent, undefined) : undefined;
 }
 
 /** Tab: a new box connected from `from`, of the same kind, in the same group. */

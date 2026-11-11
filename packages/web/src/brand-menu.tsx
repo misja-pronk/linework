@@ -9,6 +9,7 @@ import { setIconMode, useIconPacks, type IconPacks } from './icon-packs.ts';
 import { IconPacksDialog } from './icon-packs-dialog.tsx';
 import { LANG_NAMES, LANGS } from '@cartography/i18n';
 import { say, setUiLang, t, uiLangChoice, useUiLang } from './i18n/index.ts';
+import { setSessionLight, useSessionLight } from './app/session.ts';
 
 /** The built-in looks by name, as a person reads them: "survey-dark" is "Survey dark". */
 const BUILTIN = themeCatalog.map((t) => [t.name, t.name[0]!.toUpperCase() + t.name.slice(1).replace(/-/g, ' '), t.description] as const);
@@ -27,6 +28,7 @@ export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(
   const [packs, setPacks] = useState(false);
   const b = useBrand();
   const ip = useIconPacks();
+  const sessionLight = useSessionLight();
   const imported = Object.keys(ip.packs).length;
   const files = themeFiles(ws);
   const run = (f: () => unknown) => () => {
@@ -78,6 +80,10 @@ export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(
           ))}
           <button role="menuitem" onClick={run(() => setPacks(true))} data-icon-packs>
             <Icon name="boxes" /> {t('Official icons…')}{imported ? <span className="menu-note"> {t('{count} imported', { count: imported })}</span> : null}
+          </button>
+          <hr />
+          <button role="menuitem" onClick={run(() => setSessionLight(!sessionLight))} title={t('Light reads best through screen sharing and video compression')} data-session-light={sessionLight}>
+            {mark(sessionLight)} {t('Sessions on the light theme')}
           </button>
           <hr />
           <div className="menu-heading" title={t('Language of the editor; a drawing follows its own lang:')}>Language / Taal</div>
