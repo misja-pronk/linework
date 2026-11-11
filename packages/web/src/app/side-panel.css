@@ -6,19 +6,30 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-left: 1px solid var(--border);
+  background: var(--paper);
+  border-left: 1px solid var(--rule);
+  animation: slide-in 120ms ease-out;
+}
+/* Panels slide 8 px as they come. */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
 }
 .side > .inspector,
 .side > .ask-panel {
   flex: 1;
   border-left: none;
 }
+/* The tabs: small capitals, the chosen one underlined in rust (it is what the panel is about now). */
 .side-tabs {
   display: flex;
-  gap: 2px;
-  padding: 6px 6px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 22px;
+  height: 42px;
+  padding: 0 20px;
+  flex: none;
+  border-bottom: 1px solid var(--rule2);
   min-width: 0;
   /* Should a panel get narrower than the collapsed tabs, the strip scrolls rather than clipping. */
   overflow-x: auto;
@@ -27,7 +38,7 @@
 /* Narrower than the five labels (a long one was cut off at 1280 and 1512): only the chosen tab says its
    name, the others are icon and count with the name as tooltip; narrower still, icons only. The names
    stay readable to screen readers. */
-@container side (max-width: 480px) {
+@container side (max-width: 260px) {
   .side-tabs button:not([aria-selected='true']) .tab-label {
     position: absolute;
     width: 1px;
@@ -37,7 +48,7 @@
     white-space: nowrap;
   }
 }
-@container side (max-width: 250px) {
+@container side (max-width: 180px) {
   .side-tabs .tab-label {
     position: absolute;
     width: 1px;
@@ -51,24 +62,29 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 8px;
+  gap: 6px;
+  padding: 2px 0 0;
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
-  color: var(--text-muted);
+  color: var(--text-faint);
   font: inherit;
-  font-size: 0.78125rem;
-  font-weight: 520;
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
+}
+.side-tabs button:focus-visible {
+  outline-offset: -2px;
 }
 .side-tabs button:hover:not(:disabled) {
   color: var(--text);
 }
 .side-tabs button[aria-selected='true'] {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--rust);
 }
 .side-tabs button:disabled {
   opacity: 0.45;

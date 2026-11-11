@@ -145,7 +145,7 @@ export function SidePanel(p: Props) {
           id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
           title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
           icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-          kindLabel={selEdge ? (selEdge.label ? t('Line · {label}', { label: selEdge.label }) : t('Line')) : say(kindLabel(selectedPath))}
+          kindLabel={selEdge ? (selEdge.label ? t('Line · {label}', { label: selEdge.label }) : t('Line')) : (selNode?.kind ?? selGroup?.kind ?? say(kindLabel(selectedPath)))}
           fields={fields}
           renamable={isEntry}
           freeName={!!type.freeNames}

@@ -1,16 +1,20 @@
-// The status bar: problems, what is drawn, pins and the selection, the keys, the theme.
+// The status bar, drawn as a map's title block: the sheet, its type and what is on it, problems, pins,
+// where a dragged element is while it moves, the selection, the keys, the theme.
 import './status-bar.css';
 import type { GraphNode } from '@cartography/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import type { Selection } from '../preview.tsx';
-import { drawnCount } from './names.ts';
+import { useReadout } from '../readout.ts';
+import { drawnFields } from './names.ts';
 
 interface Props {
   errors: number;
   warnings: number;
   ms: number | undefined;
-  graph: { nodes: GraphNode[]; edges: unknown[] } | undefined;
+  graph: { title?: string; nodes: GraphNode[]; edges: unknown[]; groups: unknown[] } | undefined;
+  /** The type as the YAML writes it. */
+  typeId: string | undefined;
   pinCount: number;
   selection: Selection[];
   selected: Selection | undefined;
@@ -19,17 +23,50 @@ interface Props {
   onShortcuts(): void;
 }
 
-export function StatusBar({ errors, warnings, ms, graph, pinCount, selection, selected, theme, onProblems, onShortcuts }: Props) {
+/** One cell of the title block: a small-capital name and its value. The name is generated content, so
+ * the value is what the cell's text is (screen readers still read both). */
+function Cell({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <span className={className ? `status-cell ${className}` : 'status-cell'} data-label={label}>
+      {children}
+    </span>
+  );
+}
+
+export function StatusBar({ errors, warnings, ms, graph, typeId, pinCount, selection, selected, theme, onProblems, onShortcuts }: Props) {
+  const readout = useReadout();
   return (
     <footer className="statusbar">
+      {graph?.title && (
+        <Cell label={t('Sheet')} className="status-sheet">
+          {graph.title}
+        </Cell>
+      )}
+      {typeId && <Cell label={t('Type')}>{typeId}</Cell>}
+      {graph &&
+        drawnFields(graph).map(([label, n]) => (
+          <Cell key={label} label={label} className="status-count">
+            {n}
+          </Cell>
+        ))}
       <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={onProblems} title={ms !== undefined ? `Drawn in ${ms} ms` : undefined}>
         <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
         {errors || warnings ? `${t('{count} error|{count} errors', { count: errors })}${warnings ? `, ${t('{count} warning|{count} warnings', { count: warnings })}` : ''}` : t('No problems')}
       </button>
-      {graph && <span>{drawnCount(graph)}</span>}
       {pinCount > 0 && (
         <span className="status-selected">
           <Icon name="pin" size={13} /> {t('{count} pinned', { count: pinCount })}
+        </span>
+      )}
+      <span className="spacer" />
+      {/* While something is dragged: where it stands and how big it is, in drawing pixels. */}
+      {readout && (
+        <span className="status-readout" aria-hidden="true">
+          <Cell label="X">{readout.x}</Cell>
+          <Cell label="Y">{readout.y}</Cell>
+          <Cell label={t('Size')}>
+            {readout.width} × {readout.height}
+          </Cell>
         </span>
       )}
       {selection.length > 0 && (
@@ -37,11 +74,10 @@ export function StatusBar({ errors, warnings, ms, graph, pinCount, selection, se
           <Icon name="mouse-pointer-2" size={13} /> {selected ? selected.id : t('{count} selected', { count: selection.length })}
         </span>
       )}
-      <span className="spacer" />
       <button className="status-link" onClick={onShortcuts} title={t('Keyboard shortcuts')}>
         <Icon name="keyboard" size={13} /> ?
       </button>
-      <span>{theme === 'dark' ? t('Dark') : t('Light')}</span>
+      <span className="status-theme">{theme === 'dark' ? t('Dark') : t('Light')}</span>
     </footer>
   );
 }

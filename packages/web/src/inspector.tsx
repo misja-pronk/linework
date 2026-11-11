@@ -167,7 +167,7 @@ export function Inspector(p: InspectorProps) {
         </span>
         <div className="inspector-title">
           <strong>{p.title}</strong>
-          <span>{p.kindLabel}</span>
+          <span>{p.id && p.id !== p.title ? `${p.id} · ${p.kindLabel.toLowerCase()}` : p.kindLabel.toLowerCase()}</span>
         </div>
         <button className="icon-button" onClick={p.onClose} aria-label={t('Close properties')} title={t('Close (Esc)')}>
           <Icon name="x" />
@@ -204,7 +204,7 @@ export function Inspector(p: InspectorProps) {
               {p.connections.map((c) => (
                 <li key={c.id}>
                   <button type="button" className="connection" onClick={() => p.onSelectEdge?.(c.id)} title={t('Select this line')}>
-                    <Icon name={c.out ? 'arrow-right-from-line' : 'arrow-right-to-line'} size={14} />
+                    <span className="conn-dir">{c.out ? t('out') : t('in')}</span>
                     <span>{c.other}</span>
                     {c.label && <em>{c.label}</em>}
                   </button>
