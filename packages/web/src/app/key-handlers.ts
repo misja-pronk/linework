@@ -1,0 +1,158 @@
+// The keys of the window and of the drawing, by the table in keys.ts (the sheet shows the same).
+import { useEffect } from 'react';
+import { is, shortcutFor } from '../keys.ts';
+import { arrangeKey, type useCraftPrefs } from '../craft-actions.tsx';
+import { nearestToward, type Direction } from '../craft.ts';
+import type { Selection } from '../preview.tsx';
+import type { View } from '../start.tsx';
+import type { Drawing } from './drawing.ts';
+import type { Edits } from './edits.ts';
+import type { Modal } from './modals.ts';
+import type { Navigation } from './navigation.ts';
+import type { Pins } from './pins.ts';
+
+const NUDGE = 8;
+
+interface GlobalKeys {
+  modal: Modal | undefined;
+  setModal(m: Modal | undefined | ((m: Modal | undefined) => Modal | undefined)): void;
+  presenting: boolean;
+  present(): void;
+  toggleAsk(): void;
+  saveYaml(): void;
+  openFile(): void;
+  saveSvg(): void;
+  savePng(): void;
+  view: View;
+  setView(v: View): void;
+}
+
+/** The window's keys: F6 between the panes, and those that work anywhere (⌘K, ⌘S, P…). */
+export function useGlobalKeys(k: GlobalKeys) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // F6 moves between the editor, the drawing and the properties, like panes in other apps.
+      if (is(e, 'next-pane')) {
+        const panes = ['.cm-content', '.preview', '.side input, .side select, .side textarea'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
+        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.side') && p.closest('.side')!.contains(document.activeElement)));
+        panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
+        return e.preventDefault();
+      }
+      // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
+      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
+      if (e.defaultPrevented) return;
+      const id = shortcutFor(e, typing || k.modal || k.presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
+      if (!id || (k.modal && id !== 'palette') || k.presenting) return;
+      if (id === 'sheet') k.setModal('shortcuts');
+      else if (id === 'present') k.present();
+      else if (id === 'palette') k.setModal((m) => (m === 'palette' ? undefined : 'palette'));
+      else if (id === 'ask') k.toggleAsk();
+      else if (id === 'save') k.saveYaml();
+      else if (id === 'open') k.openFile();
+      else if (id === 'export-svg') k.saveSvg();
+      else if (id === 'export-png') k.savePng();
+      else if (id === 'switch-view') k.setView(k.view === 'visual' ? 'code' : 'visual');
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+}
+
+interface CanvasKeys {
+  drawing: Drawing;
+  selection: Selection[];
+  selected: Selection | undefined;
+  setSelection(s: Selection[]): void;
+  select(s: Selection | undefined): void;
+  selectMany(list: Selection[], add: boolean): void;
+  edits: Edits;
+  pinning: Pins;
+  nav: Navigation;
+  craft: ReturnType<typeof useCraftPrefs>;
+  layers: { onKey(e: React.KeyboardEvent): boolean };
+  undo(): void;
+  redo(): void;
+  addShape(): void;
+  connect(): void;
+}
+
+/** The drawing's keys, when it has the focus itself. */
+export function canvasKeys(c: CanvasKeys) {
+  const { drawing, selection, selected, edits, pinning, nav } = c;
+  const { result, drawn } = drawing;
+
+  /** Tab order: elements, then groups, then lines. */
+  const cycle = (dir: 1 | -1): boolean => {
+    const g = result?.graph;
+    if (!g) return false;
+    const all: Selection[] = [
+      ...g.nodes.map((n) => ({ kind: 'node' as const, id: n.id })),
+      ...g.groups.filter((x) => result?.placed?.groups.has(x.id)).map((x) => ({ kind: 'group' as const, id: x.id })),
+      ...g.edges.map((e) => ({ kind: 'edge' as const, id: e.id })),
+    ];
+    const i = selected ? all.findIndex((s) => s.kind === selected.kind && s.id === selected.id) : -1;
+    const next = i + dir;
+    if (next < 0 || next >= all.length) return false;
+    c.select(all[next]);
+    return true;
+  };
+  /** ⌥ arrows: the selection moves to the nearest element in that direction. */
+  const focusToward = (dir: Direction) => {
+    const pl = result?.placed;
+    if (!pl) return;
+    const from = selected && (selected.kind === 'node' ? pl.nodes.get(selected.id) : selected.kind === 'group' ? pl.groups.get(selected.id) : undefined);
+    if (!from) return void cycle(1);
+    const all: [string, typeof from][] = [...pl.nodes].filter(([id]) => id !== selected!.id);
+    const id = nearestToward(from, all, dir);
+    if (id) c.select({ kind: 'node', id });
+  };
+
+  return (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    const arrange = arrangeKey(e);
+    if (arrange) {
+      pinning.arrangeSelection(arrange);
+      return e.preventDefault();
+    }
+    // The drawing's keys, by the table in keys.ts (the sheet shows the same).
+    const id = shortcutFor(e, drawn?.focus ? ['drawing', 'focus'] : ['drawing']);
+    const step = e.shiftKey ? NUDGE * 5 : NUDGE;
+    switch (id) {
+      case 'undo': c.undo(); break;
+      case 'redo': c.redo(); break;
+      case 'duplicate': edits.duplicate(); break;
+      case 'copy': edits.copy(); break;
+      case 'paste': edits.paste(); break;
+      case 'select-all': c.selectMany([...(result?.graph?.nodes ?? []).map((n) => ({ kind: 'node' as const, id: n.id }))], false); break;
+      case 'delete': selection.length > 1 ? edits.removeAll() : edits.remove(); break;
+      case 'escape': selection.length || !nav.focusOn ? c.setSelection([]) : nav.leaveFocus(); break;
+      case 'focus': nav.focusOnSelection(); break;
+      case 'focus-hops': nav.focusHops(e.key === '-' ? -1 : 1); break;
+      case 'focus-direction': nav.focusDirection(); break;
+      case 'lock': pinning.toggleLock(); break;
+      case 'pin': pinning.togglePin(); break;
+      case 'tidy': pinning.tidyLayout(); break;
+      case 'grid':
+      case 'minimap':
+      case 'page': c.craft.toggle(id); break;
+      case 'nearest': focusToward(e.key.slice(5).toLowerCase() as Direction); break;
+      case 'step-by': nav.stepBy(e.key === ']' ? 1 : -1); break;
+      case 'step': nav.addStepFromSelection(); break;
+      case 'next-view': nav.nextView(); break;
+      case 'nudge': pinning.nudge(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0); break;
+      case 'cycle': if (!cycle(e.shiftKey ? -1 : 1)) return; break;
+      case 'add': c.addShape(); break;
+      case 'connect': if (selected?.kind !== 'node') return; c.connect(); break;
+      case 'layers': if (!c.layers.onKey(e)) return; break;
+      case 'edit':
+        if (!selected) return;
+        if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
+        else (document.querySelector('.inspector input, .inspector select') as HTMLElement | null)?.focus();
+        break;
+      default: return;
+    }
+    e.preventDefault();
+  };
+}
