@@ -22,8 +22,6 @@ const shows = async (text, what) => {
   return false;
 };
 
-});
-
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();

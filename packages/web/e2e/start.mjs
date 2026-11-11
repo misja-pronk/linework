@@ -53,7 +53,6 @@ edges:
 `;
 // Nothing in the start dialog talks to the network: no request may leave the page.
 await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => (fail(`network: ${route.request().url()}`), route.abort()));
-});
 
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
