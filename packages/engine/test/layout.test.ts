@@ -31,6 +31,7 @@ const crossingBudget: Record<string, number> = {
   'azure/microservices.yaml': 4,
   'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,
+  'azure/web-app.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
