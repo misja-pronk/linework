@@ -39,8 +39,9 @@ When a diagram is open in an editor, the agent can see what you see and propose 
 
 Two editors answer:
 
-- **VS Code** with the Cartography extension. Nothing to set up beyond the MCP server below: the
-  extension listens on 127.0.0.1 with a random token, and the server finds it.
+- **VS Code** with the Cartography extension. Nothing to set up: the extension registers the MCP
+  server with VS Code, listens on 127.0.0.1 with a random token, and the server finds it. An agent
+  outside VS Code (Claude Code in a terminal) finds it too, with the server set up as below.
 - **The web editor through `carto serve`** (see below).
 
 How they find each other: each editor writes a small file (its address and token) into
@@ -77,8 +78,15 @@ claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/t
 # for every project: add --scope user before the name
 ```
 
-**VS Code** (Copilot's agent mode and other VS Code agents): add `.vscode/mcp.json` to the project.
-The extension's engine version (1.90) is too old to register the server by itself, so this is by hand:
+**VS Code** (Copilot's agent mode and other VS Code agents): install the Cartography extension
+([vscode](vscode.md)); it registers the server with VS Code itself (VS Code 1.101 or later), run on
+VS Code's own Node.js with the first workspace folder as its working directory. Nothing to write. It
+shows as **Cartography** under MCP servers (Command Palette → **MCP: List Servers**). That copy draws
+SVG but not PNG (resvg is native code the extension does not ship); the CLI and the server below
+draw both.
+
+Without the extension, or in an editor built on VS Code that cannot register servers for an
+extension, add `.vscode/mcp.json` to the project by hand:
 
 ```json
 {

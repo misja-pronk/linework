@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import Module, { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
 import { build } from 'esbuild';
 import { chromium } from '@playwright/test';
 
@@ -38,6 +39,35 @@ const ext = require(path.join(dist, 'extension.js'));
 const api = ext.activate({ subscriptions: [], extensionUri: stub.Uri.file(here) });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** MCP over stdio, as an agent speaks it: one JSON-RPC message per line. */
+function mcpClient(child) {
+  const waiting = new Map();
+  let buf = '';
+  let id = 0;
+  child.stdout.on('data', (d) => {
+    buf += d;
+    for (let i; (i = buf.indexOf('\n')) >= 0; buf = buf.slice(i + 1)) {
+      const m = JSON.parse(buf.slice(0, i));
+      waiting.get(m.id)?.(m);
+    }
+  });
+  child.stderr.on('data', () => {});
+  const send = (m) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');
+  const rpc = (method, params = {}) =>
+    new Promise((ok) => {
+      const n = ++id;
+      waiting.set(n, ok);
+      send({ id: n, method, params });
+    });
+  return {
+    rpc,
+    notify: (method) => send({ method }),
+    /** A tool call's text. */
+    tool: async (name, args) => ((await rpc('tools/call', { name, arguments: args })).result?.content ?? []).map((c) => c.text ?? '').join('\n'),
+    close: () => child.kill(),
+  };
+}
 async function until(f, ms = 20_000) {
   const end = Date.now() + ms;
   for (;;) {
@@ -238,6 +268,21 @@ await tab.keyboard.press('Escape');
 await pump();
 check((await rejecting).result?.outcome === 'rejected' && doc.getText().includes('stripe:'), 'live: Reject leaves the document');
 
+// The MCP server the extension registers with VS Code (mcp.ts), started as VS Code starts it: the
+// definition's command, arguments, environment and folder. An agent's calls go through it to the live link.
+const [definition] = await stub.state.mcpProviders.get('cartography.mcp').provideMcpServerDefinitions();
+check(definition?.cwd?.fsPath === work && definition.args[0] === path.join(dist, 'mcp.mjs'), 'mcp: one server, the bundled one, in the workspace folder');
+const mcp = mcpClient(spawn(definition.command, definition.args, { cwd: definition.cwd.fsPath, env: { ...process.env, ...definition.env } }));
+const hello = await mcp.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
+mcp.notify('notifications/initialized');
+check(hello.result?.serverInfo?.name === 'cartography', `mcp: the server starts and answers (${hello.result?.serverInfo?.name ?? hello.error?.message})`);
+const names = (await mcp.rpc('tools/list')).result?.tools.map((t) => t.name) ?? [];
+check(['get_schema', 'validate', 'edit_diagram', 'get_context', 'propose'].every((n) => names.includes(n)), `mcp: the tools are there (${names.length})`);
+const mcpCtx = await mcp.tool('get_context', {});
+check(mcpCtx.includes(file) && mcpCtx.includes('orders'), 'mcp: get_context reaches the extension through the live link');
+const valid = await mcp.tool('validate', { file: 'shop.yaml' });
+check(/valid/i.test(valid), 'mcp: relative paths resolve in the workspace folder');
+
 // The presenter: full screen, the step's caption below, arrows step.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Light };
 await stub.commands.executeCommand('cartography.present', doc.uri);
@@ -257,6 +302,7 @@ await show.tab.keyboard.press('Escape');
 await show.pump();
 check(closed, 'Escape closes the presenter');
 
+mcp.close();
 await browser.close();
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`screenshots in ${path.relative(process.cwd(), out) || '.'}`);

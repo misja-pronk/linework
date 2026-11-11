@@ -12,7 +12,7 @@ pnpm --filter @cartography/vscode package     # → packages/vscode/cartography-
 code --install-extension packages/vscode/cartography-0.1.0.vsix
 ```
 
-Or in VS Code: Extensions view → `…` menu → **Install from VSIX…**. VS Code 1.90 or later.
+Or in VS Code: Extensions view → `…` menu → **Install from VSIX…**. VS Code 1.101 or later.
 
 The `.vsix` is written by `packages/vscode/package.mjs` with fflate (already in the tree), not with `@vscode/vsce`: a vsix is a zip with a manifest, and this keeps packaging offline with no extra dependencies. `pnpm --filter @cartography/vscode build` alone writes `dist/` (to run the extension from source: open `packages/vscode` in VS Code and start an Extension Development Host with F5 and a launch config of type `extensionHost`).
 
@@ -49,8 +49,8 @@ through Cartography's MCP server ([ai](ai.md), [mcp](mcp.md)). The extension ans
 - a diagram changed on disk while it is open and saved: VS Code reloads it, and the preview shows
   what changed, with **Undo** to take it back.
 
-The engine version the extension targets (1.90) cannot register MCP servers itself: add the server
-by hand in `.vscode/mcp.json` ([ai](ai.md#set-up-the-mcp-server)).
+The extension registers the MCP server with VS Code itself, so the agents in VS Code (Copilot's agent
+mode and others) have the tools with nothing to set up.
 
 ## Problems and completion
 

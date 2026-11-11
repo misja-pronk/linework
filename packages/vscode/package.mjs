@@ -55,7 +55,7 @@ export function vsixManifest(m) {
 }
 
 const CONTENT_TYPES = `<?xml version="1.0" encoding="utf-8"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension=".json" ContentType="application/json" /><Default Extension=".js" ContentType="application/javascript" /><Default Extension=".png" ContentType="image/png" /><Default Extension=".svg" ContentType="image/svg+xml" /><Default Extension=".md" ContentType="text/markdown" /><Default Extension=".txt" ContentType="text/plain" /><Default Extension=".vsixmanifest" ContentType="text/xml" /></Types>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension=".json" ContentType="application/json" /><Default Extension=".js" ContentType="application/javascript" /><Default Extension=".mjs" ContentType="application/javascript" /><Default Extension=".png" ContentType="image/png" /><Default Extension=".svg" ContentType="image/svg+xml" /><Default Extension=".md" ContentType="text/markdown" /><Default Extension=".txt" ContentType="text/plain" /><Default Extension=".vsixmanifest" ContentType="text/xml" /></Types>
 `;
 
 function walk(dir, base = dir) {

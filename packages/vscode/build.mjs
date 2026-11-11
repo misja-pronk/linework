@@ -1,5 +1,6 @@
 // Builds the extension into dist/: extension.js (the extension host's side, with the engine and
-// Graphviz inside, CommonJS as VS Code loads it), webview.js (the preview page) and schemas/ (each type's JSON Schema, for
+// Graphviz inside, CommonJS as VS Code loads it), mcp.mjs (the MCP server VS Code starts for its
+// agents), webview.js (the preview page) and schemas/ (each type's JSON Schema, for
 // anyone who wants to point another tool at them).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +10,18 @@ import { build } from 'esbuild';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(here, 'dist');
 const minify = !process.argv.includes('--dev');
+
+/** @resvg/resvg-js in the MCP bundle: a class that says why there is no PNG. */
+const noResvg = {
+  name: 'no-resvg',
+  setup(b) {
+    b.onResolve({ filter: /^@resvg\/resvg-js$/ }, () => ({ path: 'resvg', namespace: 'no-resvg' }));
+    b.onLoad({ filter: /.*/, namespace: 'no-resvg' }, () => ({
+      contents: "export class Resvg { constructor() { throw new Error('The MCP server inside the VS Code extension draws no PNG (resvg is native code it does not ship). Render as svg, or use the carto CLI for PNG.'); } }",
+      loader: 'js',
+    }));
+  },
+};
 
 export async function buildExtension() {
   fs.rmSync(dist, { recursive: true, force: true });
@@ -29,6 +42,19 @@ export async function buildExtension() {
     banner: { js: "const __cartoUrl = require('node:url').pathToFileURL(__filename).href;" },
   };
   await build({ ...node, entryPoints: { extension: 'src/extension.ts' }, outdir: dist });
+  // The MCP server VS Code starts for its agents (src/mcp.ts): packages/mcp's own main, as an ES
+  // module for its top-level await. resvg is a native module per platform, so this copy has no PNG:
+  // the shim says so, and render draws SVG.
+  await build({
+    ...node,
+    format: 'esm',
+    define: {},
+    banner: { js: "import { createRequire as __cartoRequire } from 'node:module'; const require = __cartoRequire(import.meta.url);" },
+    entryPoints: { mcp: '../mcp/src/main.ts' },
+    outExtension: { '.js': '.mjs' },
+    outdir: dist,
+    plugins: [noResvg],
+  });
   await build({ absWorkingDir: here, bundle: true, format: 'iife', platform: 'browser', target: 'es2022', minify, legalComments: 'none', logLevel: 'warning', entryPoints: { webview: 'src/webview/main.ts' }, outdir: dist });
   // The schemas, written by the same code the extension hands the YAML extension.
   const out = path.join(dist, 'schemas.cjs');

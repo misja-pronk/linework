@@ -1,5 +1,7 @@
 // A small stand-in for the `vscode` module: enough of the API for the extension to activate, open
 // documents, publish problems and post to a webview, with everything it did kept for the test to see.
+import fs from 'node:fs';
+
 type Listener<T> = (e: T) => unknown;
 
 class Emitter<T> {
@@ -10,6 +12,12 @@ class Emitter<T> {
   };
   fire(e: T) {
     for (const l of this.listeners) l(e);
+  }
+}
+
+export class EventEmitter<T> extends Emitter<T> {
+  dispose() {
+    this.listeners = [];
   }
 }
 
@@ -106,6 +114,22 @@ export class WorkspaceEdit {
     this.edits.push({ uri, range, text });
   }
 }
+export class McpStdioServerDefinition {
+  cwd?: Uri;
+  constructor(
+    readonly label: string,
+    public command: string,
+    public args: string[] = [],
+    public env: Record<string, string | number | null> = {},
+    public version?: string,
+  ) {}
+}
+
+export interface McpProvider {
+  onDidChangeMcpServerDefinitions?: (l: () => unknown) => { dispose(): void };
+  provideMcpServerDefinitions(token?: unknown): McpStdioServerDefinition[] | Promise<McpStdioServerDefinition[]>;
+}
+
 export enum ViewColumn {
   Active = -1,
   Beside = -2,
@@ -227,6 +251,10 @@ export const state = {
   yamlInstalled: true,
   messages: [] as string[],
   clipboard: '',
+  /** MCP server providers, by id (vscode.lm.registerMcpServerDefinitionProvider). */
+  mcpProviders: new Map<string, McpProvider>(),
+  /** Editors shown, newest last (window.showTextDocument). */
+  shown: [] as TextDocument[],
 };
 
 const events = {
@@ -237,7 +265,14 @@ const events = {
   theme: new Emitter<unknown>(),
   config: new Emitter<{ affectsConfiguration: (s: string) => boolean }>(),
   editor: new Emitter<unknown>(),
+  folders: new Emitter<unknown>(),
 };
+
+/** Sets the workspace folders and fires the event, as adding or removing a folder does. */
+export function setWorkspaceFolders(paths: string[]) {
+  workspace.workspaceFolders = paths.map((p) => ({ uri: Uri.file(p) }));
+  events.folders.fire({});
+}
 
 /** Opens a document as VS Code would, firing the event the extension listens to. */
 export function openDocument(path: string, text: string): TextDocument {
@@ -286,12 +321,13 @@ export const workspace = {
   onDidChangeTextDocument: events.change.event,
   onDidCloseTextDocument: events.close.event,
   onDidChangeConfiguration: events.config.event,
-  onDidChangeWorkspaceFolders: () => new Disposable(),
+  onDidChangeWorkspaceFolders: events.folders.event,
   onDidSaveTextDocument: () => new Disposable(),
   getConfiguration: (section: string) => ({ get: <T>(key: string, fallback: T): T => (`${section}.${key}` in state.config ? (state.config[`${section}.${key}`] as T) : fallback) }),
   createFileSystemWatcher: () => ({ onDidChange: () => new Disposable(), onDidCreate: () => new Disposable(), onDidDelete: () => new Disposable(), dispose() {} }),
   openTextDocument: async (arg: Uri | { content?: string; language?: string }) => {
-    if (arg instanceof Uri) return state.documents.find((d) => d.uri.toString() === arg.toString()) ?? openDocument(arg.fsPath, '');
+    // A file not open yet is read from disk, as VS Code does.
+    if (arg instanceof Uri) return state.documents.find((d) => d.uri.toString() === arg.toString()) ?? openDocument(arg.fsPath, fs.existsSync(arg.fsPath) ? fs.readFileSync(arg.fsPath, 'utf8') : '');
     const doc = new TextDocument(new Uri('untitled', `Untitled-${state.documents.length + 1}`), arg.content ?? '', arg.language);
     state.documents.push(doc);
     events.open.fire(doc);
@@ -323,6 +359,7 @@ export const window = {
     return p;
   },
   showTextDocument: async (doc: TextDocument) => {
+    state.shown.push(doc);
     const editor = { document: doc, selection: undefined as unknown, selections: [] as Selection[], viewColumn: ViewColumn.One, revealRange: () => {} };
     return editor;
   },
@@ -331,6 +368,13 @@ export const window = {
   showInformationMessage: async (m: string) => void state.messages.push(m),
   showQuickPick: async () => undefined,
   showSaveDialog: async () => undefined,
+};
+
+export const lm = {
+  registerMcpServerDefinitionProvider: (id: string, p: McpProvider) => {
+    state.mcpProviders.set(id, p);
+    return new Disposable(() => state.mcpProviders.delete(id));
+  },
 };
 
 export const env = {
