@@ -71,6 +71,40 @@ const drift = (before, after) => {
   return Object.fromEntries(ids.map((id) => [id, Math.hypot(after[id].x - before[id].x - dx, after[id].y - before[id].y - dy)]));
 };
 const settle = () => page.waitForTimeout(450);
+/**
+ * While a box is being named it is drawn as a box (its shape and icon in sight), the selection ring
+ * wraps all of it, and the name is typed inside it: the editor never covers the box or the ring.
+ */
+const namedInBox = async (what) => {
+  const r = await page.evaluate(() => {
+    const ring = document.querySelector('#canvas-focus')?.getBoundingClientRect();
+    const input = document.querySelector('.label-editor')?.getBoundingClientRect();
+    if (!ring || !input) return { missing: !ring ? 'ring' : 'name editor' };
+    const node = [...document.querySelectorAll('.drawing [data-node]')].find((g) => {
+      const b = g.querySelector('rect')?.getBoundingClientRect();
+      return b && b.x + b.width / 2 > ring.x && b.x + b.width / 2 < ring.right && b.y + b.height / 2 > ring.y && b.y + b.height / 2 < ring.bottom;
+    });
+    const shape = node?.querySelector('rect');
+    const b = shape?.getBoundingClientRect();
+    const seen = (el) => !!el && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none';
+    // What is drawn under the editor's middle: the box's own shape, not the editor over it.
+    const under = document.elementsFromPoint(b ? b.x + 8 : 0, b ? b.y + b.height / 2 : 0);
+    return {
+      id: node?.getAttribute('data-node'),
+      ring: { h: ring.height, w: ring.width },
+      box: b && { h: b.height, w: b.width },
+      shown: seen(shape) && seen(node?.querySelector('g')),
+      inside: !!b && input.x >= b.x && input.right <= b.right && input.y >= b.y && input.bottom <= b.bottom,
+      coversEdge: !!b && under[0]?.classList.contains('label-editor'),
+    };
+  });
+  if (r.missing) return fail(`${what}: no ${r.missing} while naming`);
+  if (!r.box || !r.box.h || !r.box.w) return fail(`${what}: the box being named is not drawn (${JSON.stringify(r)})`);
+  if (!r.shown) fail(`${what}: the shape or icon of the box being named is hidden`);
+  if (r.ring.h < r.box.h || r.ring.w < r.box.w) fail(`${what}: the selection ring (${r.ring.w}×${r.ring.h}) does not wrap the box (${r.box.w}×${r.box.h})`);
+  if (!r.inside) fail(`${what}: the name editor is not inside the box it names`);
+  if (r.coversEdge) fail(`${what}: the name editor covers the box's edge`);
+};
 
 // ------------------------------------------------------------------ 1. a live session from a blank sheet
 {
@@ -89,6 +123,8 @@ const settle = () => page.waitForTimeout(450);
   // A name typed on the empty sheet is the first box; the id follows the name.
   await page.keyboard.type('Orders API');
   await naming();
+  await settle();
+  await namedInBox('the first box on a blank sheet');
   await page.keyboard.press('Enter');
   await written('orders-api: { kind: service, label: Orders API }');
   await onCanvas();
@@ -98,6 +134,10 @@ const settle = () => page.waitForTimeout(450);
   // Tab: a box connected from it, named straight away; Tab again from the name goes on.
   await page.keyboard.press('Tab');
   await page.keyboard.type('Payments');
+  await naming();
+  await settle();
+  await namedInBox('a box added with Tab');
+  await snap('naming-tab');
   await page.keyboard.press('Tab');
   await written('- orders-api -> payments');
   await page.keyboard.type('Ledger');
@@ -108,6 +148,9 @@ const settle = () => page.waitForTimeout(450);
   // Enter: a sibling of Ledger, connected from Payments as Ledger is.
   await page.keyboard.press('Enter');
   await page.keyboard.type('Fraud check');
+  await naming();
+  await settle();
+  await namedInBox('a box added with Enter');
   await page.keyboard.press('Enter');
   await written('- payments -> fraud-check');
   await settle();
@@ -117,6 +160,8 @@ const settle = () => page.waitForTimeout(450);
   await page.locator('.drawing [data-node="orders-api"]').click();
   await page.keyboard.type('Checkout');
   await naming();
+  await settle();
+  await namedInBox('a box renamed by typing');
   await page.keyboard.press('Enter');
   await written('label: Checkout');
   if ((await yaml()).includes('label: Orders API')) fail('the rename left the old name');
@@ -349,6 +394,8 @@ edges:
   await page.keyboard.press('Tab');
   await written('- web -> app-service');
   await naming();
+  await settle();
+  await namedInBox('a box added with Tab in the editor');
   await page.keyboard.type('kv: Secrets');
   await page.keyboard.press('Enter');
   await written('secrets: { kind: key-vault, label: Secrets }');

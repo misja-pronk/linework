@@ -865,7 +865,7 @@ export function Preview(p: Props) {
     return true;
   };
   /** Where the label editor sits, from the current view, so it follows a view that moves. */
-  const editorRect = (t: LabelTarget, el?: Element) => {
+  const editorRect = (t: LabelTarget, el?: Element): EditorRect | undefined => {
     const f = frame.current;
     if (!f) return undefined;
     if (el) {
@@ -876,6 +876,13 @@ export function Preview(p: Props) {
     }
     const b = selectedBox(result, t as Selection);
     if (!b) return undefined;
+    // A box: the name is typed where its name is drawn, inside it, so the box itself (outline, icon,
+    // kind) and the selection ring round it stay in sight while it is named.
+    const spot = t.kind === 'node' ? labelSpot(drawingEl.current, t.id, b) : undefined;
+    if (spot) {
+      const s = view.scale;
+      return { left: view.x + spot.x * s, top: view.y + spot.y * s, width: spot.width * s, height: spot.height * s, size: spot.size * s, inShape: true, align: spot.align, font: spot.font };
+    }
     const width = Math.max(b.width * view.scale, 180);
     const height = 36;
     const cx = view.x + (b.x + b.width / 2) * view.scale;
@@ -1156,6 +1163,10 @@ export function Preview(p: Props) {
         />
       )}
       {p.overlay?.(overlayRect(), !!editing)}
+      {editing && editorRect(editing.target, editing.el)?.inShape && (
+        // The box's own drawn name gives way to the one being typed in its place.
+        <style>{`.drawing [data-node="${CSS.escape(editing.target.id)}"] > text:first-of-type { visibility: hidden; }`}</style>
+      )}
       {editing && editorRect(editing.target, editing.el) && (
         <LabelEditor
           key={`${editing.target.kind}:${editing.target.id}:${editing.fresh ? 'fresh' : ''}`}
@@ -1218,7 +1229,7 @@ export function Preview(p: Props) {
 /** A label typed in place: Enter keeps it, Esc drops it, and no key reaches the drawing's shortcuts.
  * Tab keeps it too (the app goes on to a new connected box). With kinds, "fw:" lists the kinds that
  * word names, and ↑ ↓ pick one. */
-function LabelEditor(p: { text: string; caret?: boolean; kinds?: readonly PaletteItem[]; left: number; top: number; width: number; height: number; size: number; onDone(text: string | undefined, how: LabelExit, kind?: PaletteItem): void }) {
+function LabelEditor(p: EditorRect & { text: string; caret?: boolean; kinds?: readonly PaletteItem[]; onDone(text: string | undefined, how: LabelExit, kind?: PaletteItem): void }) {
   const [text, setText] = useState(p.text);
   const [pick, setPick] = useState(0);
   const done = useRef(false);
@@ -1234,7 +1245,7 @@ function LabelEditor(p: { text: string; caret?: boolean; kinds?: readonly Palett
   return (
     <>
       <input
-        className="label-editor"
+        className={p.inShape ? 'label-editor in-shape' : 'label-editor'}
         aria-label={t('Label')}
         autoFocus
         onFocus={(e) => (p.caret ? e.currentTarget.setSelectionRange(text.length, text.length) : e.currentTarget.select())}
@@ -1246,7 +1257,7 @@ function LabelEditor(p: { text: string; caret?: boolean; kinds?: readonly Palett
         aria-controls={options.length ? listId : undefined}
         aria-activedescendant={chosen ? `${listId}-${options.indexOf(chosen)}` : undefined}
         aria-autocomplete={p.kinds ? 'list' : undefined}
-        style={{ left: p.left, top: p.top, width: p.width, height: p.height, fontSize: p.size }}
+        style={{ left: p.left, top: p.top, width: p.width, height: p.height, fontSize: p.size, ...(p.align ? { textAlign: p.align } : {}), ...(p.font ? { fontFamily: p.font.family, fontWeight: p.font.weight, color: p.font.color } : {}) }}
         onChange={(e) => {
           setText(e.target.value);
           setPick(0);
@@ -1340,7 +1351,65 @@ function ScaleBar({ scale }: { scale: number }) {
   );
 }
 
-/** The selected element's box in SVG coordinates. */
+/** Where the label editor goes (pane pixels), and for a box, that it sits in it, over its drawn name. */
+interface EditorRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  size: number;
+  inShape?: boolean;
+  align?: 'left' | 'center' | 'right';
+  /** The drawn name's own type, so the name typed reads as the one it becomes. */
+  font?: { family: string; weight: string; color: string };
+}
+
+/**
+ * Where a box's name is drawn, in SVG coordinates (as `b`, its box): the line its name is typed on,
+ * from where the name starts to the box's inner edge, at the size the name is drawn. Undefined when the
+ * box draws no name of its own (the editor then goes over its middle).
+ */
+function labelSpot(drawing: Element | null, id: string, b: Box): (Box & { size: number; align: 'left' | 'center' | 'right'; font: NonNullable<EditorRect['font']> }) | undefined {
+  const g = drawing?.querySelector(`[data-node="${CSS.escape(id)}"]`);
+  // The name is the box's first text; the kind and badges come after it.
+  const text = g ? [...g.children].find((c): c is SVGTextElement => c.tagName.toLowerCase() === 'text') : undefined;
+  if (!text) return undefined;
+  // The drawing's own coordinates can sit off the layout's (a sheet margin, a viewBox): the name is
+  // measured against the box's shape, its first element, and carried onto `b` from there.
+  const shape = g!.firstElementChild as SVGGraphicsElement | null;
+  const sb = shape && shape !== text ? shape.getBBox() : undefined;
+  const raw = text.getBBox();
+  if (!sb?.width || (!raw.width && !raw.height)) return undefined;
+  const k = b.width / sb.width;
+  const tb = { x: b.x + (raw.x - sb.x) * k, y: b.y + (raw.y - sb.y) * k, width: raw.width * k, height: raw.height * k };
+  const size = (parseFloat(text.getAttribute('font-size') ?? '') || raw.height / 1.25 || 13.5) * k;
+  const anchor = getComputedStyle(text).textAnchor;
+  const pad = 8;
+  // A name drawn inside the box can run to its edge; one drawn beside or under it gets room of its own.
+  const inside = tb.x >= b.x - 1 && tb.x + tb.width <= b.x + b.width + 1 && tb.y >= b.y - 1 && tb.y + tb.height <= b.y + b.height + 1;
+  const room = Math.max(tb.width, size * 9);
+  let x: number;
+  let right: number;
+  let align: 'left' | 'center' | 'right' = 'left';
+  if (anchor === 'middle') {
+    const c = tb.x + tb.width / 2;
+    const half = inside ? Math.min(c - b.x, b.x + b.width - c) - pad : room / 2;
+    x = c - half;
+    right = c + half;
+    align = 'center';
+  } else if (anchor === 'end') {
+    right = tb.x + tb.width;
+    x = inside ? b.x + pad : right - room;
+    align = 'right';
+  } else {
+    x = tb.x;
+    right = inside ? b.x + b.width - pad : x + room;
+  }
+  const height = size * 1.45;
+  const cs = getComputedStyle(text);
+  return { x, y: tb.y + tb.height / 2 - height / 2, width: Math.max(right - x, size * 4), height, size, align, font: { family: cs.fontFamily, weight: cs.fontWeight, color: cs.fill } };
+}
+
 /** Where the drawing may start, below what floats over the top of the pane: the breadcrumbs, the tools and the focus chip (16 px under them). */
 function floatingTop(f: HTMLElement): number {
   const tools = f.querySelector('.canvas-top');
