@@ -3,7 +3,7 @@
 import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
 import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { arrowBack, arrowHead, endMarker as marker, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
+import { arrowBack, endMarker as marker, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
 import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';

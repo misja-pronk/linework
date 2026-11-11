@@ -36,7 +36,7 @@ stub.state.config['cartography.preview.debounce'] = 0;
 // The folder the live link announces (live.ts), for an agent to find.
 stub.workspace.workspaceFolders = [{ uri: stub.Uri.file(path.join(tmp, 'work')) }];
 const ext = require(path.join(dist, 'extension.js'));
-const api = ext.activate({ subscriptions: [], extensionUri: stub.Uri.file(here) });
+ext.activate({ subscriptions: [], extensionUri: stub.Uri.file(here) });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

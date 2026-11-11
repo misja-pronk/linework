@@ -7,7 +7,7 @@
 // icons) with their final colours. The SVG drawer below and the slide drawer in the export package
 // both walk that list, so a slide gets the same picture as native, editable shapes.
 import { esc } from './paint.ts';
-import { journeyMood, journeyNeutral, type Box, type JourneyPersona, type JourneyPhase, type JourneyRow, type JourneyShape, type JourneyStep, type Tone } from '@cartography/core';
+import { journeyMood, type Box, type JourneyPersona, type JourneyPhase, type JourneyRow, type JourneyShape, type JourneyStep, type Tone } from '@cartography/core';
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { quietTheme, wrap } from './steps.ts';

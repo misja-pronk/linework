@@ -13,7 +13,7 @@
 import { parseEdge } from './edges.ts';
 import type { BuildContext, KindTable } from './diagram-type.ts';
 import { withTechnology, type ModelContext, type ModelElement, type ViewSpec } from './catalogue.ts';
-import type { Graph, LayoutSidecar, Path, Point, ViewPins } from './model.ts';
+import type { Graph, LayoutSidecar, Path, ViewPins } from './model.ts';
 import { kindCaption, type Entry, type GraphSource, type GraphTypeConfig } from './graph-source.ts';
 
 /** Where drawn entries are written, when not at ['nodes', id] / ['edges', i]: model elements, other files. */

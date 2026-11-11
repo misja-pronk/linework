@@ -130,7 +130,7 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
     { id: 'addressing', label: 'Addressing (if you know it)', kind: 'text', placeholder: 'VLAN 10 staff 10.0.10.0/24, VLAN 20 voice…' },
     { id: 'view', label: 'Show it as', kind: 'choice', options: ['Topology', 'IP plan table'], initial: 'Topology' },
   ],
-  erd: (t) => [
+  erd: () => [
     { ...about, label: 'What is the database for?', placeholder: 'E.g. a webshop: customers, orders, products, payments.' },
     { id: 'tables', label: 'Main tables (if you know them)', kind: 'text', placeholder: 'customers, orders, order_lines, products' },
     { id: 'engine', label: 'Database', kind: 'choice', options: ['PostgreSQL', 'SQL Server', 'MySQL', 'Generic'], initial: 'PostgreSQL' },
