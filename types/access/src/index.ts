@@ -229,6 +229,14 @@ class Model {
     return 1 + list(this.role(role)?.inherits).reduce((s, r) => s + this.rank(r, seen), 0);
   }
 
+  /** Whether a role is the other one or includes it, so activating the other adds nothing. */
+  includes(role: string, other: string, seen = new Set<string>()): boolean {
+    if (role === other) return true;
+    if (seen.has(role)) return false;
+    seen.add(role);
+    return list(this.role(role)?.inherits).some((r) => this.includes(r, other, seen));
+  }
+
   permissions(role: string, seen = new Set<string>()): Map<string, boolean> {
     const out = new Map<string, boolean>();
     if (seen.has(role)) return out;
@@ -455,7 +463,7 @@ function accessView(m: Model, was?: Model): Graph {
       const best = all[0];
       if (!best) return undefined;
       // Held now, and more on activation: the cell says both.
-      const more = best.eligible ? [] : all.filter((r) => r.eligible && r.role && best.role && m.rank(r.role) > m.rank(best.role));
+      const more = best.eligible ? [] : all.filter((r) => r.eligible && r.role && !(best.role && m.includes(best.role, r.role)));
       const cell = cellOf(best);
       return more.length ? { ...cell, note: [cell.note, `eligible for ${more.map((r) => m.label(r.role!)).join(', ')}`].filter(Boolean).join('; ') } : cell;
     });

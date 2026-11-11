@@ -464,7 +464,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const named = (id: string) => graph.groups.find((g) => g.id === id)?.label ?? id;
   for (const id of placed.nudged ?? []) diagnostics.push({ severity: 'warning', message: `${named(id)} was pinned on top of another pinned element: it is drawn beside it. Drag it where it should go, or Tidy` });
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
-  const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
+  // A table of the type's own (who × where) names none of the elements the steps are about: it is not told in them.
+  const drawnView = (built as { view?: unknown }).view;
+  const asTable = typeof drawnView === 'string' && table(drawnView);
+  const told = model?.view ? model.view.present : asTable ? undefined : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.

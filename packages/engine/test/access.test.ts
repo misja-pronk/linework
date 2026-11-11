@@ -180,6 +180,14 @@ describe('gained and lost access', () => {
     expect(all.find((x) => x.principal === 'carol' && x.scope === 'rg')!.reach.map((r) => [r.text, r.via])).toEqual([['Owner', 'sg-ops']]);
   });
 
+  it('tells its steps in the graph, and draws a table without them', async () => {
+    const text = `${source('graph')}steps:\n  - title: Production\n    path: sg-ops -> rg\n`;
+    for (const view of ['graph', 'access', 'roles']) {
+      const r = await render(text, { fonts: 'none', view });
+      expect(r.diagnostics.filter((d) => d.severity === 'error'), view).toEqual([]);
+    }
+  });
+
   it('picks a view by name', async () => {
     const r = await render(source('graph'), { fonts: 'none', view: 'access' });
     expect(r.graph!.nodes[0]!.shape.kind).toBe('matrix');
