@@ -96,7 +96,6 @@ export const nl = {
   '{count} stale entry; carto validate --drift --fix {file} drops it|{count} stale entries; carto validate --drift --fix {file} drops them': '{count} verouderde regel; carto validate --drift --fix {file} haalt hem weg|{count} verouderde regels; carto validate --drift --fix {file} haalt ze weg',
   '{count} stale entry dropped|{count} stale entries dropped': '{count} verouderde regel weggehaald|{count} verouderde regels weggehaald',
   '{count} stale entry dropped, nothing left: file removed|{count} stale entries dropped, nothing left: file removed': '{count} verouderde regel weggehaald, niets over: bestand verwijderd|{count} verouderde regels weggehaald, niets over: bestand verwijderd',
-  'workspace ok: {count} diagram|workspace ok: {count} diagrams': 'map ok: {count} diagram|map ok: {count} diagrammen',
 
   // share
   '{file}: the link would be {size} kB, over the {limit} kB a link can safely carry. Share the file itself instead.': '{file}: de link zou {size} kB worden, meer dan de {limit} kB die een link veilig kan bevatten. Deel liever het bestand zelf.',
@@ -229,15 +228,13 @@ export const nlHelp: Record<string, string> = {
     `  carto share <file.yaml> [--base URL]          een link die het diagram alleen-lezen opent in de webapp; het diagram
                                                 reist mee in het #fragment van de link, nooit naar een server (standaard
                                                 http://localhost:5178/)`,
-  [`  carto validate <file.yaml…|folder>            check files and each of their views, print problems; a folder
-                                                also across files: dangling ref:/of:, one id with two kinds,
-                                                elements that no diagram or view shows
+  [`  carto validate <file.yaml…|folder>            check files (each diagram of a folder) and each of their views,
+                                                print problems
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json`]:
-    `  carto validate <file.yaml…|folder>            controleert bestanden en elk van hun weergaven, toont problemen; een
-                                                map ook over bestanden heen: ref:/of: naar niets, één id met twee
-                                                soorten, elementen die geen diagram of weergave laat zien
+    `  carto validate <file.yaml…|folder>            controleert bestanden (elk diagram van een map) en elk van hun
+                                                weergaven, toont problemen
                [--drift]                        ook falen als <file>.layout.json dingen (of weergaven) vastzet,
                                                 buigt of vergrendelt die niet meer in het diagram staan
                [--drift --fix]                  die regels uit <file>.layout.json halen`,

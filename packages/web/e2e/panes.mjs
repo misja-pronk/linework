@@ -114,10 +114,7 @@ async function run(width, height, theme) {
     await page.waitForTimeout(1400);
   });
 
-  await step('where used and the file it is defined in, with the selection', async () => {
-    if (!(await page.locator('.side .where-used').count())) fail(`${tag}: where-used is not with the selection`);
-    const defined = await page.locator('.side .defined-in').innerText();
-    if (!/model\.yaml/.test(defined)) fail(`${tag}: no "defined in model.yaml" for an included element: ${defined}`);
+  await step('the properties of the selection fit the panel', async () => {
     const wide = await page.locator('.side .inspector-body').evaluate((el) => el.scrollWidth - el.clientWidth);
     if (wide > 1) fail(`${tag}: the properties run ${wide} px past the panel`);
   });

@@ -196,7 +196,7 @@ The top level holds the pins of the diagram as written, so existing sidecars kee
 
 ## A folder of them
 
-Open the folder in the editor and every diagram in it is one model: search all of it with ⌘P, walk down from the landscape and back with ⌘[, see where an element is used and rename it in every file at once. `carto validate <folder>` checks what only goes wrong between files. See [workspace.md](workspace.md) and [examples/workspace](../examples/workspace).
+Open the folder in the editor (or `carto serve` it) and its diagrams include one another and follow their links. `carto validate <folder>` checks each diagram in it, and `carto export --to html <folder>` writes all of them into one file that drills down from the landscape. See [examples/workspace](../examples/workspace).
 
 ## How it fits together
 

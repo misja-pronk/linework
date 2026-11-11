@@ -19,7 +19,7 @@ One name for each thing, the same in the editor, these docs and the `carto` comm
 | **Focus** | The drawing cut down to the selection and what is around it (`F`, `focus:`). | filter |
 | **Step** | One part of a drawing told in order (`steps:`), presented one at a time and exported as a slide or page each. | slide, frame |
 | **Snapshot** | A copy of the diagram kept to compare with later. | version |
-| **Folder** | A folder of diagrams opened in the editor and treated as one model: search, where used, rename everywhere. | workspace (only in the code) |
+| **Folder** | A folder of diagrams opened in the editor: they include one another and follow their links. | workspace (only in the code) |
 | **Model** | Elements described once (`type: model`) and `include:`d by the diagrams that draw them. | |
 
 ## Types: the name you see and the id you write

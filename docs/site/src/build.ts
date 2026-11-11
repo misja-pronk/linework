@@ -35,7 +35,7 @@ const NAV: { title: string; items: [string, string?][] }[] = [
     title: 'Diagram types',
     items: [['c4.md', 'C4 model'], ['process.md', 'Processes'], ['states.md', 'State machines'], ['capabilities.md', 'Capability maps'], ['teams.md', 'Teams and org charts'], ['class.md', 'Class diagrams'], ['mindmap.md', 'Mind maps'], ['context-map.md', 'Context maps'], ['matrix.md', 'Matrices'], ['data-products.md', 'Data products']],
   },
-  { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['workspace.md', 'The folder as one model'], ['steps.md', 'Steps'], ['layers.md', 'Layers'], ['compare.md', 'Compare versions'], ['share.md', 'Share links'], ['html-export.md', 'Interactive HTML']] },
+  { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['steps.md', 'Steps'], ['layers.md', 'Layers'], ['compare.md', 'Compare versions'], ['share.md', 'Share links'], ['html-export.md', 'Interactive HTML']] },
   { title: 'Export', items: [['powerpoint-templates.md', 'PowerPoint and Office']] },
   { title: 'Docs, CI and AI', items: [['ci.md', 'In CI'], ['ai.md', 'Your own AI'], ['mcp.md', 'MCP and agents']] },
   { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes'], ['icons.md', 'Official icons']] },

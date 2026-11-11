@@ -110,7 +110,6 @@ export const nlShell = {
   'the panel keys work while it is open': 'de toetsen van het paneel werken zolang het open is',
   'the selected shapes': 'de geselecteerde vormen',
   'full screen': 'schermvullend',
-  'with a folder open': 'met een map open',
   'when the YAML has focus': 'als de YAML focus heeft',
   'on its chip': 'op het label van de stap',
   'in a focus': 'in een focus',
@@ -126,7 +125,6 @@ export const nlShell = {
   Steps: 'Stappen',
   Presenting: 'Presenteren',
   'Comparing versions': 'Versies vergelijken',
-  'Folder (one model)': 'Map (één model)',
   'YAML editor': 'YAML-editor',
   'Mouse and trackpad': 'Muis en trackpad',
 
@@ -209,12 +207,6 @@ export const nlShell = {
   'Overlay or side by side': 'Over elkaar of naast elkaar',
   'Fit / zoom in / zoom out': 'Passend / inzoomen / uitzoomen',
   'Back to editing': 'Terug naar bewerken',
-  'Search every diagram in the folder (↵ opens in focus, ⌥↵ only selects); without a folder ⌘P prints': 'Zoeken in elk diagram in de map (↵ opent in focus, ⌥↵ selecteert alleen); zonder map drukt ⌘P af',
-  'Down into the selection: a system to its containers, an instance to its model': 'Omlaag de selectie in: van een systeem naar zijn containers, van een instantie naar haar model',
-  'Up a level': 'Een niveau omhoog',
-  'Back (not in the YAML: there it outdents)': 'Terug (niet in de YAML: daar spring je terug in)',
-  'Forward (not in the YAML: there it indents)': 'Vooruit (niet in de YAML: daar spring je in)',
-  'Rename the selected element in every file': 'Het geselecteerde element in elk bestand hernoemen',
   'Move it (pins it), snapping to guides; drop into a group to nest': 'Verplaatsen (zet het vast), met hulplijnen; loslaten in een groep nest het',
   'Move that part of it (bends are kept)': 'Dat deel ervan verplaatsen (knikken blijven)',
   'Take that bend out of the line': 'Die knik uit de lijn halen',
@@ -230,7 +222,6 @@ export const nlShell = {
   'Comment the line': 'De regel uitcommentariëren',
 
   // keys.ts: how the sheet writes gestures
-  '⌘↓ / double-click': '⌘↓ / dubbelklik',
   '↵ / F2 / double-click': '↵ / F2 / dubbelklik',
   '→ / Space': '→ / spatie',
   '⌥ while dragging': '⌥ tijdens slepen',

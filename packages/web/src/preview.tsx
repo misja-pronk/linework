@@ -66,8 +66,6 @@ interface Props {
   canDrop(group: string, what: { node?: string; palette?: number }): boolean;
   /** ⌘-click (Ctrl elsewhere): follow the element's link instead of selecting it; true when it had one. */
   onFollow?(s: Selection): boolean;
-  /** Double-click: down into what it stands for (a C4 system to its containers); false edits its label instead. */
-  onDrill?(s: Selection): boolean;
   /** Elements that cannot be dragged by accident: dragging them pans instead. */
   locked?: Set<string>;
   /** Lines with bends set by hand. */
@@ -953,7 +951,6 @@ export function Preview(p: Props) {
           : hit.dataset.node != null ? { kind: 'node', id: hit.dataset.node }
           : hit.dataset.group != null ? { kind: 'group', id: hit.dataset.group }
           : { kind: 'edge', id: hit.dataset.edge! });
-        if (s && p.onDrill?.(s)) return;
         if (s) editSelected(s);
       }}
       onKeyDown={(e) => {

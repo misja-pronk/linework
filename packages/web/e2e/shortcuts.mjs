@@ -1,5 +1,5 @@
 // The keys from keys.ts in the app: ⌘↩ never presents from a text field (the Ask box, the YAML), ⌘P
-// is the browser's without a folder, Caps Lock does not change what a letter does, S says what it
+// is the browser's, Caps Lock does not change what a letter does, S says what it
 // added, ⇧T does nothing any more, ⌘] in the YAML indents even in a folder, and the "?" sheet lists
 // every key once, grouped, and can be searched. node e2e/shortcuts.mjs <outDir>
 import fs from 'node:fs';
@@ -81,14 +81,10 @@ await step('⌘↩ on the drawing presents', async () => {
   await page.waitForSelector('.present', { state: 'detached' });
 });
 
-await step('⌘P without a folder is the browser’s', async () => {
+await step('⌘P is the browser’s', async () => {
   await page.locator('.preview').focus();
   await page.keyboard.press('Meta+p');
-  if (await taken()) fail('⌘P was taken without a folder (it prints there)');
-  if (await page.locator('.ws-search').count()) fail('⌘P opened the search without a folder');
-  await page.keyboard.press('Meta+Shift+f');
-  await page.waitForSelector('.ws-search');
-  await page.keyboard.press('Escape');
+  if (await taken()) fail('⌘P was taken (it prints)');
 });
 
 await step('⌘D outside the drawing stays the browser’s', async () => {
@@ -155,7 +151,7 @@ await step('the sheet: every key once, grouped, searchable', async () => {
   await page.keyboard.press('Escape');
 });
 
-// A folder: ⌘P searches; ⌘] in the YAML indents instead of going forward.
+// A folder: ⌘] in the YAML indents, it does not go to another file.
 const root = path.resolve(import.meta.dirname, '../../../examples/workspace');
 const files = Object.fromEntries(fs.readdirSync(root).filter((f) => f.endsWith('.yaml')).map((f) => [f, fs.readFileSync(path.join(root, f), 'utf8')]));
 await page.evaluate(async (files) => {
@@ -174,13 +170,6 @@ await page.click('button:has-text("Open folder")');
 await page.waitForSelector('.files .file, .files-rail');
 stop();
 await wait(600);
-
-await step('⌘P searches in a folder', async () => {
-  await page.locator('.preview').focus();
-  await page.keyboard.press('Meta+p');
-  await page.waitForSelector('.ws-search');
-  await page.keyboard.press('Escape');
-});
 
 await step('⌘] in the YAML indents, in a folder too', async () => {
   const file = async () => page.locator('.doc-name').innerText();

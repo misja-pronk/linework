@@ -12,10 +12,6 @@ export type KeyContext =
   | 'anywhere'
   /** Anywhere but a text field (the YAML, a name, the Ask box). */
   | 'not-typing'
-  /** A folder is open: the folder as one model (not while typing). */
-  | 'folder'
-  /** A folder is open, also while typing: search and rename everywhere. */
-  | 'folder-anywhere'
   /** The drawing has focus (or, for zoom keys, the pointer). */
   | 'drawing'
   /** The drawing is in a focus (F). */
@@ -144,15 +140,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'compare-zoom', keys: ['0', '+', '=', '-'], show: '0 / + / −', what: 'Fit / zoom in / zoom out', context: 'compare', group: 'Comparing versions' },
   { id: 'compare-exit', keys: ['escape'], what: 'Back to editing', context: 'compare', group: 'Comparing versions' },
 
-  // ------------------------------------------------------------ folder
-  { id: 'search', keys: ['mod+p', 'mod+shift+f'], what: 'Search every diagram in the folder (↵ opens in focus, ⌥↵ only selects); without a folder ⌘P prints', context: 'folder-anywhere', group: 'Folder (one model)' },
-  { id: 'drill', keys: ['mod+arrowdown'], show: '⌘↓ / double-click', what: 'Down into the selection: a system to its containers, an instance to its model', context: 'folder', group: 'Folder (one model)' },
-  { id: 'up', keys: ['mod+arrowup'], what: 'Up a level', context: 'folder', group: 'Folder (one model)' },
-  { id: 'back', keys: ['mod+['], what: 'Back (not in the YAML: there it outdents)', context: 'folder', group: 'Folder (one model)' },
-  { id: 'forward', keys: ['mod+]'], what: 'Forward (not in the YAML: there it indents)', context: 'folder', group: 'Folder (one model)' },
-  { id: 'rename-everywhere', keys: ['shift+f2'], what: 'Rename the selected element in every file', context: 'folder-anywhere', group: 'Folder (one model)' },
-
-
   // ------------------------------------------------------------ mouse and trackpad
   { id: 'drag', keys: [], show: 'Drag an element', what: 'Move it (pins it), snapping to guides; drop into a group to nest', context: 'mouse', group: 'Mouse and trackpad' },
   { id: 'drag-line', keys: [], show: 'Drag a selected line', what: 'Move that part of it (bends are kept)', context: 'mouse', group: 'Mouse and trackpad' },
@@ -266,11 +253,11 @@ export const is = (e: KeyEventLike, id: string, mac = isMac) => keysOf(byId.get(
  * key two meanings. Typing (a field or the YAML) takes only "anywhere" keys, and the editor's own.
  */
 export const TOGETHER: Record<string, KeyContext[]> = {
-  drawing: ['anywhere', 'not-typing', 'drawing', 'folder', 'folder-anywhere'],
-  'drawing in a focus': ['anywhere', 'not-typing', 'drawing', 'focus', 'folder', 'folder-anywhere'],
-  yaml: ['anywhere', 'editor', 'folder-anywhere'],
+  drawing: ['anywhere', 'not-typing', 'drawing'],
+  'drawing in a focus': ['anywhere', 'not-typing', 'drawing', 'focus'],
+  yaml: ['anywhere', 'editor'],
   'layers panel': ['anywhere', 'layers-panel'],
-  'step chip': ['anywhere', 'not-typing', 'step-chip', 'folder', 'folder-anywhere'],
+  'step chip': ['anywhere', 'not-typing', 'step-chip'],
   present: ['present'],
   compare: ['anywhere', 'compare'],
 };

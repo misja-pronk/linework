@@ -44,7 +44,6 @@ import { themes } from '@cartography/theme';
 import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
-import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { t, say, useUiLang, withUiLang, type Message } from './i18n/index.ts';
@@ -1474,34 +1473,6 @@ export function App() {
     return `${name}${kind}${state}`;
   };
 
-  // ------------------------------------------------------------ the folder as one model (workspace/)
-
-  const wsTools = useWorkspaceTools({
-    ws,
-    file: ws && doc.path ? doc.path : docId,
-    inFolder: !!(ws && doc.path),
-    text: rendered?.text ?? text,
-    textNow,
-    pins,
-    drawn,
-    view: viewName,
-    selected,
-    current,
-    open: async (file, name) => {
-      setPicked({ doc: file, name });
-      if (ws) await openInFolder(ws, file);
-    },
-    showView: (name) => setPicked({ doc: docId, name }),
-    select: (s) => select(s),
-    focus: (node, name) => setLens({ doc: docId, view: name, focus: { on: [node], hops: 1, direction: 'both' } }),
-    zoomToSelection: () => previewControl.current?.zoomToSelection(),
-    fit: () => previewControl.current?.fit(),
-    reveal: (from, to) => editor.current?.reveal(from, to),
-    replace: (next, nextPins) => editor.current?.replace(next, { pins: nextPins }),
-    refresh: (w) => setWs({ ...w }),
-    notify,
-  });
-
   // ------------------------------------------------------------ commands
 
   // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
@@ -1528,7 +1499,6 @@ export function App() {
   const buildCommands = (): Command[] => [
     { id: 'ask', group: t('Your AI'), label: asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void copyForAi() }] : []),
-    ...wsTools.commands,
     { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('template, then AI, builder or YAML'), icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
@@ -1639,7 +1609,6 @@ export function App() {
       }
       // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
-      if (!modal && !presenting && (wsTools.onKey(e, !!typing))) return e.preventDefault();
       if (e.defaultPrevented) return;
       const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (modal && id !== 'palette') || presenting) return;
@@ -2015,7 +1984,6 @@ export function App() {
               setDraft(undefined);
               pinTo(withEdge(id, via));
             }}
-            onDrill={wsTools.onDrill}
             onFollow={(s) => {
               const g = drawn?.graph;
               const links = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.links : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.links : undefined;
@@ -2025,7 +1993,6 @@ export function App() {
             }}
           >
             <div className="canvas-top">
-            {wsTools.crumbBar}
             <div className="canvas-tools" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
               <button className={adding ? 'tool active' : 'tool'} onClick={addShape} title={t('Add a shape (A)')} aria-label={t('Add a shape')} aria-expanded={adding} disabled={!type}>
                 <Icon name="plus" /> <span className="tool-label">{t('Add')}</span> <kbd>A</kbd>
@@ -2210,7 +2177,7 @@ export function App() {
             id={isEntry ? String(selectedPath!.at(-1)) : selected.id}
             title={selNode ? label(selNode) : selGroup ? selGroup.label : selEdge ? `${nodeName(selEdge.from.node)} → ${nodeName(selEdge.to.node)}` : selected.id}
             icon={selNode ? iconOf(selNode) : selGroup ? selGroup.icon : 'arrow-right-from-line'}
-            kindLabel={selEdge ? (selEdge.label ? t('Line · {label}', { label: selEdge.label }) : t('Line')) : wsTools.definedElsewhere ? (wsTools.definedElsewhere.kind ?? t('element')).replace(/-/g, ' ') : say(kindLabel(selectedPath))}
+            kindLabel={selEdge ? (selEdge.label ? t('Line · {label}', { label: selEdge.label }) : t('Line')) : say(kindLabel(selectedPath))}
             fields={fields}
             renamable={isEntry}
             freeName={!!type.freeNames}
@@ -2263,10 +2230,7 @@ export function App() {
               editor.current?.pin(withViewPins(pins, drawn?.view, next && { ...next, locked: next.locked?.filter((id) => id !== selected.id) }));
             }}
             onClose={() => setInspector(false)}
-            definedIn={wsTools.definedElsewhere}
-          >
-            {wsTools.wherePanel}
-          </Inspector>
+          />
         )}
         {showInspector && selection.length > 1 && (
           <aside className="inspector" aria-label={t('Selection')}>
@@ -2314,11 +2278,6 @@ export function App() {
           <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
           {errors || warnings ? `${t('{count} error|{count} errors', { count: errors })}${warnings ? `, ${t('{count} warning|{count} warnings', { count: warnings })}` : ''}` : t('No problems')}
         </button>
-        {ws && wsTools.folderProblems.length > 0 && (
-          <button className="status-problems status-folder has-warnings" onClick={() => setModal('problems')} title={t('Problems across the files of {folder}', { folder: ws.name })}>
-            <Icon name="folder-open" size={14} /> {t('{count} across {folder}', { count: wsTools.folderProblems.length, folder: ws.name })}
-          </button>
-        )}
         {result?.graph && <span>{drawnCount(result.graph)}</span>}
         {pinCount > 0 && (
           <span className="status-selected">
@@ -2355,11 +2314,10 @@ export function App() {
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
-      {wsTools.dialogs}
       {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette
-          placeholder={diagnostics.length || wsTools.folderProblems.length ? t('Filter problems…') : t('No problems: everything draws')}
+          placeholder={diagnostics.length ? t('Filter problems…') : t('No problems: everything draws')}
           onClose={closeModal}
           commands={[...diagnostics.map((d, i) => ({
             id: `p${i}`,
@@ -2371,7 +2329,7 @@ export function App() {
               if (d.from != null && current) editor.current?.reveal(d.from, d.to ?? d.from);
               requestAnimationFrame(() => editor.current?.focus());
             },
-          })), ...wsTools.problemCommands]}
+          }))]}
         />
       )}
       {dropping && (

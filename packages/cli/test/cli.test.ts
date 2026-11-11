@@ -327,7 +327,7 @@ describe('carto errors and help', () => {
     expect(top.code).toBe(0);
     expect(top.out).toMatch(/^Draw {4}render/m);
     for (const g of ['Create', 'Draw', 'Export', 'Check', 'Look']) expect(top.out).toMatch(new RegExp(`^${g} `, 'm'));
-    // One line per command in five groups, the three export-* folded into export --to: 29 lines with review, stages and serve, one screen.
+    // One line per command in five groups, one screen.
     expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(29);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
@@ -339,7 +339,7 @@ describe('carto errors and help', () => {
     expect(more).toContain('--svg-safe');
     expect(render.out).not.toMatch(/^  carto deck/m);
     expect(carto('help', 'diff').out).toContain('carto diff --git');
-    expect(carto('help', 'all').out.split('\n').length).toBeGreaterThan(80);
+    expect(carto('help', 'all').out.split('\n').length).toBeGreaterThan(60);
     const bad = carto('render', 'x.yaml', '--bogus');
     expect(bad.code).toBe(1);
     expect(bad.err).toBe("carto: Unknown option '--bogus'\nOptions: carto render --help\n");

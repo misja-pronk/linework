@@ -44,10 +44,6 @@ export interface InspectorProps {
   /** Where the element links to (URLs, other diagrams, views), to follow from here. */
   links?: Link[];
   onFollowLink?(link: Link): void;
-  /** Defined in another file (an included model): edited there, so here it only says where, with the way to it. */
-  definedIn?: { file: string; line?: number; open(): void };
-  /** More about it below the form: where else it is used, in a folder. */
-  children?: React.ReactNode;
   /** Tags written in the file, to complete `tags:` from. */
   tags?: string[];
 }
@@ -178,18 +174,6 @@ export function Inspector(p: InspectorProps) {
       </header>
 
       <div className="inspector-body">
-        {p.definedIn && (
-          <p className="defined-in">
-            <Icon name="file-code" size={14} />
-            <span>
-              {t('Defined in')} <strong>{p.definedIn.file}</strong>
-              {p.definedIn.line ? t(', line {line}', { line: p.definedIn.line }) : ''}{t(': change it there.')}
-            </span>
-            <button type="button" className="link" onClick={p.definedIn.open}>
-              {t('Open {file}', { file: p.definedIn.file })}
-            </button>
-          </p>
-        )}
         {p.freeName && idField}
         {primary.map(field)}
         {moreCount > 0 && (
@@ -231,7 +215,6 @@ export function Inspector(p: InspectorProps) {
             </ul>
           </div>
         )}
-        {p.children}
       </div>
 
       <footer>
@@ -265,11 +248,9 @@ export function Inspector(p: InspectorProps) {
             <Icon name="copy" /> {t('Duplicate')}
           </button>
         )}
-        {!p.definedIn && (
-          <button className="button ghost danger" onClick={p.onDelete} title={t('Delete (⌫)')}>
-            <Icon name="trash" /> {t('Delete')}
-          </button>
-        )}
+        <button className="button ghost danger" onClick={p.onDelete} title={t('Delete (⌫)')}>
+          <Icon name="trash" /> {t('Delete')}
+        </button>
       </footer>
     </aside>
   );

@@ -1,5 +1,5 @@
 // Every dialog fits the window: at 1280×800 and 1512×900 it ends above the bottom edge and its buttons
-// can be clicked without scrolling the page (review 3: Rename everywhere cut off its primary button).
+// can be clicked without scrolling the page.
 // Each is modal: focus moves in, Tab stays in, Escape closes and gives focus back.
 // Opens each dialog the way people do, by key or menu. node e2e/dialogs.mjs <outDir>
 import fs from 'node:fs';
