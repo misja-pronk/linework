@@ -10,7 +10,7 @@
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   z-index: 6;
   animation: rise 120ms ease-out;
@@ -28,7 +28,7 @@
   align-items: center;
   gap: 10px;
   padding: 5px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: grab;
 }
 .add-item > .icon:last-child {
@@ -37,19 +37,18 @@
   opacity: 0;
 }
 .add-item[aria-selected='true'] {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 .add-item[aria-selected='true'] > .icon:last-child {
   opacity: 1;
 }
+/* A kind's icon, bare, in the ink the drawing gives that kind: no tile behind it. */
 .tile {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 22px;
+  height: 22px;
   color: var(--tone-fg);
-  background: var(--tone-bg);
   flex: none;
 }
 .add-menu.inline {
@@ -64,7 +63,7 @@
   animation: none;
 }
 .add-menu.inline .add-item:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 .add-menu.inline .add-item:hover > .icon:last-child {
   opacity: 1;

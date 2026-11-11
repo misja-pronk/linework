@@ -17,42 +17,69 @@
   min-height: 0;
   position: relative;
 }
-/* A folded pane: a strip with its name on it, one click opens it again. */
+/* A folded pane: a strip of paper with its name on it in vertical capitals, one click opens it again. */
 .rail {
   min-height: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+  gap: 6px;
 }
 .rail-button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 12px 0;
+  padding: 10px 0 12px;
   border: none;
+  border-bottom: 1px solid var(--rule2);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  font-variant-caps: all-small-caps;
+}
+.rail-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius);
   background: none;
   color: var(--text-muted);
   cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 550;
+}
+.rail-icon:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 button.rail {
   border-top: none;
   border-bottom: none;
   border-left: none;
   justify-content: flex-start;
+  padding-top: 0;
+}
+button.rail .rail-button,
+button.rail.rail-button {
+  border-bottom: none;
 }
 .rail-button:hover,
 .rail-button[aria-expanded='true'] {
   color: var(--text);
-  background: var(--bg);
+  background: var(--hover);
 }
 .rail-label {
   writing-mode: vertical-rl;
+  transform: rotate(180deg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -67,10 +94,10 @@ button.rail {
   }
   .pane-tabs {
     display: flex;
-    gap: 4px;
-    padding: 6px 12px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    gap: 22px;
+    padding: 0 12px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
   }
   .pane-tabs button {
     flex: 1;
@@ -78,17 +105,20 @@ button.rail {
     justify-content: center;
     align-items: center;
     gap: 6px;
-    height: 32px;
+    height: 36px;
     border: none;
-    border-radius: 8px;
+    border-bottom: 2px solid transparent;
     background: none;
-    color: var(--text-muted);
+    color: var(--text-faint);
     cursor: pointer;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
   .pane-tabs button[aria-selected='true'] {
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-weight: 550;
+    color: var(--ink);
+    border-bottom-color: var(--ink);
   }
   .workspace {
     grid-template-columns: 1fr;
@@ -97,6 +127,7 @@ button.rail {
   .splitter,
   .files,
   .rail,
+  .yaml-strip,
   .fold-yaml {
     display: none;
   }
@@ -118,8 +149,8 @@ button.rail {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
 }
 @media (max-width: 860px) {
   .workspace.view-visual .shapes {

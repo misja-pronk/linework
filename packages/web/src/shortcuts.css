@@ -6,7 +6,7 @@
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   animation: rise 140ms ease-out;
 }
@@ -27,10 +27,13 @@
   margin-left: auto;
   font: inherit;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   padding: 6px 10px;
+}
+.shortcuts-search:focus-visible {
+  outline-offset: -1px;
 }
 .shortcut-where {
   text-transform: none;
@@ -55,23 +58,27 @@
   padding: 8px 24px 24px;
 }
 .shortcuts h3 {
-  margin: 14px 0 8px;
-  font-size: 0.6875rem;
+  margin: 18px 0 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.65625rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
+/* A legend: ruled rows, the keys on the left, what they do on the right. */
 .shortcuts dl {
   margin: 0;
   display: grid;
-  gap: 7px;
 }
 .shortcuts dl > div {
   display: grid;
   grid-template-columns: 150px 1fr;
   gap: 12px;
   align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--rule2);
 }
 .shortcuts dt,
 .shortcuts dd {
@@ -81,7 +88,11 @@
   color: var(--text-muted);
 }
 .shortcuts kbd {
-  font-size: 0.75rem;
-  padding: 2px 6px;
+  font-size: 0.6875rem;
+  padding: 1px 5px;
   color: var(--text);
+  white-space: nowrap;
+}
+.shortcuts dt {
+  line-height: 1.9;
 }

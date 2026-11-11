@@ -52,6 +52,7 @@ export function CanvasTools(p: Props) {
       <button className="tool" onClick={p.redo} title={t('Redo (⇧⌘Z)')} aria-label={t('Redo')}>
         <Icon name="redo-2" />
       </button>
+      <span className="tool-sep" aria-hidden="true" />
       <button className="tool" onClick={p.tidyLayout} title={t('Tidy: lay out again what is not pinned, pins stay (T)')} aria-label={t('Tidy')}>
         <Icon name="layout-grid" />
       </button>
@@ -70,7 +71,8 @@ export function CanvasTools(p: Props) {
           <Icon name="layers" /> <span className="tool-label">{t('Step')}</span> <kbd>S</kbd>
         </button>
       )}
-      <button className="tool" onClick={p.present} title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
+      <span className="tool-sep" aria-hidden="true" />
+      <button className="tool" onClick={p.present}title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
         <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>P</kbd>
       </button>
       <button className={p.asking ? 'tool active' : 'tool'} onClick={p.toggleAsk} title={t('Proposals from your own AI ({key})', { key: keyHint('ask') })} aria-label={t('Your AI')} aria-expanded={p.asking} disabled={!p.hasType}>

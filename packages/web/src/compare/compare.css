@@ -39,7 +39,7 @@
   place-items: center;
   width: 18px;
   height: 18px;
-  border-radius: 9px;
+  border-radius: var(--radius-plate);
   color: var(--surface);
   font-weight: 700;
 }
@@ -99,7 +99,7 @@
   top: 8px;
   z-index: 2;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -206,7 +206,7 @@
   width: 100%;
   padding: 7px 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: none;
   color: var(--text);
   text-align: left;
@@ -226,7 +226,7 @@
   place-items: center;
   width: 20px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-plate);
   color: var(--surface);
   font-weight: 700;
   line-height: 1;
@@ -281,7 +281,7 @@
   padding: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow-sheet);
 }
 .snap-dialog h2 {
@@ -292,7 +292,7 @@
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--editor-bg);
   color: var(--text);
 }

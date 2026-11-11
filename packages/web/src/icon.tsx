@@ -1,7 +1,7 @@
 import { icon } from '@cartography/icons';
 
 /** A Lucide icon from the same pack the diagrams use. */
-export function Icon({ name, size = 16, stroke = 1.75 }: { name: string; size?: number; stroke?: number }) {
+export function Icon({ name, size = 16, stroke = 1.5 }: { name: string; size?: number; stroke?: number }) {
   return (
     <svg
       className="icon"

@@ -17,7 +17,7 @@ const openDoc = async (text, name, last) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
     },
     { text, name },
   );

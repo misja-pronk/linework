@@ -51,14 +51,14 @@
   display: flex;
   gap: 2px;
   padding: 4px;
-  border-radius: 10px;
+  border-radius: var(--radius-plate);
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
 .viewer-views {
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);

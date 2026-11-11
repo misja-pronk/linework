@@ -98,7 +98,7 @@ export function App() {
   };
   const disk = useDiskSync({ ws, setWs: workspace.setWs, document: document_, notify, show: side.askWith, served: live.served });
   const pinning = pinActions({ drawing, pins, editor, previewControl, selection, notify, acted: prefs.acted });
-  const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.setView, focusDrawing, pinsToSave: pinning.pinsToSave });
+  const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.openView, focusDrawing, pinsToSave: pinning.pinsToSave });
   const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify });
   const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, previewControl, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
   const nav = useNavigation({ state: navState, drawing, text, textNow, ws, doc, here, selection, notify, apply: pinning.apply, ready: edits.ready, undo, nodeName: edits.nodeName, openInFolder: files.openInFolder, pick: files.pick, dropModal });
@@ -147,10 +147,10 @@ export function App() {
     if (search) search.focus();
     else setAdding((a) => !a);
   };
-  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.setView });
+  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView });
   const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect') });
   const commands = () =>
-    buildCommands({ drawing, selection, selected, select: sel.select, ws, doc, pins, view, setView: prefs.setView, setPref: prefs.setPref, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, asking: side.asking, toggleAsk: side.toggleAsk, copyForAi, viewName, files, exports, edits, pinning, nav, modals, craft, previewControl, undo, redo, more: { compare: comparing.commands, layers: layers.commands } });
+    buildCommands({ drawing, selection, selected, select: sel.select, ws, doc, pins, view, setView: prefs.openView, setPref: prefs.setPref, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, asking: side.asking, toggleAsk: side.toggleAsk, copyForAi, viewName, files, exports, edits, pinning, nav, modals, craft, previewControl, undo, redo, more: { compare: comparing.commands, layers: layers.commands } });
   const toggleTheme = () => prefs.setPref(theme === 'dark' ? 'light' : 'dark');
 
   return (
@@ -161,8 +161,9 @@ export function App() {
         doc={doc}
         dirty={document_.dirty}
         type={type}
-        view={view}
-        setView={prefs.setView}
+        yamlOpen={panes.editorMode === 'open'}
+        showYaml={prefs.showYaml}
+        showDrawing={prefs.showDrawing}
         theme={theme}
         toggleTheme={toggleTheme}
         openFolder={(dir) => void files.openFolder(dir)}
@@ -215,6 +216,7 @@ export function App() {
           setSplit={prefs.setSplit}
           setYamlFolded={prefs.setYamlFolded}
           setForceYaml={prefs.setForceYaml}
+          onShapes={() => prefs.setView('visual')}
         />
         <DrawingPane
           drawing={drawing}
@@ -303,6 +305,7 @@ export function App() {
         warnings={drawing.warnings}
         ms={rendered?.ms}
         graph={result?.graph}
+        typeId={type?.id}
         pinCount={drawing.pinCount}
         selection={selection}
         selected={selected}

@@ -227,4 +227,9 @@ export const nlDialogs = {
   Fit: 'Passend',
   'Fit (0)': 'Passend (0)',
   'Zoom in (+)': 'Inzoomen (+)',
+  // The start dialog as an atlas.
+  'Atlas': 'Atlas',
+  'Blank sheet': 'Leeg blad',
+  'An empty architecture diagram: drag shapes onto it, or write it in YAML.': 'Een leeg architectuurdiagram: sleep er vormen op, of schrijf het in YAML.',
+  'An empty {type}: drag shapes onto it, or write it in YAML.': 'Een lege {type}: sleep er vormen op, of schrijf het in YAML.',
 } as const satisfies Record<string, string>;

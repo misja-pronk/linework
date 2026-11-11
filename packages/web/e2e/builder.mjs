@@ -15,6 +15,8 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
+  // The YAML starts folded to its rail; these steps read what the editor shows.
+  localStorage.setItem('cartography:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');
@@ -295,7 +297,9 @@ await page.evaluate(() => {
 await page.reload();
 await page.waitForSelector('.drawing [data-node="app"]');
 // The trackpad way: the shapes listed beside the drawing in the builder, dragged over.
-await page.locator('.view-switch button', { hasText: 'Builder' }).click();
+// The Drawing tab folds the YAML to its rail; the rail shows the shapes.
+await page.locator('.view-switch button', { hasText: 'Drawing' }).click();
+await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
 await wait(600);
 await page.locator('.preview').focus();
 await page.keyboard.press('Meta+0');
@@ -370,8 +374,9 @@ await page.click('.inspector button[aria-label="Close properties"]');
 await wait(1200);
 oc = await offCentre();
 if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after the inspector closed the drawing is ${oc.off}px off centre`);
-for (const mode of ['YAML', 'Builder']) {
-  await page.locator('.view-switch button', { hasText: mode }).click();
+for (const mode of ['YAML', 'Drawing', 'Shapes']) {
+  if (mode === 'Shapes') await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
+  else await page.locator('.view-switch button', { hasText: mode }).click();
   await wait(1200);
   oc = await offCentre();
   if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after switching to ${mode} the drawing is ${oc.off}px off centre${oc.fits ? '' : ' and clipped'}`);

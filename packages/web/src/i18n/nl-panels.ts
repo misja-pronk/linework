@@ -367,7 +367,6 @@ export const nlPanels = {
   '{count} day ago|{count} days ago': '{count} dag geleden|{count} dagen geleden',
   // words the panels share
   'Back': 'Terug',
-  '{count} element|{count} elements': '{count} element|{count} elementen',
   'All': 'Alles',
   'Edit': 'Bewerken',
   'Delete': 'Verwijderen',

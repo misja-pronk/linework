@@ -7,7 +7,7 @@
   height: 100%;
 }
 .splitter {
-  background: var(--border);
+  background: var(--rule);
   cursor: col-resize;
   position: relative;
   z-index: 2;
@@ -18,7 +18,7 @@
   inset: 0 -4px;
 }
 .splitter:hover {
-  background: var(--accent);
+  background: var(--ink);
 }
 .fold-yaml {
   position: absolute;

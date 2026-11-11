@@ -19,7 +19,7 @@
   text-align: center;
   background: var(--surface);
   border: 2px dashed var(--accent);
-  border-radius: 14px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
 }
 .drop-here .icon {

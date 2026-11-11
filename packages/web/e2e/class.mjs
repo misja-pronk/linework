@@ -47,7 +47,7 @@ await page.screenshot({ path: `${out}/k1-diagram.png` });
   await node('Checkout').click();
   await page.waitForSelector('.inspector label.field');
   const head = await page.locator('.inspector').innerText();
-  if (head.split('\n')[1]?.trim() !== 'Class') fail(`the inspector does not call Checkout a class:\n${head.slice(0, 80)}`);
+  if (head.split('\n')[1]?.trim().toLowerCase() !== 'class') fail(`the inspector does not call Checkout a class:\n${head.slice(0, 80)}`);
   const members = field('Members');
   const value = await members.inputValue().catch(() => '');
   if (!value.includes('-strategy: ShippingCost') || !value.includes('+shippingTotal(): Money')) fail(`the members are not in the inspector: "${value}"`);

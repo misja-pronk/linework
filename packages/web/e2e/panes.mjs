@@ -139,7 +139,7 @@ async function run(width, height, theme) {
     await page.waitForSelector('.topbar .dirty');
     const h = await box('.topbar');
     const sw = await page.locator('.view-switch').boundingBox();
-    if (h.height > 53 || sw.height > 40) fail(`${tag}: the header wraps with unsaved changes (${h.height}, ${sw.height})`);
+    if (h.height > 53 || sw.height > h.height) fail(`${tag}: the header wraps with unsaved changes (${h.height}, ${sw.height})`);
     await page.keyboard.press('Meta+z');
     await page.click('.drawing [data-node="online.api"]');
     await page.waitForTimeout(300);

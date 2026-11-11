@@ -106,7 +106,9 @@ await step('screenshots in Dutch', async () => {
     await wait(400);
     await page.screenshot({ path: path.join(out, `dutch-editor-${width}.png`) });
   }
-  await page.click('.segmented.view-switch [role="radio"] >> nth=0');
+  // The builder: the Drawing tab folds the YAML to its rail, the rail's second button shows the shapes.
+  await page.click('.view-switch [role="radio"] >> nth=0');
+  await page.click('.yaml-strip .rail-icon');
   await wait(500);
   for (const width of [1280, 1512]) {
     await page.setViewportSize({ width, height: 860 });

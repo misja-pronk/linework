@@ -14,6 +14,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  animation: rise 120ms ease-out;
 }
 .menu button {
   display: flex;
@@ -23,7 +24,7 @@
   padding: 7px 9px;
   border: none;
   background: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
 }
@@ -43,7 +44,7 @@
   padding: 8px 9px 3px;
   font-size: 0.65625rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -52,7 +53,7 @@
   align-items: center;
   gap: 9px;
   padding: 7px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   list-style: none;
   color: var(--text-muted);

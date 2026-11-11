@@ -8,6 +8,7 @@ import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
+import { BrandMark } from './brand-mark.tsx';
 import { useModal } from './menu.tsx';
 import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
@@ -124,10 +125,23 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
     });
   };
 
+  const blank = (id: string) => onOpen({ text: blankText(id), name: `${id}.yaml`, view: 'visual', blank: true });
+  /** The atlas's index: every type with its plates, the one shown marked. */
+  const index = (step === 'type' || step === 'pick') && (
+    <AtlasIndex
+      shown={step === 'pick' ? typeId : undefined}
+      onChoose={(id) => {
+        setTypeId(id);
+        setStep('pick');
+      }}
+    />
+  );
+
   return (
-    <div className="overlay" onMouseDown={onClose}>
+    <div className="overlay start-overlay" onMouseDown={onClose}>
       <div className={`templates start step-${step}`} role="dialog" aria-modal="true" ref={modal} aria-label={t('Start a diagram')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
+          {step === 'type' && <BrandMark size="sm" />}
           {step !== 'type' && (
             <button className="icon-button" onClick={back} aria-label={t('Back')} title={t('Back (Esc)')}>
               <Icon name="arrow-left" />
@@ -155,34 +169,43 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
             <Icon name="x" />
           </button>
         </header>
-        {step === 'type' && (
-          <Types
-            theme={theme}
-            current={current}
-            last={typeId}
-            onChoose={(t) => {
-              setTypeId(t);
-              setStep('pick');
-            }}
-          />
-        )}
-        {step === 'pick' && (
-          <Pick
-            theme={theme}
-            typeId={typeId}
-            onType={setTypeId}
-            onPick={(s) => {
-              setStarter(s);
-              setStep('mode');
-            }}
-          />
-        )}
+        {index ? (
+          <div className="atlas">
+            {index}
+            <section className="atlas-main">
+              {step === 'type' && (
+                <Types
+                  theme={theme}
+                  current={current}
+                  last={typeId}
+                  onBlank={() => blank('systems')}
+                  onChoose={(t) => {
+                    setTypeId(t);
+                    setStep('pick');
+                  }}
+                />
+              )}
+              {step === 'pick' && (
+                <Pick
+                  theme={theme}
+                  typeId={typeId}
+                  onType={setTypeId}
+                  onBlank={typeId === 'all' ? undefined : () => blank(typeId)}
+                  onPick={(s) => {
+                    setStarter(s);
+                    setStep('mode');
+                  }}
+                />
+              )}
+            </section>
+          </div>
+        ) : null}
         {step === 'mode' && starter && (
           <Mode
             starter={starter}
             theme={theme}
             onChoose={choose}
-            onBlank={() => onOpen({ text: blankText(starter.type), name: `${starter.type}.yaml`, view: 'visual', blank: true })}
+            onBlank={() => blank(starter.type)}
           />
         )}
         {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} />}
@@ -247,12 +270,63 @@ function moveInGrid(e: React.KeyboardEvent, cards: HTMLElement[]): number | unde
 }
 
 const typeCount = (id: string) => starters.filter((s) => s.type === id).length;
+/** A plate's number, the way a map sheet is numbered: PL. 07. */
+const plate = (n: number) => `PL. ${String(n).padStart(2, '0')}`;
+const ROMAN: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+function roman(n: number): string {
+  let out = '';
+  for (const [v, r] of ROMAN)
+    while (n >= v) {
+      out += r;
+      n -= v;
+    }
+  return out;
+}
+
+/** The atlas's index: every type, numbered like the parts of an atlas, with how many plates it has. */
+function AtlasIndex({ shown, onChoose }: { shown: string | undefined; onChoose(id: string): void }) {
+  return (
+    <nav className="atlas-index" aria-label={t('Diagram type')}>
+      <div className="atlas-label">{t('Atlas')}</div>
+      <ul>
+        <li>
+          <button aria-current={shown === 'all' ? 'true' : undefined} onClick={() => onChoose('all')}>
+            <span className="atlas-no">—</span>
+            <span className="atlas-name">{t('All templates')}</span>
+            <span className="atlas-count">{starters.length}</span>
+          </button>
+        </li>
+        {types.map((ty, i) => (
+          <li key={ty.id}>
+            <button aria-current={shown === ty.id ? 'true' : undefined} onClick={() => onChoose(ty.id)} title={ty.tagline}>
+              <span className="atlas-no">{roman(i + 1)}</span>
+              <span className="atlas-name">{ty.name}</span>
+              <span className="atlas-count">{typeCount(ty.id)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Plate 00: an empty sheet, before every template. */
+function BlankSheet({ what, onBlank }: { what: string; onBlank(): void }) {
+  return (
+    <button className="blank-sheet" onClick={onBlank}>
+      <BrandMark size="sm" />
+      <span className="plate-no">{plate(0)}</span>
+      <strong>{t('Blank sheet')}</strong>
+      <span className="blank-what">{what}</span>
+    </button>
+  );
+}
 /** "Not for" pointers to types that exist; a pointer to a type not (yet) registered stays plain text. */
 const pointsTo = (use?: string) => (use && types.some((t) => t.id === use) ? use : undefined);
 const typeTemplates = types.map((t) => starters.find((s) => s.id === `template:${t.id}`)).filter((s): s is Starter => !!s);
 
 /** Step one: what do you want to draw? A card per type says what it is for and what it is not for. */
-function Types({ theme, current, last, onChoose }: { theme: 'light' | 'dark'; current?: string; last: string; onChoose(id: string): void }) {
+function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | 'dark'; current?: string; last: string; onChoose(id: string): void; onBlank(): void }) {
   const [query, setQuery] = useState('');
   const ranked = useMemo(() => matchTypes(uiLang() === 'nl' ? englishQuery(query) : query, types), [query]);
   const matched = ranked[0]!.score > 0;
@@ -326,6 +400,7 @@ function Types({ theme, current, last, onChoose }: { theme: 'light' | 'dark'; cu
         )}
       </p>
       <div className="type-grid" ref={grid} onKeyDown={onGridKey}>
+        {!query && <BlankSheet what={t('An empty architecture diagram: drag shapes onto it, or write it in YAML.')} onBlank={onBlank} />}
         {ranked.map(({ type: ty, score }, i) => {
           const s = typeTemplates.find((x) => x.type === ty.id);
           const svg = s && thumb(s, { w: 222, h: 80 });
@@ -337,6 +412,7 @@ function Types({ theme, current, last, onChoose }: { theme: 'light' | 'dark'; cu
                 <span className="type-thumb" aria-hidden="true">
                   {svg ? <span dangerouslySetInnerHTML={{ __html: svg }} /> : <span className="thumb-wait" />}
                 </span>
+                <span className="plate-no">{plate(types.indexOf(ty) + 1)}</span>
                 <span className="type-head">
                   <span className="type-icon">
                     <Icon name={ty.icon ?? 'layout-template'} size={17} />
@@ -428,7 +504,7 @@ function TypeSummary({ type, onType }: { type: DiagramType; onType(id: string): 
 }
 
 /** Step two: the chosen type's template and examples (or all of them). */
-function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; typeId: string; onType(id: string): void; onPick(s: Starter): void }) {
+function Pick({ theme, typeId, onType, onPick, onBlank }: { theme: 'light' | 'dark'; typeId: string; onType(id: string): void; onPick(s: Starter): void; onBlank?(): void }) {
   const type = types.find((t) => t.id === typeId);
   const shown = useMemo(() => starters.filter((s) => typeId === 'all' || s.type === typeId), [typeId]);
   const thumb = useThumbs(shown, theme);
@@ -460,6 +536,7 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
         </nav>
       )}
       <div className="template-grid" ref={grid} onKeyDown={onGridKey}>
+        {onBlank && type && <BlankSheet what={t('An empty {type}: drag shapes onto it, or write it in YAML.', { type: type.name.toLowerCase() })} onBlank={onBlank} />}
         {shown.map((s, i) => {
           const svg = thumb(s);
           // Two of the same title (a web shop as a system and as its deployment): the subtitle tells them apart.
@@ -470,6 +547,7 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
                 {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}
               </div>
               <div className="template-meta">
+                <span className="plate-no">{plate(i + 1)}</span>
                 <span className="template-title">
                   {s.title}
                   {twin && <span className="template-twin"> · {s.subtitle}</span>}

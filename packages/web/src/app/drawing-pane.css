@@ -2,9 +2,10 @@
 
 /*
  * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
- * notes on a row of their own under the tools); the hint docked bottom-left, the zoom bottom-right;
- * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over
- * everything, and a toast from before a dialog opened goes (one from the dialog itself shows on top).
+ * notes on a row of their own under the tools), inside the zone rulers; the hint docked bottom-left above
+ * the scale bar, the zoom bottom-right; toasts at the bottom centre of the window, lifted clear of the hint
+ * while it shows; dialogs over everything, and a toast from before a dialog opened goes (one from the
+ * dialog itself shows on top).
  */
 .canvas-note {
   flex-basis: 100%;
@@ -17,13 +18,12 @@
   max-width: 100%;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
-  border-radius: 99px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
   font-size: 0.75rem;
   color: var(--warning-ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  background: var(--paper);
+  border: 1px solid var(--rule);
   white-space: normal;
   pointer-events: auto;
 }
@@ -40,9 +40,9 @@
   gap: 12px;
   max-width: calc(100% - 32px);
   padding: 20px 24px;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-plate);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
   color: var(--text-muted);
   text-align: center;
   pointer-events: none;
@@ -62,14 +62,14 @@
   align-items: center;
   gap: 6px;
   font: inherit;
-  background: var(--surface);
+  background: var(--sheet);
 }
-/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
+/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip: inside the rulers. */
 .canvas-top {
   position: absolute;
-  left: 16px;
+  left: calc(var(--ruler, 0px) + 20px);
   right: 16px;
-  top: 16px;
+  top: calc(var(--ruler, 0px) + 20px);
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -84,25 +84,26 @@
    labels (they stay in the tooltips and for screen readers), then the less used tools fold into ⋯. */
 .canvas-pane {
   container: canvas / inline-size;
+  --ruler: 22px;
 }
-/* Docked bottom-left, away from the drawing's middle and the zoom controls. */
+/* Docked bottom-left, above the scale bar, away from the drawing's middle and the zoom controls. */
 .hint {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: calc(var(--ruler) + 20px);
+  bottom: 48px;
   z-index: 4;
   display: flex;
   align-items: center;
   gap: 10px;
   /* Clear of the zoom bar on the right (it is about 280 px wide). */
-  max-width: min(420px, calc(100% - 340px));
-  padding: 9px 8px 9px 16px;
-  border-radius: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  max-width: min(440px, calc(100% - 360px));
+  padding: 8px 6px 8px 14px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--rule);
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.55;
+  animation: rise 120ms ease-out;
 }
 .hint kbd {
   color: var(--text);
@@ -117,12 +118,14 @@
   }
 }
 @media (max-width: 600px) {
+  .canvas-pane {
+    --ruler: 0px;
+  }
   .hint {
     left: 8px;
     right: 8px;
     bottom: 8px;
     max-width: none;
-    border-radius: 14px;
     z-index: 7;
   }
 }
