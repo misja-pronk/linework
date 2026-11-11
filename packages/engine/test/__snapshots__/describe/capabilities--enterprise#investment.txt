@@ -42,7 +42,7 @@ Areas and capabilities
   - Security (Invest)
 
 Key
-- Block marked Maintain: Investment: Maintain
+- Block marked Maintain: Maintain
 - Block marked Invest: Invest
 - Block marked Tolerate: Tolerate
 - Block marked Migrate: Migrate
