@@ -82,7 +82,7 @@ const settle = () => page.waitForTimeout(450);
   if (await page.locator('.statusbar').isVisible()) fail('the status bar shows in a session');
   if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== 'light') fail('a session is not on the light theme (the editor was dark)');
   const head = await page.locator('.session-head').innerText();
-  if (!/Session · Payments workshop/.test(head.replace(/\s+/g, ' ')) || !/esc leaves session/i.test(head)) fail(`the session's line says: ${head}`);
+  if (!/Session · Payments workshop/i.test(head.replace(/\s+/g, ' ')) || !/esc leaves session/i.test(head)) fail(`the session's line says: ${head}`);
   await onCanvas();
   await snap('blank');
 
@@ -139,7 +139,14 @@ const settle = () => page.waitForTimeout(450);
   else {
     const m = await menu.boundingBox();
     const b = await box('fraud-check');
-    if (m.y + m.height > b.y + 2) fail('the selection menu is not above the selection');
+    // Above or below the selection, wherever it covers less of the drawing; never over it, never out of the window.
+    if (m.y + m.height > b.y + 2 && m.y < b.y + b.height - 2) fail('the selection menu covers the selection');
+    if (m.x < 0 || m.y < 0 || m.x + m.width > 1440 || m.y + m.height > 900) fail('the selection menu runs out of the window');
+    // The line into the firewall comes from above: the menu goes below rather than sit on it.
+    if (m.y < b.y) fail('the selection menu sits on the line coming into the selection');
+    const hint = await page.locator('.sketch-hint').boundingBox();
+    if (hint && (hint.x < 0 || hint.x + hint.width > 1440 || hint.y + hint.height > 900)) fail('the sketch hint runs out of the window');
+    if (hint && Math.min(hint.y + hint.height, m.y + m.height) - Math.max(hint.y, m.y) > 0 && Math.min(hint.x + hint.width, m.x + m.width) - Math.max(hint.x, m.x) > 0) fail('the sketch hint and the menu overlap');
     await snap('selection-menu');
   }
 

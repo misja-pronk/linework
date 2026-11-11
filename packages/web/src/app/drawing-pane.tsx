@@ -20,7 +20,7 @@ import type { Pins } from './pins.ts';
 import type { Select } from './selection.ts';
 import type { Notify } from './toasts.tsx';
 import type { Sketching } from './sketching.ts';
-import { SelectionMenu, SessionHeader, SessionStrip, SketchHint } from '../session.tsx';
+import { SelectionFloats, SessionHeader, SessionStrip } from '../session.tsx';
 
 interface Props {
   drawing: Drawing;
@@ -100,25 +100,30 @@ export function DrawingPane(p: Props) {
           // Groups a selected box can go in (by what its type says), not the one it is in.
           const collection = node ? String(node.path[0]) : nodes.length ? String(g.nodes.find((n) => n.id === nodes[0]!.id)?.path[0] ?? '') : '';
           const groups = g.groups.filter((x) => x.path.length === 2 && x.id !== node?.parent && !!parentKey(type, collection, String(x.path[0])));
+          const showMenu = !renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1);
+          const showHint = s.hint && (renaming || one?.kind === 'node');
+          if (!showMenu && !showHint) return null;
           return (
-            <>
-              {!renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1) && (
-                <SelectionMenu
-                  key={p.selection.map((x) => x.id).join(' ')}
-                  rect={rect}
-                  single={!!node}
-                  kinds={node ? (p.sketching.kindsFor(one!) ?? []) : []}
-                  kind={node?.kind}
-                  groups={groups}
-                  canGroup={nodes.length > 0}
-                  onKind={(item) => p.sketching.kindTo(item)}
-                  onGroup={(into) => p.sketching.group(into)}
-                  onConnect={s.connect}
-                  onDelete={() => (p.selection.length > 1 ? edits.removeAll() : edits.remove())}
-                />
-              )}
-              {s.hint && (renaming || one?.kind === 'node') && <SketchHint rect={rect} naming={renaming} />}
-            </>
+            <SelectionFloats
+              key={p.selection.map((x) => x.id).join(' ')}
+              rect={rect}
+              hint={showHint ? { naming: renaming } : undefined}
+              menu={
+                showMenu
+                  ? {
+                      single: !!node,
+                      kinds: node ? (p.sketching.kindsFor(one!) ?? []) : [],
+                      kind: node?.kind,
+                      groups,
+                      canGroup: nodes.length > 0,
+                      onKind: (item) => p.sketching.kindTo(item),
+                      onGroup: (into) => p.sketching.group(into),
+                      onConnect: s.connect,
+                      onDelete: () => (p.selection.length > 1 ? edits.removeAll() : edits.remove()),
+                    }
+                  : undefined
+              }
+            />
           );
         }}
         onMove={edits.move}
