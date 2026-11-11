@@ -161,8 +161,9 @@ export function App() {
         doc={doc}
         dirty={document_.dirty}
         type={type}
-        view={view}
-        setView={prefs.setView}
+        yamlOpen={panes.editorMode === 'open'}
+        showYaml={prefs.showYaml}
+        showDrawing={prefs.showDrawing}
         theme={theme}
         toggleTheme={toggleTheme}
         openFolder={(dir) => void files.openFolder(dir)}
@@ -215,6 +216,7 @@ export function App() {
           setSplit={prefs.setSplit}
           setYamlFolded={prefs.setYamlFolded}
           setForceYaml={prefs.setForceYaml}
+          onShapes={() => prefs.setView('visual')}
         />
         <DrawingPane
           drawing={drawing}
@@ -303,6 +305,7 @@ export function App() {
         warnings={drawing.warnings}
         ms={rendered?.ms}
         graph={result?.graph}
+        typeId={type?.id}
         pinCount={drawing.pinCount}
         selection={selection}
         selected={selected}

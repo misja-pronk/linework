@@ -24,6 +24,8 @@ interface Props {
   setSplit(f: (s: number) => number): void;
   setYamlFolded(v: boolean): void;
   setForceYaml(v: boolean): void;
+  /** The builder: the shapes to drag onto the drawing, in place of the YAML's strip. */
+  onShapes(): void;
 }
 
 export function EditorPane(p: Props) {
@@ -46,16 +48,22 @@ export function EditorPane(p: Props) {
   };
   return (
     <>
+      {/* The YAML out of sight: a strip at the left edge with its name on it, and the builder's shapes. */}
       {panes.editorMode === 'rail' && (
-        <button
-          className="rail rail-button yaml-rail"
-          onClick={() => (panes.editorSqueezed ? p.setForceYaml(true) : (p.setYamlFolded(false), p.setForceYaml(true)))}
-          title={panes.editorSqueezed ? t('Show the YAML (the window is narrow: the drawing gets less room)') : t('Show the YAML')}
-          aria-label={t('Show the YAML')}
-        >
-          <Icon name="code" size={16} />
-          <span className="rail-label">YAML</span>
-        </button>
+        <div className="rail yaml-strip">
+          <button
+            className="rail-button yaml-rail"
+            onClick={() => (panes.editorSqueezed ? p.setForceYaml(true) : (p.setYamlFolded(false), p.setForceYaml(true)))}
+            title={panes.editorSqueezed ? t('Show the YAML (the window is narrow: the drawing gets less room)') : t('Show the YAML')}
+            aria-label={t('Show the YAML')}
+          >
+            <Icon name="code" size={16} />
+            <span className="rail-label">YAML</span>
+          </button>
+          <button className="rail-icon" onClick={p.onShapes} title={`${t('Builder: the drawing and the shapes to drag onto it')} (⌘\\)`} aria-label={t('Shapes')}>
+            <Icon name="square-plus" size={16} />
+          </button>
+        </div>
       )}
       <section className="pane editor-pane" aria-label="YAML" hidden={panes.editorMode === 'rail'}>
         {p.view === 'code' && (

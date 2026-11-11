@@ -6,8 +6,8 @@ import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Menu } from '../menu.tsx';
 import { BrandMenu } from '../brand-menu.tsx';
+import { BrandMark } from '../brand-mark.tsx';
 import { canUseFolders, type Workspace } from '../files.ts';
-import type { View } from '../start.tsx';
 import type { Doc } from './document.ts';
 import { ExportMenu, type ExportMenuProps } from './export-menu.tsx';
 
@@ -17,8 +17,10 @@ interface Props {
   doc: Doc;
   dirty: boolean;
   type: DiagramType | undefined;
-  view: View;
-  setView(v: View): void;
+  /** The YAML is open beside the drawing (the YAML tab), or out of sight (the Drawing tab). */
+  yamlOpen: boolean;
+  showYaml(): void;
+  showDrawing(): void;
   theme: 'light' | 'dark';
   toggleTheme(): void;
   openFolder(dir?: FileSystemDirectoryHandle): void;
@@ -31,20 +33,18 @@ interface Props {
 }
 
 export function Topbar(p: Props) {
-  const { ws, doc, type, view, theme } = p;
+  const { ws, doc, type, theme } = p;
   const [more, setMore] = useState(false);
   /** The type pill's card: what this type is for, and the way to the type guide. */
   const [typeCard, setTypeCard] = useState(false);
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="logo" aria-hidden="true" />
+        <BrandMark />
         Cartography
       </div>
       <div className="doc-name">
-        <Icon name="file-code" />
-        <span>{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
-        {p.dirty && <span className="dirty" title={t('Unsaved changes (⌘S saves)')} aria-label={t('Unsaved changes')} />}
+        <span className="doc-file">{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
         {type && (
           <div className="menu-anchor type-anchor">
             <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${t('{name}, written type: {id}', { name: type.name, id: type.id })}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
@@ -67,6 +67,20 @@ export function Topbar(p: Props) {
             )}
           </div>
         )}
+        {p.dirty && (
+          <span className="dirty" title={t('Unsaved changes (⌘S saves)')} aria-label={t('Unsaved changes')}>
+            <span aria-hidden="true">{t('edited')}</span>
+          </span>
+        )}
+      </div>
+      {/* The two ways to look at a diagram: the drawing alone, or its YAML beside it. */}
+      <div className="view-switch" role="radiogroup" aria-label={t('Way of working')}>
+        <button role="radio" aria-checked={!p.yamlOpen} className={!p.yamlOpen ? 'active' : ''} onClick={p.showDrawing} title={t('The drawing: the YAML folds away to the side')}>
+          {t('Drawing')}
+        </button>
+        <button role="radio" aria-checked={p.yamlOpen} className={p.yamlOpen ? 'active' : ''} onClick={p.showYaml} title={`${t('YAML and drawing side by side')} (⌘\\\\)`}>
+          YAML
+        </button>
       </div>
       <div className="actions">
         {canUseFolders && !ws && p.remembered && (
@@ -79,19 +93,11 @@ export function Topbar(p: Props) {
             <Icon name="folder-open" /> {ws ? t('Folder') : t('Open folder')}
           </button>
         )}
-        <div className="segmented view-switch" role="radiogroup" aria-label={t('Way of working')}>
-          <button role="radio" aria-checked={view === 'visual'} className={view === 'visual' ? 'active' : ''} onClick={() => p.setView('visual')} title={`${t('Builder: the drawing and the shapes to drag onto it')} (⌘\\\\)`}>
-            <Icon name="mouse-pointer-2" /> Builder
-          </button>
-          <button role="radio" aria-checked={view === 'code'} className={view === 'code' ? 'active' : ''} onClick={() => p.setView('code')} title={`${t('YAML and drawing side by side')} (⌘\\\\)`}>
-            <Icon name="code" /> YAML
-          </button>
-        </div>
+        <button className="command-box wide-only" onClick={p.onCommands} title={t('Commands, elements and templates (⌘K)')}>
+          <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
+        </button>
         <button className="button ghost wide-only" onClick={p.onNew} title={t('A new diagram: from a template or an example')}>
           <Icon name="file-plus" /> {t('New')}
-        </button>
-        <button className="button ghost wide-only" onClick={p.onCommands} title={t('Commands, elements and templates (⌘K)')}>
-          <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
         </button>
         {/* On a phone the actions above fold into one menu. */}
         <div className="menu-anchor narrow-only">
@@ -131,3 +137,5 @@ export function Topbar(p: Props) {
     </header>
   );
 }
+
+

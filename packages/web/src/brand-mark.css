@@ -1,0 +1,83 @@
+/* The mark (brand-mark.tsx): four corner ticks of a sheet and the rust dot. */
+
+.brand-mark {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.brand-mark i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 0 solid var(--ink);
+}
+.brand-mark i:nth-child(1) {
+  left: 0;
+  top: 0;
+  border-left-width: 1.5px;
+  border-top-width: 1.5px;
+}
+.brand-mark i:nth-child(2) {
+  right: 0;
+  top: 0;
+  border-right-width: 1.5px;
+  border-top-width: 1.5px;
+}
+.brand-mark i:nth-child(3) {
+  left: 0;
+  bottom: 0;
+  border-left-width: 1.5px;
+  border-bottom-width: 1.5px;
+}
+.brand-mark i:nth-child(4) {
+  right: 0;
+  bottom: 0;
+  border-right-width: 1.5px;
+  border-bottom-width: 1.5px;
+}
+.brand-mark b {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--rust);
+}
+.brand-mark.sm {
+  width: 14px;
+  height: 14px;
+}
+.brand-mark.sm i {
+  width: 5px;
+  height: 5px;
+}
+.brand-mark.sm b {
+  left: 5px;
+  top: 5px;
+}
+.brand-mark.lg {
+  width: 46px;
+  height: 46px;
+}
+.brand-mark.lg i {
+  width: 12px;
+  height: 12px;
+  border-color: var(--text-faint);
+}
+.brand-mark.lg b {
+  left: 20px;
+  top: 20px;
+  width: 6px;
+  height: 6px;
+}
+@media (forced-colors: active) {
+  .brand-mark i {
+    border-color: CanvasText;
+  }
+  .brand-mark b {
+    background: CanvasText;
+  }
+}
