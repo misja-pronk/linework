@@ -1,4 +1,5 @@
 // What the extension and its webview say to each other. Plain data both ways.
+import type { YamlDiffLine } from '@cartography/core';
 import type { Picture } from '../draw.ts';
 
 export type Kind = 'node' | 'group' | 'edge';
@@ -21,7 +22,10 @@ export type ToView =
   /** The text cannot be drawn now: the last drawing stays, marked out of date. */
   | { type: 'stale'; errors: number; warnings: number; message?: string }
   | { type: 'highlight'; items: { kind: Kind; id: string }[] }
-  | { type: 'rasterize'; id: number; svg: string; width: number; height: number };
+  | { type: 'rasterize'; id: number; svg: string; width: number; height: number }
+  /** A change from the user's AI (the live link): the drawing with its marks and the YAML diff, to accept or reject; `applied`: one from disk, already in the text. */
+  | { type: 'proposal'; summary: string; counts: string; svg?: string; lines: YamlDiffLine[]; applied?: boolean }
+  | { type: 'proposal-done' };
 
 export type FromView =
   | { type: 'ready' }
@@ -33,7 +37,8 @@ export type FromView =
   | { type: 'focus'; id: string | null }
   | { type: 'command'; name: 'openEditor' | 'exportSvg' | 'exportPng' | 'exportPptx' | 'present' | 'copyShareLink' }
   | { type: 'exit' }
-  | { type: 'raster'; id: number; png?: string; error?: string };
+  | { type: 'raster'; id: number; png?: string; error?: string }
+  | { type: 'verdict'; accept: boolean };
 
 /** What the page is opened as: the preview beside the text, or the presenter. */
 export interface ViewConfig {

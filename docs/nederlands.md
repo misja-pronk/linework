@@ -84,5 +84,6 @@ repository, workflow, pull request, YAML, SVG.
 | Folder, workspace | Map |
 | Search | Zoeken |
 | Describe | Beschrijven |
-| Ask Claude | Vraag het Claude |
+| Your AI | Je AI |
+| Copy for your AI | Kopiëren voor je AI |
 | Warning / Error | Waarschuwing / Fout |

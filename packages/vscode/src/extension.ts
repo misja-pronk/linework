@@ -1,6 +1,7 @@
 // The extension's entry: previews per document, problems as you type, commands, the YAML schemas and
 // the Markdown preview's ```cartography blocks. Everything is drawn here, in the extension host,
-// by the engine bundled into dist/: nothing is fetched and nothing is sent anywhere.
+// by the engine bundled into dist/: nothing is fetched and nothing is sent anywhere. The live link
+// (live.ts) listens on 127.0.0.1 only, for the user's own AI agent through the MCP server.
 import * as vscode from 'vscode';
 import { registerCommands, type Previews } from './commands.ts';
 import { sidecarName } from './detect.ts';
@@ -8,6 +9,7 @@ import { isDiagramDoc, Language, registerYamlSchemas } from './language.ts';
 import { extendMarkdownIt } from './markdown.ts';
 import { Preview, type PreviewHost } from './preview.ts';
 import { NoteComments } from './notes.ts';
+import { showDiskChanges, startLive } from './live.ts';
 import { notesPath } from '@cartography/core';
 import { settings } from './settings.ts';
 
@@ -59,6 +61,25 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   registerCommands(context, previews);
+
+  // The live link for the user's own AI agent (live.ts): what is open and selected, and proposals.
+  context.subscriptions.push(
+    startLive({
+      current() {
+        const active = [...panels.values()].find((p) => p.panel.active && p.mode === 'preview');
+        const editor = vscode.window.activeTextEditor;
+        // With the focus in a chat panel, nothing is active: the preview or diagram on screen is meant.
+        const doc =
+          active?.doc ??
+          (editor && isDiagramDoc(editor.document) ? editor.document : undefined) ??
+          [...panels.values()].find((p) => p.mode === 'preview' && p.panel.visible)?.doc ??
+          vscode.window.visibleTextEditors.find((e) => isDiagramDoc(e.document))?.document;
+        return doc ? { doc, preview: previews.of(doc) } : undefined;
+      },
+      preview: (doc) => previews.open(doc, 'preview'),
+    }),
+    showDiskChanges((doc) => previews.of(doc)),
+  );
 
   // Typing, opening, closing.
   for (const doc of vscode.workspace.textDocuments) language.update(doc, true);

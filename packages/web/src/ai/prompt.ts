@@ -63,11 +63,6 @@ ${draft.trim()}
 /** The prompt as one text to paste into any chat assistant. */
 export const promptText = (p: Prompt) => `${p.system}\n\n${p.user}`;
 
-/** The follow-up when the YAML did not validate: the errors, to fix in place. */
-export function repairPrompt(errors: string[]): string {
-  return `The YAML has these problems:\n${errors.map((e) => `- ${e}`).join('\n')}\n\nFix them and answer with the complete corrected YAML in a single \`\`\`yaml code block.`;
-}
-
 /** The YAML in an answer: the fenced block when there is one, else the whole text. */
 export function extractYaml(answer: string): string {
   const fenced = /```(?:ya?ml)?\s*\n([\s\S]*?)```/.exec(answer) ?? /```(?:ya?ml)?\s*\n([\s\S]*)$/.exec(answer);

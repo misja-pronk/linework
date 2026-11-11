@@ -20,7 +20,8 @@ describe("the editor's Dutch", () => {
     expect(badMessages(nl)).toEqual([]);
   });
   it('has no message the editor no longer says', () => {
-    const source = sourceText(['packages/web/src'], (f) => f.includes('/i18n/'));
+    // The start dialog's questions live in core, and are asked through say().
+    const source = sourceText(['packages/web/src'], (f) => f.includes('/i18n/')) + sourceText(['packages/core/src'], (f) => !f.endsWith('questions.ts'));
     expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id) || id in nlCollections)).toEqual([]);
   });
   it('switches, and gives a new diagram lang: nl in Dutch', () => {

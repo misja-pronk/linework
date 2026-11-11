@@ -1,7 +1,7 @@
 // Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
-// (describe it to AI, build it visually, write YAML, or for some types a wizard), and for AI answer a few questions. The answers
-// become a prompt that Claude runs here with your own key, or that you copy into any chat and paste the answer back. A wizard
-// (wizard.tsx) needs no AI: its answers make the YAML directly.
+// (describe it to your own AI, build it visually, write YAML, or for some types a wizard). For your AI
+// a few answers become a prompt to copy into any chat; its answer is pasted back. Cartography sends
+// nothing anywhere itself. A wizard (wizard.tsx) needs no AI: its answers make the YAML directly.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType, type LayoutSidecar } from '@cartography/core';
@@ -11,7 +11,6 @@ import { useModal } from './menu.tsx';
 import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
-import { failure, generate, MODELS, type ModelId } from './ai/claude.ts';
 import { importText } from '@cartography/import';
 import { importDrawio, importExcalidraw, isDrawio, isExcalidraw } from '@cartography/interop';
 import { wizardsFor } from '@cartography/wizards';
@@ -67,8 +66,8 @@ const MODES = [
   {
     view: 'ai',
     icon: 'sparkles',
-    title: 'Ask Claude',
-    text: 'Describe it in a few answers; Claude drafts the diagram for you to refine.',
+    title: 'Your AI',
+    text: 'Describe it in a few answers, copy them into your own AI, and paste the diagram it writes back here.',
     key: '1',
   },
   {
@@ -115,7 +114,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
   /** The chosen type, or 'all' to browse every template. */
   const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
   const [step, setStep] = useState<Step>(incoming ? 'import' : initial ? 'mode' : 'type');
-  /** A wizard's drawing that the AI mode starts from ("Ask Claude to refine it"). */
+  /** A wizard's drawing that the AI mode starts from ("Refine it with your AI"). */
   const [draft, setDraft] = useState<string>();
   const modal = useModal();
 
@@ -169,7 +168,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
                     ? `${starter!.title}`
                     : step === 'wizard'
                       ? t('Answer questions · {type}', { type: typeName(starter!.type) })
-                      : t('Ask Claude · {type}', { type: typeName(starter!.type) })}
+                      : t('Your AI · {type}', { type: typeName(starter!.type) })}
           </h2>
           {step !== 'import' && (
             <ol className="steps" aria-label={t('Steps')}>
@@ -635,8 +634,7 @@ function Field({ q, value, onChange }: { q: Question; value: string | string[] |
   );
 }
 
-type Phase =
-  { at: 'form' } | { at: 'running'; text: string; attempt: number } | { at: 'paste' } | { at: 'done'; yaml: string; errors: string[] } | { at: 'failed'; message: string };
+type Phase = { at: 'form' } | { at: 'paste' };
 
 function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void; draft?: string }) {
   const questions = useMemo(() => questionsFor(type), [type]);
@@ -644,49 +642,19 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
     ...Object.fromEntries(questions.filter((q) => q.initial).map((q) => [q.id, q.initial!])),
     ...(store.get<Record<string, Answers>>('ai-answers')?.[type.id] ?? {}),
   }));
-  const [key, setKey] = useState(() => store.get<string>('claude-key') ?? '');
-  const [remember, setRemember] = useState(() => !!store.get<string>('claude-key'));
-  const [model, setModel] = useState<ModelId>(() => store.get<ModelId>('claude-model') ?? 'claude-opus-5-5');
   const [phase, setPhase] = useState<Phase>({ at: 'form' });
   const [pasted, setPasted] = useState('');
   const [copied, setCopied] = useState(false);
-  const abort = useRef<AbortController>(undefined);
-  useEffect(() => () => abort.current?.abort(), []);
 
   // The template's own YAML shows the model the style; an empty start teaches nothing, so use the type's template.
   const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text, draft), [type, questions, answers, starter, draft]);
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
-  const shown = phase.at === 'running' ? extractYaml(phase.text) : phase.at === 'done' ? phase.yaml : phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
+  const shown = phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
   const drawing = useDrawing(shown, theme, load);
-  const stream = useRef<HTMLPreElement>(null);
-  useEffect(() => {
-    if (stream.current) stream.current.scrollTop = stream.current.scrollHeight;
-  }, [shown]);
 
   const keep = () => {
     const all = store.get<Record<string, Answers>>('ai-answers') ?? {};
     store.set('ai-answers', { ...all, [type.id]: answers });
-  };
-
-  const run = async () => {
-    keep();
-    store.set('claude-key', remember ? key.trim() : null);
-    store.set('claude-model', model);
-    abort.current = new AbortController();
-    setPhase({ at: 'running', text: '', attempt: 1 });
-    try {
-      const r = await generate(prompt, {
-        apiKey: key.trim(),
-        model,
-        signal: abort.current.signal,
-        load,
-        onProgress: (p) => setPhase({ at: 'running', ...p }),
-      });
-      setPhase({ at: 'done', ...r });
-    } catch (e) {
-      if (abort.current?.signal.aborted) return setPhase({ at: 'form' });
-      setPhase({ at: 'failed', message: failure(e) });
-    }
   };
 
   const copy = async () => {
@@ -703,17 +671,15 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
       starter: starter.kind === 'example' ? starter.id : undefined,
       view,
     });
-  const busy = phase.at === 'running';
-  const hasKey = !!key.trim();
 
-  if (phase.at === 'form' || phase.at === 'failed')
+  if (phase.at === 'form')
     return (
       <div className="ask">
         <form
           className="ask-form"
           onSubmit={(e) => {
             e.preventDefault();
-            if (key.trim()) void run();
+            void copy();
           }}
         >
           {questions.map((q) => (
@@ -726,51 +692,20 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
         </form>
         <aside className="ask-run">
           <h3>
-            <Icon name="sparkles" size={16} /> {t('Generate with Claude')}
+            <Icon name="sparkles" size={16} /> {t('Your own AI')}
           </h3>
-          <label className="ask-field">
-            <span className="ask-label">{t('Anthropic API key')}</span>
-            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder="sk-ant-…" autoComplete="off" spellCheck={false} />
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> {t('Remember in this browser')}
-          </label>
-          <label className="ask-field">
-            <span className="ask-label">{t('Model')}</span>
-            <select value={model} onChange={(e) => setModel(e.target.value as ModelId)}>
-              {MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label} · {m.note}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!hasKey && (
-            <p className="fine">
-              {t('No key?')}{' '}
-              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
-                {t('Get a key ↗')}
-              </a>{' '}
-              {t('or copy the prompt into any chat assistant below.')}
-            </p>
-          )}
-          <button className={hasKey ? 'button primary wide' : 'button ghost wide'} onClick={() => void run()} disabled={!hasKey} title={hasKey ? undefined : t('Enter an API key first')}>
-            <Icon name="sparkles" /> {t('Generate')} <kbd>⌘↵</kbd>
+          <p className="fine">{t('Copy the prompt (your answers, the type’s schema and an example) into any AI chat, then paste its answer back here.')}</p>
+          <button className="button primary wide" onClick={() => void copy()}>
+            <Icon name="copy" /> {t('Copy the prompt')} <kbd>⌘↵</kbd>
           </button>
-          <p className="fine">{t('Your answers and key go only to api.anthropic.com, and only when you press Generate. Everything else stays in this browser.')}</p>
-          {phase.at === 'failed' && (
-            <p className="callout error" role="alert">
-              <Icon name="circle-exclamation-point" size={14} /> <span>{phase.message}</span>
-            </p>
-          )}
+          <p className="fine">{t('Working in Claude Code, Copilot or Cursor? Connect Cartography’s MCP server instead: your agent then writes and checks the diagram itself (docs/ai.md).')}</p>
           <div className="or">
-            <span>{t('or use any chat assistant')}</span>
+            <span>{t('already have the YAML?')}</span>
           </div>
-          <button className={hasKey ? 'button ghost wide' : 'button primary wide'} onClick={() => void copy()}>
-            <Icon name="copy" /> {t('Copy the prompt')}
+          <button className="button ghost wide" onClick={() => setPhase({ at: 'paste' })}>
+            <Icon name="clipboard-paste" /> {t('Paste an answer')}
           </button>
-          {!hasKey && <p className="fine">{t('Paste it into Claude or another assistant, then paste its answer back here.')}</p>}
-          <KeyHint onRun={() => (hasKey ? void run() : document.querySelector<HTMLInputElement>('.ask-run input[type=password]')?.focus())} />
+          <KeyHint onRun={() => void copy()} />
         </aside>
       </div>
     );
@@ -779,76 +714,46 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
     <div className="ask result">
       <div className="ask-stream">
         <div className="ask-stream-head">
-          {busy ? (
-            <>
-              <span className="pulse" /> {phase.attempt > 1 ? (phase.attempt - 1 === 1 ? t('Fixing a problem…') : t('Fixing problems…')) : t('Claude is drawing…')}
-            </>
-          ) : phase.at === 'paste' ? (
-            <>
-              <Icon name="clipboard-paste" size={14} /> {copied ? t('Prompt copied. Paste the answer here') : t('Paste the answer here')}
-            </>
-          ) : phase.errors.length ? (
-            <>
-              <Icon name="triangle-exclamation-point" size={14} /> {t('Almost: {count} problem left to fix in the editor|Almost: {count} problems left to fix in the editor', { count: phase.errors.length })}
-            </>
-          ) : (
-            <>
-              <Icon name="check" size={14} /> {t('Ready')}
-            </>
-          )}
+          <Icon name="clipboard-paste" size={14} /> {copied ? t('Prompt copied. Paste the answer here') : t('Paste the answer here')}
         </div>
-        {phase.at === 'paste' ? (
-          <textarea
-            className="paste mono"
-            autoFocus
-            value={pasted}
-            onChange={(e) => setPasted(e.target.value)}
-            placeholder={t('Paste the whole answer; the YAML is taken out of it.')}
-            spellCheck={false}
-          />
-        ) : (
-          <pre ref={stream} className="mono">
-            {shown}
-          </pre>
-        )}
+        <textarea
+          className="paste mono"
+          autoFocus
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          placeholder={t('Paste the whole answer; the YAML is taken out of it.')}
+          spellCheck={false}
+        />
       </div>
       <div className="ask-preview">
         <div className="mode-preview">
           {drawing.svg ? (
             <div dangerouslySetInnerHTML={{ __html: drawing.svg }} />
-          ) : !busy && shown && drawing.errors.length ? (
+          ) : shown && drawing.errors.length ? (
             <p className="fine">{t('Nothing to draw until the problem below is fixed. Open it in YAML to fix it there.')}</p>
           ) : (
             <div className="thumb-wait" />
           )}
         </div>
-        {!busy && shown && drawing.errors.length > 0 && <p className="fine">{drawing.errors[0]}</p>}
+        {shown && drawing.errors.length > 0 && <p className="fine">{drawing.errors[0]}</p>}
         <footer>
-          {busy ? (
-            <button className="button ghost" onClick={() => abort.current?.abort()}>
-              <Icon name="circle-stop" /> {t('Stop')}
-            </button>
-          ) : (
-            <>
-              <button className="button ghost" onClick={() => setPhase({ at: 'form' })}>
-                <Icon name="arrow-left" /> {t('Change answers')}
-              </button>
-              <span className="spacer" />
-              <button className="button ghost" disabled={!shown} onClick={() => shown && open(shown, 'code')}>
-                <Icon name="code" /> {t('Open in YAML')}
-              </button>
-              <button className="button primary" disabled={!shown} onClick={() => shown && open(shown, 'visual')}>
-                <Icon name="mouse-pointer-2" /> {t('Open in builder')}
-              </button>
-            </>
-          )}
+          <button className="button ghost" onClick={() => setPhase({ at: 'form' })}>
+            <Icon name="arrow-left" /> {t('Change answers')}
+          </button>
+          <span className="spacer" />
+          <button className="button ghost" disabled={!shown} onClick={() => shown && open(shown, 'code')}>
+            <Icon name="code" /> {t('Open in YAML')}
+          </button>
+          <button className="button primary" disabled={!shown} onClick={() => shown && open(shown, 'visual')}>
+            <Icon name="mouse-pointer-2" /> {t('Open in builder')}
+          </button>
         </footer>
       </div>
     </div>
   );
 }
 
-/** ⌘↵ generates from anywhere in the form. */
+/** ⌘↵ copies the prompt from anywhere in the form. */
 function KeyHint({ onRun }: { onRun(): void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

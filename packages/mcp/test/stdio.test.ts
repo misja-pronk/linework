@@ -42,7 +42,7 @@ describe('cartography-mcp over stdio', () => {
   it('lists its tools with input schemas', async () => {
     const { result } = await request('tools/list');
     const names = result.tools.map((t: { name: string }) => t.name).sort();
-    expect(names).toEqual(['get_schema', 'import_mermaid', 'list_types', 'new_diagram', 'render', 'validate']);
+    expect(names).toEqual(['describe', 'diff', 'edit_diagram', 'get_context', 'get_schema', 'import_mermaid', 'list_types', 'new_diagram', 'propose', 'render', 'validate']);
     expect(result.tools.find((t: { name: string }) => t.name === 'render').inputSchema.properties).toHaveProperty('format');
   });
 

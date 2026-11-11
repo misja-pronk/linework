@@ -54,7 +54,7 @@ export interface Shortcut {
 export const SHORTCUTS: Shortcut[] = [
   // ------------------------------------------------------------ anywhere
   { id: 'palette', keys: ['mod+k'], what: 'Commands, elements, templates', context: 'anywhere', group: 'Anywhere' },
-  { id: 'ask', keys: ['mod+j'], pc: ['ctrl+i'], what: 'Ask Claude: a change or a question (↵ accepts a change, Esc rejects it)', context: 'anywhere', group: 'Anywhere' },
+  { id: 'ask', keys: ['mod+j'], pc: ['ctrl+i'], what: 'Your AI: changes your own AI agent proposes (↵ accepts one, Esc rejects it)', context: 'anywhere', group: 'Anywhere' },
   { id: 'save', keys: ['mod+s'], what: 'Save', context: 'anywhere', group: 'Anywhere' },
   { id: 'open', keys: ['mod+o'], what: 'Open a file', context: 'anywhere', group: 'Anywhere' },
   { id: 'export-svg', keys: ['mod+e'], what: 'Export SVG', context: 'anywhere', group: 'Anywhere' },

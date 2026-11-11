@@ -40,6 +40,22 @@ When a diagram has a `<name>.notes.json`, the preview draws its open notes as nu
 
 **Cartography: Present** (or **Present** in the preview's toolbar) opens the diagram on its own, the editor maximized: → / Space / Page Down for the next step, ← for the previous, Home / End, Esc to stop. The step's title and caption show under the drawing. `cartography.present.fullScreen` also turns VS Code full screen.
 
+## Your AI
+
+The extension has no AI of its own; your agent (Copilot, Claude Code, Cursor…) works on the files
+through Cartography's MCP server ([ai](ai.md), [mcp](mcp.md)). The extension answers it on
+127.0.0.1 with a random token, and the MCP server finds it through a small file in the temp folder:
+
+- `get_context`: the diagram open in the editor or preview, and what the cursor is on;
+- `propose`: the change over the preview, marked as `carto diff` marks it, with the YAML diff.
+  **Accept** (⏎) applies it as one undo step (a renamed id takes its pins along); **Reject** (Esc)
+  leaves it;
+- a diagram changed on disk while it is open and saved: VS Code reloads it, and the preview shows
+  what changed, with **Undo** to take it back.
+
+The engine version the extension targets (1.90) cannot register MCP servers itself: add the server
+by hand in `.vscode/mcp.json` ([ai](ai.md#set-up-the-mcp-server)).
+
 ## Problems and completion
 
 The engine's problems appear in the Problems panel at their line and column, in the same words as `carto validate` (all views are checked, each problem once). Quick fixes (`⌘.`) where the message names the fix: a value that must be one of a list (closest first), an unknown or missing `type:`, a label that starts with `[ ]` and needs quotes.

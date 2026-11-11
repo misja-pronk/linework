@@ -42,6 +42,7 @@ export class Preview {
   private nextRaster = 1;
   private readyWaiters: (() => void)[] = [];
   private disposables: vscode.Disposable[] = [];
+  private verdict?: (accept: boolean) => void;
 
   constructor(
     readonly doc: vscode.TextDocument,
@@ -66,6 +67,7 @@ export class Preview {
         clearTimeout(this.timer);
         for (const d of this.disposables) d.dispose();
         for (const r of this.rasters.values()) r({ error: 'The preview was closed' });
+        this.verdict?.(false);
         onDispose();
       }),
       this.panel.onDidChangeViewState(() => {
@@ -155,6 +157,28 @@ export class Preview {
     this.post({ type: 'highlight', items });
   }
 
+  /** What the cursor is on in the text, as the preview lights it up. */
+  selection(editor = vscode.window.visibleTextEditors.find((e) => e.document === this.doc)): { kind: Span['kind']; id: string }[] {
+    if (!editor || !this.last || this.last.version !== this.doc.version) return [];
+    const seen = new Set<string>();
+    return editor.selections.flatMap((s) => elementsAt(this.spans, this.doc.offsetAt(s.active))).flatMap((s) => (seen.has(`${s.kind}:${s.id}`) ? [] : (seen.add(`${s.kind}:${s.id}`), [{ kind: s.kind, id: s.id }])));
+  }
+
+  /** Shows a change over the drawing until the user decides: true for accept (or keep), false for reject (or undo). */
+  async propose(m: Omit<Extract<ToView, { type: 'proposal' }>, 'type'>): Promise<boolean> {
+    this.verdict?.(false);
+    if (!this.ready) await this.whenReady();
+    this.panel.reveal(undefined, false);
+    this.post({ type: 'proposal', ...m });
+    return new Promise((ok) => {
+      this.verdict = (accept) => {
+        this.verdict = undefined;
+        this.post({ type: 'proposal-done' });
+        ok(accept);
+      };
+    });
+  }
+
   /** SVG to PNG in the webview's canvas. */
   rasterize(svg: string, width: number, height: number): Promise<Uint8Array> {
     const id = this.nextRaster++;
@@ -206,6 +230,8 @@ export class Preview {
         return this.rasters.get(m.id)?.({ png: m.png, error: m.error });
       case 'command':
         return this.host.command(m.name, this.doc);
+      case 'verdict':
+        return this.verdict?.(m.accept);
     }
   }
 

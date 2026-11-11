@@ -156,18 +156,14 @@ async function run(width, height, theme) {
   await step('side panel tabs', async () => {
     await page.click('.side-tabs button:has-text("Notes")');
     await page.waitForSelector('.side .notes-panel');
-    await page.click('.side-tabs button:has-text("Ask")');
+    await page.click('.side-tabs button:has-text("Your AI")');
     await page.waitForSelector('.side .ask-panel:not([hidden])');
     if (await page.locator('.side .notes-panel').count()) fail(`${tag}: notes and Ask at once`);
     const c = await box('.canvas-pane');
     const ask = await box('.side .ask-panel');
     if (overlap(c, ask)) fail(`${tag}: Ask covers the drawing`);
-    // In a folder the included model goes too, and the line under the box says so.
-    const said = await page.locator('.ask-sent > span').innerText();
-    if (!/included file model\.yaml/.test(said) || !/your question/.test(said)) fail(`${tag}: Ask does not say it sends model.yaml: ${said}`);
-    await page.click('.ask-sent button:has-text("Show exactly")');
-    if (!(await page.locator('.ask-sent-text').innerText()).includes('<included file="model.yaml">')) fail(`${tag}: Ask does not send the included model.yaml`);
-    await page.click('.ask-sent button:has-text("Hide")');
+    // Nothing is sent anywhere, and the panel says so.
+    if (!/talks to no AI and no network/.test(await page.locator('.ask-sent > span').innerText())) fail(`${tag}: the Your AI panel does not say nothing is sent`);
     await page.screenshot({ path: `${out}/panes-${tag}-2-ask-tab.png` });
     await page.click('.side-tabs button:has-text("Properties")');
     await page.waitForSelector('.side .inspector:not(.notes-panel)');

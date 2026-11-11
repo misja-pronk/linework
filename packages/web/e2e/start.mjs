@@ -1,5 +1,5 @@
-// The start flow: type → template → way of working → (AI) questions → generated diagram. The Claude API is
-// mocked with a streamed answer: first with a mistake, so the repair round runs too. node e2e/start.mjs <outDir>
+// The start flow: type → template → way of working → (your AI) questions → a prompt to copy, an answer
+// pasted back. Nothing leaves the page. node e2e/start.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
 const browser = await chromium.launch();
@@ -51,26 +51,8 @@ edges:
   - api -> orders: HTTPS
   - orders -> db
 `;
-const bad = good.replace('kind: sql-database', 'kind: not-a-kind');
-const requests = [];
-const sse = (text) => {
-  const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`;
-  const parts = text.match(/[\s\S]{1,40}/g);
-  return [
-    ev('message_start', { message: { id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [], stop_reason: null, usage: { input_tokens: 10, output_tokens: 1 } } }),
-    ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }),
-    ...parts.map((p) => ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text: p } })),
-    ev('content_block_stop', { index: 0 }),
-    ev('message_delta', { delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 100 } }),
-    ev('message_stop', {}),
-  ].join('');
-};
-await page.route('https://api.anthropic.com/**', async (route) => {
-  const body = route.request().postDataJSON();
-  requests.push(body);
-  const answer = '```yaml\n' + (requests.length === 1 ? bad : good) + '```';
-  await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream', 'access-control-allow-origin': '*' }, body: sse(answer) });
-});
+// Nothing in the start dialog talks to the network: no request may leave the page.
+await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => (fail(`network: ${route.request().url()}`), route.abort()));
 
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
@@ -86,7 +68,7 @@ await wait(800);
 await page.screenshot({ path: `${out}/2-mode.png` });
 // One name per way of working, the same as the switch in the header and the docs' glossary.
 const modeNames = await page.locator('.mode-card .mode-text strong').allInnerTexts();
-if (modeNames.slice(0, 3).join() !== 'Ask Claude,Builder,YAML') fail(`ways of working are named ${modeNames}`);
+if (modeNames.slice(0, 3).join() !== 'Your AI,Builder,YAML') fail(`ways of working are named ${modeNames}`);
 
 // 2. The builder: shapes panel, no YAML.
 await page.keyboard.press('2');
@@ -105,7 +87,7 @@ await page.keyboard.press('Meta+Backslash');
 await wait(400);
 if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show the YAML');
 
-// 3. Ask Claude: questions, generate (mocked), a repair round, open.
+// 3. Your AI: questions, copy the prompt with the answers in it, paste an answer back, open.
 await page.getByRole('button', { name: 'New' }).click();
 await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
@@ -113,20 +95,18 @@ await page.keyboard.press('1');
 await page.waitForSelector('.ask-form');
 await page.locator('.ask-form textarea').first().fill('An order platform with a public API, an orders service and SQL.');
 await page.locator('.ask-form .chip', { hasText: 'Key Vault' }).click().catch(() => {});
-await page.locator('.ask-run input[type=password]').fill('sk-ant-test');
 await page.screenshot({ path: `${out}/4-ask.png` });
-await page.getByRole('button', { name: /Generate/ }).click();
-await page.waitForSelector('text=Ready', { timeout: 15000 }).catch(() => fail('generation did not finish'));
-await wait(800);
+if (await page.locator('.ask-run input[type=password]').count()) fail('an API key field is back');
+await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+await page.keyboard.press('Meta+Enter');
+await page.waitForSelector('.paste');
+if (!(await page.evaluate(() => navigator.clipboard.readText())).includes('An order platform')) fail('answers missing from the prompt');
+await page.locator('.paste').fill('```yaml\n' + good + '```');
+await wait(900);
 await page.screenshot({ path: `${out}/5-result.png` });
-if (requests.length !== 2) fail(`expected a repair round (2 requests), got ${requests.length}`);
-const first = requests[0];
-if (first?.model !== 'claude-opus-5-5') fail('wrong model');
-if (!JSON.stringify(first?.messages).includes('An order platform')) fail('answers missing from the prompt');
-if (!JSON.stringify(requests[1]?.messages ?? '').includes('not-a-kind')) fail('repair round did not carry the error');
 await page.getByRole('button', { name: /Open in builder/ }).click();
 await wait(800);
-if (!(await yaml()).includes('Orders DB')) fail('generated YAML not opened');
+if (!(await yaml()).includes('Orders DB')) fail('pasted YAML not opened');
 await page.screenshot({ path: `${out}/6-opened.png` });
 
 // 4. Copy the prompt instead, paste an answer.

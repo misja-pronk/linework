@@ -64,16 +64,12 @@ await step('⌘↩ in the YAML does not present', async () => {
   if (await page.locator('.present').count()) fail('⌘↩ in the YAML presented');
 });
 
-await step('⌘↩ in the Ask box does not present', async () => {
+await step('⌘J opens and closes the Your AI panel', async () => {
   await page.locator('.preview').focus();
   await page.keyboard.press('Meta+j');
-  await page.waitForSelector('.ask-panel textarea');
-  await page.locator('.ask-panel textarea').focus();
-  await page.keyboard.type('what is this');
-  await page.keyboard.press('Meta+Enter');
-  await wait(400);
-  if (await page.locator('.present').count()) fail('⌘↩ in the Ask box presented');
-  await page.screenshot({ path: `${out}/s1-cmdenter-in-ask.png` });
+  await page.waitForSelector('.ask-panel:not([hidden])');
+  if (await page.locator('.ask-panel input[type=password], .ask-panel textarea').count()) fail('the Your AI panel has a key or a question box');
+  await page.screenshot({ path: `${out}/s1-your-ai.png` });
   await page.click('.ask-panel button[aria-label="Close"]');
 });
 

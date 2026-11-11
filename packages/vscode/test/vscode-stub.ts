@@ -14,6 +14,9 @@ class Emitter<T> {
 }
 
 export class Disposable {
+  static from(...all: { dispose(): void }[]) {
+    return new Disposable(() => all.forEach((d) => d.dispose()));
+  }
   constructor(private readonly f: () => void = () => {}) {}
   dispose() {
     this.f();
@@ -125,6 +128,8 @@ export enum TextEditorRevealType {
 /** A text document over a string, with offsets and positions as VS Code has them. */
 export class TextDocument {
   version = 1;
+  /** Typed into and not saved; a reload from disk leaves it clean. */
+  isDirty = false;
   constructor(
     readonly uri: Uri,
     private text: string,
@@ -276,6 +281,7 @@ export function openDocument(path: string, text: string): TextDocument {
 export const fireSelection = (e: unknown) => events.selection.fire(e);
 export function changeDocument(doc: TextDocument, text: string) {
   doc.setText(text);
+  doc.isDirty = true;
   events.change.fire({ document: doc });
 }
 
@@ -312,6 +318,8 @@ export const workspace = {
   onDidChangeTextDocument: events.change.event,
   onDidCloseTextDocument: events.close.event,
   onDidChangeConfiguration: events.config.event,
+  onDidChangeWorkspaceFolders: () => new Disposable(),
+  onDidSaveTextDocument: () => new Disposable(),
   getConfiguration: (section: string) => ({ get: <T>(key: string, fallback: T): T => (`${section}.${key}` in state.config ? (state.config[`${section}.${key}`] as T) : fallback) }),
   createFileSystemWatcher: () => ({ onDidChange: () => new Disposable(), onDidCreate: () => new Disposable(), onDidDelete: () => new Disposable(), dispose() {} }),
   openTextDocument: async (arg: Uri | { content?: string; language?: string }) => {
@@ -322,6 +330,16 @@ export const workspace = {
     return doc;
   },
   fs: { readFile: async () => new Uint8Array(), writeFile: async () => {} },
+  /** Whole-document replaces, as the live link makes them. */
+  applyEdit: async (edit: WorkspaceEdit) => {
+    for (const e of edit.edits) {
+      const doc = state.documents.find((d) => d.uri.toString() === e.uri.toString());
+      if (!doc) return false;
+      const text = doc.getText();
+      changeDocument(doc, text.slice(0, doc.offsetAt(e.range.start)) + e.text + text.slice(doc.offsetAt(e.range.end)));
+    }
+    return true;
+  },
 };
 
 export const window = {

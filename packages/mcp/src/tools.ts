@@ -4,10 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@cartography/core';
-import { findType, render, types, type RenderResult } from '@cartography/engine';
+import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { importMermaid } from '@cartography/import';
 import { measure, score, type LayoutMetrics } from '@cartography/layout';
-import { toPng } from '@cartography/cli/png';
+import { toPng } from './png.ts';
 
 const examplesDir = new URL('../../../examples/', import.meta.url);
 
@@ -61,14 +61,14 @@ export function resolvePath(p: string, cwd: string): string {
   return abs;
 }
 
-interface Loaded {
+export interface Loaded {
   text: string;
   /** Contract files and the layout sidecar resolve from here. */
   dir: string;
   sidecar?: LayoutSidecar;
 }
 
-function load(input: Input, cwd: string): Loaded {
+export function load(input: Input, cwd: string): Loaded {
   if (input.yaml != null) return { text: input.yaml, dir: cwd };
   if (!input.file) throw new Error('Pass the diagram as "yaml" (the text) or "file" (a path to a .yaml file)');
   const file = resolvePath(input.file, cwd);
@@ -77,7 +77,7 @@ function load(input: Input, cwd: string): Loaded {
   return { text: fs.readFileSync(file, 'utf8'), dir: path.dirname(file), sidecar };
 }
 
-const reader = (dir: string) => (rel: string) => fs.readFileSync(resolvePath(rel, dir), 'utf8');
+export const reader = (dir: string) => (rel: string) => fs.readFileSync(resolvePath(rel, dir), 'utf8');
 
 // --- Diagnostics with fix hints -------------------------------------------------------------------
 
@@ -171,7 +171,7 @@ function dropAnyOfNoise(ds: Diagnostic[], data: unknown): Diagnostic[] {
   return ds.filter((d) => !noise(d) || !ds.some((o) => o !== d && !noise(o) && (o.line === d.line || inside(o, d))));
 }
 
-function problems(ds: Diagnostic[], text: string, type: DiagramType | undefined): Problem[] {
+export function problems(ds: Diagnostic[], text: string, type: DiagramType | undefined): Problem[] {
   const data = parseSource(text).data;
   return dropAnyOfNoise(ds, data).map((d) => {
     const h = hint(d, data, type);
@@ -201,7 +201,7 @@ export interface Quality {
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-async function quality(r: RenderResult, text: string, opts: { dir: string; sidecar?: LayoutSidecar }): Promise<Quality | undefined> {
+export async function quality(r: RenderResult, text: string, opts: { dir: string; sidecar?: LayoutSidecar }): Promise<Quality | undefined> {
   if (!r.graph || !r.placed || !r.type || !r.graph.edges.length) return undefined;
   const graph = withoutBadges(r.graph);
   const m = measure(graph, r.placed);
@@ -282,7 +282,7 @@ export async function validateDiagram(input: Input, cwd = process.cwd()): Promis
   return { ok, type: r.type?.id, problems: problems(r.diagnostics, src.text, r.type), ...(ok ? { quality: await quality(r, src.text, src) } : {}) };
 }
 
-export interface RenderRequest extends Input {
+export interface RenderRequest extends Input, Drawn {
   format?: 'svg' | 'png';
   /** A built-in theme: survey (the default), survey-dark, transit, drafting, classic… */
   theme?: string;
@@ -291,6 +291,27 @@ export interface RenderRequest extends Input {
   /** PNG pixel density (default 2). */
   scale?: number;
 }
+
+/** What to draw of a diagram, as the CLI's --view, --focus, --layer, --stage and --step say it. */
+export interface Drawn {
+  view?: string;
+  /** Element ids to focus on: them, and what is within `hops` lines. */
+  focus?: string[];
+  hops?: number | 'all';
+  direction?: 'both' | 'upstream' | 'downstream';
+  layer?: string[];
+  stage?: string;
+  step?: number;
+}
+
+/** The engine's options for a Drawn. */
+export const drawnOptions = (d: Drawn): RenderOptions => ({
+  ...(d.view ? { view: d.view } : {}),
+  ...(d.focus?.length ? { focus: { on: d.focus, hops: d.hops ?? 1, direction: d.direction ?? 'both' } } : {}),
+  ...(d.layer?.length ? { layers: d.layer } : {}),
+  ...(d.stage ? { stage: d.stage } : {}),
+  ...(d.step ? { step: d.step } : {}),
+});
 
 export interface Rendered extends Checked {
   format: 'svg' | 'png';
@@ -310,7 +331,7 @@ export async function renderDiagram(req: RenderRequest, cwd = process.cwd()): Pr
   const src = load(req, cwd);
   // Fonts are embedded only in SVG files: resvg reads them from disk, and inline SVG goes back to a
   // model, where a few hundred KB of font data is pure cost.
-  const r = await render(src.text, { theme: req.theme ?? 'survey', fonts: format === 'svg' && out ? 'embed' : 'none', load: reader(src.dir), sidecar: src.sidecar });
+  const r = await render(src.text, { theme: req.theme ?? 'survey', fonts: format === 'svg' && out ? 'embed' : 'none', load: reader(src.dir), sidecar: src.sidecar, ...drawnOptions(req) });
   const base = { format, problems: problems(r.diagnostics, src.text, r.type), type: r.type?.id };
   if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) return { ...base, ok: false };
   const png = format === 'png' ? toPng(r.svg, req.scale ?? 2) : undefined;

@@ -53,6 +53,22 @@ body.present #stage { top: 0; cursor: default; }
 #caption .t { font-weight: 600; font-size: 15px; }
 #caption .c { font-size: 14px; opacity: .85; }
 #caption .n { position: absolute; right: 16px; bottom: 14px; opacity: .6; }
+#proposal { position: absolute; inset: 35px 0 0 0; display: flex; flex-direction: column; background: var(--vscode-editor-background); z-index: 3; }
+#proposal[hidden] { display: none; }
+#proposal header { display: flex; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent)); }
+#proposal header strong { flex: 1; }
+#proposal .counts { opacity: .75; }
+#proposal .body { flex: 1; overflow: auto; padding: 8px; }
+#proposal .body svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+#proposal pre { margin: 0; font: 12px/1.45 var(--vscode-editor-font-family, monospace); }
+#proposal pre .add { background: var(--vscode-diffEditor-insertedLineBackground, rgba(40, 160, 70, .2)); }
+#proposal pre .del { background: var(--vscode-diffEditor-removedLineBackground, rgba(200, 50, 50, .2)); }
+#proposal pre .fold { opacity: .6; font-style: italic; }
+#proposal footer { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent)); }
+#proposal button { font: inherit; border-radius: 3px; padding: 4px 10px; cursor: pointer; border: 1px solid var(--vscode-button-border, transparent); color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+#proposal button.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+#proposal button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
+#proposal .fine { opacity: .7; }
 `;
 
 export function page(p: PageParts): string {
@@ -85,6 +101,11 @@ export function page(p: PageParts): string {
 <div id="empty">Drawing…</div>
 <div id="stale" role="status" hidden></div>
 <div id="caption" hidden><div class="t"></div><div class="c"></div><div class="n"></div></div>
+<section id="proposal" role="dialog" aria-label="Proposed change" hidden>
+  <header><strong id="pSummary"></strong><span id="pCounts" class="counts"></span><button id="pTab">YAML</button></header>
+  <div class="body"><div id="pDrawing"></div><pre id="pYaml" hidden></pre></div>
+  <footer><button id="pAccept" class="primary">Accept ⏎</button><button id="pReject">Reject Esc</button><span id="pFine" class="fine">Accept is one undo step. Pins stay.</span></footer>
+</section>
 <script nonce="${p.nonce}">window.cartoConfig = ${JSON.stringify(p.config).replace(/</g, '\\u003c')};</script>
 <script nonce="${p.nonce}" src="${esc(p.script)}"></script>
 </body>
