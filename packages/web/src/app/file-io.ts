@@ -171,7 +171,8 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
       setWs(next);
       setRemembered(next.dir);
       const first = diagrams(next)[0];
-      if (first) await openInFolder(next, first);
+      // Already left above: asking again would ask twice, from this render's stale dirty state.
+      if (first) await openInFolder(next, first, true);
       else notify(t('No diagrams in {name} yet: start from a template and save it there', { name: next.name }));
     } catch (e) {
       notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
@@ -186,12 +187,12 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
   }, []);
 
   /** Opens a file of the folder; false when it is not there or the user keeps the open one. */
-  const openInFolder = async (w: Workspace, path: string): Promise<boolean> => {
+  const openInFolder = async (w: Workspace, path: string, left = false): Promise<boolean> => {
     // Switching files keeps work: saved first where it lives, otherwise asked.
     if (doc.path === path && ws === w) return true;
     const f = w.files.get(path);
     if (!f) return false;
-    if (!(await leave())) return false;
+    if (!left && !(await leave())) return false;
     fileHandle.current = undefined;
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
     return true;
