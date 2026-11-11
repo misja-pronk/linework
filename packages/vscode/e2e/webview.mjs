@@ -32,6 +32,8 @@ Module._resolveFilename = function (request, ...rest) {
 const require = createRequire(import.meta.url);
 const stub = require(stubFile);
 stub.state.config['cartography.preview.debounce'] = 0;
+// The folder the live link announces (live.ts), for an agent to find.
+stub.workspace.workspaceFolders = [{ uri: stub.Uri.file(path.join(tmp, 'work')) }];
 const ext = require(path.join(dist, 'extension.js'));
 const api = ext.activate({ subscriptions: [], extensionUri: stub.Uri.file(here) });
 
@@ -213,6 +215,33 @@ check(svg.startsWith('<svg') && svg.includes('@font-face'), 'SVG export with the
 check(Buffer.from(written.get('.pptx')).subarray(0, 2).toString() === 'PK', 'PowerPoint export is a zip');
 const png = Buffer.from(written.get('.png'));
 check(png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) > 1000, `PNG export from the page canvas (${png.readUInt32BE(16)}×${png.readUInt32BE(20)})`);
+
+// The live link: the agent finds the extension, asks what is open, and proposes a change over the preview.
+const liveDir = path.join(os.tmpdir(), 'cartography-live');
+const live = fs.readdirSync(liveDir).map((f) => JSON.parse(fs.readFileSync(path.join(liveDir, f), 'utf8'))).find((e) => e.host === 'vscode' && e.roots.includes(work) && e.pid === process.pid);
+check(!!live, 'live: the extension announces itself for the workspace folder');
+const call = (body) => fetch(`${live.url}/live`, { method: 'POST', headers: { authorization: `Bearer ${live.token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+check((await fetch(`${live.url}/live`, { method: 'POST', body: '{"method":"context"}' })).status === 401, 'live: no token, no answer');
+const onOrders = doc.positionAt(doc.getText().indexOf('  orders:') + 2);
+stub.window.activeTextEditor = { document: doc, selections: [new stub.Selection(onOrders, onOrders)] };
+stub.window.visibleTextEditors = [stub.window.activeTextEditor];
+const ctx = (await call({ method: 'context' })).result;
+check(ctx?.file === file && ctx.selection.some((s) => s.id === 'orders'), `live: get_context names the file and what the cursor is on (${JSON.stringify(ctx?.selection)})`);
+const proposing = call({ method: 'propose', params: { file, summary: 'Add a cache', edits: [{ op: 'set', path: ['nodes', 'cache'], value: { kind: 'service', label: 'Cache', in: 'backend' } }, { op: 'append', path: ['edges'], value: 'orders -> cache: reads' }] } });
+await pumpUntil(async () => tab.$eval('#proposal', (el) => !el.hidden));
+check((await tab.$eval('#pSummary', (el) => el.textContent)) === 'Add a cache', 'live: the proposal shows over the preview');
+check((await tab.$$eval('#pDrawing svg', (els) => els.length)) === 1, 'live: with the marked drawing');
+await tab.screenshot({ path: path.join(out, 'proposal.png') });
+await tab.keyboard.press('Enter');
+await pump();
+const verdict = (await proposing).result;
+check(verdict?.outcome === 'accepted', `live: Accept answers the agent (${JSON.stringify(verdict)})`);
+check(doc.getText().includes('cache: { kind: service, label: Cache, in: backend }') && doc.getText().includes('title: Web shop'), 'live: the change is in the document, the rest as it was');
+const rejecting = call({ method: 'propose', params: { file, edits: [{ op: 'delete', path: ['nodes', 'stripe'] }] } });
+await pumpUntil(async () => tab.$eval('#proposal', (el) => !el.hidden));
+await tab.keyboard.press('Escape');
+await pump();
+check((await rejecting).result?.outcome === 'rejected' && doc.getText().includes('stripe:'), 'live: Reject leaves the document');
 
 // The presenter: full screen, the step's caption below, arrows step.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Light };
