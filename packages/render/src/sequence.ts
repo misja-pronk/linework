@@ -455,21 +455,24 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   const limit = now ? now.y + (now.self?.h ?? 0) + 4 : Infinity;
   const out: string[] = [`<g transform="translate(${r1(at.x)} ${r1(at.y)})">`];
   const tone = (t: Tone) => theme.tones[t];
+  // Under the messages over a frame, over a note.
+  const sides: string[] = [];
+  const noteSides: string[] = [];
 
   for (const b of g.boxes) {
     const t = tone(b.tone);
     const line = groupLine(theme, t);
     const fill = groupFill(theme, 0, t);
     out.push(rect(b.box, theme.radius.group, `fill="${fill}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
-    // A frame or note that reaches past the box lies on top of it: the box's side stops short of it,
-    // so the two never read as one line crossing the other.
+    // A frame or note that reaches past the box (it spans a participant outside it) lies over its
+    // side: the side is drawn again on top, so the box stays whole and the frame reads as crossing it.
     if (line)
-      for (const o of [...g.frames.map((f) => f.box), ...g.notes.map((n) => n.box)])
+      for (const [o, onNote] of [...g.frames.map((f) => [f.box, false] as const), ...g.notes.map((n) => [n.box, true] as const)])
         for (const x of [b.box.x, b.box.x + b.box.width])
           if (o.x < x - 1 && o.x + o.width > x + 1 && o.y < b.box.y + b.box.height && o.y + o.height > b.box.y) {
-            const y0 = Math.max(b.box.y + theme.radius.group, o.y - 8);
-            const y1 = Math.min(b.box.y + b.box.height - theme.radius.group, o.y + o.height + 8);
-            if (y1 > y0) out.push(`<rect x="${r1(x - 2)}" y="${r1(y0)}" width="4" height="${r1(y1 - y0)}" fill="${fill}"/>`);
+            const y0 = Math.max(b.box.y + theme.radius.group, o.y);
+            const y1 = Math.min(b.box.y + b.box.height - theme.radius.group, o.y + o.height);
+            if (y1 > y0) (onNote ? noteSides : sides).push(`<path d="M${r1(x)} ${r1(y0)}V${r1(y1)}" stroke="${line}" stroke-width="${theme.stroke.group}" fill="none"/>`);
           }
     const lab = groupLabel(theme, b.label);
     const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
@@ -499,8 +502,10 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   }
 
   for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  out.push(...sides);
   for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, ground));
   for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme));
+  out.push(...noteSides);
   for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));
 
   for (const h of g.headers) {
