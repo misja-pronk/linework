@@ -24,6 +24,7 @@
     "fonts": "node scripts/fonts.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
     "icons": "node scripts/icons.mjs",
     "lab": "tsx packages/cli/src/lab.ts",
     "snapshot": "tsx packages/cli/src/snapshot.ts",
@@ -39,11 +40,14 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "fontkit": "^2.0.4",
     "inter-ui": "4.1.1",
     "subset-font": "^2.9.0",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0",
     "wawoff2": "^2.0.1"
   },
