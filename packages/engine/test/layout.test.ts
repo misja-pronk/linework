@@ -31,6 +31,7 @@ const crossingBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
   'azure/web-shop.yaml': 0,
+  'azure/workload-identities.yaml': 1, // the line out to Microsoft Graph passes the web app's line down to its vault
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
@@ -211,6 +212,7 @@ const touchBudget: Record<string, number> = {
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
 const returns: Record<string, number> = {
   'workspace/containers.yaml': 2, // customer → web and app, drawn above the boundary they enter
+  'azure/workload-identities.yaml': 1, // the shared identity's line up to the storage account, beside the function it serves
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
   'process/release-with-gate.yaml': 1,
