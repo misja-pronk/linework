@@ -75,7 +75,7 @@ export const nlApp = {
   ', pinned': ', vastgezet',
   'File': 'Bestand',
   'New diagram…': 'Nieuw diagram…',
-  'template, then AI, builder or YAML': 'sjabloon, dan AI, Builder of YAML',
+  'a ready drawing or a blank sheet': 'een kant-en-klare tekening of een leeg blad',
   'View': 'Weergave',
   'Show the YAML': 'YAML tonen',
   'Builder (hide the YAML)': 'Builder (YAML verbergen)',

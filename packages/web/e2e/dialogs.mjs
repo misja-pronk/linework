@@ -118,7 +118,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
   await start.goto(base);
   await start.evaluate(() => localStorage.clear());
   await start.reload();
-  await start.waitForSelector('.start .type-card');
+  await start.waitForSelector('.start .scenario');
   await check(start, size, 'start', '.start');
   await modal(start, size, 'start');
   await start.close();

@@ -1,18 +1,17 @@
-// Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
-// (describe it to your own AI, build it visually, or write YAML). For your AI a few answers become a
-// prompt to copy into any chat; its answer is pasted back. Cartography sends nothing anywhere itself.
+// Starting a diagram: one screen of the drawings people come to make, each a card that opens a ready
+// example in the editor; below them a blank sheet and a search by what you want to show. Every template
+// and example, by type, is one step further ("All templates"). Nothing here asks how to work: the
+// editor has the drawing, the YAML and "copy for your AI" itself.
 import './start.css';
 import './start-types.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
+import { SCENARIOS, exampleAt } from './scenarios.ts';
 import { Icon } from './icon.tsx';
 import { BrandMark } from './brand-mark.tsx';
 import { useModal } from './menu.tsx';
-import { store } from './store.ts';
-import { questionsFor, type Question } from './ai/questions.ts';
-import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
 import { say, t, uiLang } from './i18n/index.ts';
 import { englishQuery } from './i18n/query-nl.ts';
 
@@ -21,81 +20,29 @@ export type View = 'visual' | 'code';
 export interface Opened {
   text: string;
   name: string;
+  /** What to call it once open ("Opened Hub and spoke"). */
+  title?: string;
   /** The template it came from, for files next to bundled examples. */
   starter?: string;
   view: View;
-  /** A new, empty diagram: nothing worth an "undo open". */
+  /** A new, empty diagram: nothing worth saying it opened. */
   blank?: boolean;
 }
 
 const thumbs = new Map<string, string>();
 let thumbIds = 0;
 
-/** A drawing of some YAML, kept while the next one is on its way. */
-function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f: string) => string) {
-  const [svg, setSvg] = useState<string>();
-  const [errors, setErrors] = useState<string[]>([]);
-  useEffect(() => {
-    if (!text) return;
-    let stop = false;
-    const timer = setTimeout(() => {
-      void render(text, {
-        theme,
-        fonts: 'none',
-        idPrefix: `s${thumbIds++}`,
-        load,
-      }).then((r) => {
-        if (stop) return;
-        if (r.svg) setSvg(r.svg);
-        setErrors(r.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? t('Line {line}: {message}', { line: d.line, message: d.message }) : d.message)));
-      }, () => undefined);
-    }, 250);
-    return () => {
-      stop = true;
-      clearTimeout(timer);
-    };
-  }, [text, theme, load]);
-  return { svg, errors };
-}
-
-const MODES = [
-  {
-    view: 'ai',
-    icon: 'sparkles',
-    title: 'Your AI',
-    text: 'Describe it in a few answers, copy them into your own AI, and paste the diagram it writes back here.',
-    key: '1',
-  },
-  {
-    view: 'visual',
-    icon: 'mouse-pointer-2',
-    title: 'Builder',
-    text: 'Build visually: drag shapes from the palette, connect them, edit in the panel. No YAML needed.',
-    key: '2',
-  },
-  {
-    view: 'code',
-    icon: 'code',
-    title: 'YAML',
-    text: 'Write it, starting from this example, with autocomplete and a live drawing next to it.',
-    key: '3',
-  },
-] as const;
-
-type ModeView = (typeof MODES)[number]['view'];
-
-type Step = 'type' | 'pick' | 'mode' | 'ask';
-const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type' };
+type Step = 'home' | 'type' | 'pick';
+const PREVIOUS: Partial<Record<Step, Step>> = { pick: 'type', type: 'home' };
 
 /**
- * `current` is the type of the open diagram: marked on its card, so the dialog doubles as the guide
- * the editor's type pill points to.
+ * `current` is the type of the open diagram: asked for from the editor's type pill, the dialog opens on
+ * the types with its card marked, so it doubles as the guide the pill points to.
  */
-export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'light' | 'dark'; initial?: Starter; current?: string; onOpen(o: Opened): void; onClose(): void }) {
-  const [starter, setStarter] = useState<Starter | undefined>(initial);
+export function Start({ theme, current, onOpen, onClose }: { theme: 'light' | 'dark'; current?: string; onOpen(o: Opened): void; onClose(): void }) {
   /** The chosen type, or 'all' to browse every template. */
-  const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
-  const [step, setStep] = useState<Step>(initial ? 'mode' : 'type');
+  const [typeId, setTypeId] = useState<string>('all');
+  const [step, setStep] = useState<Step>(current ? 'type' : 'home');
   const modal = useModal();
 
   // Esc goes one step back, then closes.
@@ -112,103 +59,49 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const type = starter ? types.find((t) => t.id === starter.type) : undefined;
-  const choose = (mode: ModeView) => {
-    if (!starter) return;
-    if (mode === 'ai') return setStep('ask');
-    // Building visually from a full example is editing, not starting: the template is the start.
-    onOpen({
-      text: starter.text,
-      name: starter.file,
-      starter: starter.id,
-      view: mode,
-    });
-  };
-
+  // A template opens in the editor at once, on the drawing: the template is the start.
+  const open = (s: Starter) => onOpen({ text: s.text, name: s.file, title: s.title, starter: s.id, view: 'visual' });
   const blank = (id: string) => onOpen({ text: blankText(id), name: `${id}.yaml`, view: 'visual', blank: true });
-  /** The atlas's index: every type with its plates, the one shown marked. */
-  const index = (step === 'type' || step === 'pick') && (
-    <AtlasIndex
-      shown={step === 'pick' ? typeId : undefined}
-      onChoose={(id) => {
-        setTypeId(id);
-        setStep('pick');
-      }}
-    />
-  );
+  const choose = (id: string) => {
+    setTypeId(id);
+    setStep('pick');
+  };
 
   return (
     <div className="overlay start-overlay" onMouseDown={onClose}>
       <div className={`templates start step-${step}`} role="dialog" aria-modal="true" ref={modal} aria-label={t('Start a diagram')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
-          {step === 'type' && <BrandMark size="sm" />}
-          {step !== 'type' && (
+          {step === 'home' ? (
+            <BrandMark size="sm" />
+          ) : (
             <button className="icon-button" onClick={back} aria-label={t('Back')} title={t('Back (Esc)')}>
               <Icon name="arrow-left" />
             </button>
           )}
           <h2>
-            {step === 'type'
+            {step === 'home'
               ? t('What do you want to draw?')
-              : step === 'pick'
-                ? typeId === 'all'
+              : step === 'type'
+                ? t('All templates')
+                : typeId === 'all'
                   ? t('All templates and examples')
-                  : t('{type}: pick a start', { type: typeName(typeId) })
-                : step === 'mode'
-                  ? `${starter!.title}`
-                  : t('Your AI · {type}', { type: typeName(starter!.type) })}
+                  : t('{type}: pick a start', { type: typeName(typeId) })}
           </h2>
-          <ol className="steps" aria-label={t('Steps')}>
-            {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : [])].map((s, i) => (
-              <li key={s} aria-current={i === ['type', 'pick', 'mode', 'ask'].indexOf(step)}>
-                {say(s)}
-              </li>
-            ))}
-          </ol>
           <button className="icon-button" onClick={onClose} aria-label={t('Close')}>
             <Icon name="x" />
           </button>
         </header>
-        {index ? (
+        {step === 'home' ? (
+          <Home theme={theme} onOpen={open} onBlank={() => blank('systems')} onBrowse={() => setStep('type')} onType={choose} />
+        ) : (
           <div className="atlas">
-            {index}
+            <TypeIndex shown={step === 'pick' ? typeId : undefined} onChoose={choose} />
             <section className="atlas-main">
-              {step === 'type' && (
-                <Types
-                  theme={theme}
-                  current={current}
-                  last={typeId}
-                  onBlank={() => blank('systems')}
-                  onChoose={(t) => {
-                    setTypeId(t);
-                    setStep('pick');
-                  }}
-                />
-              )}
-              {step === 'pick' && (
-                <Pick
-                  theme={theme}
-                  typeId={typeId}
-                  onType={setTypeId}
-                  onBlank={typeId === 'all' ? undefined : () => blank(typeId)}
-                  onPick={(s) => {
-                    setStarter(s);
-                    setStep('mode');
-                  }}
-                />
-              )}
+              {step === 'type' && <Types theme={theme} current={current} last={typeId} onBlank={() => blank('systems')} onChoose={choose} />}
+              {step === 'pick' && <Pick theme={theme} typeId={typeId} onType={setTypeId} onBlank={typeId === 'all' ? undefined : () => blank(typeId)} onPick={open} />}
             </section>
           </div>
-        ) : null}
-        {step === 'mode' && starter && (
-          <Mode
-            starter={starter}
-            theme={theme}
-            onChoose={choose}
-            onBlank={() => blank(starter.type)}
-          />
         )}
-        {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} />}
       </div>
     </div>
   );
@@ -269,37 +162,132 @@ function moveInGrid(e: React.KeyboardEvent, cards: HTMLElement[]): number | unde
   return next;
 }
 
-const typeCount = (id: string) => starters.filter((s) => s.type === id).length;
-/** A plate's number, the way a map sheet is numbered: PL. 07. */
-const plate = (n: number) => `PL. ${String(n).padStart(2, '0')}`;
-const ROMAN: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
-function roman(n: number): string {
-  let out = '';
-  for (const [v, r] of ROMAN)
-    while (n >= v) {
-      out += r;
-      n -= v;
-    }
-  return out;
+/** Words typed into a search box, ranked against the types (Dutch words read as their English). */
+function useTypeSearch() {
+  const [query, setQuery] = useState('');
+  const ranked = useMemo(() => matchTypes(uiLang() === 'nl' ? englishQuery(query) : query, types), [query]);
+  return { query, setQuery, ranked, matched: ranked[0]!.score > 0 };
 }
 
-/** The atlas's index: every type, numbered like the parts of an atlas, with how many plates it has. */
-function AtlasIndex({ shown, onChoose }: { shown: string | undefined; onChoose(id: string): void }) {
+function SearchField({ query, setQuery, onKeyDown, inputRef }: { query: string; setQuery(q: string): void; onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void; inputRef?: React.Ref<HTMLInputElement> }) {
+  return (
+    <label className="search-field">
+      <Icon name="search" size={15} />
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={onKeyDown}
+        placeholder={t('Describe what you want to show')}
+        aria-label={t('Describe what you want to show')}
+        spellCheck={false}
+      />
+    </label>
+  );
+}
+
+const scenarioCards = SCENARIOS.flatMap((sc) => {
+  const main = exampleAt(sc.example);
+  return main ? [{ ...sc, main, also: sc.also.flatMap(([label, path]) => (exampleAt(path) ? [{ label, starter: exampleAt(path)! }] : [])) }] : [];
+});
+
+/**
+ * The first screen: a card per drawing people come to make, each opening a ready example in the editor;
+ * then a blank sheet, a search by what to show (it finds the type), and every template.
+ */
+function Home({ theme, onOpen, onBlank, onBrowse, onType }: { theme: 'light' | 'dark'; onOpen(s: Starter): void; onBlank(): void; onBrowse(): void; onType(id: string): void }) {
+  const thumb = useThumbs(
+    scenarioCards.map((c) => c.main),
+    theme,
+  );
+  const { query, setQuery, ranked, matched } = useTypeSearch();
+  const grid = useRef<HTMLDivElement>(null);
+  const mains = () => [...(grid.current?.querySelectorAll<HTMLElement>('.scenario-main') ?? [])];
+  useEffect(() => mains()[0]?.focus(), []);
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && query) onType(ranked[0]!.type.id);
+    else if (e.key === 'Escape' && query) setQuery('');
+    else return;
+    e.preventDefault();
+  };
+  const best = matched ? ranked.filter((r) => r.score >= ranked[0]!.score / 2).slice(0, 4) : [];
+
+  return (
+    <div className="home">
+      <div className="scenario-grid" ref={grid} onKeyDown={(e) => moveInGrid(e, mains())}>
+        {scenarioCards.map((c) => {
+          const svg = thumb(c.main, { w: 300, h: 140 });
+          return (
+            <div key={c.example} className="scenario">
+              <button className="scenario-main" onClick={() => onOpen(c.main)}>
+                <span className="scenario-thumb" aria-hidden="true">
+                  {svg ? <span dangerouslySetInnerHTML={{ __html: svg }} /> : <span className="thumb-wait" />}
+                </span>
+                <span className="scenario-title">{say(c.title)}</span>
+                <span className="scenario-text">{say(c.text)}</span>
+              </button>
+              {c.also.length > 0 && (
+                <div className="scenario-also">
+                  {c.also.map((a) => (
+                    <button key={a.label} className="link" onClick={() => onOpen(a.starter)} title={a.starter.title}>
+                      {say(a.label)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="home-foot">
+        <button className="blank-sheet" onClick={onBlank}>
+          <Icon name="file-plus" size={16} />
+          <strong>{t('Blank sheet')}</strong>
+          <span className="blank-what">{t('Drag shapes onto an empty page.')}</span>
+        </button>
+        <div className="home-search">
+          <SearchField query={query} setQuery={setQuery} onKeyDown={onSearchKey} />
+          <p className="type-hint" role="status">
+            {!query ? (
+              <>{t('Try “tables and keys” or “who has access”.')}</>
+            ) : matched ? (
+              <>
+                {best.map(({ type: ty }, i) => (
+                  <button key={ty.id} className={i === 0 ? 'link best' : 'link'} onClick={() => onType(ty.id)}>
+                    {ty.name}
+                  </button>
+                ))}{' '}
+                <kbd>↵</kbd> {t('opens the first.')}
+              </>
+            ) : (
+              <>{t('No type matches those words. Architecture fits most systems.')}</>
+            )}
+          </p>
+        </div>
+        <button className="chip import-chip" onClick={onBrowse} title={t('Every template and example, of every type')}>
+          <Icon name="layout-grid" size={13} /> {t('All templates ({count})', { count: starters.length })}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const typeCount = (id: string) => starters.filter((s) => s.type === id).length;
+
+/** Every type, with how many templates it has; the one shown marked. */
+function TypeIndex({ shown, onChoose }: { shown: string | undefined; onChoose(id: string): void }) {
   return (
     <nav className="atlas-index" aria-label={t('Diagram type')}>
-      <div className="atlas-label">{t('Atlas')}</div>
       <ul>
         <li>
           <button aria-current={shown === 'all' ? 'true' : undefined} onClick={() => onChoose('all')}>
-            <span className="atlas-no">—</span>
             <span className="atlas-name">{t('All templates')}</span>
             <span className="atlas-count">{starters.length}</span>
           </button>
         </li>
-        {types.map((ty, i) => (
+        {types.map((ty) => (
           <li key={ty.id}>
             <button aria-current={shown === ty.id ? 'true' : undefined} onClick={() => onChoose(ty.id)} title={ty.tagline}>
-              <span className="atlas-no">{roman(i + 1)}</span>
               <span className="atlas-name">{ty.name}</span>
               <span className="atlas-count">{typeCount(ty.id)}</span>
             </button>
@@ -310,12 +298,11 @@ function AtlasIndex({ shown, onChoose }: { shown: string | undefined; onChoose(i
   );
 }
 
-/** Plate 00: an empty sheet, before every template. */
+/** An empty sheet, before every template. */
 function BlankSheet({ what, onBlank }: { what: string; onBlank(): void }) {
   return (
     <button className="blank-sheet" onClick={onBlank}>
-      <BrandMark size="sm" />
-      <span className="plate-no">{plate(0)}</span>
+      <Icon name="file-plus" size={16} />
       <strong>{t('Blank sheet')}</strong>
       <span className="blank-what">{what}</span>
     </button>
@@ -325,30 +312,21 @@ function BlankSheet({ what, onBlank }: { what: string; onBlank(): void }) {
 const pointsTo = (use?: string) => (use && types.some((t) => t.id === use) ? use : undefined);
 const typeTemplates = types.map((t) => starters.find((s) => s.id === `template:${t.id}`)).filter((s): s is Starter => !!s);
 
-/** Step one: what do you want to draw? A card per type says what it is for and what it is not for. */
+/** Every type: a card each says what it is for. */
 function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | 'dark'; current?: string; last: string; onChoose(id: string): void; onBlank(): void }) {
-  const [query, setQuery] = useState('');
-  const ranked = useMemo(() => matchTypes(uiLang() === 'nl' ? englishQuery(query) : query, types), [query]);
-  const matched = ranked[0]!.score > 0;
-  const [flash, setFlash] = useState<string>();
+  const { query, setQuery, ranked, matched } = useTypeSearch();
   const grid = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const thumb = useThumbs(typeTemplates, theme);
   const card = (id: string) => grid.current?.querySelector<HTMLElement>(`[data-type="${id}"]`);
-  // Back from a type's templates lands on that type; a fresh start on the search box.
+  // Back from a type's templates lands on that type; the guide on the open diagram's type; else the search box.
   useEffect(() => {
-    const back = last !== 'all' ? card(last)?.querySelector<HTMLElement>('.type-main') : undefined;
+    const on = last !== 'all' ? last : current;
+    const back = on ? card(on)?.querySelector<HTMLElement>('.type-main') : undefined;
+    back?.scrollIntoView({ block: 'nearest' });
     (back ?? search.current)?.focus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** "Not for → X": show X and put focus on it, so Enter opens it. */
-  const jump = (id: string) => {
-    const el = card(id);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    el?.querySelector<HTMLElement>('.type-main')?.focus({ preventScroll: true });
-    setFlash(id);
-    setTimeout(() => setFlash((f) => (f === id ? undefined : f)), 1400);
-  };
   const mains = () => [...(grid.current?.querySelectorAll<HTMLElement>('.type-main') ?? [])];
   const onGridKey = (e: React.KeyboardEvent) => {
     const all = mains();
@@ -370,20 +348,9 @@ function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | '
   return (
     <>
       <div className="type-search">
-        <label className="search-field">
-          <Icon name="search" size={15} />
-          <input
-            ref={search}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onSearchKey}
-            placeholder={t('Describe what you want to show')}
-            aria-label={t('Describe what you want to show')}
-            spellCheck={false}
-          />
-        </label>
+        <SearchField query={query} setQuery={setQuery} onKeyDown={onSearchKey} inputRef={search} />
         <button className="chip import-chip" onClick={() => onChoose('all')} title={t('Every template and example, of every type')}>
-          <Icon name="layout-grid" size={13} /> {t('All templates')}
+          <Icon name="layout-grid" size={13} /> {t('All templates and examples')}
         </button>
       </div>
       <p className="type-hint" role="status">
@@ -404,15 +371,13 @@ function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | '
         {ranked.map(({ type: ty, score }, i) => {
           const s = typeTemplates.find((x) => x.type === ty.id);
           const svg = s && thumb(s, { w: 222, h: 80 });
-          const notFor = ty.notFor ?? [];
-          const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', flash === ty.id && 'flash', ty.id === current && 'current'];
+          const cls = ['type-card', matched && i === 0 && 'best', matched && score < ranked[0]!.score / 2 && 'faded', ty.id === current && 'current'];
           return (
             <div key={ty.id} className={cls.filter(Boolean).join(' ')} data-type={ty.id}>
               <button className="type-main" onClick={() => onChoose(ty.id)}>
                 <span className="type-thumb" aria-hidden="true">
                   {svg ? <span dangerouslySetInnerHTML={{ __html: svg }} /> : <span className="thumb-wait" />}
                 </span>
-                <span className="plate-no">{plate(types.indexOf(ty) + 1)}</span>
                 <span className="type-head">
                   <span className="type-icon">
                     <Icon name={ty.icon ?? 'layout-template'} size={17} />
@@ -420,10 +385,7 @@ function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | '
                   <span className="type-name">{ty.name}</span>
                   {matched && i === 0 ? <span className="type-badge">{t('Best match')}</span> : ty.id === current ? <span className="type-badge quiet">{t('This diagram')}</span> : null}
                 </span>
-                <span className="type-tagline">
-                  <code className="type-yaml" title={t('What the YAML says')}>type: {ty.id}</code>
-                  {ty.tagline && <> · {ty.tagline}</>}
-                </span>
+                {ty.tagline && <span className="type-tagline">{ty.tagline}</span>}
                 {!!ty.useWhen?.length && (
                   <span className="type-use" title={ty.useWhen.length > 2 ? ty.useWhen.join('\n') : undefined}>
                     <span className="type-label">{t('Use when')}</span>
@@ -434,30 +396,8 @@ function Types({ theme, current, last, onChoose, onBlank }: { theme: 'light' | '
                     ))}
                   </span>
                 )}
+                <span className="type-count">{t('{count} template|{count} templates', { count: typeCount(ty.id) })}</span>
               </button>
-              <div className="type-foot">
-                {/* Where to go instead, as links; what each is for is in its tooltip. Compact, so more types fit. */}
-                {notFor.some((n) => pointsTo(n.use)) && (
-                  <div className="type-not">
-                    <span className="type-label">{t('Not for this? Try')}</span>
-                    <span className="type-not-links">
-                      {notFor.map((n) => {
-                        const use = pointsTo(n.use);
-                        return (
-                          use && (
-                            <button key={n.text} className="link" onClick={() => jump(use)} title={`${n.text}: ${typeName(use)}`}>
-                              → {typeName(use)}
-                            </button>
-                          )
-                        );
-                      })}
-                    </span>
-                  </div>
-                )}
-                <span className="type-count">
-                  {t('{count} template|{count} templates', { count: typeCount(ty.id) })}
-                </span>
-              </div>
             </div>
           );
         })}
@@ -503,7 +443,7 @@ function TypeSummary({ type, onType }: { type: DiagramType; onType(id: string): 
   );
 }
 
-/** Step two: the chosen type's template and examples (or all of them). */
+/** The chosen type's template and examples (or all of them); a card opens in the editor. */
 function Pick({ theme, typeId, onType, onPick, onBlank }: { theme: 'light' | 'dark'; typeId: string; onType(id: string): void; onPick(s: Starter): void; onBlank?(): void }) {
   const type = types.find((t) => t.id === typeId);
   const shown = useMemo(() => starters.filter((s) => typeId === 'all' || s.type === typeId), [typeId]);
@@ -547,14 +487,14 @@ function Pick({ theme, typeId, onType, onPick, onBlank }: { theme: 'light' | 'da
                 {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}
               </div>
               <div className="template-meta">
-                <span className="plate-no">{plate(i + 1)}</span>
                 <span className="template-title">
                   {s.title}
                   {twin && <span className="template-twin"> · {s.subtitle}</span>}
                 </span>
-                <span className="template-sub" title={s.kind === 'example' ? s.file : undefined}>
-                  {s.kind === 'template' ? t('Template') : t('Example')}
-                  {type ? (s.kind === 'template' ? t(': the smallest start') : ` · ${s.file}`) : ` · ${typeName(s.type)}`}
+                {/* Within a type an example says what it shows (its subtitle); among all, its type. */}
+                <span className="template-sub" title={s.kind === 'example' ? s.subtitle : undefined}>
+                  {s.kind === 'template' ? t('Template') : type && s.subtitle && !twin ? s.subtitle : t('Example')}
+                  {s.kind === 'template' && type ? t(': the smallest start') : !type ? ` · ${typeName(s.type)}` : ''}
                 </span>
               </div>
             </button>
@@ -564,242 +504,3 @@ function Pick({ theme, typeId, onType, onPick, onBlank }: { theme: 'light' | 'da
     </>
   );
 }
-
-function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: ModeView): void; onBlank(): void }) {
-  const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
-  const { svg } = useDrawing(starter.text, theme, load);
-  const modes = MODES;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
-      const m = modes.find((x) => x.key === e.key);
-      if (m) onChoose(m.view);
-      else if (e.key === 'b') onBlank();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onChoose, onBlank, modes]);
-  return (
-    <div className="mode-step">
-      <div className="mode-preview">{svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : <div className="thumb-wait" />}</div>
-      <div className="modes" role="group" aria-label={t('How do you want to work?')}>
-        <p className="modes-intro">{t('How do you want to work?')}</p>
-        {modes.map((m, i) => (
-          <button key={m.view} className={`mode-card mode-${m.view}`} onClick={() => onChoose(m.view)} autoFocus={i === 0}>
-            <span className="mode-icon">
-              <Icon name={m.icon} size={20} />
-            </span>
-            <span className="mode-text">
-              <strong>{say(m.title)}</strong>
-              <span>{say(m.text)}</span>
-            </span>
-            <kbd>{m.key}</kbd>
-          </button>
-        ))}
-        <button className="blank-start" onClick={onBlank}>
-          <Icon name="file-plus" size={16} />
-          <span>
-            {t('Or')} <strong>{t('start blank')}</strong>{t(': an empty {type} in the builder', { type: typeName(starter.type).toLowerCase() })}
-          </span>
-          <kbd>B</kbd>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Chips shown per group before "More": enough to scan, not a wall. */
-const FEW = 12;
-
-function ChipGroup({ label, options, on, toggle }: { label: string; options: string[]; on: Set<string>; toggle(o: string): void }) {
-  const [all, setAll] = useState(false);
-  // Picked chips stay visible even when folded away.
-  const shown = all ? options : options.filter((o, i) => i < FEW || on.has(o));
-  return (
-    <div className="chips inline" role="group" aria-label={label}>
-      {shown.map((o) => (
-        <button key={o} type="button" className={on.has(o) ? 'chip active' : 'chip'} aria-pressed={on.has(o)} onClick={() => toggle(o)}>
-          {on.has(o) && <Icon name="check" size={12} />} {o}
-        </button>
-      ))}
-      {options.length > shown.length && (
-        <button type="button" className="chip more" onClick={() => setAll(true)}>
-          {t('{count} more…', { count: options.length - shown.length })}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Field({ q, value, onChange }: { q: Question; value: string | string[] | undefined; onChange(v: string | string[]): void }) {
-  if (q.kind === 'chips') {
-    const on = new Set(Array.isArray(value) ? value : []);
-    const toggle = (o: string) => {
-      const next = new Set(on);
-      if (!next.delete(o)) next.add(o);
-      onChange([...next]);
-    };
-    const groups = q.groups && q.groups.length > 1 ? q.groups : [{ label: q.label, options: q.options! }];
-    return (
-      <div className="chip-groups">
-        {groups.map((g) => (
-          <div key={g.label}>
-            {groups.length > 1 && <span className="chip-group-label">{g.label}</span>}
-            <ChipGroup label={g.label} options={g.options} on={on} toggle={toggle} />
-          </div>
-        ))}
-      </div>
-    );
-  }
-  if (q.kind === 'choice')
-    return (
-      <div className="segmented" role="radiogroup" aria-label={q.label}>
-        {q.options!.map((o) => (
-          <button key={o} type="button" role="radio" aria-checked={value === o} className={value === o ? 'active' : ''} onClick={() => onChange(o)}>
-            {o}
-          </button>
-        ))}
-      </div>
-    );
-  const v = typeof value === 'string' ? value : '';
-  return q.kind === 'long' ? (
-    <textarea rows={2} value={v} placeholder={q.placeholder} onChange={(e) => onChange(e.target.value)} aria-label={q.label} />
-  ) : (
-    <input value={v} placeholder={q.placeholder} onChange={(e) => onChange(e.target.value)} aria-label={q.label} />
-  );
-}
-
-type Phase = { at: 'form' } | { at: 'paste' };
-
-function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
-  const questions = useMemo(() => questionsFor(type), [type]);
-  const [answers, setAnswers] = useState<Answers>(() => ({
-    ...Object.fromEntries(questions.filter((q) => q.initial).map((q) => [q.id, q.initial!])),
-    ...(store.get<Record<string, Answers>>('ai-answers')?.[type.id] ?? {}),
-  }));
-  const [phase, setPhase] = useState<Phase>({ at: 'form' });
-  const [pasted, setPasted] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  // The template's own YAML shows the model the style; an empty start teaches nothing, so use the type's template.
-  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text), [type, questions, answers, starter]);
-  const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
-  const shown = phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
-  const drawing = useDrawing(shown, theme, load);
-
-  const keep = () => {
-    const all = store.get<Record<string, Answers>>('ai-answers') ?? {};
-    store.set('ai-answers', { ...all, [type.id]: answers });
-  };
-
-  const copy = async () => {
-    keep();
-    await navigator.clipboard.writeText(promptText(prompt)).catch(() => undefined);
-    setCopied(true);
-    setPhase({ at: 'paste' });
-  };
-
-  const open = (yaml: string, view: View) =>
-    onOpen({
-      text: yaml,
-      name: `${type.id}.yaml`,
-      starter: starter.kind === 'example' ? starter.id : undefined,
-      view,
-    });
-
-  if (phase.at === 'form')
-    return (
-      <div className="ask">
-        <form
-          className="ask-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void copy();
-          }}
-        >
-          {questions.map((q) => (
-            <label key={q.id} className="ask-field">
-              <span className="ask-label">{q.label}</span>
-              <Field q={q} value={answers[q.id]} onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))} />
-              {q.help && <small>{q.help}</small>}
-            </label>
-          ))}
-        </form>
-        <aside className="ask-run">
-          <h3>
-            <Icon name="sparkles" size={16} /> {t('Your own AI')}
-          </h3>
-          <p className="fine">{t('Copy the prompt (your answers, the type’s schema and an example) into any AI chat, then paste its answer back here.')}</p>
-          <button className="button primary wide" onClick={() => void copy()}>
-            <Icon name="copy" /> {t('Copy the prompt')} <kbd>⌘↵</kbd>
-          </button>
-          <p className="fine">{t('Working in Claude Code, Copilot or Cursor? Connect Cartography’s MCP server instead: your agent then writes and checks the diagram itself (docs/ai.md).')}</p>
-          <div className="or">
-            <span>{t('already have the YAML?')}</span>
-          </div>
-          <button className="button ghost wide" onClick={() => setPhase({ at: 'paste' })}>
-            <Icon name="clipboard-paste" /> {t('Paste an answer')}
-          </button>
-          <KeyHint onRun={() => void copy()} />
-        </aside>
-      </div>
-    );
-
-  return (
-    <div className="ask result">
-      <div className="ask-stream">
-        <div className="ask-stream-head">
-          <Icon name="clipboard-paste" size={14} /> {copied ? t('Prompt copied. Paste the answer here') : t('Paste the answer here')}
-        </div>
-        <textarea
-          className="paste mono"
-          autoFocus
-          value={pasted}
-          onChange={(e) => setPasted(e.target.value)}
-          placeholder={t('Paste the whole answer; the YAML is taken out of it.')}
-          spellCheck={false}
-        />
-      </div>
-      <div className="ask-preview">
-        <div className="mode-preview">
-          {drawing.svg ? (
-            <div dangerouslySetInnerHTML={{ __html: drawing.svg }} />
-          ) : shown && drawing.errors.length ? (
-            <p className="fine">{t('Nothing to draw until the problem below is fixed. Open it in YAML to fix it there.')}</p>
-          ) : (
-            <div className="thumb-wait" />
-          )}
-        </div>
-        {shown && drawing.errors.length > 0 && <p className="fine">{drawing.errors[0]}</p>}
-        <footer>
-          <button className="button ghost" onClick={() => setPhase({ at: 'form' })}>
-            <Icon name="arrow-left" /> {t('Change answers')}
-          </button>
-          <span className="spacer" />
-          <button className="button ghost" disabled={!shown} onClick={() => shown && open(shown, 'code')}>
-            <Icon name="code" /> {t('Open in YAML')}
-          </button>
-          <button className="button primary" disabled={!shown} onClick={() => shown && open(shown, 'visual')}>
-            <Icon name="mouse-pointer-2" /> {t('Open in builder')}
-          </button>
-        </footer>
-      </div>
-    </div>
-  );
-}
-
-/** ⌘↵ copies the prompt from anywhere in the form. */
-function KeyHint({ onRun }: { onRun(): void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        onRun();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onRun]);
-  return null;
-}
-

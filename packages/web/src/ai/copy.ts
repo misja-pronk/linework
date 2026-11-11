@@ -1,6 +1,6 @@
 // "Copy for your AI": the open diagram, its type's schema and short instructions as one text, for
 // people who only have a chat window. They paste it in, ask for a change, and paste the YAML back
-// (the start dialog's "Paste YAML", or straight into the editor).
+// (straight into the editor).
 import type { DiagramType } from '@cartography/core';
 
 export function forYourAi(o: { yaml: string; type: DiagramType; file?: string; selection?: string[]; request?: string }): string {

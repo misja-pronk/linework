@@ -1,5 +1,5 @@
-/* The type chooser of the start dialog (start.tsx), and the type summary over its templates: plates on
-   the atlas's table, each a type with its picture, what it is for and where to go instead. */
+/* The types under "All templates" in the start dialog (start.tsx), and the type summary over its
+   templates: cards on the table, each a type with its picture and what it is for. */
 
 .type-search {
   display: flex;
@@ -85,17 +85,8 @@
 .type-card.faded:focus-within {
   opacity: 1;
 }
-.type-card.flash {
-  animation: type-flash 1.2s ease-out;
-}
-@keyframes type-flash {
-  0%,
-  40% {
-    outline: 2px solid var(--rust);
-    outline-offset: -1px;
-  }
-}
 .type-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -135,9 +126,6 @@
 .type-thumb svg {
   width: 100%;
   height: 100%;
-}
-.type-main > .plate-no {
-  padding: 4px 16px 0;
 }
 .type-head {
   display: flex;
@@ -180,8 +168,7 @@
   font-size: 0.78125rem;
   line-height: 1.4;
 }
-.type-use,
-.type-not {
+.type-use {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -210,36 +197,11 @@
   height: 1px;
   background: var(--text-faint);
 }
-.type-foot {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 0 12px;
-  border-top: 1px solid var(--rule2);
-}
-.type-not-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 8px;
-}
-.type-not-links button.link {
-  margin-left: 0;
-  padding: 0;
-  text-align: left;
-}
-/* The name the YAML uses, beside the name people read. */
-.type-yaml {
-  flex: none;
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  color: var(--text-faint);
-}
 .template-twin {
   font-weight: 400;
   color: var(--text-muted);
 }
-/* Links between plates: ink, underlined on hover; they lead, they are not selected. */
+/* Links between cards: ink, underlined on hover; they lead, they are not selected. */
 button.link {
   border: none;
   background: none;
@@ -257,9 +219,9 @@ button.link:hover {
   text-decoration-color: currentColor;
 }
 .type-count {
-  padding: 0 16px;
-  font-family: var(--mono);
-  font-size: 0.6875rem;
+  margin-top: auto;
+  padding: 6px 16px 0;
+  font-size: 0.75rem;
   color: var(--text-faint);
 }
 .type-summary {
