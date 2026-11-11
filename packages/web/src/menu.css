@@ -14,6 +14,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  animation: rise 120ms ease-out;
 }
 .menu button {
   display: flex;
