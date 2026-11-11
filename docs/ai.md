@@ -11,22 +11,25 @@ selected, and show its change as a proposal you accept or reject.
 
 ## Set up the MCP server
 
-The server is `packages/mcp`; [mcp.md](mcp.md) has every tool. From a clone, after `pnpm install`
-(`/path/to/cartography` is your clone):
+**In VS Code**, install the Cartography extension ([vscode](vscode.md)) and you are done: it
+registers the MCP server with VS Code (1.101 or later), so Copilot's agent mode and other agents that
+use VS Code's MCP servers have the tools. See [In VS Code](#in-vs-code) below.
 
-**Claude Code**:
+Everywhere else, set the server up once. It is `packages/mcp`; [mcp.md](mcp.md) has every tool. From
+a clone, after `pnpm install` (`/path/to/cartography` is your clone):
+
+**Claude Code** (in a terminal or in its VS Code extension):
 
 ```sh
 claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/to/cartography/packages/mcp/src/main.ts
 ```
 
-**VS Code** (Copilot's agent mode and other agents in VS Code): add `.vscode/mcp.json` to the project:
+**Cursor**: add `.cursor/mcp.json` to the project:
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "cartography": {
-      "type": "stdio",
       "command": "/path/to/cartography/node_modules/.bin/tsx",
       "args": ["/path/to/cartography/packages/mcp/src/main.ts"]
     }
@@ -34,7 +37,8 @@ claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/t
 }
 ```
 
-**Cursor**: the same in `.cursor/mcp.json`, under `"mcpServers"`.
+**VS Code without the extension** (or an editor built on VS Code that does not take servers from
+extensions): the same in `.vscode/mcp.json`, under `"servers"`, with `"type": "stdio"`.
 
 **Claude Desktop**: Settings → Developer → Edit config; see [mcp.md](mcp.md#setup-local-from-a-clone).
 
@@ -43,14 +47,21 @@ orders database", "make the selected service redundant".
 
 ## In VS Code
 
-With the Cartography extension installed, there is nothing more to set up. The extension listens on
-this computer only and the MCP server finds it:
+Install the extension; there is nothing more to set up. The flow:
 
-- `get_context` tells the agent which diagram is open and what the cursor is on;
-- `propose` shows the change over the preview: the drawing with what is added, changed and removed
-  marked, and the YAML diff. **Accept** (⏎) applies it as one undo step, **Reject** (Esc) leaves it;
-- a file the agent writes with `edit_diagram` reloads (VS Code does that), and the preview shows what
-  changed, with **Undo** to take it back.
+1. **Select**: open a diagram's preview (`⌘K V`) and click the element you mean, or put the cursor
+   in its YAML.
+2. **Ask** your agent in the chat (Copilot in Agent mode, or Claude Code): "make this one
+   redundant", "put a cache in front of the selected database".
+3. **Proposal**: the agent reads what you selected with `get_context` and calls `propose`. The change
+   shows over the preview: what is added, changed and removed marked, and the YAML diff. A diagram of
+   the workspace that is not open is opened first, with its preview.
+4. **Accept** (⏎) applies it as one undo step (pins stay; a renamed id takes its pins along), or
+   **Reject** (Esc). The agent hears which and goes on from there.
+
+A file the agent writes with `edit_diagram` instead reloads (VS Code does that), and the preview shows
+what changed, with **Undo** to take it back. The extension listens on this computer only, and the MCP
+server finds it through a small file in the temp folder.
 
 ## In the browser: carto serve
 
@@ -76,6 +87,8 @@ Ctrl+I off a Mac) shows:
 - a **file changed on disk** (the agent's `edit_diagram`, git, another editor): it comes in as one
   undoable edit, marked the same way. **Keep**, or **Undo** (⌘Z). With unsaved changes it does not
   come in; the editor warns, and saving asks first.
+
+A proposal for another file of the folder opens that file in the editor first.
 
 A folder opened in the browser itself (Chrome, Edge) notices changed files too, by asking the browser
 or checking every two seconds while the tab is visible. Proposals need `carto serve` or VS Code.

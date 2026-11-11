@@ -38,19 +38,33 @@ A YAML file is a diagram when it has a top-level `type:` that names a diagram ty
 
 ## Your AI
 
-The extension has no AI of its own; your agent (Copilot, Claude Code, Cursor…) works on the files
-through Cartography's MCP server ([ai](ai.md), [mcp](mcp.md)). The extension answers it on
-127.0.0.1 with a random token, and the MCP server finds it through a small file in the temp folder:
+The extension has no AI of its own: your agent changes the diagrams, through Cartography's MCP
+server ([ai](ai.md), [mcp](mcp.md)). In VS Code, installing the extension is all you need. It
+registers the server with VS Code, so Copilot's agent mode (and any agent that uses VS Code's MCP
+servers) has the tools: open the Chat view, pick **Agent**, and **Cartography** is in the tools list
+(**MCP: List Servers** shows it too). The server runs on VS Code's own Node.js, in the first
+workspace folder. VS Code may ask once to trust the server before it starts.
 
-- `get_context`: the diagram open in the editor or preview, and what the cursor is on;
-- `propose`: the change over the preview, marked as `carto diff` marks it, with the YAML diff.
-  **Accept** (⏎) applies it as one undo step (a renamed id takes its pins along); **Reject** (Esc)
-  leaves it;
-- a diagram changed on disk while it is open and saved: VS Code reloads it, and the preview shows
-  what changed, with **Undo** to take it back.
+How it goes:
 
-The extension registers the MCP server with VS Code itself, so the agents in VS Code (Copilot's agent
-mode and others) have the tools with nothing to set up.
+1. Open a diagram and its preview (`⌘K V`). **Click** what you mean in the preview (or put the
+   cursor in its YAML): that is the selection the agent sees.
+2. Ask in the chat: "make this one redundant", "add a cache in front of the selected database",
+   "split the selected service into read and write".
+3. The agent calls `get_context` (which file, what is selected) and then `propose`. The change shows
+   over the preview: what is added, changed and removed marked, and the YAML diff under **YAML**.
+   A diagram of the workspace that is not open is opened first, with its preview.
+4. **Accept** (⏎) applies it as one undo step (a renamed id takes its pins along); **Reject** (Esc)
+   leaves it. The agent hears which. Save to put it on disk.
+
+A file the agent writes itself (`edit_diagram`) while it is open and saved: VS Code reloads it, and
+the preview shows what changed, with **Undo** to take it back.
+
+Claude Code, Cursor and other agents outside VS Code's own MCP servers need the server set up once
+in their own way ([ai](ai.md#set-up-the-mcp-server)); the extension answers them just the same. It
+listens on 127.0.0.1 with a random token, and the MCP server finds it through a small file in the
+temp folder. The server inside the extension draws SVG but not PNG (resvg is native code the
+extension does not ship).
 
 ## Problems and completion
 
