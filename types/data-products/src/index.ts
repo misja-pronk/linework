@@ -342,6 +342,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
         nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12), path: ['contracts', o.contract] });
       }
       edge({ node: id, row: `out:${pid}` }, { node: `contract:${o.contract}` }, 'contract', undefined, path);
+      edges.at(-1)!.annex = true;
     }
 
   // Foreign keys of the contracts (ODCS relationships): field to field, inside a contract and between two that are both drawn.

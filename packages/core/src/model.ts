@@ -275,6 +275,11 @@ export interface GraphEdge {
   step?: number;
   /** Says nothing about what comes before what (a key between two contracts): the layout does not rank by it. */
   loose?: boolean;
+  /**
+   * The far end belongs to the near end's row (a data contract on its output port): it stands beside
+   * that table, clear of the lines that leave the table's other rows (layout annex.ts).
+   */
+  annex?: boolean;
   /** Short tags drawn after its label, such as the environments it is in. */
   marks?: string[];
   /** Tags as written, for layers (layers.ts) and rules like "tag:pii". */
