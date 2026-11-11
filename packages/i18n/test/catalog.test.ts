@@ -48,7 +48,7 @@ describe('the drawing catalog', () => {
     expect(unusedIds(drawing, src)).toEqual([]);
   });
   it('has terms that some type or example still writes', () => {
-    const src = sourceText(['types', 'packages/core/src', 'packages/render/src', 'packages/engine/src', 'packages/review/src']);
+    const src = sourceText(['types', 'packages/core/src', 'packages/render/src', 'packages/engine/src']);
     const unused = Object.keys(terms).filter((k) => !src.includes(`'${k}'`) && !src.includes(`"${k}"`) && !src.includes(`${k}`));
     expect(unused).toEqual([]);
   });

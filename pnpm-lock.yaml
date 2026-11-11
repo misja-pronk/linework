@@ -139,9 +139,6 @@ importers:
       '@cartography/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@cartography/review':
-        specifier: workspace:*
-        version: link:../review
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme
@@ -451,28 +448,6 @@ importers:
         specifier: workspace:*
         version: link:../theme
 
-  packages/review:
-    dependencies:
-      '@cartography/core':
-        specifier: workspace:*
-        version: link:../core
-      '@cartography/data-products':
-        specifier: workspace:*
-        version: link:../../types/data-products
-      '@cartography/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
-    devDependencies:
-      '@cartography/engine':
-        specifier: workspace:*
-        version: link:../engine
-      '@cartography/wizards':
-        specifier: workspace:*
-        version: link:../wizards
-
   packages/theme:
     dependencies:
       '@cartography/core':
@@ -562,9 +537,6 @@ importers:
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
-      '@cartography/review':
-        specifier: workspace:*
-        version: link:../review
       '@cartography/theme':
         specifier: workspace:*
         version: link:../theme

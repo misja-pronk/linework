@@ -274,7 +274,6 @@ export const nlApp = {
   'Properties': 'Eigenschappen',
   'Review notes ({key})': 'Reviewnotities ({key})',
   'Architecture decisions ({key})': 'Architectuurbesluiten ({key})',
-  'Architecture review ({key})': 'Architectuurreview ({key})',
   'Review': 'Review',
   'Line · {label}': 'Lijn · {label}',
   'Line': 'Lijn',

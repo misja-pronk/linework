@@ -16,7 +16,6 @@ import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './ca
 import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
 import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
-import { reviewEntrySchema, reviewFields } from './review-fields.ts';
 
 export interface EdgeStyle {
   label: string;
@@ -152,7 +151,6 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
           of: { type: 'string', description: 'A model element this runs, e.g. shop.api: named after it and linked back to the model' },
           env: { ...envSchema, description: 'The environments this is part of, e.g. prod or [test, prod]; a view with environment: leaves the others out' },
           ...elementFields,
-          ...reviewFields,
         },
         additionalProperties: false,
       },
@@ -163,7 +161,6 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
     ...(styleNames.length ? { style: { enum: styleNames } } : {}),
     badge: { type: 'boolean', description: 'Show as a badge on the source card instead of a line' },
     env: { ...envSchema, description: 'The environments this line is part of' },
-    review: reviewEntrySchema,
   };
   const badges = styleNames.length
     ? { badges: { type: 'array', items: { enum: styleNames }, description: 'Edge styles shown as badges on the source card instead of lines' } }

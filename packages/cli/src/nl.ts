@@ -19,7 +19,6 @@ export const nl = {
   'Connect your AI (once; the token stays the same):': 'Verbind je AI (eenmalig; het token blijft hetzelfde):',
   'Ctrl+C to stop': 'Ctrl+C om te stoppen',
   'check files and their views': 'bestanden en hun weergaven controleren',
-  'architecture review rules: findings, fixes, a report': 'regels voor de architectuurreview: bevindingen, oplossingen, een rapport',
   'what changed between two versions': 'wat er veranderde tussen twee versies',
   'the diagram in plain words': 'het diagram in gewone woorden',
   'architecture decisions: log, table, new': 'architectuurbesluiten: log, tabel, nieuw',
@@ -137,17 +136,6 @@ export const nl = {
   'use it: icons: official in the diagram, or carto render diagram.yaml --icons official': 'gebruiken: icons: official in het diagram, of carto render diagram.yaml --icons official',
   'Nothing in {pack} called "{words}"': 'Niets in {pack} met de naam "{words}"',
   '{kind} draws its line icon again': '{kind} tekent weer zijn lijnicoon',
-
-  // carto review
-  '--fail-on is error, warn, info or never, not "{value}"': '--fail-on is error, warn, info of never, niet "{value}"',
-  'There is no rule pack "{name}": {packs}': 'Er is geen regelpakket "{name}": {packs}',
-  '{file}: no diagrams here': '{file}: hier staan geen diagrammen',
-  'cannot review': 'niet te reviewen',
-  'review: off': 'review: uit',
-  'no findings': 'geen bevindingen',
-  'no findings, {count} set aside': 'geen bevindingen, {count} opzijgezet',
-  '{count} set aside': '{count} opzijgezet',
-  '-o {out}: a review report is .md, .html, .pdf or (with --json) .json': '-o {out}: een reviewrapport is .md, .html, .pdf of (met --json) .json',
 
   // carto decisions
   'carto decisions new "title": the decision needs a title': 'carto decisions new "title": het besluit heeft een titel nodig',
@@ -326,24 +314,6 @@ export const nlHelp: Record<string, string> = {
                [--drift]                        ook falen als <file>.layout.json dingen (of weergaven) vastzet,
                                                 buigt of vergrendelt die niet meer in het diagram staan
                [--drift --fix]                  die regels uit <file>.layout.json halen`,
-  [`  carto review <file.yaml…|folder>              the architecture review: built-in rule packs (Azure, AWS,
-                                                Kubernetes, systems and C4, GitHub, data products) and the
-                                                folder's .cartography/rules.yaml or rules/*.yaml; findings by
-                                                Well-Architected pillar, each with why and how to fix it
-               [--pack azure]                   only these packs (again for more)
-               [--fail-on error|warn|info|never] exit 1 when a finding this bad or worse is left (default
-                                                error); 2 when a file cannot be reviewed. For CI: docs/review.md
-               [-o report.md|.html|.pdf]        a report to hand over: a summary per pillar, the drawing with
-                                                the findings marked, each finding with its fix; --json for tools`]:
-    `  carto review <file.yaml…|folder>              de architectuurreview: ingebouwde regelpakketten (Azure, AWS,
-                                                Kubernetes, systems en C4, GitHub, dataproducten) en de eigen
-                                                .cartography/rules.yaml of rules/*.yaml van de map; bevindingen per
-                                                Well-Architected-pijler, elk met waarom en hoe je het oplost
-               [--pack azure]                   alleen deze pakketten (herhaal voor meer)
-               [--fail-on error|warn|info|never] exit 1 als er een bevinding van deze ernst of erger over is
-                                                (standaard error); 2 als een bestand niet te reviewen is. Voor CI: docs/review.md
-               [-o report.md|.html|.pdf]        een rapport om over te dragen: een samenvatting per pijler, de tekening
-                                                met de bevindingen gemarkeerd, elke bevinding met de oplossing; --json voor tools`,
   [`  carto diff <before.yaml> <after.yaml>         what changed between two versions, by id: added, removed and
                                                 changed nodes, groups and lines`]:
     `  carto diff <before.yaml> <after.yaml>         wat er veranderde tussen twee versies, per id: toegevoegde,

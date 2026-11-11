@@ -247,7 +247,7 @@ Use `README` images like `![Shop](docs/shop.svg)` and they stay up to date by th
 
 (`shopt -s globstar` makes `**` reach into subfolders in bash; `carto` takes the file names the shell gives it.)
 
-Any later step can use the CLI after the action ran, in every mode: `carto review architecture/ --fail-on warn` fails the job on architecture review findings ([review.md](review.md)).
+Any later step can use the CLI after the action ran, in every mode: `carto validate architecture/` fails the job on a diagram with errors.
 
 ### Good to know
 

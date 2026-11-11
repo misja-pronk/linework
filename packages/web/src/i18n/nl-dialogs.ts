@@ -147,7 +147,6 @@ export const nlDialogs = {
   Direction: 'Richting',
   Environments: 'Omgevingen',
   Environment: 'Omgeving',
-  Reason: 'Reden',
   Inside: 'Binnen',
   Through: 'Via',
   Note: 'Notitie',

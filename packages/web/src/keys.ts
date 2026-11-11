@@ -129,8 +129,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'decision-new', keys: ['alt+shift+d'], what: 'New decision about the selection: the next number, from the template', context: 'drawing', group: 'Decisions' },
   { id: 'decision-save', keys: [], show: '⌘S / Esc', what: 'In a decision’s Markdown: save / cancel', context: 'mouse', group: 'Decisions' },
 
-  // ------------------------------------------------------------ architecture review
-  { id: 'arch-review', keys: ['shift+w'], what: 'Architecture review: findings by pillar, flags on the drawing while it is open', context: 'drawing', group: 'Architecture review' },
   { id: 'note-here', keys: [], show: 'Right-click', what: 'Add a note on an element, a line or a spot', context: 'mouse', group: 'Mouse and trackpad' },
 
   // ------------------------------------------------------------ steps

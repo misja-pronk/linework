@@ -123,7 +123,6 @@ carto stages exit.yaml --from as-is --to q2      # one transition (--side-by-sid
 carto deck exit.yaml --stages -o exit.pptx       # a slide per stage and per transition, overview, before
                                                  # and after, roadmap; the changes in the speaker notes
 carto describe exit.yaml --stages [-o x.md]      # "In Landing zone (2026-Q2): added …; replaced File server …"
-carto review exit.yaml                           # findings of the to-be, and of each stage before it
 carto export-html exit.yaml                      # interactive: the overview, stepped through stage by stage
 ```
 

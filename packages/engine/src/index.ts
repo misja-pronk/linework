@@ -16,7 +16,6 @@ import {
   modeOf,
   pickLayers,
   readLayers,
-  reviewSchema,
   writtenTags,
   modelKeys,
   modelProperties,
@@ -121,7 +120,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, review: reviewSchema, stages: stagesSchema, lang: langSchema };
+  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, stages: stagesSchema, lang: langSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -262,7 +261,6 @@ const META = new Set(['type', 'title', 'subtitle', 'direction', 'badges', 'aspec
 const stepsOnly = { type: 'object', properties: { steps: stepsSchema } };
 const focusOnly = { type: 'object', properties: { focus: focusSchema } };
 const layersOnly = { type: 'object', properties: { layers: layersSchema } };
-const reviewOnly = { type: 'object', properties: { review: reviewSchema } };
 const stagesOnly = { type: 'object', properties: { stages: stagesSchema } };
 /** Types that are not elements and lines (a timeline, a sequence of messages): stages do not apply. */
 const NO_STAGES = new Set(['roadmap', 'sequence', 'gitflow', 'journey', 'matrix']);
@@ -292,9 +290,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // "user" where the type says person (and the like): read as the type's kind, with a hint to write it so.
   const aliased = readKindAliases(data, type.palette);
   for (const a of aliased.read) diagnostics.push(source.at(a.path, `"${a.from}" is read as ${a.to}, the kind this diagram type has: write ${a.to}`, 'warning'));
-  // So is the architecture review's `review:` (packages/review reads it from the text): checked here, never the type's.
   // So is the language of the drawing's own words (`lang: nl`).
-  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, review: reviewRef, lang: langRef, ...asWritten } = aliased.data;
+  const { theme: themeRef, icons: iconsRef, aspect: aspectRef, lang: langRef, ...asWritten } = aliased.data;
   const lang = diagramLang(langRef) ?? opts.lang ?? 'en';
   if (langRef != null && !diagramLang(langRef)) diagnostics.push(source.at(['lang'], 'lang is the language of the words the drawing adds itself: en or nl', 'warning'));
   // Stages are about time, shared by every type of elements and lines: `stages:` and the elements'
@@ -323,7 +320,6 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
-  if (reviewRef !== undefined) invalid.push(...validate({ ...source, data: { review: reviewRef } }, reviewOnly));
   if (stagesRef !== undefined) invalid.push(...(NO_STAGES.has(type.id) ? [source.at(['stages'], `A ${type.id} has no elements and lines to change over time: stages are for drawings of them`)] : validate({ ...source, data: { stages: stagesRef } }, stagesOnly)));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
@@ -734,8 +730,6 @@ export type { IconPackFile, IconMode };
 export { noteMarker, noteSpots, withReviewNotes, type NoteSpot } from '@cartography/render';
 /** Architecture decisions drawn on an export ("with decisions"); see packages/core/src/decisions.ts. */
 export { decisionInk, decisionLines, decisionLook, decisionMarker, decisionSpots, targetName, withDecisions, type DecisionSpot, type DrawingAt } from '@cartography/render';
-/** Architecture review findings drawn on a drawing (carto review, the Review tab); see packages/review. */
-export { reviewInk, reviewMarker, reviewMarkerWidth, reviewSpots, reviewTitle, severityGlyph, withReview, type FindingSeverity, type ReviewMark, type ReviewSpot } from '@cartography/render';
 
 /**
  * A drawing of a graph made outside a diagram file (the Decisions view, a table of the decisions

@@ -20,7 +20,6 @@
     "@cartography/i18n": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/layout": "workspace:*",
-    "@cartography/review": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@cartography/wizards": "workspace:*",
     "@codemirror/autocomplete": "^6.20.4",

@@ -138,7 +138,7 @@ export function takeTimeMarks(data: Record<string, unknown>): { data: Record<str
   };
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(data)) {
-    if (k === 'stages' || k === 'steps' || k === 'views' || k === 'layers' || k === 'review') out[k] = v;
+    if (k === 'stages' || k === 'steps' || k === 'views' || k === 'layers') out[k] = v;
     else if (Array.isArray(v))
       out[k] = v.map((item, i) => {
         // A line with its properties: { "a -> b": { label, from } }.

@@ -22,7 +22,6 @@
     "@cartography/icons": "workspace:*",
     "@cartography/layout": "workspace:*",
     "@cartography/mcp": "workspace:*",
-    "@cartography/review": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@cartography/wizards": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",

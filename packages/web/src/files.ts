@@ -7,8 +7,8 @@ import { t } from './i18n/index.ts';
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
 
-/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md); review rules (.cartography/rules.yaml); the code a repository is drawn from (Bicep, Helm's .tpl, Dockerfiles). */
-const TEXT = /\.(ya?ml|json|md|bicep|bicepparam|tpl|tf)$|^Dockerfile$/i;
+/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md). */
+const TEXT = /\.(ya?ml|json|md)$/i;
 const SKIP = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'out']);
 const MAX_FILES = 800;
 const MAX_BYTES = 2_000_000;
@@ -49,9 +49,9 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
     for await (const [name, h] of (d as unknown as { entries(): AsyncIterable<[string, FileSystemHandle]> }).entries()) {
       if (files.size >= MAX_FILES) return;
       if (h.kind === 'directory') {
-        // .github holds the workflows a repository is drawn from, .cartography the review rules; other hidden folders are left alone.
-        if (depth < 6 && !SKIP.has(name) && (!name.startsWith('.') || name === '.github' || name === '.cartography')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
-      } else if (TEXT.test(name) || /^codeowners$/i.test(name) || name === '.adr-dir') {
+        // Hidden folders are left alone.
+        if (depth < 6 && !SKIP.has(name) && !name.startsWith('.')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
+      } else if (TEXT.test(name) || name === '.adr-dir') {
         const file = await (h as FileSystemFileHandle).getFile();
         if (file.size <= MAX_BYTES) files.set(prefix + name, { handle: h as FileSystemFileHandle, text: await file.text() });
       }
