@@ -16,12 +16,13 @@ registers the MCP server with VS Code (1.101 or later), so Copilot's agent mode 
 use VS Code's MCP servers have the tools. See [In VS Code](#in-vs-code) below.
 
 Everywhere else, set the server up once. It is `packages/mcp`; [mcp.md](mcp.md) has every tool. From
-a clone, after `pnpm install` (`/path/to/cartography` is your clone):
+a clone, after `pnpm install` and `pnpm build` (which bundles it into
+`packages/mcp/dist/server.mjs`, run with plain Node.js 24; `/path/to/cartography` is your clone):
 
 **Claude Code** (in a terminal or in its VS Code extension):
 
 ```sh
-claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/to/cartography/packages/mcp/src/main.ts
+claude mcp add cartography -- node /path/to/cartography/packages/mcp/dist/server.mjs
 ```
 
 **Cursor**: add `.cursor/mcp.json` to the project:
@@ -30,8 +31,8 @@ claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/t
 {
   "mcpServers": {
     "cartography": {
-      "command": "/path/to/cartography/node_modules/.bin/tsx",
-      "args": ["/path/to/cartography/packages/mcp/src/main.ts"]
+      "command": "node",
+      "args": ["/path/to/cartography/packages/mcp/dist/server.mjs"]
     }
   }
 }
@@ -66,9 +67,12 @@ server finds it through a small file in the temp folder.
 ## In the browser: carto serve
 
 ```sh
-pnpm web:build                     # once
-pnpm carto serve docs/architecture
+pnpm build                                              # once: the web app and the bundles
+node packages/cli/dist/carto.mjs serve docs/architecture  # or from the source: pnpm carto serve <folder>
 ```
+
+The bundle serves the web app copied beside it (`packages/cli/dist/web`), so the `dist` folder can
+live anywhere; from the source, `carto serve` needs `pnpm web:build` once.
 
 `carto serve` opens one folder in the web editor at `http://127.0.0.1:4317/`, and gives an MCP
 endpoint at `/mcp`. It prints the line to connect Claude Code; the token stays the same, so you add
