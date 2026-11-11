@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommitsDisabled"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "Europe/Amsterdam",
+  "minimumReleaseAge": "3 days",
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 6am on monday"], "automerge": true },
+  "packageRules": [
+    { "description": "One weekly pull request for everything that is not a major version; merged when CI is green.", "matchUpdateTypes": ["minor", "patch", "pin", "digest"], "groupName": "all non-major", "automerge": true },
+    { "description": "Majors one by one, read before merging.", "matchUpdateTypes": ["major"], "automerge": false },
+    { "matchManagers": ["github-actions"], "groupName": "GitHub Actions", "automerge": true }
+  ],
+  "vulnerabilityAlerts": { "schedule": ["at any time"], "automerge": true }
+}

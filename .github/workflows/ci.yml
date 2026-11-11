@@ -32,6 +32,8 @@ jobs:
       - run: pnpm test
       - run: pnpm licences
       - run: pnpm pack:check
+      # Only what users run counts; dev tooling advisories go through Renovate.
+      - run: pnpm audit --prod --audit-level high
 
   site:
     name: Docs site and templates e2e

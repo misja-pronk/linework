@@ -2,3 +2,7 @@ packages:
   - packages/*
   - types/*
   - docs/site
+
+# A release has to be three days old before pnpm installs it: compromised versions are usually caught
+# and pulled within hours.
+minimumReleaseAge: 4320
