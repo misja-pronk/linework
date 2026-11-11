@@ -120,6 +120,8 @@ export function App() {
     session.begin();
     setAdding(false);
     focusDrawing();
+    // The sheet has the whole window now: the drawing fits it, once the panes have gone.
+    requestAnimationFrame(() => requestAnimationFrame(() => previewControl.current?.fit()));
   };
   const nav = useNavigation({ state: navState, drawing, text, textNow, ws, doc, here, selection, notify, apply: pinning.apply, ready: edits.ready, undo, nodeName: edits.nodeName, openInFolder: files.openInFolder, pick: files.pick, dropModal });
 
@@ -298,6 +300,7 @@ export function App() {
           onNamed={() => navState.setNaming(undefined)}
           notify={notify}
           sketching={sketching}
+          sheetOnly={session.sheetOnly}
           session={session.on ? { title, hint: session.hint, end: endSession, undo, connect: () => setModal('connect') } : undefined}
         />
         {sideOpen && (

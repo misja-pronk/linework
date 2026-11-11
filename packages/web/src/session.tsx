@@ -171,8 +171,11 @@ function KindPicker({ kinds, onPick, onClose }: { kinds: readonly PaletteItem[];
 
 /** Under the selection while sketching, the first few sessions only. */
 export function SketchHint({ rect, naming }: { rect: ScreenRect; naming: boolean }) {
+  // Under the selection, or over it when the strip at the bottom would cover it (over the menu when that is there).
+  const below = rect.top + rect.height + (naming ? 44 : 12);
+  const top = below + 120 > window.innerHeight ? rect.top - (naming ? 34 : 76) : below;
   return (
-    <div className="sketch-hint" role="note" style={{ left: rect.left + rect.width / 2, top: rect.top + rect.height + (naming ? 44 : 12) }}>
+    <div className="sketch-hint" role="note" style={{ left: rect.left + rect.width / 2, top }}>
       {naming ? (
         <>
           <kbd>↵</kbd> {t('keeps the name')} · <kbd>Tab</kbd> {t('adds a connected box')} · <kbd>fw:</kbd> {t('picks a kind')} · <kbd>Esc</kbd> {t('undo')}

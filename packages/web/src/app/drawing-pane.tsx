@@ -52,6 +52,8 @@ interface Props {
   onNamed(): void;
   notify: Notify;
   sketching: Sketching;
+  /** Only the sheet on screen (a session, or its end): no page frame, no minimap. */
+  sheetOnly: boolean;
   /** In a session: only the sheet, a strip, and a menu over the selection. */
   session?: {
     title: string;
@@ -149,8 +151,8 @@ export function DrawingPane(p: Props) {
         locked={drawing.locked}
         bent={drawing.bent}
         grid={craft.grid}
-        minimap={craft.minimap && !p.session}
-        page={craft.page && !p.session}
+        minimap={craft.minimap && !p.sheetOnly}
+        page={craft.page && !p.sheetOnly}
         pinned={drawing.pinnedIds}
         onToggle={craft.toggle}
         control={p.control}
