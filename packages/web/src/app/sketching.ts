@@ -97,7 +97,8 @@ export function useSketching({ drawing, selection: sel, pins: px, edits, preview
       onKey({ ...q.shift()!, metaKey: false, ctrlKey: false, altKey: false });
       if (!into && q.length) return setTick((n) => n + 1);
     }
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the drawing, the selection or a tick moves on; onKey is this render's
+  }, [tick, current, result, selection]);
 
   /** Applies a sketch edit, then selects (and names) what it made once drawn. */
   const commit = (r: Sketched | undefined, name: boolean, typed = '', fresh = true) => {
