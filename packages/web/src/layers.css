@@ -12,7 +12,7 @@
   flex: none;
   width: 26px;
   height: 15px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--border-strong);
   transition: background 120ms ease-out;
 }
@@ -40,7 +40,7 @@
 .layer-tag {
   padding: 0 5px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius);
   color: var(--text-muted);
   font-size: 11px;
   line-height: 15px;
@@ -51,7 +51,7 @@
   margin: 4px 2px;
   padding: 2px;
   background: var(--bg);
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .menu .layers-mode button {
   justify-content: center;
@@ -68,7 +68,7 @@
   color: var(--text-muted);
 }
 .menu [role^='menuitem']:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 
@@ -113,7 +113,7 @@
   padding: 3px 5px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius);
   cursor: text;
 }
 .tag-chips:focus-within {
@@ -125,7 +125,7 @@
   gap: 2px;
   padding: 1px 2px 1px 7px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius);
   color: var(--text);
   font-size: 12px;
 }
@@ -134,7 +134,7 @@
   padding: 2px;
   border: none;
   background: none;
-  border-radius: 3px;
+  border-radius: var(--radius);
   color: var(--text-faint);
   cursor: pointer;
 }
@@ -163,7 +163,7 @@
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 .tag-chips:focus-within .tag-suggestions {
@@ -174,7 +174,7 @@
   padding: 5px 8px;
   border: none;
   background: none;
-  border-radius: 5px;
+  border-radius: var(--radius);
   text-align: left;
   cursor: pointer;
   color: var(--text);

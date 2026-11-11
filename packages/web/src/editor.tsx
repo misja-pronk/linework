@@ -146,16 +146,16 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  '&': { height: '100%', fontSize: '13px', backgroundColor: 'var(--editor-bg)', color: 'var(--text)' },
+  '&': { height: '100%', fontSize: '12.5px', backgroundColor: 'var(--editor-bg)', color: 'var(--text)' },
   '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
-  '.cm-content': { padding: '12px 0', caretColor: 'var(--accent)' },
+  '.cm-content': { padding: '12px 0', caretColor: 'var(--ink)' },
   '.cm-gutters': { backgroundColor: 'var(--editor-bg)', color: 'var(--text-faint)', border: 'none' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--active-line)' },
   '.cm-entry': { backgroundColor: 'var(--entry-band)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection) !important' },
-  '.cm-tooltip': { border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'var(--surface)', boxShadow: 'var(--shadow)', overflow: 'hidden' },
+  '.cm-tooltip': { border: '1px solid var(--border)', borderRadius: 'var(--radius)', backgroundColor: 'var(--surface)', boxShadow: 'var(--shadow)', overflow: 'hidden' },
   '.cm-tooltip-autocomplete > ul > li': { padding: '3px 10px !important' },
-  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--accent-soft)', color: 'var(--text)' },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--hover)', color: 'var(--text)' },
   '.cm-completionDetail': { color: 'var(--text-faint)', fontStyle: 'normal', marginLeft: '8px' },
   '.cm-completionInfo': { padding: '6px 10px', maxWidth: '280px' },
   '.cm-diagnostic': { padding: '6px 10px', borderLeftWidth: '3px' },

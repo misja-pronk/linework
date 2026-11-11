@@ -6,7 +6,7 @@
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   animation: rise 140ms ease-out;
 }
@@ -29,7 +29,7 @@
   color: var(--text);
   background: var(--bg);
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 6px 10px;
 }
 .shortcut-where {
