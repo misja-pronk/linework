@@ -30,7 +30,6 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Steps: tell a drawing in parts, present it | `S`, `P` | [steps](docs/steps.md) |
 | Focus: one thing and what is around it | `F`, `carto render --focus x` | [data products](docs/data-products.md) |
 | Layers: a security, data or phase-2 view of one file | `L`, `carto render --layer x` | [layers](docs/layers.md) |
-| Transitions: as-is, stages and to-be in one file; each stage, the changes, a roadmap | `,` `.`, `carto stages`, `carto render --stage q2` | [transitions](docs/transitions.md) |
 | Compare with an earlier version or a snapshot | `⇧⌘D`, `carto diff` | [compare](docs/compare.md) |
 | Your own AI (Claude Code, Copilot, Cursor…) changes diagrams through MCP: proposals to accept, files changed on disk marked | `⌘J`, `carto serve` | [ai](docs/ai.md), [mcp](docs/mcp.md) |
 | One model, many diagrams; a folder as one model | `⌘P`, `⌘↓`, `⌘↑`, `⇧F2` | [model](docs/model.md), [workspace](docs/workspace.md) |

@@ -299,7 +299,7 @@ export interface RenderRequest extends Input, Drawn {
   scale?: number;
 }
 
-/** What to draw of a diagram, as the CLI's --view, --focus, --layer, --stage and --step say it. */
+/** What to draw of a diagram, as the CLI's --view, --focus, --layer and --step say it. */
 export interface Drawn {
   view?: string;
   /** Element ids to focus on: them, and what is within `hops` lines. */
@@ -307,7 +307,6 @@ export interface Drawn {
   hops?: number | 'all';
   direction?: 'both' | 'upstream' | 'downstream';
   layer?: string[];
-  stage?: string;
   step?: number;
 }
 
@@ -316,7 +315,6 @@ export const drawnOptions = (d: Drawn): RenderOptions => ({
   ...(d.view ? { view: d.view } : {}),
   ...(d.focus?.length ? { focus: { on: d.focus, hops: d.hops ?? 1, direction: d.direction ?? 'both' } } : {}),
   ...(d.layer?.length ? { layers: d.layer } : {}),
-  ...(d.stage ? { stage: d.stage } : {}),
   ...(d.step ? { step: d.step } : {}),
 });
 

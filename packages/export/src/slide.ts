@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, markStyle, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
@@ -253,11 +253,11 @@ class SlideDrawing {
       }
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : s.kind === 'flow' ? this.drawFlow(n, s, box) : this.drawMatrix(n, s, box)).xml);
       // Tags on the top edge, as in the SVG.
-      if (n.marks?.length && s.kind !== 'matrix') out.push(...this.tags(n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, markStyle(this.graph.environments)).map((i) => i.xml));
+      if (n.marks?.length && s.kind !== 'matrix') out.push(...this.tags(n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, 'pattern').map((i) => i.xml));
     }
     for (const g of graph.groups) {
       const box = placed.groups.get(g.id);
-      if (g.marks?.length && box && state?.groups[g.id] !== 'hidden') out.push(...this.tags(g.marks, box.x + box.width - 16 - tagsWidth(g.marks), box.y, markStyle(this.graph.environments)).map((i) => i.xml));
+      if (g.marks?.length && box && state?.groups[g.id] !== 'hidden') out.push(...this.tags(g.marks, box.x + box.width - 16 - tagsWidth(g.marks), box.y, 'pattern').map((i) => i.xml));
     }
     for (const e of edges) {
       const pe = placed.edges.get(e.id)!;
@@ -268,7 +268,7 @@ class SlideDrawing {
       let lb = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
       if (e.marks?.length) {
         const w = tagsWidth(e.marks);
-        out.push(...this.tags(e.marks, lb.x + lb.width - w, lb.y + lb.height / 2, markStyle(this.graph.environments)).map((i) => i.xml));
+        out.push(...this.tags(e.marks, lb.x + lb.width - w, lb.y + lb.height / 2, 'pattern').map((i) => i.xml));
         lb = { ...lb, width: lb.width - w - TAG.GAP };
       }
       if (e.label) out.push(this.edgeLabel(e, e.label, lb).xml);

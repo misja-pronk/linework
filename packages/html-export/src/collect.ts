@@ -270,18 +270,6 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         }
         if (steps.length) drawing.steps = steps;
       }
-      // Stages (as-is to to-be): the viewer steps through them as through steps; the drawing itself is their overview.
-      if (light.stages?.length && !drawing.steps) {
-        const steps: PStep[] = [];
-        for (const [k, st] of light.stages.entries()) {
-          const [l, d] = await Promise.all([
-            render(text, { ...common, theme: 'light', view: viewName, idPrefix: `${idPrefix}t${k}`, stage: st.id, stepCaption: false }),
-            render(text, { ...common, theme: 'dark', view: viewName, idPrefix: `${idPrefix}t${k}`, stage: st.id, stepCaption: false }),
-          ]);
-          if (l.svg) steps.push({ title: st.when ? `${st.title} · ${st.when}` : st.title, ...(st.description ? { caption: st.description } : {}), ...picture(l, d) });
-        }
-        if (steps.length) drawing.steps = steps;
-      }
 
       // What each shape is, and where it leads.
       const graph = light.graph;

@@ -52,14 +52,13 @@ const edits = z
     'Run in order. "set" writes a value at a path (a new entry, or a field of one; maps are created as needed). "append" adds an item to the list at a path. "delete" removes what is at a path; deleting an entry also removes the lines and references to it. "rename" changes an entry\'s id and every reference to it.',
   );
 
-/** What to draw: a view, a focus, layers, a stage or a step, as the CLI's flags say it. */
+/** What to draw: a view, a focus, layers or a step, as the CLI's flags say it. */
 const drawnArgs = {
   view: z.string().optional().describe('One of the diagram\'s views: (by name)'),
   focus: z.array(z.string()).optional().describe('Element ids to focus on: those and what is within "hops" lines'),
   hops: z.union([z.number().int().min(0), z.literal('all')]).optional().describe('With focus: how many lines out, default 1'),
   direction: z.enum(['both', 'upstream', 'downstream']).optional().describe('With focus: which way to follow lines, default both'),
   layer: z.array(z.string()).optional().describe('Draw through these of the diagram\'s layers:'),
-  stage: z.string().optional().describe('One of the diagram\'s stages: (id, number or title), or "overview"'),
   step: z.number().int().min(1).optional().describe('Draw at this step (1-based) of the diagram\'s steps:'),
 };
 
@@ -192,7 +191,7 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     {
       title: 'What the user has open',
       description:
-        'What the user has open in the Cartography editor (VS Code or carto serve): the diagram file, the ids of what is selected, the view, layers, stage and step shown, the problems, and whether there are unsaved changes. Call it when the user says "this", "the selected", "here". Says so when no editor is connected.',
+        'What the user has open in the Cartography editor (VS Code or carto serve): the diagram file, the ids of what is selected, the view, layers and step shown, the problems, and whether there are unsaved changes. Call it when the user says "this", "the selected", "here". Says so when no editor is connected.',
       annotations: { readOnlyHint: true },
     },
     safely(async () => {

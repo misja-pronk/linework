@@ -24,7 +24,6 @@ import { is, keyHint, shortcutFor } from './keys.ts';
 import { paneColumns, paneLayout, RAIL } from './pane-layout.ts';
 import { useConfirm } from './confirm.tsx';
 import { useLayers } from './layers-control.tsx';
-import { useStages } from './stages/use-stages.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
 import { forYourAi } from './ai/copy.ts';
@@ -283,9 +282,7 @@ export function App() {
   const [fresh, setFresh] = useState(0);
   /** Layers switched on here (layers-control.tsx), on top of what the YAML says. */
   const layering = useLayers(docId, viewName);
-  // Stages (stages/): the one picked on the timeline is drawn, on the placement of everything.
-  const staging = useStages(docId, viewName);
-  const lenses = useMemo(() => (staging.options ? { ...layering.options, ...staging.options } : layering.options), [layering.options, staging.options]);
+  const lenses = layering.options;
   const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, lenses);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
@@ -332,7 +329,6 @@ export function App() {
       selection: selection.map((s) => ({ kind: s.kind, id: s.id })),
       view: drawn?.view,
       layers: drawn?.layers?.active,
-      stage: drawn?.stage,
       step: stepNo,
       problems: diagnostics.map((d) => ({ severity: d.severity, message: d.message, ...(d.line ? { line: d.line } : {}) })),
       dirty,
@@ -935,7 +931,7 @@ export function App() {
     if (!r) return apply(undefined);
     // Dropped at a point: it stays there, pinned as a node or, for a new group, by its top-left.
     const drawnAt = at && drawnAs(r.text, type, r.path);
-    apply(stages.onAdd(r.text, r.path), at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
+    apply(r.text, at && drawnAt ? withPin(drawnAt.id, at, drawnAt.kind === 'group') : undefined);
     // The label is what people change first: selected and focused once it is drawn.
     setPendingPath(JSON.stringify(r.path));
   };
@@ -944,8 +940,6 @@ export function App() {
   const remove = (sel: Selection | undefined = selected) => {
     const path = pathOf(sel);
     if (!path || !sel || !type || !ready()) return;
-    // While a later stage is picked, deleting records that it goes in that stage.
-    if (stages.onRemove([sel])) return;
     // One arrow of a chain ("a -> b -> c"): the chain is cut there, the rest of it stays.
     if (sel.kind === 'edge' && isChainLine(textNow(), type, sel.id)) {
       const next = editChainLine(textNow(), type, sel.id);
@@ -961,7 +955,7 @@ export function App() {
       if (e) editor.current?.reveal(e.from, e.to);
       return;
     }
-    const next = stages.tidy(deleteEntry(textNow(), type, path));
+    const next = deleteEntry(textNow(), type, path);
     const pinned = sel.kind === 'node' ? vpins?.nodes?.[sel.id] : sel.kind === 'group' ? vpins?.groups?.[sel.id] : undefined;
     apply(next, pinned ? withPin(sel.id, undefined, sel.kind === 'group') : undefined);
     if (next != null && sel === selected) setSelected(undefined);
@@ -982,7 +976,6 @@ export function App() {
   /** Deletes everything selected as one step; parts of larger entries stay (they are changed in the YAML). */
   const removeAll = () => {
     if (!type || !ready()) return;
-    if (stages.onRemove(selection)) return;
     const tx = textNow();
     const chain = selection.filter((s) => s.kind === 'edge' && isChainLine(tx, type, s.id));
     const rest = selection.filter((s) => !chain.includes(s));
@@ -1005,7 +998,7 @@ export function App() {
     const gone = (kind: 'node' | 'group') => Object.fromEntries(selection.filter((s) => s.kind === kind).map((s) => [s.id, undefined]));
     const unpinned = vpins && selection.some((s) => (s.kind === 'node' ? vpins.nodes?.[s.id] : s.kind === 'group' ? vpins.groups?.[s.id] : undefined));
     const nextPins = unpinned ? withPins(gone('node'), gone('group')) : undefined;
-    apply(stages.tidy(next), nextPins);
+    apply(next, nextPins);
     if (next != null) {
       setSelection([]);
       if (paths.length < rest.length) notify(t('Deleted {count}; {kept} that are part of larger entries stayed', { count: paths.length + chain.length, kept: rest.length - paths.length }));
@@ -1271,7 +1264,6 @@ export function App() {
       case 'page': craft.toggle(id); break;
       case 'nearest': focusToward(e.key.slice(5).toLowerCase() as Direction); break;
       case 'step-by': stepBy(e.key === ']' ? 1 : -1); break;
-      case 'stage-by': if (!stages.onKey(e)) return; break;
       case 'step': addStepFromSelection(); break;
       case 'next-view': nextView(); break;
       case 'nudge': nudge(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0); break;
@@ -1532,17 +1524,7 @@ export function App() {
     onSelect: (s) => select(s),
   });
   const layers = layering.ui(drawn, comparing.active);
-  const stages = staging.ui({
-    drawn,
-    textNow,
-    apply: (next) => apply(next),
-    notify,
-    compare: comparing.stages,
-    openDoc: (next, name, said) => void leave().then((ok) => ok && (open(next, { name }, undefined, false, said), focusDrawing())),
-    name: doc.name,
-  });
 
-  /** What the last import or export said, while its document is open. */
   const buildCommands = (): Command[] => [
     { id: 'ask', group: t('Your AI'), label: asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void copyForAi() }] : []),
@@ -1585,7 +1567,6 @@ export function App() {
       : []),
     ...comparing.commands,
     ...layers.commands,
-    ...stages.commands,
     { id: 'undo', group: t('Edit'), label: t('Undo'), icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
     { id: 'redo', group: t('Edit'), label: t('Redo'), icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
     { id: 'tidy', group: t('Arrange'), label: t('Tidy'), hint: t('lay out again what is not pinned; pins stay'), icon: 'layout-grid', shortcut: keyHint('tidy'), run: tidyLayout },
@@ -1982,7 +1963,7 @@ export function App() {
             else if (e.key === 'ArrowRight') setSplit((s) => Math.min(0.7, s + 0.02));
           }}
         />
-        <section className={`pane canvas-pane${stepList.length || stages.active ? ' with-steps' : ''}`} aria-label={t('Drawing')}>
+        <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}`} aria-label={t('Drawing')}>
           <Preview
             result={drawn}
             stale={!!rendered && drawn !== result}
@@ -2172,7 +2153,6 @@ export function App() {
             )}
           </Preview>
           {comparing.view}
-          {stages.strip}
           {stepList.length > 0 && (
             <StepsStrip
               steps={stepList}

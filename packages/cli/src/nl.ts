@@ -136,23 +136,10 @@ export const nl = {
   'a link that opens it in the web app': 'een link die het opent in de webapp',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
   '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
-  'as-is, transition stages and to-be: each, compared, a roadmap': 'huidig, tussenstappen en gewenst: elk apart, vergeleken, als roadmap',
 } as const satisfies Record<string, string>;
 
 /** The help, part by part (see helpChunks): the English as main.ts writes it, the Dutch laid out the same way. */
 export const nlHelp: Record<string, string> = {
-  [`  carto stages <file.yaml> [-o folder] [-f png]  everything its stages: make: each stage, the migration overview,
-               [--from as-is --to q2]           each transition (what is added, changed, removed, replaced),
-               [--side-by-side]                 the as-is and to-be side by side, the roadmap (YAML and drawn)
-                                                and the stages in words; --from/--to: that transition only.
-                                                Decks: carto deck --stages.
-                                                More: docs/transitions.md`]:
-    `  carto stages <file.yaml> [-o folder] [-f png]  alles wat de stages: opleveren: elke stage, het migratieoverzicht,
-               [--from as-is --to q2]           elke overgang (wat erbij komt, wijzigt, weggaat, vervangen wordt),
-               [--side-by-side]                 huidig en gewenst naast elkaar, de roadmap (YAML en getekend)
-                                                en de stages in woorden; --from/--to: alleen die overgang.
-                                                Decks: carto deck --stages.
-                                                Meer: docs/transitions.md`,
   [`  carto export <file.yaml…|folder> --to html [-o out]
                                                 the same as carto export-html (its options apply)`]:
     `  carto export <file.yaml…|folder> --to html [-o out]
@@ -171,8 +158,6 @@ export const nlHelp: Record<string, string> = {
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
-               [--stage q2 | --stage overview]  one of its stages: (as-is to to-be; without it the to-be), or
-                                                everything marked with the stage it comes and goes in
                [--svg-safe]                     an SVG that PowerPoint, Word and Keynote take whole: no CSS, no
                                                 filters or markers, system fonts, one group per node and line
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
@@ -193,8 +178,6 @@ export const nlHelp: Record<string, string> = {
                [--dim]                          pptx en pdf: een dia (pagina) per laag. --dim laat de rest vervaagd staan
                [--stable]                       onthoudt in <file>.layout.json waar alles stond, zodat de
                                                 volgende render na een wijziging het daar laat
-               [--stage q2 | --stage overview]  een van zijn stages: (van huidig naar gewenst; zonder: de gewenste), of
-                                                alles gemarkeerd met de stage waarin het komt en gaat
                [--svg-safe]                     een SVG die PowerPoint, Word en Keynote heel overnemen: geen CSS, geen
                                                 filters of markers, systeemlettertypen, één groep per element en lijn
                [--outline-text]                 met --svg-safe: tekst als contouren in het eigen lettertype van het thema
@@ -206,8 +189,6 @@ export const nlHelp: Record<string, string> = {
                                                 diagram, --keep-slides de eigen dia's van het sjabloon vooraan`,
   [`  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
-               [--stages]                           a slide per stage of its stages: and per transition, the overview,
-                                                    as-is and to-be side by side, the roadmap (pptx)
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
                [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
@@ -215,8 +196,6 @@ export const nlHelp: Record<string, string> = {
                [--page fit|a4|a3]                   page size (pdf, default fit)`]:
     `  carto deck <file.yaml…> -o deck.pptx|deck.pdf  alle diagrammen in één deck, elk een dia (pagina), een per stap als het steps: heeft
                [--all-steps | --no-steps]           ook stap voor stap door sequence-berichten en dynamische weergaven; of nooit
-               [--stages]                           een dia per stage van zijn stages: en per overgang, het overzicht,
-                                                    huidig en gewenst naast elkaar, de roadmap (pptx)
                [--title "Deck title"] [--subtitle …] titeldia vooraan (pptx)
                [--aspect 16:9|4:3] [--font Inter]   vorm van de dia en lettertype (pptx)
                [--template x.potx] [--layout name]  in een PowerPoint-sjabloon, zoals carto render (pptx)
@@ -239,12 +218,10 @@ export const nlHelp: Record<string, string> = {
   [`  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
-               [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md`]:
     `  carto describe <file.yaml> [-o out.md|.txt|.html]  het diagram in gewone woorden: wat het laat zien, de groepen en
                [--view name | --all-views]      elementen, verbindingen in leesvolgorde, stappen, lagen, vertrouwensgrenzen
                [--format text|md|html]          en legenda (sequence: de berichten; ERD: tabellen en relaties).
-               [--stages]                       de stages: wat elke stage toevoegt, wijzigt, weghaalt en vervangt
                                                 Dezelfde woorden staan in elke SVG, PNG, PDF en dia. docs/describe.md`,
   [`  carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base

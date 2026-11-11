@@ -26,8 +26,6 @@ export type KeyContext =
   | 'layers-panel'
   /** A step's chip under the drawing has focus. */
   | 'step-chip'
-  /** A stage's chip on the timeline under the drawing has focus. */
-  | 'stage-chip'
   /** Presenting full screen: these keys and no others. */
   | 'present'
   /** Comparing versions: these keys before the editor's. */
@@ -122,10 +120,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'step-name', keys: ['f2'], what: 'Name the step', context: 'step-chip', group: 'Steps' },
   { id: 'step-move', keys: ['alt+arrowleft', 'alt+arrowright'], show: '⌥← / ⌥→', what: 'Move the step earlier / later', context: 'step-chip', group: 'Steps' },
   { id: 'step-remove', keys: ['backspace', 'delete'], what: 'Remove the step', context: 'step-chip', group: 'Steps' },
-
-  // ------------------------------------------------------------ stages (as-is to to-be)
-  { id: 'stage-by', keys: [',', '.'], show: ', / .', what: 'Previous / next stage: overview, as-is … to-be', context: 'drawing', group: 'Stages' },
-  { id: 'stage-walk', keys: ['arrowleft', 'arrowright', 'home', 'end'], show: '← → Home End', what: 'On the timeline: walk the stages', context: 'stage-chip', group: 'Stages' },
 
   // ------------------------------------------------------------ presenting
   { id: 'present-next', keys: ['arrowright', 'arrowdown', 'pagedown', 'space', 'enter'], show: '→ / Space', what: 'Next', context: 'present', group: 'Presenting' },
@@ -277,7 +271,6 @@ export const TOGETHER: Record<string, KeyContext[]> = {
   yaml: ['anywhere', 'editor', 'folder-anywhere'],
   'layers panel': ['anywhere', 'layers-panel'],
   'step chip': ['anywhere', 'not-typing', 'step-chip', 'folder', 'folder-anywhere'],
-  'stage chip': ['anywhere', 'not-typing', 'stage-chip', 'folder', 'folder-anywhere'],
   present: ['present'],
   compare: ['anywhere', 'compare'],
 };

@@ -89,12 +89,11 @@ describe('what the engine knows', () => {
     expect(r).toMatchObject({ ok: true, against: 'HEAD' });
   });
 
-  it('renders a focus, a layer and a stage', async () => {
+  it('renders a focus and a layer', async () => {
     const focus = await renderDiagram({ yaml: shop, focus: ['db'], hops: 0 });
     const all = await renderDiagram({ yaml: shop });
     expect(focus.ok && all.ok).toBe(true);
     expect(focus.svg!.length).toBeLessThan(all.svg!.length);
     expect((await renderDiagram({ file: ex('azure/web-shop.yaml'), layer: ['security'] })).ok).toBe(true);
-    expect((await renderDiagram({ file: ex('transitions/datacenter-exit.yaml'), stage: 'overview' })).ok).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
-// Small text tags drawn on elements and lines: the environments or stage something is in, and the ends
-// of a context map's relationships (U, D, ACL, OHS). They say what they mean in text, so colour only helps.
+// Small text tags drawn on elements and lines: the environments something is in, and the ends of a
+// context map's relationships (U, D, ACL, OHS). They say what they mean in text, so colour only helps.
 import type { Box, Marker, Point } from '@cartography/core';
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
@@ -18,26 +18,19 @@ export function tagsWidth(tags: string[]): number {
   return shown.reduce((a, s) => a + tagWidth(s), 0) + Math.max(0, shown.length - 1) * TAG.GAP;
 }
 
-/** How a tag is drawn: a stage in rose, outlined; an end of a relationship in ink. */
-export type TagStyle = 'rose' | 'end' | 'pattern';
+/** How a tag is drawn: outlined in ink, or an end of a relationship filled in ink. */
+export type TagStyle = 'end' | 'pattern';
 
 export function tagColors(theme: Theme, style: TagStyle) {
-  if (style === 'rose') return { fill: theme.surface, stroke: theme.tones.rose.fg, ink: theme.tones.rose.fg };
   if (style === 'end') return { fill: theme.text, stroke: theme.text, ink: theme.surface };
   return { fill: theme.surface, stroke: theme.text, ink: theme.text };
 }
-
-/** Marks on elements and lines: an environment's name outlined in ink, anything else (a stage) in rose. */
-export const markStyle =
-  (environments?: string[]) =>
-  (tag: string): TagStyle =>
-    environments?.includes(tag) ? 'pattern' : 'rose';
 
 /** End tags of a line: in ink for the side (U, D), outlined for a pattern (ACL, OHS). */
 export const endStyle = (tag: string): TagStyle => (tag === 'U' || tag === 'D' ? 'end' : 'pattern');
 
 /** Tags in a row starting at x, centred on cy. */
-export function drawTags(theme: Theme, tags: string[], x: number, cy: number, style: TagStyle | ((tag: string) => TagStyle) = 'rose'): string {
+export function drawTags(theme: Theme, tags: string[], x: number, cy: number, style: TagStyle | ((tag: string) => TagStyle) = 'pattern'): string {
   let s = '';
   for (const t of shownTags(tags)) {
     const w = tagWidth(t);

@@ -34,7 +34,6 @@ export function startLive(side: LiveSide): vscode.Disposable {
         selection: c.preview?.selection() ?? [],
         ...(r?.view ? { view: r.view } : {}),
         ...(r?.layers?.active.length ? { layers: r.layers.active } : {}),
-        ...(r?.stage ? { stage: r.stage } : {}),
         ...(c.preview?.step ? { step: c.preview.step } : {}),
         problems: (r?.diagnostics ?? []).map((d) => ({ severity: d.severity, message: d.message, ...(d.line ? { line: d.line } : {}) })),
         dirty: c.doc.isDirty,

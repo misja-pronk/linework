@@ -10,7 +10,6 @@ export { keyLayout, LEGEND, sampleExtra } from './legend.ts';
 export { cardStroke, esc, labelInk, labelString, tagRadius, umlEnd } from './paint.ts';
 export * from './journey.ts';
 export * from './steps.ts';
-export * from './stages.ts';
 export * from './flow.ts';
 export * from './tags.ts';
 export * from './block.ts';

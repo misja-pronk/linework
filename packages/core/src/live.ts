@@ -1,6 +1,6 @@
 // The live link: how someone's own AI agent (through the MCP server) talks to an editor that has a
 // diagram open. Two calls, both asked by the agent and answered by the editor:
-//   context  what is open: the file, what is selected, the view, layers, stage and step, the problems;
+//   context  what is open: the file, what is selected, the view, layers and step, the problems;
 //   propose  edits by YAML path (edit.ts), shown in the editor as a proposal with the diff marks;
 //            it resolves when the user accepts or rejects it.
 // Files are absolute paths on the wire. The hosts are the VS Code extension and `carto serve` (which
@@ -26,7 +26,6 @@ export interface LiveContext {
   selection: LiveSelection[];
   view?: string;
   layers?: string[];
-  stage?: string;
   step?: number;
   /** The problems the editor shows now. */
   problems: { severity: 'error' | 'warning'; message: string; line?: number }[];

@@ -294,10 +294,7 @@ export function useCompare(ctx: CompareContext) {
   );
 
   const toggle = () => (baseline ? setBaseline(undefined) : void choose());
-  /** Two stages of the open diagram (stages:): the first drawn as before, the second as now; edits show as they are typed. */
-  const stages = (from: { id: string; title: string }, to: { id: string; title: string }, replaces: { from: string; to: string }[]) =>
-    start({ id: `stage:${from.id}>${to.id}`, kind: 'stage', name: from.title, text: latest.current.textNow(), stage: from.id, toStage: to.id, replaces });
-  return { active: !!baseline, commands, view, dialogs, button, toggle, stages };
+  return { active: !!baseline, commands, view, dialogs, button, toggle };
 }
 
 function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Promise<Snapshot[]>; onCancel(): void; onTake(label: string, toFolder: boolean): void }) {

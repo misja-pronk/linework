@@ -13,7 +13,6 @@ export interface LiveState {
   selection: LiveSelection[];
   view?: string;
   layers?: string[];
-  stage?: string;
   step?: number;
   problems: LiveContext['problems'];
   dirty: boolean;
@@ -79,7 +78,6 @@ export function useLive(state: () => LiveState, docKey: number, on: { changed(pa
           selection: st.selection,
           ...(st.view ? { view: st.view } : {}),
           ...(st.layers?.length ? { layers: st.layers } : {}),
-          ...(st.stage ? { stage: st.stage } : {}),
           ...(st.step ? { step: st.step } : {}),
           problems: st.problems,
           dirty: st.dirty,
