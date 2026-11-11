@@ -9,6 +9,8 @@ export interface SvgText {
   desc?: string;
   /** Prefix for the two ids, unique on a page with several drawings (render's idPrefix). */
   id?: string;
+  /** The language the words are in (en, nl): a screen reader reads them in it. */
+  lang?: string;
 }
 
 /** The SVG with its title and description; an SVG that already has a role is left as it is. */
@@ -16,7 +18,8 @@ export function accessibleSvg(svg: string, text: SvgText): string {
   const open = /<svg\b[^>]*>/.exec(svg);
   if (!open || /\srole=/.test(open[0])) return svg;
   const id = (text.id ?? 'carto').replace(/[^\w-]/g, '-');
-  const attrs = ` role="img" aria-labelledby="${id}-title"${text.desc ? ` aria-describedby="${id}-desc"` : ''}`;
+  const lang = text.lang && !/\s(xml:)?lang=/.test(open[0]) ? ` lang="${escapeHtml(text.lang)}" xml:lang="${escapeHtml(text.lang)}"` : '';
+  const attrs = ` role="img" aria-labelledby="${id}-title"${text.desc ? ` aria-describedby="${id}-desc"` : ''}${lang}`;
   const head = open[0].replace(/\/?>$/, (end) => `${attrs}${end}`);
   const inner = `<title id="${id}-title">${escapeHtml(text.title)}</title>${text.desc ? `<desc id="${id}-desc">${escapeHtml(text.desc)}</desc>` : ''}`;
   return svg.slice(0, open.index) + head + inner + svg.slice(open.index + open[0].length);
