@@ -34,7 +34,7 @@ Connections
 
 Key
 - Solid line with ticks: Connection
-- Dotted line: Connection, dotted
+- Dotted line: Connection (dotted)
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
 - Badge: Management badge

@@ -168,9 +168,10 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
         const l = look(String(v));
         return { scale: 'categorical', tone: l.tone, text: l.label, ...(l.pattern ? { pattern: l.pattern } : {}) };
       },
-      legend: used.map((k, i) => {
+      // Words say what they are ("Invest", "Migrate"): the scale's name before the first ("Investment: Invest") only stutters.
+      legend: used.map((k) => {
         const l = look(k);
-        return { label: i === 0 ? `${title}: ${l.label}` : l.label, swatch: 'block', block: { form: 'chip', heat: { scale: 'categorical', tone: l.tone, text: l.label, ...(l.pattern ? { pattern: l.pattern } : {}) } } };
+        return { label: l.label, swatch: 'block', block: { form: 'chip', heat: { scale: 'categorical', tone: l.tone, text: l.label, ...(l.pattern ? { pattern: l.pattern } : {}) } } };
       }),
       missing: 'No value',
     };

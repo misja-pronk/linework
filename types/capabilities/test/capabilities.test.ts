@@ -72,7 +72,7 @@ capabilities:
     const r = await render(example('enterprise.yaml'), { fonts: 'none', view: 'investment' });
     const payroll = block(r.graph!.nodes.find((n) => n.id === 'Payroll'));
     expect(payroll.heat).toEqual({ scale: 'categorical', tone: 'rose', text: 'Divest', pattern: 'hatch' });
-    expect(r.graph!.legend![0]!.label).toBe('Investment: Maintain');
+    expect(r.graph!.legend![0]!.label).toBe('Maintain');
   });
 
   it('lists the systems behind each capability, from the model', async () => {

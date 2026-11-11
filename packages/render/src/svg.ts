@@ -197,11 +197,12 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   }
   // The ends of a context map's relationships: U and D, and the patterns on each side.
   const taken: Box[] = [];
+  const segs = [...placed.edges].flatMap(([id, pe]) => pe.points.slice(1).map((v, i) => ({ id, box: { x: Math.min(v.x, pe.points[i]!.x), y: Math.min(v.y, pe.points[i]!.y), width: Math.abs(v.x - pe.points[i]!.x), height: Math.abs(v.y - pe.points[i]!.y) } })));
   for (const e of graph.edges) {
     const pe = placed.edges.get(e.id);
     if (!e.ends || badged.has(e.id) || state?.edges[e.id] === 'hidden' || !pe || pe.points.length < 2) continue;
     const pts = toOutline(pe.points, graph, placed, e.from.node, e.to.node);
-    out.push(drawEnds(e, pts, lineTheme(e), taken));
+    out.push(drawEnds(e, pts, lineTheme(e), taken, segs.filter((g) => g.id !== e.id).map((g) => g.box)));
   }
   if (state) for (const n of placeNotes(state, placed)) out.push(drawNote(n, theme));
   out.push('</g>');
@@ -685,11 +686,11 @@ export function besideShortLine(points: Point[], at: Box, placed?: Placed): Box 
   return free.find((m) => !others.some((o) => hit(m, o))) ?? free[0] ?? b;
 }
 
-function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[]): string {
+function drawEnds(e: GraphEdge, pts: Point[], theme: Theme, taken: Box[], lines: Box[]): string {
   let s = '';
   for (const [tags, tip, from, marker] of [[e.ends?.from, pts[0]!, pts[1]!, e.start], [e.ends?.to, pts.at(-1)!, pts.at(-2)!, e.end]] as const) {
     if (!tags?.length) continue;
-    const at = endTagAt(tags, tip, from, taken, marker);
+    const at = endTagAt(tags, tip, from, taken, marker, lines);
     if (at) s += drawTags(theme, tags, at.x, at.cy, endStyle);
   }
   return s;

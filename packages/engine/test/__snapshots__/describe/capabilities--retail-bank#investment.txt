@@ -37,7 +37,7 @@ Areas and capabilities
   - IT operations (Migrate)
 
 Key
-- Block marked Invest: Investment: Invest
+- Block marked Invest: Invest
 - Block marked Maintain: Maintain
 - Block marked Tolerate: Tolerate
 - Block marked Migrate: Migrate

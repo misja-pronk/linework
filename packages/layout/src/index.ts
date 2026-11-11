@@ -378,6 +378,9 @@ function surelyBack(graph: Graph, p: Placement): number {
   return n;
 }
 
+/** A wrapped drawing longer than this many times its depth is a strip. */
+const STRIP = 3;
+
 /** At most this many wrapped drawings are routed in one search, the most promising first. */
 const WRAP_ROUTED = 12;
 
@@ -444,7 +447,9 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
     if (!could(c) || (found && Math.max(c.bound, c.reach) < readsAs(found, target) - 1e-9)) continue;
     routed++;
     const choice = rewrapped(best, spacing, c.q, c.parts, c.opts);
-    const ok = beat.every((b) => readsBetter(choice, b, target));
+    // Cut into a strip far wider (or taller) than the drawing was: no shape for a page, however large its text.
+    const strip = (c: Choice) => Math.max(c.placed.width / c.placed.height, c.placed.height / c.placed.width);
+    const ok = (strip(choice) <= STRIP || strip(choice) <= strip(best)) && beat.every((b) => readsBetter(choice, b, target));
     if (ok && (!found || readsAs(choice, target) > readsAs(found, target) + 1e-9)) found = choice;
   }
   return found;

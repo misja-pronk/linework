@@ -95,7 +95,9 @@ describe('validate', () => {
     expect(r.quality!.suggestions.join(' ')).toMatch(/connect to "l" \(Logs\).*badge: true/);
     const badged = hub.replace(/^ {2}- (\w) -> l$/gm, '  - $1 -> l: { badge: true }');
     const after = await validateDiagram({ yaml: badged });
-    expect(after.quality!.crossings).toBeLessThan(r.quality!.crossings);
+    // Fewer crossings, or as few and a much tidier drawing (the hub's lines keep clear of the cards they pass).
+    expect(after.quality!.crossings).toBeLessThanOrEqual(r.quality!.crossings);
+    expect(after.quality!.score).toBeLessThan(r.quality!.score / 2);
   });
 
   it('measures the other direction before suggesting it', async () => {

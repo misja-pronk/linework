@@ -1,7 +1,7 @@
 // Line bridges: where two lines cross, the upright one hops over the level one. A short gap in the
 // ground colour is cut into the line underneath and the line on top is drawn again, so a crossing
 // never reads as a junction.
-import type { Graph, GraphEdge, Placed, Point } from '@cartography/core';
+import type { Graph, GraphEdge, Marker, Placed, Point } from '@cartography/core';
 import { look, type Theme } from '@cartography/theme';
 import type { Ground } from './ground.ts';
 import { r1 } from './paint.ts';
@@ -10,14 +10,18 @@ interface Segment {
   a: Point;
   b: Point;
   edge: GraphEdge;
-  /** The line's own ends this piece has (first or last piece): a gap cut near one reads as a broken arrow. */
-  ends: Point[];
+  /** The line's own ends this piece has (first or last piece), with how near a gap may come: a gap cut near one reads as a broken arrow. */
+  ends: { at: Point; keep: number }[];
 }
 
 /** Crossings stay clear of bends and line ends by this much, so a bridge never lands on a corner. */
 const CLEAR = 7;
 /** A gap is never cut this near a line's end (its arrowhead or mark): the other line takes the gap, or none does. */
 const END = 28;
+/** Nor this near the far side of its mark: a crow's foot with a ring reaches about 30px along the line. */
+const PAST_MARK = 20;
+const COUNTED = new Set<Marker>(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany']);
+const reach = (m: Marker) => (COUNTED.has(m) ? 30 : m === 'triangle' ? 13 : m === 'diamond' || m === 'filledDiamond' ? 16 : m === 'none' ? 0 : 10);
 
 /** `step`: in one step of a presentation the line that matters more goes over, as heavy as that step draws it. */
 export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Ground, color: (e: GraphEdge) => string, skip: Set<string> = new Set(), step?: { rank: (e: GraphEdge) => number; scale: (e: GraphEdge) => number }): string {
@@ -31,7 +35,8 @@ export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Grou
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1]!;
       const b = pts[i]!;
-      const ends = [...(i === 1 ? [a] : []), ...(i === pts.length - 1 ? [b] : [])];
+      const keep = (m: Marker) => Math.max(END, reach(m) + PAST_MARK);
+      const ends = [...(i === 1 ? [{ at: a, keep: keep(edge.start) }] : []), ...(i === pts.length - 1 ? [{ at: b, keep: keep(edge.end) }] : [])];
       if (Math.abs(a.y - b.y) < 0.5) level.push({ a, b, edge, ends });
       else if (Math.abs(a.x - b.x) < 0.5) upright.push({ a, b, edge, ends });
     }
@@ -50,7 +55,7 @@ export function bridges(graph: Graph, placed: Placed, theme: Theme, ground: Grou
       const first = step ? step.rank(h.edge) - step.rank(v.edge) : 0;
       let over = first > 0 || (!first && v.edge.line !== 'solid' && h.edge.line === 'solid') ? h : v;
       // Not a gap right before an arrowhead: the other line takes it, or (both near their ends) none does.
-      const near = (g: Segment) => g.ends.some((e) => Math.abs(e.x - x) + Math.abs(e.y - y) < END);
+      const near = (g: Segment) => g.ends.some((e) => Math.abs(e.at.x - x) + Math.abs(e.at.y - y) < e.keep);
       const other = over === v ? h : v;
       if (near(other)) {
         if (near(over) || over.edge.line === 'solid' && other.edge.line !== 'solid') continue;

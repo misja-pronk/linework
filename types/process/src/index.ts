@@ -183,8 +183,8 @@ const impliedKind = (id: string) => reserved(id) ?? (/\?\s*$/.test(id) ? 'decisi
 
 // ---------------------------------------------------------------- build
 
-/** How much heavier the happy path is drawn. */
-const HAPPY = 2;
+/** How much heavier the happy path is drawn: at twice the weight it hardly stood out from the rest. */
+const HAPPY = 2.6;
 
 export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
   const lanes = new Map(Object.entries(src.lanes ?? {}).map(([id, v]) => [id, typeof v === 'string' ? { label: v } : (v ?? {})]));

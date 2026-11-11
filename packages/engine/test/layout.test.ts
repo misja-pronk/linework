@@ -44,7 +44,7 @@ const crossingBudget: Record<string, number> = {
   'cloud/gcp-data-platform.yaml': 0,
   'cloud/multi-cloud.yaml': 0,
   'data-products/customer.yaml': 0,
-  'data-products/customer-detailed.yaml': 0,
+  'data-products/customer-detailed.yaml': 1, // lines keep clear of the cards they pass: the dashboard's line crosses the one from orders
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
@@ -116,23 +116,29 @@ const crossingBudget: Record<string, number> = {
 
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
+  'systems/saas-platform.yaml': 1, // the guest app's way in comes down beside CloudFront, under the Public edge title
   'deployment/aws.yaml#prod': 1, // one load balancer now (main): the OrderPlaced line from zone 1a, labelled and so on its own, runs over the top of zone 1b on its way to the queue
 };
 
 // Jogs (a short step aside between two runs the same way): none, but for the ones named here.
 const jogBudget: Record<string, number> = {
-  'transitions/app-modernisation.yaml': 3, // the to-be on the placement of every stage: lines into the platform step aside past the places the legacy cards and the moved Orders DB leave empty
+  'transitions/app-modernisation.yaml': 5, // the to-be on the placement of every stage: lines into the platform step aside past the places the legacy cards and the moved Orders DB leave empty
   // The Harbour Bank workspace example (examples/workspace), as drawn when it was added.
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
   'workspace/data-products.yaml': 2,
   'systems/invoice-walkthrough.yaml': 1, // three lines out of Orders' side: confirmation steps a lane down past the SQL line
+  // A lane aside: lines keep clear of the cards they pass and do not start where another ends on its track.
+  'data-products/mesh-detailed.yaml': 1,
+  'kubernetes/inference.yaml': 1,
+  'model/deployment.yaml': 1,
+  'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
   'c4/kestrel-bank.yaml#components': 2, // two labelled lines into one side each keep their own path now, and one end steps aside
   'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
-  'data-products/customer-detailed.yaml': 1, // the same as customer.yaml
+  'data-products/customer-detailed.yaml': 2, // the same as customer.yaml, and a line stepping clear of a card it passes
   'data-products/customer-focus.yaml': 2, // the same, twice
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
@@ -147,7 +153,7 @@ const jogBudget: Record<string, number> = {
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
   'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
   'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
-  'states/pull-request.yaml': 3, // the returns into In review and Closed; a line out steps aside from the line in beside it
+  'states/pull-request.yaml': 4, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // wrapped for a slide: the host dashboard's way in steps aside past the guest app's
 };
@@ -158,6 +164,9 @@ const bendBudget: Record<string, number> = {
   'states/device-connection.yaml': 1, // update verified, between two returns
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
+  // Short lines whose middle lies near another line: the label goes to the end clear of it.
+  'workspace/containers.yaml': 1,
+  'c4/kestrel-bank.yaml#containers': 1,
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -187,6 +196,7 @@ const touchBudget: Record<string, number> = {
   'transitions/datacenter-exit.yaml': 1, // the to-be on the placement of every stage: two labels of lines into the spoke share a corner
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
   'c4/kestrel-bank.yaml#containers': 1,
+  'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
   'states/device-connection.yaml': 1,
   'states/pull-request.yaml': 2, // closed without merging, between the line out and the line back
