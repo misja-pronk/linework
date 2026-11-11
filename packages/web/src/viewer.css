@@ -1,6 +1,5 @@
 /* The read-only viewer of a share link (viewer.tsx). */
 
-/* The read-only viewer of a share link. */
 .viewer {
   display: flex;
   flex-direction: column;

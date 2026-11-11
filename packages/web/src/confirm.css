@@ -1,6 +1,5 @@
 /* Asking before something is lost (confirm.tsx). */
 
-/* Asking before something is lost (confirm.tsx). */
 .confirm-dialog {
   width: min(440px, calc(100vw - 32px));
   padding: 18px 20px 16px;

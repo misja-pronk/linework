@@ -126,7 +126,7 @@
     z-index: 7;
   }
 }
-/* The steps of the drawing, docked under the canvas. */
+/* Room for the steps strip docked under the canvas (steps-strip.css). */
 .canvas-pane.with-steps .preview {
   bottom: 46px;
 }

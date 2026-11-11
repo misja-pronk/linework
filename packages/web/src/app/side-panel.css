@@ -1,6 +1,5 @@
 /* The one panel on the right, properties or Your AI on tabs (side-panel.tsx). */
 
-/* The one panel on the right: properties or Ask, on tabs. */
 .side {
   container: side / inline-size;
   min-height: 0;
