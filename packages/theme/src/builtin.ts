@@ -110,7 +110,7 @@ export const surveyDark: Theme = {
   shadow: { color: '#000000', opacity: 0 },
   accent: '#E8875A',
   tones: tones(surveyDarkInks, '#181D21', '#39424A'),
-  group: { ...surveyGroup, tints: ['#181D21', '#1E2429', '#242B31'], line: '#39424A' },
+  group: { ...surveyGroup, tints: ['#1B2025', '#21282E', '#272E34'], line: '#39424A' },
 };
 
 // ---------------------------------------------------------------- Transit
@@ -195,7 +195,7 @@ export const transitDark: Theme = {
     '#151A1E',
     '#252C33',
   ),
-  group: { ...transitGroup, tints: ['#151A1E', '#1B2126', '#22282E'] },
+  group: { ...transitGroup, tints: ['#171C21', '#1F252B', '#272E35'] },
 };
 
 // ---------------------------------------------------------------- Drafting
