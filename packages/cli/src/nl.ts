@@ -8,7 +8,6 @@ export const nl = {
   Look: 'Uiterlijk',
   'a diagram to SVG, PNG, PowerPoint or PDF': 'een diagram naar SVG, PNG, PowerPoint of PDF',
   'several diagrams in one deck': 'meer diagrammen in één deck',
-  'steps or layers as a GIF, MP4 or WebM': 'stappen of lagen als GIF, MP4 of WebM',
   'render again on every save': 'opnieuw renderen bij elke keer opslaan',
   'the web editor for a folder, and an MCP endpoint for your AI': 'de webeditor voor een map, en een MCP-endpoint voor je AI',
   '{file}: not a folder': '{file}: geen map',
@@ -41,7 +40,6 @@ export const nl = {
   'unknown command "{name}". Did you mean "carto {guess}"?': 'onbekend commando "{name}". Bedoel je "carto {guess}"?',
   '--lang is en or nl, not "{value}"': '--lang is en of nl, niet "{value}"',
   '--pick takes a route number: 1, 2, …': '--pick neemt een routenummer: 1, 2, …',
-  '--{name} is a number from {min} to {max}, not "{value}"': '--{name} is een getal van {min} tot {max}, niet "{value}"',
   '--icons is official or lucide, not "{value}"': '--icons is official of lucide, niet "{value}"',
   '--template is a PowerPoint template, .potx or .pptx: {file}': '--template is een PowerPoint-sjabloon, .potx of .pptx: {file}',
   '-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/': '-o {out} noemt één bestand, maar {why}: geef een map, bijvoorbeeld -o {folder}/',
@@ -51,7 +49,6 @@ export const nl = {
   '-o - writes one picture to standard output: give a folder for --all-views or --all-steps': '-o - schrijft één plaatje naar standaarduitvoer: geef een map voor --all-views of --all-steps',
   'Unknown theme "{name}", use one of: {themes}, or a .theme.yaml file': 'Onbekend thema "{name}", kies uit: {themes}, of een .theme.yaml-bestand',
   'Unknown type "{name}". Types: {types}': 'Onbekend type "{name}". Typen: {types}',
-  'carto animate takes one diagram': 'carto animate neemt één diagram',
   'carto deck needs -o <file>.pptx or -o <file>.pdf': 'carto deck heeft -o <file>.pptx of -o <file>.pdf nodig',
   'Name the diagrams: carto diff --git <ref> <file.yaml…>': 'Noem de diagrammen: carto diff --git <ref> <file.yaml…>',
   'Name the diagrams: carto diff --snapshot <label> <file.yaml…>': 'Noem de diagrammen: carto diff --snapshot <label> <file.yaml…>',
@@ -201,13 +198,13 @@ export const nlHelp: Record<string, string> = {
                [--from as-is --to q2]           each transition (what is added, changed, removed, replaced),
                [--side-by-side]                 the as-is and to-be side by side, the roadmap (YAML and drawn)
                                                 and the stages in words; --from/--to: that transition only.
-                                                Decks and animations: carto deck --stages, carto animate --stages.
+                                                Decks: carto deck --stages.
                                                 More: docs/transitions.md`]:
     `  carto stages <file.yaml> [-o folder] [-f png]  alles wat de stages: opleveren: elke stage, het migratieoverzicht,
                [--from as-is --to q2]           elke overgang (wat erbij komt, wijzigt, weggaat, vervangen wordt),
                [--side-by-side]                 huidig en gewenst naast elkaar, de roadmap (YAML en getekend)
                                                 en de stages in woorden; --from/--to: alleen die overgang.
-                                                Decks en animaties: carto deck --stages, carto animate --stages.
+                                                Decks: carto deck --stages.
                                                 Meer: docs/transitions.md`,
   [`  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
                                                 one command for every export: html is export-html, md is
@@ -290,22 +287,6 @@ export const nlHelp: Record<string, string> = {
                [--template x.potx] [--layout name]  in een PowerPoint-sjabloon, zoals carto render (pptx)
                [--keep-look] [--keep-slides]
                [--page fit|a4|a3]                   paginaformaat (pdf, standaard fit)`,
-  [`  carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
-               [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
-               [--layers | --walk "a -> b -> c"]    the caption as a lower third; --layers walks its layers
-               [--stages]                           (--stages: its stages, what comes fades in, what goes out)
-               [--hold 2.5] [--transition 0.5]      (the rest faded in place), --walk a route hop by hop;
-               [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
-               [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
-               [--no-captions]                      and the frames as PNG). More: docs/animate.md`]:
-    `  carto animate <file.yaml> -o out.gif|out.mp4|out.webm  de stappen als animatie: elke stap even vast, een korte overgang
-               [--view name] [--theme name]         naar de volgende (wat verschijnt komt op, wat verdwijnt vervaagt),
-               [--layers | --walk "a -> b -> c"]    het onderschrift onderin beeld; --layers loopt de lagen langs
-               [--stages]                           (--stages: de stages, wat komt verschijnt, wat gaat vervaagt)
-               [--hold 2.5] [--transition 0.5]      (de rest vervaagd op zijn plek), --walk een route hop voor hop;
-               [--no-transitions] [--draw-lines]    --draw-lines tekent nieuwe lijnen langs hun pad;
-               [--fps 30] [--size 1920x1080]        MP4 en WebM hebben ffmpeg in het PATH nodig (zonder: de GIF
-               [--no-captions]                      en de frames als PNG). Meer: docs/animate.md`,
   [`  carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)`]:
     `  carto watch  <file.yaml…> [same options]      opnieuw renderen bij elke keer opslaan (en als ingevoegde bestanden wijzigen)`,
   [`  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI`]:

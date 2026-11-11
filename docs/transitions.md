@@ -2,7 +2,7 @@
 
 A consultant presents three things: where we are, the stages we go through, and where we end up. `stages:` keeps all of that in one file. The drawing as written holds everything that is there at *any* stage; each stage says what it changes against the one before it. The first stage is the **as-is**, the last the **to-be**.
 
-From that one file you get each stage as its own drawing, the as-is and to-be side by side, a **transition** between any two stages (what is added, changed, removed and what replaces what), a **migration overview** (everything, each element marked with the stage it comes and goes in), a **roadmap**, a deck, an animation, the stages in words and a review per stage.
+From that one file you get each stage as its own drawing, the as-is and to-be side by side, a **transition** between any two stages (what is added, changed, removed and what replaces what), a **migration overview** (everything, each element marked with the stage it comes and goes in), a **roadmap**, a deck, the stages in words and a review per stage.
 
 ![The migration overview: every element marked with the stage it comes (+) and goes (−) in, and the timeline under it](transitions/overview.png)
 
@@ -122,14 +122,12 @@ carto stages exit.yaml -o out/ [-f png]          # every stage, the overview, ea
 carto stages exit.yaml --from as-is --to q2      # one transition (--side-by-side for both next to each other)
 carto deck exit.yaml --stages -o exit.pptx       # a slide per stage and per transition, overview, before
                                                  # and after, roadmap; the changes in the speaker notes
-carto animate exit.yaml --stages -o exit.mp4     # through the stages: what comes fades in, what goes out
 carto describe exit.yaml --stages [-o x.md]      # "In Landing zone (2026-Q2): added …; replaced File server …"
 carto review exit.yaml                           # findings of the to-be, and of each stage before it
 carto export-html exit.yaml                      # interactive: the overview, stepped through stage by stage
 ```
 
 - **Review**: the to-be is reviewed as the drawing; each earlier stage is reviewed too, and what it finds that the to-be does not have is listed with the stage's id (`· view q2`). So "Q2 has SQL on a public endpoint" shows up even when the to-be fixes it.
-- **Animation** goes through the stages on the placement of everything; a change of label or kind is not animated (the element keeps how it looks in the file).
 - **Deck** slides are pictures (as the compare view's export is), so the marks come along; every stage slide is the same size.
 - **Describe** is also in every SVG and PNG: a stage's text alternative is about that stage ("…, stage 2 of 4: Landing zone").
 

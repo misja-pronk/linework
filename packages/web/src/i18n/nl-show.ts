@@ -1,4 +1,4 @@
-// The editor's Dutch: steps, layers, present, animate, describe, the PowerPoint template, the repository import and icon packs.
+// The editor's Dutch: steps, layers, present, describe, the PowerPoint template and icon packs.
 export const nlShow = {
   // steps-strip.tsx
   Steps: 'Stappen',
@@ -101,43 +101,15 @@ export const nlShow = {
   'Go to {n}': 'Ga naar {n}',
   '{n} of {count}': '{n} van {count}',
 
-  // animate-dialog.tsx, animate.ts
+  // export.ts, and words several dialogs share
   Starting: 'Beginnen',
-  'Saved {format}: {size}': '{format} opgeslagen: {size}',
-  'Animation failed: {error}': 'Animatie mislukt: {error}',
-  Animation: 'Animatie',
   Close: 'Sluiten',
-  'This diagram has no steps or layers to animate. Add steps: to tell it in parts (docs/animate.md).': 'Dit diagram heeft geen stappen of lagen om te animeren. Voeg steps: toe om het in delen te vertellen (docs/animate.md).',
-  'Every step held, a short blend to the next, the caption under the drawing. Made in this browser; nothing is uploaded.':
-    'Elke stap blijft even staan, met een korte overgang naar de volgende en het onderschrift onder de tekening. Gemaakt in deze browser; er wordt niets geüpload.',
   Format: 'Formaat',
-  'This browser cannot encode H.264': 'Deze browser kan geen H.264 coderen',
-  'H.264 video': 'H.264-video',
-  'This browser cannot encode VP9': 'Deze browser kan geen VP9 coderen',
-  'VP9 video': 'VP9-video',
-  Tell: 'Verhaal',
-  'Steps ({count})': 'Stappen ({count})',
-  'Layers ({count})': 'Lagen ({count})',
   Size: 'Grootte',
-  'Each step': 'Per stap',
   Theme: 'Thema',
   Light: 'Licht',
   Dark: 'Donker',
-  'Between steps': 'Tussen stappen',
-  Fade: 'Overvloeien',
-  'New lines are drawn from where they start to where they end': 'Nieuwe lijnen worden getekend van begin tot eind',
-  'Draw new lines': 'Nieuwe lijnen tekenen',
-  'export@hint': 'exporteren',
-  'close@hint': 'sluiten',
-  'Export {format}': '{format} exporteren',
   'Nothing to export: fix the problems first': 'Niets te exporteren: los eerst de problemen op',
-  'This diagram has no layers': 'Dit diagram heeft geen lagen',
-  'This diagram has no steps to animate': 'Dit diagram heeft geen stappen om te animeren',
-  'Drawing the steps': 'Stappen tekenen',
-  'Making the GIF': 'GIF maken',
-  'This browser cannot encode H.264 (MP4) video: pick WebM or GIF': 'Deze browser kan geen H.264-video (MP4) coderen: kies WebM of GIF',
-  'This browser cannot encode VP9 (WebM) video: pick MP4 or GIF': 'Deze browser kan geen VP9-video (WebM) coderen: kies MP4 of GIF',
-  'Encoding the video': 'Video coderen',
 
   // describe-dialog.tsx
   'Picture and description copied: paste into Confluence, Notion or Google Docs': 'Afbeelding en beschrijving gekopieerd: plak ze in Confluence, Notion of Google Docs',

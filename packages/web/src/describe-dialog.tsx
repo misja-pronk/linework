@@ -77,7 +77,7 @@ export function DescribeDialog({ description: d, input, onClose, onDone }: { des
           ))}
         </article>
         <footer className="describe-footer">
-          <span className="animate-hint">{t('The same words are in every exported SVG, PNG, PDF and slide.')}</span>
+          <span className="describe-hint">{t('The same words are in every exported SVG, PNG, PDF and slide.')}</span>
           <div className="describe-actions">
             <button className="button" onClick={() => void copy('text')} disabled={busy}>
               <Icon name="copy" /> {t('Copy text')} <kbd>T</kbd>

@@ -34,6 +34,10 @@
   margin: 2px 0;
   padding-left: 20px;
 }
+.describe-hint {
+  color: var(--text-faint);
+  font-size: 12px;
+}
 .describe-footer {
   display: flex;
   flex-wrap: wrap;

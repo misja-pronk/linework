@@ -1,6 +1,6 @@
 # Steps: one drawing, told in parts
 
-A diagram that is shown to people is rarely shown all at once. `steps:` tells the story of a drawing in the order you say it: what is there, what stands out, which route the request takes, and the sentence that goes with it. The same block drives the presenter in the editor, `--step` on the command line, one slide or page per step in PowerPoint and PDF, and an [animation](animate.md) (GIF, MP4 or WebM) that tells it on its own.
+A diagram that is shown to people is rarely shown all at once. `steps:` tells the story of a drawing in the order you say it: what is there, what stands out, which route the request takes, and the sentence that goes with it. The same block drives the presenter in the editor, `--step` on the command line and one slide or page per step in PowerPoint and PDF.
 
 The layout is made once, for the whole drawing. A step never moves anything: what is not shown yet leaves its place empty, so slide 2 lines up with slide 5.
 

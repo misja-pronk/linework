@@ -40,7 +40,6 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | One model, many diagrams; a folder as one model | `⌘P`, `⌘↓`, `⌘↑`, `⇧F2` | [model](docs/model.md), [workspace](docs/workspace.md) |
 | Architecture review: rule packs, findings by pillar, fixes | `⇧W`, `carto review` | [review](docs/review.md) |
 | Threat models, trust boundaries, STRIDE | `carto threats`, `--view threats` | [threats](docs/threats.md) |
-| Animate steps or layers (GIF, MP4, WebM) | Export → Animation, `carto animate` | [animate](docs/animate.md) |
 | Describe a diagram in plain words | Export → Describe in words, `carto describe` | [describe](docs/describe.md) |
 | One interactive HTML file to send | Export → Interactive HTML, `carto export --to html` | [html export](docs/html-export.md) |
 | Wiki pages: Markdown, Confluence | `carto export --to md\|confluence` | [wiki export](docs/wiki-export.md) |

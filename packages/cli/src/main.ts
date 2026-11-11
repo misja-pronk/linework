@@ -63,19 +63,11 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
                [--keep-look] [--keep-slides]
                [--page fit|a4|a3]                   page size (pdf, default fit)
-  carto animate <file.yaml> -o out.gif|out.mp4|out.webm  its steps as an animation: each step held, a short blend
-               [--view name] [--theme name]         to the next (what appears fades in, what goes fades out),
-               [--layers | --walk "a -> b -> c"]    the caption as a lower third; --layers walks its layers
-               [--stages]                           (--stages: its stages, what comes fades in, what goes out)
-               [--hold 2.5] [--transition 0.5]      (the rest faded in place), --walk a route hop by hop;
-               [--no-transitions] [--draw-lines]    --draw-lines draws new lines along their path;
-               [--fps 30] [--size 1920x1080]        MP4 and WebM need ffmpeg on the PATH (without it: the GIF
-               [--no-captions]                      and the frames as PNG). More: docs/animate.md
   carto stages <file.yaml> [-o folder] [-f png]  everything its stages: make: each stage, the migration overview,
                [--from as-is --to q2]           each transition (what is added, changed, removed, replaced),
                [--side-by-side]                 the as-is and to-be side by side, the roadmap (YAML and drawn)
                                                 and the stages in words; --from/--to: that transition only.
-                                                Decks and animations: carto deck --stages, carto animate --stages.
+                                                Decks: carto deck --stages.
                                                 More: docs/transitions.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
@@ -198,7 +190,6 @@ const groups: [string, [string, string][]][] = [
   [t('Draw'), [
     ['render', t('a diagram to SVG, PNG, PowerPoint or PDF')],
     ['deck', t('several diagrams in one deck')],
-    ['animate', t('steps or layers as a GIF, MP4 or WebM')],
     ['stages', t('as-is, transition stages and to-be: each, compared, a roadmap')],
     ['watch', t('render again on every save')],
     ['serve', t('the web editor for a folder, and an MCP endpoint for your AI')],
@@ -245,7 +236,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, animate: 3, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, export: 3, 'export-html': 2, validate: 1, trace: 2 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, export: 3, 'export-html': 2, validate: 1, trace: 2 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -309,15 +300,6 @@ const parsed = (() => {
     'all-views': { type: 'boolean' },
     layer: { type: 'string', multiple: true },
     'all-layers': { type: 'boolean' },
-    layers: { type: 'boolean' },
-    walk: { type: 'string' },
-    hold: { type: 'string' },
-    transition: { type: 'string' },
-    'no-transitions': { type: 'boolean' },
-    'draw-lines': { type: 'boolean' },
-    fps: { type: 'string' },
-    size: { type: 'string' },
-    'no-captions': { type: 'boolean' },
     dim: { type: 'boolean' },
     stable: { type: 'boolean' },
     drift: { type: 'boolean' },
@@ -816,48 +798,6 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
   }
   if (values.stable) noteLayout(file, runs);
   return ok;
-}
-
-/** carto animate: one diagram's steps, layers or a walk as a GIF, MP4 or WebM. */
-async function animateFile(file: string): Promise<boolean> {
-  const { animate, sizeFlag } = await import('./animate.ts');
-  const num = (name: string, v: string | undefined, min: number, max: number) => {
-    if (v == null) return undefined;
-    const n = Number(v);
-    if (!(n >= min && n <= max)) throw new UsageError(t('--{name} is a number from {min} to {max}, not "{value}"', { name, min, max, value: v }));
-    return n;
-  };
-  const warn = (s: string) => console.error(`${file}  ${yellow(t('warning'))}  ${s}`);
-  const opts = optionsFor(file, 'none');
-  let width: number | undefined;
-  try {
-    width = sizeFlag(values.size, warn);
-  } catch (e) {
-    throw new UsageError((e as Error).message);
-  }
-  return animate(
-    fs.readFileSync(file, 'utf8'),
-    opts,
-    {
-      out: values.out!,
-      layers: values.layers,
-      walk: values.walk,
-      stages: values.stages,
-      hold: num('hold', values.hold, 0.2, 60),
-      transition: values['no-transitions'] ? 0 : num('transition', values.transition, 0, 5),
-      fps: num('fps', values.fps, 5, 60),
-      width,
-      drawLines: values['draw-lines'],
-      captions: !values['no-captions'],
-    },
-    file,
-    {
-      info: (s) => console.log(s),
-      warn,
-      error: (s) => console.error(`${file}  ${red(t('error'))}  ${s}`),
-      diagnostics: (r) => report(file, r.diagnostics),
-    },
-  );
 }
 
 /** carto validate <folder>: what only shows across files (a ref: to nothing, one id two kinds, elements no view shows). */
@@ -1397,10 +1337,6 @@ async function main(): Promise<number> {
     case 'deck':
       if (!files.length) return (console.error(helpFor(command)), 1);
       return (await deck()) ? 0 : 1;
-    case 'animate':
-      if (files.length !== 1 || !values.out) return (console.error(files.length > 1 ? t('carto animate takes one diagram') : helpFor(command)), 1);
-      if (!themeFlag()) return 1;
-      return (await animateFile(files[0]!)) ? 0 : 1;
     case 'serve': {
       if (files.length > 1) return (console.error(helpFor(command)), 1);
       const root = path.resolve(files[0] ?? '.');

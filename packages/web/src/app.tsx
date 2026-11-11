@@ -52,7 +52,6 @@ import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
 import { useDecisionsTool } from './decisions-panel.tsx';
 import { useReviewTool } from './review-panel.tsx';
-import { AnimateDialog } from './animate-dialog.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
@@ -216,7 +215,6 @@ export function App() {
   const acted = () => hint && dismissHint();
   const [inspector, setInspector] = useState(true);
   const [menu, setMenu] = useState(false);
-  const [animating, setAnimating] = useState(false);
   const [describing, setDescribing] = useState(false);
   const [more, setMore] = useState(false);
   /** The drawing's tools that fold into ⋯ when the pane is narrow. */
@@ -1766,7 +1764,6 @@ export function App() {
     { id: 'page-svg', group: t('Export'), label: t('SVG on the page ({page})', { page: pageName }), icon: 'monitor', run: savePageSvg },
     { id: 'pptx', group: t('Export'), label: written ? t('PowerPoint slides, one per step (.pptx)') : t('PowerPoint slide (.pptx)'), icon: 'layout-template', run: savePptx },
     { id: 'pdf', group: t('Export'), label: written ? t('Export PDF, a page per step') : t('Export PDF'), icon: 'file-text', run: savePdf },
-    { id: 'animate', group: t('Export'), label: t('Animation (GIF / MP4)…'), hint: t('the steps or layers, a short blend between them'), icon: 'circle-play', run: () => setTimeout(() => setAnimating(true)) },
     { id: 'html', group: t('Export'), label: t('Interactive HTML (.html)'), hint: t('one file to send: every view and step, zoom, search, drill-down'), icon: 'globe', run: () => saveHtml() },
     ...(ws ? [{ id: 'html-folder', group: t('Export'), label: t('Interactive HTML of {folder}', { folder: ws.name }), hint: t('every diagram in the folder, with a contents page'), icon: 'globe', run: () => saveHtml(true) }] : []),
     { id: 'copy-png', group: t('Export'), label: t('Copy as PNG'), icon: 'copy', run: copyPng },
@@ -2071,9 +2068,6 @@ export function App() {
                 </button>
                 <button role="menuitem" onClick={() => saveHtml()} title={t('One file to send: every view and step, zoom, search, drill-down')}>
                   <Icon name="globe" /> {t('Interactive HTML (.html)')}
-                </button>
-                <button role="menuitem" onClick={() => setAnimating(true)} title={t('The steps or layers, a short blend between them')}>
-                  <Icon name="circle-play" /> {t('Animation (GIF / MP4)')}
                 </button>
                 <button role="menuitem" onClick={copyForWiki} title={t('The picture and the description in one paste, for Confluence, Notion or Google Docs')}>
                   <Icon name="book-open" /> {t('Copy for Confluence / Notion')}
@@ -2660,7 +2654,6 @@ export function App() {
       )}
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
-      {animating && <AnimateDialog input={exportInput} name={baseName(doc.name)} theme={theme} onClose={() => setAnimating(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
       {trace.dialog}
       {blocks.dialog}
