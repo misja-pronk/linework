@@ -1,0 +1,40 @@
+/* The focus chip under the drawing tools (focus-chip.tsx). */
+
+/* Under the tools: what the drawing is cut down to, and the way back. */
+.focus-chip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 3px 3px 10px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--text-muted);
+  z-index: 5;
+  animation: rise 120ms ease-out;
+}
+.focus-chip > .icon {
+  color: var(--accent);
+  flex: none;
+}
+.focus-chip > span {
+  padding: 0 6px;
+  white-space: nowrap;
+}
+.focus-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-chip-name strong {
+  color: var(--text);
+}
+.focus-chip-count,
+.focus-chip-hops {
+  font-variant-numeric: tabular-nums;
+}
+.focus-chip-count {
+  color: var(--text-faint);
+}

@@ -1,0 +1,35 @@
+/* The YAML pane and the splitter (editor-pane.tsx). */
+
+.editor-pane {
+  background: var(--editor-bg);
+}
+.editor {
+  height: 100%;
+}
+.splitter {
+  background: var(--border);
+  cursor: col-resize;
+  position: relative;
+  z-index: 2;
+}
+.splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+.splitter:hover {
+  background: var(--accent);
+}
+.fold-yaml {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  opacity: 0.5;
+}
+.fold-yaml:hover,
+.fold-yaml:focus-visible {
+  opacity: 1;
+}

@@ -1,4 +1,5 @@
 // ⌘K: every action and every element of the diagram, found by typing a few letters.
+import './palette.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.tsx';
 import { useModal } from './menu.tsx';

@@ -1,0 +1,13 @@
+/* Align and distribute (craft-actions.tsx). */
+
+.arrange-bar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.arrange-bar .icon-button:disabled {
+  opacity: 0.35;
+}

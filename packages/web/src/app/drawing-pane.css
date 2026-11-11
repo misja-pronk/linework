@@ -1,0 +1,132 @@
+/* The drawing's pane (drawing-pane.tsx): what floats over the canvas. */
+
+/*
+ * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
+ * notes on a row of their own under the tools); the hint docked bottom-left, the zoom bottom-right;
+ * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over
+ * everything, and a toast from before a dialog opened goes (one from the dialog itself shows on top).
+ */
+.canvas-note {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.stale-note {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  color: var(--warning-ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  white-space: normal;
+  pointer-events: auto;
+}
+.canvas-empty {
+  position: absolute;
+  left: 50%;
+  /* Under the (small, centred) empty sheet with its title. */
+  top: calc(50% + 72px);
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+  padding: 20px 24px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--text-muted);
+  text-align: center;
+  pointer-events: none;
+}
+.canvas-empty p {
+  margin: 0;
+}
+.canvas-empty strong {
+  color: var(--text);
+}
+.canvas-empty .chips {
+  justify-content: center;
+  pointer-events: auto;
+}
+.canvas-empty .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  background: var(--surface);
+}
+/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
+.canvas-top {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.canvas-top > * {
+  pointer-events: auto;
+}
+/* The container the toolbar fits (canvas-tools.css), however narrow: first the key hints go, then the
+   labels (they stay in the tooltips and for screen readers), then the less used tools fold into ⋯. */
+.canvas-pane {
+  container: canvas / inline-size;
+}
+/* Docked bottom-left, away from the drawing's middle and the zoom controls. */
+.hint {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Clear of the zoom bar on the right (it is about 280 px wide). */
+  max-width: min(420px, calc(100% - 340px));
+  padding: 9px 8px 9px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.hint kbd {
+  color: var(--text);
+}
+/* A narrow drawing: the hint sits above the zoom bar, the full width of the pane, and the minimap
+   (which would have no room of its own) stays away. */
+@container canvas (max-width: 760px) {
+  .hint {
+    bottom: 64px;
+    right: 16px;
+    max-width: none;
+  }
+}
+@media (max-width: 600px) {
+  .hint {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    max-width: none;
+    border-radius: 14px;
+    z-index: 7;
+  }
+}
+/* Room for the steps strip docked under the canvas (steps-strip.css). */
+.canvas-pane.with-steps .preview {
+  bottom: 46px;
+}

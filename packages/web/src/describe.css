@@ -1,8 +1,6 @@
 /* Describe (describe-dialog.tsx): the diagram in words. */
 
 .describe-dialog {
-  width: min(720px, calc(100vw - 32px));
-  max-height: calc(100vh - 64px);
   display: flex;
   flex-direction: column;
 }
@@ -14,17 +12,12 @@
   color: var(--text);
 }
 .describe-body:focus-visible {
-  outline: 2px solid var(--accent, #2b62a3);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 .describe-summary {
   margin: 4px 0 8px;
   color: var(--text-muted);
-}
-.describe-body h3 {
-  margin: 14px 0 4px;
-  font-size: 13px;
-  font-weight: 600;
 }
 .describe-body p {
   margin: 4px 0;

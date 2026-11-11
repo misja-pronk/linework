@@ -1,6 +1,7 @@
 // What the drawing shows on top for precise work: smart guides and equal gaps while dragging, the handles of
 // a selected line's segments, small locks and pins on elements placed by hand, the page the drawing is
 // for, and the minimap. All in stage (SVG) coordinates.
+import './craft-overlays.css';
 import { useRef } from 'react';
 import type { Box, Placed, Point } from '@cartography/core';
 import type { Snap } from './craft.ts';

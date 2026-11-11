@@ -1,6 +1,9 @@
 // "Official icons…": where each vendor's set is downloaded, drop the zip or pick the folder, and a
 // sheet of our kinds with the icon each got. A kind without one (or with the wrong one) gets an icon
 // by picking it from the set. Everything stays in this browser.
+// A sheet like the keyboard sheet: its look first, then what is its own.
+import './shortcuts.css';
+import './icon-packs-dialog.css';
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Icon } from './icon.tsx';
 import { useModal } from './menu.tsx';

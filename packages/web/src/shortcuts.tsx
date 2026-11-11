@@ -1,5 +1,6 @@
 // "?": every shortcut on one sheet, so nothing has to be remembered from a manual. The rows come
 // from keys.ts, the same table the key handlers read; a search narrows them.
+import './shortcuts.css';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './icon.tsx';
 import { useModal } from './menu.tsx';

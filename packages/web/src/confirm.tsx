@@ -1,5 +1,8 @@
 // Asking before something is lost, in the app's own dialog (not the browser's confirm(), which looks
 // like another program and stops everything): a question, the safe choice, and the one that goes on.
+// The dialog is a palette sheet: its look first, then what is its own.
+import './palette.css';
+import './confirm.css';
 import { useCallback, useState } from 'react';
 import { useModal } from './menu.tsx';
 

@@ -1,0 +1,87 @@
+/* The keyboard sheet (shortcuts.tsx). */
+
+.shortcuts {
+  width: min(860px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  animation: rise 140ms ease-out;
+}
+.shortcuts header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 16px 4px 24px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.shortcuts-search {
+  flex: 1;
+  max-width: 340px;
+  margin-left: auto;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.shortcut-where {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.shortcuts-none {
+  color: var(--text-muted);
+}
+.shortcuts h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 8px 32px;
+  padding: 8px 24px 24px;
+}
+.shortcuts h3 {
+  margin: 14px 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.shortcuts dl {
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+.shortcuts dl > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.shortcuts dt,
+.shortcuts dd {
+  margin: 0;
+}
+.shortcuts dd {
+  color: var(--text-muted);
+}
+.shortcuts kbd {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  color: var(--text);
+}

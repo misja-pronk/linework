@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayerMode } from '@cartography/core';
 import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
+// The panel is a menu: its look first, then what is its own.
+import './menu.css';
 import './layers.css';
 import { keyHint, shortcutFor } from './keys.ts';
 import { t } from './i18n/index.ts';

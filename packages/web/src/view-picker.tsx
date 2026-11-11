@@ -1,4 +1,5 @@
 // The diagram's views, in the canvas tools: one drawing per view of the same file (context, containers…).
+import './view-picker.css';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 

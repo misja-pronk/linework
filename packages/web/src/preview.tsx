@@ -1,5 +1,6 @@
 // The drawing: the engine's SVG with pan and zoom, click to select, drag to move (pins), drop into a
 // group to nest, and drops from the add palette.
+import './preview.css';
 import { is } from './keys.ts';
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';

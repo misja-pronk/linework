@@ -1,0 +1,174 @@
+/* The top bar (topbar.tsx): the document and its type, the actions. */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 650;
+  font-size: 0.875rem;
+  letter-spacing: -0.01em;
+}
+.logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background:
+    linear-gradient(var(--accent-text), var(--accent-text)) 5px 6px / 6px 6px no-repeat,
+    linear-gradient(var(--accent-text), var(--accent-text)) 11px 11px / 6px 6px no-repeat,
+    var(--accent);
+}
+.doc-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+  min-width: 0;
+}
+.doc-name span:first-of-type {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.type-pill {
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 99px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+/* The header is one line at any width: the document name gives way first, then the key hints and
+   the labels of the quieter buttons (their names stay in the tooltips). */
+.topbar {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.topbar .view-switch {
+  flex-wrap: nowrap;
+}
+.topbar .view-switch button {
+  white-space: nowrap;
+}
+.doc-name {
+  flex: 1 1 auto;
+}
+@media (max-width: 1360px) {
+  .topbar .actions .button.ghost kbd {
+    display: none;
+  }
+}
+@media (max-width: 1220px) {
+  .topbar .actions .button.ghost {
+    font-size: 0;
+    gap: 0;
+    padding: 0 8px;
+  }
+}
+@media (max-width: 900px) {
+  .topbar {
+    gap: 8px;
+    padding: 0 8px;
+  }
+  .topbar .button.ghost {
+    padding: 0 8px;
+  }
+  /* Icon-only buttons: the labels are text, so they go with font-size. */
+  .topbar .button.ghost,
+  .topbar .button.primary {
+    font-size: 0;
+    gap: 0;
+  }
+  .topbar .button kbd,
+  .doc-name .type-anchor,
+  .brand {
+    display: none;
+  }
+  .doc-name {
+    border-left: none;
+    padding-left: 0;
+  }
+}
+.view-switch {
+  margin-right: 4px;
+}
+@media (max-width: 900px) {
+  /* The YAML / Drawing tabs are the one switcher here; the shapes panel does not fit anyway. */
+  .view-switch {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .topbar {
+    gap: 6px;
+  }
+  .actions {
+    gap: 2px;
+    flex: none;
+  }
+  .doc-name {
+    flex: 1;
+  }
+}
+/* The type pill in the top bar opens a small card: what the type is for, and the guide. */
+.type-anchor {
+  display: flex;
+}
+button.type-pill {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 550;
+}
+button.type-pill:hover {
+  color: var(--accent-hover);
+}
+.type-anchor .menu {
+  left: 0;
+  right: auto;
+  top: 30px;
+  width: 290px;
+}
+.type-card-pop {
+  padding: 7px 9px 4px;
+}
+.type-card-pop strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+}
+.type-card-pop strong .icon {
+  color: var(--accent);
+}
+.type-card-pop p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78125rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+.type-card-fine {
+  margin: 0;
+  padding: 0 9px 6px;
+  font-size: 0.71875rem;
+  color: var(--text-faint);
+}

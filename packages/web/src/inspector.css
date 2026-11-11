@@ -1,0 +1,240 @@
+/* The properties of the selection (inspector.tsx): fields, connections, links. */
+
+.inspector {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.inspector header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.inspector-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+.inspector-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.inspector-title strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inspector-title span {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  text-transform: capitalize;
+}
+.inspector-body {
+  overflow-y: auto;
+  padding: 10px 14px 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field > span {
+  font-size: 0.71875rem;
+  font-weight: 550;
+  color: var(--text-muted);
+}
+.field-note {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+/* Fields an element is rarely about, folded away; open or closed as people left it. */
+.inspector-more {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.more-body {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+}
+/* A switch reads as one line: the box, its name, and what it does under the name. */
+.field.toggle {
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+}
+.field.toggle > span {
+  grid-column: 2;
+  grid-row: 1;
+}
+.field.toggle > input {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.field.toggle > .field-note {
+  grid-column: 2;
+}
+.inspector-more > summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 0;
+  border-radius: 4px;
+  list-style-position: inside;
+}
+.inspector-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.inspector-more > summary .count {
+  margin-left: 4px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.field input:not([type='checkbox']),
+.field select {
+  height: 32px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--editor-bg);
+  color: var(--text);
+  font: inherit;
+}
+.field input.mono {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+.field input:focus,
+.field select:focus {
+  /* Transparent, so it shows in forced colours where the shadow is dropped. */
+  outline: 2px solid transparent;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.field.invalid input {
+  border-color: var(--danger);
+}
+.field-error {
+  color: var(--danger-ink);
+  font-size: 0.71875rem;
+}
+.field input[type='checkbox'] {
+  justify-self: start;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.field-yaml {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 9px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.field-yaml span {
+  flex: 1;
+  text-align: left;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.field-yaml:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.inspector footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.inspector footer .button {
+  height: 30px;
+  padding: 0 9px;
+}
+.connections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.connections li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.connection {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  text-align: left;
+}
+.connection span {
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.connection span {
+  flex: none;
+  max-width: 60%;
+}
+.connection em {
+  margin-left: auto;
+  min-width: 0;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.connection:hover {
+  background: var(--bg);
+}
+@media (max-width: 900px) {
+  .inspector {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}

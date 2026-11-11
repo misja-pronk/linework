@@ -1,6 +1,7 @@
 // Present: the drawing full screen, told step by step like a slide deck. The views of a file come in
 // order with the steps of each inside it; a linked element drills down and Backspace comes back.
 // Every step is the same drawing in the same place, so stepping reads as one picture building up.
+import './present.css';
 import { shortcutFor } from './keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { focusReach, type LayoutSidecar, type Link } from '@cartography/core';

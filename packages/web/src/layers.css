@@ -2,8 +2,6 @@
 
 .layers-panel {
   left: 0;
-  right: auto;
-  min-width: 270px;
 }
 .menu .layer-toggle {
   gap: 10px;

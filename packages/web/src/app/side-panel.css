@@ -1,0 +1,83 @@
+/* The one panel on the right, properties or Your AI on tabs (side-panel.tsx). */
+
+.side {
+  container: side / inline-size;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.side > .inspector,
+.side > .ask-panel {
+  flex: 1;
+  border-left: none;
+}
+.side-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 0;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+  /* Should a panel get narrower than the collapsed tabs, the strip scrolls rather than clipping. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+/* Narrower than the five labels (a long one was cut off at 1280 and 1512): only the chosen tab says its
+   name, the others are icon and count with the name as tooltip; narrower still, icons only. The names
+   stay readable to screen readers. */
+@container side (max-width: 480px) {
+  .side-tabs button:not([aria-selected='true']) .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+@container side (max-width: 250px) {
+  .side-tabs .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+.side-tabs button {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78125rem;
+  font-weight: 520;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.side-tabs button:hover:not(:disabled) {
+  color: var(--text);
+}
+.side-tabs button[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.side-tabs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (max-width: 900px) {
+  .side {
+    max-height: 45vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}

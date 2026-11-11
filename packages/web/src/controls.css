@@ -1,0 +1,249 @@
+/* Controls used across the editor: buttons, icon buttons, chips, the segmented switch, tools, callouts, counts. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-weight: 520;
+  white-space: nowrap;
+}
+.button.ghost {
+  color: var(--text-muted);
+}
+.button.ghost:hover,
+.icon-button:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.button.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.button.primary:hover {
+  background: var(--accent-hover);
+}
+.button kbd {
+  background: none;
+}
+/* On the accent, a faint kbd would vanish. */
+.button.primary kbd {
+  color: inherit;
+  border-color: rgb(255 255 255 / 0.45);
+  background: rgb(255 255 255 / 0.14);
+}
+.button:disabled,
+.button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.45;
+  background: none;
+  color: var(--text-muted);
+}
+.button.primary:disabled,
+.button.primary:disabled:hover {
+  background: var(--border-strong);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 24px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.chip {
+  border: 1px solid var(--border);
+  background: none;
+  border-radius: 99px;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+  font-weight: 550;
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  min-width: 30px;
+  justify-content: center;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 520;
+}
+.tool:hover,
+.tool.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tool kbd {
+  background: none;
+}
+.button.danger:hover {
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.icon-button.small {
+  width: 26px;
+  height: 26px;
+}
+/* Two or three choices side by side, one active. */
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78125rem;
+}
+.segmented button:hover {
+  color: var(--text);
+}
+.segmented button.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 550;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.1);
+}
+.chips.inline {
+  padding: 0;
+  border: none;
+}
+.chips.inline .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 0.78125rem;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.button.wide {
+  width: 100%;
+  justify-content: center;
+}
+.callout {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.callout > .icon {
+  margin-top: 2px;
+}
+.callout.error {
+  color: var(--danger-ink);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.callout.warn {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+.callout.warn > .icon {
+  color: var(--warning-ink);
+}
+.callout strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.callout.error strong {
+  color: inherit;
+}
+.narrow-only {
+  display: none;
+}
+.more-dots {
+  /* As wide as an icon: ⋯ took the clock's place in the toolbar, not more. */
+  display: inline-block;
+  width: 16px;
+  font-size: 1.125rem;
+  line-height: 1;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .wide-only {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .narrow-only {
+    display: block;
+  }
+}
+.tool-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--count-soft);
+  color: var(--count);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 17px;
+}
+.tool-count.unread {
+  background: var(--count);
+  color: var(--surface);
+}
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
