@@ -76,7 +76,7 @@ export function CanvasTools(p: Props) {
         <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>P</kbd>
       </button>
       <button className={p.asking ? 'tool active' : 'tool'} onClick={p.toggleAsk} title={t('Proposals from your own AI ({key})', { key: keyHint('ask') })} aria-label={t('Your AI')} aria-expanded={p.asking} disabled={!p.hasType}>
-        <Icon name="sparkles" /> <span className="tool-label">{t('AI')}</span> <kbd>{keyHint('ask')}</kbd>{p.proposal && <span className="tool-count unread">1</span>}
+        <Icon name="sparkles" /> <span className="tool-label">{t('Your AI')}</span> <kbd>{keyHint('ask')}</kbd>{p.proposal && <span className="tool-count unread">1</span>}
       </button>
       {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
       <div className="menu-anchor tool-overflow">

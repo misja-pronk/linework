@@ -7,7 +7,6 @@ export const nlApp = {
   'proposals from your own AI agent, through the MCP server': 'voorstellen van je eigen AI-agent, via de MCP-server',
   'the YAML, its schema and instructions, to paste into any chat': 'de YAML, het schema en instructies, om in elke chat te plakken',
   'Proposals from your own AI ({key})': 'Voorstellen van je eigen AI ({key})',
-  'AI': 'AI',
   'Your AI ({key})': 'Je AI ({key})',
   '{path} changed on disk. Saving will ask before it overwrites that.': '{path} is op schijf gewijzigd. Opslaan vraagt eerst of je dat wilt overschrijven.',
   'Undo': 'Ongedaan maken',
