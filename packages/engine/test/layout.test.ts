@@ -26,6 +26,7 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
   'azure/hub-spoke.yaml': 0,
+  'azure/landing-zone.yaml': 0,
   'azure/microservices.yaml': 4,
   'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,

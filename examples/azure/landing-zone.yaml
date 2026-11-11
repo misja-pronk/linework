@@ -1,0 +1,51 @@
+type: azure
+title: Azure landing zone
+subtitle: Northwind · management groups, subscriptions and the policy assigned at each level (CAF / ALZ)
+
+# Boxes in boxes: a management group holds the groups and subscriptions under it, as in the portal.
+# A management group's caption names the policy assigned there. Everything below inherits it,
+# so a caption only says what is added at that level.
+# Adding a workload: a subscription card in corp (private, peered to the hub) or online
+# (internet-facing). Moving a subscription to decommissioned is how it is retired.
+
+groups:
+  tenant: { kind: tenant, label: Tenant root group, caption: northwind.onmicrosoft.com }
+  org: { kind: management-group, label: Northwind, caption: Allowed regions · Defender for Cloud · diagnostics to Log Analytics, in: tenant }
+
+  platform: { kind: management-group, label: Platform, caption: Run by the platform team, in: org }
+  management: { kind: management-group, label: Management, caption: Nothing added here, in: platform }
+  connectivity: { kind: management-group, label: Connectivity, caption: DDoS protection on VNets, in: platform }
+  identity: { kind: management-group, label: Identity, caption: No public IPs · VM backup, in: platform }
+
+  landing-zones: { kind: management-group, label: Landing zones, caption: Subnets need an NSG · no RDP/SSH from the internet · TLS 1.2, in: org }
+  corp: { kind: management-group, label: Corp, caption: No public IPs · PaaS only through private endpoints, in: landing-zones }
+  online: { kind: management-group, label: Online, caption: WAF in front of web apps, in: landing-zones }
+
+  sandbox: { kind: management-group, label: Sandbox, caption: No peering · no VPN or ExpressRoute, in: org }
+  decommissioned: { kind: management-group, label: Decommissioned, caption: No new resources, in: org }
+
+nodes:
+  # Subscriptions: a card each, in the management group that governs it
+  sub-management: { kind: service, icon: folder-key, tone: amber, label: sub-management, caption: Log Analytics · Automation, in: management }
+  sub-connectivity: { kind: service, icon: folder-key, tone: amber, label: sub-connectivity, caption: Hub VNet · firewall · DNS, in: connectivity }
+  sub-identity: { kind: service, icon: folder-key, tone: amber, label: sub-identity, caption: Domain controllers, in: identity }
+  sub-erp: { kind: service, icon: folder-key, tone: amber, label: sub-erp-prd, caption: Peered to the hub, in: corp }
+  sub-intranet: { kind: service, icon: folder-key, tone: amber, label: sub-intranet-prd, caption: Peered to the hub, in: corp }
+  sub-webshop: { kind: service, icon: folder-key, tone: amber, label: sub-webshop-prd, caption: Front Door · WAF, in: online }
+  sub-lab: { kind: service, icon: folder-key, tone: amber, label: sub-sandbox-dev, caption: Experiments, in: sandbox }
+  sub-legacy: { kind: service, icon: folder-key, tone: slate, label: sub-crm-old, caption: Retired 2026, in: decommissioned }
+
+steps:
+  - The management group hierarchy of the Northwind landing zone, with a subscription per workload.
+  - title: Policy is inherited
+    caption: The baseline at Northwind applies to every subscription; each level below only adds to it.
+    focus: org
+  - title: Platform
+    caption: Shared services in their own subscriptions, run by the platform team.
+    focus: platform
+  - title: Landing zones
+    caption: Corp workloads are private and peered to the hub; Online workloads face the internet behind a WAF.
+    focus: landing-zones
+  - title: Sandbox and decommissioned
+    caption: Sandboxes cannot reach the corporate network; a retired subscription accepts no new resources.
+    focus: [sandbox, decommissioned]
