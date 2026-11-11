@@ -154,6 +154,8 @@ export function serve(o: ServeOptions): Promise<{ server: http.Server; url: stri
     async propose(p: Proposal) {
       const rel = path.relative(root, p.file);
       if (rel.startsWith('..') || path.isAbsolute(rel)) return { outcome: 'not-open', message: `${p.file} is outside the folder carto serve has open (${root}).` };
+      // The editor opens a file of the folder that is not open; one that is not there it cannot.
+      if (!fs.existsSync(p.file)) return { outcome: 'not-open', message: `${p.file} does not exist.` };
       const r = await editors.call({ method: 'propose', params: { ...p, file: rel.split(path.sep).join('/') } });
       if (!r) return undefined;
       if (r.error) return { outcome: 'rejected', message: r.error === 'closed' ? 'The editor was closed before the user decided.' : r.error };

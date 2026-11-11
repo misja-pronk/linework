@@ -333,7 +333,20 @@ export function App() {
       dirty,
     }),
     docKey,
-    { changed: (p) => p === onDisk.current.doc.path && checkDisk.current(), propose: askWith },
+    {
+      changed: (p) => p === onDisk.current.doc.path && checkDisk.current(),
+      propose: askWith,
+      // A proposal for another file of the folder opens it; one written since the folder was read is looked for again.
+      open: async (p) => {
+        if (!ws) return false;
+        let w = ws;
+        if (!w.files.has(p)) {
+          w = await scan(w.dir).catch(() => w);
+          if (w !== ws) setWs(w);
+        }
+        return openInFolder(w, p);
+      },
+    },
   );
   const copyForAi = async () => {
     if (!type) return;
@@ -604,14 +617,16 @@ export function App() {
     if (s) void servedFolder(s).then(scan).then((next) => openFolder(undefined, next), (e: unknown) => notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
   }, []);
 
-  const openInFolder = async (w: Workspace, path: string) => {
+  /** Opens a file of the folder; false when it is not there or the user keeps the open one. */
+  const openInFolder = async (w: Workspace, path: string): Promise<boolean> => {
     // Switching files keeps work: saved first where it lives, otherwise asked.
-    if (doc.path === path && ws === w) return;
-    if (!(await leave())) return;
+    if (doc.path === path && ws === w) return true;
     const f = w.files.get(path);
-    if (!f) return;
+    if (!f) return false;
+    if (!(await leave())) return false;
     fileHandle.current = undefined;
     open(f.text, { name: path.split('/').pop()!, path }, readSidecar(w, path));
+    return true;
   };
 
   /** Files picked or dropped: the first diagram opens. */

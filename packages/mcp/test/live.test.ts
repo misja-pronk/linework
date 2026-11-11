@@ -20,9 +20,13 @@ edges:
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-live-')));
 const file = path.join(tmp, 'shop.yaml');
 const proposed: Proposal[] = [];
+const other = path.join(tmp, 'other.yaml');
+const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-outside-')));
+// As the editors do: a file of the folder is opened if it is not (here: shop.yaml is open, other.yaml
+// is not), a file outside it cannot be.
 const host: LiveHost = {
   context: () => ({ host: 'vscode', file, selection: [{ kind: 'node', id: 'web' }], problems: [] }),
-  propose: async (p) => (proposed.push(p), { outcome: 'accepted' }),
+  propose: async (p) => (p.file.startsWith(tmp + path.sep) ? (proposed.push(p), { outcome: 'accepted' }) : { outcome: 'not-open', message: `${p.file} is not in a folder VS Code has open.` }),
 };
 const token = 'a-token-for-the-test-only-0123456789';
 let server: http.Server;
@@ -30,6 +34,8 @@ let forget: () => void;
 
 beforeAll(async () => {
   fs.writeFileSync(file, shop);
+  fs.writeFileSync(other, shop);
+  fs.writeFileSync(path.join(outside, 'far.yaml'), shop);
   server = http.createServer((req, res) => (authorized(req, token) ? void handleLive(req, res, host) : res.writeHead(401).end()));
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   forget = announce({ host: 'vscode', url: `http://127.0.0.1:${(server.address() as { port: number }).port}`, token, roots: [tmp] });
@@ -38,6 +44,7 @@ afterAll(() => {
   forget();
   server.close();
   fs.rmSync(tmp, { recursive: true, force: true });
+  fs.rmSync(outside, { recursive: true, force: true });
 });
 
 describe('the live protocol', () => {
@@ -69,6 +76,17 @@ describe('a host found through discovery', () => {
     expect(proposed.at(-1)).toMatchObject({ file, summary: 'Rename' });
     expect(await proposeChange(link, { file, edits: [{ op: 'set', path: ['nodes', 'x'], value: { kind: 'nope' } }] }, tmp)).toMatchObject({ outcome: 'invalid', problems: [expect.objectContaining({ severity: 'error' })] });
     expect(proposed).toHaveLength(1);
+  });
+
+  it('sends a proposal for a file that is not open to the host, which opens it', async () => {
+    const r = await proposeChange(discoveredLink(tmp), { file: 'other.yaml', edits: [{ op: 'delete', path: ['nodes', 'db'] }] }, tmp);
+    expect(r).toMatchObject({ outcome: 'accepted' });
+    expect(proposed.at(-1)).toMatchObject({ file: other });
+  });
+
+  it('passes on not-open when the host cannot open the file', async () => {
+    const far = path.join(outside, 'far.yaml');
+    expect(await proposeChange(discoveredLink(tmp), { file: far, edits: [{ op: 'delete', path: ['nodes', 'db'] }] }, tmp)).toMatchObject({ outcome: 'not-open', message: expect.stringContaining('not in a folder') });
   });
 
   it('says there is no editor for a folder no host has open', async () => {

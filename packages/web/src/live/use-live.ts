@@ -1,5 +1,6 @@
 // The editor's side of the live link (core's live.ts) when it was opened by carto serve: it answers
-// get_context from what is on screen, and turns propose into a proposal the user accepts or rejects.
+// get_context from what is on screen, and turns propose into a proposal the user accepts or rejects
+// (for another file of the folder, that file is opened first).
 // A proposal is applied to the text as it is now, so a hand edit elsewhere in the file still fits.
 import { useEffect, useRef, useState } from 'react';
 import { answerLive, applyOperations, type DiagramType, type LiveContext, type LiveHost, type LiveSelection, type Operation, type Proposal, type ProposalResult } from '@cartography/core';
@@ -41,9 +42,9 @@ export interface Live {
 
 /**
  * `state` is read when a call comes in; `onChanged` hears of files changed on disk; `onPropose`
- * brings the panel up.
+ * brings the panel up; `onOpen` opens another file of the folder for a proposal (false when it cannot).
  */
-export function useLive(state: () => LiveState, docKey: number, on: { changed(path: string): void; propose(): void }): Live {
+export function useLive(state: () => LiveState, docKey: number, on: { changed(path: string): void; propose(): void; open(path: string): Promise<boolean> }): Live {
   const [connected, setConnected] = useState(false);
   const [proposal, setProposal] = useState<OpenProposal>();
   const current = useRef(proposal);
@@ -83,21 +84,35 @@ export function useLive(state: () => LiveState, docKey: number, on: { changed(pa
           dirty: st.dirty,
         };
       },
-      propose: (p: Proposal) =>
-        new Promise<ProposalResult>((done) => {
-          const st = read.current();
-          if (p.file !== st.path) return done({ outcome: 'not-open', message: st.path ? `The editor has ${st.path} open, not ${p.file}.` : `The editor has no file of the folder open, not ${p.file}.` });
-          if (!st.type) return done({ outcome: 'failed', message: 'The open diagram cannot be drawn now; fix its problems first.' });
-          const r = applyOperations(st.text, st.type, p.edits);
-          if ('error' in r) return done({ outcome: 'failed', message: `On the text as it is in the editor now: ${r.error}` });
-          if (r.text === st.text) return done({ outcome: 'failed', message: 'The editor already has this.' });
-          // A newer proposal replaces the one that is open.
-          current.current?.settle({ outcome: 'rejected', message: 'Replaced by a newer proposal.' });
-          const next: OpenProposal = { summary: p.summary, edits: p.edits, base: st.text, yaml: r.text, renames: r.renames, doc: doc.current, settle: done };
-          current.current = next;
-          setProposal(next);
-          handlers.current.propose();
-        }),
+      propose: (p: Proposal) => new Promise<ProposalResult>((done) => show(p, done)),
+    };
+    const show = (p: Proposal, done: (r: ProposalResult) => void) => {
+      const st = read.current();
+      if (p.file !== st.path) return void openThen(p, done);
+      if (!st.type) return done({ outcome: 'failed', message: 'The open diagram cannot be drawn now; fix its problems first.' });
+      const r = applyOperations(st.text, st.type, p.edits);
+      if ('error' in r) return done({ outcome: 'failed', message: `On the text as it is in the editor now: ${r.error}` });
+      if (r.text === st.text) return done({ outcome: 'failed', message: 'The editor already has this.' });
+      // A newer proposal replaces the one that is open.
+      current.current?.settle({ outcome: 'rejected', message: 'Replaced by a newer proposal.' });
+      const next: OpenProposal = { summary: p.summary, edits: p.edits, base: st.text, yaml: r.text, renames: r.renames, doc: doc.current, settle: done };
+      current.current = next;
+      setProposal(next);
+      handlers.current.propose();
+    };
+    /** Another file of the folder: opened in the editor first, and the proposal made on it once it is drawn. */
+    const openThen = async (p: Proposal, done: (r: ProposalResult) => void) => {
+      const was = read.current().path;
+      if (!(await handlers.current.open(p.file))) {
+        return done({ outcome: 'not-open', message: `The editor could not open ${p.file}: it is not a file of the folder${was ? `, or the user kept ${was} open` : ''}.` });
+      }
+      // Its type comes with its first drawing; until then the state still has the last file's.
+      const drawn = (st: LiveState) => st.path === p.file && !!st.type && st.type.id === /^type:\s*["']?([\w-]+)/m.exec(st.text)?.[1];
+      for (const end = Date.now() + 15_000; !drawn(read.current()); ) {
+        if (Date.now() > end) return done({ outcome: 'failed', message: `Opened ${p.file}, but it could not be drawn to show the change; fix its problems first.` });
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      show(p, done);
     };
     let ch: Channel | undefined = undefined;
     ch = listen(

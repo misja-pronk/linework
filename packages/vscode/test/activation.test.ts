@@ -25,7 +25,8 @@ async function until<T>(f: () => T | undefined, ms = 15_000): Promise<T> {
 
 beforeAll(() => {
   stub.state.config['cartography.preview.debounce'] = 0;
-  activate({ subscriptions: [], extensionUri: stub.Uri.file('/ext') } as never);
+  stub.workspace.workspaceFolders = [{ uri: stub.Uri.file(dir) }];
+  activate({ subscriptions: [], extensionUri: stub.Uri.file('/ext'), extension: { packageJSON: manifest } } as never);
 });
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -44,6 +45,51 @@ describe('activation', () => {
     expect(c.requestSchema(plain.uri.toString())).toBeUndefined();
     const schema = JSON.parse(c.requestSchemaContent('cartography://schema/erd.json')!);
     expect(schema.properties.type.const).toBe('erd');
+  });
+});
+
+describe('the MCP server for the agents in VS Code', () => {
+  it('needs a VS Code that can register it', () => {
+    expect(manifest.engines.vscode).toBe('^1.101.0');
+    expect(manifest.devDependencies['@types/vscode']).toBe('1.101.0');
+  });
+
+  it('registers the provider package.json contributes, and activates for it', () => {
+    const ids = manifest.contributes.mcpServerDefinitionProviders.map((p: { id: string }) => p.id);
+    expect([...stub.state.mcpProviders.keys()]).toEqual(ids);
+    expect(manifest.activationEvents).toContain(`onMcpCollection:${ids[0]}`);
+  });
+
+  it('runs the bundled server on the editor\'s Node.js in the workspace folder', async () => {
+    const [server, ...more] = await stub.state.mcpProviders.get('cartography.mcp')!.provideMcpServerDefinitions();
+    expect(more).toEqual([]);
+    expect(server).toBeInstanceOf(stub.McpStdioServerDefinition);
+    expect(server).toMatchObject({ label: 'Cartography', command: process.execPath, args: ['/ext/dist/mcp.mjs'], env: { ELECTRON_RUN_AS_NODE: '1' }, version: manifest.version });
+    expect(server!.cwd?.fsPath).toBe(dir);
+  });
+
+  it('follows the workspace folders', async () => {
+    const provider = stub.state.mcpProviders.get('cartography.mcp')!;
+    let told = 0;
+    provider.onDidChangeMcpServerDefinitions!(() => told++);
+    const other = path.join(dir, 'other');
+    stub.setWorkspaceFolders([other, dir]);
+    expect(told).toBe(1);
+    expect((await provider.provideMcpServerDefinitions())[0]!.cwd?.fsPath).toBe(other);
+    stub.setWorkspaceFolders([]);
+    expect((await provider.provideMcpServerDefinitions())[0]!.cwd).toBeUndefined();
+    stub.setWorkspaceFolders([dir]);
+  });
+
+  it('leaves it to the user in an editor without the API', async () => {
+    const { registerMcp } = await import('../src/mcp.ts');
+    const lm = stub.lm.registerMcpServerDefinitionProvider;
+    (stub.lm as { registerMcpServerDefinitionProvider?: unknown }).registerMcpServerDefinitionProvider = undefined;
+    try {
+      expect(() => registerMcp({ extensionUri: stub.Uri.file('/ext') } as never).dispose()).not.toThrow();
+    } finally {
+      stub.lm.registerMcpServerDefinitionProvider = lm;
+    }
   });
 });
 

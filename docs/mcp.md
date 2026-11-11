@@ -19,7 +19,7 @@ drawing before you see it.
 | `render(yaml \| file, format?, theme?, path?, scale?, view?, focus?, hops?, direction?, layer?, step?)` | SVG or PNG. With `path` it writes the file; a PNG also comes back as an image, an SVG without `path` as text. The last options draw part of it, as `carto render --view --focus --layer --step` do |
 | `edit_diagram(yaml \| file, edits, dryRun?)` | Edits by YAML path: `set`, `append`, `delete`, `rename`. The rest of the file keeps its exact text, comments included; a renamed id takes its pins in `<name>.layout.json` along. Validated and laid out before it is written: invalid means nothing is written and the problems come back, valid means the file is written and the layout quality comes back |
 | `get_context()` | What the user has open in an editor (VS Code, or `carto serve` in the browser): the file, the ids of what is selected, the view, layers, stage and step, the problems, unsaved changes. Says so when no editor is connected |
-| `propose(file, edits, summary?)` | Shows `edit_diagram`'s edits in the open editor as a proposal: the drawing with the diff marks and the YAML diff. Returns `accepted` or `rejected` once the user decides; `not-open` or `no-editor` when the file is not open, so use `edit_diagram` then. Checked first: a change that does not validate is not shown |
+| `propose(file, edits, summary?)` | Shows `edit_diagram`'s edits in the editor as a proposal: the drawing with the diff marks and the YAML diff. A file of the editor's folder that is not open is opened first (VS Code: the file and its preview; `carto serve`: the file in the browser editor). Returns `accepted` or `rejected` once the user decides; `no-editor` when no editor is connected, `not-open` when the editor cannot open the file (outside its folder, not there), so use `edit_diagram` then. Checked first: a change that does not validate is not shown |
 | `describe(yaml \| file, view?, …)` | The diagram in words (Markdown), as `carto describe` |
 | `diff(file, before? \| ref?, view?)` | What changed against another file or against the file at a git ref, element by element and in sentences, as `carto diff` |
 
@@ -35,12 +35,15 @@ When a diagram is open in an editor, the agent can see what you see and propose 
 
 - `get_context` says which file is open and what is selected, so "make this one redundant" works;
 - `propose` shows the change over the drawing, marked as `carto diff` marks it, with the YAML diff.
-  **Accept** (⏎) applies it as one undo step; **Reject** (Esc) leaves it. The agent hears which.
+  **Accept** (⏎) applies it as one undo step; **Reject** (Esc) leaves it. The agent hears which. A
+  file of the folder that is not open is opened first; one outside the folder, or not there, is
+  `not-open`.
 
 Two editors answer:
 
-- **VS Code** with the Cartography extension. Nothing to set up beyond the MCP server below: the
-  extension listens on 127.0.0.1 with a random token, and the server finds it.
+- **VS Code** with the Cartography extension. Nothing to set up: the extension registers the MCP
+  server with VS Code, listens on 127.0.0.1 with a random token, and the server finds it. An agent
+  outside VS Code (Claude Code in a terminal) finds it too, with the server set up as below.
 - **The web editor through `carto serve`** (see below).
 
 How they find each other: each editor writes a small file (its address and token) into
@@ -77,8 +80,15 @@ claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/t
 # for every project: add --scope user before the name
 ```
 
-**VS Code** (Copilot's agent mode and other VS Code agents): add `.vscode/mcp.json` to the project.
-The extension's engine version (1.90) is too old to register the server by itself, so this is by hand:
+**VS Code** (Copilot's agent mode and other VS Code agents): install the Cartography extension
+([vscode](vscode.md)); it registers the server with VS Code itself (VS Code 1.101 or later), run on
+VS Code's own Node.js with the first workspace folder as its working directory. Nothing to write. It
+shows as **Cartography** under MCP servers (Command Palette → **MCP: List Servers**). That copy draws
+SVG but not PNG (resvg is native code the extension does not ship); the CLI and the server below
+draw both.
+
+Without the extension, or in an editor built on VS Code that cannot register servers for an
+extension, add `.vscode/mcp.json` to the project by hand:
 
 ```json
 {

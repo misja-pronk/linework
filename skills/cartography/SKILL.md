@@ -13,9 +13,10 @@ Use the **MCP tools** when the `cartography` server is connected (`list_types`, 
 `get_context`, `propose`). Otherwise use the CLI (bottom of this file).
 
 To change an existing diagram, prefer `edit_diagram` (edits by YAML path) to rewriting the file:
-comments and pins stay. When the user has it open in an editor, call `get_context` first ("this",
-"the selected" mean what it lists) and `propose` the change: they accept or reject it. Use
-`edit_diagram` when `propose` says no editor has it open.
+comments and pins stay. When an editor is connected (VS Code, `carto serve`), call `get_context`
+first ("this", "the selected" mean what it lists) and `propose` the change: the editor opens the
+file if it is not open yet, and the user accepts or rejects it. Use `edit_diagram` when `propose`
+says `no-editor` or `not-open`.
 
 ## 1. Pick the type
 

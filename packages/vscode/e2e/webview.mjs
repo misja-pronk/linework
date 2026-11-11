@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import Module, { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
 import { build } from 'esbuild';
 import { chromium } from '@playwright/test';
 
@@ -38,6 +39,35 @@ const ext = require(path.join(dist, 'extension.js'));
 const api = ext.activate({ subscriptions: [], extensionUri: stub.Uri.file(here) });
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** MCP over stdio, as an agent speaks it: one JSON-RPC message per line. */
+function mcpClient(child) {
+  const waiting = new Map();
+  let buf = '';
+  let id = 0;
+  child.stdout.on('data', (d) => {
+    buf += d;
+    for (let i; (i = buf.indexOf('\n')) >= 0; buf = buf.slice(i + 1)) {
+      const m = JSON.parse(buf.slice(0, i));
+      waiting.get(m.id)?.(m);
+    }
+  });
+  child.stderr.on('data', () => {});
+  const send = (m) => child.stdin.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\n');
+  const rpc = (method, params = {}) =>
+    new Promise((ok) => {
+      const n = ++id;
+      waiting.set(n, ok);
+      send({ id: n, method, params });
+    });
+  return {
+    rpc,
+    notify: (method) => send({ method }),
+    /** A tool call's text. */
+    tool: async (name, args) => ((await rpc('tools/call', { name, arguments: args })).result?.content ?? []).map((c) => c.text ?? '').join('\n'),
+    close: () => child.kill(),
+  };
+}
 async function until(f, ms = 20_000) {
   const end = Date.now() + ms;
   for (;;) {
@@ -85,7 +115,8 @@ fs.writeFileSync(file, text);
 const broken = stub.openDocument(path.join(work, 'broken.yaml'), 'type: systems\nnodes:\n  a: { kind: apii }\n');
 const collection = stub.state.collections.find((c) => c.name === 'cartography');
 const problems = await until(() => collection.get(broken.uri)?.length && collection.get(broken.uri));
-check(problems.some((d) => d.message.startsWith('"kind" must be one of') && d.range.start.line === 2), 'bundle: problems at the right line, in the CLI words');
+// The words of core's source.ts (as carto validate prints them): the value, the nearest kind, a few allowed.
+check(problems.some((d) => d.message.startsWith('"kind" cannot be "apii": did you mean api?') && d.range.start.line === 2 && d.range.start.character === 7), 'bundle: problems at the right line, in the CLI words');
 
 // 3. The preview page in Chromium, with what the extension posts.
 const doc = stub.openDocument(file, text);
@@ -237,6 +268,43 @@ await tab.keyboard.press('Escape');
 await pump();
 check((await rejecting).result?.outcome === 'rejected' && doc.getText().includes('stripe:'), 'live: Reject leaves the document');
 
+// The MCP server the extension registers with VS Code (mcp.ts), started as VS Code starts it: the
+// definition's command, arguments, environment and folder. An agent's calls go through it to the live link.
+const [definition] = await stub.state.mcpProviders.get('cartography.mcp').provideMcpServerDefinitions();
+check(definition?.cwd?.fsPath === work && definition.args[0] === path.join(dist, 'mcp.mjs'), 'mcp: one server, the bundled one, in the workspace folder');
+const mcp = mcpClient(spawn(definition.command, definition.args, { cwd: definition.cwd.fsPath, env: { ...process.env, ...definition.env } }));
+const hello = await mcp.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
+mcp.notify('notifications/initialized');
+check(hello.result?.serverInfo?.name === 'cartography', `mcp: the server starts and answers (${hello.result?.serverInfo?.name ?? hello.error?.message})`);
+const names = (await mcp.rpc('tools/list')).result?.tools.map((t) => t.name) ?? [];
+check(['get_schema', 'validate', 'edit_diagram', 'get_context', 'propose'].every((n) => names.includes(n)), `mcp: the tools are there (${names.length})`);
+const mcpCtx = await mcp.tool('get_context', {});
+check(mcpCtx.includes(file) && mcpCtx.includes('orders'), 'mcp: get_context reaches the extension through the live link');
+const valid = await mcp.tool('validate', { file: 'shop.yaml' });
+check(/valid/i.test(valid), 'mcp: relative paths resolve in the workspace folder');
+
+// propose for a file of the folder that is not open: the extension opens it and its preview, and
+// the proposal shows there. Outside the folder it says not-open.
+const other = path.join(work, 'billing.yaml');
+fs.writeFileSync(other, 'type: systems\nnodes:\n  billing: { kind: service, label: Billing }\n  ledger: { kind: database, label: Ledger }\nedges:\n  - billing -> ledger\n');
+const panelsBefore = stub.state.panels.length;
+const proposingOther = mcp.tool('propose', { file: 'billing.yaml', summary: 'Add invoices', edits: [{ op: 'set', path: ['nodes', 'invoices'], value: { kind: 'queue', label: 'Invoices' } }, { op: 'append', path: ['edges'], value: 'billing -> invoices' }] });
+const otherDoc = await until(() => stub.state.documents.find((d) => d.fileName === other));
+check(stub.state.shown.includes(otherDoc), 'propose, not open: the file opens in an editor');
+const otherPanel = await until(() => stub.state.panels.slice(panelsBefore).find((p) => p.viewType === 'cartography.preview'));
+const otherPage = await openPage(otherPanel, 'other', { width: 1000, height: 700 });
+await otherPage.pumpUntil(async () => otherPage.tab.$eval('#proposal', (el) => !el.hidden));
+check((await otherPage.tab.$eval('#pSummary', (el) => el.textContent)) === 'Add invoices', 'propose, not open: its preview opens with the proposal');
+await otherPage.tab.screenshot({ path: path.join(out, 'proposal-opened.png') });
+await otherPage.tab.keyboard.press('Enter');
+await otherPage.pump();
+const otherVerdict = await proposingOther;
+check(/Accepted/.test(otherVerdict) && otherDoc.getText().includes('invoices: { kind: queue, label: Invoices }'), `propose, not open: Accept applies it (${otherVerdict.split('\n')[0]})`);
+const outsideFile = path.join(tmp, 'outside.yaml');
+fs.copyFileSync(other, outsideFile);
+const notOpen = await mcp.tool('propose', { file: outsideFile, edits: [{ op: 'delete', path: ['nodes', 'ledger'] }] });
+check(/not-open/.test(notOpen) && !stub.state.documents.some((d) => d.fileName === outsideFile), 'propose outside the workspace folder: not-open, nothing opened');
+
 // The presenter: full screen, the step's caption below, arrows step.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Light };
 await stub.commands.executeCommand('cartography.present', doc.uri);
@@ -256,6 +324,7 @@ await show.tab.keyboard.press('Escape');
 await show.pump();
 check(closed, 'Escape closes the presenter');
 
+mcp.close();
 await browser.close();
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`screenshots in ${path.relative(process.cwd(), out) || '.'}`);
