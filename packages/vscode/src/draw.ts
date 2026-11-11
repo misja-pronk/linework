@@ -2,7 +2,7 @@
 // files next to the diagram, its sidecar, and the font faces sent once instead of with every drawing.
 import fs from 'node:fs';
 import path from 'node:path';
-import { notesPath, parseNotes, viewPins, withViewPins, type Box, type LayoutSidecar, type NotesFile } from '@cartography/core';
+import { notesPath, parseNotes, parseSidecar, viewPins, withViewPins, type Box, type LayoutSidecar, type NotesFile } from '@cartography/core';
 import { render, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { sidecarName } from './detect.ts';
 
@@ -46,7 +46,8 @@ export interface Picture {
 export function readSidecar(file: string | undefined): LayoutSidecar | undefined {
   if (!file) return undefined;
   try {
-    return JSON.parse(fs.readFileSync(sidecarName(file), 'utf8')) as LayoutSidecar;
+    // What cannot be read of it is left out; the rest still pins the drawing.
+    return parseSidecar(JSON.parse(fs.readFileSync(sidecarName(file), 'utf8'))).sidecar;
   } catch {
     return undefined;
   }

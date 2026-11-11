@@ -555,3 +555,23 @@ steps:
     expect(seconds).toBeCloseTo(4 + 28 / 30, 2);
   }, 30000);
 });
+
+describe('a sidecar that cannot be read', () => {
+  it('leaves out a bad entry with a warning, never a NaN in the drawing', () => {
+    write('odd.yaml', shop);
+    write('odd.layout.json', JSON.stringify({ nodes: { meters: 'zz', web: { x: 40, y: 'n' } } }));
+    const r = carto('render', 'odd.yaml');
+    expect(r.code).toBe(0);
+    expect(r.err).toContain('odd.layout.json  warning  nodes.meters: not a position {x, y}; ignored');
+    expect(r.err).toContain('nodes.web: not a position');
+    expect(read('odd.svg').replace(/<style>[^]*?<\/style>/g, '')).not.toContain('NaN');
+  }, 30000);
+
+  it('names the file when it is not JSON', () => {
+    write('broken.yaml', shop);
+    write('broken.layout.json', '{ "nodes": ');
+    const r = carto('render', 'broken.yaml');
+    expect(r.code).not.toBe(0);
+    expect(r.err).toContain('broken.layout.json: not valid JSON');
+  }, 30000);
+});

@@ -1,7 +1,7 @@
 // Local files through the File System Access API (Chrome, Edge): open a folder, edit its diagrams in
 // place, save next to them. Text files in the folder are cached so the engine's synchronous loader can
 // read contracts relative to the diagram, as the CLI does. Other browsers fall back to upload/download.
-import type { LayoutSidecar } from '@cartography/core';
+import { parseSidecar, type LayoutSidecar } from '@cartography/core';
 import { t } from './i18n/index.ts';
 
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
@@ -82,8 +82,9 @@ export function readSidecar(ws: Workspace, diagram: string): LayoutSidecar | und
   const f = ws.files.get(sidecarPath(diagram));
   if (!f) return undefined;
   try {
-    const v = JSON.parse(f.text) as LayoutSidecar;
-    return v && typeof v === 'object' && (v.nodes || v.groups || v.edges || v.views || v.layout) ? v : undefined;
+    // What cannot be read of it is left out; the rest still pins the drawing.
+    const v = parseSidecar(JSON.parse(f.text)).sidecar;
+    return v && (v.nodes || v.groups || v.edges || v.views || v.layout) ? v : undefined;
   } catch {
     return undefined;
   }

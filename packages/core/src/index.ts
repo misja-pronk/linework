@@ -20,6 +20,7 @@ export * from './focus.ts';
 export * from './threats.ts';
 export * from './review-fields.ts';
 export * from './share.ts';
+export * from './sidecar.ts';
 export * from './workspace.ts';
 export * from './workspace-rename.ts';
 export * from './notes.ts';

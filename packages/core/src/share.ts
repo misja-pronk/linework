@@ -2,6 +2,7 @@
 // never sends the fragment to a server, so opening the link reads the diagram from the link alone.
 // The same code runs in the web app and in `carto share` (CompressionStream is in both).
 import type { LayoutSidecar } from './model.ts';
+import { parseSidecar } from './sidecar.ts';
 
 export interface SharedDiagram {
   yaml: string;
@@ -17,10 +18,30 @@ export interface SharedDiagram {
 export const SHARE_KEY = 'share';
 /** Longest link we hand out: chat tools, mail clients and older browsers cut longer ones. */
 export const SHARE_LIMIT = 32_000;
+/** Most a link may unpack to: a few kB of deflate can hold gigabytes of nothing. */
+export const SHARE_UNPACKED_LIMIT = 1_000_000;
 
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
   const out = new Blob([bytes as BlobPart]).stream().pipeThrough(stream);
   return new Uint8Array(await new Response(out).arrayBuffer());
+}
+
+/** Inflated piece by piece; undefined as soon as it grows past `limit` bytes. */
+async function inflate(bytes: Uint8Array, limit: number): Promise<Uint8Array | undefined> {
+  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > limit) return (await reader.cancel().catch(() => {}), undefined);
+    parts.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const p of parts) (out.set(p, at), (at += p.length));
+  return out;
 }
 
 function toBase64url(bytes: Uint8Array): string {
@@ -40,12 +61,15 @@ export async function encodeShare(d: SharedDiagram): Promise<string> {
   return toBase64url(await pipe(new TextEncoder().encode(JSON.stringify(body)), new CompressionStream('deflate-raw')));
 }
 
-/** The diagram back from a fragment's value; undefined when it is not one. */
-export async function decodeShare(value: string): Promise<SharedDiagram | undefined> {
+/** The diagram back from a fragment's value; undefined when it is not one, or unpacks to more than `limit` bytes. A layout keeps only what can be read of it. */
+export async function decodeShare(value: string, limit = SHARE_UNPACKED_LIMIT): Promise<SharedDiagram | undefined> {
   try {
-    const json = JSON.parse(new TextDecoder().decode(await pipe(fromBase64url(value), new DecompressionStream('deflate-raw'))));
+    const bytes = await inflate(fromBase64url(value), limit);
+    if (!bytes) return undefined;
+    const json = JSON.parse(new TextDecoder().decode(bytes));
     if (!json || typeof json.y !== 'string') return undefined;
-    return { yaml: json.y, ...(typeof json.n === 'string' ? { name: json.n } : {}), ...(json.l && typeof json.l === 'object' ? { layout: json.l } : {}), ...(typeof json.t === 'string' ? { theme: json.t } : {}) };
+    const layout = json.l && typeof json.l === 'object' ? parseSidecar(json.l).sidecar : undefined;
+    return { yaml: json.y, ...(typeof json.n === 'string' ? { name: json.n } : {}), ...(layout ? { layout } : {}), ...(typeof json.t === 'string' ? { theme: json.t } : {}) };
   } catch {
     return undefined;
   }

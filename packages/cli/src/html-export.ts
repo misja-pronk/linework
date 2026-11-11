@@ -3,7 +3,7 @@
 // small site in one file, with a contents page. The work is in @cartography/html-export.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDiagramFile, notesPath, parseNotes, type LayoutSidecar } from '@cartography/core';
+import { isDiagramFile, notesPath, parseNotes, parseSidecar } from '@cartography/core';
 import { exportHtml, type HtmlExportInput } from '@cartography/html-export';
 import { decisionsRoot, workspaceAt } from './decisions.ts';
 
@@ -57,7 +57,7 @@ export async function exportHtmlFile(target: string, out: string | undefined, fl
     sidecarFor: (p) => {
       const f = abs(p).replace(/\.ya?ml$/i, '') + '.layout.json';
       try {
-        return fs.existsSync(f) ? (JSON.parse(fs.readFileSync(f, 'utf8')) as LayoutSidecar) : undefined;
+        return fs.existsSync(f) ? parseSidecar(JSON.parse(fs.readFileSync(f, 'utf8'))).sidecar : undefined;
       } catch {
         return undefined;
       }
