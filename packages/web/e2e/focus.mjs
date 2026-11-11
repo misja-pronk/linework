@@ -246,7 +246,7 @@ await wait(400);
   await wait(400);
   // The status bar counts what a sequence draws: participants and messages.
   const status = await page.locator('.statusbar').innerText();
-  if (!status.includes('2 participants · 2 messages')) fail('the status bar does not count participants and messages: ' + status.split('\n').slice(0, 3).join(' '));
+  if (!/Participants 2\s+Messages 2/.test(status)) fail('the status bar does not count participants and messages: ' + status.split('\n').slice(0, 3).join(' '));
   const any = page.locator('.drawing [data-node]').first();
   if (await any.count()) {
     await any.click();

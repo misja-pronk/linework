@@ -20,7 +20,7 @@ await page.addInitScript((text) => {
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="app"]');
 // The trackpad way: the shapes listed beside the drawing in the builder.
-await page.locator('.view-switch button', { hasText: 'Builder' }).click();
+await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
 await wait(600);
 await page.locator('.preview').focus();
 await page.keyboard.press('Meta+0');

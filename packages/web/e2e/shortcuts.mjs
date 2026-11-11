@@ -51,7 +51,7 @@ await page.addInitScript((text) => {
   if (sessionStorage.getItem('seeded')) return;
   sessionStorage.setItem('seeded', '1');
   localStorage.clear();
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'note-author': 'Misja', doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, 'note-author': 'Misja', doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
 }, text);
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="db"]');
@@ -168,7 +168,7 @@ stop();
 await wait(600);
 
 await step('⌘] in the YAML indents, in a folder too', async () => {
-  const file = async () => page.locator('.doc-name').innerText();
+  const file = async () => page.locator('.doc-name .doc-file').innerText();
   const before = await file();
   // Next to the side panel in a folder the YAML may be folded for room: its rail opens it.
   if (await page.locator('button.yaml-rail').count()) await page.click('button.yaml-rail');
