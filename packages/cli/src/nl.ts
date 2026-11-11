@@ -73,7 +73,6 @@ export const nl = {
   ok: 'ok',
   'nothing written': 'niets geschreven',
   '{file}: nothing to draw': '{file}: niets te tekenen',
-  'nothing to draw': 'niets te tekenen',
 
   // Drawing
   '--svg-safe is for SVG: ignored for {format}': '--svg-safe is voor SVG: genegeerd voor {format}',
@@ -93,7 +92,6 @@ export const nl = {
   '{count} step|{count} steps': '{count} stap|{count} stappen',
   '{count} page|{count} pages': "{count} pagina|{count} pagina's",
   '{count} slide|{count} slides': "{count} dia|{count} dia's",
-  '{count} file|{count} files': '{count} bestand|{count} bestanden',
   '{count} threat|{count} threats': '{count} dreiging|{count} dreigingen',
   'watching… Ctrl+C to stop': 'kijkt mee… Ctrl+C om te stoppen',
 
@@ -206,12 +204,10 @@ export const nlHelp: Record<string, string> = {
                                                 en de stages in woorden; --from/--to: alleen die overgang.
                                                 Decks: carto deck --stages.
                                                 Meer: docs/transitions.md`,
-  [`  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
-                                                one command for every export: html is export-html, md is
-                                                export-md, confluence is export-confluence (their options apply)`]:
-    `  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
-                                                één opdracht voor elke export: html is export-html, md is
-                                                export-md, confluence is export-confluence (hun opties gelden)`,
+  [`  carto export <file.yaml…|folder> --to html [-o out]
+                                                the same as carto export-html (its options apply)`]:
+    `  carto export <file.yaml…|folder> --to html [-o out]
+                                                hetzelfde als carto export-html (de opties daarvan gelden)`,
   'Usage: carto <command> [files…] [options] [--lang en|nl]': 'Gebruik: carto <command> [files…] [options] [--lang en|nl]',
   [`carto — architecture diagrams that look good`]:
     `carto — architectuurdiagrammen die er goed uitzien`,
@@ -313,18 +309,6 @@ export const nlHelp: Record<string, string> = {
                [--format text|md|html]          en legenda (sequence: de berichten; ERD: tabellen en relaties).
                [--stages]                       de stages: wat elke stage toevoegt, wijzigt, weghaalt en vervangt
                                                 Dezelfde woorden staan in elke SVG, PNG, PDF en dia. docs/describe.md`,
-  [`  carto export-md <file.yaml|folder> -o dir/    a Markdown page with each view as SVG and PNG, its description
-               [--title "…"] [--no-steps]       under it and steps as sections; a folder gets README.md as its
-                                                index. Links work on GitHub, GitLab and in Obsidian. docs/wiki-export.md`]:
-    `  carto export-md <file.yaml|folder> -o dir/    een Markdown-pagina met elke weergave als SVG en PNG, de beschrijving
-               [--title "…"] [--no-steps]       eronder en stappen als secties; een map krijgt README.md als
-                                                index. Links werken op GitHub, GitLab en in Obsidian. docs/wiki-export.md`,
-  [`  carto export-confluence <file.yaml|folder> -o dir/  Confluence storage-format pages with their PNG and SVG
-               [--title "…"] [--no-steps]       attachments, an HTML copy, manifest.json and a README on how to
-                                                import them (REST API or by hand); nothing is sent anywhere`]:
-    `  carto export-confluence <file.yaml|folder> -o dir/  Confluence-pagina's (storage format) met hun PNG en SVG als
-               [--title "…"] [--no-steps]       bijlagen, een HTML-kopie, manifest.json en een README over het
-                                                importeren (REST API of met de hand); er wordt niets verstuurd`,
   [`  carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats`]:
     `  carto threats <file.yaml> [-o threats.md]    de dreigingstabel (STRIDE-dreigingen, vertrouwensgrenzen) als markdown;

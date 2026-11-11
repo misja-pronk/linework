@@ -36,13 +36,21 @@ Key
 
 | Where | What |
 | --- | --- |
-| Every SVG that leaves the editor (`carto render`, Export → SVG, `carto export-md`, the docs plugins' files) | `<title>` and `<desc>` right after the root, which says `role="img"`, `aria-labelledby` (the title) and `aria-describedby` (the description). A step's SVG says which step in its title. |
+| Every SVG that leaves the editor (`carto render`, Export → SVG) | `<title>` and `<desc>` right after the root, which says `role="img"`, `aria-labelledby` (the title) and `aria-describedby` (the description). A step's SVG says which step in its title. |
 | PNG (`carto render -o x.png`, Export → PNG, Copy as PNG) | `Title` and `Description` text chunks (iTXt, UTF-8). Image viewers and asset tools show them; a web page still needs its own `alt`. |
 | PDF (`carto render -o x.pdf`, `carto deck`, Export → PDF) | A tagged PDF: each drawing is a `Figure` with the description as its alternate text, frame and footer marked as artifacts, language set. A page per step says that step. |
 | PowerPoint (`.pptx`) | The drawing is one group on the slide whose alt text (`descr`) is the description; each shape keeps its own. A slide per step says that step. |
-| The editor | **Export → Describe in words…** or ⌘K *Describe in words*: the description of what is on screen (its view, step and focus), with **Copy text** (`T`), **Copy Markdown** (`M`) and **Copy for Confluence / Notion** (`C`, see [wiki-export.md](wiki-export.md)). |
+| The editor | **Export → Describe in words…** or ⌘K *Describe in words*: the description of what is on screen (its view, step and focus), with **Copy text** (`T`), **Copy Markdown** (`M`) and **Copy for Confluence / Notion** (`C`, below). |
 | Interactive HTML (`carto export-html`) | Each drawing is described to a screen reader by its description. |
 | `carto describe` | On the command line, below. |
+
+## Copy for Confluence / Notion
+
+**Export → Copy for Confluence / Notion**, or `C` in the Describe dialog, puts the drawing on screen (its view, step
+and focus) on the clipboard as rich HTML: a heading, the picture as a PNG inside it (2×, shown at its own size) with
+alt text, and the description. Paste into a Confluence page, Notion, Google Docs or Word and you get the picture and
+the words in one go; anything that takes only text gets the description as plain text. Made in the browser; nothing
+is uploaded.
 
 ## carto describe
 

@@ -12,7 +12,7 @@ import { drift, findType, layerKey, render, withReviewNotes, SLIDE_MIN_PT, slide
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { toSafeSvg } from '@cartography/export/svg-safe';
 import { execFileSync } from 'node:child_process';
-import { describedPng } from './wiki.ts';
+import { describedPng } from './describe.ts';
 import { decisionsCommand, withDecisionMarks, workspaceFiles } from './decisions.ts';
 import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
@@ -82,12 +82,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
                [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
-  carto export-md <file.yaml|folder> -o dir/    a Markdown page with each view as SVG and PNG, its description
-               [--title "…"] [--no-steps]       under it and steps as sections; a folder gets README.md as its
-                                                index. Links work on GitHub, GitLab and in Obsidian. docs/wiki-export.md
-  carto export-confluence <file.yaml|folder> -o dir/  Confluence storage-format pages with their PNG and SVG
-               [--title "…"] [--no-steps]       attachments, an HTML copy, manifest.json and a README on how to
-                                                import them (REST API or by hand); nothing is sent anywhere
   carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto trace <file.yaml> --from a --to b       a request traced along the relations, as a sequence diagram:
@@ -139,9 +133,8 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
                [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
                                                 names them; --answers or -y: no questions, the rest default
-  carto export <file.yaml…|folder> --to html|md|confluence [-o out]
-                                                one command for every export: html is export-html, md is
-                                                export-md, confluence is export-confluence (their options apply)
+  carto export <file.yaml…|folder> --to html [-o out]
+                                                the same as carto export-html (its options apply)
   carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported
   carto icons import <folder|file.zip> [--pack azure]
                                                 index an official icon download (Azure, AWS, Google Cloud,
@@ -195,7 +188,7 @@ const groups: [string, [string, string][]][] = [
     ['serve', t('the web editor for a folder, and an MCP endpoint for your AI')],
   ]],
   [t('Export'), [
-    ['export', '--to html|md|confluence'],
+    ['export', '--to html'],
     ['describe', t('the diagram in plain words')],
     ['share', t('a link that opens it in the web app')],
   ]],
@@ -216,8 +209,6 @@ const groups: [string, [string, string][]][] = [
 /** Older names, still taken: `carto export --to html` is the same as `carto export-html`. */
 const aliases: [string, string][] = [
   ['export-html', 'export --to html'],
-  ['export-md', 'export --to md'],
-  ['export-confluence', 'export --to confluence'],
 ];
 const commands = [...groups.flatMap(([, list]) => list.map(([c]) => c)), ...aliases.map(([c]) => c)];
 
@@ -236,7 +227,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, export: 3, 'export-html': 2, validate: 1, trace: 2 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1, trace: 2 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -244,7 +235,7 @@ function commandHelp(cmd: string): string {
   // An entry starts at a usage line or an option line; lines indented further belong to the one above.
   const entries: string[][] = [];
   for (const line of lines) (/^ {2}carto |^ {15}\S/.test(line) || !entries.length ? entries.push([line]) : entries.at(-1)!.push(line));
-  const what = cmd === 'export' ? 'every export: HTML, Markdown, Confluence' : groups.flatMap(([, l]) => l).find(([c]) => c === cmd)?.[1];
+  const what = cmd === 'export' ? 'the interactive HTML file' : groups.flatMap(([, l]) => l).find(([c]) => c === cmd)?.[1];
   const alias = aliases.find(([c]) => c === cmd)?.[1];
   const head = `carto ${cmd}${what ? ` — ${what}` : alias ? ` (also: carto ${alias})` : ''}`;
   const n = commonEntries[cmd] ?? entries.length;
@@ -367,8 +358,8 @@ const parsed = (() => {
 const { positionals, values } = parsed;
 
 const [typed, ...files] = positionals;
-/** `carto export --to html|md|confluence` is the export command of that name. */
-const exportTo = ['html', 'md', 'confluence'];
+/** `carto export --to html` is the export command of that name. */
+const exportTo = ['html'];
 const command = typed === 'export' && values.to && exportTo.includes(values.to) ? `export-${values.to}` : typed;
 if (typed === 'export' && values.to && !exportTo.includes(values.to)) {
   const picture = ['svg', 'png', 'pptx', 'pdf'].includes(values.to) ? ` (a picture or deck: carto render <file> -o out.${values.to})` : '';
@@ -1170,7 +1161,7 @@ async function main(): Promise<number> {
         else fs.writeFileSync(values.out, said);
         return 0;
       }
-      const { describeFile } = await import('./wiki.ts');
+      const { describeFile } = await import('./describe.ts');
       const r = await describeFile(f, { view: values.view, allViews: values['all-views'], format, options: optionsFor(f, 'none') });
       for (const p of r.problems) console.error(`${f}  ${red(t('error'))}  ${p}`);
       if (!r.ok) return 1;
@@ -1181,26 +1172,6 @@ async function main(): Promise<number> {
         console.error(`${f} → ${values.out}`);
       }
       return 0;
-    }
-    case 'export-md':
-    case 'export-confluence': {
-      const [f] = files;
-      if (!f || files.length > 1 || !values.out || values.out === '-') return (console.error(helpFor(command)), 1);
-      if (!fs.existsSync(f)) return (console.error(t('{file}: no such file or folder', { file: f })), 1);
-      if (!themeFlag()) return 1;
-      const wiki = await import('./wiki.ts');
-      const flags = {
-        options: (file: string) => optionsFor(file, 'embed'),
-        png: async (svg: string, r: RenderResult) => toPng(svg, Number(values.scale) || 2, await ttfFiles(r.theme?.font.faces ?? [])),
-        steps: !values['no-steps'],
-        title: values.title,
-      };
-      const r = await (command === 'export-md' ? wiki.exportMarkdown : wiki.exportConfluence)(f, values.out, flags);
-      for (const p of r.pages) for (const m of p.problems) console.error(`${path.join(fs.statSync(f).isDirectory() ? f : path.dirname(f), p.file)}  ${red(t('error'))}  ${m}`);
-      const made = r.pages.filter((p) => p.out);
-            if (!made.length) return (console.error(t('{file}: nothing to draw', { file: f })), 1);
-      console.log(`${f} → ${values.out} ${dim(`${t('{count} page|{count} pages', { count: made.length })}, ${t('{count} drawing|{count} drawings', { count: made.reduce((n, p) => n + p.drawings, 0) })}, ${t('{count} file|{count} files', { count: r.written.length })}`)}`);
-      return made.length === r.pages.length ? 0 : 1;
     }
     case 'threats': {
       const [f] = files;
@@ -1332,7 +1303,7 @@ async function main(): Promise<number> {
       return ok ? 0 : 1;
     }
     case 'export':
-      // Without --to html|md|confluence: which exports there are.
+      // Without --to html: which exports there are.
       return (console.error(helpFor(command)), 1);
     case 'deck':
       if (!files.length) return (console.error(helpFor(command)), 1);

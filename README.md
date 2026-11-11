@@ -42,7 +42,6 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Threat models, trust boundaries, STRIDE | `carto threats`, `--view threats` | [threats](docs/threats.md) |
 | Describe a diagram in plain words | Export → Describe in words, `carto describe` | [describe](docs/describe.md) |
 | One interactive HTML file to send | Export → Interactive HTML, `carto export --to html` | [html export](docs/html-export.md) |
-| Wiki pages: Markdown, Confluence | `carto export --to md\|confluence` | [wiki export](docs/wiki-export.md) |
 | PowerPoint and PDF, a slide per step; a client's template | Export, `carto deck` | [powerpoint templates](docs/powerpoint-templates.md) |
 | A share link (the diagram travels in the `#fragment`) | Export → Copy share link, `carto share` | [share](docs/share.md) |
 | Themes, a client's colours and logo, vendor icons | **Theme**, `carto themes`, `carto icons` | [themes](docs/themes.md), [icons](docs/icons.md) |
