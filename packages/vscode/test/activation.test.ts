@@ -79,7 +79,8 @@ describe('preview', () => {
     stub.window.activeTextEditor = { document: doc, selections: [] };
     await stub.commands.executeCommand('cartography.showPreview');
     const panel = await until(() => stub.state.panels.find((p) => p.viewType === 'cartography.preview'));
-    expect(panel.webview.html).toContain("default-src 'none'");
+    // The policy is an attribute, its quotes escaped: the browser reads it unescaped.
+    expect(panel.webview.html.replaceAll('&#39;', "'")).toContain("default-src 'none'");
     expect(panel.webview.html).not.toMatch(/https?:\/\/(?!www\.w3\.org)/);
     panel.received.fire({ type: 'ready' });
     const picture = await until(() => panel.posted.find((m) => (m as { type: string }).type === 'picture')) as { picture: { svg: string; nodes: Record<string, unknown> }; fontCss?: string; pinnable: boolean };

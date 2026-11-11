@@ -7,6 +7,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, acceptDownloads: true });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
+// Against the built app (vite preview) its Content-Security-Policy applies: whatever it blocks is a problem.
+page.on('console', (m) => m.type() === 'error' && /Content Security Policy/i.test(m.text()) && problems.push(m.text()));
 const fail = (m) => problems.push(m);
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {

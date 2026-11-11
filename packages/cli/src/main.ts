@@ -27,7 +27,7 @@ import { dynamicView, sequenceYaml, traceable, traceAsk, type TraceMeta } from '
 import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { looksLikeRepo, repoDiagrams } from './repo.ts';
 import { badLang, explicitLang, helpText, t } from './i18n.ts';
-import { matchTypes, packLayout, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
+import { matchTypes, packLayout, parseSidecar, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
 const helpAll = helpText(`carto — architecture diagrams that look good
 
@@ -507,9 +507,19 @@ function report(file: string, diagnostics: Diagnostic[]) {
 
 const sidecarPath = (file: string) => file.replace(/\.ya?ml$/, '') + '.layout.json';
 
+/** The sidecar next to a diagram: an entry that cannot be read is said and left out; JSON that cannot be read stops, naming the file. */
 function sidecarFor(file: string): LayoutSidecar | undefined {
   const p = sidecarPath(file);
-  return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar) : undefined;
+  if (!fs.existsSync(p)) return undefined;
+  let json: unknown;
+  try {
+    json = JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (e) {
+    throw new Error(`${p}: ${t('not valid JSON: {message}', { message: (e as Error).message })}`);
+  }
+  const r = parseSidecar(json);
+  for (const w of r.warnings) console.error(`${p}  ${yellow(t('warning'))}  ${w}`);
+  return r.sidecar;
 }
 
 /** The review notes next to a diagram; what cannot be read in them is said once. */
@@ -671,13 +681,14 @@ function noteLayout(file: string, results: RenderResult[]) {
 async function checkDrift(file: string): Promise<boolean> {
   const p = sidecarPath(file);
   if (!fs.existsSync(p)) return true;
-  let sidecar: LayoutSidecar;
+  let sidecar: LayoutSidecar | undefined;
   try {
-    sidecar = JSON.parse(fs.readFileSync(p, 'utf8')) as LayoutSidecar;
+    sidecar = sidecarFor(file);
   } catch (e) {
-    console.error(`${p}  ${red(t('error'))}  ${t('not valid JSON: {message}', { message: (e as Error).message })}`);
+    console.error(`${red(t('error'))}  ${(e as Error).message}`);
     return false;
   }
+  if (!sidecar) return false;
   const r = await drift(fs.readFileSync(file, 'utf8'), sidecar, { load: loaderFor(file), file: path.basename(file), packs: values.pack, pack: readPack });
   if (r.error) return (console.error(`${p}  ${yellow(t('warning'))}  ${r.error}`), true);
   if (!r.stale.length) return true;
@@ -801,11 +812,11 @@ async function draw(file: string, fonts: RenderOptions['fonts']) {
 
 /** Slides and PDF pages, from one or many drawings; a brand theme carries over. */
 function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme'], diagram?: string): Promise<Uint8Array> {
-  const t = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
+  const th = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
   if (format === 'pptx')
-    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w), ...templateFlags(theme, diagram) });
+    return toPptx(drawings, { theme: th, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w), onWarning: (w) => console.error(`${yellow(t('warning'))}  ${w}`), ...templateFlags(theme, diagram) });
   const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
-  return toPdf(drawings, { theme: t, page, fonts: interTtf(), families: themeTtf(typeof t === 'object' ? t : themes[t]), title: values.title, steps: stepsFlag() });
+  return toPdf(drawings, { theme: th, page, fonts: interTtf(), families: themeTtf(typeof th === 'object' ? th : themes[th]), title: values.title, steps: stepsFlag() });
 }
 
 /**

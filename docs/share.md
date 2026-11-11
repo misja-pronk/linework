@@ -26,3 +26,5 @@ Links up to 32 kB are handed out; longer ones get cut by chat tools, mail client
 ## How it is encoded
 
 `#share=` followed by base64url of the raw-deflate (`CompressionStream('deflate-raw')`) of a small JSON object: `{ "v": 1, "y": "<yaml>", "n": "<file name>", "l": <layout>, "t": "<theme>" }`. No library is involved; the CLI and the web app use the same code (`packages/core/src/share.ts`).
+
+Opening a link is careful with what it is handed: a link that unpacks to more than 1 MB is not opened, and of the layout only the positions and bends that can be read are kept.

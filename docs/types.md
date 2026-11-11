@@ -12,6 +12,8 @@ carto new erd orders.yaml      # start from a type's template
 
 Whatever the type, a drawing can be told in parts for an audience: `steps:` says what is shown and what stands out at each step, for the presenter in the editor and for one slide per step in PowerPoint. See [steps.md](steps.md).
 
+In PowerPoint every type is drawn as native shapes you can edit, except three: a sequence diagram, git branching and a roadmap go on the slide as one picture (SVG, with a PNG for older apps). The export says so in a warning.
+
 A big drawing of boxes and lines can be cut down to one thing and what is around it: `focus: orders` in the YAML, `carto render --focus orders --hops 2`, or `F` on a selection in the editor. See [the focus view](data-products.md#the-focus-view).
 
 ## Decision table

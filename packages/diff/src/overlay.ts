@@ -3,7 +3,7 @@
 // (+ ~ −), its own outline (solid, dashed, dotted) and is named in the key.
 import type { Box, Graph, Placed, Point } from '@cartography/core';
 import { baselineOffset, fitText, measureText, themeTextFonts, withTextFonts, type Theme } from '@cartography/theme';
-import { dotGrid, drawSheet, sheetPad } from '@cartography/render';
+import { dotGrid, drawSheet, esc, sheetPad } from '@cartography/render';
 import type { GraphDiff, Status } from './structure.ts';
 import { toldCounts } from './explain.ts';
 
@@ -49,7 +49,6 @@ const DASH: Record<Status, string> = { added: '', changed: '7 5', removed: '1.5 
 const TAG = 18;
 const KEY = 44;
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const dash = (s: Status) => (DASH[s] ? ` stroke-dasharray="${DASH[s]}" stroke-linecap="round"` : '');
 

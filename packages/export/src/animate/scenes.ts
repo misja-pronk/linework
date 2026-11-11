@@ -3,7 +3,7 @@
 // caption as a lower third under the drawing. Only what shows and what stands out changes from beat
 // to beat, so the frames in between are a blend of two pictures (timeline.ts).
 import { fadeState, finalState, selectorsOf, type Box, type Faded, type Graph, type Placed, type Point, type StepState } from '@cartography/core';
-import { drawSvg, wrap, type StepView } from '@cartography/render';
+import { drawSvg, esc, wrap, type StepView } from '@cartography/render';
 import { themeTextFonts, withTextFonts, type Theme } from '@cartography/theme';
 import type { Lang } from '@cartography/i18n';
 import { tr } from '@cartography/i18n/drawing';
@@ -105,7 +105,6 @@ export interface Scene {
 
 const LT = { padX: 56, rule: 22, title: 22, text: 18, row: 28, bottom: 30, marker: 120, column: 340 };
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 /** What a beat says, wrapped to `room`: its title, then its caption. */

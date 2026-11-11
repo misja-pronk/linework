@@ -1,6 +1,7 @@
 // The timeline under a drawing of one stage (or of the migration overview): a stop per stage, the
 // one drawn filled and named in bold, what each stage changes under its name, then the stage's own
 // title and description. As high at every stage, so slides of the stages line up.
+import { esc } from './paint.ts';
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { CAPTION, wrap } from './steps.ts';
 
@@ -21,7 +22,6 @@ export interface StageStrip {
   caption?: string;
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const text = (x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end') =>
   `<text x="${r1(x)}" y="${r1(cy + baselineOffset(size))}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor ? ` text-anchor="${anchor}"` : ''}>${esc(s)}</text>`;

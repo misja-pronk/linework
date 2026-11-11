@@ -41,6 +41,8 @@ const page = await context.newPage();
 const problems = [];
 let current = '';
 page.on('pageerror', (e) => problems.push(`${current}: page error: ${e.message}`));
+// Against the built app (vite preview) its Content-Security-Policy applies: whatever it blocks is a problem.
+page.on('console', (m) => m.type() === 'error' && /Content Security Policy/i.test(m.text()) && problems.push(`${current}: ${m.text()}`));
 
 // The document to open is put in storage before the app starts, as the app keeps it between visits.
 await page.addInitScript(() => {

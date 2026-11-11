@@ -6,7 +6,7 @@ import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type 
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { cardStroke, iconTile, numberMark, shadowAttr } from './paint.ts';
+import { cardStroke, iconTile, numberMark, shadowAttr, esc } from './paint.ts';
 
 const K = {
   gap: 28,
@@ -430,7 +430,6 @@ function branchWidth(frame: string, label: string | undefined, theme: Theme): nu
 // ---------------------------------------------------------------- drawing
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end', extra = '') {
   const a = anchor ? ` text-anchor="${anchor}"` : '';

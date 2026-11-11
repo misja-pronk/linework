@@ -10,6 +10,8 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, acc
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
+// Against the built app (vite preview) its Content-Security-Policy applies: whatever it blocks is a problem.
+page.on('console', (m) => m.type() === 'error' && /Content Security Policy/i.test(m.text()) && fail(m.text()));
 const example = (f) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
 
 /** A GIF's size and how long it plays: the delays of its graphic control blocks, walked block by block. */

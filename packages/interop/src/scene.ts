@@ -7,7 +7,7 @@ import { chips, type BlockShape, type Box, type CardShape, type FlowShape, type 
 import { icon } from '@cartography/icons';
 import { tr } from '@cartography/i18n/drawing';
 import { kinds as sequenceKinds } from '@cartography/sequence';
-import { besideShortLine, blockMarks, joinDot, rowHeight, sectionHeight, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
+import { besideShortLine, blockMarks, esc, joinDot, rowHeight, sectionHeight, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, markWidth, MATRIX, matrixGeometry, rowMarks, sequenceGeometry, sheetPad, split, STACK, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, themeTextFonts, withTextFonts, type TextFonts, type Theme, type ToneColors } from '@cartography/theme';
 
 /** What the engine's `render` returns; only what is drawn from is asked for. */
@@ -196,7 +196,6 @@ export function squared(points: Point[]): Point[] {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** A line icon as a standalone SVG, `size` px square. */
 function iconMarkup(name: string, color: string, size: number, stroke: number, x = 0, y = 0): string {
