@@ -359,6 +359,15 @@
   box-shadow: 0 0 0 1px var(--rule2);
   outline: none;
 }
+/* In a box, over where its name is drawn: no field of its own, so the box shows round it (outline,
+   icon, kind, the selection ring) and only the rust rule says the name is being typed. */
+.label-editor.in-shape {
+  padding: 0;
+  border-bottom-width: 1.5px;
+  background: transparent;
+  box-shadow: none;
+  line-height: 1;
+}
 @media (forced-colors: active) {
   .label-editor {
     outline: 2px solid Highlight;

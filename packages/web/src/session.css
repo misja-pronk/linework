@@ -344,6 +344,11 @@
   font-size: 15px;
   font-weight: 600;
 }
+/* In the box it names: the box is the field (sized and set like the name it becomes). */
+.app.in-session .label-editor.in-shape {
+  border-bottom-width: 1.5px;
+  background: transparent;
+}
 
 /* ------------------------------------------------------------ the hint at the selection (placed by SelectionFloats) */
 .sketch-hint {
