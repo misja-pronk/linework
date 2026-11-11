@@ -62,24 +62,24 @@ export const survey: Theme = {
   mode: 'light',
   canvas: '#FFFFFF',
   surface: '#FFFFFF',
-  border: '#CBC7BD',
+  border: '#99948A',
   text: '#16212C',
   textMuted: '#4F5B66',
   textFaint: '#5D6670',
   edge: '#5E6A75',
   shadow: { color: '#16212C', opacity: 0 },
   accent: '#B5491B',
-  tones: tones(surveyInks, '#F8F6F1', '#D3CDBE'),
-  group: { ...surveyGroup, tints: ['#F8F6F1', '#F0EDE4', '#E8E4D8'], line: '#D3CDBE' },
+  tones: tones(surveyInks, '#F8F6F1', '#9A9485'),
+  group: { ...surveyGroup, tints: ['#F8F6F1', '#F0EDE4', '#E8E4D8'], line: '#9A9485' },
 };
 
 /** The same sheet with cool grey terrain, for decks whose own palette is cold. */
 export const surveyCool: Theme = {
   ...survey,
   name: 'survey-cool',
-  border: '#C6CCD3',
-  tones: tones({ ...surveyInks, slate: ['#4E5A65', '#ECEEF0'] }, '#F5F7F9', '#CDD4DB'),
-  group: { ...surveyGroup, tints: ['#F5F7F9', '#ECEFF3', '#E2E7EC'], line: '#CDD4DB' },
+  border: '#8F959C',
+  tones: tones({ ...surveyInks, slate: ['#4E5A65', '#ECEEF0'] }, '#F5F7F9', '#8E959D'),
+  group: { ...surveyGroup, tints: ['#F5F7F9', '#ECEFF3', '#E2E7EC'], line: '#8E959D' },
 };
 
 const surveyDarkInks: Pairs = {
@@ -102,15 +102,15 @@ export const surveyDark: Theme = {
   mode: 'dark',
   canvas: '#13171B',
   surface: '#2A3138',
-  border: '#48525C',
+  border: '#727A83',
   text: '#ECE9E2',
   textMuted: '#AEB4BA',
   textFaint: '#949CA4',
   edge: '#949DA6',
   shadow: { color: '#000000', opacity: 0 },
   accent: '#E8875A',
-  tones: tones(surveyDarkInks, '#181D21', '#39424A'),
-  group: { ...surveyGroup, tints: ['#181D21', '#1E2429', '#242B31'], line: '#39424A' },
+  tones: tones(surveyDarkInks, '#181D21', '#5E666D'),
+  group: { ...surveyGroup, tints: ['#181D21', '#1E2429', '#242B31'], line: '#5E666D' },
 };
 
 // ---------------------------------------------------------------- Transit
@@ -140,7 +140,7 @@ export const transit: Theme = {
   mode: 'light',
   canvas: '#FFFFFF',
   surface: '#FFFFFF',
-  border: '#B9BFC6',
+  border: '#8C939B',
   text: '#11181F',
   textMuted: '#48525C',
   textFaint: '#5B636C',
@@ -172,7 +172,7 @@ export const transitDark: Theme = {
   mode: 'dark',
   canvas: '#0E1114',
   surface: '#2B323A',
-  border: '#4A545E',
+  border: '#737C85',
   text: '#F2F4F6',
   textMuted: '#A9B1BA',
   textFaint: '#929BA4',

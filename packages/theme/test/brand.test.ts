@@ -48,6 +48,15 @@ describe('theme specs', () => {
     }
   });
 
+  it('keeps card borders and group lines of every built-in theme at 3:1 (WCAG non-text contrast)', () => {
+    for (const [name, t] of Object.entries(themes)) {
+      for (const bg of [t.surface, t.canvas]) expect(contrast(t.border, bg), `${name} border`).toBeGreaterThanOrEqual(3);
+      for (const k of tones) expect(contrast(t.tones[k].fg, t.tones[k].bg), `${name} ${k}`).toBeGreaterThanOrEqual(AA);
+      const line = look(t).group.line;
+      if (line && line !== 'none') expect(contrast(line, t.canvas), `${name} group line`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('derives a whole palette from one brand colour, AA on light and dark', () => {
     for (const base of [light, dark, classic, classicDark]) {
       const t = deriveTheme(base, { colors: { primary: '#FFC20E' } });
