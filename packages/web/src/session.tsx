@@ -232,7 +232,7 @@ const overlap = (a: Box, b: Box) =>
 
 /** What is on screen that a floating thing should not cover, in client pixels. */
 interface Obstacles {
-  /** Boxes and labels of the drawing, the session's own chrome, the name being typed; with how much covering each costs. */
+  /** Boxes and labels of the drawing, the session's own chrome, the name being typed; with how much hiding each wholly costs. */
   boxes: { b: Box; w: number }[];
   /** Points along the lines, every few pixels: a line is thin, its box would say little. */
   points: { x: number; y: number }[];
@@ -242,7 +242,8 @@ function obstacles(own: Element[]): Obstacles {
   const box = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
   const boxes: Obstacles['boxes'] = [];
   for (const el of document.querySelectorAll('.drawing [data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 4 });
-  for (const el of document.querySelectorAll('.drawing [data-edge] text, .drawing [data-group] > text')) boxes.push({ b: box(el.getBoundingClientRect()), w: 3 });
+  // Every word on the sheet: line labels, group headers, the title, the key.
+  for (const el of document.querySelectorAll('.drawing svg text')) if (!el.closest('[data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 3 });
   for (const el of document.querySelectorAll('.session-strip, .session-head > *, .label-editor, .kind-list')) if (!own.some((o) => o.contains(el))) boxes.push({ b: box(el.getBoundingClientRect()), w: 8 });
   const points: Obstacles['points'] = [];
   for (const g of document.querySelectorAll('.drawing [data-edge]')) {
@@ -259,11 +260,14 @@ function obstacles(own: Element[]): Obstacles {
   return { boxes, points };
 }
 
-/** How much a box on screen (client pixels) would cover: about 1 for a box wholly over a shape, a few tenths for a line across it. */
+/** How much a box on screen (client pixels) would hide: of each shape and label, the part it covers (a label half hidden is half as bad as one wholly hidden, however small it is); a few tenths for a line across it. */
 function crowding(b: Box, o: Obstacles): number {
   const area = b.width * b.height;
   let sum = 0;
-  for (const x of o.boxes) sum += (x.w * overlap(b, x.b)) / area;
+  for (const x of o.boxes) {
+    const own = x.b.width * x.b.height;
+    if (own > 0) sum += (x.w * overlap(b, x.b)) / own;
+  }
   // A margin round the box: a line just past its edge reads as running into it.
   let hits = 0;
   for (const q of o.points) if (q.x > b.left - 4 && q.x < b.left + b.width + 4 && q.y > b.top - 4 && q.y < b.top + b.height + 4) hits++;
@@ -283,15 +287,16 @@ interface FloatsProps {
 }
 
 /**
- * The menu and the hint at the selection, each where it covers the least of the drawing: the menu
- * above the selection, else below it; the hint on the other side, lined up with the selection's left
- * edge. Both stay inside the pane and the window, moved along their side rather than off it.
+ * The menu and the hint at the selection, together where they hide the least of the drawing: the menu
+ * above the selection, else below it; the hint past the menu or on the other side, lined up with the
+ * selection's left edge, or beside it on the right. Both stay inside the pane and the window, moved
+ * along their side rather than off it.
  */
 export function SelectionFloats({ rect, menu, hint }: FloatsProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const hintRef = useRef<HTMLDivElement>(null);
   /** The sides last chosen: a side keeps its place unless the other is clearly better, so it does not flicker while the view moves. */
-  const was = useRef<{ menu?: 'above' | 'below'; hint?: 'above' | 'below' }>({});
+  const was = useRef<{ menu?: 'above' | 'below'; hint?: 'above' | 'below' | 'right' }>({});
   useLayoutEffect(() => {
     const m = menuRef.current;
     const h = hintRef.current;
@@ -308,7 +313,10 @@ export function SelectionFloats({ rect, menu, hint }: FloatsProps) {
     const own = [m, h].filter((x): x is HTMLDivElement => !!x);
     const around = obstacles(own);
     const sel: Box = rect;
-    const score = (b: Box, side: 'above' | 'below', prefer: 'above' | 'below', last?: 'above' | 'below', avoid?: Box) =>
+    type Side = 'above' | 'below';
+    type HintSide = Side | 'right';
+    const sides = ['above', 'below'] as const;
+    const score = (b: Box, side: HintSide, prefer: HintSide, last?: HintSide, avoid?: Box) =>
       crowding({ ...b, left: b.left + o.left, top: b.top + o.top }, around) +
       // Over the selection itself is worst: that is what everyone is looking at.
       (8 * overlap(b, sel)) / (b.width * b.height) +
@@ -316,34 +324,50 @@ export function SelectionFloats({ rect, menu, hint }: FloatsProps) {
       (side === prefer ? 0 : 0.15) -
       (side === last ? 0.1 : 0);
 
-    let menuBox: Box | undefined;
-    if (m) {
+    // The menu centred on the selection; its two places.
+    const cx = rect.left + rect.width / 2;
+    const menuAt = (side: Side): Box | undefined => {
+      if (!m) return undefined;
       const w = m.offsetWidth;
       const ht = m.offsetHeight;
-      const cx = rect.left + rect.width / 2;
-      const left = clampX(cx - w / 2, w);
-      const at = (side: 'above' | 'below'): Box => ({ left, top: clampY(side === 'above' ? rect.top - GAP - ht : rect.top + rect.height + GAP, ht), width: w, height: ht });
-      const side = (['above', 'below'] as const).map((s) => ({ s, b: at(s), v: score(at(s), s, 'above', was.current.menu) })).sort((a, b) => a.v - b.v)[0]!;
-      was.current.menu = side.s;
-      menuBox = side.b;
-      m.style.left = `${side.b.left}px`;
-      m.style.top = `${side.b.top}px`;
-      m.dataset.side = side.s;
-      // The pointer stays at the selection's middle when the menu is moved along to stay in view.
-      m.style.setProperty('--point', `${Math.max(12, Math.min(w - 12, cx - side.b.left))}px`);
-    }
-    if (h) {
+      return { left: clampX(cx - w / 2, w), top: clampY(side === 'above' ? rect.top - GAP - ht : rect.top + rect.height + GAP, ht), width: w, height: ht };
+    };
+    // The hint from the selection's left edge (its right edge if it would run out of the room); on the
+    // menu's side it goes past the menu, on the other side next to the selection.
+    const hintAt = (side: HintSide, menuSide: Side | undefined, mb: Box | undefined): Box | undefined => {
+      if (!h) return undefined;
       const w = h.offsetWidth;
       const ht = h.offsetHeight;
-      // Lined up with the selection's left edge; if it runs out of the room, with its right edge; then held in.
+      // Or beside it, on the right, level with its middle: where a diagram often has room.
+      if (side === 'right') return { left: clampX(rect.left + rect.width + GAP, w), top: clampY(rect.top + rect.height / 2 - ht / 2, ht), width: w, height: ht };
       const left = rect.left + w <= maxX ? clampX(rect.left, w) : clampX(rect.left + rect.width - w, w);
-      const after = menuBox && was.current.menu === 'below' ? menuBox.top + menuBox.height : rect.top + rect.height;
-      const before = menuBox && was.current.menu === 'above' ? menuBox.top : rect.top;
-      const at = (side: 'above' | 'below'): Box => ({ left, top: clampY(side === 'below' ? after + (menuBox && was.current.menu === 'below' ? 8 : GAP - 4) : before - (menuBox && was.current.menu === 'above' ? 8 : GAP - 4) - ht, ht), width: w, height: ht });
-      const side = (['below', 'above'] as const).map((s) => ({ s, b: at(s), v: score(at(s), s, 'below', was.current.hint, menuBox) })).sort((a, b) => a.v - b.v)[0]!;
-      was.current.hint = side.s;
-      h.style.left = `${side.b.left}px`;
-      h.style.top = `${side.b.top}px`;
+      const past = mb && menuSide === side;
+      const top = side === 'below' ? (past ? mb.top + mb.height + 8 : rect.top + rect.height + GAP - 4) : past ? mb.top - 8 - ht : rect.top - (GAP - 4) - ht;
+      return { left, top: clampY(top, ht), width: w, height: ht };
+    };
+    // Both together: the pair that hides least, the menu weighing more (it is what the hands go to).
+    let best: { v: number; ms?: Side; mb?: Box; hs?: HintSide; hb?: Box } = { v: Infinity };
+    for (const ms of m ? sides : [undefined]) {
+      const mb = ms && menuAt(ms);
+      const mv = ms && mb ? 1.5 * score(mb, ms, 'above', was.current.menu) : 0;
+      for (const hs of h ? (['below', 'above', 'right'] as const) : [undefined]) {
+        const hb = hs && hintAt(hs, ms, mb);
+        const v = mv + (hs && hb ? score(hb, hs, 'below', was.current.hint, mb) + (hs === 'right' ? 0.25 : 0) : 0);
+        if (v < best.v) best = { v, ms, mb, hs, hb };
+      }
+    }
+    if (m && best.mb && best.ms) {
+      was.current.menu = best.ms;
+      m.style.left = `${best.mb.left}px`;
+      m.style.top = `${best.mb.top}px`;
+      m.dataset.side = best.ms;
+      // The pointer stays at the selection's middle when the menu is moved along to stay in view.
+      m.style.setProperty('--point', `${Math.max(12, Math.min(best.mb.width - 12, cx - best.mb.left))}px`);
+    }
+    if (h && best.hb && best.hs) {
+      was.current.hint = best.hs;
+      h.style.left = `${best.hb.left}px`;
+      h.style.top = `${best.hb.top}px`;
     }
   });
   return (
