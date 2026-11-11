@@ -26,10 +26,10 @@ Connections
 - id-shop-jobs signs in with stshopexports (Storage Blob Data Contributor) and signs in with Microsoft Graph (User.Read.All (application)).
 
 Walkthrough
-1. Three kinds of workload identity: An app registration with its service principal for code outside Azure, and managed identities for code inside it. None of them has a secret to leak.
+1. Three kinds: An app registration with its service principal for code outside Azure, and managed identities for code inside it. None of them has a secret to leak.
 2. Deploying from GitHub: The workflow presents GitHub's OIDC token. The federated credential trusts only northwind/shop in environment prod, and Entra issues a token for the service principal.
   - app-shop-deploy: repo:northwind/shop:environment:prod
-3. Least privilege for the pipeline: The service principal is Contributor on one resource group, not on the subscription.
+3. Pipeline, least privilege: The service principal is Contributor on one resource group, not on the subscription.
 4. System-assigned: The web app's identity lives and dies with the app, and may only read secrets from its own vault.
 5. User-assigned: The jobs run as an identity of their own, which can be shared and survives a redeploy. It writes exports and reads users through an application permission on Microsoft Graph.
   - Microsoft Graph: Needs admin consent

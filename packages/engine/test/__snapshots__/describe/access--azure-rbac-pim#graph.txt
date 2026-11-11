@@ -27,9 +27,9 @@ Connections
 Walkthrough
 1. Scopes: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.
 2. Standing access: Read-only at the top for security and finance. Developers can change dev and read production.
-3. Changing production goes through PIM: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
+3. Production through PIM: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
   - sg-shop-developers: MFA and a reason, max 8 h
-4. Least privilege for operations: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
+4. Operations, least privilege: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
 5. No standing Owner: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
   - sg-azure-platform-admins: A second admin approves, max 4 h
 
