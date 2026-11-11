@@ -83,7 +83,6 @@ export async function toPage(c: Collected, opts: { notes?: boolean; date?: Date 
     elements: c.elements,
     icons,
     notes: !!opts.notes,
-    ...(c.decisions ? { decisions: c.decisions } : {}),
   };
   // mtime 0: the same diagrams give the same file.
   const data = base64(gzipSync(strToU8(JSON.stringify(payload)), { level: 9, mtime: 0 }));

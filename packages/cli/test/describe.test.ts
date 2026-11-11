@@ -40,11 +40,6 @@ describe('carto describe', () => {
     expect(all).toContain('### Interactions');
   });
 
-  it('names the architecture decisions about the drawing', () => {
-    const r = carto('describe', 'examples/workspace/containers.yaml');
-    expect(r.out).toMatch(/\nDecisions\n- ADR-0001: .*\(accepted\)\./);
-  });
-
   it('says what is wrong with a broken diagram and writes nothing', () => {
     fs.writeFileSync(out('broken.yaml'), 'type: nonsense\n');
     const r = carto('describe', out('broken.yaml'));

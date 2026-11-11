@@ -25,7 +25,7 @@ nodes:
 - **In de tekening en exports** (SVG, PNG, PDF, PowerPoint, HTML): het woord LEGENDA en de labels van
   ingebouwde lijnstijlen, de namen van algemene soorten (Gebruikers, Wachtrij, Opslag; productnamen
   als App Service, S3 of BigQuery blijven), "stap 3 van 7", vertrouwensgrenzen,
-  besluiten, rij- en kolomkoppen van journeys en roadmaps, de tekstbeschrijving
+  rij- en kolomkoppen van journeys en roadmaps, de tekstbeschrijving
   (`carto describe`, alt-tekst) en de knoppen van de interactieve HTML-viewer.
 - **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
   van sneltoetsen, de inspector en de vragen van de wizards.
@@ -60,7 +60,6 @@ repository, workflow, pull request, YAML, SVG.
 | Step / Steps | Stap / Stappen |
 | Focus | Focus |
 | Note (review note) | Notitie |
-| Decision (ADR) | Besluit |
 | Review | Review |
 | Trust boundary | Vertrouwensgrens |
 | Compare | Vergelijken |

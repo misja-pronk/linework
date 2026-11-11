@@ -36,7 +36,6 @@ Select an element and the panel under the file list says where it is used:
 
 - **Drawn in**: every drawing that shows it, with the id it has there (`deployment.yaml as api`). A click opens it with the element selected.
 - **Named in**: every line that names it: where it is defined, `ref:`, `of:`, instances, relations, views and their rules. A click shows the line in the YAML.
-- **Decisions**: the architecture decisions about it or about one of its lines, with their status. A click opens the decision ([decisions.md](decisions.md)).
 
 ## Rename everywhere (⇧F2)
 
@@ -45,7 +44,6 @@ Select an element and the panel under the file list says where it is used:
 - Give the new last part of the id (`online.api` → `backend` makes `online.backend`); a rename never moves an element to another parent. A new label is optional: it is written in the definition, and where an entry repeats the old label (an access resource `Core ledger`), there too.
 - Only the ids change: comments, quotes, order and layout of each file stay as they were. A part's id goes with its system (`online` → `digital` makes `online.api` `digital.api` everywhere).
 - A node with its own key and `ref: ledger` keeps its key; only the ref changes. An entry that is the element by its id (`ledger:`) gets the new key, with whatever its type says refers to it: lines, `in:`, access assignments, data product inputs.
-- Architecture decisions follow: the `concerns:` of every decision about it in the decisions folder are rewritten, and shown in the preview ([decisions.md](decisions.md)).
 - Pins and review notes follow: in each `.layout.json`, what was pinned, locked or bent under the old id is under the new one, in every view, and threads in `.notes.json` hang on the new id; also for files whose text does not change.
 - The change to every file is shown first, as a diff; ↵ applies it. Nothing is written when one of the files changed on disk since it was read, or when the new id is taken (also by another kind of entry in a diagram, such as a principal).
 - The open file changes in the editor, as one undo step (⌘Z); the others are written to the folder. *Undo rename* (in the toast and in the command palette) puts every file back, asking first about a file that changed since.
@@ -57,8 +55,7 @@ The problems list (the status bar shows `N across <folder>`) adds what only show
 - a `ref:`, `of:`, instance, view `of:`, step or relation that names an element that is not in scope, with the nearest id there is (`of: payments.engin … did you mean payments.engine?`); a view rule or a line naming an unknown dotted id is a warning;
 - an `include:` of a file that is not in the folder;
 - one id with two different kinds in two models that meet (in the same folder, or included together), such as `cache` a cache in one and a database in the other;
-- an element that no diagram or view shows;
-- a decision in the decisions folder about an id, a view or another decision that is not there.
+- an element that no diagram or view shows.
 
 The CLI does the same for a folder:
 

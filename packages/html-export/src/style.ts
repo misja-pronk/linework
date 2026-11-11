@@ -14,8 +14,6 @@ export interface Tokens {
   paper: string;
   table: string;
   accent: string;
-  /** Decisions' colour, as their markers on the drawings. */
-  violet: string;
   sans: string;
   mono: string;
 }
@@ -44,14 +42,13 @@ function raw(t: Theme, dark: boolean, accent: string): Tokens {
     paper: dark ? mix(t.surface, t.canvas, 0.3) : t.tones.blue.wash,
     table: dark ? mix(t.canvas, '#000000', 0.72) : mix(t.tones.blue.wash, t.border, 0.72),
     accent,
-    violet: t.tones.violet.fg,
     sans: t.font.family,
     mono: t.font.mono,
   };
 }
 
 const vars = (k: Tokens) =>
-  `--canvas:${k.canvas};--surface:${k.surface};--text:${k.text};--muted:${k.muted};--faint:${k.faint};--border:${k.border};--line:${k.line};--paper:${k.paper};--table:${k.table};--accent:${k.accent};--violet:${k.violet};`;
+  `--canvas:${k.canvas};--surface:${k.surface};--text:${k.text};--muted:${k.muted};--faint:${k.faint};--border:${k.border};--line:${k.line};--paper:${k.paper};--table:${k.table};--accent:${k.accent};`;
 
 /** The page's stylesheet, with the light and the dark tokens. */
 export function pageCss(light: Tokens, dark: Tokens): string {
@@ -150,18 +147,6 @@ kbd{font:500 11px/1 var(--mono);padding:2px 5px;border:1px solid var(--line);bor
 .panel .open-btn{margin-top:16px;width:100%;justify-content:center;height:38px}
 .panel .tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
 .panel .tags span{font:11px var(--mono);color:var(--muted);background:var(--paper);border-radius:4px;padding:2px 6px}
-.adr-status{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:600;border:1.5px solid var(--violet);color:var(--violet)}
-.adr-status.accepted{background:var(--violet);color:var(--canvas)}
-.adr-status.proposed{border-style:dashed}
-.adr-status.superseded,.adr-status.deprecated,.adr-status.rejected{border-color:var(--muted);color:var(--muted);text-decoration:line-through}
-.adr-text{max-width:46em;line-height:1.55}
-.adr-text h2{font-size:17px;margin:26px 0 6px}
-.adr-text pre{padding:10px;background:var(--canvas);border:1px solid var(--line);border-radius:6px;overflow:auto}
-.adr-text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--muted)}
-.adr-where{font-size:14px}
-.adr .lede .adr-status{margin-right:6px}
-.adr-where a,.adr-text a,.adr td a,.adr>.wrap>a.caps{color:var(--text);text-decoration-color:var(--violet);text-underline-offset:3px}
-.adr>.wrap>a.caps{display:inline-block;margin-bottom:6px;text-decoration:none}
 .note{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .note:last-child{border-bottom:0}
 .note .num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--canvas);font:600 11px/22px var(--sans);text-align:center}

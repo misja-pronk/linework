@@ -25,8 +25,6 @@ export interface DescribeInput {
   /** The view drawn, and the views there are: a view's title says what this drawing is. */
   view?: string;
   views?: { name: string; title?: string }[];
-  /** Decision records about the diagram, when there are any: one line each. */
-  decisions?: { id?: string; title: string; status?: string; summary?: string }[];
   /** The file, for a title when the diagram has none. */
   name?: string;
 }
@@ -79,7 +77,7 @@ function describeIn(input: DescribeInput): Description {
     : tellGraph(graph, input.type?.id);
   const about = clean(graph.subtitle);
   const summary = [`${kind}${about ? `: ${sentence(about)}` : '.'}`, told.size ? sentence(told.size) : ''].filter(Boolean).join(' ');
-  const sections = [...told.sections, ...walkthrough(graph, input), ...layerSection(input), ...trustSection(graph), ...decisionSection(input), ...keySection(graph)];
+  const sections = [...told.sections, ...walkthrough(graph, input), ...layerSection(input), ...trustSection(graph), ...keySection(graph)];
   return { title, summary, sections: sections.filter((x) => x.text || x.items?.length) };
 }
 
@@ -851,12 +849,6 @@ function layerSection(input: DescribeInput): Section[] {
 function trustSection(graph: Graph): Section[] {
   const trust = graph.groups.filter((g) => g.trust);
   return trust.length ? [{ heading: d('Trust boundaries'), items: trust.map((g) => ({ text: nameOf(g) })) }] : [];
-}
-
-function decisionSection(input: DescribeInput): Section[] {
-  const list = input.decisions ?? [];
-  if (!list.length) return [];
-  return [{ heading: d('Decisions'), items: list.map((d) => ({ text: sentence(`${d.id ? `${d.id}: ` : ''}${d.title}${d.status ? ` (${d.status})` : ''}${d.summary ? `. ${clean(d.summary)}` : ''}`) })) }];
 }
 
 const ENDS: Partial<Record<Marker, string>> = { arrow: 'arrow', one: 'bar', zeroOrOne: 'ring and bar', many: "crow's foot", oneOrMany: "bar and crow's foot", zeroOrMany: "ring and crow's foot", triangle: 'hollow triangle', diamond: 'hollow diamond', filledDiamond: 'filled diamond', open: 'open arrowhead', slash: 'slash' };

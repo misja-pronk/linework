@@ -1,8 +1,8 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And an SVG that Office takes whole.
-import { decisionLines, render, SLIDE_MIN_PT, themes, withDecisions, withReviewNotes, type DrawingAt, type RenderResult } from '@cartography/engine';
-import { noteLines, type Decision, type LayoutMemory, type LayoutSidecar, type NotesFile } from '@cartography/core';
+import { render, SLIDE_MIN_PT, themes, withReviewNotes, type RenderResult } from '@cartography/engine';
+import { noteLines, type LayoutMemory, type LayoutSidecar, type NotesFile } from '@cartography/core';
 import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
@@ -28,36 +28,26 @@ export interface ExportInput {
   layerMode?: 'only' | 'dim';
   /** "With review notes": numbered markers and the notes under the drawing (PowerPoint: in the speaker notes). */
   notes?: NotesFile;
-  /** "With decisions": their markers and, under the drawing, a key and the decisions (PowerPoint: in the speaker notes). */
-  decisions?: { list: Decision[]; at: (view?: string) => DrawingAt };
 }
 
-/** The drawing as an export draws it: with the review notes and the decisions when asked for, as they are. */
+/** The drawing as an export draws it: with the review notes when asked for, as they are. */
 function noted(r: RenderResult, input: ExportInput): RenderResult {
-  if (!(input.notes || input.decisions) || !r.svg || !r.graph || !r.placed || !r.width || !r.height) return r;
+  if (!input.notes || !r.svg || !r.graph || !r.placed || !r.width || !r.height) return r;
   const theme = r.theme ?? themes[input.theme];
-  let d = { svg: r.svg, width: r.width, height: r.height, origin: r.origin };
-  if (input.notes) d = { ...d, ...withReviewNotes(d, r.graph, r.placed, input.notes, theme, { view: r.view }) };
-  if (input.decisions) d = { ...d, ...withDecisions(d, r.graph, r.placed, input.decisions.list, theme, input.decisions.at(r.view)) };
+  const d = withReviewNotes({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, r.graph, r.placed, input.notes, theme, { view: r.view });
   return { ...r, svg: d.svg, width: d.width, height: d.height };
 }
 
 /** PowerPoint and PDF: the notes as speaker notes, and as markers drawn onto each page. */
 function notedDrawing(r: RenderResult, input: ExportInput) {
-  const { notes, decisions } = input;
-  if (!(notes || decisions) || !r.graph || !r.placed) return {};
+  const { notes } = input;
+  if (!notes || !r.graph || !r.placed) return {};
   const { graph, placed } = r;
   const theme = r.theme ?? themes[input.theme];
   type Drawn = { svg: string; width: number; height: number; origin: { x: number; y: number } };
-  const at = decisions?.at(r.view);
-  const lines = decisions && r.svg && r.width && r.height ? decisionLines(withDecisions({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, graph, placed, decisions.list, theme, at).spots) : [];
   return {
-    ...(notes ? { remarks: noteLines(notes, graph, r.view) } : {}),
-    ...(lines.length ? { decisions: lines } : {}),
-    annotate: (d: Drawn) => {
-      const n = notes ? { ...d, ...withReviewNotes(d, graph, placed, notes, theme, { view: r.view }) } : d;
-      return decisions ? withDecisions(n, graph, placed, decisions.list, theme, at) : n;
-    },
+    remarks: noteLines(notes, graph, r.view),
+    annotate: (d: Drawn) => ({ ...d, ...withReviewNotes(d, graph, placed, notes, theme, { view: r.view }) }),
   };
 }
 

@@ -56,7 +56,6 @@ export const nl = {
   Says: 'Zegt',
   'See {what} (over {names})': 'Zie {what} (over {names})',
   'Shows {names}': 'Toont {names}',
-  Status: 'Status',
   'Step {n}': 'Stap {n}',
   Steps: 'Stappen',
   Table: 'Tabel',

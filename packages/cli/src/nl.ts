@@ -21,7 +21,6 @@ export const nl = {
   'check files and their views': 'bestanden en hun weergaven controleren',
   'what changed between two versions': 'wat er veranderde tussen twee versies',
   'the diagram in plain words': 'het diagram in gewone woorden',
-  'architecture decisions: log, table, new': 'architectuurbesluiten: log, tabel, nieuw',
   'which diagram type to pick': 'welk diagramtype je kiest',
   'built-in themes': "ingebouwde thema's",
   'import and list vendor icon packs': 'iconenpakketten van leveranciers importeren en tonen',
@@ -135,16 +134,6 @@ export const nl = {
   'Nothing in {pack} called "{words}"': 'Niets in {pack} met de naam "{words}"',
   '{kind} draws its line icon again': '{kind} tekent weer zijn lijnicoon',
 
-  // carto decisions
-  'carto decisions new "title": the decision needs a title': 'carto decisions new "title": het besluit heeft een titel nodig',
-  '--status is one of {list}, not "{value}"': '--status is een van {list}, niet "{value}"',
-  'carto decisions new: there is no decision {n} in {folder}': 'carto decisions new: er is geen besluit {n} in {folder}',
-  'concerns "{id}", which is not in {folder}': 'gaat over "{id}", dat niet in {folder} staat',
-  'this folder': 'deze map',
-  'superseded by {n}': 'vervangen door {n}',
-  '{file}: no such folder': '{file}: map bestaat niet',
-  '{count} decision|{count} decisions': '{count} besluit|{count} besluiten',
-
   // carto new --wizard
   'Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):': 'Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):',
   'No wizard "{name}".': 'Geen wizard "{name}".',
@@ -209,9 +198,6 @@ export const nlHelp: Record<string, string> = {
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
                [--notes]                        with the open review notes of <file>.notes.json: numbered markers
                                                 and the notes under the drawing (pptx: in the speaker notes)
-               [--decisions]                    with the architecture decisions of the folder (decisions/): a
-                                                numbered page marker on what each is about, and a key and the
-                                                decisions under the drawing (pptx: in the speaker notes)
                [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
                [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
@@ -236,9 +222,6 @@ export const nlHelp: Record<string, string> = {
                [--upstream | --downstream]      zoveel lijnen ervan ligt (standaard 1, of all); wat erheen leidt, of waar het heen leidt
                [--notes]                        met de open reviewnotities uit <file>.notes.json: genummerde markeringen
                                                 en de notities onder de tekening (pptx: in de sprekersnotities)
-               [--decisions]                    met de architectuurbesluiten van de map (decisions/): een
-                                                genummerde markering bij waar elk over gaat, en een legenda en de
-                                                besluiten onder de tekening (pptx: in de sprekersnotities)
                [--template customer.potx]       pptx: gemaakt in dat PowerPoint-sjabloon, met zijn indelingen, model,
                [--layout "Title Only"]          lettertypen en kleuren (de pptx: van een huisstijlthema noemt er ook een);
                [--keep-look] [--keep-slides]    --layout kiest de indeling, --keep-look houdt het eigen thema van het
@@ -269,14 +252,12 @@ export const nlHelp: Record<string, string> = {
                [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
-                                                --notes: the open review notes too; --decisions: the folder's
-                                                architecture decisions, as a page and in the details. More: docs/html-export.md`]:
+                                                --notes: the open review notes too. More: docs/html-export.md`]:
     `  carto export-html <file.yaml|folder> [-o out.html]  één HTML-bestand om te versturen: elke weergave en stap getekend
                [--notes] [--title "…"] [--all-steps]  (licht en donker), verschuiven en zoomen, presenteren, doorklikken, zoeken,
                                                 details per element, afdrukken; werkt offline vanaf schijf. Een bestand
                                                 neemt de diagrammen mee waar het naar doorklikt; een map krijgt een inhoudspagina.
-                                                --notes: ook de open reviewnotities; --decisions: de architectuurbesluiten
-                                                van de map, als pagina en in de details. Meer: docs/html-export.md`,
+                                                --notes: ook de open reviewnotities. Meer: docs/html-export.md`,
   [`  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
@@ -340,16 +321,6 @@ export const nlHelp: Record<string, string> = {
     `  carto notes --merge-driver <base> <ours> <theirs>
                                                 de merge driver van git voor notitiebestanden: voegt de notities van
                                                 twee mensen per draad samen; eenmalig instellen, zie docs/notes.md`,
-  [`  carto decisions [folder] [-o log.md]         the architecture decisions (decisions/, doc/adr, docs/adr, .adr-dir)
-               [-o decisions.svg|png|pptx|pdf]  as a decision log in markdown, or drawn as the Decisions table`]:
-    `  carto decisions [folder] [-o log.md]         de architectuurbesluiten (decisions/, doc/adr, docs/adr, .adr-dir)
-               [-o decisions.svg|png|pptx|pdf]  als besluitenlog in markdown, of getekend als de besluitentabel`,
-  [`  carto decisions new "title" [--concerns a,b] [--supersedes 3] [--into folder]
-                                                the next decision from the template (MADR with front matter);
-                                                --supersedes marks that one superseded by it. More: docs/decisions.md`]:
-    `  carto decisions new "title" [--concerns a,b] [--supersedes 3] [--into folder]
-                                                het volgende besluit uit het sjabloon (MADR met front matter);
-                                                --supersedes markeert dat besluit als vervangen door dit. Meer: docs/decisions.md`,
   [`  carto new <type> [file.yaml]                  start from a template; no type: which to pick`]:
     `  carto new <type> [file.yaml]                  begin vanuit een sjabloon; zonder type: welk je kiest`,
   [`  carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing

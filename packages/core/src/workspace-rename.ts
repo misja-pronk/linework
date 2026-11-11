@@ -8,15 +8,13 @@
 //     part of it ("online" → "digital" makes "online.api" "digital.api");
 //   - an entry that is the element by having the same id (a node `ledger:`, an access resource
 //     `ledger`) gets the new key, with whatever the type says refers to it (lines, `in:`, assignments);
-//   - in the pins (`.layout.json`) and the review notes (`.notes.json`), what is drawn under the old id;
-//   - in the decisions folder, the `concerns:` of every decision about it (or about a line it is an end of).
+//   - in the pins (`.layout.json`) and the review notes (`.notes.json`), what is drawn under the old id.
 // A node with its own key and `ref: online` keeps its key: only the ref changes.
 import { isMap, isScalar, type Document, type Node, type Pair } from 'yaml';
 import { parseSource } from './source.ts';
 import { idPattern, type Reference } from './diagram-type.ts';
 import { sitesOf, type WorkspaceIndex } from './workspace.ts';
 import { parseNotes, printNotes, type NoteAnchor } from './notes.ts';
-import { parseDecision, renameDecisionConcerns } from './decisions.ts';
 import type { Path } from './model.ts';
 
 export interface RenameFile {
@@ -84,15 +82,6 @@ export function planRename(ix: WorkspaceIndex, from: string, toAsked: string, o:
     if (r && r.after !== f.text) plan.files.push(r);
     else if (r) plan.drawnIn.push(r);
   }
-  // Decisions name model ids in their front matter: those follow, the rest of each file stays.
-  if (to !== from)
-    for (const d of ix.decisions) {
-      const move = (id: string) => renamedId(id, from, to);
-      const after = renameDecisionConcerns(d.text, d.file, move);
-      if (!after) continue;
-      const count = parseDecision(d.file, after).concerns.filter((c, i) => c !== d.concerns[i]).length;
-      plan.files.push({ file: d.file, before: d.text, after, count, node: (id) => id });
-    }
   return plan;
 }
 

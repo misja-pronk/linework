@@ -5,8 +5,7 @@
 // cleaned to what the renderer draws with, links leave only for http, https and mailto.
 import { gunzipSync, strFromU8 } from 'fflate';
 import { safeAttribute, safeHref, SVG_ELEMENTS } from '@cartography/embed/shared';
-import type { Inline } from '@cartography/core';
-import type { Payload, PDecision, PDrawing, PElement, Picture } from '../payload.ts';
+import type { Payload, PDrawing, PElement, Picture } from '../payload.ts';
 import { readLang, translator, type Params } from '@cartography/i18n';
 import { nl } from './nl.ts';
 
@@ -163,8 +162,6 @@ const els = {
   stage: h('div', { class: 'stage', tabindex: 0, role: 'application', 'aria-roledescription': 'diagram', 'aria-label': t('Diagram') }),
   sheet: h('div', { class: 'sheet' }),
   home: h('section', { class: 'home', hidden: true }),
-  /** The Decisions page, and one decision. */
-  adr: h('section', { class: 'home adr', hidden: true }),
   panel: h('aside', { class: 'panel', 'aria-label': t('Details') }),
   panelIn: h('div', { class: 'in' }),
   steps: h('div', { class: 'steps', hidden: true, role: 'group', 'aria-label': t('Steps') }),
@@ -212,7 +209,7 @@ function frame() {
   const leave = h('button', { type: 'button', class: 'btn leave', title: t('Stop presenting (Esc)') }, icon('x'), h('span', {}, 'Esc'));
   leave.addEventListener('click', stopPresenting);
   els.stage.append(els.sheet);
-  els.main.append(els.stage, els.home, els.adr, els.steps, zoom, els.counter, leave);
+  els.main.append(els.stage, els.home, els.steps, zoom, els.counter, leave);
   els.panel.append(els.panelIn);
   els.app.append(els.top, els.side, els.main, els.panel);
   document.body.append(els.app, els.search, els.keys, els.print, els.live);
@@ -226,7 +223,6 @@ const hrefOf = (d: number, step = 0, shape?: string) => `#${encodeURIComponent(d
 function sidebar() {
   const items: Node[] = [];
   if (data.site) items.push(h('a', { href: '#contents', class: 'home-link', 'data-home': true }, icon('grid'), t('Contents')));
-  if (data.decisions?.length) items.push(h('a', { href: '#decisions', class: 'home-link', 'data-adr': true }, icon('note'), t('Decisions'), h('span', { class: 'n' }, String(data.decisions.length))));
   items.push(h('h2', {}, data.site ? t('Diagrams') : t('Views')));
   for (const f of data.files) {
     const [first] = f.drawings;
@@ -264,7 +260,7 @@ function shortTitle(d: PDrawing, file: string): string {
 function markSidebar() {
   for (const a of els.side.querySelectorAll('a')) {
     const d = a.getAttribute('data-d');
-    const on = here ? d !== null && Number(d) === here.d : a.hasAttribute(els.adr.hidden ? 'data-home' : 'data-adr');
+    const on = here ? d !== null && Number(d) === here.d : a.hasAttribute('data-home');
     if (on) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
@@ -337,11 +333,9 @@ function thumbs() {
 
 // ---------------------------------------------------------------- routing
 
-function parseHash(): { d?: number; step: number; shape?: string; home: boolean; adr?: number } {
+function parseHash(): { d?: number; step: number; shape?: string; home: boolean } {
   const raw = location.hash.slice(1);
   if (!raw || raw === 'contents') return { home: true, step: 0 };
-  // #decisions: the list; #decision-3: one of them.
-  if (data.decisions?.length && /^decisions?(-\d+)?$/.test(raw)) return { home: false, step: 0, adr: Number(raw.split('-')[1] ?? 0) };
   const [key = '', ...rest] = raw.split('&');
   const opts = new Map(rest.map((p) => [p.slice(0, p.indexOf('=')), decodeURIComponent(p.slice(p.indexOf('=') + 1))] as const));
   let d: number | undefined;
@@ -355,7 +349,6 @@ function parseHash(): { d?: number; step: number; shape?: string; home: boolean;
 
 function route() {
   const r = parseHash();
-  if (r.adr !== undefined) return showDecisions(r.adr);
   // Already there (go() shows it at once; the hashchange that follows has nothing to do).
   if (r.d !== undefined && here && r.d === here.d && r.step === here.step && (!r.shape || r.shape === selected) && !els.stage.hidden) return;
   if (r.d === undefined) {
@@ -374,7 +367,6 @@ const go = (d: number, step = 0, shape?: string) => {
 
 function showHome() {
   here = undefined;
-  els.adr.hidden = true;
   els.home.hidden = false;
   els.stage.hidden = true;
   els.steps.hidden = true;
@@ -394,7 +386,6 @@ function show(d: number, step: number, shape?: string) {
   const before = here;
   here = { d, step };
   els.home.hidden = true;
-  els.adr.hidden = true;
   els.stage.hidden = false;
   (els.main.querySelector('.zoom') as HTMLElement).hidden = false;
   const pic = step ? drawing.steps![step - 1]! : drawing;
@@ -778,9 +769,6 @@ function tap(e: PointerEvent, target: EventTarget | null) {
     const r = els.stage.getBoundingClientRect();
     return move(e.clientX - r.left < r.width / 3 ? -1 : 1);
   }
-  // A decision marker opens its decision.
-  const marker = target instanceof Element && els.sheet.contains(target) ? target.closest('[data-decision]') : null;
-  if (marker && data.decisions?.some((d) => String(d.n) === marker.getAttribute('data-decision'))) return void (location.hash = `#decision-${marker.getAttribute('data-decision')}`);
   const shape = shapeAt(target);
   lastTap = shape;
   if (shape) select(shape);
@@ -854,7 +842,6 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
   const parent = el.parent !== undefined ? data.elements[el.parent] : undefined;
   const where = el.where.filter(([d], i, all) => all.findIndex(([x]) => x === d) === i);
   const notes = drawing.notes?.filter((n) => n.shape === shape) ?? [];
-  const decided = (drawing.decisions ?? []).filter((x) => x.shape === shape).map((x) => data.decisions?.find((d) => d.n === x.n)).filter((d): d is PDecision => !!d);
   openPanel(
     h('div', { class: 'head' }, h('div', {}, h('span', { class: 'caps' }, el.kind ?? 'element'), h('h3', {}, el.label)), close),
     el.technology ? h('span', { class: 'kind' }, el.technology) : null,
@@ -896,82 +883,7 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
       ),
     ),
     notes.length ? h('section', {}, h('span', { class: 'caps' }, t('Review notes')), ...notes.map(noteEl)) : null,
-    decided.length ? h('section', {}, h('span', { class: 'caps' }, t('Decisions')), h('ul', {}, ...decided.map((d) => h('li', {}, h('a', { href: `#decision-${d.n}` }, `${d.n}. ${d.title}`, h('small', {}, d.said)))))) : null,
   );
-}
-
-// ---------------------------------------------------------------- decisions
-
-/** Inline markdown parts as text, bold, italic, code and safe links. */
-function inline(parts: Inline[]): Node[] {
-  return parts.map((p) => {
-    const t = p.code ? h('code', {}, p.text) : p.bold ? h('b', {}, p.text) : p.italic ? h('i', {}, p.text) : document.createTextNode(p.text);
-    const href = p.href ? safeHref(p.href) : undefined;
-    return href && /^(https?|mailto):/i.test(href) ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, t) : t;
-  });
-}
-
-function blocksEl(blocks: PDecision['blocks']): Node[] {
-  return blocks.map((b) => {
-    if (b.kind === 'heading') return h(b.level <= 2 ? 'h2' : 'h3', {}, ...inline(b.parts));
-    if (b.kind === 'list') return h(b.ordered ? 'ol' : 'ul', {}, ...b.items.map((i) => h('li', {}, ...inline(i))));
-    if (b.kind === 'code') return h('pre', {}, b.text);
-    if (b.kind === 'quote') return h('blockquote', {}, ...inline(b.parts));
-    if (b.kind === 'rule') return h('hr', {});
-    return h('p', {}, ...inline(b.parts));
-  });
-}
-
-/** A decision's status in words and in shape: filled accepted, dashed proposed, struck the rest (as on the drawing). */
-const statusEl = (d: PDecision) => h('span', { class: `adr-status ${d.status}` }, d.said);
-
-/** The drawings a decision is on, and the shape there. */
-function placesOf(n: number): [number, string | undefined][] {
-  return data.drawings.flatMap((dr, i) => (dr.decisions ?? []).filter((x) => x.n === n).map((x) => [i, x.shape] as [number, string | undefined])).filter(([i], k, all) => all.findIndex(([j]) => j === i) === k);
-}
-
-function showDecisions(n: number) {
-  here = undefined;
-  els.home.hidden = true;
-  els.stage.hidden = true;
-  els.steps.hidden = true;
-  (els.main.querySelector('.zoom') as HTMLElement).hidden = true;
-  els.notesBtn.hidden = true;
-  closePanel();
-  els.crumbs.replaceChildren();
-  els.adr.hidden = false;
-  const list = data.decisions ?? [];
-  const one = n ? list.find((d) => d.n === n) : undefined;
-  if (one) {
-    const places = placesOf(one.n);
-    document.title = `${one.n}. ${one.title} · ${data.title}`;
-    els.adr.replaceChildren(
-      h(
-        'div',
-        { class: 'wrap' },
-        h('a', { href: '#decisions', class: 'caps' }, t('← Decisions')),
-        h('h1', {}, `${one.n}. ${one.title}`),
-        h('p', { class: 'lede' }, statusEl(one), one.date ? ` ${one.date}` : '', one.about.length ? ` · ${t('about {names}', { names: one.about.join(', ') })}` : ''),
-        places.length ? h('p', { class: 'adr-where' }, t('On '), ...places.flatMap(([d, s], i) => [i ? ', ' : '', h('a', { href: hrefOf(d, 0, s) }, longTitle(d))])) : null,
-        h('article', { class: 'adr-text' }, ...blocksEl(one.blocks)),
-      ),
-    );
-  } else {
-    document.title = `${t('Decisions')} · ${data.title}`;
-    const rows = list.map((d) => h('tr', {}, h('td', { class: 'mono' }, String(d.n)), h('td', {}, h('a', { href: `#decision-${d.n}` }, d.title)), h('td', {}, statusEl(d)), h('td', { class: 'mono' }, d.date ?? ''), h('td', {}, d.about.join(', '))));
-    els.adr.replaceChildren(
-      h(
-        'div',
-        { class: 'wrap' },
-        h('span', { class: 'caps' }, t('Architecture')),
-        h('h1', {}, t('Decisions')),
-        h('p', { class: 'lede' }, t('{decisions} recorded. On the drawings a page marker with its number says what each is about.', { decisions: plural(list.length, 'decision') })),
-        h('table', { class: 'index' }, h('thead', {}, h('tr', {}, h('th', {}, '#'), h('th', {}, t('Decision')), h('th', {}, t('Status')), h('th', {}, t('Date')), h('th', {}, t('Concerns')))), h('tbody', {}, ...rows)),
-      ),
-    );
-  }
-  els.adr.scrollTop = 0;
-  markSidebar();
 }
 
 function noteEl(n: NonNullable<PDrawing['notes']>[number]): HTMLElement {

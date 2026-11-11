@@ -1083,7 +1083,7 @@ kbd {
 .canvas-pane {
   container: canvas / inline-size;
 }
-/* ⋯ is there at every width for Decisions; what it repeats of the toolbar shows once that folds away. */
+/* What ⋯ repeats of the toolbar shows once that folds away. */
 .canvas-tools [role='menuitem'].tool-folded {
   display: none;
 }

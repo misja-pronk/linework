@@ -49,7 +49,6 @@ import { useWorkspaceTools } from './workspace/use-tools.tsx';
 import { useBlocks } from './blocks/use-blocks.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
-import { useDecisionsTool } from './decisions-panel.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
@@ -329,7 +328,6 @@ export function App() {
   // ------------------------------------------------------------ review notes
 
   const [notesOpen, setNotesOpen] = useState(false);
-  const [decisionsOpen, setDecisionsOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('open');
   const [noteMine, setNoteMine] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
@@ -744,7 +742,7 @@ export function App() {
 
   // ------------------------------------------------------------ export
 
-  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport });
+  const exportInput = () => ({ text: editor.current?.text() ?? text, theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses, notes: notesInExports ? review.notes : undefined });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void run().catch((e: unknown) => notify(t('{what} failed: {error}', { what, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
   const saveYaml = () => void save();
@@ -770,7 +768,7 @@ export function App() {
   const savePdf = attempt(t('Export'), async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
   const saveHtml = (folder?: boolean) =>
     attempt(t('Export'), async () => {
-      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, decisions: decisionsTool.forExport?.list, folder });
+      const page = await (await import('./html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: editor.current?.text() ?? text, ws, load, pins, notes: notesInExports ? review.notes : undefined, folder });
       download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
     })();
   const copySvg = attempt(t('Copy'), async () => {
@@ -1355,8 +1353,6 @@ export function App() {
       case 'note': addNote(); break;
       case 'notes': toggleNotes(); break;
       case 'review': toggleReview(); break;
-      case 'decisions': decisionsTool.toggle(); break;
-      case 'decision-new': decisionsTool.newAbout(); break;
       case 'edit':
         if (!selected) return;
         if (e.key === 'F2') (document.querySelector('.inspector-body > .field input') as HTMLInputElement | null)?.select();
@@ -1528,13 +1524,12 @@ export function App() {
   );
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
-  /** One panel on the right, with tabs: the selection's properties, the review notes, the decisions, or Ask. */
-  const sideTab: 'properties' | 'notes' | 'decisions' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : decisionsOpen ? 'decisions' : 'properties';
+  /** One panel on the right, with tabs: the selection's properties, the review notes, or Ask. */
+  const sideTab: 'properties' | 'notes' | 'ask' = asking ? 'ask' : notesOpen ? 'notes' : 'properties';
   const showInspector = sideTab === 'properties' && inspector && hasProperties;
-  const sideOpen = asking || notesOpen || decisionsOpen || showInspector;
+  const sideOpen = asking || notesOpen || showInspector;
   const showSide = (tab: typeof sideTab) => {
     setAsking(tab === 'ask');
-    setDecisionsOpen(tab === 'decisions');
     if (tab === 'ask') setAskKept(true);
     if (tab !== 'notes' && notesOpen) toggleNotes();
     else if (tab === 'notes' && !notesOpen) setNotesOpen(true);
@@ -1565,8 +1560,6 @@ export function App() {
 
   // ------------------------------------------------------------ the folder as one model (workspace/)
 
-  /** The decisions tool, for where-used (made after the workspace tools, which it reads). */
-  const decisionsRef = useRef<ReturnType<typeof useDecisionsTool>>(undefined);
   const wsTools = useWorkspaceTools({
     ws,
     file: ws && doc.path ? doc.path : docId,
@@ -1600,39 +1593,7 @@ export function App() {
       for (const [id, kind] of ids) if (node(id) !== id) review.rename(kind, id, node(id));
     },
     notify,
-    whereExtra: (el) => decisionsRef.current?.whereSection(el),
-    openDecision: (file) => {
-      const d = wsTools.index.decisions.find((x) => x.file === file);
-      if (d) decisionsTool.show(d.number);
-      return !!d;
-    },
   });
-
-  // Architecture decisions (decisions-panel.tsx): the panel, the markers, their keys and commands.
-  const decisionsTool = useDecisionsTool({
-    ws,
-    index: wsTools.index,
-    file: ws && doc.path ? doc.path : docId,
-    drawn,
-    selected,
-    selection,
-    select: (s) => select(s),
-    zoomToSelection: () => previewControl.current?.zoomToSelection(),
-    focusDrawing,
-    refresh: (w) => setWs({ ...w }),
-    notify,
-    open: decisionsOpen,
-    setOpen: setDecisionsOpen,
-  });
-  decisionsRef.current = decisionsTool;
-
-  // One panel on the right at a time: notes and decisions take turns.
-  useEffect(() => {
-    if (notesOpen && decisionsTool.open) decisionsTool.close();
-  }, [notesOpen]);
-  useEffect(() => {
-    if (decisionsTool.open && notesOpen) toggleNotes();
-  }, [decisionsTool.open]);
 
   // Reusable fragments (blocks/): the shapes panel's Blocks section, B and ⇧B, drops, updates.
   const blocks = useBlocks({
@@ -1737,7 +1698,6 @@ export function App() {
     { id: 'review-mode', group: t('Notes'), label: reviewMode ? t('Leave review mode') : t('Review mode'), hint: t('only the notes stand out'), icon: 'eye', shortcut: keyHint('review'), run: toggleReview },
     { id: 'notes-export', group: t('Notes'), label: notesInExports ? t('Exports without review notes') : t('Exports with review notes'), hint: t('numbered markers and the notes under the drawing'), icon: 'download', run: () => setExportsWithNotes(!notesInExports) },
     ...(review.notes.threads.length && !(ws && doc.path) ? [{ id: 'notes-file', group: t('Notes'), label: t('Download review notes (.notes.json)'), hint: t('kept in this browser until then'), icon: 'download', run: () => download(`${baseName(doc.name)}.notes.json`, review.fileText() ?? '', 'application/json') }] : []),
-    ...decisionsTool.commands,
     ...openNotes.map((n) => ({ id: `note:${n.id}`, group: t('Open notes'), label: n.text.split('\n')[0]!, hint: n.author, icon: 'message-square', run: () => openNote(n.id) })),
     { id: 'undo', group: t('Edit'), label: t('Undo'), icon: 'undo-2', shortcut: keyHint('undo'), run: () => editor.current?.undo() },
     { id: 'redo', group: t('Edit'), label: t('Redo'), icon: 'redo-2', shortcut: keyHint('redo'), run: () => editor.current?.redo() },
@@ -2187,7 +2147,6 @@ export function App() {
               <>
                 <NoteMarkers result={drawn} review={review} filter={notesOpen ? noteFilter : 'open'} scale={scale} active={activeNote} onOpen={openNote} />
                 {blocks.overlay(scale)}
-                {decisionsTool.markers(scale)}
               </>
             )}
             onContextMenu={(s, at, client) => {
@@ -2249,13 +2208,6 @@ export function App() {
                 <Icon name="message-square" />
                 {openNotes.length > 0 && <span className={unreadNotes ? 'tool-count unread' : 'tool-count'}>{openNotes.length}</span>}
               </button>
-              {/* Decisions in one click, with its count, like Notes, once there are any (review 3: they hid in ⋯); the first one is written from ⋯. */}
-              {(decisionsTool.count > 0 || decisionsOpen) && (
-              <button className={decisionsOpen ? 'tool active' : 'tool'} onClick={() => decisionsTool.toggle()} title={`Architecture decisions (${keyHint('decisions')})`} aria-pressed={decisionsOpen} aria-label={`Decisions${decisionsTool.count ? `, ${decisionsTool.count}` : ''}`}>
-                <Icon name="scroll-text" />
-                {decisionsTool.count > 0 && <span className="tool-count">{decisionsTool.count}</span>}
-              </button>
-              )}
               {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
               <div className="menu-anchor tool-overflow">
                 <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label={t('More tools')} title={t('More: compare with an earlier version, zoom to the selection, grid, minimap')}>
@@ -2274,11 +2226,6 @@ export function App() {
                     {!stepList.length && (
                       <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), addStepFromSelection())} disabled={!type}>
                         <Icon name="layers" /> {t('Add a step')} <kbd>S</kbd>
-                      </button>
-                    )}
-                    {!(decisionsTool.count > 0 || decisionsOpen) && (
-                      <button role="menuitem" onClick={() => (setToolsMore(false), decisionsTool.toggle())}>
-                        <Icon name="scroll-text" /> {t('Decisions')} <kbd>{keyHint('decisions')}</kbd>
                       </button>
                     )}
                     <button role="menuitem" onClick={() => (setToolsMore(false), comparing.toggle())}>
@@ -2380,9 +2327,6 @@ export function App() {
               <button role="tab" aria-selected={sideTab === 'notes'} onClick={() => showSide('notes')} title={t('Review notes ({key})', { key: keyHint('notes') })}>
                 <Icon name="message-square" size={14} /> <span className="tab-label">{t('Notes')}</span>{openNotes.length > 0 && <span className="tab-count">{openNotes.length}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'decisions'} onClick={() => showSide('decisions')} title={t('Architecture decisions ({key})', { key: keyHint('decisions') })}>
-                <Icon name="scroll-text" size={14} /> <span className="tab-label">{t('Decisions')}</span>{decisionsTool.count > 0 && <span className="tab-count">{decisionsTool.count}</span>}
-              </button>
               <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={t('Your AI ({key})', { key: keyHint('ask') })}>
                 <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Your AI')}</span>
               </button>
@@ -2411,7 +2355,6 @@ export function App() {
               }}
             />
           )}
-        {sideTab === 'decisions' && decisionsTool.panel}
         {notesOpen && !asking && (
           <NotesPanel
             review={review}

@@ -5,13 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isDiagramFile, notesPath, parseNotes, parseSidecar } from '@cartography/core';
 import { exportHtml, type HtmlExportInput } from '@cartography/html-export';
-import { decisionsRoot, workspaceAt } from './decisions.ts';
 
 export interface HtmlFlags {
   title?: string;
   notes?: boolean;
-  /** The architecture decisions of the folder: on the drawings, in the details and as a page. */
-  decisions?: boolean;
   allSteps?: boolean;
   render: HtmlExportInput['render'];
 }
@@ -48,7 +45,6 @@ export async function exportHtmlFile(target: string, out: string | undefined, fl
     title: flags.title,
     site: folder ? true : undefined,
     notes: flags.notes,
-    ...(flags.decisions ? { decisions: workspaceAt(decisionsRoot(target)).decisions } : {}),
     allSteps: flags.allSteps,
     notesFor: (p) => {
       const f = notesPath(abs(p));

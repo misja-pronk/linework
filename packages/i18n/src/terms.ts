@@ -293,10 +293,4 @@ export const terms: Record<string, string> = {
   'Line of interaction': 'Interactielijn',
   'Line of visibility': 'Zichtbaarheidslijn',
   'Line of internal interaction': 'Lijn van interne interactie',
-  // Decision statuses
-  Proposed: 'Voorgesteld',
-  Accepted: 'Aanvaard',
-  Rejected: 'Afgewezen',
-  Deprecated: 'Vervallen',
-  Superseded: 'Vervangen',
 };

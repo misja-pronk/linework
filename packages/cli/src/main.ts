@@ -13,7 +13,6 @@ import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@ca
 import { toSafeSvg } from '@cartography/export/svg-safe';
 import { execFileSync } from 'node:child_process';
 import { describedPng } from './describe.ts';
-import { decisionsCommand, withDecisionMarks, workspaceFiles } from './decisions.ts';
 import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
 import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
 import { accessOf } from '@cartography/github';
@@ -46,9 +45,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
                [--notes]                        with the open review notes of <file>.notes.json: numbered markers
                                                 and the notes under the drawing (pptx: in the speaker notes)
-               [--decisions]                    with the architecture decisions of the folder (decisions/): a
-                                                numbered page marker on what each is about, and a key and the
-                                                decisions under the drawing (pptx: in the speaker notes)
                [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
                [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
@@ -74,8 +70,7 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
-                                                --notes: the open review notes too; --decisions: the folder's
-                                                architecture decisions, as a page and in the details. More: docs/html-export.md
+                                                --notes: the open review notes too. More: docs/html-export.md
   carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
@@ -107,11 +102,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto notes --merge-driver <base> <ours> <theirs>
                                                 git's merge driver for notes files: merges two people's notes by
                                                 thread; set up once, see docs/notes.md
-  carto decisions [folder] [-o log.md]         the architecture decisions (decisions/, doc/adr, docs/adr, .adr-dir)
-               [-o decisions.svg|png|pptx|pdf]  as a decision log in markdown, or drawn as the Decisions table
-  carto decisions new "title" [--concerns a,b] [--supersedes 3] [--into folder]
-                                                the next decision from the template (MADR with front matter);
-                                                --supersedes marks that one superseded by it. More: docs/decisions.md
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
                [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
@@ -179,7 +169,6 @@ const groups: [string, [string, string][]][] = [
     ['validate', t('check files and their views')],
     ['diff', t('what changed between two versions')],
     ['notes', t('review notes')],
-    ['decisions', t('architecture decisions: log, table, new')],
   ]],
   [t('Look'), [
     ['themes', t('built-in themes')],
@@ -207,7 +196,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -312,10 +301,6 @@ const parsed = (() => {
     wizard: { type: 'string' },
     answers: { type: 'string' },
     notes: { type: 'boolean' },
-    decisions: { type: 'boolean' },
-    concerns: { type: 'string' },
-    supersedes: { type: 'string' },
-    status: { type: 'string' },
     open: { type: 'boolean' },
     'merge-driver': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
@@ -697,7 +682,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
-    const shots = plain.map((r) => (values.decisions ? withDecisionMarks(annotated(r, notes), file) : annotated(r, notes)));
+    const shots = plain.map((r) => annotated(r, notes));
     if (stdout && runs.length + shots.length > 2) throw new UsageError(t('-o - writes one picture to standard output: give a folder for --all-views or --all-steps'));
     // A drawing with errors is not what was asked for: nothing is written, the errors say why.
     if (result.diagnostics.some((d) => d.severity === 'error')) {
@@ -726,9 +711,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
 
 /** carto validate <folder>: what only shows across files (a ref: to nothing, one id two kinds, elements no view shows). */
 function validateWorkspace(dir: string): boolean {
-  // Diagrams, and the decisions folder with what says where it is (decisions concern elements by id).
-  const files = workspaceFiles(dir);
-  const ix = indexWorkspace(files);
+  const ix = indexWorkspace(dataFiles(dir).map((f) => [path.relative(dir, f).split(path.sep).join('/'), fs.readFileSync(f, 'utf8')] as [string, string]));
   for (const p of ix.problems) console.error(`${path.join(dir, p.file)}${p.line ? `:${p.line}` : ''}  ${p.severity === 'error' ? red(t('error')) : yellow(t('warning'))}  ${p.message}`);
   const n = ix.files.size;
   if (!ix.problems.length) console.log(`${dir} ${dim(`${t('workspace ok: {count} diagram|workspace ok: {count} diagrams', { count: n })}, ${t('{count} element|{count} elements', { count: ix.elements.size })}`)}`);
@@ -1067,7 +1050,7 @@ async function main(): Promise<number> {
       if (!fs.existsSync(f)) return (console.error(t('{file}: no such file or folder', { file: f })), 1);
       if (!themeFlag()) return 1;
       const { exportHtmlFile } = await import('./html-export.ts');
-      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, decisions: values.decisions, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale, ...langOption } });
+      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale, ...langOption } });
       for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red(t('error'))}  ${p.message}`);
       if (!r.stats.drawings) return (console.error(t('{file}: nothing to draw', { file: f })), 1);
       const s = r.stats;
@@ -1164,23 +1147,6 @@ async function main(): Promise<number> {
     }
     case 'notes':
       return notesCommand();
-    case 'decisions':
-      if (!themeFlag()) return 1;
-      return decisionsCommand({
-        args: files,
-        out: values.out,
-        concerns: values.concerns,
-        supersedes: values.supersedes,
-        into: values.into,
-        title: values.title,
-        status: values.status,
-        render: { themeOverride: forced, fontScale, fonts: values.out?.endsWith('.svg') ? 'embed' : 'none', ...langOption },
-        write: async (r, out) => {
-          const format = formatFor();
-          const data = format === 'png' ? toPng(r.svg!, Number(values.scale) || 2, await ttfFiles(r.theme?.font.faces ?? [])) : format === 'svg' ? r.svg! : await document(format, [{ ...r, name: 'decisions' } as Drawing], r.theme);
-          fs.writeFileSync(out, data);
-        },
-      });
     case 'diff':
       if (!themeFlag()) return 1;
       return diffFiles();

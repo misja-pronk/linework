@@ -7,8 +7,8 @@ import { t } from './i18n/index.ts';
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
 
-/** Diagrams, sidecars and contracts; Markdown for architecture decisions (decisions/0001-….md). */
-const TEXT = /\.(ya?ml|json|md)$/i;
+/** Diagrams, sidecars and contracts. */
+const TEXT = /\.(ya?ml|json)$/i;
 const SKIP = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'out']);
 const MAX_FILES = 800;
 const MAX_BYTES = 2_000_000;
@@ -51,7 +51,7 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
       if (h.kind === 'directory') {
         // Hidden folders are left alone.
         if (depth < 6 && !SKIP.has(name) && !name.startsWith('.')) await walk(h as FileSystemDirectoryHandle, `${prefix}${name}/`, depth + 1);
-      } else if (TEXT.test(name) || name === '.adr-dir') {
+      } else if (TEXT.test(name)) {
         const file = await (h as FileSystemFileHandle).getFile();
         if (file.size <= MAX_BYTES) files.set(prefix + name, { handle: h as FileSystemFileHandle, text: await file.text() });
       }

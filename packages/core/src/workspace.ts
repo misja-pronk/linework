@@ -11,7 +11,6 @@ import { parseSource } from './source.ts';
 import { includesOf, joinPath } from './include.ts';
 import { viewKinds, type ViewKind } from './catalogue.ts';
 import type { Path } from './model.ts';
-import { checkDecisions, decisionsDir, isDecisionFile, parseDecision, readDecisions, type Decision } from './decisions.ts';
 
 /** How a file names an element. */
 export type WsHow = 'ref' | 'of' | 'instance' | 'same-id' | 'relation' | 'view' | 'selector' | 'step' | 'edge' | 'name';
@@ -127,9 +126,6 @@ export interface WorkspaceIndex {
   /** What each drawing shows: "file#view" (or "file") → element id → the id it is drawn under. */
   shows: Map<string, Map<string, string>>;
   problems: WsProblem[];
-  /** The architecture decisions of the folder (see decisions.ts), by number, and the folder they are in. */
-  decisions: Decision[];
-  decisionsDir: string;
 }
 
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -332,9 +328,6 @@ export function sitesOf(data: Record<string, unknown>): WsSite[] {
 export class Workspace {
   private cache = new Map<string, WsFile>();
   private built?: WorkspaceIndex;
-  /** Decision files by path, read when their text changes. */
-  private adrs = new Map<string, Decision>();
-  private adrDir = 'decisions';
 
   constructor(files?: Iterable<[string, string]>) {
     if (files) this.sync(files);
@@ -344,18 +337,7 @@ export class Workspace {
   sync(files: Iterable<[string, string]>): number {
     const next = new Map<string, WsFile>();
     let read = 0;
-    const all = [...files];
-    const dir = decisionsDir(all.filter(([p]) => p === '.adr-dir' || p.startsWith('.log4brains.') || /\.md$/i.test(p)));
-    const adrs = new Map<string, Decision>();
-    for (const [path, text] of all) {
-      if (!isDecisionFile(path, dir)) continue;
-      const had = this.adrs.get(path);
-      adrs.set(path, had && had.text === text ? had : (read++, parseDecision(path, text)));
-    }
-    if (dir !== this.adrDir || adrs.size !== this.adrs.size) read++;
-    this.adrs = adrs;
-    this.adrDir = dir;
-    for (const [path, text] of all) {
+    for (const [path, text] of files) {
       if (!isDiagramFile(path, text)) continue;
       const had = this.cache.get(path);
       if (had && had.text === text) next.set(path, had);
@@ -368,13 +350,6 @@ export class Workspace {
 
   /** One file changed (or went: text undefined). */
   update(path: string, text: string | undefined) {
-    if (isDecisionFile(path, this.adrDir)) {
-      if (text == null) this.adrs.delete(path);
-      else if (this.adrs.get(path)?.text !== text) this.adrs.set(path, parseDecision(path, text));
-      else return;
-      this.built = undefined;
-      return;
-    }
     if (text == null || !isDiagramFile(path, text)) this.cache.delete(path);
     else if (this.cache.get(path)?.text !== text) this.cache.set(path, indexFile(path, text));
     else return;
@@ -382,7 +357,7 @@ export class Workspace {
   }
 
   get index(): WorkspaceIndex {
-    return (this.built ??= link(this.cache, readDecisions([...this.adrs].map(([p, d]) => [p, d.text]), this.adrDir), this.adrDir));
+    return (this.built ??= link(this.cache));
   }
 }
 
@@ -393,7 +368,7 @@ export function indexWorkspace(files: Iterable<[string, string]>): WorkspaceInde
 
 const key = (file: string, view?: string) => (view ? `${file}#${view}` : file);
 
-function link(files: Map<string, WsFile>, decisions: Decision[] = [], decisionsDir = 'decisions'): WorkspaceIndex {
+function link(files: Map<string, WsFile>): WorkspaceIndex {
   const elements = new Map<string, WsElement[]>();
   const relations: WsRelation[] = [];
   const views: WsView[] = [];
@@ -537,17 +512,8 @@ function link(files: Map<string, WsFile>, decisions: Decision[] = [], decisionsD
     problems.push({ file: d.file, line: d.line, path: d.path, element: id, severity: 'warning', message: `${d.label ?? id} (${id}) is in no diagram or view` });
   }
 
-  // Decisions about elements, lines and views that are not in the folder (a diagram's own ids count too).
-  const entryIds = new Set([...files.values()].flatMap((f) => f.entries.map((e) => e.id)));
-  for (const p of checkDecisions(decisions, {
-    element: (id) => elements.has(id) || entryIds.has(id),
-    view: (file, view) => views.some((v) => v.name === view && (!file || v.file === file || v.file.endsWith('/' + file))),
-    near: (id) => closest(id, [...elements.keys()]),
-  }))
-    problems.push({ ...p, severity: 'warning' });
-
   problems.sort((a, b) => a.file.localeCompare(b.file) || (a.line ?? 0) - (b.line ?? 0));
-  return { files, elements, relations, views, uses, scope, shows, problems, decisions, decisionsDir };
+  return { files, elements, relations, views, uses, scope, shows, problems };
 }
 
 /** Words for the same kind of thing. */
@@ -752,8 +718,8 @@ export function trail(ix: WorkspaceIndex, file: string, view?: string): string[]
 // ---------------------------------------------------------------- search
 
 export interface WsHit {
-  kind: 'element' | 'view' | 'file' | 'entry' | 'decision';
-  /** Element id, view name, file path, entry id or decision number. */
+  kind: 'element' | 'view' | 'file' | 'entry';
+  /** Element id, view name, file path or entry id. */
   id: string;
   title: string;
   detail?: string;
@@ -860,22 +826,6 @@ export function searchWorkspace(ix: WorkspaceIndex, query: string, limit = 50): 
       const s2 = score([{ text: e.id, weight: 0.9, fuzzy: true }, { text: e.label, weight: 0.9, fuzzy: true }, { text: e.kind, weight: 0.4 }], words);
       if (s2) hits.push({ kind: 'entry', id: e.id, title: e.label ?? e.id, detail: `${e.collection} in ${f.file}`, file: f.file, node: e.id, line: e.line, score: s2 - 5 });
     }
-  }
-  // Decisions by number ("7", "adr 7"), title, status, what they concern and what they say.
-  for (const d of ix.decisions) {
-    const s = score(
-      [
-        { text: String(d.number), weight: 1 },
-        { text: `adr ${d.number}`, weight: 1 },
-        { text: d.title, weight: 1, fuzzy: true },
-        { text: d.status, weight: 0.5 },
-        ...d.concerns.map((c) => ({ text: c, weight: 0.7 })),
-        ...d.tags.map((t) => ({ text: t, weight: 0.6 })),
-        { text: d.body, weight: 0.3 },
-      ],
-      words,
-    );
-    if (s) hits.push({ kind: 'decision', id: String(d.number), title: `${d.number}. ${d.title}`, detail: [d.status, d.date, d.file].filter(Boolean).join(' · '), file: d.file, score: s + 2 });
   }
   return hits.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, limit);
 }

@@ -20,7 +20,7 @@ const HOW: Record<Exclude<WsUse['how'], 'shown'>, string> = {
   name: 'named',
 };
 
-export function WhereUsed({ index, element, here, onGo, onRename, extra }: { index: WorkspaceIndex; element: string; here?: Place; onGo(p: Place): void; onRename(): void; extra?: React.ReactNode }) {
+export function WhereUsed({ index, element, here, onGo, onRename }: { index: WorkspaceIndex; element: string; here?: Place; onGo(p: Place): void; onRename(): void }) {
   const el = index.elements.get(element)?.[0];
   const drawings = drawingsOf(index, element);
   const named = (index.uses.get(element) ?? []).filter((u) => u.how !== 'shown');
@@ -64,7 +64,6 @@ export function WhereUsed({ index, element, here, onGo, onRename, extra }: { ind
           <span className="where-as">{say(HOW[u.how as Exclude<WsUse['how'], 'shown'>])}</span>
         </button>
       ))}
-      {extra}
     </section>
   );
 }

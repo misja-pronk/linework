@@ -20,7 +20,7 @@ import { announce } from '@cartography/mcp/discovery';
 import { authorized, handleLive, handleMcp, localHost, readBody, sendJson } from '@cartography/mcp/http';
 
 /** The text files an editor opens (files.ts in the web app has the same list). */
-const TEXT = /\.(ya?ml|json|md)$/i;
+const TEXT = /\.(ya?ml|json)$/i;
 const SKIP = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'out']);
 const MAX_FILES = 800;
 const MAX_BYTES = 2_000_000;
@@ -74,7 +74,7 @@ function listFiles(root: string): { path: string; size: number; mtime: number }[
       if (out.length >= MAX_FILES) return;
       if (e.isDirectory()) {
         if (depth < 6 && !SKIP.has(e.name) && !e.name.startsWith('.')) walk(path.join(dir, e.name), `${prefix}${e.name}/`, depth + 1);
-      } else if (e.isFile() && (TEXT.test(e.name) || e.name === '.adr-dir')) {
+      } else if (e.isFile() && TEXT.test(e.name)) {
         const s = fs.statSync(path.join(dir, e.name));
         if (s.size <= MAX_BYTES) out.push({ path: prefix + e.name, size: s.size, mtime: s.mtimeMs });
       }

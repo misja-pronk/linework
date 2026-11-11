@@ -19,7 +19,6 @@ disk in Chrome, Safari, Firefox and Edge, needs no install and no hosted app, an
   | --- | --- |
   | `-o out.html` | where to write it; by default next to the diagram (`shop.html`) or the folder (`architecture.html`) |
   | `--notes` | the **open** review notes of `<name>.notes.json`: numbered markers and a Notes panel. Off by default; resolved notes are never in the file |
-  | `--decisions` | the folder's architecture decisions: a Decisions page, a page per decision, markers on the drawings and the decisions about an element in its details. Off by default; see [decisions.md](decisions.md) |
   | `--title "…"` | the page's title; by default the model's title, or the diagram's |
   | `--all-steps` | also the steps nobody wrote (a dynamic view's numbered lines, a sequence's messages) |
   | `--theme`, `--icons`, `--pack` | as for `carto render` |

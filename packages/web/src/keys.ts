@@ -123,12 +123,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'review', keys: ['shift+r'], what: 'Review mode: only the notes stand out', context: 'drawing', group: 'Review notes' },
   { id: 'note-send', keys: ['mod+enter'], what: 'Send the note', context: 'note', group: 'Review notes' },
   { id: 'note-cancel', keys: ['escape'], what: 'Cancel the note', context: 'note', group: 'Review notes' },
-
-  // ------------------------------------------------------------ decisions
-  { id: 'decisions', keys: ['shift+d'], what: 'Decisions panel (with a selection: its decisions first); markers on the drawing while it is open', context: 'drawing', group: 'Decisions' },
-  { id: 'decision-new', keys: ['alt+shift+d'], what: 'New decision about the selection: the next number, from the template', context: 'drawing', group: 'Decisions' },
-  { id: 'decision-save', keys: [], show: '⌘S / Esc', what: 'In a decision’s Markdown: save / cancel', context: 'mouse', group: 'Decisions' },
-
   { id: 'note-here', keys: [], show: 'Right-click', what: 'Add a note on an element, a line or a spot', context: 'mouse', group: 'Mouse and trackpad' },
 
   // ------------------------------------------------------------ steps
