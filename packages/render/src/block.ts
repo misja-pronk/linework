@@ -232,6 +232,8 @@ export function blockMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
       // A capability on its own sits in the middle of its box; one that holds chips names them from the top.
       const textH = lines.length * c.line + (s.container ? 0 : systemLines(s).length * BLOCK.system.line + (s.lines?.length ? 4 : 0));
       const y = s.container ? b.y + c.top : b.y + Math.max(c.top, (b.height - textH) / 2);
+      // A hatch would run through the name: the name sits on a patch of the plain fill.
+      if (leafHeat && s.heat?.pattern) m.push({ t: 'rect', x: b.x + c.padX - 4, y: y + 1, w: Math.min(room, widest(lines, theme.size.label - 1, 600)) + 8, h: lines.length * c.line - 2, r: 3, fill: heat.fill });
       m.push({ t: 'text', x: b.x + c.padX, y, w: room, lines, size: theme.size.label - 1, weight: 600, fill: ink, align: 'l', lh: c.line });
       tag(b.x + b.width - c.padX, y + c.line / 2);
       if (!s.container) systems(b.x + c.padX, y + lines.length * c.line, b.width - 2 * c.padX, leafHeat ? ink : theme.textMuted);
@@ -248,6 +250,7 @@ export function blockMarks(s: BlockShape, b: Box, theme: Theme): JourneyMark[] {
       const sys = systemLines(s);
       const textH = lines.length * c.line + (sys.length ? sys.length * BLOCK.system.line + 4 : 0);
       const y = b.y + Math.max(c.padY, (b.height - textH) / 2);
+      if (heat && s.heat?.pattern) m.push({ t: 'rect', x: b.x + c.padX - 3, y: y + 1, w: Math.min(room, widest(lines, c.size, 500)) + 6, h: lines.length * c.line - 2, r: 2, fill: heat.fill });
       m.push({ t: 'text', x: b.x + c.padX, y, w: room, lines, size: c.size, weight: 500, fill: heat ? heat.ink : theme.text, align: 'l', lh: c.line });
       tag(b.x + b.width - c.padX + 3, y + c.line / 2);
       systems(b.x + c.padX, y + lines.length * c.line, b.width - 2 * c.padX, heat ? heat.ink : theme.textMuted);

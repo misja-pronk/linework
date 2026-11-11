@@ -57,7 +57,8 @@ export interface RoadmapGeometry {
   arrows: { d: string; tip: { x: number; y: number; dx: number; dy: number } }[];
   today?: { x: number; label: string; top: number };
   grid: { x: number; strong: boolean }[];
-  legend: { y: number; items: RoadmapStatus[] };
+  /** Statuses in use, and whether bars show progress and lanes have colours of their own: each gets a key entry. */
+  legend: { y: number; items: RoadmapStatus[]; progress: boolean; lanes: Tone[] };
   bottom: number;
 }
 
@@ -122,7 +123,8 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
     const reach = it.milestone ? x1 + K.diamond + K.label.out + lw : inside ? x2 : x2 + K.label.out + lw;
     return { it, x1: it.milestone ? x1 - K.diamond : x1, x2, inside, reach: Math.min(reach, Math.max(right, reach)) };
   });
-  const spans: Span[] = bars.map((b) => ({ lane: laneIndex.get(b.it.lane!)!, from: b.x1, to: b.reach + 6 }));
+  // A label outside its bar keeps a word's room from the next bar on its track (CAB sign-off against FinOps reviews).
+  const spans: Span[] = bars.map((b) => ({ lane: laneIndex.get(b.it.lane!)!, from: b.x1, to: b.reach + (b.inside ? 6 : 16) }));
   const track = tracks(spans);
   const depth = shape.lanes.map((_, l) => Math.max(0, ...track.filter((_, i) => spans[i]!.lane === l).map((t) => t + 1)));
   const stacked = stack(shape.lanes.map((_, l) => ({ size: 2 * K.lanePad + Math.max(1, depth[l]!) * (K.bar + K.track) - K.track })), [], 0);
@@ -228,9 +230,11 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
     if (!used.includes('planned')) used.push('planned');
   }
   const legendItems = (Object.keys(STATUS) as RoadmapStatus[]).filter((s) => used.includes(s));
+  const progress = shape.items.some((i) => !i.milestone && (i.progress ?? 0) > 0);
+  const laneTones = [...new Set(shape.lanes.filter((l) => l.label).map((l) => l.tone))];
   const hasToday = !!shape.today && shape.today.at >= shape.start && shape.today.at <= shape.end;
   const legendY = laneBottom + (hasToday ? 46 : 24);
-  const bottom = legendItems.length ? legendY + 14 : laneBottom + (hasToday ? 28 : 4);
+  const bottom = legendItems.length || progress ? legendY + 14 : laneBottom + (hasToday ? 28 : 4);
   // Milestone labels and outside labels may run past the axis end.
   const width = Math.ceil(Math.max(right, ...out.map((b) => (b.inside ? b.box.x + b.box.width : b.labelX + textW(b.label))), ...marks.map((m) => m.x + 14 + textW(m.label))) + 6);
   return {
@@ -246,7 +250,7 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
     arrows,
     ...(hasToday ? { today: { x: x(shape.today!.at), label: shape.today!.label, top: 0 } } : {}),
     grid,
-    legend: { y: legendY, items: legendItems },
+    legend: { y: legendY, items: legendItems, progress, lanes: laneTones.length > 1 ? laneTones.slice(0, 3) : [] },
     bottom: laneBottom,
   };
 }
@@ -374,6 +378,19 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
     out.push(text(lx + 34, g.legend.y, said, theme.size.caption, 500, theme.textMuted));
     lx += 34 + measureText(said, theme.size.caption, 500) + 22;
   }
+  // The band along a bar's bottom edge, and the coloured bar beside each lane's name, say something too.
+  const entry = (sample: string, w: number, label: string) => {
+    out.push(sample);
+    const said = term(theme.lang, label);
+    out.push(text(lx + w + 8, g.legend.y, said, theme.size.caption, 500, theme.textMuted));
+    lx += w + 8 + measureText(said, theme.size.caption, 500) + 22;
+  };
+  if (g.legend.progress) {
+    const t = theme.tones.blue;
+    const box = { x: lx, y: g.legend.y - 8, width: 26, height: 16 };
+    entry(rect(box, Math.min(8, theme.radius.card), `fill="${t.fg}" stroke="${t.fg}" stroke-width="1"`) + `<path d="M${r1(box.x)} ${r1(box.y + box.height - 4)}H${r1(box.x + 16)}" stroke="${theme.canvas}" stroke-opacity="0.75" stroke-width="3" stroke-linecap="round"/>`, 26, 'Done so far');
+  }
+  if (g.legend.lanes.length && g.legend.items.length) entry(g.legend.lanes.map((t, i) => rect({ x: lx + i * 7, y: g.legend.y - 8, width: 4, height: 16 }, 2, `fill="${tone(t).fg}"`)).join(''), g.legend.lanes.length * 7 - 3, 'Lane');
   out.push('</g>');
   return out.join('');
 }

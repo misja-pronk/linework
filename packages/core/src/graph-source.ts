@@ -351,7 +351,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   // each way a line without a style is drawn gets an entry, once the key explains anything else.
   if (legend.length || plainLines.size > 1) {
     const plain = term(ctx.lang, cfg.plainEdge ?? 'Connection');
-    const named = { solid: plain, dashed: tr(ctx.lang, '{label}, dashed', { label: plain }), dotted: tr(ctx.lang, '{label}, dotted', { label: plain }) } as const;
+    const named = { solid: plain, dashed: tr(ctx.lang, '{label} (dashed)', { label: plain }), dotted: tr(ctx.lang, '{label} (dotted)', { label: plain }) } as const;
     legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
   }
 

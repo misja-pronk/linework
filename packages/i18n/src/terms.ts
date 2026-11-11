@@ -271,6 +271,7 @@ export const terms: Record<string, string> = {
   Done: 'Klaar',
   'At risk': 'Risico',
   Late: 'Te laat',
+  'Done so far': 'Al gedaan',
   // Journey rows and blueprint lines
   Doing: 'Doen',
   Touchpoints: 'Contactmomenten',
