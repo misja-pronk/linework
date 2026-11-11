@@ -15,6 +15,7 @@
     "build:cli": "pnpm web:build && node scripts/bundle.mjs cli",
     "build:mcp": "node scripts/bundle.mjs mcp",
     "smoke": "node scripts/smoke-bundles.mjs",
+    "validators": "tsx scripts/validators.ts",
     "carto": "tsx packages/cli/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
     "gallery": "tsx packages/cli/src/gallery.ts",
