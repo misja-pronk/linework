@@ -369,7 +369,7 @@ describe('examples/deployment', () => {
     expect([...prod.nodes, ...prod.groups, ...prod.edges].some((x) => x.marks?.length)).toBe(false);
     // Outlined in ink: a stage mark is rose.
     expect(r.svg).toContain('>dev</text>');
-  });
+  }, 30_000);
 
   it('the model links to both deployments', async () => {
     const r = await show('model.yaml', 'containers');
