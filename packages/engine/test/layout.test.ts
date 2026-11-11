@@ -26,6 +26,7 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'access/access-packages.yaml': 0,
   'access/azure-rbac-pim.yaml': 0,
+  'access/privileged-access.yaml': 2, // the service desk's eligible line up into its unit passes the Tier 1 lines into the tenant
   'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
@@ -144,6 +145,7 @@ const jogBudget: Record<string, number> = {
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
   'access/engineering.yaml': 2, // wrapped for a slide: the package lines into the security group step aside
+  'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   // A mind map's branches leave the centre on curves, drawn as short pieces that each read as a step: no kinks a reader sees.
@@ -193,6 +195,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'access/privileged-access.yaml': 1, // Privileged Role Administrator, beside Tier 0's other eligible line into the tenant
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
