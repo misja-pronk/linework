@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.6.0",
     "@cartography/blocks": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/describe": "workspace:*",

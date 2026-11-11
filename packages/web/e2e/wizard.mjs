@@ -1,5 +1,5 @@
 // The Wizard mode of the start dialog: type → template → "Answer questions" → one question at a time with
-// the drawing redrawn as you answer, by keyboard and by clicking; Finish opens the diagram; "Ask Claude to refine
+// the drawing redrawn as you answer, by keyboard and by clicking; Finish opens the diagram; "Refine it with your AI
 // it" starts the AI mode from the wizard's drawing (the API is mocked). node e2e/wizard.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
@@ -22,10 +22,6 @@ const shows = async (text, what) => {
   return false;
 };
 
-const requests = [];
-await page.route('https://api.anthropic.com/**', async (route) => {
-  requests.push(route.request().postDataJSON());
-  await route.fulfill({ status: 500, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' }, body: '{"type":"error","error":{"type":"api_error","message":"mocked"}}' });
 });
 
 await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
@@ -103,15 +99,16 @@ if (!(full.width > fitted.width * 1.3)) fail(`the preview did not open at full s
 await page.screenshot({ path: `${out}/4b-preview-full.png` });
 await page.locator('.wizard-preview .mode-preview').click();
 
-// 7. Ask Claude to refine it: the AI mode with the wizard's drawing in the prompt.
-await page.locator('button', { hasText: 'Ask Claude to refine it' }).click();
+// 7. Refine it with your AI: the AI mode with the wizard's drawing in the prompt to copy.
+await page.locator('button', { hasText: 'Refine it with your AI' }).click();
 await page.waitForSelector('.ask-form');
-await page.fill('.ask-run input[type=password]', 'sk-ant-test');
-await page.locator('.ask-run .button', { hasText: 'Generate' }).click();
-for (let i = 0; i < 30 && !requests.length; i++) await wait(100);
-const sent = JSON.stringify(requests[0] ?? '');
+await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+await page.locator('.ask-run .button', { hasText: 'Copy the prompt' }).click();
+await page.waitForSelector('.paste');
+const sent = await page.evaluate(() => navigator.clipboard.readText());
 if (!sent.includes('Start from this draft') || !sent.includes('Fabrikam')) fail('the prompt does not start from the wizard drawing');
 // Esc from there goes back to the wizard, answers kept.
+await page.getByRole('button', { name: /Change answers/ }).click();
 await page.keyboard.press('Escape');
 await page.waitForSelector('.wizard');
 await shows('Fabrikam', 'answers kept after the AI mode');

@@ -295,7 +295,6 @@ export const nlApp = {
   'Focus: only what is selected and what is around it (F)': 'Focus: alleen wat geselecteerd is en wat eromheen ligt (F)',
   'A step to present: what is selected stands out in it (S)': 'Een stap om te presenteren: wat geselecteerd is valt erin op (S)',
   'Present full screen, step by step (P or ⌘↩)': 'Presenteren op volledig scherm, stap voor stap (P of ⌘↩)',
-  'Ask Claude': 'Vraag het Claude',
   'Review notes (⇧N); N adds one on the selection': 'Reviewnotities (⇧N); N voegt er een toe bij de selectie',
   'Notes, {count} open, {unread} unread': 'Notities, {count} open, {unread} ongelezen',
   'Notes, {count} open': 'Notities, {count} open',

@@ -9,7 +9,13 @@ A diagram is one YAML file. Cartography validates it against the type's JSON Sch
 everything itself and draws SVG or PNG. You never write positions, sizes or colours per element.
 
 Use the **MCP tools** when the `cartography` server is connected (`list_types`, `get_schema`,
-`new_diagram`, `validate`, `render`, `import_mermaid`). Otherwise use the CLI (bottom of this file).
+`new_diagram`, `validate`, `render`, `import_mermaid`, `edit_diagram`, `describe`, `diff`,
+`get_context`, `propose`). Otherwise use the CLI (bottom of this file).
+
+To change an existing diagram, prefer `edit_diagram` (edits by YAML path) to rewriting the file:
+comments and pins stay. When the user has it open in an editor, call `get_context` first ("this",
+"the selected" mean what it lists) and `propose` the change: they accept or reject it. Use
+`edit_diagram` when `propose` says no editor has it open.
 
 ## 1. Pick the type
 

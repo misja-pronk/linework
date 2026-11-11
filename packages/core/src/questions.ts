@@ -37,7 +37,7 @@ const parts = (type: DiagramType, label: string, help?: string): Question => ({
 const specific: Record<string, (type: DiagramType) => Question[]> = {
   systems: (t) => [
     { ...about, placeholder: 'E.g. our order platform: web shop, orders, payments and warehouse, and how they call each other.' },
-    parts(t, 'What kinds of things are in it?', 'Pick what you know; Claude adds what is clearly missing.'),
+    parts(t, 'What kinds of things are in it?', 'Pick what you know; the AI adds what is clearly missing.'),
     { id: 'grouping', label: 'Group them by', kind: 'choice', options: ['Team or domain', 'Layer (front, services, data)', 'Environment', 'No groups'], initial: 'Team or domain' },
     { id: 'external', label: 'Outside systems and people', kind: 'text', placeholder: 'Customers, a payment provider, the ERP…' },
   ],
@@ -50,7 +50,7 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
   ],
   kubernetes: (t) => [
     { ...about, label: 'Which workloads?', placeholder: 'E.g. a shop: web and API deployments behind an ingress, a worker, Postgres as a StatefulSet.' },
-    parts(t, 'What should appear?', 'Pick what you know; Claude adds what is clearly missing.'),
+    parts(t, 'What should appear?', 'Pick what you know; the AI adds what is clearly missing.'),
     { id: 'namespaces', label: 'Namespaces', kind: 'text', placeholder: 'shop, monitoring, ingress-nginx' },
     { id: 'traffic', label: 'How does traffic get in?', kind: 'choice', options: ['Ingress', 'Gateway API', 'LoadBalancer service', 'Internal only'], initial: 'Ingress' },
     { id: 'focus', label: 'Show', kind: 'choice', options: ['Traffic path', 'Config and storage too', 'Security (service accounts, network policies)'], initial: 'Traffic path' },
@@ -111,7 +111,7 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
   ],
   azure: (t) => [
     { ...about, placeholder: 'E.g. an order platform on Container Apps with a public API, events on Service Bus and SQL.' },
-    parts(t, 'Which Azure services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),
+    parts(t, 'Which Azure services are involved?', 'Pick what you know; the AI adds what is clearly missing.'),
     { id: 'layout', label: 'How is it organised?', kind: 'choice', options: ['One subscription', 'Hub and spoke', 'Per environment (dev / test / prod)', 'Not sure'], initial: 'One subscription' },
     { id: 'network', label: 'Networking', kind: 'choice', options: ['Public endpoints', 'Private endpoints in a VNet', 'Mixed'], initial: 'Mixed' },
     { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
@@ -119,14 +119,14 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
   cloud: (t) => [
     { ...about, placeholder: 'E.g. a web shop on AWS: a load balancer, containers on ECS and Aurora, across three availability zones.' },
     { id: 'provider', label: 'Which cloud?', kind: 'choice', options: ['AWS', 'Google Cloud', 'Several clouds or hybrid'], initial: 'AWS' },
-    parts(t, 'Which services are involved?', 'Pick what you know; Claude adds what is clearly missing.'),
+    parts(t, 'Which services are involved?', 'Pick what you know; the AI adds what is clearly missing.'),
     { id: 'layout', label: 'How is it organised?', kind: 'choice', options: ['One account or project', 'Landing zone (organization, several accounts or projects)', 'Per environment (dev / test / prod)', 'Not sure'], initial: 'One account or project' },
     { id: 'network', label: 'Networking', kind: 'choice', options: ['Leave the network out', 'One VPC with public and private subnets', 'Subnet tiers across availability zones', 'Hub network with VPN or interconnect'], initial: 'One VPC with public and private subnets' },
     { id: 'users', label: 'Who or what calls it?', kind: 'text', placeholder: 'Customers, partners, internal staff, other systems…' },
   ],
   network: (t) => [
     { ...about, label: 'Which network?', placeholder: 'E.g. our office: a firewall pair, a core switch, four VLANs and Wi-Fi; a VPN to Azure.' },
-    parts(t, 'What should appear?', 'Zones and devices; Claude adds what is clearly missing.'),
+    parts(t, 'What should appear?', 'Zones and devices; the AI adds what is clearly missing.'),
     { id: 'addressing', label: 'Addressing (if you know it)', kind: 'text', placeholder: 'VLAN 10 staff 10.0.10.0/24, VLAN 20 voice…' },
     { id: 'view', label: 'Show it as', kind: 'choice', options: ['Topology', 'IP plan table'], initial: 'Topology' },
   ],

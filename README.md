@@ -24,7 +24,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 | Feature | Key or command | More |
 | --- | --- | --- |
-| Start from a type, a template, a wizard or Claude | **New**, `carto new [--wizard …]` | [wizards](docs/wizards.md), [ai](docs/ai.md) |
+| Start from a type, a template, a wizard or your own AI | **New**, `carto new [--wizard …]` | [wizards](docs/wizards.md), [ai](docs/ai.md) |
 | Add, connect, rename, move (positions in `<name>.layout.json`) | `A`, `C`, `F2`, drag | [getting started](docs/getting-started.md) |
 | Tidy the layout, pins stay | `T` | [style](docs/style.md) |
 | Steps: tell a drawing in parts, present it | `S`, `P` | [steps](docs/steps.md) |
@@ -36,7 +36,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Architecture decisions (ADRs) on the drawing | `⇧D`, `⌥⇧D`, `carto decisions` | [decisions](docs/decisions.md) |
 | Blocks: reusable patterns with parameters | `B`, `⇧B`, `carto blocks` | [blocks](docs/blocks.md) |
 | Compare with an earlier version or a snapshot | `⇧⌘D`, `carto diff` | [compare](docs/compare.md) |
-| Ask Claude for a change (your own API key) | `⌘J` | [ai](docs/ai.md) |
+| Your own AI (Claude Code, Copilot, Cursor…) changes diagrams through MCP: proposals to accept, files changed on disk marked | `⌘J`, `carto serve` | [ai](docs/ai.md), [mcp](docs/mcp.md) |
 | One model, many diagrams; a folder as one model | `⌘P`, `⌘↓`, `⌘↑`, `⇧F2` | [model](docs/model.md), [workspace](docs/workspace.md) |
 | Architecture review: rule packs, findings by pillar, fixes | `⇧W`, `carto review` | [review](docs/review.md) |
 | Threat models, trust boundaries, STRIDE | `carto threats`, `--view threats` | [threats](docs/threats.md) |

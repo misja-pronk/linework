@@ -160,8 +160,8 @@ export function WizardSteps({ wizards, theme, onOpen, onAsk }: { wizards: Wizard
             </button>
           </div>
           <span className="spacer" />
-          <button className="button ghost" onClick={() => onAsk(result(how))} title={t('Describe what else it needs; Claude starts from this drawing')}>
-            <Icon name="sparkles" /> {t('Ask Claude to refine it')}
+          <button className="button ghost" onClick={() => onAsk(result(how))} title={t('Describe what else it needs; your AI starts from this drawing')}>
+            <Icon name="sparkles" /> {t('Refine it with your AI')}
           </button>
         </footer>
       </div>

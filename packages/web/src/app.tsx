@@ -312,7 +312,7 @@ export function App() {
   }, [pins, draft]);
   // Slow (big) diagrams wait a little longer between keystrokes, so typing stays smooth.
   const [renderMs, setRenderMs] = useState(0);
-  // The file name people see (and Claude is told): a template is "sequence.yaml", never its id "template:sequence".
+  // The file name people see (and their AI is told): a template is "sequence.yaml", never its id "template:sequence".
   const docFile = (doc.path ?? (doc.starter?.startsWith('example:') ? doc.starter.slice('example:'.length) : undefined) ?? doc.name).split('/').pop();
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);

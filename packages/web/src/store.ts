@@ -18,3 +18,12 @@ export const store = {
     }
   },
 };
+
+// The built-in Claude client is gone: an API key it kept is taken out of this browser.
+for (const key of ['claude-key', 'claude-model']) {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch {
+    /* no storage */
+  }
+}
