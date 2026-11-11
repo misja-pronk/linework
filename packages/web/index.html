@@ -8,10 +8,10 @@
       functions (validators precompiled at build time would let it go). 'wasm-unsafe-eval': Graphviz is
       WebAssembly. Workers from blob: (fflate's async zip). Inline styles: React's style props and
       CodeMirror's sheets. Images and fonts from data: and blob: (drawings, icon packs, logos, the fonts in
-      an SVG). api.anthropic.com is the built-in AI, with the user's own key: it goes when the AI moves to MCP.
+      an SVG). Nothing else: the app talks only to where it came from (carto serve, for the live link).
       The dev server leaves this out (vite.config.ts).
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://api.anthropic.com; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <title>Cartography</title>
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 11h6v6H9zM17 15h6v6h-6z' fill='white'/%3E%3Cpath d='M15 14h2v3' stroke='white' stroke-width='1.5' fill='none'/%3E%3C/svg%3E" />

@@ -3,7 +3,7 @@
 // quality it can act on, and rendering to a file or straight back into the chat.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@cartography/core';
+import { parseSidecar, parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@cartography/core';
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { importMermaid } from '@cartography/import';
 import { measure, score, type LayoutMetrics } from '@cartography/layout';
@@ -73,7 +73,17 @@ export function load(input: Input, cwd: string): Loaded {
   if (!input.file) throw new Error('Pass the diagram as "yaml" (the text) or "file" (a path to a .yaml file)');
   const file = resolvePath(input.file, cwd);
   const side = file.replace(/\.ya?ml$/, '') + '.layout.json';
-  const sidecar = fs.existsSync(side) ? (JSON.parse(fs.readFileSync(side, 'utf8')) as LayoutSidecar) : undefined;
+  let sidecar: LayoutSidecar | undefined;
+  if (fs.existsSync(side)) {
+    let json: unknown;
+    try {
+      json = JSON.parse(fs.readFileSync(side, 'utf8'));
+    } catch (e) {
+      throw new Error(`${path.basename(side)}: not valid JSON: ${(e as Error).message}`);
+    }
+    // Bad entries are dropped rather than drawn as NaN; the drawing then places those itself.
+    sidecar = parseSidecar(json).sidecar;
+  }
   return { text: fs.readFileSync(file, 'utf8'), dir: path.dirname(file), sidecar };
 }
 
