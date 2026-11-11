@@ -26,14 +26,14 @@ groups:
 
 nodes:
   # Subscriptions: a card each, in the management group that governs it
-  sub-management: { kind: service, icon: folder-key, tone: amber, label: sub-management, caption: Log Analytics · Automation, in: management }
-  sub-connectivity: { kind: service, icon: folder-key, tone: amber, label: sub-connectivity, caption: Hub VNet · firewall · DNS, in: connectivity }
-  sub-identity: { kind: service, icon: folder-key, tone: amber, label: sub-identity, caption: Domain controllers, in: identity }
-  sub-erp: { kind: service, icon: folder-key, tone: amber, label: sub-erp-prd, caption: Peered to the hub, in: corp }
-  sub-intranet: { kind: service, icon: folder-key, tone: amber, label: sub-intranet-prd, caption: Peered to the hub, in: corp }
-  sub-webshop: { kind: service, icon: folder-key, tone: amber, label: sub-webshop-prd, caption: Front Door · WAF, in: online }
-  sub-lab: { kind: service, icon: folder-key, tone: amber, label: sub-sandbox-dev, caption: Experiments, in: sandbox }
-  sub-legacy: { kind: service, icon: folder-key, tone: slate, label: sub-crm-old, caption: Retired 2026, in: decommissioned }
+  sub-management: { kind: subscription, label: sub-management, caption: Log Analytics · Automation, in: management }
+  sub-connectivity: { kind: subscription, label: sub-connectivity, caption: Hub VNet · firewall · DNS, in: connectivity }
+  sub-identity: { kind: subscription, label: sub-identity, caption: Domain controllers, in: identity }
+  sub-erp: { kind: subscription, label: sub-erp-prd, caption: Peered to the hub, in: corp }
+  sub-intranet: { kind: subscription, label: sub-intranet-prd, caption: Peered to the hub, in: corp }
+  sub-webshop: { kind: subscription, label: sub-webshop-prd, caption: Front Door · WAF, in: online }
+  sub-lab: { kind: subscription, label: sub-sandbox-dev, caption: Experiments, in: sandbox }
+  sub-legacy: { kind: subscription, tone: slate, label: sub-crm-old, caption: Retired 2026, in: decommissioned }
 
 steps:
   - The management group hierarchy of the Northwind landing zone, with a subscription per workload.

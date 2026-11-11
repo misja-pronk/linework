@@ -26,7 +26,7 @@ groups:
   rg-data: { kind: resource-group, label: rg-claims-data, caption: Public access disabled, in: sub-app }
 
 nodes:
-  office-dns: { kind: dns, label: dc01.northwind.local, caption: Conditional forwarders, in: onprem, tags: [dns] }
+  office-dns: { kind: dns, label: dc01.northwind.local, caption: Forwards privatelink.*, in: onprem, tags: [dns] }
 
   resolver: { kind: dns, label: dnspr-hub, caption: Inbound endpoint · 10.0.1.4, in: dns-in, tags: [dns] }
   ruleset: { kind: dns, label: dnsfrs-hub, caption: northwind.local → 10.10.0.10, in: dns-out, tags: [dns] }
@@ -45,13 +45,13 @@ nodes:
 
 edges:
   # How a name is found
-  - office-dns -> resolver: { label: privatelink.*, style: private, tags: [dns] }
+  - office-dns -> resolver: { style: private, tags: [dns] }
   - resolver ..> zone-sql: { style: management, tags: [dns] }
   - resolver ..> zone-blob: { style: management, tags: [dns] }
   - resolver ..> zone-kv: { style: management, tags: [dns] }
   - app ..> resolver: { label: DNS, style: management, tags: [dns] }
   # Names the other way: Azure asks the office DNS for northwind.local through the outbound endpoint
-  - resolver ..> ruleset: { label: northwind.local, style: management, tags: [dns] }
+  - resolver ..> ruleset: { style: management, tags: [dns] }
   # How the traffic flows
   - app -> pe-sql: { style: private }
   - app -> pe-blob: { style: private }

@@ -56,7 +56,7 @@ const crossingBudget: Record<string, number> = {
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
   'data-products/northwind-mesh.yaml': 1, // Orders and Customers both feed Revenue and the sales dashboard, which stand in one column
-  'data-products/northwind-orders-product.yaml': 2, // the contract stands beside the product: the lines out of its ports go around it
+  'data-products/northwind-orders-product.yaml': 0,
   'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
   'deployment/aws.yaml': 2, // the OrderPlaced lines into the queue each run on their own: lines with a label never share a trunk
   'deployment/aws.yaml#prod': 2, // the same
@@ -144,6 +144,7 @@ const jogBudget: Record<string, number> = {
   'kubernetes/inference.yaml': 1,
   'model/deployment.yaml': 1,
   'azure/hub-spoke.yaml': 1, // the second peering line steps out of the firewall's side beside the first
+  'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
@@ -153,7 +154,7 @@ const jogBudget: Record<string, number> = {
   'data-products/customer-detailed.yaml': 2, // the same as customer.yaml, and a line stepping clear of a card it passes
   'data-products/customer-focus.yaml': 2, // the same, twice
   'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
-  'data-products/northwind-orders-product.yaml': 2, // the two output ports' lines step aside around the contract
+  'data-products/northwind-orders-product.yaml': 2, // the sources' lines step into their input ports
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title

@@ -4,7 +4,7 @@ Azure infrastructure diagram: Northwind · PaaS without public access, resolved 
 
 Groups and elements
 - Head office (Amsterdam · 10.10.0.0/16)
-  - dc01.northwind.local (Conditional forwarders)
+  - dc01.northwind.local (Forwards privatelink.*)
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - snet-dns-inbound (10.0.1.0/28)
@@ -29,8 +29,8 @@ Groups and elements
     - kv-claims-prd (Key Vault)
 
 Connections
-- dc01.northwind.local connects to dnspr-hub (Private network: privatelink.*).
-- dnspr-hub connects to privatelink.database.windows.net (Management), connects to privatelink.blob.core.windows.net (Management), connects to privatelink.vaultcore.azure.net (Management) and connects to dnsfrs-hub (Management: northwind.local).
+- dc01.northwind.local connects to dnspr-hub (Private network).
+- dnspr-hub connects to privatelink.database.windows.net (Management), connects to privatelink.blob.core.windows.net (Management), connects to privatelink.vaultcore.azure.net (Management) and connects to dnsfrs-hub (Management).
 - vmss-claims connects to dnspr-hub (Management: DNS), connects to pe-sql-claims (Private network), connects to pe-st-claims (Private network) and connects to pe-kv-claims (Private network).
 - pe-sql-claims connects to sql-claims-prd (Private network: TDS 1433).
 - pe-st-claims connects to stclaimsprd (Private network: HTTPS 443).

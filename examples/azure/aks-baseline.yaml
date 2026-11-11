@@ -44,7 +44,7 @@ edges:
   - ingress -> orders: { style: private, tags: [ingress] }
   - orders -> id: { style: identity, badge: true, tags: [identity] }
   - orders -> pe-kv: { label: secrets, style: private, tags: [identity] }
-  - id -> kv: { label: Secrets User, style: identity, tags: [identity] }
+  - id -> kv: { label: Secrets User, style: role, tags: [identity] }
   - pe-kv -> kv: { style: private, tags: [identity] }
   - aks -> pe-acr: { label: image pull, style: private }
   - pe-acr -> acr: { style: private }

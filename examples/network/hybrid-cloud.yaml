@@ -3,6 +3,7 @@ title: Hybrid connectivity
 subtitle: Northwind · ExpressRoute to the Azure hub, a site-to-site VPN over the internet as failover
 
 # Top to bottom: data centre → the two ways out (ExpressRoute provider, internet) → Azure hub → spokes.
+# The firewall and the spokes share a tier, so the spokes stand beside the hub instead of under it.
 # Both paths run BGP. Azure prefers ExpressRoute over VPN for the same prefix, and the data centre
 # prepends its AS on the VPN, so traffic only takes the VPN when the circuit is down.
 # Spokes use the hub's gateways (gateway transit) but do not learn the on-premises routes:
@@ -10,10 +11,9 @@ subtitle: Northwind · ExpressRoute to the Azure hub, a site-to-site VPN over th
 # Address plan: data centre 10.10.0.0/16, hub 10.0.0.0/22, spokes 10.1.0.0/16 (a /22 each).
 
 groups:
+  provider: { kind: wan, label: ExpressRoute circuit, caption: 1 Gbps · private peering · Equinix AM }
   dc: { kind: datacenter, label: Amsterdam DC, cidr: 10.10.0.0/16 }
   servers: { kind: vlan, label: Servers, in: dc, vlan: 100, cidr: 10.10.100.0/24 }
-
-  provider: { kind: wan, label: ExpressRoute circuit, caption: 1 Gbps · private peering · Equinix AM }
 
   azure: { kind: region, label: Azure West Europe }
   hub: { kind: vnet, label: vnet-hub-weu, in: azure, cidr: 10.0.0.0/22 }
@@ -30,10 +30,10 @@ nodes:
 
   ergw: { kind: cloud-gateway, label: ergw-hub, in: gw, model: ErGw1AZ, tags: [expressroute] }
   vpngw: { kind: vpn-gateway, label: vpng-hub, in: gw, model: VpnGw2AZ · active-active · AS 65515, tags: [vpn] }
-  fw: { kind: firewall, label: afw-hub, in: afw, model: Azure Firewall Premium, ip: 10.0.0.68, tags: [expressroute, vpn] }
+  fw: { kind: firewall, label: afw-hub, in: afw, model: Azure Firewall Premium, ip: 10.0.0.68, tier: access, tags: [expressroute, vpn] }
 
-  vm-intranet: { kind: server, label: vmss-intranet, in: intranet, model: rt-intranet · propagation off, tags: [expressroute, vpn] }
-  vm-erp: { kind: server, label: vmss-erp, in: erp, model: rt-erp · propagation off, tags: [expressroute, vpn] }
+  vm-intranet: { kind: server, label: vmss-intranet, in: intranet, model: rt-intranet · propagation off, tier: access, tags: [expressroute, vpn] }
+  vm-erp: { kind: server, label: vmss-erp, in: erp, model: rt-erp · propagation off, tier: access, tags: [expressroute, vpn] }
 
 edges:
   - dc01 -- rtr-ams: { speed: 10G, count: 2 }

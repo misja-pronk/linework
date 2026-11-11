@@ -2,10 +2,12 @@ type: azure
 title: Hub and spoke
 subtitle: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall
 
-# Top to bottom: head office → hub (Connectivity subscription) → spokes, one subscription each.
+# Left to right: head office → hub (Connectivity subscription) → spokes, one subscription each.
 # Address plan: hub 10.0.0.0/22, a /22 per spoke from 10.1.0.0, head office 10.10.0.0/16.
-# Every spoke subnet has an NSG and the spoke's route table (both in the subnet's caption):
-# 0.0.0.0/0 → 10.0.0.68, the firewall's private IP.
+# Every spoke subnet has an NSG (nsg-app, nsg-web) and its spoke's route table (rt-erp, rt-intranet):
+# 0.0.0.0/0 → 10.0.0.68, the firewall's private IP. The GatewaySubnet has rt-gateway, which sends
+# the spoke ranges to the firewall too. Captions hold the address plan only, so the drawing stays
+# readable on a slide; the routing layer and the steps tell the route tables' story.
 # Adding a spoke: copy sub-erp with its vnet and subnet, take the next /22 and add a
 # peering line from the firewall to what runs in it.
 
@@ -15,18 +17,18 @@ groups:
   # Platform: the hub, owned by the network team
   conn: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
   hub: { kind: vnet, label: vnet-hub-weu, caption: 10.0.0.0/22, in: conn }
-  gw-snet: { kind: subnet, label: GatewaySubnet, caption: 10.0.0.0/27 · rt-gateway, in: hub }
+  gw-snet: { kind: subnet, label: GatewaySubnet, caption: 10.0.0.0/27, in: hub }
   fw-snet: { kind: subnet, label: AzureFirewallSubnet, caption: 10.0.0.64/26, in: hub }
   bas-snet: { kind: subnet, label: AzureBastionSubnet, caption: 10.0.0.128/26, in: hub }
 
   # Spokes: one per workload, peered to the hub only (spokes are never peered to each other)
   sub-erp: { kind: subscription, label: sub-erp-prd, caption: Landing zone · Corp }
-  vnet-erp: { kind: vnet, label: vnet-erp-weu, caption: 10.1.0.0/22 · peered to hub, in: sub-erp }
-  erp-app: { kind: subnet, label: snet-app, caption: 10.1.0.0/24 · nsg-app · rt-erp, in: vnet-erp }
+  vnet-erp: { kind: vnet, label: vnet-erp-weu, caption: 10.1.0.0/22, in: sub-erp }
+  erp-app: { kind: subnet, label: snet-app, caption: 10.1.0.0/24, in: vnet-erp }
 
   sub-intranet: { kind: subscription, label: sub-intranet-prd, caption: Landing zone · Corp }
-  vnet-intranet: { kind: vnet, label: vnet-intranet-weu, caption: 10.1.4.0/22 · peered to hub, in: sub-intranet }
-  intranet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24 · nsg-web · rt-intranet, in: vnet-intranet }
+  vnet-intranet: { kind: vnet, label: vnet-intranet-weu, caption: 10.1.4.0/22, in: sub-intranet }
+  intranet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24, in: vnet-intranet }
 
 nodes:
   router: { kind: vpn-gateway, label: Edge router, caption: BGP AS 65010, in: onprem }
