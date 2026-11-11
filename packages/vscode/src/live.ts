@@ -110,3 +110,38 @@ function typeOf(text: string) {
   const id = (parseSource(text).data as { type?: unknown } | undefined)?.type;
   return typeof id === 'string' ? findType(id) : undefined;
 }
+
+/**
+ * A diagram written on disk by someone else (the agent's edit_diagram, git) while it is open and
+ * saved: VS Code reloads it as an undoable edit; the preview shows what changed with the diff marks,
+ * kept or undone in one step.
+ */
+export function showDiskChanges(previewOf: (doc: vscode.TextDocument) => Preview | undefined): vscode.Disposable {
+  const known = new Map<string, string>();
+  const remember = (doc: vscode.TextDocument) => doc.uri.scheme === 'file' && known.set(doc.uri.toString(), doc.getText());
+  for (const d of vscode.workspace.textDocuments) remember(d);
+  const subs = [
+    vscode.workspace.onDidOpenTextDocument(remember),
+    vscode.workspace.onDidSaveTextDocument(remember),
+    vscode.workspace.onDidCloseTextDocument((d) => known.delete(d.uri.toString())),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      const doc = e.document;
+      const before = known.get(doc.uri.toString());
+      // A reload from disk leaves the document clean; typing does not.
+      if (before === undefined || doc.isDirty || before === doc.getText()) return;
+      remember(doc);
+      const preview = previewOf(doc);
+      if (!preview) return;
+      const after = doc.getText();
+      const file = doc.uri.fsPath;
+      const opts = { ...filesNear(file), sidecar: readSidecar(file), theme: scheme() };
+      void compare(before, after, { before: { ...opts, idPrefix: 'was' }, after: { ...opts, idPrefix: 'now' } }).then(async (c) => {
+        const keep = await preview.propose({ summary: `${vscode.workspace.asRelativePath(doc.uri)} changed on disk`, counts: c.diff.same ? 'Nothing drawn differently' : summary(c.diff), svg: c.picture({ against: 'now' })?.svg, lines: yamlDiff(before, after), applied: true });
+        if (keep || doc.getText() !== after) return;
+        await vscode.window.showTextDocument(doc, { preserveFocus: false });
+        await vscode.commands.executeCommand('undo');
+      });
+    }),
+  ];
+  return vscode.Disposable.from(...subs);
+}

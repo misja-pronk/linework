@@ -14,6 +14,9 @@ class Emitter<T> {
 }
 
 export class Disposable {
+  static from(...all: { dispose(): void }[]) {
+    return new Disposable(() => all.forEach((d) => d.dispose()));
+  }
   constructor(private readonly f: () => void = () => {}) {}
   dispose() {
     this.f();
@@ -313,6 +316,7 @@ export const workspace = {
   onDidCloseTextDocument: events.close.event,
   onDidChangeConfiguration: events.config.event,
   onDidChangeWorkspaceFolders: () => new Disposable(),
+  onDidSaveTextDocument: () => new Disposable(),
   getConfiguration: (section: string) => ({ get: <T>(key: string, fallback: T): T => (`${section}.${key}` in state.config ? (state.config[`${section}.${key}`] as T) : fallback) }),
   createFileSystemWatcher: () => ({ onDidChange: () => new Disposable(), onDidCreate: () => new Disposable(), onDidDelete: () => new Disposable(), dispose() {} }),
   openTextDocument: async (arg: Uri | { content?: string; language?: string }) => {

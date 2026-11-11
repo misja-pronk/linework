@@ -9,7 +9,7 @@ import { isDiagramDoc, Language, registerYamlSchemas } from './language.ts';
 import { extendMarkdownIt } from './markdown.ts';
 import { Preview, type PreviewHost } from './preview.ts';
 import { NoteComments } from './notes.ts';
-import { startLive } from './live.ts';
+import { showDiskChanges, startLive } from './live.ts';
 import { notesPath } from '@cartography/core';
 import { settings } from './settings.ts';
 
@@ -78,6 +78,7 @@ export function activate(context: vscode.ExtensionContext) {
       },
       preview: (doc) => previews.open(doc, 'preview'),
     }),
+    showDiskChanges((doc) => previews.of(doc)),
   );
 
   // Typing, opening, closing.

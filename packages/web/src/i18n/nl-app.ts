@@ -16,7 +16,6 @@ export const nlApp = {
   'its gh api responses in github.yaml': 'de antwoorden van gh api in github.yaml',
   'its az graph query, az bicep build or terraform show -json output in azure.yaml': 'de uitvoer van az graph query, az bicep build of terraform show -json in azure.yaml',
   'Show all {count}': 'Alle {count} tonen',
-  '{path} changed on disk: reloaded': '{path} is op schijf gewijzigd: opnieuw geladen',
   '{path} changed on disk. Saving will ask before it overwrites that.': '{path} is op schijf gewijzigd. Opslaan vraagt eerst of je dat wilt overschrijven.',
   'Undo': 'Ongedaan maken',
   'Opened {name}': '{name} geopend',

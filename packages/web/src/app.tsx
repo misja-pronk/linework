@@ -67,7 +67,7 @@ import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { anchorFor, anchorLabel, notesInView, resolveAnchor, type NoteAnchor } from '@cartography/core';
 import { t, say, useUiLang, withUiLang, type Message } from './i18n/index.ts';
-import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, writeInFolder, type Workspace } from './files.ts';
+import { canSaveFiles, canUseFolders, diagrams, diskText, folderLoader, lastFolder, pickFolder, readSidecar, reopen, saveAs, saveFile, saveInFolder, scan, sidecarPath, writeInFolder, type Workspace } from './files.ts';
 
 type ThemePref = 'system' | 'light' | 'dark';
 
@@ -200,7 +200,8 @@ export function App() {
   // The start dialog only until it has been left once (by any way: a template, a file, Esc).
   /** Questions before something is lost, in the app's own dialog (confirm.tsx). */
   const confirmer = useConfirm();
-  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') ? undefined : 'templates'));
+  // Opened by carto serve, the folder's first diagram opens instead.
+  const [modal, setModal] = useState<'palette' | 'templates' | 'problems' | 'connect' | 'shortcuts' | undefined>(() => (store.get('started') || served() ? undefined : 'templates'));
   // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
   // Once the start dialog is left, by whatever way, it is not shown at the next launch.
   useEffect(() => {
@@ -468,10 +469,29 @@ export function App() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  // Back in the window: read the folder again, so files edited elsewhere show up. The open file
-  // reloads when it has no unsaved changes; with changes, a warning (saving then asks first).
-  const onDisk = useRef({ ws, doc, dirty, savedText });
-  onDisk.current = { ws, doc, dirty, savedText };
+  // Files edited elsewhere (your AI agent, git, another editor) show up: the folder is read again
+  // when the window gets focus, and the open file is watched while the tab is visible (carto serve
+  // says when it changes; a folder picked here is asked, or polled for its lastModified). Without
+  // unsaved changes the new text comes in as one undoable edit, marked in the Your AI panel; with
+  // them, a warning (saving then asks first).
+  const onDisk = useRef({ ws, doc, dirty, savedText, docKey });
+  onDisk.current = { ws, doc, dirty, savedText, docKey };
+  /** The open file as it is on disk now came in from elsewhere. */
+  const tookFromDisk = (w: Workspace, path: string, disk: string, side: string | undefined) => {
+    const { doc: d, dirty: changed, savedText: base, docKey: key } = onDisk.current;
+    if (d.path !== path || base == null || disk === base) return;
+    // What the editor has already (its own save, an accepted proposal saved): nothing came in.
+    const before = textNow();
+    if (disk === before) return setSavedText(disk);
+    if (changed) return notify(t('{path} changed on disk. Saving will ask before it overwrites that.', { path }), { tone: 'error' });
+    if (side !== undefined && w.files.has(sidecarPath(path))) w.files.set(sidecarPath(path), { ...w.files.get(sidecarPath(path))!, text: side });
+    w.files.set(path, { ...w.files.get(path)!, text: disk });
+    editor.current?.replace(disk, { pins: readSidecar(w, path) ?? null });
+    setSavedText(disk);
+    setSavedPins(JSON.stringify(readSidecar(w, path) ?? null));
+    setDiskChange({ doc: key, path, before, after: disk });
+    askWith();
+  };
   useEffect(() => {
     if (!ws) return;
     let last = 0;
@@ -480,22 +500,52 @@ export function App() {
       last = Date.now();
       void scan(ws.dir)
         .then((next) => {
+          const p = onDisk.current.doc.path;
+          const disk = p ? next.files.get(p)?.text : undefined;
+          // The open file's cache stays what the editor has until it is taken in below.
+          if (p && disk != null && ws.files.has(p)) next.files.set(p, { ...next.files.get(p)!, text: ws.files.get(p)!.text });
           setWs(next);
-          const { doc: d, dirty: changed, savedText: base } = onDisk.current;
-          const disk = d.path ? next.files.get(d.path)?.text : undefined;
-          if (disk == null || base == null || disk === base) return;
-          if (!changed) {
-            editor.current?.load(disk, readSidecar(next, d.path!));
-            setSavedText(disk);
-            setDocKey((k) => k + 1);
-            notify(t('{path} changed on disk: reloaded', { path: d.path! }));
-          } else notify(t('{path} changed on disk. Saving will ask before it overwrites that.', { path: d.path! }), { tone: 'error' });
+          if (p && disk != null) tookFromDisk(next, p, disk, next.files.get(sidecarPath(p))?.text);
         })
         .catch(() => undefined);
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [ws, notify]);
+  useEffect(() => {
+    const path = doc.path;
+    if (!ws || !path) return;
+    let stamp = 0;
+    let busy = false;
+    const check = async (force = false) => {
+      const h = ws.files.get(path)?.handle;
+      if (!h || busy || document.hidden) return;
+      busy = true;
+      try {
+        const f = await h.getFile();
+        if (!force && f.lastModified === stamp) return;
+        stamp = f.lastModified;
+        const side = ws.files.get(sidecarPath(path))?.handle;
+        tookFromDisk(ws, path, await f.text(), side ? await side.getFile().then((x) => x.text(), () => undefined) : undefined);
+      } catch {
+        /* gone, or no permission any more: the focus rescan says so */
+      } finally {
+        busy = false;
+      }
+    };
+    checkDisk.current = () => void check(true);
+    void ws.files.get(path)?.handle.getFile().then((f) => (stamp = f.lastModified), () => undefined);
+    // carto serve says when a file changes; a folder picked here is asked to say so, or polled.
+    if (live.served) return () => void (checkDisk.current = () => undefined);
+    const Observer = (window as unknown as { FileSystemObserver?: new (cb: () => void) => { observe(h: unknown): Promise<void>; disconnect(): void } }).FileSystemObserver;
+    if (Observer) {
+      const o = new Observer(() => void check());
+      void o.observe(ws.files.get(path)!.handle).catch(() => undefined);
+      return () => o.disconnect();
+    }
+    const timer = setInterval(() => void check(), 2000);
+    return () => clearInterval(timer);
+  }, [ws, doc.path]);
 
   const onChange = (next: string) => {
     setText(next);
