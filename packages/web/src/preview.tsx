@@ -1,12 +1,13 @@
 // The drawing: the engine's SVG with pan and zoom, click to select, drag to move (pins), drop into a
 // group to nest, and drops from the add palette.
 import { is } from './keys.ts';
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 import { PALETTE_MIME } from './add-menu.tsx';
+import { describeResult } from './describe.ts';
 import { BLOCK_MIME } from './blocks/blocks-panel.tsx';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
 import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
@@ -923,6 +924,9 @@ export function Preview(p: Props) {
   const f = frame.current;
   const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);
   const announce = selected ? (p.describe?.(selected) ?? selected.id) : selection.length > 1 ? t('{count} selected', { count: selection.length }) : '';
+  // The drawing in plain words (the summary Describe shows), read after the pane's name.
+  const wordsId = useId();
+  const words = useMemo(() => describeResult(result)?.summary, [result]);
 
   return (
     <div
@@ -933,6 +937,7 @@ export function Preview(p: Props) {
       aria-roledescription="drawing"
       aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
       aria-label={t('Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes.')}
+      aria-describedby={words ? wordsId : undefined}
       // The pane pans by its transform, never by scrolling: a browser that scrolls it to bring a focused
       // link into view (after an edit, a click on a linked element did) would shift everything off its place.
       onScroll={(e) => {
@@ -1110,6 +1115,9 @@ export function Preview(p: Props) {
       <div className="sr-only" role="status" aria-live="polite">
         {announce}
       </div>
+      <p id={wordsId} hidden>
+        {words}
+      </p>
       {p.children}
       {p.minimap && overflows && result?.placed && !empty && (
         <Minimap
