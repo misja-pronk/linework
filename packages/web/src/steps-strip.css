@@ -11,16 +11,18 @@
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
 }
 .steps-title {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: 0.65625rem;
   font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-faint);
 }
 .steps-row {
@@ -40,7 +42,7 @@
   gap: 7px;
   height: 30px;
   padding: 0 11px 0 9px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: none;
   color: var(--text-muted);
@@ -48,7 +50,9 @@
   white-space: nowrap;
 }
 .step-chip b {
-  font-weight: 650;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--text-faint);
 }
@@ -56,17 +60,21 @@
   border-color: var(--border-strong);
   color: var(--text);
 }
+/* The step being shown: ink, like the tool that is on. */
 .step-chip.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 550;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
 }
 .step-chip.active b {
-  color: var(--accent);
+  color: inherit;
+  opacity: 0.75;
 }
 .step-chip.editing {
-  border-color: var(--accent);
+  border-color: var(--ink);
+  background: var(--sheet);
+  color: var(--text);
   cursor: text;
 }
 .step-chip input {
@@ -82,8 +90,8 @@
   color: var(--text-faint);
 }
 .step-chip.add:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--ink);
+  border-color: var(--ink);
 }
 .step-chip kbd {
   background: none;

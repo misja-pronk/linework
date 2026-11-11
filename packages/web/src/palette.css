@@ -50,7 +50,7 @@
   color: var(--text-muted);
 }
 .palette-item[aria-selected='true'] {
-  background: var(--accent-soft);
+  background: var(--hover);
   color: var(--text);
 }
 .palette-label {

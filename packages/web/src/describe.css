@@ -1,6 +1,9 @@
 /* Describe (describe-dialog.tsx): the diagram in words. */
 
-.describe-dialog {
+/* Narrower than the keyboard sheet it borrows its frame from: a page of prose reads at this measure.
+   (.shortcuts.describe-dialog, so it wins over .shortcuts' own width.) */
+.shortcuts.describe-dialog {
+  width: min(720px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
 }
@@ -18,6 +21,17 @@
 .describe-summary {
   margin: 4px 0 8px;
   color: var(--text-muted);
+}
+/* The description's sections as plate labels (over .shortcuts h3, which is for the key groups). */
+.shortcuts .describe-body h3 {
+  margin: 16px 0 4px;
+  padding: 0;
+  border: none;
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
 .describe-body p {
   margin: 4px 0;

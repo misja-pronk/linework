@@ -5,7 +5,7 @@
     display: none;
   }
 }
-/* Smart guides while dragging: thin lines in a warm colour that stands apart from the selection. */
+/* Smart guides while dragging: thin lines in the sky ink, apart from the rust of the selection. */
 .guides {
   position: absolute;
   left: 0;
@@ -95,14 +95,13 @@
   opacity: 0.55;
 }
 .mini-view {
-  fill: color-mix(in srgb, var(--accent) 12%, transparent);
-  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--ink) 8%, transparent);
+  stroke: var(--ink);
 }
 /* The page the drawing is for: a thin frame around it, its name and text size above its corner. */
 .page-frame {
   position: absolute;
-  border: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent);
-  border-radius: var(--radius);
+  border: 1px solid var(--rule);
   pointer-events: none;
 }
 .page-frame.small {
@@ -113,8 +112,8 @@
   left: 0;
   bottom: 100%;
   transform-origin: 0 100%;
-  padding: 0 0 4px;
-  font: 500 11px/1.2 var(--font);
+  padding: 0 0 5px;
+  font: 500 10.5px/1.2 var(--mono);
   color: var(--text-muted);
   white-space: nowrap;
 }

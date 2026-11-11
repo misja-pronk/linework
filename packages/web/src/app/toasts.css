@@ -11,8 +11,8 @@
   align-items: center;
   gap: 14px;
   padding: 9px 10px 9px 16px;
-  background: var(--text);
-  color: var(--bg);
+  background: var(--ink);
+  color: var(--paper);
   border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   animation: rise 160ms ease-out;
@@ -32,7 +32,9 @@
 .toast button {
   border: none;
   background: none;
-  color: var(--accent-soft);
+  color: var(--paper);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   font-weight: 600;
   cursor: pointer;
   padding: 3px 6px;

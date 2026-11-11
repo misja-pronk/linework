@@ -60,7 +60,7 @@
   color: var(--text-faint);
 }
 .icon-vendor a {
-  color: var(--accent);
+  color: var(--ink);
 }
 .icon-file {
   font-family: var(--mono);

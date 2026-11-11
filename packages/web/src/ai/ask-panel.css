@@ -33,7 +33,7 @@
   gap: 8px;
   padding: 8px 6px 8px 14px;
   border-bottom: 1px solid var(--border);
-  color: var(--accent);
+  color: var(--ink);
 }
 .ask-panel > header strong {
   color: var(--text);
@@ -96,7 +96,8 @@
 .turn.you {
   align-self: flex-end;
   max-width: 85%;
-  background: var(--accent-soft);
+  background: var(--sheet);
+  border: 1px solid var(--rule2);
   color: var(--text);
   padding: 7px 11px;
   border-radius: var(--radius-plate);
@@ -130,10 +131,12 @@
 }
 .answer button.ref {
   font: inherit;
-  font-weight: 550;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: none;
+  font-family: var(--mono);
+  font-size: 0.71875rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   padding: 0 5px;
   cursor: pointer;
