@@ -5,9 +5,9 @@ Roles, groups and access packages diagram: Entra ID access packages and Azure ro
 Groups and elements
 - Engineering (department = Engineering)
 - Engineering (Catalog)
-  - Manager approves (180 days · review quarterly)
+  - Approval: manager (180 days · review quarterly)
   - Developer access (Access package)
-  - Manager → sg-platform-admins approves (30 days)
+  - Approval: manager → sg-platform-admins (30 days)
   - Platform admin (Access package)
 - sg-developers (Security group)
 - GitHub Enterprise (Application)
@@ -21,17 +21,17 @@ Groups and elements
 - GitHub deploy (Service principal)
 
 Connections
-- Engineering (department = Engineering) connects to Manager approves.
-- Manager approves connects to Developer access.
-- Developer access connects to sg-developers and connects to GitHub Enterprise (User).
-- sg-developers connects to Manager → sg-platform-admins approves, connects to Test (Contributor) and connects to Production (Reader).
-- Manager → sg-platform-admins approves connects to Platform admin.
-- Platform admin connects to sg-platform-admins.
-- sg-platform-admins connects to Production (Owner).
-- Contoso partners connects to Manager approves.
-- Alice connects to Developer access.
-- Bob (Contoso) connects to Developer access.
-- GitHub deploy connects to rg-shop (Contributor).
+- Engineering (department = Engineering) connects to Approval: manager.
+- Approval: manager connects to Developer access.
+- Developer access grants sg-developers and grants GitHub Enterprise (User).
+- sg-developers connects to Approval: manager → sg-platform-admins, is Contributor on Test and is Reader on Production.
+- Approval: manager → sg-platform-admins connects to Platform admin.
+- Platform admin grants sg-platform-admins.
+- sg-platform-admins is Owner on Production.
+- Contoso partners connects to Approval: manager.
+- Alice holds Developer access.
+- Bob (Contoso) holds Developer access.
+- GitHub deploy is Contributor on rg-shop.
 
 Key
 - Solid green line with beads: Holds package

@@ -53,6 +53,7 @@ export const kinds: KindTable = {
   queue: { label: 'Queue', icon: 'send', tone: 'violet', keywords: ['sqs', 'rabbitmq', 'message'] },
   topic: { label: 'Event stream', icon: 'radio-tower', tone: 'violet', keywords: ['kafka', 'event bus', 'pubsub'] },
   identity: { label: 'Identity provider', icon: 'fingerprint-pattern', tone: 'amber', keywords: ['idp', 'oauth', 'sso', 'auth'] },
+  'key-vault': { label: 'Key vault', icon: 'key-round', tone: 'amber', keywords: ['vault', 'kv', 'secrets', 'kms', 'secrets manager'] },
   payments: { label: 'Payments', icon: 'credit-card', tone: 'green', keywords: ['psp', 'stripe'] },
   system: { label: 'System', icon: 'boxes', tone: 'blue' },
   external: { label: 'External system', icon: 'earth', tone: 'slate', keywords: ['third party', 'saas', 'partner'] },

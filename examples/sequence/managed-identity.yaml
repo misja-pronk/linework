@@ -12,7 +12,7 @@ participants:
   app: { kind: service, label: Orders API, caption: system-assigned identity, box: appservice }
   idep: { kind: gateway, label: Identity endpoint, caption: IDENTITY_ENDPOINT, box: appservice }
   entra: { kind: identity, label: Microsoft Entra ID }
-  kv: { kind: storage, icon: key-round, label: Key Vault, caption: kv-orders-prod }
+  kv: { kind: key-vault, label: Key Vault, caption: kv-orders-prod }
   blob: { kind: storage, label: Storage account, caption: stordersexport }
   sql: { kind: database, label: Azure SQL, caption: sqldb-orders }
 

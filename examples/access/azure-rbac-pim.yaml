@@ -3,6 +3,7 @@
 #                A role assigned on a scope is inherited by everything inside it.
 #   assignments  "who is role on scope" is active (standing) access;
 #                "who is eligible role on scope" is PIM: held only after activation, drawn dashed.
+#                The long form adds PIM's settings: activation (the longest one activation lasts) and approval (who approves).
 # Switch the view (graph, access, roles) to see the same file as a who × where matrix
 # (effective access, with where it is inherited from) or as roles × permissions.
 type: access
@@ -39,10 +40,10 @@ roles:
 assignments:
   # Broad and read-only at the top; anything that changes production is eligible, not standing.
   - sg-azure-readers is reader on mg-northwind
-  - sg-platform-admins is eligible owner on mg-northwind
+  - { principal: sg-platform-admins, role: owner, scope: mg-northwind, eligible: true, activation: 4 h, approval: sg-platform-admins }
   - sg-shop-devs is contributor on sub-shop-dev
   - sg-shop-devs is reader on sub-shop-prod
-  - sg-shop-devs is eligible contributor on rg-shop-prod
+  - { principal: sg-shop-devs, role: contributor, scope: rg-shop-prod, eligible: true, activation: 8 h }
   - sg-shop-ops is app-operator on rg-shop-prod
   - sg-shop-ops is eligible kv-secrets-officer on kv-shop-prod
 
@@ -57,11 +58,11 @@ steps:
   - title: Production through PIM
     caption: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
     path: [priya -> sg-shop-devs -> rg-shop-prod]
-    note: { sg-shop-devs: "MFA and a reason, max 8 h" }
+    note: { sg-shop-devs: "MFA and a reason" }
   - title: Operations, least privilege
     caption: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
     path: [sg-shop-ops -> rg-shop-prod, sg-shop-ops -> kv-shop-prod]
   - title: No standing Owner
     caption: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
     path: [daan -> sg-platform-admins -> mg-northwind]
-    note: { sg-platform-admins: "A second admin approves, max 4 h" }
+    note: { sg-platform-admins: "A second admin approves" }

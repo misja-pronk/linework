@@ -17,21 +17,21 @@ Groups and elements
 - sg-shop-operations (Security group)
 
 Connections
-- Priya Shah connects to sg-shop-developers.
-- sg-shop-developers connects to sub-shop-dev (Contributor), connects to sub-shop-prod (Reader) and connects to rg-shop-prod (Contributor).
-- Daan Visser connects to sg-azure-platform-admins.
-- sg-azure-platform-admins connects to Northwind (Owner).
-- sg-azure-readers connects to Northwind (Reader).
-- sg-shop-operations connects to rg-shop-prod (Shop App Operator (custom)) and connects to kv-shop-prod (Key Vault Secrets Officer).
+- Priya Shah is a member of sg-shop-developers.
+- sg-shop-developers is Contributor on sub-shop-dev, is Reader on sub-shop-prod and is eligible for Contributor · 8 h on rg-shop-prod.
+- Daan Visser is a member of sg-azure-platform-admins.
+- sg-azure-platform-admins is eligible for Owner · 4 h · approval on Northwind.
+- sg-azure-readers is Reader on Northwind.
+- sg-shop-operations is Shop App Operator (custom) on rg-shop-prod and is eligible for Key Vault Secrets Officer on kv-shop-prod.
 
 Walkthrough
 1. Scopes: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.
 2. Standing access: Read-only at the top for security and finance. Developers can change dev and read production.
 3. Production through PIM: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
-  - sg-shop-developers: MFA and a reason, max 8 h
+  - sg-shop-developers: MFA and a reason
 4. Operations, least privilege: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
 5. No standing Owner: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
-  - sg-azure-platform-admins: A second admin approves, max 4 h
+  - sg-azure-platform-admins: A second admin approves
 
 Key
 - Dotted line: Member of

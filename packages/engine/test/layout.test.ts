@@ -26,7 +26,7 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'access/access-packages.yaml': 0,
   'access/azure-rbac-pim.yaml': 0,
-  'access/privileged-access.yaml': 2, // the service desk's eligible line up into its unit passes the Tier 1 lines into the tenant
+  'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
   'azure/aks-baseline.yaml': 0,
   'azure/app-landing-zone.yaml': 0,
   'azure/data-platform.yaml': 0,
@@ -36,7 +36,7 @@ const crossingBudget: Record<string, number> = {
   'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,
   'azure/web-app.yaml': 0,
-  'azure/workload-identities.yaml': 1, // the line out to Microsoft Graph passes the web app's line down to its vault
+  'azure/workload-identities.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
