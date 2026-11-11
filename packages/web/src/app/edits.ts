@@ -67,6 +67,7 @@ export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor
     setSelected({ kind: 'edge', id: e.id });
     showInspector();
     toInspector({ kind: 'edge', id: e.id }, '.field input:not([type="checkbox"])');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- waits for the drawing to catch up, not for the setters
   }, [pendingEdge, result, current]);
 
   /** After an add, select the new element once it is drawn (node or group, whatever its type makes it). */
@@ -81,6 +82,7 @@ export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor
       toInspector(n ? { kind: 'node', id: n.id } : { kind: 'group', id: g!.id }, '.inspector-body > .field input', true);
     }
     setPendingPath(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- waits for the drawing to catch up, not for the setters
   }, [pendingPath, result, current]);
   /** After a paste or a duplicate of several: select the copies once they are drawn. */
   const [pendingPaths, setPendingPaths] = useState<string[]>();
@@ -92,6 +94,7 @@ export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor
       ...result.graph.groups.filter((x) => want.has(JSON.stringify(x.path))).map((x) => ({ kind: 'group' as const, id: x.id })),
     ]);
     setPendingPaths(undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- waits for the drawing to catch up, not for the setters
   }, [pendingPaths, result, current]);
 
   const add = (item: PaletteItem, parentGroup?: string | null, at?: Point) => {

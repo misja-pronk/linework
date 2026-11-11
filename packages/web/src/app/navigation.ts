@@ -143,6 +143,7 @@ export function useNavigation(p: Props) {
     const why = result.diagnostics.find((d) => d.message.startsWith('Focus'));
     setLens(undefined);
     notify(why ? why.message.replace(/^Focus: /, '') : t('Nothing to focus on there'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per drawing: the answer to the focus asked
   }, [result]);
 
   // ------------------------------------------------------------ steps and presenting

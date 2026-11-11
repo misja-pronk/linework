@@ -69,6 +69,7 @@ export function useDiskSync({ ws, setWs, document: d, notify, show, served }: Pr
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tookFromDisk reads the document through onDisk
   }, [ws, notify]);
   useEffect(() => {
     const path = doc.path;
@@ -103,6 +104,7 @@ export function useDiskSync({ ws, setWs, document: d, notify, show, served }: Pr
     }
     const timer = setInterval(() => void check(), 2000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tookFromDisk reads the document through onDisk; served stays what it is
   }, [ws, doc.path]);
   /** carto serve said a file changed: the open one is read again. */
   const changed = (path: string) => path === onDisk.current.doc.path && checkDisk.current();

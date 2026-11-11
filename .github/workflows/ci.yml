@@ -29,6 +29,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       # The CLI and MCP bundles (and the web app carto serve serves), run from a folder outside the repo.
       - run: pnpm build

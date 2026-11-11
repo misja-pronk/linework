@@ -62,6 +62,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
         },
       });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- d is new every render: these are what d.replaceWith reads
     [text, doc, pins, notify, savedText, savedPins],
   );
 
@@ -80,7 +81,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
         open(sh.yaml, { name: sh.name ?? 'shared.yaml' }, sh.layout, false, t('Opened the shared diagram as {name}', { name: sh.name ?? 'shared.yaml' }));
       }
     });
-  }, [open, notify]);
+  }, [open, notify, dropModal]);
 
   /** Before replacing the document: save it where it lives, or ask. False keeps it open. */
   const leave = async (): Promise<boolean> => {
@@ -170,7 +171,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
       setWs(next);
       setRemembered(next.dir);
       const first = diagrams(next)[0];
-      if (first) openInFolder(next, first);
+      if (first) await openInFolder(next, first);
       else notify(t('No diagrams in {name} yet: start from a template and save it there', { name: next.name }));
     } catch (e) {
       notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
@@ -181,6 +182,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
   useEffect(() => {
     const s = served();
     if (s) void servedFolder(s).then(scan).then((next) => openFolder(undefined, next), (e: unknown) => notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at launch: the folder carto serve opened
   }, []);
 
   /** Opens a file of the folder; false when it is not there or the user keeps the open one. */

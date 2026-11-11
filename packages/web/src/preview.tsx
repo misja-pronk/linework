@@ -374,6 +374,7 @@ export function Preview(p: Props) {
     // A drag that took a real part of it out of sight (not a few pixels past the edge: that would
     // make the drawing jump under a careful placement).
     if (r.always || (r.was && outOfView() > 48)) requestAnimationFrame(() => fit(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per drawing: the refit asked for before it
   }, [result]);
   useImperativeHandle(p.control, () => ({
     fit,

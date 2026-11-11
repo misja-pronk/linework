@@ -1,7 +1,7 @@
 // Changing a diagram by YAML path: set, append, delete, rename. Small edits keep the rest of the file
 // byte for byte (comments, order, hand edits), so an agent's change reads as a small diff. The MCP
 // server writes them to disk, and the editors show them as a proposal; both check the input here first.
-import { isMap, isSeq, parseDocument, YAMLSeq, type Document } from 'yaml';
+import { isMap, isSeq, parseDocument, type YAMLSeq, type Document } from 'yaml';
 import type { DiagramType } from './diagram-type.ts';
 import type { LayoutSidecar } from './model.ts';
 import { deleteEntryUnsafe, isEntryPath, renameEntryUnsafe } from './entry-edit.ts';

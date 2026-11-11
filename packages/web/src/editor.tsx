@@ -270,6 +270,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
       return { from, to: Math.min(Math.max(d.to ?? from, from), len), severity: d.severity, message: d.message };
     });
     v.dispatch(setDiagnostics(v.state, list));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- diagnostics arrive with the source they are of
   }, [diagnostics]);
 
   useEffect(() => {

@@ -175,6 +175,7 @@ await wait(400);
 const after = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? '0';
 const web2 = await rel();
 if (Number(after) !== Number(before) + 1) fail(`group drag did not pin the group: ${before} → ${after}`);
+if (web.every((d, i) => Math.abs(web2[i] - d) < 10)) fail('contents did not move with the group');
 const savedPins = await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').pins);
 if (!savedPins?.groups || !Object.keys(savedPins.groups).length) fail('group drag did not save a group pin: ' + JSON.stringify(savedPins));
 if ((await page.locator('.status-problems').innerText()) !== 'No problems') {

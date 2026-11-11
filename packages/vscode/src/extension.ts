@@ -23,7 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
     // The preview's drawing is the one the problems come from; the presenter's would only repeat them.
     drawn: (p, d) => {
       if (p.mode !== 'preview') return;
-      language.drawn(p.doc, d.ask, d.result, d.version);
+      // Cannot reject: allDiagnostics catches each render of the other views.
+      void language.drawn(p.doc, d.ask, d.result, d.version);
     },
     command: (name, doc) => {
       const id = name === 'openEditor' ? 'cartography.openInEditor' : `cartography.${name}`;

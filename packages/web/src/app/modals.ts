@@ -16,6 +16,7 @@ export function useModals(onOpen: () => void) {
   useEffect(() => {
     if (modal) onOpen();
     else store.set('started', true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the dialog changes, whatever onOpen is by then
   }, [modal]);
   const [describing, setDescribing] = useState(false);
   /** Opened from the type pill: the dialog marks the open diagram's type. */

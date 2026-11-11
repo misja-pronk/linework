@@ -77,7 +77,7 @@ export function gitflowGeometry(shape: GitflowShape, theme: Theme): GitflowGeome
   let byTheme = cache.get(shape);
   if (!byTheme) cache.set(shape, (byTheme = new Map()));
   let g = byTheme.get(theme);
-  if (!g) byTheme.set(theme, (g = shape.view === 'delivery' ? placeDelivery(shape, theme) : place(shape, theme)));
+  if (!g) byTheme.set(theme, (g = shape.view === 'delivery' ? placeDelivery(shape, theme) : place(shape)));
   return g;
 }
 
@@ -93,7 +93,7 @@ function rowLabel(bs: GitBranch[]): string {
   return prefix && bs.every((b) => b.name.startsWith(`${prefix}/`)) ? `${prefix}/*` : bs.map((b) => b.name).join(', ');
 }
 
-function place(shape: GitflowShape, theme: Theme): GitflowGeometry {
+function place(shape: GitflowShape): GitflowGeometry {
   const branches = shape.branches;
   const commits = shape.commits;
   const byId = new Map(commits.map((c, i) => [c.id, i]));

@@ -27,7 +27,6 @@ import {
   type MatrixCell,
   type MatrixHeader,
   type PaletteItem,
-  type Path,
 } from '@cartography/core';
 
 export const config: GraphTypeConfig = {

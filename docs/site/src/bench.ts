@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { chromium, type Page } from '@playwright/test';
 import { render } from '@cartography/engine';
-import { displacement, measure, type Displacement, type Drawing, type Metrics, type Rect } from './geometry.ts';
+import { displacement, measure, type Displacement, type Drawing, type Metrics } from './geometry.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 const docs = path.join(root, 'docs');

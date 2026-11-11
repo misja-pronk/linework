@@ -384,7 +384,7 @@ export function lineFaults(graph: Graph, placed: Pick<Placed, 'edges'>): { loops
 }
 
 /** Where two crossing pieces (one level, one upright) meet. */
-function crossAt([p, q]: Seg, [r, t]: Seg): Point {
+function crossAt([p, q]: Seg, [r]: Seg): Point {
   return p.y === q.y ? { x: r.x, y: p.y } : { x: p.x, y: r.y };
 }
 

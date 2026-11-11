@@ -36,9 +36,6 @@ export interface CapabilitiesSource {
   view?: string;
 }
 
-/** Keys of a capability that are not something to colour by. */
-const OWN = new Set(['label', 'caption', 'description', 'parent', 'tone', 'link', 'links', 'systems', 'owner', 'tags', 'capabilities']);
-
 interface Cap {
   id: string;
   name: string;
