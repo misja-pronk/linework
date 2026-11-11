@@ -47,6 +47,7 @@ group('the words inside files', () => {
     const svg = accessibleSvg('<svg xmlns="http://www.w3.org/2000/svg" width="10"><rect/></svg>', { title: 'A & B', desc: 'Two <boxes>', id: 'x y' });
     expect(svg).toBe('<svg xmlns="http://www.w3.org/2000/svg" width="10" role="img" aria-labelledby="x-y-title" aria-describedby="x-y-desc"><title id="x-y-title">A &amp; B</title><desc id="x-y-desc">Two &lt;boxes&gt;</desc><rect/></svg>');
     expect(accessibleSvg(svg, { title: 'again' })).toBe(svg);
+    expect(accessibleSvg('<svg><rect/></svg>', { title: 'Winkel', lang: 'nl' })).toBe('<svg role="img" aria-labelledby="carto-title" lang="nl" xml:lang="nl"><title id="carto-title">Winkel</title><rect/></svg>');
   });
 
   it('PNG: Title and Description chunks after the header, with valid checksums', () => {

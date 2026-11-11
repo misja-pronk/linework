@@ -457,6 +457,12 @@ function shapeEl(shape: string): SVGGraphicsElement | undefined {
   return undefined;
 }
 
+/** To the level above, the breadcrumb before this drawing, when there is one. */
+function up() {
+  const to = here ? data.drawings[here.d]!.trail?.at(-2)?.to : undefined;
+  if (to !== undefined) go(to);
+}
+
 function crumbs(drawing: PDrawing) {
   const parts: Node[] = [];
   const sep = () => h('span', { class: 'sep', 'aria-hidden': 'true' }, '/');
@@ -993,7 +999,7 @@ function showNotes() {
         centerOn(n.shape!);
       };
       el.addEventListener('click', pick);
-      el.addEventListener('keydown', (e) => e.key === 'Enter' && pick());
+      el.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), pick()));
     }
     return el;
   });
@@ -1052,15 +1058,17 @@ function find(query: string): Hit[] {
   return (dws[0]?.score ?? 0) > (els[0]?.score ?? 0) + 10 ? [...dws, ...els] : [...els, ...dws];
 }
 
-const searchInput = h('input', { type: 'text', placeholder: t('Find an element or a view…'), 'aria-label': t('Search'), autocomplete: 'off', spellcheck: 'false' });
+const searchInput = h('input', { type: 'text', role: 'combobox', 'aria-expanded': 'false', 'aria-autocomplete': 'list', placeholder: t('Find an element or a view…'), 'aria-label': t('Search'), autocomplete: 'off', spellcheck: 'false' });
 const searchResults = h('div', { class: 'results', role: 'listbox', id: 'carto-results' });
 let hitIndex = 0;
 
 function searchBox() {
-  const dialog = h('div', { class: 'dialog', role: 'dialog', 'aria-label': t('Search') }, searchInput, searchResults, h('div', { class: 'foot' }, h('span', {}, h('kbd', {}, '↑'), ' ', h('kbd', {}, '↓'), t(' to move')), h('span', {}, h('kbd', {}, '↵'), t(' to open')), h('span', {}, h('kbd', {}, 'esc'), t(' to close'))));
+  const dialog = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('Search') }, searchInput, searchResults, h('div', { class: 'foot' }, h('span', {}, h('kbd', {}, '↑'), ' ', h('kbd', {}, '↓'), t(' to move')), h('span', {}, h('kbd', {}, '↵'), t(' to open')), h('span', {}, h('kbd', {}, 'esc'), t(' to close'))));
   searchInput.setAttribute('aria-controls', 'carto-results');
   els.search.append(dialog);
   els.search.addEventListener('pointerdown', (e) => e.target === els.search && closeSearch());
+  // Modal: Tab stays on the field, the arrows choose a result.
+  dialog.addEventListener('keydown', (e) => e.key === 'Tab' && (e.preventDefault(), searchInput.focus()));
   searchInput.addEventListener('input', () => {
     hitIndex = 0;
     listHits();
@@ -1087,7 +1095,7 @@ function listHits() {
   let group = '';
   for (const hit of hits) {
     if (hit.group !== group) nodes.push(h('div', { class: 'grp caps' }, t((group = hit.group))));
-    const a = h('a', { href: hit.href, role: 'option' }, h('span', {}, hit.title), h('small', {}, hit.detail));
+    const a = h('a', { href: hit.href, role: 'option', id: `carto-hit-${nodes.length}` }, h('span', {}, hit.title), h('small', {}, hit.detail));
     a.addEventListener('click', closeSearch);
     nodes.push(a);
   }
@@ -1099,6 +1107,11 @@ function listHits() {
 function markHit(links: HTMLAnchorElement[]) {
   links.forEach((a, i) => a.setAttribute('aria-selected', String(i === hitIndex)));
   links[hitIndex]?.scrollIntoView({ block: 'nearest' });
+  // The input keeps focus; a screen reader follows the marked result through these.
+  searchInput.setAttribute('aria-expanded', String(links.length > 0));
+  const on = links[hitIndex];
+  if (on) searchInput.setAttribute('aria-activedescendant', on.id);
+  else searchInput.removeAttribute('aria-activedescendant');
 }
 
 function openSearch() {
@@ -1124,7 +1137,7 @@ const KEYS: [string, string][] = [
   ['/', 'search'],
   ['Tab', 'the next element in the drawing'],
   ['↵', 'open what the element leads to'],
-  ['⌫', 'back'],
+  ['⌫', 'up a level'],
   ['P', 'present full screen'],
   ['D', 'light or dark'],
   ['Esc', 'close, stop presenting'],
@@ -1141,12 +1154,21 @@ function keysBox() {
   const close = button('btn x', t('Close (Esc)'), icon('x'));
   close.addEventListener('click', () => showKeys(false));
   const list = (rows: [string, string][], keys: boolean) => h('dl', {}, ...rows.flatMap(([k, what]) => [h('dt', {}, ...(keys ? k.split(' ').map((x) => h('kbd', {}, x)) : [t(k as keyof typeof nl)])), h('dd', {}, t(what as keyof typeof nl))]));
-  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-label': t('Keys') }, h('div', { class: 'head' }, h('h3', {}, t('Keys')), close), list(KEYS, true), h('h3', { class: 'sub' }, t('Trackpad and mouse')), list(POINTER, false)));
+  els.keys.append(h('div', { class: 'dialog keys', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('Keys') }, h('div', { class: 'head' }, h('h3', {}, t('Keys')), close), list(KEYS, true), h('h3', { class: 'sub' }, t('Trackpad and mouse')), list(POINTER, false)));
   els.keys.addEventListener('pointerdown', (e) => e.target === els.keys && showKeys(false));
+  // Modal: its one control keeps focus until it closes.
+  els.keys.addEventListener('keydown', (e) => e.key === 'Tab' && (e.preventDefault(), close.focus()));
 }
 
+/** Where focus was before the keys opened, to give it back. */
+let keysFrom: HTMLElement | null = null;
 function showKeys(on: boolean) {
+  if (on === !els.keys.hidden) return;
   els.keys.hidden = !on;
+  if (on) {
+    keysFrom = document.activeElement as HTMLElement | null;
+    els.keys.querySelector<HTMLElement>('.x')?.focus();
+  } else if (keysFrom?.isConnected) keysFrom.focus({ preventScroll: true });
 }
 
 function nextShape(by: number): boolean {
@@ -1163,10 +1185,11 @@ function nextShape(by: number): boolean {
 
 function keys() {
   document.addEventListener('keydown', (e) => {
-    if (!els.keys.hidden && (e.key === 'Escape' || e.key === '?')) return (e.preventDefault(), showKeys(false));
+    // The keys are modal: only Escape or ? (to close) reach the page behind.
+    if (!els.keys.hidden) return e.key === 'Escape' || e.key === '?' ? (e.preventDefault(), showKeys(false)) : undefined;
     if (!els.search.hidden) return;
     const t = e.target as HTMLElement;
-    if (t.closest('input, textarea, select, [contenteditable]')) return;
+    if (t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') return (e.preventDefault(), openSearch());
     if (e.metaKey || e.ctrlKey || e.altKey) {
       if (e.altKey && e.key === 'ArrowLeft') history.back();
@@ -1178,6 +1201,8 @@ function keys() {
       e.preventDefault();
       f();
     };
+    // In the contents or the details panel the keys are the page's own (Space on a note); Escape still closes.
+    if (t.closest('.side, .panel') && k !== 'Escape') return;
     if (k === '/') return run(openSearch);
     if (k === '?') return run(() => showKeys(true));
     if (k === 'd' || k === 'D') return run(toggleLook);
@@ -1197,7 +1222,8 @@ function keys() {
     if (k === ']') return run(() => moveDrawing(1));
     if (k === '[') return run(() => moveDrawing(-1));
     if (k === 'Home' || k === 'h' || k === 'H') return run(() => (data.site ? (location.hash = '#contents') : go(0)));
-    if (k === 'Backspace') return run(() => history.back());
+    // Up to the level above, as the breadcrumbs go; the browser's back (⌥←) retraces the way.
+    if (k === 'Backspace') return run(up);
     if (!onStage) return;
     const step = 80;
     if (k === 'ArrowUp') return run(() => panBy(0, step));

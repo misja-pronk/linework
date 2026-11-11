@@ -1,7 +1,7 @@
 // ⌘K: every action and every element of the diagram, found by typing a few letters.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';
 
 export interface Command {
@@ -44,7 +44,7 @@ export function Palette({ commands, onClose, placeholder = t('Type a command or 
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLDivElement>(null);
-  useRestoreFocus();
+  const modal = useModal();
   const shown = useMemo(() => {
     const { tag, rest } = tagQuery(query);
     const pool = tag === undefined ? commands : commands.filter((c) => c.tags?.some((t) => t.toLowerCase().startsWith(tag)));
@@ -66,7 +66,7 @@ export function Palette({ commands, onClose, placeholder = t('Type a command or 
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette" role="dialog" aria-label={t('Command palette')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette" role="dialog" aria-modal="true" ref={modal} aria-label={t('Command palette')} onMouseDown={(e) => e.stopPropagation()}>
         <div className="palette-input">
           <Icon name="search" />
           <input

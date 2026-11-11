@@ -2,7 +2,7 @@
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
-Status: early development. Docs: [get started](docs/getting-started.md), [the glossary](docs/glossary.md) (the words the app, docs and CLI use), [which diagram type do I need?](docs/types.md), and the docs site (`pnpm docs:build`, then `pnpm docs:serve`; the pages also open from disk, offline) with a gallery of every template and example, light and dark.
+Status: early development. Docs: [get started](docs/getting-started.md), [the glossary](docs/glossary.md) (the words the app, docs and CLI use), [which diagram type do I need?](docs/types.md), [accessibility](docs/accessibility.md), and the docs site (`pnpm docs:build`, then `pnpm docs:serve`; the pages also open from disk, offline) with a gallery of every template and example, light and dark.
 
 ## Try it
 

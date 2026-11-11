@@ -127,6 +127,26 @@ const h = <K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, 
 let count = 0;
 const MAX_ZOOM = 8;
 
+/** The element's own words in Dutch, by English text (a word that is the same is left out): it speaks the language of the page around it (lang="nl"). */
+const nl: Record<string, string> = {
+  'Loading diagram…': 'Diagram laden…',
+  Zoom: 'Zoomen',
+  'Zoom out (−)': 'Uitzoomen (−)',
+  'Zoom in (+)': 'Inzoomen (+)',
+  'Fit (0)': 'Passend (0)',
+  Back: 'Terug',
+  'Back (Backspace)': 'Terug (Backspace)',
+  Trail: 'Pad',
+  View: 'Weergave',
+  'As written': 'Zoals geschreven',
+  'Text description': 'Beschrijving in tekst',
+  'Elements ({n})': 'Elementen ({n})',
+  'Connections ({n})': 'Verbindingen ({n})',
+  'This diagram has problems': 'Dit diagram heeft problemen',
+  'This diagram has a problem': 'Dit diagram heeft een probleem',
+  'and {n} more': 'en nog {n}',
+};
+
 export class CartoDiagram extends HTMLElement {
   static observedAttributes = ['src', 'view', 'theme', 'controls', 'layout', 'data-bundle'];
 
@@ -138,6 +158,12 @@ export class CartoDiagram extends HTMLElement {
   #problems!: HTMLElement;
   #alt!: HTMLDetailsElement;
   #id = `carto${++count}`;
+  /** A word of the chrome in the element's language, or the page's. */
+  #t(en: string, vars: Record<string, string | number> = {}): string {
+    const lang = (this.closest('[lang]')?.getAttribute('lang') ?? '').toLowerCase();
+    const s = lang === 'nl' || lang.startsWith('nl-') ? (nl[en] ?? en) : en;
+    return s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
+  }
   #trail: Entry[] = [];
   #result?: RenderResult & { summary?: string };
   #scheme: 'light' | 'dark' = 'light';
@@ -220,11 +246,11 @@ export class CartoDiagram extends HTMLElement {
     this.#canvas = h('div', { class: 'canvas' });
     this.#stage = h(
       'div',
-      { class: 'stage', tabindex: '0', role: 'group', 'aria-roledescription': 'diagram', 'aria-label': 'Diagram', 'aria-details': `${this.#id}-alt` },
+      { class: 'stage', tabindex: '0', role: 'group', 'aria-roledescription': 'diagram', 'aria-label': this.#t('Diagram'), 'aria-details': `${this.#id}-alt` },
       h('slot'),
-      h('div', { class: 'wait' }, 'Loading diagram…'),
+      h('div', { class: 'wait' }, this.#t('Loading diagram…')),
       this.#canvas,
-      h('div', { class: 'tools', role: 'group', 'aria-label': 'Zoom' }, tool('out', 'Zoom out (−)', '−'), tool('in', 'Zoom in (+)', '+'), tool('fit', 'Fit (0)', '⤢')),
+      h('div', { class: 'tools', role: 'group', 'aria-label': this.#t('Zoom') }, tool('out', this.#t('Zoom out (−)'), '−'), tool('in', this.#t('Zoom in (+)'), '+'), tool('fit', this.#t('Fit (0)'), '⤢')),
     );
     this.#problems = h('div', { class: 'problems', role: 'alert', hidden: '' });
     this.#alt = h('details', { class: 'alt', id: `${this.#id}-alt`, hidden: '' });
@@ -422,7 +448,7 @@ export class CartoDiagram extends HTMLElement {
     }
 
     const title = result.graph?.title;
-    this.#stage.setAttribute('aria-label', title ? `Diagram: ${title}` : 'Diagram');
+    this.#stage.setAttribute('aria-label', title ? this.#t('Diagram: {title}', { title }) : this.#t('Diagram'));
     this.#showProblems(errors, file);
     this.#showBar();
     this.#showAlt();
@@ -512,20 +538,20 @@ export class CartoDiagram extends HTMLElement {
       const where = d.line ? `${file ?? 'line'}${file ? ':' : ' '}${d.line}:${d.column ?? 1}` : (file ?? '');
       list.append(h('li', {}, ...(where ? [h('code', {}, where), ' '] : []), d.message));
     }
-    if (errors.length > 8) list.append(h('li', {}, `and ${errors.length - 8} more`));
-    this.#problems.replaceChildren(h('strong', {}, errors.length > 1 ? 'This diagram has problems' : 'This diagram has a problem'), list);
+    if (errors.length > 8) list.append(h('li', {}, this.#t('and {n} more', { n: errors.length - 8 })));
+    this.#problems.replaceChildren(h('strong', {}, this.#t(errors.length > 1 ? 'This diagram has problems' : 'This diagram has a problem')), list);
   }
 
   /** Back and the trail after a drill-down; the view picker when asked for. */
   #showBar() {
     const parts: Node[] = [];
     if (this.#trail.length > 1) {
-      const back = h('button', { type: 'button', class: 'back', 'aria-label': 'Back', title: 'Back (Backspace)' }, '←');
+      const back = h('button', { type: 'button', class: 'back', 'aria-label': this.#t('Back'), title: this.#t('Back (Backspace)') }, '←');
       back.addEventListener('click', () => this.back());
       const crumbs = h('ol');
       this.#trail.forEach((e, i) => {
         const last = i === this.#trail.length - 1;
-        const text = e.title ?? e.view ?? 'Diagram';
+        const text = e.title ?? e.view ?? this.#t('Diagram');
         const item = last ? h('span', { 'aria-current': 'page' }, text) : h('button', { type: 'button' }, text);
         if (!last)
           item.addEventListener('click', () => {
@@ -534,12 +560,12 @@ export class CartoDiagram extends HTMLElement {
           });
         crumbs.append(h('li', {}, item));
       });
-      parts.push(back, h('nav', { 'aria-label': 'Trail' }, crumbs));
+      parts.push(back, h('nav', { 'aria-label': this.#t('Trail') }, crumbs));
     }
     const views = this.#result?.views;
     if (views?.length && (this.getAttribute('controls') ?? '').split(/\s+/).includes('views')) {
-      const select = h('select', { 'aria-label': 'View' });
-      if (!this.#result?.onlyViews) select.append(h('option', { value: '' }, 'As written'));
+      const select = h('select', { 'aria-label': this.#t('View') });
+      if (!this.#result?.onlyViews) select.append(h('option', { value: '' }, this.#t('As written')));
       for (const v of views) select.append(h('option', { value: v.name }, v.title ?? v.name));
       select.value = this.#result?.view ?? '';
       select.addEventListener('change', () => {
@@ -560,7 +586,7 @@ export class CartoDiagram extends HTMLElement {
     const d = describe(g);
     const elements = h('ul');
     for (const e of d.elements) {
-      const li = h('li', {}, h('strong', {}, e.label), [e.detail ? ` (${e.detail})` : '', e.in ? `, in ${e.in}` : '', e.description ? `: ${e.description}` : ''].join(''));
+      const li = h('li', {}, h('strong', {}, e.label), [e.detail ? ` (${e.detail})` : '', e.in ? this.#t(', in {group}', { group: e.in }) : '', e.description ? `: ${e.description}` : ''].join(''));
       for (const l of e.links) {
         if (linkTarget(l).kind === 'none') continue;
         const b = h('button', { type: 'button', class: 'textlink' }, linkText(l));
@@ -576,11 +602,11 @@ export class CartoDiagram extends HTMLElement {
     if (said) this.#stage.setAttribute('aria-description', said);
     else this.#stage.removeAttribute('aria-description');
     this.#alt.replaceChildren(
-      h('summary', {}, 'Text description'),
+      h('summary', {}, this.#t('Text description')),
       ...(heading ? [h('p', {}, heading)] : []),
       ...(said ? [h('p', {}, said)] : []),
-      ...(d.elements.length ? [h('p', { class: 'head' }, `Elements (${d.elements.length})`), elements] : []),
-      ...(d.relations.length ? [h('p', { class: 'head' }, `Connections (${d.relations.length})`), relations] : []),
+      ...(d.elements.length ? [h('p', { class: 'head' }, this.#t('Elements ({n})', { n: d.elements.length })), elements] : []),
+      ...(d.relations.length ? [h('p', { class: 'head' }, this.#t('Connections ({n})', { n: d.relations.length })), relations] : []),
     );
   }
 

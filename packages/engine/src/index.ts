@@ -493,7 +493,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : staged && stageAt != null ? `${said.title}, ${stageTitle(staged.plan, stageAt)}` : said.title;
     const desc = toText(said, { title: false }).trim();
-    out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}` });
+    out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}`, lang });
   }
   // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));

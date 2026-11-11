@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { Description, Item } from '@cartography/describe';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';
 import { asMarkdown, asText, copyRich } from './describe.ts';
 import type { ExportInput } from './export.ts';
@@ -25,7 +25,7 @@ function List({ items, ordered }: { items: Item[]; ordered?: boolean }) {
 }
 
 export function DescribeDialog({ description: d, input, onClose, onDone }: { description: Description; input: () => ExportInput; onClose(): void; onDone(message: string, tone?: 'error'): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const [busy, setBusy] = useState(false);
   const copy = async (what: 'text' | 'markdown' | 'rich') => {
     if (busy) return;
@@ -55,7 +55,7 @@ export function DescribeDialog({ description: d, input, onClose, onDone }: { des
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="shortcuts describe-dialog" role="dialog" aria-label={t('Describe')} aria-describedby="describe-summary" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts describe-dialog" role="dialog" aria-modal="true" ref={modal} aria-label={t('Describe')} aria-describedby="describe-summary" onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
             <Icon name="scroll-text" /> {d.title}

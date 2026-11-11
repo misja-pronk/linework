@@ -107,6 +107,11 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   check(await page.locator('.sheet .carto-hl').count(), 'shop: no ring around the selection');
   await shot(page, 'shop-details');
   const before = await page.textContent('.zoom .pct');
+  // A key typed in the panel is the panel's: d does not switch the look there, Escape still closes it.
+  const look = await page.getAttribute('html', 'data-theme');
+  await page.focus('.panel .x');
+  await page.keyboard.press('d');
+  check((await page.getAttribute('html', 'data-theme')) === look, 'shop: d in the details panel switched the look');
   await page.keyboard.press('Escape');
   await page.focus('.stage');
   await page.keyboard.press('+');
@@ -162,10 +167,20 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   await page.waitForFunction(() => decodeURIComponent(location.hash) === '#containers.yaml#online');
   await page.goBack();
   await page.waitForFunction(() => decodeURIComponent(location.hash) === '#containers.yaml#api');
+  // ⌫ goes up a level, as the breadcrumbs do, not back through the history.
+  await page.focus('.stage');
+  await page.keyboard.press('Backspace');
+  await page.waitForFunction(() => decodeURIComponent(location.hash) === '#containers.yaml#online', null, { timeout: 3000 }).catch(async () => fail(`site: ⌫ went to ${await hash(page)}`));
   // Search finds an element and opens it where it is drawn, with its details.
   await page.keyboard.press('/');
   await page.keyboard.type('settlement');
   await shot(page, 'site-search');
+  const combo = await page.evaluate(() => {
+    const i = document.querySelector('.dialog input');
+    const on = i.getAttribute('aria-activedescendant');
+    return { role: i.getAttribute('role'), expanded: i.getAttribute('aria-expanded'), marked: !!on && document.getElementById(on)?.getAttribute('aria-selected') === 'true', modal: i.closest('[role=dialog]').getAttribute('aria-modal') };
+  });
+  check(combo.role === 'combobox' && combo.expanded === 'true' && combo.marked && combo.modal === 'true', `site: search is not a modal combobox: ${JSON.stringify(combo)}`);
   await page.keyboard.press('Enter');
   await page.waitForSelector('.panel.open');
   check((await page.textContent('.panel h3')) === 'Settlement engine', 'site: search did not open Settlement engine');
@@ -176,6 +191,7 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   await page.waitForFunction(() => decodeURIComponent(location.hash).startsWith('#deployment.yaml'));
   await page.waitForSelector('.panel .open-btn[href*="model.yaml"]', { timeout: 5000 }).catch(() => fail('site: the deployment card has no way into the model'));
   // Print: a page per drawing and the contents in front, all in the light look.
+  await page.focus('.stage');
   await page.keyboard.press('d');
   await page.waitForSelector('body[data-print=ready]');
   const pdf = await page.pdf({ path: path.join(out, 'workspace.pdf'), landscape: true, format: 'A4', preferCSSPageSize: true });

@@ -231,6 +231,11 @@ table.index{width:100%;border-collapse:collapse;background:var(--canvas);border:
 .presenting .leave{display:inline-flex}
 noscript p{margin:40px;font:16px var(--sans)}
 .print{display:none}
+@media (forced-colors:active){
+.results a[aria-selected=true],.panel li a[aria-current],.side a[aria-current]{outline:2px solid Highlight;outline-offset:-2px}
+.steps .dots button[aria-current]{forced-color-adjust:none;background:Highlight;border-color:Highlight}
+:focus-visible{outline-color:Highlight}
+}
 @media (max-width:880px){
 .app{--side:0px}
 .app.side-open{--side:260px}

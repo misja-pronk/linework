@@ -7,7 +7,7 @@ import type { LayoutSidecar } from '@cartography/core';
 import type { ItemDiff } from '@cartography/diff';
 import { Palette, type Command } from '../palette.tsx';
 import { Icon } from '../icon.tsx';
-import { useRestoreFocus } from '../menu.tsx';
+import { useModal } from '../menu.tsx';
 import { store } from '../store.ts';
 import { say, t } from '../i18n/index.ts';
 import { diagrams, diskText, readSidecar, saveInFolder, type Workspace } from '../files.ts';
@@ -301,7 +301,7 @@ export function useCompare(ctx: CompareContext) {
 }
 
 function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Promise<Snapshot[]>; onCancel(): void; onTake(label: string, toFolder: boolean): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const [label, setLabel] = useState(p.suggested);
   const [toFolder, setToFolder] = useState(() => store.get<boolean>('snapshot-in-folder') ?? true);
   const [taken, setTaken] = useState<Snapshot[]>([]);
@@ -310,7 +310,7 @@ function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Pro
   const final = label.trim() || p.suggested;
   const replaces = taken.some((s) => s.label.toLowerCase() === final.toLowerCase());
   return (
-    <div className="snap-dialog" role="dialog" aria-modal="true" aria-label={t('Take a snapshot')} onPointerDown={(e) => e.target === e.currentTarget && p.onCancel()}>
+    <div className="snap-dialog" role="dialog" ref={modal} aria-modal="true" aria-label={t('Take a snapshot')} onPointerDown={(e) => e.target === e.currentTarget && p.onCancel()}>
       <form
         onSubmit={(e) => {
           e.preventDefault();

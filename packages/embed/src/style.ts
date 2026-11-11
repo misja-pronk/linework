@@ -57,4 +57,5 @@ button:focus-visible,select:focus-visible,summary:focus-visible{outline:2px soli
 .textlink{border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
 .frame[data-mode=dark]{--accent:var(--carto-accent,#7aa7ff)}
 @media (prefers-reduced-motion:reduce){.tools{transition:none}}
+@media (forced-colors:active){.stage:focus-visible::after{border-color:Highlight}.canvas .link:focus-visible,button:focus-visible,select:focus-visible,summary:focus-visible{outline-color:Highlight}}
 `;
