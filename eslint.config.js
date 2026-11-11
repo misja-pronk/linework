@@ -33,7 +33,8 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/switch-exhaustiveness-check': 'error',
+      // A default is a deliberate "and the rest": only switches without one have to name every case.
+      '@typescript-eslint/switch-exhaustiveness-check': ['error', { considerDefaultExhaustiveForUnions: true }],
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
