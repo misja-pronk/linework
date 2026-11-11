@@ -1,0 +1,37 @@
+type: sequence
+title: Sign in with Entra ID
+subtitle: "Northwind Orders portal: authorization code flow with PKCE, Conditional Access, and an API that checks every token"
+autonumber: true
+
+# Who takes part, left to right. The portal is a single-page app: a public client
+# with an SPA redirect URI, so it proves itself with PKCE instead of a client secret.
+participants:
+  user: { kind: person, label: Employee }
+  spa: { kind: client, label: Orders portal, caption: SPA in the browser }
+  entra: { kind: identity, label: Microsoft Entra ID }
+  api: { kind: api, label: Orders API }
+
+# Each message is a step when presenting (P). One line per label keeps the
+# whole flow readable on a 16:9 slide.
+messages:
+  - user -> spa: Open the portal
+  # PKCE: a random code_verifier, and its SHA-256 hash (S256) as the code_challenge.
+  - spa -> spa: Make code_verifier and challenge
+  # Scopes: openid profile offline_access api://orders/Orders.Read, plus state and nonce.
+  - spa -> entra: "/authorize: scope, code_challenge"
+  - user -> entra: Sign in with password or passkey
+  # Conditional Access is evaluated after the first factor: location, device, sign-in risk.
+  - entra -> entra: Evaluate Conditional Access
+  - opt: Policy requires MFA
+    messages:
+      - entra --> user: Approve in Authenticator (number match)
+      - user -> entra: Approved
+  - entra --> spa: Redirect to the portal with code and state
+  # Only the holder of the code_verifier can redeem the code.
+  - spa -> entra: "/token: code, code_verifier"
+  # Access token for api://orders, valid about an hour; an SPA's refresh token lasts 24 hours.
+  - entra --> spa: ID token, access token, refresh token
+  - spa -> api: GET /orders with the access token
+  # Against Entra's signing keys (JWKS): aud must be the API, scp must hold Orders.Read.
+  - api -> api: Validate signature, iss, aud, exp, scp
+  - api --> spa: 200 OK, orders
