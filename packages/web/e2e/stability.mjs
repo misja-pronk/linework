@@ -94,7 +94,8 @@ if (!down(start)) fail('the chain was not drawn top-down: ' + JSON.stringify(sta
   await page.screenshot({ path: `${out}/s2-reloaded.png` });
 
   // Unpinned again: everything is where it started.
-  await page.locator('[aria-label="Tidy all"]').click();
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  await page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Tidy all")').click();
   await wait(600);
   const back = await corners();
   if (moved(start, back).length || Math.abs(back.d.x - back.a.x) > 1) fail('reset did not put the chain back');
@@ -143,15 +144,21 @@ if (!down(start)) fail('the chain was not drawn top-down: ' + JSON.stringify(sta
   const jumped = moved(before, after);
   if (jumped.length) fail(`adding a line moved ${jumped.length} of ${Object.keys(before).length} nodes: ${jumped.join(', ')}`);
   // Kept from the drawing before, so there is something to reset to; from scratch it differs.
-  const reset = page.locator('[aria-label="Tidy all"]');
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  const reset = page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Tidy all")');
   if (await reset.count()) {
     await reset.click();
     await wait(700);
     const scratch = await corners();
     await page.screenshot({ path: `${out}/s4-reset.png` });
     if (!moved(after, scratch).length) fail('Reset layout was offered, but drew the same thing');
+    await page.click('.canvas-tools button[aria-label="More tools"]');
     if (await reset.count()) fail('Reset layout still offered after a reset');
-  } else console.log('note: the drawing from scratch was the same, so nothing was held');
+    await page.keyboard.press('Escape');
+  } else {
+    await page.keyboard.press('Escape');
+    console.log('note: the drawing from scratch was the same, so nothing was held');
+  }
 }
 
 await browser.close();

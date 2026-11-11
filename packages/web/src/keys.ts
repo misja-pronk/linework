@@ -57,7 +57,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'next-pane', keys: ['f6', 'shift+f6'], what: 'Next / previous pane: YAML, drawing, properties', context: 'anywhere', group: 'Anywhere' },
   { id: 'sheet', keys: ['?'], what: 'This sheet', context: 'not-typing', group: 'Anywhere' },
   { id: 'present', keys: ['p', 'mod+enter'], what: 'Present full screen (not while typing)', context: 'not-typing', group: 'Anywhere' },
-  { id: 'session', keys: ['shift+s'], what: 'Session: only the sheet, to draw live with people watching (Esc leaves)', context: 'not-typing', group: 'Anywhere' },
+  { id: 'session', keys: ['shift+s'], what: 'Session: only the sheet, to draw live with people watching (End session leaves)', context: 'not-typing', group: 'Anywhere' },
 
   // ------------------------------------------------------------ the drawing
   { id: 'add', keys: ['a'], what: 'Add a shape', context: 'drawing', group: 'Drawing' },
@@ -145,7 +145,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'session-group', keys: ['mod+g'], what: 'Put the selected boxes in a new group', context: 'session', group: 'Session' },
   { id: 'session-delete', keys: ['backspace', 'delete'], what: 'Delete the selected boxes', context: 'session', group: 'Session' },
   { id: 'session-undo', keys: ['mod+z'], what: 'Undo; Esc while naming a new box takes it away', context: 'session', group: 'Session' },
-  { id: 'session-escape', keys: ['escape'], what: 'Deselect; with nothing selected, end the session', context: 'session', group: 'Session' },
+  { id: 'session-escape', keys: ['escape'], what: 'Close a menu, deselect, or cancel a name; with nothing selected, to End session (↵ ends it)', context: 'session', group: 'Session' },
 
   // ------------------------------------------------------------ comparing
   { id: 'compare', keys: ['mod+shift+d'], what: 'Compare with last saved, a snapshot, another file or a commit', context: 'drawing', group: 'Comparing versions' },

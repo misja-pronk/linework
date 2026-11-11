@@ -111,9 +111,12 @@ export function SidePanel(p: Props) {
         <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => state.showSide('properties')} disabled={!p.hasProperties} title={p.hasProperties ? t('What is selected') : t('Select something to see its properties')}>
           <Icon name="file-sliders" size={14} /> <span className="tab-label">{t('Properties')}</span>
         </button>
-        <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => state.showSide('ask')} disabled={!type} title={t('Your AI ({key})', { key: keyHint('ask') })}>
-          <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Your AI')}</span>
-        </button>
+        {/* Your AI is opened from the drawing's ⋯ (or ⌘J, ⌘K); once open, its tab switches back and forth until it is closed. */}
+        {state.askKept && (
+          <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => state.showSide('ask')} disabled={!type} title={t('Your AI ({key})', { key: keyHint('ask') })}>
+            <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Your AI')}</span>
+          </button>
+        )}
       </div>
       {state.askKept && (
         <AskPanel

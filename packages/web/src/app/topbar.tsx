@@ -1,11 +1,12 @@
-// The top bar: the document and its type, the way of working, New, Commands, the theme, Export.
+// The top bar: the document and its type, the way of working, Session, Commands, ⋯ (new, folders, the
+// theme, light or dark), Export.
 import './topbar.css';
 import { useState } from 'react';
 import type { DiagramType } from '@cartography/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Menu } from '../menu.tsx';
-import { BrandMenu } from '../brand-menu.tsx';
+import { BrandMenu, BrandMenuItem } from '../brand-menu.tsx';
 import { BrandMark } from '../brand-mark.tsx';
 import { canUseFolders, type Workspace } from '../files.ts';
 import type { Doc } from './document.ts';
@@ -39,6 +40,8 @@ interface Props {
 export function Topbar(p: Props) {
   const { ws, doc, type, theme } = p;
   const [more, setMore] = useState(false);
+  /** The diagram's theme, icons and the editor's language: a menu opened from ⋯, in its place. */
+  const [look, setLook] = useState(false);
   /** The type pill's card: what this type is for, and the way to the type guide. */
   const [typeCard, setTypeCard] = useState(false);
   return (
@@ -87,28 +90,15 @@ export function Topbar(p: Props) {
         </button>
       </div>
       <div className="actions">
-        {canUseFolders && !ws && p.remembered && (
-          <button className="button ghost wide-only" onClick={() => p.openFolder(p.remembered)} title={t('Open the last folder again')}>
-            <Icon name="folder-open" /> {p.remembered.name}
-          </button>
-        )}
-        {canUseFolders && (
-          <button className="button ghost wide-only" onClick={() => p.openFolder()} title={t('Open a folder with diagrams')}>
-            <Icon name="folder-open" /> {ws ? t('Folder') : t('Open folder')}
-          </button>
-        )}
-        <button className="command-box wide-only" onClick={p.onCommands} title={t('Commands, elements and templates (⌘K)')}>
-          <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
-        </button>
-        <button className="button ghost wide-only" onClick={p.onNew} title={t('A new diagram: from a template or an example')}>
-          <Icon name="file-plus" /> {t('New')}
-        </button>
-        <button className="button ghost session-toggle" onClick={p.toggleSession} aria-pressed={p.session} title={t('Session: only the sheet, to draw live with people watching ({key}; Esc leaves)', { key: keyHint('session') })}>
+        <button className="button ghost session-toggle" onClick={p.toggleSession} aria-pressed={p.session} title={t('Session: only the sheet, to draw live with people watching ({key})', { key: keyHint('session') })}>
           <Icon name="users" /> <span className="wide-only">{t('Session')}</span>
         </button>
-        {/* On a phone the actions above fold into one menu. */}
-        <div className="menu-anchor narrow-only">
-          <button className="icon-button" onClick={() => setMore((m) => !m)} aria-expanded={more} aria-haspopup="menu" aria-label={t('More actions')}>
+        <button className="icon-button" onClick={p.onCommands} title={t('Commands, elements and templates (⌘K)')} aria-label={t('Commands')}>
+          <Icon name="search" />
+        </button>
+        {/* Everything the top bar does less often: files, the diagram's look, the editor's light or dark. */}
+        <div className="menu-anchor">
+          <button className="icon-button" onClick={() => (setLook(false), setMore((m) => !m))} aria-expanded={more || look} aria-haspopup="menu" aria-label={t('More actions')} title={t('More: new, open a folder, theme, light or dark')}>
             <span className="more-dots" aria-hidden="true">⋯</span>
           </button>
           {more && (
@@ -116,29 +106,28 @@ export function Topbar(p: Props) {
               <button role="menuitem" onClick={() => (setMore(false), p.onNew())}>
                 <Icon name="file-plus" /> {t('New diagram')}
               </button>
-              <button role="menuitem" onClick={() => (setMore(false), p.onCommands())}>
-                <Icon name="search" /> {t('Commands')}
-              </button>
               {canUseFolders && (
-                <button role="menuitem" onClick={() => (setMore(false), p.openFolder())}>
-                  <Icon name="folder-open" /> {t('Open folder')}
+                <button role="menuitem" onClick={() => (setMore(false), p.openFolder())} title={t('Open a folder with diagrams')}>
+                  <Icon name="folder-open" /> {ws ? t('Open another folder') : t('Open folder')}
                 </button>
               )}
+              {canUseFolders && !ws && p.remembered && (
+                <button role="menuitem" onClick={() => (setMore(false), p.openFolder(p.remembered))} title={t('Open the last folder again')}>
+                  <Icon name="folder-open" /> {p.remembered.name}
+                </button>
+              )}
+              <button role="menuitem" onClick={() => (setMore(false), p.onCommands())}>
+                <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
+              </button>
+              <hr />
+              <BrandMenuItem onOpen={() => (setMore(false), setLook(true))} />
               <button role="menuitem" onClick={() => (setMore(false), p.toggleTheme())}>
                 <Icon name={theme === 'dark' ? 'sun' : 'moon'} /> {theme === 'dark' ? t('Light theme') : t('Dark theme')}
               </button>
             </Menu>
           )}
+          <BrandMenu ws={ws} open={look} setOpen={setLook} onError={(m) => p.notify(m, { tone: 'error' })} onNotice={(m) => p.notify(m)} />
         </div>
-        <BrandMenu ws={ws} onError={(m) => p.notify(m, { tone: 'error' })} onNotice={(m) => p.notify(m)} />
-        <button
-          className="icon-button wide-only"
-          onClick={p.toggleTheme}
-          title={theme === 'dark' ? t('Switch to light theme') : t('Switch to dark theme')}
-          aria-label={t('Toggle theme')}
-        >
-          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-        </button>
         <ExportMenu {...p.exportMenu} />
       </div>
     </header>

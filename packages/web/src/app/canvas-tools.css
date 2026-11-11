@@ -26,15 +26,17 @@
   margin: 0 4px;
   background: var(--rule2);
 }
-/* What ⋯ repeats of the toolbar shows once that folds away. */
-.canvas-tools [role='menuitem'].tool-folded {
-  display: none;
-}
 .canvas-tools .menu button {
   white-space: nowrap;
 }
-span.tool-more {
-  display: contents;
+/* A proposal from the user's AI waiting while its panel is closed: counted on ⋯, where Your AI is. */
+.tool-overflow > .tool {
+  position: relative;
+}
+.tool-overflow > .tool > .tool-count {
+  position: absolute;
+  top: 2px;
+  right: 0;
 }
 @container canvas (max-width: 1080px) {
   .canvas-tools .tool kbd {
@@ -47,14 +49,6 @@ span.tool-more {
   }
   .canvas-tools .tool {
     gap: 0;
-  }
-}
-@container canvas (max-width: 620px) {
-  .canvas-tools .tool-more {
-    display: none;
-  }
-  .canvas-tools [role='menuitem'].tool-folded {
-    display: flex;
   }
 }
 @media (max-width: 600px) {

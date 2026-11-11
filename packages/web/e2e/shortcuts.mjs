@@ -162,7 +162,8 @@ await page.evaluate(async (files) => {
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('harbour');
 }, files);
 const stop = discarding();
-await page.click('button:has-text("Open folder")');
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("Open folder")');
 await page.waitForSelector('.files .file, .files-rail');
 stop();
 await wait(600);

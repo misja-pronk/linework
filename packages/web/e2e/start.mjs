@@ -88,7 +88,8 @@ await wait(400);
 if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show the YAML');
 
 // 3. Your AI: questions, copy the prompt with the answers in it, paste an answer back, open.
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 await page.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();
 await page.keyboard.press('1');
@@ -110,7 +111,8 @@ if (!(await yaml()).includes('Orders DB')) fail('pasted YAML not opened');
 await page.screenshot({ path: `${out}/6-opened.png` });
 
 // 4. Copy the prompt instead, paste an answer.
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 await page.locator('.type-main').first().click();
 await page.locator('.template-card').first().click();
 await page.keyboard.press('1');
@@ -135,7 +137,8 @@ if (native.length) fail(`the browser's own dialog came up: ${JSON.stringify(nati
 
 // 5. Start blank: an empty diagram of the chosen type in the builder, with a start on the canvas.
 await page.emulateMedia({ colorScheme: 'light' });
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 if (await page.locator('.template-card', { hasText: /^Empty/ }).count()) fail('the picker still shows Empty cards');
 await page.locator('.type-main').filter({ has: page.getByText('Architecture', { exact: true }) }).click();
 await page.locator('.template-card', { hasText: 'Template' }).first().click();

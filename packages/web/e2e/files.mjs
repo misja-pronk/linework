@@ -34,7 +34,8 @@ await page.reload();
 await page.evaluate(() => {
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('shop-data');
 });
-await page.click('button:has-text("Open folder")');
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("Open folder")');
 await page.waitForSelector('.files .file');
 const listed = await page.locator('.files .file').allInnerTexts();
 if (listed.join() !== 'customer.yaml,finance.yaml') fail(`file list: ${listed}`);

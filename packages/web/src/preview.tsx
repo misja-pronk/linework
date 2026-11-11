@@ -1071,7 +1071,6 @@ export function Preview(p: Props) {
         p.onKeyDown(e);
       }}
     >
-      <Rulers />
       {empty ? (
         <div className="preview-empty">
           <Icon name="triangle-exclamation-point" size={20} />
@@ -1202,7 +1201,6 @@ export function Preview(p: Props) {
           onCentre={(x, y) => setView((v) => ({ ...v, x: f!.clientWidth / 2 - x * v.scale, y: (f!.clientHeight - BAR) / 2 - y * v.scale }))}
         />
       )}
-      <ScaleBar scale={view.scale} />
       <div className="zoom" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <button onClick={() => zoomAt(1 / 1.2)} title={t('Zoom out (⌘−)')} aria-label={t('Zoom out')}>
           <Icon name="minus" />
@@ -1306,49 +1304,6 @@ function calloutOf(result: RenderResult | undefined, s: Selection): string {
   const g = result?.graph;
   const kind = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.kind : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.kind : t('line');
   return kind && kind !== s.id ? `${s.id} · ${kind}` : s.id;
-}
-
-/** Zone rulers along the top and the left, A B C … across and 1 2 3 … down, one zone every two
- * graticule squares: a place on the table can be named ("it is in C3") on a shared screen. */
-const ZONE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-const ZONE_NUMBERS = Array.from({ length: 24 }, (_, i) => String(i + 1));
-function Rulers() {
-  return (
-    <div className="rulers" aria-hidden="true">
-      <div className="ruler top">
-        {ZONE_LETTERS.map((z) => (
-          <span key={z}>{z}</span>
-        ))}
-      </div>
-      <div className="ruler left">
-        {ZONE_NUMBERS.map((z) => (
-          <span key={z}>{z}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Nice lengths for the scale bar, in drawing pixels. */
-const SCALE_STEPS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
-/** The scale bar: four alternating segments that are a round number of drawing pixels at this zoom. */
-function ScaleBar({ scale }: { scale: number }) {
-  const length = SCALE_STEPS.find((d) => d * scale >= 96) ?? SCALE_STEPS[SCALE_STEPS.length - 1]!;
-  const ratio = scale >= 1 ? `${+scale.toFixed(1)} : 1` : `1 : ${+(1 / scale).toFixed(1)}`;
-  return (
-    <div className="scale-bar" aria-hidden="true">
-      <span className="scale-ticks" style={{ width: Math.round(length * scale) }}>
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
-      <span className="mono">{length} px</span>
-      <span className="scale-ratio">
-        {t('Scale')} <span className="mono">{ratio}</span>
-      </span>
-    </div>
-  );
 }
 
 /** Where the label editor goes (pane pixels), and for a box, that it sits in it, over its drawn name. */

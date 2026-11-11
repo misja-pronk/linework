@@ -203,6 +203,14 @@ button.type-pill[aria-expanded='true'] {
   }
 }
 
+/* ⋯ and the theme menu opened from it: one line per item. */
+.topbar .actions .menu {
+  min-width: 250px;
+}
+.topbar .actions .menu button {
+  white-space: nowrap;
+}
+
 /* The type tag opens a small card: what the type is for, and the guide. */
 .type-anchor .menu {
   left: 0;

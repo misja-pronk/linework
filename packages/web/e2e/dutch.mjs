@@ -45,6 +45,7 @@ await page.waitForSelector('.drawing [data-node="db"]');
 
 /** Picks a language in the theme menu: 'nl', 'en' or 'browser'. */
 const pick = async (lang) => {
+  await page.click('button[aria-label="More actions"], button[aria-label="Meer acties"]');
   await page.click('[data-brand]');
   await page.click(`[data-ui-lang="${lang}"]`);
   await wait();
@@ -59,7 +60,9 @@ await step('switching to Dutch, without a reload', async () => {
   await pick('nl');
   if ((await page.evaluate(() => document.documentElement.lang)) !== 'nl') fail('the page is not lang=nl');
   await has('.topbar', 'Exporteren', 'toolbar');
-  await has('.topbar', 'Nieuw', 'toolbar');
+  await has('.topbar', 'Sessie', 'toolbar');
+  await page.click('button[aria-label="Meer acties"]');
+  await has('[role="menu"]', 'Nieuw diagram', 'more menu');
   await page.click('[data-brand]');
   await has('[role="menu"]', 'Zoals de browser', 'theme menu');
   await has('[role="menu"]', 'Lijniconen', 'theme menu');

@@ -26,7 +26,7 @@ does not depend on folder names or release numbers: it goes by the names of the 
 
 ## 2. Import it
 
-**In the editor**: theme menu (top bar) → **Official icons…**. Drop the zip on the sheet, or use **Choose zip…** /
+**In the editor**: top bar **⋯** → **Diagram theme, icons, language…** → **Official icons…**. Drop the zip on the sheet, or use **Choose zip…** /
 **Folder…** of the vendor. The icons are copied into the browser's private storage for this site (they survive a
 reload and never leave the browser), and the sheet shows every shape of that vendor's diagram types with the icon
 it got, how many have one, and which do not.
@@ -73,7 +73,7 @@ are carried over when you import a newer release: a file that was renumbered is 
 | Where | How |
 | --- | --- |
 | A diagram | `icons: official` uses the imported sets of its type: Azure for `type: azure`, AWS and Google Cloud for `type: cloud` (each shape its own vendor's; people, servers and other shapes every vendor has take the first set: AWS), Kubernetes for `type: kubernetes`. `icons: lucide` keeps our line icons. Without `icons:` a diagram draws line icons, so it looks the same on every machine. |
-| The editor | Theme menu → **Icons as the diagram says** / **Official icons** / **Line icons**. Like the theme picker, the choice wins over the diagram and applies to the canvas, presenting and every export. |
+| The editor | Top bar **⋯** → **Diagram theme, icons, language…** → **Icons as the diagram says** / **Official icons** / **Line icons**. Like the theme picker, the choice wins over the diagram and applies to the canvas, presenting and every export. |
 | The CLI | `--icons official` or `--icons lucide` on `render`, `deck` and `watch` wins over the diagram's `icons:`. |
 | By hand in a diagram | `icons: { pack: azure, front-door: ./icons/afd.svg }`: a named set (CLI) plus single SVG files next to the diagram; or `icons: ./azure.icons.yaml`, a pack file in a private repository (`name`, `root`, `icons: { kind: file }`). |
 

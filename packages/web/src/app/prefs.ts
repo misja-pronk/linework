@@ -6,6 +6,12 @@ import { store } from '../store.ts';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
+/** How many visits show the first-visit hint before it has done its job (as the sketch hint does sessions). */
+export const HINT_VISITS = 3;
+/** This visit's number, counted once when the editor loads. */
+const VISIT = (store.get<number>('visits') ?? 0) + 1;
+store.set('visits', VISIT);
+
 function useSystemDark() {
   const q = useMemo(() => window.matchMedia('(prefers-color-scheme: dark)'), []);
   const [dark, setDark] = useState(q.matches);
@@ -45,8 +51,8 @@ export function usePrefs() {
     setViewState(v);
     store.set('view', v);
   };
-  /** The first-visit hint, until it is dismissed once. */
-  const [hint, setHint] = useState(() => !store.get('hinted'));
+  /** The first-visit hint, in the first few visits only, until it is dismissed once. */
+  const [hint, setHint] = useState(() => !store.get('hinted') && VISIT <= HINT_VISITS);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);

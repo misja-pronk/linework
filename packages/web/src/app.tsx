@@ -114,7 +114,7 @@ export function App() {
     session.end();
     if (textNow() === session.start?.text) notify(t('Session ended: nothing changed'));
   };
-  const sketching = useSketching({ drawing, selection: selState, pins: pinning, edits, previewControl, textNow, undo, notify, session: session.on, leave: endSession, used: () => {} });
+  const sketching = useSketching({ drawing, selection: selState, pins: pinning, edits, previewControl, textNow, undo, notify, session: session.on, used: () => {} });
   const toggleSession = () => {
     if (session.on) return endSession();
     session.begin();
