@@ -65,6 +65,20 @@ describe('access view', () => {
     const r = await render(source('graph').replace('- alice is owner on rg', '- alice is owner on nowhere'), { fonts: 'none' });
     expect(r.diagnostics.map((d) => d.message)).toEqual(['There is no resource "nowhere"']);
   });
+
+  it('draws an eligible (PIM) assignment dashed, and holds what is active before what can be activated', async () => {
+    const text = source('access').replace('- alice is owner on rg', '- alice is eligible owner on rg\n  - { principal: sg-ops, role: reader, scope: prod, eligible: true }');
+    const r = await render(text, { fonts: 'none', view: 'graph' });
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const line = r.graph!.edges.find((e) => e.from.node === 'alice' && e.to.node === 'rg')!;
+    expect(line).toMatchObject({ label: 'Owner', line: 'dashed' });
+    expect(r.graph!.legend!.map((l) => l.label)).toContain('Eligible, activated through PIM');
+    const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
+    const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
+    // Reader on prod (through the package) is held now; Owner on rg only once activated.
+    expect(cell('alice', 'rg')).toMatchObject({ text: 'Reader', note: 'via Developer access, from prod; eligible for Owner' });
+    expect(cell('sg-ops', 'prod')).toMatchObject({ text: 'Reader (eligible)', inherited: false });
+  });
 });
 
 describe('access checks', () => {
