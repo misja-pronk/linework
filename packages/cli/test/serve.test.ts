@@ -100,6 +100,13 @@ describe('carto serve', () => {
     await c.close();
   });
 
+  it('says not-open only for a file the editor cannot open: outside the folder, or not there', async () => {
+    const live = (file: string) =>
+      fetch(`${s.url}/live`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ method: 'propose', params: { file, edits: [{ op: 'delete', path: ['nodes', 'db'] }] } }) }).then((r) => r.json() as Promise<{ result: { outcome: string; message: string } }>);
+    expect((await live(path.join(tmp, 'elsewhere.yaml'))).result).toMatchObject({ outcome: 'not-open', message: expect.stringContaining('outside the folder') });
+    expect((await live(path.join(root, 'missing.yaml'))).result).toMatchObject({ outcome: 'not-open', message: expect.stringContaining('does not exist') });
+  });
+
   it('answers get_context and propose from the editor, and tells it of files changed on disk', async () => {
     const tab = await editor((m) =>
       m.call.method === 'context'

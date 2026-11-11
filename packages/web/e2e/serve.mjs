@@ -88,6 +88,26 @@ try {
   await page.click('.drawing', { position: { x: 8, y: 8 } });
   await page.keyboard.press('ControlOrMeta+z');
   if ((await yaml()).includes('Storefront')) fail('⌘Z did not take the disk change back');
+
+  // A proposal for another file of the folder, one the agent just wrote: the editor opens it and
+  // shows the proposal there. A file outside the folder: not-open.
+  const billing = path.join(path.dirname(file), 'billing.yaml');
+  fs.writeFileSync(billing, 'type: systems\ntitle: Billing\nnodes:\n  billing: { kind: service, label: Billing }\n  ledger: { kind: database, label: Ledger }\nedges:\n  - billing -> ledger\n');
+  const proposingOther = agent.callTool({ name: 'propose', arguments: { file: billing, summary: 'Add invoices', edits: [{ op: 'set', path: ['nodes', 'invoices'], value: { kind: 'queue', label: 'Invoices' } }] } });
+  await page.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('title: Billing'), null, { timeout: 10000 }).catch(() => fail('propose for a file that is not open: it did not open'));
+  await page.waitForSelector('.ask-panel .proposal', { timeout: 10000 }).catch(() => fail('propose for a file that is not open: no proposal'));
+  if (!(await page.locator('.ask-panel .proposal-summary').first().innerText().catch(() => '')).includes('Add invoices')) fail('propose for a file that is not open: wrong summary');
+  if (out) await page.screenshot({ path: path.join(out, 'serve-proposal-opened.png') });
+  await page.locator('.ask-panel .proposal').focus();
+  await page.keyboard.press('Enter');
+  const otherVerdict = text(await proposingOther);
+  if (!/Accepted/.test(otherVerdict)) fail(`propose for a file that is not open: ${otherVerdict}`);
+  if (!(await yaml()).includes('invoices: { kind: queue, label: Invoices }')) fail('propose for a file that is not open: not applied');
+  const outside = path.join(os.tmpdir(), `carto-outside-${process.pid}.yaml`);
+  fs.copyFileSync(billing, outside);
+  const notOpen = text(await agent.callTool({ name: 'propose', arguments: { file: outside, edits: [{ op: 'delete', path: ['nodes', 'ledger'] }] } }));
+  fs.rmSync(outside, { force: true });
+  if (!/not-open/.test(notOpen)) fail(`propose outside the folder: ${notOpen}`);
 } catch (e) {
   fail(String(e?.stack ?? e));
 } finally {

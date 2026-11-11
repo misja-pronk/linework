@@ -283,6 +283,28 @@ check(mcpCtx.includes(file) && mcpCtx.includes('orders'), 'mcp: get_context reac
 const valid = await mcp.tool('validate', { file: 'shop.yaml' });
 check(/valid/i.test(valid), 'mcp: relative paths resolve in the workspace folder');
 
+// propose for a file of the folder that is not open: the extension opens it and its preview, and
+// the proposal shows there. Outside the folder it says not-open.
+const other = path.join(work, 'billing.yaml');
+fs.writeFileSync(other, 'type: systems\nnodes:\n  billing: { kind: service, label: Billing }\n  ledger: { kind: database, label: Ledger }\nedges:\n  - billing -> ledger\n');
+const panelsBefore = stub.state.panels.length;
+const proposingOther = mcp.tool('propose', { file: 'billing.yaml', summary: 'Add invoices', edits: [{ op: 'set', path: ['nodes', 'invoices'], value: { kind: 'queue', label: 'Invoices' } }, { op: 'append', path: ['edges'], value: 'billing -> invoices' }] });
+const otherDoc = await until(() => stub.state.documents.find((d) => d.fileName === other));
+check(stub.state.shown.includes(otherDoc), 'propose, not open: the file opens in an editor');
+const otherPanel = await until(() => stub.state.panels.slice(panelsBefore).find((p) => p.viewType === 'cartography.preview'));
+const otherPage = await openPage(otherPanel, 'other', { width: 1000, height: 700 });
+await otherPage.pumpUntil(async () => otherPage.tab.$eval('#proposal', (el) => !el.hidden));
+check((await otherPage.tab.$eval('#pSummary', (el) => el.textContent)) === 'Add invoices', 'propose, not open: its preview opens with the proposal');
+await otherPage.tab.screenshot({ path: path.join(out, 'proposal-opened.png') });
+await otherPage.tab.keyboard.press('Enter');
+await otherPage.pump();
+const otherVerdict = await proposingOther;
+check(/Accepted/.test(otherVerdict) && otherDoc.getText().includes('invoices: { kind: queue, label: Invoices }'), `propose, not open: Accept applies it (${otherVerdict.split('\n')[0]})`);
+const outsideFile = path.join(tmp, 'outside.yaml');
+fs.copyFileSync(other, outsideFile);
+const notOpen = await mcp.tool('propose', { file: outsideFile, edits: [{ op: 'delete', path: ['nodes', 'ledger'] }] });
+check(/not-open/.test(notOpen) && !stub.state.documents.some((d) => d.fileName === outsideFile), 'propose outside the workspace folder: not-open, nothing opened');
+
 // The presenter: full screen, the step's caption below, arrows step.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Light };
 await stub.commands.executeCommand('cartography.present', doc.uri);

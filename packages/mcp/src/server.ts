@@ -16,7 +16,7 @@ const version = '0.0.0';
 const instructions = `Cartography turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
 Workflow: list_types → get_schema(type) → write YAML → validate → fix every error (each has line, column and a hint) and act on the layout suggestions → render.
 Validate before every render; "quality.verdict" should be "clean" or "good".
-When the user has the diagram open in an editor (VS Code, or carto serve in the browser), get_context says what they have open and selected; "this", "the selected" and "here" mean that. Change an open diagram with propose: the user sees the change marked and accepts or rejects it. Otherwise, or when propose says no editor is open, use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
+When the user has the diagram open in an editor (VS Code, or carto serve in the browser), get_context says what they have open and selected; "this", "the selected" and "here" mean that. Change a diagram with propose while an editor is connected: it opens the file there if it is not open yet, and the user sees the change marked and accepts or rejects it. Without an editor, or when propose says "no-editor" or "not-open", use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
 const failed = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
@@ -206,12 +206,12 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     {
       title: 'Propose a change',
       description:
-        'Shows a change to the diagram open in the user\'s editor as a proposal: the drawing with what is added, changed and removed marked, and the YAML diff. The user accepts or rejects it; the tool returns that outcome ("accepted", "rejected") once they decide. The edits are the same as edit_diagram\'s and are checked first: a change that does not validate is not shown and comes back with its problems. When the file is not open in an editor ("not-open" or "no-editor"), use edit_diagram instead. On accept the editor applies it; it is on disk once the user saves.',
+        'Shows a change to a diagram in the user\'s editor as a proposal: the drawing with what is added, changed and removed marked, and the YAML diff. A file of the editor\'s folder that is not open yet is opened first (in VS Code with its preview). The user accepts or rejects it; the tool returns that outcome ("accepted", "rejected") once they decide. The edits are the same as edit_diagram\'s and are checked first: a change that does not validate is not shown and comes back with its problems. When no editor is connected ("no-editor") or the editor cannot open the file ("not-open": outside its folder, or not there), use edit_diagram instead. On accept the editor applies it; it is on disk once the user saves.',
       inputSchema: { file: z.string().describe('The diagram file, as get_context names it (absolute, or relative to the working directory)'), edits, summary: z.string().optional().describe('One sentence: what the change does, for the user deciding on it') },
     },
     safely(async (args) => {
       const r = await proposeChange(live, args, cwd);
-      const said: Record<string, string> = { accepted: 'Accepted: the change is applied in the editor.', rejected: 'Rejected: the diagram is as it was.', invalid: 'Not shown: the change does not apply or does not validate.' };
+      const said: Record<string, string> = { accepted: 'Accepted: the change is applied in the editor.', rejected: 'Rejected: the diagram is as it was.', invalid: 'Not shown: the change does not apply or does not validate.', 'not-open': 'Not shown: the editor cannot open this file. Use edit_diagram instead.' };
       return { ...(r.outcome === 'invalid' || r.outcome === 'failed' ? { isError: true } : {}), content: [{ type: 'text', text: [said[r.outcome] ?? '', r.message ?? ''].filter(Boolean).join(' ') }, ...json(r).content] };
     }),
   );

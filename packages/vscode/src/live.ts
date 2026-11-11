@@ -1,8 +1,11 @@
 // The live link's VS Code host (core's live.ts): the user's own AI agent, through Cartography's MCP
 // server, asks what is open and selected, and proposes edits that show over the preview with the
-// diff marks, to accept (one undo step) or reject. A small HTTP server on 127.0.0.1 with a random
-// token, announced in the discovery folder so an MCP server started in this workspace finds it.
+// diff marks, to accept (one undo step) or reject. A proposal for a workspace file that is not open
+// opens it, with its preview, first. A small HTTP server on 127.0.0.1 with a random token, announced
+// in the discovery folder so an MCP server started in this workspace finds it.
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
 import { answerLive, applyOperations, parseSource, renamePinsEverywhere, yamlDiff, type LiveContext, type LiveHost, type Proposal, type ProposalResult } from '@cartography/core';
@@ -22,6 +25,7 @@ export interface LiveSide {
 export function startLive(side: LiveSide): vscode.Disposable {
   const token = randomBytes(24).toString('base64url');
   let forget = () => {};
+  const roots = () => (vscode.workspace.workspaceFolders ?? []).filter((f) => f.uri.scheme === 'file').map((f) => f.uri.fsPath);
 
   const host: LiveHost = {
     context(): LiveContext | undefined {
@@ -40,8 +44,8 @@ export function startLive(side: LiveSide): vscode.Disposable {
       };
     },
     async propose(p: Proposal): Promise<ProposalResult> {
-      const doc = vscode.workspace.textDocuments.find((d) => d.uri.scheme === 'file' && d.uri.fsPath === p.file);
-      if (!doc) return { outcome: 'not-open', message: `${p.file} is not open in VS Code.` };
+      const doc = vscode.workspace.textDocuments.find((d) => d.uri.scheme === 'file' && d.uri.fsPath === p.file) ?? (await openForProposal(p.file, roots()));
+      if (typeof doc === 'string') return { outcome: 'not-open', message: doc };
       const before = doc.getText();
       const type = typeOf(before);
       if (!type) return { outcome: 'failed', message: 'The open document has no known type: line.' };
@@ -89,7 +93,6 @@ export function startLive(side: LiveSide): vscode.Disposable {
       });
     });
   });
-  const roots = () => (vscode.workspace.workspaceFolders ?? []).filter((f) => f.uri.scheme === 'file').map((f) => f.uri.fsPath);
   const say = () => {
     const port = (server.address() as { port: number } | null)?.port;
     forget();
@@ -102,6 +105,27 @@ export function startLive(side: LiveSide): vscode.Disposable {
     folders.dispose();
     server.close();
   });
+}
+
+/**
+ * A file of the workspace that is not open yet, opened for a proposal: its editor (the focus stays
+ * where it is, in the chat) and then its preview. Why not, in words for the agent, when it is outside
+ * the workspace folders or not there.
+ */
+async function openForProposal(file: string, roots: string[]): Promise<vscode.TextDocument | string> {
+  const inside = (root: string) => {
+    const rel = path.relative(root, file);
+    return !rel.startsWith('..') && !path.isAbsolute(rel);
+  };
+  if (!roots.some(inside)) return `${file} is not in a folder VS Code has open${roots.length ? ` (${roots.join(', ')})` : ''}.`;
+  if (!fs.existsSync(file)) return `${file} does not exist.`;
+  try {
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(file));
+    await vscode.window.showTextDocument(doc, { preserveFocus: true, preview: false });
+    return doc;
+  } catch (e) {
+    return `VS Code could not open ${file}: ${e instanceof Error ? e.message : String(e)}`;
+  }
 }
 
 /** The type the text says it is. */

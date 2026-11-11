@@ -2,7 +2,10 @@
 // diagram open. Two calls, both asked by the agent and answered by the editor:
 //   context  what is open: the file, what is selected, the view, layers and step, the problems;
 //   propose  edits by YAML path (edit.ts), shown in the editor as a proposal with the diff marks;
-//            it resolves when the user accepts or rejects it.
+//            it resolves when the user accepts or rejects it. A file of the host's folder that is
+//            not open is opened first (VS Code: the document and its preview; the browser editor
+//            of carto serve: the file in the editor). `not-open` only when it cannot be: outside
+//            the folder, not there, or the user keeps the file that is open.
 // Files are absolute paths on the wire. The hosts are the VS Code extension and `carto serve` (which
 // passes calls on to the browser editor). Each host listens on 127.0.0.1 and takes a call as
 //   POST /live   Authorization: Bearer <token>   body: LiveCall   → the answer as JSON
@@ -41,6 +44,7 @@ export interface Proposal {
 }
 
 export interface ProposalResult {
+  /** `not-open`: the host cannot open the file (outside its folder, missing); a file it can open, it opens first. */
   outcome: 'accepted' | 'rejected' | 'not-open' | 'failed';
   /** Why, in words for the agent: the file that is open instead, what did not apply. */
   message?: string;

@@ -19,7 +19,7 @@ drawing before you see it.
 | `render(yaml \| file, format?, theme?, path?, scale?, view?, focus?, hops?, direction?, layer?, step?)` | SVG or PNG. With `path` it writes the file; a PNG also comes back as an image, an SVG without `path` as text. The last options draw part of it, as `carto render --view --focus --layer --step` do |
 | `edit_diagram(yaml \| file, edits, dryRun?)` | Edits by YAML path: `set`, `append`, `delete`, `rename`. The rest of the file keeps its exact text, comments included; a renamed id takes its pins in `<name>.layout.json` along. Validated and laid out before it is written: invalid means nothing is written and the problems come back, valid means the file is written and the layout quality comes back |
 | `get_context()` | What the user has open in an editor (VS Code, or `carto serve` in the browser): the file, the ids of what is selected, the view, layers, stage and step, the problems, unsaved changes. Says so when no editor is connected |
-| `propose(file, edits, summary?)` | Shows `edit_diagram`'s edits in the open editor as a proposal: the drawing with the diff marks and the YAML diff. Returns `accepted` or `rejected` once the user decides; `not-open` or `no-editor` when the file is not open, so use `edit_diagram` then. Checked first: a change that does not validate is not shown |
+| `propose(file, edits, summary?)` | Shows `edit_diagram`'s edits in the editor as a proposal: the drawing with the diff marks and the YAML diff. A file of the editor's folder that is not open is opened first (VS Code: the file and its preview; `carto serve`: the file in the browser editor). Returns `accepted` or `rejected` once the user decides; `no-editor` when no editor is connected, `not-open` when the editor cannot open the file (outside its folder, not there), so use `edit_diagram` then. Checked first: a change that does not validate is not shown |
 | `describe(yaml \| file, view?, …)` | The diagram in words (Markdown), as `carto describe` |
 | `diff(file, before? \| ref?, view?)` | What changed against another file or against the file at a git ref, element by element and in sentences, as `carto diff` |
 
@@ -35,7 +35,9 @@ When a diagram is open in an editor, the agent can see what you see and propose 
 
 - `get_context` says which file is open and what is selected, so "make this one redundant" works;
 - `propose` shows the change over the drawing, marked as `carto diff` marks it, with the YAML diff.
-  **Accept** (⏎) applies it as one undo step; **Reject** (Esc) leaves it. The agent hears which.
+  **Accept** (⏎) applies it as one undo step; **Reject** (Esc) leaves it. The agent hears which. A
+  file of the folder that is not open is opened first; one outside the folder, or not there, is
+  `not-open`.
 
 Two editors answer:
 
