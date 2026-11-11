@@ -27,6 +27,7 @@ const crossingBudget: Record<string, number> = {
   'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
+  'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
@@ -74,7 +75,7 @@ const crossingBudget: Record<string, number> = {
   'workspace/deployment.yaml': 0,
   'workspace/model.yaml': 0,
   'network/campus.yaml': 0,
-  'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
+  'network/hybrid-cloud.yaml': 0,
   'network/office-ip-plan.yaml': 0,
   'network/small-office.yaml': 0,
   'github/setup.yaml': 0,
@@ -129,6 +130,7 @@ const jogBudget: Record<string, number> = {
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'model/deployment.yaml': 1,
+  'azure/hub-spoke.yaml': 1, // the second peering line steps out of the firewall's side beside the first
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,

@@ -1,41 +1,76 @@
 type: azure
 title: Hub and spoke
-subtitle: Landing zone with shared connectivity
+subtitle: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall
+
+# Top to bottom: head office → hub (Connectivity subscription) → spokes, one subscription each.
+# Address plan: hub 10.0.0.0/22, a /22 per spoke from 10.1.0.0, head office 10.10.0.0/16.
+# Every spoke subnet has an NSG and the spoke's route table (both in the subnet's caption):
+# 0.0.0.0/0 → 10.0.0.68, the firewall's private IP.
+# Adding a spoke: copy sub-erp with its vnet and subnet, take the next /22 and add a
+# peering line from the firewall to what runs in it.
 
 groups:
-  conn: { kind: subscription, label: Connectivity }
-  hub: { kind: vnet, label: vnet-hub · 10.0.0.0/16, in: conn }
-  app: { kind: subscription, label: Online shop }
-  spoke: { kind: vnet, label: vnet-shop · 10.1.0.0/16, in: app }
-  web: { kind: subnet, label: snet-web, in: spoke }
-  data: { kind: subnet, label: snet-data, in: spoke }
-  onprem: { kind: on-premises, label: Head office }
+  onprem: { kind: on-premises, label: Head office, caption: Amsterdam · 10.10.0.0/16 }
+
+  # Platform: the hub, owned by the network team
+  conn: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
+  hub: { kind: vnet, label: vnet-hub-weu, caption: 10.0.0.0/22, in: conn }
+  gw-snet: { kind: subnet, label: GatewaySubnet, caption: 10.0.0.0/27 · rt-gateway, in: hub }
+  fw-snet: { kind: subnet, label: AzureFirewallSubnet, caption: 10.0.0.64/26, in: hub }
+  bas-snet: { kind: subnet, label: AzureBastionSubnet, caption: 10.0.0.128/26, in: hub }
+
+  # Spokes: one per workload, peered to the hub only (spokes are never peered to each other)
+  sub-erp: { kind: subscription, label: sub-erp-prd, caption: Landing zone · Corp }
+  vnet-erp: { kind: vnet, label: vnet-erp-weu, caption: 10.1.0.0/22 · peered to hub, in: sub-erp }
+  erp-app: { kind: subnet, label: snet-app, caption: 10.1.0.0/24 · nsg-app · rt-erp, in: vnet-erp }
+
+  sub-intranet: { kind: subscription, label: sub-intranet-prd, caption: Landing zone · Corp }
+  vnet-intranet: { kind: vnet, label: vnet-intranet-weu, caption: 10.1.4.0/22 · peered to hub, in: sub-intranet }
+  intranet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24 · nsg-web · rt-intranet, in: vnet-intranet }
 
 nodes:
-  office: { kind: users, label: Employees, in: onprem }
-  router: { kind: vpn-gateway, label: Office router, in: onprem }
-  internet: internet
-  vpn: { kind: vpn-gateway, label: vgw-hub, in: hub }
-  fw: { kind: firewall, label: afw-hub, in: hub }
-  dns: { kind: dns, label: privatelink zones, in: hub }
-  agw: { kind: app-gateway, label: agw-shop, in: web }
-  apps: { kind: app-service, label: Shop, in: web }
-  sql: { kind: sql-database, label: Shop DB, in: data }
-  pe: { kind: private-endpoint, label: pe-sql, in: data }
-  logs: { kind: log-analytics, label: Central logs, in: conn }
+  router: { kind: vpn-gateway, label: Edge router, caption: BGP AS 65010, in: onprem }
 
-badges: [management]
+  vpngw: { kind: vpn-gateway, label: vpng-hub, caption: VpnGw2AZ · AS 65515, in: gw-snet, tags: [routing] }
+  afw: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, in: fw-snet, tags: [routing, security] }
+  bastion: { kind: bastion, label: bas-hub, caption: Standard, in: bas-snet, tags: [security] }
+
+  erp-vm: { kind: vmss, label: vmss-erp, in: erp-app }
+  web-vm: { kind: vmss, label: vmss-intranet, in: intranet-web }
+
+  internet: internet
 
 edges:
-  - office -> router
-  - router -> vpn: { label: IPsec, style: private }
-  - internet -> agw: { label: HTTPS, style: public }
-  - vpn -> fw: { style: private }
-  - fw -> apps: { label: peering, style: private }
-  - agw -> apps: { style: public }
-  - apps -> pe: { label: SQL, style: private }
-  - pe -> sql: { style: private }
-  - apps ..> dns: { label: resolve }
-  - fw -> logs: { label: diagnostics, style: management }
-  - agw -> logs: { label: diagnostics, style: management }
-  - apps -> logs: { label: diagnostics, style: management }
+  - router -> vpngw: { label: IPsec, style: private, tags: [routing] }
+  # rt-gateway on the GatewaySubnet sends the spoke ranges to the firewall, not straight to the peering
+  - vpngw -> afw: { label: UDR, style: private, tags: [routing] }
+  - afw -> erp-vm: { label: peering, style: private, tags: [routing] }
+  - afw -> web-vm: { label: peering, style: private, tags: [routing] }
+  - afw -> internet: { label: SNAT, style: public, tags: [routing, security] }
+  - bastion -> erp-vm: { label: RDP, style: management, tags: [security] }
+
+layers:
+  routing:
+    tags: [routing]
+    title: Routing
+    caption: Spoke subnets send 0.0.0.0/0 to the firewall; the gateway sends the spoke ranges there too.
+  security:
+    tags: [security]
+    title: Security
+    dim-others: true
+    caption: One way out to the internet, admin access only through Bastion.
+
+steps:
+  - The hub holds the shared network services; each workload gets its own spoke.
+  - title: From the office
+    caption: The office reaches the spokes over the VPN. The gateway hands the traffic to the firewall, not straight to the peering.
+    path: router -> vpngw -> afw -> erp-vm
+  - title: Out to the internet
+    caption: The route table on each spoke subnet points 0.0.0.0/0 at the firewall's private IP, 10.0.0.68.
+    path: afw -> internet
+  - title: Spoke to spoke
+    caption: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
+    path: [afw -> erp-vm, afw -> web-vm]
+  - title: Admin access
+    caption: No public IPs on VMs. Admins come in through Bastion, over the peering.
+    path: bastion -> erp-vm
