@@ -1,4 +1,4 @@
-// The editor's Dutch: the start dialog, the wizards' chrome, the inspector, the preview, the builder and the viewer.
+// The editor's Dutch: the start dialog, the inspector, the preview, the builder and the viewer.
 export const nlDialogs = {
   // start.tsx
   'Line {line}: {message}': 'Regel {line}: {message}',
@@ -12,15 +12,12 @@ export const nlDialogs = {
   Builder: 'Builder',
   'Build visually: drag shapes from the palette, connect them, edit in the panel. No YAML needed.': 'Bouw visueel: sleep vormen uit het palet, verbind ze en bewerk ze in het paneel. Geen YAML nodig.',
   'Write it, starting from this example, with autocomplete and a live drawing next to it.': 'Schrijf het zelf, vanuit dit voorbeeld, met aanvulling en een live tekening ernaast.',
-  'Answer questions': 'Vragen beantwoorden',
-  'A wizard after a reference architecture; the drawing grows as you answer. No AI, no key.': 'Een wizard naar een referentiearchitectuur; de tekening groeit terwijl je antwoordt. Geen AI, geen sleutel.',
   'Start a diagram': 'Diagram beginnen',
   Back: 'Terug',
   'Back (Esc)': 'Terug (Esc)',
   'What do you want to draw?': 'Wat wil je tekenen?',
   'All templates and examples': 'Alle sjablonen en voorbeelden',
   '{type}: pick a start': '{type}: kies een begin',
-  'Answer questions · {type}': 'Vragen beantwoorden · {type}',
   Steps: 'Stappen',
   Type: 'Type',
   How: 'Hoe',
@@ -65,28 +62,11 @@ export const nlDialogs = {
   Page: 'Pagina',
   Diagram: 'Diagram',
 
-  // wizard.tsx
-  'Which one?': 'Welke?',
-  'Which wizard': 'Welke wizard',
-  'Question {n}: {question}': 'Vraag {n}: {question}',
-  '{n} of {total}': '{n} van {total}',
-  'Previous question (Esc)': 'Vorige vraag (Esc)',
-  'Open the drawing with its YAML': 'De tekening openen met haar YAML',
-  'Open the drawing to build on': 'De tekening openen om verder te bouwen',
-  Finish: 'Afronden',
+  // words the dialogs share
   Next: 'Volgende',
-  'Preview of the drawing': 'Voorbeeld van de tekening',
-  'Click to fit the drawing again': 'Klik om de tekening weer passend te maken',
-  'Click to read it at full size': 'Klik om hem op ware grootte te lezen',
-  'Open it': 'Openen in',
-  'Describe what else it needs; your AI starts from this drawing': 'Beschrijf wat er nog bij moet; je AI begint vanuit deze tekening',
-  'Refine it with your AI': 'Verfijn het met je AI',
-  'Names, separated by commas': 'Namen, gescheiden door komma’s',
-  Fewer: 'Minder',
   More: 'Meer',
   Yes: 'Ja',
   No: 'Nee',
-  'Space or a number turns one on or off; Enter goes on.': 'Spatie of een cijfer zet er een aan of uit; Enter gaat verder.',
 
   // inspector.tsx
   Name: 'Naam',

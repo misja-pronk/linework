@@ -1,6 +1,6 @@
 // Cartography's own words in more than one language, without a library. The English text is the
 // message id: code says t('Save') and reads as it shows, and a catalog per area (drawing, editor,
-// CLI, wizards) gives the Dutch for each id. The ids are typed from the Dutch catalog, so a new or
+// CLI) gives the Dutch for each id. The ids are typed from the Dutch catalog, so a new or
 // changed English message does not compile until it has its Dutch; test/catalog.test.ts checks
 // that every id is still used somewhere.
 //

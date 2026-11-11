@@ -24,7 +24,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 | Feature | Key or command | More |
 | --- | --- | --- |
-| Start from a type, a template, a wizard or your own AI | **New**, `carto new [--wizard …]` | [wizards](docs/wizards.md), [ai](docs/ai.md) |
+| Start from a type, a template or your own AI | **New**, `carto new` | [ai](docs/ai.md) |
 | Add, connect, rename, move (positions in `<name>.layout.json`) | `A`, `C`, `F2`, drag | [getting started](docs/getting-started.md) |
 | Tidy the layout, pins stay | `T` | [style](docs/style.md) |
 | Steps: tell a drawing in parts, present it | `S`, `P` | [steps](docs/steps.md) |

@@ -94,9 +94,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 --fresh lays the newer drawing out from scratch instead of keeping
                                                 what was there in place; --exit-code exits 1 when something changed
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
-  carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
-               [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
-                                                names them; --answers or -y: no questions, the rest default
   carto export <file.yaml…|folder> --to html [-o out]
                                                 the same as carto export-html (its options apply)
   carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported
@@ -140,7 +137,7 @@ const usage = new Map<string, string>();
 /** The commands, grouped, one line each: what `carto --help` shows. */
 const groups: [string, [string, string][]][] = [
   [t('Create'), [
-    ['new', t('start from a template or a wizard')],
+    ['new', t('start from a template')],
     ['types', t('which diagram type to pick')],
     ['blocks', t('reusable fragments: list, show, save, insert')],
   ]],
@@ -285,11 +282,8 @@ const parsed = (() => {
     select: { type: 'string' },
     param: { type: 'string', multiple: true },
     user: { type: 'boolean' },
-    yes: { type: 'boolean', short: 'y' },
     from: { type: 'string' },
     to: { type: 'string' },
-    wizard: { type: 'string' },
-    answers: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
     lang: { type: 'string' },
   },
@@ -919,10 +913,6 @@ async function main(): Promise<number> {
       return (console.error(helpFor(command)), 1);
     }
     case 'new': {
-      if (values.wizard) {
-        const { newFromWizard } = await import('./wizard.ts');
-        return newFromWizard(values.wizard, files[0] === '-' ? undefined : files[0], { answers: values.answers, yes: values.yes });
-      }
       const [id, target] = files;
       // Without a type, help picking one instead of an error.
       if (!id) return (typeGuide(), 0);

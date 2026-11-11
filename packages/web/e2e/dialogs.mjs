@@ -114,7 +114,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
   await run('icon-packs', async () => (await page.click('button[data-brand]'), await page.click('.menu [data-icon-packs]')), '[role="dialog"][aria-label="Official icons"]');
   await page.close();
 
-  // The start dialog and a wizard, from a clean browser.
+  // The start dialog, from a clean browser.
   const start = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   start.on('pageerror', (e) => fail(e.message));
   await start.goto(base);
@@ -123,13 +123,6 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
   await start.waitForSelector('.start .type-card');
   await check(start, size, 'start', '.start');
   await modal(start, size, 'start');
-  await start.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
-  await start.locator('.template-card', { hasText: 'Template' }).first().click();
-  await start.waitForSelector('.mode-card');
-  await start.keyboard.press('4');
-  await start.waitForSelector('.wizard');
-  await start.waitForTimeout(600);
-  await check(start, size, 'wizard', '.start');
   await start.close();
 }
 

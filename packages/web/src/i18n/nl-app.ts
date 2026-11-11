@@ -185,7 +185,7 @@ export const nlApp = {
   'Way of working': 'Werkwijze',
   'Builder: the drawing and the shapes to drag onto it': 'Builder: de tekening en de vormen om erop te slepen',
   'YAML and drawing side by side': 'YAML en tekening naast elkaar',
-  'A new diagram: from a template, a wizard, an example or an import': 'Een nieuw diagram: uit een sjabloon, een wizard, een voorbeeld of een import',
+  'A new diagram: from a template or an example': 'Een nieuw diagram: uit een sjabloon of een voorbeeld',
   'New': 'Nieuw',
   'Commands, elements and templates (⌘K)': "Commando's, elementen en sjablonen (⌘K)",
   'Commands': "Commando's",
@@ -386,5 +386,4 @@ export const nlApp = {
   'Files: {count} diagrams in {folder}': 'Bestanden: {count} diagrammen in {folder}',
   'More: compare with an earlier version, zoom to the selection, grid, minimap': 'Meer: vergelijken met een eerdere versie, zoomen naar de selectie, raster, minikaart',
   '{count} template|{count} templates': '{count} sjabloon|{count} sjablonen',
-  'After {source}.': 'Naar {source}.',
 } as const satisfies Record<string, string>;

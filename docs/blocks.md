@@ -9,7 +9,7 @@ nodes:
   pay-app: { kind: app-service, label: Payments, in: pay-app-snet } # from block: azure-app-stack@2dff0ca9 #1 name=pay label=Payments
 ```
 
-Blocks differ from [wizards](wizards.md) (a whole diagram from answers) and from `include:` (a whole file pulled in, still linked): a block is small, fixed and copied in.
+Blocks differ from `include:` (a whole file pulled in, still linked): a block is small, fixed and copied in.
 
 ## Block files
 

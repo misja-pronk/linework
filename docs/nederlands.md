@@ -28,7 +28,7 @@ nodes:
   rij- en kolomkoppen van journeys en roadmaps, de tekstbeschrijving
   (`carto describe`, alt-tekst) en de knoppen van de interactieve HTML-viewer.
 - **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
-  van sneltoetsen, de inspector en de vragen van de wizards.
+  van sneltoetsen en de inspector.
 - **In de CLI**: de help en de eigen foutmeldingen.
 
 Niet vertaald: meldingen over de inhoud van een diagram (validatie van de YAML), de namen van

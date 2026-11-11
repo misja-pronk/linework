@@ -1789,7 +1789,7 @@ export function App() {
               <Icon name="code" /> YAML
             </button>
           </div>
-          <button className="button ghost wide-only" onClick={() => setModal('templates')} title={t('A new diagram: from a template, a wizard, an example or an import')}>
+          <button className="button ghost wide-only" onClick={() => setModal('templates')} title={t('A new diagram: from a template or an example')}>
             <Icon name="file-plus" /> {t('New')}
           </button>
           <button className="button ghost wide-only" onClick={() => setModal('palette')} title={t('Commands, elements and templates (⌘K)')}>

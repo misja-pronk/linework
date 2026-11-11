@@ -12,7 +12,6 @@ One name for each thing, the same in the editor, these docs and the `carto` comm
 | **Builder** | The way of working by dragging shapes onto the drawing and filling in the side panel, without YAML. `⌘\` switches between it and YAML. | Build visually (only as its description), visual mode |
 | **YAML** | The way of working by writing the YAML, with the drawing beside it. | code view, Write YAML |
 | **Your AI** | The user's own AI agent (Claude Code, Copilot, Cursor…), working through Cartography's MCP server. In the editor, the panel (⌘J, Ctrl+I off a Mac) where its proposals are accepted or rejected and files changed on disk are shown; in the start dialog, the way of working that copies a prompt for it. Cartography has no AI of its own. The canvas toolbar's button says just *AI*. | Ask Claude, assistant |
-| **Wizard** | Questions after a reference architecture that make a finished diagram, without AI (*Answer questions* in the start dialog, `carto new --wizard`). | |
 | **Side panel** | The panel on the right, with two tabs: **Properties** (what is selected) and **Your AI**. | inspector |
 | **Page** | The sheet or slide a drawing is fitted on for PowerPoint, PDF and the page exports: a 16:9 slide unless `aspect:` says otherwise (4:3, A4, A3). The frame on the drawing says *Page: 16:9 slide · 11 pt*. | slide (except as the page's name), frame |
 | **Pin** | A place you gave an element by dragging it, kept in the `.layout.json` next to the diagram. **Tidy** lays out again what is not pinned; **Tidy all** unpins everything. | position |

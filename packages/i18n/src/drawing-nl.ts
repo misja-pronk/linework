@@ -25,7 +25,6 @@ export const nl = {
   Decision: 'Besluit',
   'this view': 'deze weergave',
   Error: 'Fout',
-  Security: 'Beveiliging',
   'the diagram': 'het diagram',
   Diagram: 'Diagram',
   ', from {file}': ', uit {file}',

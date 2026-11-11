@@ -128,20 +128,10 @@ export const nl = {
   'Nothing in {pack} called "{words}"': 'Niets in {pack} met de naam "{words}"',
   '{kind} draws its line icon again': '{kind} tekent weer zijn lijnicoon',
 
-  // carto new --wizard
-  'Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):': 'Wizards (carto new --wizard <name> [file.yaml] [--answers answers.json] [-y]):',
-  'No wizard "{name}".': 'Geen wizard "{name}".',
-  'After: {source}': 'Volgens: {source}',
-  'Y/n': 'J/n',
-  'y/N': 'j/N',
-  'numbers, commas; Enter: {value}': "nummers, komma's; Enter: {value}",
-  'Enter: {value}': 'Enter: {value}',
+  // carto new
   none: 'geen',
-  'number or name, Enter: *': 'nummer of naam, Enter: *',
-  'Not one of the choices; try again.': 'Geen van de keuzes; probeer het nog eens.',
-  'Not a question of {wizard}, ignored: {ids}. Questions: {questions}': 'Geen vraag van {wizard}, genegeerd: {ids}. Vragen: {questions}',
   Create: 'Maken',
-  'start from a template or a wizard': 'beginnen met een sjabloon of een wizard',
+  'start from a template': 'beginnen met een sjabloon',
   'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
@@ -300,12 +290,6 @@ export const nlHelp: Record<string, string> = {
                                                 stond op zijn plek te houden; --exit-code geeft exit 1 als er iets veranderde`,
   [`  carto new <type> [file.yaml]                  start from a template; no type: which to pick`]:
     `  carto new <type> [file.yaml]                  begin vanuit een sjabloon; zonder type: welk je kiest`,
-  [`  carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
-               [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
-                                                names them; --answers or -y: no questions, the rest default`]:
-    `  carto new --wizard <name> [file.yaml]         beantwoord een paar vragen, krijg een af diagram (Azure-landingszone,
-               [--answers answers.json] [-y]    AKS-baseline, AWS, C4, data mesh, …); --wizard list noemt
-                                                ze; --answers of -y: geen vragen, de rest standaard`,
   [`  carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported`]:
     `  carto icons [azure|aws|gcp|kubernetes]        waar je elke officiële iconenset downloadt, en wat er geïmporteerd is`,
   [`  carto icons import <folder|file.zip> [--pack azure]

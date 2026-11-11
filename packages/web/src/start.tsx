@@ -1,7 +1,6 @@
 // Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
-// (describe it to your own AI, build it visually, write YAML, or for some types a wizard). For your AI
-// a few answers become a prompt to copy into any chat; its answer is pasted back. Cartography sends
-// nothing anywhere itself. A wizard (wizard.tsx) needs no AI: its answers make the YAML directly.
+// (describe it to your own AI, build it visually, or write YAML). For your AI a few answers become a
+// prompt to copy into any chat; its answer is pasted back. Cartography sends nothing anywhere itself.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType } from '@cartography/core';
@@ -11,8 +10,6 @@ import { useModal } from './menu.tsx';
 import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
-import { wizardsFor } from '@cartography/wizards';
-import { WizardSteps } from './wizard.tsx';
 import { say, t, uiLang } from './i18n/index.ts';
 import { englishQuery } from './i18n/query-nl.ts';
 
@@ -81,18 +78,10 @@ const MODES = [
   },
 ] as const;
 
-/** For types with a wizard (Azure landing zone, C4, data mesh, …): questions in, a finished drawing out, no AI. */
-const WIZARD_MODE = {
-  view: 'wizard',
-  icon: 'list-checks',
-  title: 'Answer questions',
-  text: 'A wizard after a reference architecture; the drawing grows as you answer. No AI, no key.',
-  key: '4',
-} as const;
-type ModeView = (typeof MODES)[number]['view'] | 'wizard';
+type ModeView = (typeof MODES)[number]['view'];
 
-type Step = 'type' | 'pick' | 'mode' | 'ask' | 'wizard';
-const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type', wizard: 'mode' };
+type Step = 'type' | 'pick' | 'mode' | 'ask';
+const PREVIOUS: Partial<Record<Step, Step>> = { ask: 'mode', mode: 'pick', pick: 'type' };
 
 /**
  * `current` is the type of the open diagram: marked on its card, so the dialog doubles as the guide
@@ -103,12 +92,10 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
   /** The chosen type, or 'all' to browse every template. */
   const [typeId, setTypeId] = useState<string>(initial?.type ?? 'all');
   const [step, setStep] = useState<Step>(initial ? 'mode' : 'type');
-  /** A wizard's drawing that the AI mode starts from ("Refine it with your AI"). */
-  const [draft, setDraft] = useState<string>();
   const modal = useModal();
 
   // Esc goes one step back, then closes.
-  const back = () => (step === 'ask' && draft ? setStep('wizard') : PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
+  const back = () => (PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
   const backRef = useRef(back);
   backRef.current = back;
   useEffect(() => {
@@ -124,8 +111,7 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
   const type = starter ? types.find((t) => t.id === starter.type) : undefined;
   const choose = (mode: ModeView) => {
     if (!starter) return;
-    if (mode === 'wizard') return setStep('wizard');
-    if (mode === 'ai') return (setDraft(undefined), setStep('ask'));
+    if (mode === 'ai') return setStep('ask');
     // Building visually from a full example is editing, not starting: the template is the start.
     onOpen({
       text: starter.text,
@@ -153,13 +139,11 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
                   : t('{type}: pick a start', { type: typeName(typeId) })
                 : step === 'mode'
                   ? `${starter!.title}`
-                  : step === 'wizard'
-                    ? t('Answer questions · {type}', { type: typeName(starter!.type) })
-                    : t('Your AI · {type}', { type: typeName(starter!.type) })}
+                  : t('Your AI · {type}', { type: typeName(starter!.type) })}
           </h2>
           <ol className="steps" aria-label={t('Steps')}>
-            {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : step === 'wizard' ? ['Questions'] : [])].map((s, i) => (
-              <li key={s} aria-current={i === ['type', 'pick', 'mode', step === 'wizard' ? 'wizard' : 'ask'].indexOf(step)}>
+            {['Type', 'Template', 'How', ...(step === 'ask' ? ['Describe'] : [])].map((s, i) => (
+              <li key={s} aria-current={i === ['type', 'pick', 'mode', 'ask'].indexOf(step)}>
                 {say(s)}
               </li>
             ))}
@@ -198,18 +182,7 @@ export function Start({ theme, initial, current, onOpen, onClose }: { theme: 'li
             onBlank={() => onOpen({ text: blankText(starter.type), name: `${starter.type}.yaml`, view: 'visual', blank: true })}
           />
         )}
-        {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} draft={draft} />}
-        {step === 'wizard' && starter && (
-          <WizardSteps
-            wizards={wizardsFor(starter.type)}
-            theme={theme}
-            onOpen={(r) => onOpen({ text: r.yaml, name: r.name, view: r.view })}
-            onAsk={(r) => {
-              setDraft(r.yaml);
-              setStep('ask');
-            }}
-          />
-        )}
+        {step === 'ask' && starter && type && <Ask starter={starter} type={type} theme={theme} onOpen={onOpen} />}
       </div>
     </div>
   );
@@ -513,7 +486,7 @@ function Pick({ theme, typeId, onType, onPick }: { theme: 'light' | 'dark'; type
 function Mode({ starter, theme, onChoose, onBlank }: { starter: Starter; theme: 'light' | 'dark'; onChoose(m: ModeView): void; onBlank(): void }) {
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const { svg } = useDrawing(starter.text, theme, load);
-  const modes = useMemo(() => (wizardsFor(starter.type).length ? [...MODES, WIZARD_MODE] : MODES), [starter.type]);
+  const modes = MODES;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -616,7 +589,7 @@ function Field({ q, value, onChange }: { q: Question; value: string | string[] |
 
 type Phase = { at: 'form' } | { at: 'paste' };
 
-function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void; draft?: string }) {
+function Ask({ starter, type, theme, onOpen }: { starter: Starter; type: DiagramType; theme: 'light' | 'dark'; onOpen(o: Opened): void }) {
   const questions = useMemo(() => questionsFor(type), [type]);
   const [answers, setAnswers] = useState<Answers>(() => ({
     ...Object.fromEntries(questions.filter((q) => q.initial).map((q) => [q.id, q.initial!])),
@@ -627,7 +600,7 @@ function Ask({ starter, type, theme, onOpen, draft }: { starter: Starter; type: 
   const [copied, setCopied] = useState(false);
 
   // The template's own YAML shows the model the style; an empty start teaches nothing, so use the type's template.
-  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text, draft), [type, questions, answers, starter, draft]);
+  const prompt = useMemo(() => buildPrompt(type, questions, answers, starter.text), [type, questions, answers, starter]);
   const load = useMemo(() => exampleLoader(starter.id), [starter.id]);
   const shown = phase.at === 'paste' && pasted.trim() ? extractYaml(pasted) : undefined;
   const drawing = useDrawing(shown, theme, load);

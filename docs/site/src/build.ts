@@ -30,7 +30,7 @@ fs.mkdirSync(path.join(out, 'assets/fonts'), { recursive: true });
 // ---------------------------------------------------------------- which pages, in which order
 
 const NAV: { title: string; items: [string, string?][] }[] = [
-  { title: 'Start', items: [['getting-started.md', 'Get started'], ['types.md', 'Which type do I need?'], ['wizards.md', 'Wizards'], ['glossary.md', 'Glossary'], ['gallery/index.html', 'Gallery']] },
+  { title: 'Start', items: [['getting-started.md', 'Get started'], ['types.md', 'Which type do I need?'], ['glossary.md', 'Glossary'], ['gallery/index.html', 'Gallery']] },
   {
     title: 'Diagram types',
     items: [['c4.md', 'C4 model'], ['process.md', 'Processes'], ['states.md', 'State machines'], ['capabilities.md', 'Capability maps'], ['teams.md', 'Teams and org charts'], ['class.md', 'Class diagrams'], ['mindmap.md', 'Mind maps'], ['context-map.md', 'Context maps'], ['matrix.md', 'Matrices'], ['data-products.md', 'Data products']],
