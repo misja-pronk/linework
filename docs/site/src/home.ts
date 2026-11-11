@@ -2,7 +2,7 @@
 // where it fits, and the benchmark in plain numbers (including where it loses).
 import fs from 'node:fs';
 import path from 'node:path';
-import { build, toHtml } from '@cartography/docs-plugins';
+import { build, toHtml } from './draw.ts';
 import { escape, highlight } from './highlight.ts';
 import { typeIcon, type TypeEntry } from './gallery.ts';
 import { icon } from './layout.ts';
@@ -11,7 +11,6 @@ import { options } from './markdown.ts';
 const ARROW = icon('<path d="M5 12h14M13 6l6 6-6 6"/>');
 
 const FEATURES: [string, string, string, string][] = [
-  ['book-open', 'In your docs', 'A markdown-it and a remark plugin draw <code>```cartography</code> blocks as inline SVG at build time, light and dark. This site is built with them.', 'embed.html'],
   ['git-pull-request', 'In pull requests', '<code>carto diff</code> says what changed in words and as a marked-up picture; a GitHub Action posts it. Edits keep the rest of the drawing in place.', 'ci.html'],
   ['file-code', 'From what you have', 'Your own AI converts Mermaid, D2, draw.io or Terraform, and checks the result against the schema through the MCP server.', 'ai.html#from-other-tools'],
   ['download', 'To where it goes', 'SVG, PNG, PDF, a 16:9 slide or one slide per step in PowerPoint, and an Office-safe SVG.', 'steps.html'],

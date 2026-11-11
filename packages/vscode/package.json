@@ -1,7 +1,7 @@
 {
   "name": "@cartography/vscode",
   "displayName": "Cartography",
-  "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, export, and ```cartography blocks in the Markdown preview",
+  "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, and export",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -168,11 +168,6 @@
           "default": true,
           "markdownDescription": "Give each diagram's type schema to the YAML extension (`redhat.vscode-yaml`), when it is installed, for completion and hover. Unknown and missing keys are left to Cartography's own problems, so each is reported once."
         },
-        "cartography.markdown.enabled": {
-          "type": "boolean",
-          "default": true,
-          "markdownDescription": "Draw ` ```cartography ` blocks (and images that point at a diagram `.yaml`) in VS Code's Markdown preview."
-        },
         "cartography.shareBase": {
           "type": "string",
           "default": "http://localhost:5178/",
@@ -191,24 +186,20 @@
           "description": "Present also turns VS Code full screen (and back when the presentation closes)."
         }
       }
-    },
-    "markdown.markdownItPlugins": true
+    }
   },
   "devDependencies": {
     "@cartography/core": "workspace:*",
     "@cartography/diff": "workspace:*",
-    "@cartography/docs-plugins": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/mcp": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",
-    "@types/markdown-it": "^14.2.0",
     "@types/vscode": "1.90.0",
     "ajv": "^8.20.0",
     "esbuild": "^0.28.2",
     "fflate": "0.8.3",
-    "markdown-it": "^15.0.3",
     "yaml": "^2.9.1"
   }
 }

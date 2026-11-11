@@ -123,7 +123,7 @@ steps:
 
 ## Export
 
-SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, event, gateway and lane is a shape you can move and restyle, every line a connector, every label a text box. An embed (`carto embed`) carries a text description under the drawing for screen readers and search: every lane and step with the lane it stands in, and every line as “from, to, label”.
+SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, event, gateway and lane is a shape you can move and restyle, every line a connector, every label a text box.
 
 ## From Mermaid
 

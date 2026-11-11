@@ -79,9 +79,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 More: docs/transitions.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
-  carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
-               [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
-               [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
   carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
                [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
@@ -209,7 +206,6 @@ const groups: [string, [string, string][]][] = [
   [t('Export'), [
     ['export', '--to html|md|confluence'],
     ['describe', t('the diagram in plain words')],
-    ['embed', t('a web page that carries the drawing')],
     ['share', t('a link that opens it in the web app')],
   ]],
   [t('Check'), [
@@ -310,9 +306,6 @@ const parsed = (() => {
     'svg-safe': { type: 'boolean' },
     'outline-text': { type: 'boolean' },
     view: { type: 'string' },
-    fragment: { type: 'boolean' },
-    static: { type: 'boolean' },
-    css: { type: 'boolean' },
     'all-views': { type: 'boolean' },
     layer: { type: 'string', multiple: true },
     'all-layers': { type: 'boolean' },
@@ -1203,21 +1196,6 @@ async function main(): Promise<number> {
       fs.writeFileSync(target, type.template);
       console.log(t('Created {file}', { file: target }));
       return 0;
-    }
-    case 'embed': {
-      const { embed, embedCss } = await import('./embed.ts');
-      if (values.css) return (process.stdout.write(embedCss()), 0);
-      const [f] = files;
-      if (!f) return (console.error(helpFor(command)), 1);
-      const r = await embed(f, { view: values.view, theme: values.theme, title: values.title, fragment: values.fragment, static: values.static, icons: iconsFlag(), ...langOption });
-      report(f === '-' ? 'stdin' : f, r.problems);
-      // A fragment, or a page made from standard input, goes to standard output unless -o says where.
-      // With errors a fragment is still written: it is the message a reader of the page should see.
-      const out = values.out === '-' ? undefined : values.out ?? (values.fragment || f === '-' ? undefined : f.replace(/\.ya?ml$/i, '') + '.html');
-      if (!out) process.stdout.write(r.html);
-      else if (r.ok || values.fragment) fs.writeFileSync(out, r.html);
-      if (out && r.ok) console.error(`${f} → ${out}`);
-      return r.ok ? 0 : 1;
     }
     case 'export-html': {
       const [f] = files;

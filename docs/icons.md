@@ -74,7 +74,7 @@ are carried over when you import a newer release: a file that was renumbered is 
 | --- | --- |
 | A diagram | `icons: official` uses the imported sets of its type: Azure for `type: azure`, AWS and Google Cloud for `type: cloud` (each shape its own vendor's; people, servers and other shapes every vendor has take the first set: AWS), Kubernetes for `type: kubernetes`. `icons: lucide` keeps our line icons. Without `icons:` a diagram draws line icons, so it looks the same on every machine. |
 | The editor | Theme menu → **Icons as the diagram says** / **Official icons** / **Line icons**. Like the theme picker, the choice wins over the diagram and applies to the canvas, presenting and every export. |
-| The CLI | `--icons official` or `--icons lucide` on `render`, `deck`, `watch` and `embed` wins over the diagram's `icons:`. |
+| The CLI | `--icons official` or `--icons lucide` on `render`, `deck` and `watch` wins over the diagram's `icons:`. |
 | By hand in a diagram | `icons: { pack: azure, front-door: ./icons/afd.svg }`: a named set (CLI) plus single SVG files next to the diagram; or `icons: ./azure.icons.yaml`, a pack file in a private repository (`name`, `root`, `icons: { kind: file }`). |
 
 When a diagram asks for a set that is not imported, it still draws, with line icons and a warning that says how
@@ -94,7 +94,6 @@ stay visible. Labels, captions and lines keep the look's own colours and contras
 | SVG, PNG, PDF | Each icon once per kind, embedded as a `data:image/svg+xml;base64` image. A vendor icon is 2–10 kB, a third more as base64: a diagram with 15 different services grows by about 50–150 kB. |
 | Office-safe SVG (`--svg-safe`) | The same images; PowerPoint, Word and Keynote show them. |
 | PowerPoint | Each icon a picture on the slide (SVG, with a PNG fallback from the CLI), shared by all slides. |
-| Web pages (`carto embed`; the docs plugins with their `iconPack` and `icons` options) | In the static drawing, and taken along (only the icons used) for the live, zoomable one. |
 | Share links | Not included: a share link carries only the YAML. Whoever opens it sees line icons unless they imported the set too. |
 
 ## What may be shared
@@ -114,7 +113,7 @@ What that means for Cartography:
 | You can | You cannot |
 | --- | --- |
 | Send a customer the PNG, PDF, SVG or deck of a diagram drawn with official icons | Commit the downloaded set (or a folder of its SVGs) to a public repository |
-| Publish a page made with `carto embed` (it carries only the icons the diagram uses, as drawn) | Bundle the set with a tool, a template pack or an npm package |
+| Publish an interactive HTML page (it carries only the icons the diagram uses, as drawn) | Bundle the set with a tool, a template pack or an npm package |
 | Keep a pack file (`*.icons.yaml`) and the set in your company's private repository, for your team | Recolour or edit the icons to match a theme (Cartography never does) |
 
 Cartography itself never ships, downloads or changes vendor icons, and nothing of an imported set is ever part

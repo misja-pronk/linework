@@ -122,7 +122,7 @@ steps:
 
 ## Export
 
-SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, pseudo-state and frame is a shape you can move and restyle, every transition a connector, every label a text box. An embed (`carto embed`) carries a text description under the drawing: every state with the composite it is in, and every transition as "from, to, label".
+SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, pseudo-state and frame is a shape you can move and restyle, every transition a connector, every label a text box.
 
 ## From Mermaid
 

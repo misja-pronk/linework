@@ -1,6 +1,5 @@
 // Builds the extension into dist/: extension.js (the extension host's side, with the engine and
-// Graphviz inside, CommonJS as VS Code loads it), worker.js (draws the Markdown preview's diagrams
-// for the docs plugin), webview.js (the preview page) and schemas/ (each type's JSON Schema, for
+// Graphviz inside, CommonJS as VS Code loads it), webview.js (the preview page) and schemas/ (each type's JSON Schema, for
 // anyone who wants to point another tool at them).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,12 +23,8 @@ export async function buildExtension() {
     legalComments: 'none',
     logLevel: 'warning',
     external: ['vscode'],
-    // The docs plugin finds its worker next to itself through import.meta.url, which CommonJS has not.
-    define: { 'import.meta.url': '__cartoUrl' },
-    banner: { js: "const __cartoUrl = require('node:url').pathToFileURL(__filename).href;" },
   };
   await build({ ...node, entryPoints: { extension: 'src/extension.ts' }, outdir: dist });
-  await build({ ...node, entryPoints: { worker: '../docs-plugins/src/worker.ts' }, outdir: dist });
   await build({ absWorkingDir: here, bundle: true, format: 'iife', platform: 'browser', target: 'es2022', minify, legalComments: 'none', logLevel: 'warning', entryPoints: { webview: 'src/webview/main.ts' }, outdir: dist });
   // The schemas, written by the same code the extension hands the YAML extension.
   const out = path.join(dist, 'schemas.cjs');

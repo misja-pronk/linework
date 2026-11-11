@@ -1,17 +1,14 @@
-// The extension's entry: previews per document, problems as you type, commands, the YAML schemas and
-// the Markdown preview's ```cartography blocks. Everything is drawn here, in the extension host,
-// by the engine bundled into dist/: nothing is fetched and nothing is sent anywhere. The live link
+// The extension's entry: previews per document, problems as you type, commands and the YAML schemas.
+// Everything is drawn here, in the extension host, by the engine bundled into dist/: nothing is fetched and nothing is sent anywhere. The live link
 // (live.ts) listens on 127.0.0.1 only, for the user's own AI agent through the MCP server.
 import * as vscode from 'vscode';
 import { registerCommands, type Previews } from './commands.ts';
 import { sidecarName } from './detect.ts';
 import { isDiagramDoc, Language, registerYamlSchemas } from './language.ts';
-import { extendMarkdownIt } from './markdown.ts';
 import { Preview, type PreviewHost } from './preview.ts';
 import { NoteComments } from './notes.ts';
 import { showDiskChanges, startLive } from './live.ts';
 import { notesPath } from '@cartography/core';
-import { settings } from './settings.ts';
 
 type Mode = 'preview' | 'present';
 
@@ -114,10 +111,6 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(watcher, watcher.onDidChange(changed), watcher.onDidCreate(changed), watcher.onDidDelete(changed));
 
   void registerYamlSchemas().catch(() => false);
-
-  return {
-    extendMarkdownIt: (md: Parameters<typeof extendMarkdownIt>[0]) => extendMarkdownIt(md, { enabled: () => settings().markdown, root: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath }),
-  };
 }
 
 export function deactivate() {}

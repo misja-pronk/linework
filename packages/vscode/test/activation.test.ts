@@ -1,11 +1,10 @@
 // The extension against a stubbed `vscode` module: it activates, registers what package.json
 // contributes, reports the engine's problems with their fixes, hands the YAML extension the type
-// schemas, draws into a preview and renders ```cartography blocks in Markdown.
+// schemas and draws into a preview.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import MarkdownIt from 'markdown-it';
 
 vi.mock('vscode', () => import('./vscode-stub.ts'));
 const stub = await import('./vscode-stub.ts');
@@ -24,10 +23,9 @@ async function until<T>(f: () => T | undefined, ms = 15_000): Promise<T> {
   }
 }
 
-let api: ReturnType<typeof activate>;
 beforeAll(() => {
   stub.state.config['cartography.preview.debounce'] = 0;
-  api = activate({ subscriptions: [], extensionUri: stub.Uri.file('/ext') } as never);
+  activate({ subscriptions: [], extensionUri: stub.Uri.file('/ext') } as never);
 });
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -160,22 +158,5 @@ describe('preview', () => {
     expect(api.canReply).toBe(false);
     expect(api.comments[0]!.body.value).toBe('Is this **one** service?');
     expect(threads.find((t) => t.label?.startsWith('2.'))!.label).toBe('2. Old cache (no longer in the diagram)');
-  });
-});
-
-describe('markdown', () => {
-  it('draws ```cartography blocks in the Markdown preview', () => {
-    const md = api.extendMarkdownIt(new MarkdownIt({ html: true }) as never) as unknown as InstanceType<typeof MarkdownIt>;
-    const html = md.render('# Page\n\n```cartography\ntype: systems\nnodes:\n  a: { kind: api }\n```\n', { currentDocument: { scheme: 'file', fsPath: path.join(dir, 'page.md') } });
-    expect(html).toContain('<svg');
-    expect(html).toContain('<h1>Page</h1>');
-  }, 60_000);
-
-  it('leaves them alone when the setting is off', () => {
-    stub.state.config['cartography.markdown.enabled'] = false;
-    const md = api.extendMarkdownIt(new MarkdownIt() as never) as unknown as InstanceType<typeof MarkdownIt>;
-    const html = md.render('```cartography\ntype: systems\n```\n');
-    expect(html).toContain('<code class="language-cartography">');
-    delete stub.state.config['cartography.markdown.enabled'];
   });
 });

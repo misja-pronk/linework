@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { bundledFont } from '@cartography/theme';
-import { pageCss } from '@cartography/docs-plugins';
+import { pageCss } from './draw.ts';
 import { benchmarkCharts, benchmarkDrawings, benchmarkTeaser } from './bench-page.ts';
 import { buildGallery, galleryIndex, typePage, type TypeEntry } from './gallery.ts';
 import { home } from './home.ts';
@@ -37,7 +37,7 @@ const NAV: { title: string; items: [string, string?][] }[] = [
   },
   { title: 'Model and tell', items: [['model.md', 'One model, many diagrams'], ['workspace.md', 'The folder as one model'], ['decisions.md', 'Architecture decisions'], ['review.md', 'Architecture review'], ['steps.md', 'Steps'], ['layers.md', 'Layers'], ['trace.md', 'Trace a request'], ['compare.md', 'Compare versions'], ['share.md', 'Share links'], ['html-export.md', 'Interactive HTML'], ['animate.md', 'Animation']] },
   { title: 'Export', items: [['powerpoint-templates.md', 'PowerPoint and Office']] },
-  { title: 'Docs, CI and AI', items: [['embed.md', 'In a docs site'], ['ci.md', 'In CI'], ['ai.md', 'Your own AI'], ['mcp.md', 'MCP and agents']] },
+  { title: 'Docs, CI and AI', items: [['ci.md', 'In CI'], ['ai.md', 'Your own AI'], ['mcp.md', 'MCP and agents']] },
   { title: 'Look', items: [['style.md', 'The Survey style'], ['themes.md', 'Brand themes'], ['icons.md', 'Official icons']] },
   { title: 'Compare', items: [['benchmark.md', 'Layout benchmark'], ['comparison/README.md', 'Side by side'], ['requirements.md', 'Requirements']] },
 ];
@@ -131,7 +131,7 @@ for (const family of ['Instrument Sans', 'Geist Mono']) {
   }
 }
 // The plugins' own rules (which drawing shows on a light and on a dark page), then the site's.
-const css = [faces.join('\n'), pageCss({ ...{ fonts: 'none' as const } }), fs.readFileSync(path.join(here, 'assets/site.css'), 'utf8')].join('\n');
+const css = [faces.join('\n'), pageCss(), fs.readFileSync(path.join(here, 'assets/site.css'), 'utf8')].join('\n');
 fs.writeFileSync(path.join(out, 'assets/site.css'), css);
 fs.copyFileSync(path.join(here, 'assets/site.js'), path.join(out, 'assets/site.js'));
 fs.copyFileSync(path.join(here, 'assets/mark.svg'), path.join(out, 'assets/mark.svg'));

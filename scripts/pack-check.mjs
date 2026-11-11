@@ -2,9 +2,8 @@
 // it into a temporary folder with `pnpm pack` (which applies publishConfig and resolves workspace:
 // versions), opens the tarball and checks the manifest and the files.
 //   pnpm pack:check            build, pack and check every publishable package
-//   pnpm pack:check --list     print the publishable package folders, one per line (for the release workflow)
-// Only the packages in PUBLISH are released. The others export TypeScript sources for use inside this
-// repository and need a bundle step before they could go to npm; they are listed, not checked.
+// Only the packages in PUBLISH would be released; none are now. The others export TypeScript sources
+// for use inside this repository and need a bundle step before they could go to npm; they are listed.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -12,12 +11,7 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 /** The packages released to npm. Each bundles the engine into dist/, so it needs none of our other packages at run time. */
-export const PUBLISH = ['packages/docs-plugins', 'packages/embed'];
-
-if (process.argv.includes('--list')) {
-  console.log(PUBLISH.join('\n'));
-  process.exit(0);
-}
+export const PUBLISH = [];
 
 const problems = [];
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-pack-'));
@@ -72,17 +66,6 @@ for (const dir of PUBLISH) {
     const ours = /(?:from|import\()\s*["'](@cartography\/[\w-]+)/.exec(text);
     if (ours) fail(`${f} imports ${ours[1]}, which is not bundled`);
   }
-  // Node packages are loaded from the unpacked tarball with no node_modules next to it, and draw a diagram.
-  if (dir === 'packages/docs-plugins') {
-    const smoke = `const { build } = await import(${JSON.stringify(path.join(pkgDir, 'dist/index.js'))});
-const r = await build({ text: 'type: systems\\nnodes:\\n  a: { kind: service }\\n  b: { kind: database }\\nedges:\\n  - a -> b\\n', dir: process.cwd(), options: {} });
-if (!r.ok) { console.error(JSON.stringify(r.problems)); process.exit(1); }`;
-    try {
-      execFileSync(process.execPath, ['--input-type=module', '-e', smoke], { cwd: out, stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch (e) {
-      fail(`the packed build does not draw a diagram on its own: ${String(e.stderr || e.message).split('\n').slice(0, 3).join(' ')}`);
-    }
-  }
   const size = files.reduce((n, f) => n + (fs.existsSync(path.join(pkgDir, f)) ? fs.statSync(path.join(pkgDir, f)).size : 0), 0);
   console.log(`${m.name}@${m.version}  ${files.length} files, ${(size / 1024).toFixed(0)} kB unpacked  ${targets.join(' ')}`);
 }
@@ -104,4 +87,4 @@ if (problems.length) {
   console.error(`\n${problems.length} problem(s):\n${problems.map((p) => `  ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log('Every publishable package packs cleanly. Nothing was published.');
+console.log(PUBLISH.length ? 'Every publishable package packs cleanly. Nothing was published.' : 'No package is published to npm.');

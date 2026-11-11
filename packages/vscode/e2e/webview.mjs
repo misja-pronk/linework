@@ -87,12 +87,6 @@ const collection = stub.state.collections.find((c) => c.name === 'cartography');
 const problems = await until(() => collection.get(broken.uri)?.length && collection.get(broken.uri));
 check(problems.some((d) => d.message.startsWith('"kind" must be one of') && d.range.start.line === 2), 'bundle: problems at the right line, in the CLI words');
 
-// 2. The bundle: the Markdown preview through the docs plugin's worker (dist/worker.js).
-const md = api.extendMarkdownIt(new (require('markdown-it'))({ html: true }));
-const page = md.render('# Notes\n\n```cartography\ntype: systems\nnodes:\n  a: { kind: api }\n  b: { kind: database }\nedges:\n  - a -> b\n```\n', { currentDocument: { scheme: 'file', fsPath: path.join(work, 'notes.md') } });
-check(page.includes('<svg') && page.includes('<h1>Notes</h1>'), 'bundle: ```cartography block drawn in Markdown');
-fs.writeFileSync(path.join(out, 'markdown.html'), `<!doctype html><meta charset="utf-8"><body class="vscode-light">${page}`);
-
 // 3. The preview page in Chromium, with what the extension posts.
 const doc = stub.openDocument(file, text);
 stub.window.activeTextEditor = { document: doc, selections: [] };

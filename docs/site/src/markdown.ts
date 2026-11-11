@@ -1,10 +1,9 @@
-// Markdown to HTML for the site: markdown-it with the Cartography plugin (```cartography blocks become
-// inline SVG), GitHub-style heading anchors, links rewritten from .md to .html, and YAML examples that
-// are whole diagrams drawn right under their code.
+// Markdown to HTML for the site: markdown-it with GitHub-style heading anchors, links rewritten from
+// .md to .html, and YAML examples that are whole diagrams drawn right under their code.
 import fs from 'node:fs';
 import path from 'node:path';
 import MarkdownIt from 'markdown-it';
-import { build, markdownItCartography, toHtml, type CartographyOptions } from '@cartography/docs-plugins';
+import { build, toHtml, type DrawOptions } from './draw.ts';
 import { highlight } from './highlight.ts';
 
 export interface Heading {
@@ -44,7 +43,7 @@ export function slug(text: string, seen: Map<string, number>): string {
   return n ? `${base}-${n}` : base;
 }
 
-export const options: CartographyOptions = { theme: 'auto', fonts: 'embed', pageStyle: false, strict: false, description: false };
+export const options: DrawOptions = { theme: 'auto', fonts: 'embed' };
 
 /** The first line that says something, for "is this YAML a whole diagram?" */
 const firstLine = (text: string) => text.split('\n').find((l) => l.trim() && !l.trim().startsWith('#'))?.trim() ?? '';
@@ -90,7 +89,6 @@ export async function renderMarkdown(file: string, resolver: Resolver, root: str
   const dir = path.dirname(file);
   const source = await drawSnippets(fs.readFileSync(file, 'utf8'), dir, root);
   const md = new MarkdownIt({ html: true, linkify: false, typographer: false, highlight: (code, lang) => highlight(code, lang) });
-  md.use(markdownItCartography, { ...options, root, warn: (m: string) => console.warn(m) });
 
   const headings: Heading[] = [];
   const seen = new Map<string, number>();

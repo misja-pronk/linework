@@ -11,8 +11,8 @@ Every drawing says in words what it shows, made from its model (see [describe](d
 - **PNG**: `Title` and `Description` text chunks. A web page still needs its own `alt`.
 - **PDF**: a tagged PDF; each drawing is a figure with the description as its alternate text.
 - **PowerPoint**: the drawing's group has the description as its alt text.
-- **Interactive HTML** and `<carto-diagram>`: the description is read with the drawing, and a text version lists
-  the elements and connections.
+- **Interactive HTML**: the description is read with the drawing, and a text version lists the elements and
+  connections.
 - **The editor**: the drawing pane is described by the same words; Export → Describe in words shows and copies them.
 
 ## The keyboard
@@ -25,7 +25,6 @@ Everything can be done without a mouse.
 - **Lines**: a line bent by hand is straightened again with *Reset line* (⌘K, or the button in the inspector).
 - **Interactive HTML**: Tab goes through the elements, ↵ opens what one leads to, `/` searches, `?` lists the
   keys. Single-key shortcuts are off while you type or work in the contents and details panels.
-- **`<carto-diagram>`**: Tab reaches the links in the drawing, ↵ or Space follows one, Backspace goes back.
 
 ## Cues beyond colour
 

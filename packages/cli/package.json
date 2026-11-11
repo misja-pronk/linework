@@ -14,8 +14,6 @@
     "@cartography/core": "workspace:*",
     "@cartography/describe": "workspace:*",
     "@cartography/diff": "workspace:*",
-    "@cartography/docs-plugins": "workspace:*",
-    "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/github": "workspace:*",

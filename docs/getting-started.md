@@ -58,6 +58,5 @@ The type decides what can go in a diagram and how it is laid out: Azure, AWS and
 
 - Already have diagrams in Mermaid, D2, draw.io, PlantUML, Structurizr or Terraform? Your own AI converts them: [from other tools](ai.md#from-other-tools).
 - Draw the same systems in several diagrams: [one model, many diagrams](model.md).
-- Put diagrams in your docs site, drawn at build time: [embed.md](embed.md).
 - Check diagrams and show what changed in pull requests: [ci.md](ci.md).
 - Make it look like your client: [brand themes](themes.md).

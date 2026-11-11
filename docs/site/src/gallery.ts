@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import MarkdownIt from 'markdown-it';
 import { encodeShare } from '@cartography/core';
-import { build, toHtml } from '@cartography/docs-plugins';
+import { build, toHtml } from './draw.ts';
 import { render, types } from '@cartography/engine';
 import { icon as lucide } from '@cartography/icons';
 import { escape } from './highlight.ts';

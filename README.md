@@ -55,8 +55,6 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 **From what you already have**: your own AI converts Mermaid, D2, PlantUML, Structurizr, draw.io, Excalidraw and Terraform files, and checks what it wrote with the MCP tools. See [from other tools](docs/ai.md#from-other-tools).
 
-**In your docs**: a remark plugin (Docusaurus, Astro, MDX) and a markdown-it plugin (VitePress, Eleventy) draw a fenced `cartography` block or `![Web shop](./shop.yaml)` as SVG while the site builds; `<carto-diagram src="shop.yaml">` draws in the browser with zoom and drill-down. See [embed](docs/embed.md) and [examples/docs](examples/docs).
-
 **Elsewhere**: a VS Code extension (`packages/vscode`, from a `.vsix`) with a live preview, problems and quick fixes ([vscode](docs/vscode.md)); an MCP server and agent skill so Claude Code and other MCP clients write diagrams checked against the schema ([mcp](docs/mcp.md)).
 
 ## Working on it

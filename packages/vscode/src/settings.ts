@@ -9,7 +9,6 @@ export interface Settings {
   pngScale: number;
   diagnostics: boolean;
   yamlSchemas: boolean;
-  markdown: boolean;
   presentFullScreen: boolean;
 }
 
@@ -23,7 +22,6 @@ export function settings(): Settings {
     pngScale: Math.min(8, Math.max(0.5, c.get<number>('export.pngScale', 2))),
     diagnostics: c.get<boolean>('diagnostics.enabled', true),
     yamlSchemas: c.get<boolean>('yamlSchemas', true),
-    markdown: c.get<boolean>('markdown.enabled', true),
     presentFullScreen: c.get<boolean>('present.fullScreen', false),
   };
 }

@@ -19,7 +19,6 @@ export const nl = {
   'Editor': 'Editor',
   'Connect your AI (once; the token stays the same):': 'Verbind je AI (eenmalig; het token blijft hetzelfde):',
   'Ctrl+C to stop': 'Ctrl+C om te stoppen',
-  'a web page that carries the drawing': 'een webpagina met de tekening erin',
   'check files and their views': 'bestanden en hun weergaven controleren',
   'architecture review rules: findings, fixes, a report': 'regels voor de architectuurreview: bevindingen, oplossingen, een rapport',
   'what changed between two versions': 'wat er veranderde tussen twee versies',
@@ -311,12 +310,6 @@ export const nlHelp: Record<string, string> = {
     `  carto watch  <file.yaml…> [same options]      opnieuw renderen bij elke keer opslaan (en als ingevoegde bestanden wijzigen)`,
   [`  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI`]:
     `  carto serve  [folder] [--port 4317]           de webeditor voor een map, met een MCP-endpoint voor je eigen AI`,
-  [`  carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
-               [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
-               [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it`]:
-    `  carto embed <file.yaml|-> [-o out.html]       een webpagina waar alles in zit: de tekening, zoomen en doorklikken
-               [--view name] [--theme name]         --static: alleen de tekening, geen script; --fragment: alleen de
-               [--static] [--fragment] [--css]      figuur, voor een eigen pagina, en --css: het stijlblad erbij`,
   [`  carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
                [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the

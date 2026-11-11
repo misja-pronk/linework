@@ -42,7 +42,6 @@ Key
 | PowerPoint (`.pptx`) | The drawing is one group on the slide whose alt text (`descr`) is the description; each shape keeps its own. A slide per step says that step. |
 | The editor | **Export → Describe in words…** or ⌘K *Describe in words*: the description of what is on screen (its view, step and focus), with **Copy text** (`T`), **Copy Markdown** (`M`) and **Copy for Confluence / Notion** (`C`, see [wiki-export.md](wiki-export.md)). |
 | Interactive HTML (`carto export-html`) | Each drawing is described to a screen reader by its description. |
-| `<carto-diagram>` | The stage carries the summary as its description; the *Text description* fold below the drawing lists the elements and connections, with their links. |
 | `carto describe` | On the command line, below. |
 
 ## carto describe

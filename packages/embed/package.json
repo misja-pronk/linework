@@ -1,47 +1,15 @@
 {
   "name": "@cartography/embed",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "<carto-diagram>: a Cartography diagram in any web page, with zoom, pan and drill-down",
-  "keywords": [
-    "cartography",
-    "diagram",
-    "architecture",
-    "web-component"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/OWNER/cartography.git",
-    "directory": "packages/embed"
-  },
-  "homepage": "https://github.com/OWNER/cartography#readme",
+  "description": "Internal: what the interactive HTML export and the docs site share: safe links and SVG, a diagram in words",
   "exports": {
-    ".": "./src/index.ts",
-    "./shared": "./src/shared.ts",
-    "./build": "./build.mjs"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "node build.mjs",
-    "e2e": "node e2e/embed.mjs"
-  },
-  "publishConfig": {
-    "access": "public",
-    "exports": {
-      ".": "./dist/carto-diagram.js",
-      "./standalone": "./dist/carto-diagram.standalone.js",
-      "./engine": "./dist/carto-engine.js"
-    }
+    "./shared": "./src/shared.ts"
   },
   "devDependencies": {
     "@cartography/core": "workspace:*",
-    "@cartography/describe": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/theme": "workspace:*",
-    "@playwright/test": "^1.65.0",
-    "esbuild": "^0.28.2"
+    "@cartography/engine": "workspace:*"
   }
 }

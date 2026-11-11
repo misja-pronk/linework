@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@cartography/core": "workspace:*",
-    "@cartography/docs-plugins": "workspace:*",
+    "@cartography/embed": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/icons": "workspace:*",
     "@cartography/theme": "workspace:*",

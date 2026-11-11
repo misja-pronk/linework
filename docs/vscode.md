@@ -75,10 +75,6 @@ With the YAML extension (`redhat.vscode-yaml`) installed, each diagram gets its 
 
 PDF export, `--svg-safe` SVG and icon packs from the CLI's config folder are CLI-only: run `carto` for those.
 
-## Markdown preview
-
-` ```cartography ` blocks (and images that point at a diagram `.yaml`) are drawn in VS Code's built-in Markdown preview, light or dark with VS Code, by the same markdown-it plugin docs sites use ([embed.md](embed.md)). Includes resolve next to the Markdown file, below the first workspace folder. A diagram with errors shows its message in the page. Off with `cartography.markdown.enabled`.
-
 ## Settings
 
 | Setting | Default | |
@@ -87,7 +83,6 @@ PDF export, `--svg-safe` SVG and icon packs from the CLI's config folder are CLI
 | `cartography.preview.debounce` | `250` | Milliseconds after typing before redrawing and checking. |
 | `cartography.diagnostics.enabled` | `true` | Problems in the Problems panel. |
 | `cartography.yamlSchemas` | `true` | Hand the type schemas to the YAML extension. |
-| `cartography.markdown.enabled` | `true` | Draw ` ```cartography ` blocks in the Markdown preview. |
 | `cartography.shareBase` | `http://localhost:5178/` | The web editor that share links open. |
 | `cartography.export.pngScale` | `2` | Pixels per unit in PNG exports. |
 | `cartography.present.fullScreen` | `false` | Present also turns VS Code full screen. |
