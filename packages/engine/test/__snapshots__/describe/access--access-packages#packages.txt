@@ -1,0 +1,9 @@
+Northwind finance access packages
+
+Roles, groups and access packages, packages × grants: Packages × grants. A table of 3 rows by 4 columns.
+
+By row (Package by grants)
+Columns: Finance team, Finance team site, Northwind ERP and Finance reports.
+- Finance basics (Finance): Finance team: Member; Finance team site: Member; Northwind ERP: Finance user
+- ERP key user (Finance · 180 days): Northwind ERP: Key user
+- Year-end audit (External partners · 90 days): Finance team site: Visitor; Finance reports: Viewer

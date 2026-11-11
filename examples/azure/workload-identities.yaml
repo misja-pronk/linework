@@ -40,13 +40,13 @@ edges:
   - uami -> graph: { label: User.Read.All (application), style: identity }
 
 steps:
-  - title: Three kinds of workload identity
+  - title: Three kinds
     caption: An app registration with its service principal for code outside Azure, and managed identities for code inside it. None of them has a secret to leak.
   - title: Deploying from GitHub
     caption: The workflow presents GitHub's OIDC token. The federated credential trusts only northwind/shop in environment prod, and Entra issues a token for the service principal.
     path: workflow -> app-reg -> sp
     note: { app-reg: "repo:northwind/shop:environment:prod" }
-  - title: Least privilege for the pipeline
+  - title: Pipeline, least privilege
     caption: The service principal is Contributor on one resource group, not on the subscription.
     path: sp -> rg
   - title: System-assigned

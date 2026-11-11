@@ -1,0 +1,33 @@
+Orders data product
+
+Data products, overview: Sources, ports, contract and consumers of one data product. 8 elements in 1 group, with 7 connections.
+
+Groups and elements
+- ERP (Orders and order lines)
+- Sales (Domain · Order management team)
+  - Orders (Source-aligned · v2.3.0)
+  - orders (Data contract · v2.3.0 · internal)
+- Revenue (Finance)
+- Demand forecast (Supply chain)
+- Sales dashboard (Dashboard)
+- Loyalty app (Application)
+- Webshop events (Event Hubs)
+
+Connections
+- ERP connects to Orders.in:0.
+- Orders connects to Revenue, connects to Demand forecast, connects to Sales dashboard, connects to Loyalty app and is linked with orders.
+- Webshop events connects to Orders.in:1.
+
+Walkthrough
+1. One product, one team: Orders belongs to the order management team. They run it, version it and answer for it.
+2. Input ports: Changes come from the ERP through change data capture, web orders as a stream. Nobody else reads these systems.
+  - Orders: Deduplicated, joined, amounts in euros
+3. The contract: The orders table promises a schema, freshness within 15 minutes and checks that run on every load. A breaking change is a new major version.
+4. Lineage onwards: Revenue, the demand forecast, the sales dashboard and the loyalty app depend on it. They are told before the contract changes.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract

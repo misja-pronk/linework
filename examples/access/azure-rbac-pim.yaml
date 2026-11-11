@@ -54,11 +54,11 @@ steps:
   - title: Standing access
     caption: Read-only at the top for security and finance. Developers can change dev and read production.
     path: [sg-azure-readers -> mg-northwind, sg-shop-devs -> sub-shop-dev, sg-shop-devs -> sub-shop-prod]
-  - title: Changing production goes through PIM
+  - title: Production through PIM
     caption: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
     path: [priya -> sg-shop-devs -> rg-shop-prod]
     note: { sg-shop-devs: "MFA and a reason, max 8 h" }
-  - title: Least privilege for operations
+  - title: Operations, least privilege
     caption: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
     path: [sg-shop-ops -> rg-shop-prod, sg-shop-ops -> kv-shop-prod]
   - title: No standing Owner
