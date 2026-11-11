@@ -1,21 +1,21 @@
-GitHub Flow with environments
+GitHub flow with environments
 
-Git branching diagram: Every pull request gets a preview; every merge to main ships. 4 branches and 9 commits.
+Git branching diagram: Northwind Orders API: short-lived branches into main, every merge to dev and test, a tagged release to production. 4 branches and 9 commits.
 
 Branches
 - main (long-lived, 4 commits)
-- feature/signup (feature, 3 commits)
-- fix/header (feature, 1 commit)
-- feature/export (feature, 1 commit)
+- feature/order-export (feature, 3 commits)
+- fix/vat-rounding (feature, 1 commit)
+- dependabot/azure-identity (feature, 1 commit)
 
 History
 Oldest first.
-1. main: Initial commit, deployed to production.
-2. feature/signup: Sign-up form, branches off main.
-3. fix/header: Fix header, branches off main.
-4. feature/signup: Tests, deployed to preview, Open PR.
-5. main: merges fix/header, deployed to production.
-6. feature/signup: Review fixes, PR review.
-7. main: merges feature/signup, tagged v1.1.0, deployed to production.
-8. feature/export: Export CSV, branches off main, deployed to preview, Open PR.
-9. main: merges feature/export, deployed to production.
+1. main: Release 1.3, tagged v1.3.0, deployed to production.
+2. feature/order-export: Export endpoint, branches off main.
+3. fix/vat-rounding: Round VAT per line, branches off main.
+4. feature/order-export: Fix lint, Checks red, then green.
+5. main: merges fix/vat-rounding, deployed to dev and test, Squash merge.
+6. feature/order-export: Review fixes, Changes requested.
+7. main: merges feature/order-export, deployed to dev and test, Approved.
+8. dependabot/azure-identity: Bump Azure.Identity, branches off main.
+9. main: merges dependabot/azure-identity, tagged v1.4.0, deployed to dev, test and production, Approval gate.

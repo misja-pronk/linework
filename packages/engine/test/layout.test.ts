@@ -86,7 +86,8 @@ const crossingBudget: Record<string, number> = {
   'process/incident-handling.yaml': 0,
   'process/onboarding.yaml': 1, // the manager's branch passes IT's line on its way down
   'process/order-to-cash.yaml': 0,
-  'process/release-with-gate.yaml': 0,
+  'process/pull-request.yaml': 0,
+  'process/release-to-production.yaml': 0,
   'roadmap/migration-waves.yaml': 0,
   'roadmap/now-next-later.yaml': 0,
   'journey/access-request.yaml': 0,
@@ -99,7 +100,9 @@ const crossingBudget: Record<string, number> = {
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,
   'sequence/checkout.yaml': 0,
-  'sequence/oauth-login.yaml': 0,
+  'sequence/entra-sign-in.yaml': 0,
+  'sequence/managed-identity.yaml': 0,
+  'sequence/service-bus-events.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
   'states/device-connection.yaml': 1, // wrapped into two rows for a slide (2.94:1 at 6.6 pt -> 1.70:1 at 8.4 pt)
   'states/document-approval.yaml': 2, // wrapped into rows for a slide (3.89:1 at 6.7 pt -> 1.23:1 at 8.5 pt): the review's lines back pass Draft's
@@ -208,7 +211,7 @@ const returns: Record<string, number> = {
   'workspace/containers.yaml': 2, // customer → web and app, drawn above the boundary they enter
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
-  'process/release-with-gate.yaml': 1,
+  'process/pull-request.yaml': 2, // a red build and requested changes both go back to the developer's commit
   'states/device-connection.yaml': 6, // and one more: wrapped into two rows for a slide
   'states/document-approval.yaml': 2, // and one more: wrapped into rows for a slide
   'states/order-lifecycle.yaml': 3, // wrapped into three rows for a slide: the lines on to the next row run back

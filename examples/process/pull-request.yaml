@@ -1,0 +1,53 @@
+type: process
+title: Pull request to main
+subtitle: "Northwind Orders API, part 1 of 2: nothing reaches main without green checks and a reviewer's approval"
+
+# One lane per actor, in the order the change passes through them. Part 2
+# (release-to-production.yaml) picks up where this one ends.
+lanes:
+  dev: Developer
+  github: GitHub
+  actions: Actions
+  reviewer: Reviewer
+
+# Only what the flow cannot say itself: the lane, the kind and a caption.
+nodes:
+  Commit on a branch: { in: dev, kind: user, caption: feature/order-export }
+  Open pull request: { in: github, kind: user, caption: asks CODEOWNERS }
+  # The checks branch protection requires; a red one blocks the merge.
+  Required checks: { in: actions, kind: script, caption: "build, test, lint, CodeQL" }
+  Checks green?: actions
+  # Where the change waits: until a reviewer picks it up. The review is the decision after it.
+  Waiting for review: { kind: timer, in: reviewer }
+  Approved?: reviewer
+  Fix the build: { in: dev, kind: user }
+  Address feedback: { in: dev, kind: user }
+  Squash and merge: { in: github, kind: service, caption: branch deleted }
+  Merged to main: { kind: end, in: github }
+
+# The first line is the happy path; the lines after it are the ways back.
+flow:
+  - Commit on a branch -> Open pull request -> Required checks -> Checks green? -yes-> Waiting for review -> Approved? -yes-> Squash and merge -> Merged to main
+  - Checks green? -no-> Fix the build -> Commit on a branch
+  - Approved? -changes requested-> Address feedback -> Commit on a branch
+
+# Presenting (P): one stop on the way per step, with what to say.
+steps:
+  - title: The change
+    caption: A developer works on a short-lived branch and opens a pull request; GitHub asks the code owners to review.
+    path: Commit on a branch -> Open pull request
+  - title: Required checks
+    caption: GitHub Actions builds, tests, lints and scans the change. Branch protection will not merge it while one is red.
+    path: Open pull request -> Required checks -> Checks green?
+  - title: Red build
+    caption: A red check goes back to the developer; the next push runs every check again.
+    path: Checks green? -> Fix the build -> Commit on a branch
+  - title: Waiting for review
+    caption: Here the change waits for a person. Often the longest stop on the way to production.
+    focus: [Waiting for review, Approved?]
+  - title: Changes requested
+    caption: The reviewer asks for changes; the fix is pushed to the same branch, and checks and review run again.
+    path: Approved? -> Address feedback -> Commit on a branch
+  - title: Merge
+    caption: "Green checks and one approval: the pull request is squashed into one commit on main and the branch is deleted."
+    path: Approved? -> Squash and merge -> Merged to main

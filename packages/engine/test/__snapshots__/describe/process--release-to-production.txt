@@ -1,0 +1,57 @@
+Release to production
+
+Process diagram: Northwind Orders API, part 2 of 2: one build goes through dev and test, and a person opens the gate to production. 13 elements in 4 lanes, with 12 connections.
+
+Lanes and steps
+- GitHub (lane)
+  - Merged to main (start event)
+  - Waiting for approval (timer intermediate event)
+- Actions (lane)
+  - Build once (one artifact for all stages)
+  - Integration tests
+- Azure (lane)
+  - Deploy to dev (rg-orders-dev)
+  - Deploy to test (rg-orders-test)
+  - Deploy to production (staging slot, then swap)
+  - Healthy? (decision decision)
+  - Live in production (end event)
+  - Swap back
+  - Rolled back (error end event)
+- Reviewer (lane)
+  - Release approved? (decision decision)
+  - Release stopped (end event)
+
+Main path
+1. Merged to main
+2. Build once
+3. Deploy to dev
+4. Deploy to test
+5. Integration tests
+6. Waiting for approval
+7. Release approved?
+8. Deploy to production: Release approved? yes
+9. Healthy?
+10. Live in production: Healthy? yes
+
+Connections
+- Merged to main leads to Build once.
+- Build once leads to Deploy to dev.
+- Deploy to dev leads to Deploy to test.
+- Deploy to test leads to Integration tests.
+- Integration tests leads to Waiting for approval.
+- Waiting for approval leads to Release approved?
+- Release approved? leads to Deploy to production (yes) and leads to Release stopped (no).
+- Deploy to production leads to Healthy?
+- Healthy? leads to Live in production (yes) and leads to Swap back (no).
+- Swap back leads to Rolled back.
+
+Walkthrough
+1. Build once: The merge starts the release workflow. It builds one artifact, and that same artifact goes to every environment.
+2. Dev and test: The workflow deploys to dev, then to test, where the integration tests run. A red test stops the run.
+3. The gate: The production environment has required reviewers. The run waits here until one of them approves.
+4. Production: The release goes to the staging slot, is warmed up and checked, and the slots are swapped.
+5. Roll back: Unhealthy after the swap? Swap back. The previous version is live again within a minute.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

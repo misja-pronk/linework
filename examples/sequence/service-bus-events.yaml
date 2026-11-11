@@ -1,0 +1,37 @@
+type: sequence
+title: Events through Service Bus
+subtitle: "Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue"
+autonumber: true
+
+# The topic, its subscriptions and their dead-letter queues live in one namespace.
+boxes:
+  bus: { label: Service Bus sb-northwind-prod, tone: violet }
+
+participants:
+  api: { kind: service, label: Orders API, caption: App Service }
+  topic: { kind: topic, label: order-events, caption: topic, box: bus }
+  dlq: { kind: queue, label: Dead-letter queue, caption: per subscription, box: bus }
+  invoicing: { kind: function, label: Invoicing, caption: Azure Function }
+  warehouse: { kind: worker, label: Warehouse, caption: Container App }
+  ops: { kind: person, label: Operations }
+
+messages:
+  # MessageId is the order id: duplicate detection drops a second send of the same order.
+  - api ->> topic: OrderPlaced, MessageId = order id
+  # Each subscription gets its own copy and is retried on its own: one slow consumer holds up no one.
+  - par: Subscription invoicing
+    messages:
+      - topic ->> invoicing: OrderPlaced (peek-lock)
+      # At-least-once delivery: the same message can come twice, so the handler checks first.
+      - invoicing -> invoicing: Create invoice, unless MessageId was seen
+      - invoicing -->> topic: Complete
+    and:
+      Subscription warehouse:
+        - topic ->> warehouse: OrderPlaced (peek-lock)
+        - warehouse -->> topic: Abandon, stock service down
+        - topic ->> warehouse: Redelivered, DeliveryCount 2 to 10
+        # MaxDeliveryCount is 10 on this subscription.
+        - topic ->> dlq: After the 10th try, to the dead-letter queue
+  # An Azure Monitor alert on the DeadletteredMessages metric of the subscription.
+  - dlq ->> ops: "Alert: dead-lettered messages > 0"
+  - ops -> dlq: Fix the cause, resubmit
