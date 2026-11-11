@@ -50,6 +50,8 @@ const crossingBudget: Record<string, number> = {
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
+  'data-products/northwind-mesh.yaml': 1, // Orders and Customers both feed Revenue and the sales dashboard, which stand in one column
+  'data-products/northwind-orders-product.yaml': 2, // the contract stands beside the product: the lines out of its ports go around it
   'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
   'deployment/aws.yaml': 2, // the OrderPlaced lines into the queue each run on their own: lines with a label never share a trunk
   'deployment/aws.yaml#prod': 2, // the same
@@ -141,6 +143,8 @@ const jogBudget: Record<string, number> = {
   'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
   'data-products/customer-detailed.yaml': 2, // the same as customer.yaml, and a line stepping clear of a card it passes
   'data-products/customer-focus.yaml': 2, // the same, twice
+  'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
+  'data-products/northwind-orders-product.yaml': 2, // the two output ports' lines step aside around the contract
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
