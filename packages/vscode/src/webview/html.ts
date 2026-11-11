@@ -20,24 +20,27 @@ export function nonce(): string {
 }
 
 
+// The editor's "Map room", in VS Code's own colours: the editor is the table (with a faint graticule),
+// the drawing lies on it as a sheet with a second sheet offset under it, controls are cut at 2 px.
 export const STYLE = `
-:root { color-scheme: light dark; }
+:root { color-scheme: light dark; --rule: color-mix(in srgb, var(--vscode-foreground) 22%, transparent); --graticule: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); --under: color-mix(in srgb, var(--vscode-foreground) 4%, var(--vscode-editor-background)); }
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-body { background: var(--carto-canvas, var(--vscode-editor-background)); color: var(--vscode-foreground); font: 12px/1.4 var(--vscode-font-family, system-ui, sans-serif); }
+body { background: var(--vscode-editor-background); color: var(--vscode-foreground); font: 12px/1.4 var(--vscode-font-family, system-ui, sans-serif); }
 #bar { position: absolute; top: 0; left: 0; right: 0; display: flex; gap: 6px; align-items: center; padding: 4px 8px; background: var(--vscode-editorWidget-background, var(--vscode-editor-background)); border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent)); z-index: 2; min-height: 26px; flex-wrap: wrap; }
-#bar button, #bar select { font: inherit; color: var(--vscode-button-secondaryForeground, var(--vscode-foreground)); background: var(--vscode-button-secondaryBackground, transparent); border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; padding: 2px 7px; cursor: pointer; }
+#bar button, #bar select { font: inherit; color: var(--vscode-button-secondaryForeground, var(--vscode-foreground)); background: var(--vscode-button-secondaryBackground, transparent); border: 1px solid var(--vscode-button-border, transparent); border-radius: 2px; padding: 2px 7px; cursor: pointer; }
 #bar select { background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border-color: var(--vscode-dropdown-border, transparent); }
 #bar button:hover { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground)); }
 #bar button:focus-visible, #bar select:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
 #bar .spacer { flex: 1; }
-#bar .chip { padding: 1px 6px; border-radius: 9px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+#bar .chip { padding: 1px 6px; border-radius: 2px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
 #bar .chip.error { background: var(--vscode-inputValidation-errorBackground, #be1100); color: var(--vscode-errorForeground, #fff); }
 #bar [hidden] { display: none !important; }
 #bar .label { opacity: .75; }
-#stage { position: absolute; inset: 0; overflow: hidden; outline: none; cursor: grab; touch-action: none; }
+#stage { position: absolute; inset: 0; overflow: hidden; outline: none; cursor: grab; touch-action: none; background: linear-gradient(var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px, linear-gradient(90deg, var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px; }
+#stage:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
 #bar:not([hidden]) ~ #stage { top: 35px; }
 #stage.panning { cursor: grabbing; }
-#paper { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#paper { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--carto-canvas, transparent); box-shadow: 0 0 0 1px var(--rule), 5px 5px 0 -1px var(--under), 5px 5px 0 0 var(--rule); }
 #paper svg { display: block; }
 #stale { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: 80%; padding: 6px 10px; border-radius: 4px; background: var(--vscode-inputValidation-warningBackground, #352a05); color: var(--vscode-foreground); border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500); z-index: 2; }
 #stale[hidden], #empty[hidden] { display: none; }
@@ -47,7 +50,8 @@ body { background: var(--carto-canvas, var(--vscode-editor-background)); color: 
 .carto-hl { filter: drop-shadow(0 0 2px var(--vscode-focusBorder, #0078d4)) drop-shadow(0 0 5px var(--vscode-focusBorder, #0078d4)); }
 .carto-dragging { opacity: .85; }
 body.present #bar { display: none; }
-body.present #stage { top: 0; cursor: default; }
+body.present #stage { top: 0; cursor: default; background: var(--carto-canvas, var(--vscode-editor-background)); }
+body.present #paper { box-shadow: none; }
 #caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 24px 14px; text-align: center; background: color-mix(in srgb, var(--vscode-editor-background) 85%, transparent); z-index: 2; }
 #caption[hidden] { display: none; }
 #caption .t { font-weight: 600; font-size: 15px; }
@@ -65,7 +69,7 @@ body.present #stage { top: 0; cursor: default; }
 #proposal pre .del { background: var(--vscode-diffEditor-removedLineBackground, rgba(200, 50, 50, .2)); }
 #proposal pre .fold { opacity: .6; font-style: italic; }
 #proposal footer { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent)); }
-#proposal button { font: inherit; border-radius: 3px; padding: 4px 10px; cursor: pointer; border: 1px solid var(--vscode-button-border, transparent); color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
+#proposal button { font: inherit; border-radius: 2px; padding: 4px 10px; cursor: pointer; border: 1px solid var(--vscode-button-border, transparent); color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); }
 #proposal button.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 #proposal button:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: 1px; }
 #proposal .fine { opacity: .7; }
