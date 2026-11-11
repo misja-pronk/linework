@@ -27,10 +27,15 @@ const crossingBudget: Record<string, number> = {
   'access/access-packages.yaml': 0,
   'access/azure-rbac-pim.yaml': 0,
   'access/privileged-access.yaml': 2, // the service desk's eligible line up into its unit passes the Tier 1 lines into the tenant
-  'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
+  'azure/aks-baseline.yaml': 0,
+  'azure/app-landing-zone.yaml': 0,
+  'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
+  'azure/landing-zone.yaml': 0,
   'azure/microservices.yaml': 4,
+  'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,
+  'azure/web-app.yaml': 0,
   'azure/workload-identities.yaml': 1, // the line out to Microsoft Graph passes the web app's line down to its vault
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
@@ -80,7 +85,7 @@ const crossingBudget: Record<string, number> = {
   'workspace/deployment.yaml': 0,
   'workspace/model.yaml': 0,
   'network/campus.yaml': 0,
-  'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
+  'network/hybrid-cloud.yaml': 0,
   'network/office-ip-plan.yaml': 0,
   'network/small-office.yaml': 0,
   'github/setup.yaml': 0,
@@ -138,6 +143,7 @@ const jogBudget: Record<string, number> = {
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'model/deployment.yaml': 1,
+  'azure/hub-spoke.yaml': 1, // the second peering line steps out of the firewall's side beside the first
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
@@ -245,7 +251,6 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
   'workspace/containers.yaml#payments': 3,
-  'azure/data-platform.yaml': 2, // wrapped into two rows for a slide (3.95:1 at 4.4 pt -> 1.67:1 at 5.2 pt): the lines down to the lake and the serving group run back
 };
 
 describe('layout quality', () => {
@@ -346,7 +351,7 @@ describe('layout quality', () => {
     expect(ragged).toEqual([]);
   });
   it('starts the cards of one column on one line, left to right', async () => {
-    // Drawn for a slide it turns top-down: asked left to right, the sources share their left edge.
+    // Drawn left to right, the sources share their left edge.
     const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
     const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);

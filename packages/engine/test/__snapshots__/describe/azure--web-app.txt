@@ -1,0 +1,41 @@
+Web application
+
+Azure infrastructure diagram: Northwind web shop · Front Door with WAF in front, no secrets in code, nothing else public. 8 elements in 5 groups, with 9 connections.
+
+Groups and elements
+- Customers (Users)
+- sub-webshop-prd (Landing zone · Online)
+  - rg-shop-edge (Global)
+    - afd-shop (Premium · WAF policy)
+  - rg-shop-app (West Europe)
+    - app-shop-web (Storefront · Private Link origin)
+    - cae-shop (Container Apps environment · internal)
+      - ca-shop-orders (Orders API)
+    - id-shop (User-assigned)
+  - rg-shop-data (West Europe)
+    - stshopmedia (Product images)
+    - sqldb-shop (Entra-only auth)
+    - kv-shop-prd (RBAC · public access off)
+
+Connections
+- Customers send traffic to afd-shop over HTTPS.
+- afd-shop connects to app-shop-web (Private network: Private Link) and connects to stshopmedia (Private network: /media).
+- app-shop-web connects to ca-shop-orders (Private network: REST) and signs in with id-shop.
+- ca-shop-orders signs in with id-shop and connects to sqldb-shop (Private network: TDS).
+- id-shop signs in with sqldb-shop (db_datawriter) and signs in with kv-shop-prd (Secrets User).
+
+Walkthrough
+1. The web shop in one subscription. Front Door is the only thing with a public address.
+2. A customer opens the shop: Front Door terminates TLS, the WAF filters the request, and it reaches the storefront over Private Link.
+3. Placing an order: The storefront calls the Orders API inside an internal Container Apps environment; the API writes to SQL.
+4. No secrets in code: Both apps run as id-shop. Its roles on Key Vault and SQL replace passwords and connection strings.
+
+Layers
+Ways to look at this drawing by tag.
+- Security: One public entry, behind a WAF; the apps sign in to Key Vault and SQL with a managed identity. (tags security; 7 elements).
+
+Key
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Dotted amber line: Identity
+- Amber badge: Identity badge

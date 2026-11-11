@@ -1,0 +1,80 @@
+type: azure
+title: AKS baseline
+subtitle: Northwind orders platform · private cluster, WAF in front, egress through the hub firewall, no secrets in pods
+
+# Left to right: customers → Application Gateway (WAF) → ingress → workload → what it uses.
+# The spoke (vnet-aks-weu) has a subnet per role; snet-nodes sends 0.0.0.0/0 to the hub firewall
+# (outboundType: userDefinedRouting), so the cluster has no public egress of its own.
+# Private cluster: the API server is only reachable inside the network (caption on the cluster).
+# Workload identity: the pod's service account is federated to id-orders, which holds the roles
+# on Key Vault; ACR pulls use the kubelet identity.
+# Adding a workload: a card in aks-orders, a line from ingress, and its own managed identity.
+
+groups:
+  sub: { kind: subscription, label: sub-orders-prd, caption: Landing zone · Corp }
+  rg-shared: { kind: resource-group, label: rg-orders-shared, in: sub }
+  vnet: { kind: vnet, label: vnet-aks-weu, caption: 10.2.0.0/16 · peered to the hub, in: sub }
+  snet-agw: { kind: subnet, label: snet-appgw, caption: 10.2.0.0/24, in: vnet }
+  snet-nodes: { kind: subnet, label: snet-nodes, caption: 10.2.16.0/20 · rt 0.0.0.0/0 → firewall, in: vnet }
+  aks: { kind: aks-cluster, label: aks-orders-prd, caption: Private cluster · Azure CNI Overlay, in: snet-nodes }
+  snet-pe: { kind: subnet, label: snet-pe, caption: 10.2.1.0/24, in: vnet }
+
+  conn: { kind: subscription, label: sub-connectivity, caption: Platform }
+
+nodes:
+  customers: { kind: users, label: Customers }
+
+  agw: { kind: app-gateway, label: agw-orders, caption: WAF v2 · public IP, in: snet-agw, tags: [ingress] }
+  ingress: { kind: load-balancer, label: ingress-nginx, caption: App routing · internal LB, in: aks, tags: [ingress] }
+  orders: { kind: container-app, label: orders-api, caption: Deployment · 3 replicas, in: aks, tags: [ingress, identity] }
+  # The node pools (system and user) run in snet-nodes; the cluster group stands for them
+
+  pe-acr: { kind: private-endpoint, label: pe-acr, in: snet-pe }
+  pe-kv: { kind: private-endpoint, label: pe-kv, in: snet-pe, tags: [identity] }
+
+  acr: { kind: container-registry, label: crordersprd, caption: Premium · public access off, in: rg-shared }
+  kv: { kind: key-vault, label: kv-orders-prd, caption: RBAC · CSI secrets driver, in: rg-shared, tags: [identity] }
+  id: { kind: managed-identity, label: id-orders, caption: Federated with sa/orders-api, in: rg-shared, tags: [identity] }
+
+  afw: { kind: firewall, label: afw-hub, caption: FQDN rules · AKS service tag, in: conn, tags: [egress] }
+
+edges:
+  - customers -> agw: { label: HTTPS, style: public, tags: [ingress] }
+  - agw -> ingress: { label: HTTPS, style: private, tags: [ingress] }
+  - ingress -> orders: { style: private, tags: [ingress] }
+  - orders -> id: { style: identity, badge: true, tags: [identity] }
+  - orders -> pe-kv: { label: secrets, style: private, tags: [identity] }
+  - id -> kv: { label: Secrets User, style: identity, tags: [identity] }
+  - pe-kv -> kv: { style: private, tags: [identity] }
+  - aks -> pe-acr: { label: image pull, style: private }
+  - pe-acr -> acr: { style: private }
+  - aks -> afw: { label: egress · UDR, style: private, tags: [egress] }
+
+layers:
+  ingress:
+    tags: [ingress]
+    title: Ingress
+    caption: One public entry, the WAF on Application Gateway; the ingress controller sits on an internal load balancer.
+  egress:
+    tags: [egress]
+    title: Egress
+    caption: Nothing leaves the cluster except through the hub firewall, which allows only the FQDNs AKS and the apps need.
+  identity:
+    tags: [identity]
+    title: Identity
+    caption: Pods sign in as id-orders through workload identity; no secrets in the cluster.
+
+steps:
+  - A private AKS cluster in its own spoke, with a subnet per role.
+  - title: In
+    caption: Customers reach the WAF on Application Gateway; it forwards to the ingress controller on an internal load balancer.
+    path: customers -> agw -> ingress -> orders
+  - title: Secrets without secrets
+    caption: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
+    path: [orders -> pe-kv -> kv, id -> kv]
+  - title: Images
+    caption: Nodes pull images from the registry over a private endpoint; the registry has public access off.
+    path: aks -> pe-acr -> acr
+  - title: Out
+    caption: The node subnet's route table sends all egress to the hub firewall, which allows only what is needed.
+    path: aks -> afw
