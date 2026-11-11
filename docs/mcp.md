@@ -19,10 +19,7 @@ drawing before you see it.
 | `render(yaml \| file, format?, theme?, path?, scale?, view?, focus?, hops?, direction?, layer?, stage?, step?)` | SVG or PNG. With `path` it writes the file; a PNG also comes back as an image, an SVG without `path` as text. The last options draw part of it, as `carto render --view --focus --layer --stage --step` do |
 | `edit_diagram(yaml \| file, edits, dryRun?)` | Edits by YAML path: `set`, `append`, `delete`, `rename`. The rest of the file keeps its exact text, comments included; a renamed id takes its pins in `<name>.layout.json` along. Validated and laid out before it is written: invalid means nothing is written and the problems come back, valid means the file is written and the layout quality comes back |
 | `describe(yaml \| file, view?, …)` | The diagram in words (Markdown), as `carto describe` |
-| `review(yaml \| file, view?, packs?)` | The review rules' findings (rule, severity, what it is about, line, fix), as `carto review` |
-| `threats(yaml \| file, view?)` | The threat model as Markdown, as `carto threats` |
 | `diff(file, before? \| ref?, view?)` | What changed against another file or against the file at a git ref, element by element and in sentences, as `carto diff` |
-| `trace(yaml \| file, from?, to?, steps?, view?)` | The routes a request takes, as `carto trace` |
 | `import_mermaid(text)` | Mermaid flowchart, stateDiagram, architecture-beta, erDiagram, sequenceDiagram and the others `carto import` reads → Cartography YAML, plus warnings |
 
 Resources: `cartography://types` and `cartography://schema/{type}`. Prompt: `create-diagram`

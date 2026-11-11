@@ -581,12 +581,6 @@ importers:
       '@cartography/layout':
         specifier: workspace:*
         version: link:../layout
-      '@cartography/review':
-        specifier: workspace:*
-        version: link:../review
-      '@cartography/trace':
-        specifier: workspace:*
-        version: link:../trace
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(zod@4.6.7)

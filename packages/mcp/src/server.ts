@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { questionsFor } from '@cartography/core';
 import { findType, themes, types } from '@cartography/engine';
 import { editDiagram } from './edit.ts';
-import { describeDiagram, diffDiagrams, reviewDiagram, threatsOf, traceDiagram } from './insight.ts';
+import { describeDiagram, diffDiagrams } from './insight.ts';
 import { getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
 
 const themeNames = Object.keys(themes) as [string, ...string[]];
@@ -15,7 +15,7 @@ const version = '0.0.0';
 const instructions = `Cartography turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
 Workflow: list_types → get_schema(type) → write YAML → validate → fix every error (each has line, column and a hint) and act on the layout suggestions → render.
 Validate before every render; "quality.verdict" should be "clean" or "good".
-To change an existing diagram, use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe, review, threats, diff and trace read a diagram without changing it.`;
+To change an existing diagram, use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
 const failed = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
@@ -195,36 +195,6 @@ export function createServer(cwd = process.cwd()): McpServer {
   );
 
   server.registerTool(
-    'review',
-    {
-      title: 'Review a diagram',
-      description: 'Runs the architecture review rules (as carto review): single points of failure, unencrypted lines, missing owners and the like, with the file\'s own review: settings. Each finding has a rule, a severity, what it is about, the line and how to fix it.',
-      inputSchema: { ...source, view: drawnArgs.view, packs: z.array(z.string()).optional().describe('Only these rule packs, e.g. ["security"]') },
-      annotations: { readOnlyHint: true },
-    },
-    safely(async (args) => {
-      const r = await reviewDiagram(args, cwd);
-      if (!r.ok) return { isError: true, content: [{ type: 'text', text: summary({ ...r, ok: false }) }, ...json(r).content] };
-      const n = r.findings!.length;
-      return { content: [{ type: 'text', text: r.off ? 'The file says review: off.' : `${n} finding${n === 1 ? '' : 's'}.` }, ...json(r).content] };
-    }),
-  );
-
-  server.registerTool(
-    'threats',
-    {
-      title: 'Threat model',
-      description: 'The diagram\'s threat model as Markdown (as carto threats): trust boundaries, the lines that cross them and the threats written on elements and lines.',
-      inputSchema: { ...source, view: drawnArgs.view },
-      annotations: { readOnlyHint: true },
-    },
-    safely(async (args) => {
-      const r = await threatsOf(args, cwd);
-      return r.ok ? { content: [{ type: 'text', text: r.markdown! }] } : { isError: true, content: [{ type: 'text', text: summary({ ...r, ok: false }) }, ...json(r).content] };
-    }),
-  );
-
-  server.registerTool(
     'diff',
     {
       title: 'Compare two versions',
@@ -240,20 +210,6 @@ export function createServer(cwd = process.cwd()): McpServer {
     safely(async (args) => {
       const r = await diffDiagrams(args, cwd);
       return { content: [{ type: 'text', text: `${args.file} against ${r.against}: ${r.summary}` }, ...json(r).content] };
-    }),
-  );
-
-  server.registerTool(
-    'trace',
-    {
-      title: 'Trace a request',
-      description: 'The routes a request takes through the diagram (as carto trace): from one element to another, from one element until each call ends (no "to"), or along the diagram\'s steps. Elements are named by id or label.',
-      inputSchema: { ...source, from: z.string().optional(), to: z.string().optional(), steps: z.boolean().optional().describe('Follow the diagram\'s steps instead'), view: drawnArgs.view },
-      annotations: { readOnlyHint: true },
-    },
-    safely(async (args) => {
-      const r = await traceDiagram(args, cwd);
-      return r.ok ? json(r) : { isError: true, content: [{ type: 'text', text: r.error ?? 'The diagram has errors.' }, ...json(r).content] };
     }),
   );
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { describeDiagram, diffDiagrams, editDiagram, renderDiagram, reviewDiagram, threatsOf, traceDiagram } from '../src/index.ts';
+import { describeDiagram, diffDiagrams, editDiagram, renderDiagram } from '../src/index.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-mcp-edit-'));
@@ -73,17 +73,6 @@ describe('what the engine knows', () => {
     expect(r.text).toContain('Orders DB');
   });
 
-  it('reviews with findings that say what they are about', async () => {
-    const r = await reviewDiagram({ file: ex('azure/web-shop.yaml') });
-    expect(r.ok).toBe(true);
-    for (const f of r.findings!) expect(f.rule && f.severity && f.message && f.about).toBeTruthy();
-  });
-
-  it('gives the threat model, or says there is none', async () => {
-    expect(await threatsOf({ file: ex('systems/threat-model.yaml') })).toMatchObject({ ok: true, count: expect.any(Number), markdown: expect.stringContaining('|') });
-    expect(await threatsOf({ yaml: shop })).toMatchObject({ ok: true, count: 0 });
-  });
-
   it('compares two files', async () => {
     const a = path.join(tmp, 'a.yaml');
     const b = path.join(tmp, 'b.yaml');
@@ -98,13 +87,6 @@ describe('what the engine knows', () => {
   it('compares a file with itself at a git ref', async () => {
     const r = await diffDiagrams({ file: ex('azure/web-shop.yaml'), ref: 'HEAD' }, root);
     expect(r).toMatchObject({ ok: true, against: 'HEAD' });
-  });
-
-  it('traces a request between two elements', async () => {
-    const r = await traceDiagram({ yaml: shop, from: 'web', to: 'db' });
-    expect(r).toMatchObject({ ok: true, mode: 'between' });
-    expect(r.routes![0]!.elements).toEqual(['web', 'db']);
-    expect(await traceDiagram({ yaml: shop, from: 'nope' })).toMatchObject({ ok: false, error: expect.any(String) });
   });
 
   it('renders a focus, a layer and a stage', async () => {
