@@ -6,6 +6,7 @@
 // Everything is first laid out as a list of plain marks (rectangles, text lines, paths, circles,
 // icons) with their final colours. The SVG drawer below and the slide drawer in the export package
 // both walk that list, so a slide gets the same picture as native, editable shapes.
+import { esc } from './paint.ts';
 import { journeyMood, journeyNeutral, type Box, type JourneyPersona, type JourneyPhase, type JourneyRow, type JourneyShape, type JourneyStep, type Tone } from '@cartography/core';
 import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
@@ -1135,7 +1136,6 @@ export function journeyScene(shape: JourneyShape, theme: Theme, step?: number): 
 
 // ---------------------------------------------------------------- SVG
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 export const journeyPath = (d: JourneySeg[]) => d.map((s) => (s[0] === 'Z' ? 'Z' : `${s[0]}${s.slice(1).map((n) => r1(n as number)).join(' ')}`)).join('');

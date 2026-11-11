@@ -2,7 +2,7 @@
 // drawing with the findings marked and each finding written out (what, why, how to fix), and what was
 // set aside with its reason. Markdown for a repo or a ticket, HTML to send (one file, light and
 // dark, a crop of the drawing beside each finding), and the summary as a table for PDF pages.
-import type { Graph, MatrixCell, MatrixHeader, Path, Tone } from '@cartography/core';
+import { escapeXml as esc, type Graph, type MatrixCell, type MatrixHeader, type Path, type Tone } from '@cartography/core';
 import { categories, categoryLabel, severities, severityLabel, type Category, type Finding, type RuleInfo, type Severity } from './types.ts';
 import { tally } from './review.ts';
 import { say, t } from './nl.ts';
@@ -128,7 +128,6 @@ export function markdownReport(r: Report): string {
   return out.join('\n');
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** The SVG of a drawing ready to sit in a page more than once: ids made unique, its content in a group a crop can <use>. */
 function shareable(svg: string, key: string): { full: string; ref: string } {

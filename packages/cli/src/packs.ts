@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type KindInfo, type Vendor } from '@cartography/icons';
 import { iconKinds, vendorKinds } from '@cartography/engine';
+import { escapeXml as esc } from '@cartography/core';
 import { readZip } from './zip.ts';
 
 export function configDir(): string {
@@ -140,7 +141,6 @@ export function unmapIcon(name: string, kind: string): IconPackFile {
   return next;
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
 /**
  * A contact sheet of a pack: every kind of its diagram types with the icon it gets, an empty dashed

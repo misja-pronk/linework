@@ -3,7 +3,7 @@
 import type { Box, MatrixCell, MatrixShape, Tone } from '@cartography/core';
 import { baselineOffset, chipText, fitText, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { chipBack, iconTile, shadowAttr, tagRadius, topBand } from './paint.ts';
+import { chipBack, iconTile, shadowAttr, tagRadius, topBand, esc } from './paint.ts';
 import { wrapText } from './size.ts';
 
 /**
@@ -94,7 +94,6 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end', struck = false) {
   const a = `${anchor ? ` text-anchor="${anchor}"` : ''}${struck ? ' text-decoration="line-through"' : ''}`;

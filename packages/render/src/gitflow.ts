@@ -11,7 +11,7 @@ import { spread, stack, tracks, type Apart, type Row, type Span } from '@cartogr
 import { baselineOffset, fitText, groupFill, groupLine, look, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { wrapLines } from './sequence.ts';
-import { arrowHead, cardStroke, chipBack, iconTile, shadowAttr, tagRadius } from './paint.ts';
+import { arrowHead, cardStroke, chipBack, iconTile, shadowAttr, tagRadius, esc } from './paint.ts';
 
 const K = {
   dot: 6.5,
@@ -490,7 +490,6 @@ function placeDelivery(shape: GitflowShape, theme: Theme): GitflowGeometry {
 // ---------------------------------------------------------------- drawing
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end', extra = '') {
   const a = anchor ? ` text-anchor="${anchor}"` : '';

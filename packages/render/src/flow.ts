@@ -9,7 +9,7 @@ import type { Box, FlowShape, GraphGroup, NodeSize, Point } from '@cartography/c
 import { baselineOffset, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import type { JourneyMark, JourneySeg } from './journey.ts';
-import { cardStroke } from './paint.ts';
+import { cardStroke, esc } from './paint.ts';
 import { wrapText } from './size.ts';
 
 export const FLOW = {
@@ -26,7 +26,6 @@ export const FLOW = {
 } as const;
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const widest = (lines: string[], size: number, weight: 400 | 500 | 600) => Math.max(0, ...lines.map((l) => measureText(l, size, weight)));
 const even = (n: number) => 2 * Math.ceil(n / 2);
 

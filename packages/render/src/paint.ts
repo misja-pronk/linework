@@ -5,6 +5,7 @@ import type { LinePattern, Marker, Point } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { baselineOffset, look, mix, type Theme, type ToneColors } from '@cartography/theme';
 
+/** Text and double-quoted attributes of a drawing (every drawer's one escape). An apostrophe stays as it is: no attribute here is single-quoted, and font stacks keep reading as written. */
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const r1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -21,7 +22,7 @@ export function glyph(name: string | undefined, x: number, y: number, size: numb
 
 /** An image from a BYO pack or a logo, scaled into the box without stretching. */
 export function image(href: string, x: number, y: number, w: number, h: number): string {
-  return `<image href="${href}" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" preserveAspectRatio="xMidYMid meet"/>`;
+  return `<image href="${esc(href)}" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
 /** Behind official icons: a neutral tile, never the tone, because their colours are the vendor's. */

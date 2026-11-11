@@ -6,7 +6,7 @@ import type { Box, RoadmapItem, RoadmapShape, RoadmapStatus, Tone } from '@carto
 import { stack, tracks, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
-import { arrowHead, tagRadius } from './paint.ts';
+import { arrowHead, tagRadius, esc } from './paint.ts';
 import { term, tr } from '@cartography/i18n/drawing';
 
 const K = {
@@ -254,7 +254,6 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
 // ---------------------------------------------------------------- drawing
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function text(x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'middle' | 'end', extra = '') {
   const a = anchor ? ` text-anchor="${anchor}"` : '';

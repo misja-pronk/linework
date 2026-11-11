@@ -2,7 +2,7 @@
 // lines and text stays selectable text in the theme's own faces, embedded as subsets. One page per diagram.
 import PDFDocument from 'pdfkit';
 import SVGtoPDF from 'svg-to-pdfkit';
-import { drawSvg } from '@cartography/render';
+import { drawSvg, esc } from '@cartography/render';
 import { bundledFamily, inThemeFonts, themes, type Theme } from '@cartography/theme';
 import type { Drawing } from './pptx.ts';
 import { pages } from './steps.ts';
@@ -38,7 +38,6 @@ export interface PdfOptions {
 }
 
 /** As render writes attribute values, so the monospace family can be found in its output. */
-const escAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /**
  * svg-to-pdfkit only knows bold or not, and takes one family per element. Give every text and tspan
@@ -104,7 +103,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     doc.registerFont(`carto-sans-${w}`, (sans?.[w] ?? opts.fonts[w]) as unknown as string);
     doc.registerFont(`carto-mono-${w}`, (mono?.[w] ?? (w === 600 ? mono?.[500] : undefined) ?? sans?.[w] ?? opts.fonts[w]) as unknown as string);
   }
-  const monoFamily = `font-family="${escAttr(theme.font.mono)}"`;
+  const monoFamily = `font-family="${esc(theme.font.mono)}"`;
 
   for (const { drawing: d, view } of pages(drawings, opts.steps)) {
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');

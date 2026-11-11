@@ -1,6 +1,7 @@
 // Drawing one step of a presentation: what stands back is drawn with a quiet version of the theme
 // (not see-through, so lines never show through cards), the route in focus gets weight, and the
 // caption, the "3 / 7" marker and callouts take the same room at every step so nothing jumps.
+import { esc } from './paint.ts';
 import type { Box, Placed, Point, StepNote, StepState } from '@cartography/core';
 import { baselineOffset, hex, measureText, mix, parseColor, type Theme } from '@cartography/theme';
 
@@ -64,7 +65,6 @@ export function wrap(text: string, size: number, weight: 400 | 500 | 600, max: n
   return lines;
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const line = (x: number, cy: number, s: string, size: number, weight: number, fill: string, anchor?: 'end' | 'middle') =>
   `<text x="${r1(x)}" y="${r1(cy + baselineOffset(size))}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor ? ` text-anchor="${anchor}"` : ''}>${esc(s)}</text>`;

@@ -1,5 +1,6 @@
 // The webview's page: a strict content policy (only our script, nothing from the network), the
 // toolbar and the stage. The script is dist/webview.js; the drawing arrives as a message.
+import { escapeXml as esc } from '@cartography/core';
 import type { ViewConfig } from './protocol.ts';
 
 export interface PageParts {
@@ -18,7 +19,6 @@ export function nonce(): string {
   return s;
 }
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 export const STYLE = `
 :root { color-scheme: light dark; }
