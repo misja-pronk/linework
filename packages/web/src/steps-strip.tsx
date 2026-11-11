@@ -45,6 +45,7 @@ export function StepsStrip(p: StepsStripProps) {
     if (p.naming == null || p.naming > count || p.implied) return;
     name(p.naming);
     p.onNamed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when a name is asked for, not when the props around it change
   }, [p.naming, count]);
   useEffect(() => {
     if (p.value) chip(p.value)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });

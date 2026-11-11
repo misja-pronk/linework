@@ -43,6 +43,7 @@ export function Shortcuts({ onClose }: { onClose(): void }) {
         .filter((r) => words.every((w) => `${r.keys} ${r.what} ${say(title)} ${title}`.toLowerCase().includes(w)));
       return { title: say(title), note: note && say(note), rows };
     }).filter((g) => g.rows.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- say() reads the UI language: the sheet is worded again in another
   }, [query, lang]);
   return (
     <div className="overlay" onMouseDown={onClose}>

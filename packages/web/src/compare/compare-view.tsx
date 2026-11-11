@@ -125,6 +125,7 @@ export function CompareView(p: Props) {
     return () => {
       live = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- now is new every render: its sidecar and view are what this reads of it (load and file come through options)
   }, [before, beforeKey, baseline, text, options, now.sidecar, now.view]);
 
   const cmp = c?.key === beforeKey ? c : undefined;

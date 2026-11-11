@@ -23,10 +23,11 @@ export function TagChips({ value, known, onChange }: TagChipsProps) {
   const [at, setAt] = useState(0);
   const list = useId();
   const input = useRef<HTMLInputElement>(null);
+  const tags = value.join(',');
   useEffect(() => {
     if (typing) input.current?.focus();
     typing = false;
-  }, [value.join(',')]);
+  }, [tags]);
   const q = draft.trim().toLowerCase();
   const suggestions = known.filter((t) => !value.includes(t) && (!q || t.toLowerCase().includes(q))).slice(0, 8);
   const add = (tg: string) => {

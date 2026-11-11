@@ -56,6 +56,7 @@ export function useLayers(doc: string, view: string | undefined) {
     if (!mine) return undefined;
     const mode = mine.mode ?? (mine.names.length && mine.names.every((n) => dims.current.has(n)) ? 'dim' : 'only');
     return { layers: mine.names, layerMode: mode };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key says when mine changed: one object while the ask stays the same
   }, [key]);
   const ui = (drawn: RenderResult | undefined, comparing: boolean) => layersUi({ doc, view, drawn, comparing, mine, setAsked, open, setOpen, dims: dims.current });
   return { options, ui };
@@ -140,7 +141,7 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
       window.removeEventListener('pointerdown', outside);
       if (before?.isConnected) before.focus?.();
     };
-  }, [open]);
+  }, [open, setOpen]);
   const onKeyDown = (e: React.KeyboardEvent) => {
     const items = [...(panel.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     const i = items.indexOf(document.activeElement as HTMLElement);

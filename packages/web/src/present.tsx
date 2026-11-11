@@ -189,7 +189,7 @@ export function Present(p: PresentProps) {
     return () => {
       live = false;
     };
-    // Only when presenting starts: edits do not reach a running presentation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when presenting starts: edits do not reach a running presentation
   }, []);
 
   // The slide: drawn, shown over the one before it, and the next one made ready.
@@ -241,6 +241,7 @@ export function Present(p: PresentProps) {
     const box = el && elementOf(el)?.getBoundingClientRect();
     const frame = root.current?.getBoundingClientRect();
     setRingBox(box && frame ? { left: box.left - frame.left - 5, top: box.top - frame.top - 5, width: box.width + 10, height: box.height + 10 } : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- linked() is of top and its step
   }, [ring, top]);
 
   const go = (to: number) => {
