@@ -44,6 +44,10 @@ describe('cartography-mcp over stdio', () => {
     const names = result.tools.map((t: { name: string }) => t.name).sort();
     expect(names).toEqual(['describe', 'diff', 'edit_diagram', 'get_context', 'get_schema', 'list_types', 'new_diagram', 'propose', 'render', 'validate']);
     expect(result.tools.find((t: { name: string }) => t.name === 'render').inputSchema.properties).toHaveProperty('format');
+    // The agent learns that propose opens a file that is not open, and when to fall back.
+    const propose = result.tools.find((t: { name: string }) => t.name === 'propose').description;
+    expect(propose).toMatch(/not open yet is opened first/);
+    expect(propose).toMatch(/"not-open": outside its folder, or not there/);
   });
 
   it('validates', async () => {

@@ -46,7 +46,7 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 **From what you already have**: your own AI converts Mermaid, D2, PlantUML, Structurizr, draw.io, Excalidraw and Terraform files, and checks what it wrote with the MCP tools. See [from other tools](docs/ai.md#from-other-tools).
 
-**Elsewhere**: a VS Code extension (`packages/vscode`, from a `.vsix`) with a live preview, problems and quick fixes ([vscode](docs/vscode.md)); an MCP server and agent skill so Claude Code and other MCP clients write diagrams checked against the schema ([mcp](docs/mcp.md)).
+**Elsewhere**: a VS Code extension (`packages/vscode`, from a `.vsix`) with a live preview, problems and quick fixes, that also gives Copilot and the other VS Code agents the MCP server, with proposals over the preview ([vscode](docs/vscode.md)); an MCP server and agent skill so Claude Code and other MCP clients write diagrams checked against the schema ([mcp](docs/mcp.md)).
 
 ## Working on it
 

@@ -7,6 +7,7 @@ import { sidecarName } from './detect.ts';
 import { isDiagramDoc, Language, registerYamlSchemas } from './language.ts';
 import { Preview, type PreviewHost } from './preview.ts';
 import { showDiskChanges, startLive } from './live.ts';
+import { registerMcp } from './mcp.ts';
 
 type Mode = 'preview' | 'present';
 
@@ -52,6 +53,8 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   registerCommands(context, previews);
+  // The MCP server for the agents in VS Code (mcp.ts); it finds the live link below.
+  context.subscriptions.push(registerMcp(context));
 
   // The live link for the user's own AI agent (live.ts): what is open and selected, and proposals.
   context.subscriptions.push(
