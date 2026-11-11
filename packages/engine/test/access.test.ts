@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { MatrixShape } from '@cartography/core';
 import { parse, stringify } from 'yaml';
 import { accessChanges, effectiveAccess, type AccessSource } from '@cartography/access';
-import { render } from '../src/index.ts';
+import { describe as describeDiagram, toText } from '@cartography/describe';
+import { findType, render } from '../src/index.ts';
 
 const source = (view: string) => `type: access
 view: ${view}
@@ -211,6 +212,85 @@ describe('gained and lost access', () => {
     expect(r.empty).toBeUndefined();
     // A table without a row is empty: --all-views and decks leave it out.
     expect((await render('type: access\nview: packages\n', { fonts: 'none' })).empty).toBe(true);
+  });
+});
+
+describe('Entra kinds', () => {
+  const entra = `type: access
+policies:
+  ca: { kind: conditional-access, label: CA001 Admins, targets: [sg-admins], excludes: bg, requires: [paw, phish, MFA], locations: office }
+  phish: { kind: authentication-strength, label: Phishing-resistant MFA }
+  office: { kind: named-location, label: Offices }
+principals:
+  bg: { kind: user, label: Break-glass }
+  sg-admins: { kind: role-assignable-group, label: sg-admins, owners: bg, tags: [tier0] }
+  paw: { kind: paw, label: PAW }
+  app: { kind: app-registration, label: app-deploy }
+  sp: { kind: service-principal, label: app-deploy, app: app }
+  fic: { kind: federated-credential, label: github-prod, app: app }
+packages:
+  admin: { label: Admin access, grants: [sg-admins], policy: { id: admin-approval, requestors: [bg], approval: [manager, sg-admins] } }
+resources:
+  tenant: tenant
+roles:
+  ga: { label: Global Administrator }
+assignments:
+  - { principal: sg-admins, role: ga, scope: tenant, eligible: true, activation: 2 h, approval: sg-admins, tags: [tier0] }
+  - sp is ga on tenant
+`;
+
+  it('draws Conditional Access, app registrations and owners as cards with their own lines', async () => {
+    const r = await render(entra, { fonts: 'none' });
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const g = r.graph!;
+    const line = (from: string, to: string) => g.edges.find((e) => e.from.node === from && e.to.node === to);
+    expect(line('ca', 'sg-admins')?.kind).toBe('Applies to');
+    expect(line('ca', 'bg')?.kind).toBe('Excludes');
+    expect(line('ca', 'paw')?.kind).toBe('Requires');
+    expect(line('ca', 'phish')?.kind).toBe('Requires');
+    expect(line('ca', 'office')?.kind).toBe('Location condition');
+    expect(line('bg', 'sg-admins')?.kind).toBe('Owns');
+    expect(line('app', 'sp')?.kind).toBe('Service principal');
+    expect(line('fic', 'app')?.kind).toBe('Federated credential of');
+    // Words that name nothing are said on the card.
+    expect(g.nodes.find((n) => n.id === 'ca')!.shape).toMatchObject({ caption: 'Requires MFA', icon: 'shield-half' });
+    // PIM's settings on the line, in short; the policy card by its own id, its approval in any number.
+    expect(line('sg-admins', 'tenant')).toMatchObject({ label: 'Global Administrator · 2 h · approval', line: 'dashed', tags: ['tier0'] });
+    expect(g.nodes.find((n) => n.id === 'admin-approval')!.shape).toMatchObject({ label: 'Approval: manager → sg-admins' });
+    expect(g.nodes.find((n) => n.id === 'sg-admins')!.tags).toEqual(['tier0']);
+    expect(g.legend!.map((l) => l.label)).toEqual(expect.arrayContaining(['Policy applies to', 'Excluded from the policy', 'Policy requires', 'Owns', 'App and its service principal']));
+  });
+
+  it('keeps app registrations, credentials and devices out of the who × where rows, and tells how PIM activates', async () => {
+    const r = await render(entra.replace('type: access', 'type: access\nview: access'), { fonts: 'none' });
+    const m = r.graph!.nodes[0]!.shape as MatrixShape;
+    expect(m.rows.map((x) => x.label)).toEqual(['Break-glass', 'sg-admins', 'app-deploy']);
+    expect(m.cells[1]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'max 2 h, approval by sg-admins' });
+  });
+
+  it('checks what the new fields name', async () => {
+    const bad = entra.replace('app: app }', 'app: nope }').replace('excludes: bg', 'excludes: nobody').replace('id: admin-approval', 'id: ca');
+    const messages = (await render(bad, { fonts: 'none' })).diagnostics.map((d) => d.message);
+    expect(messages).toEqual(expect.arrayContaining(['There is no app registration "nope"', 'There is no principal "nobody"', '"ca" is already the id of something else']));
+  });
+
+  it('follows a rename into policies, owners and app', async () => {
+    const refs = findType('access')!.references!(parse(entra) as AccessSource);
+    const at = (id: string) => refs.filter((r) => r.id === id).map((r) => r.path.join('.'));
+    expect(at('bg')).toEqual(expect.arrayContaining(['principals.sg-admins.owners', 'policies.ca.excludes']));
+    expect(at('app')).toEqual(expect.arrayContaining(['principals.sp.app', 'principals.fic.app']));
+    expect(at('phish')).toEqual(['policies.ca.requires.1']);
+  });
+
+  it('says what each line means', async () => {
+    const r = await render(entra, { fonts: 'none' });
+    const text = toText(describeDiagram(r));
+    expect(text).toContain('CA001 Admins applies to sg-admins');
+    expect(text).toContain('excludes Break-glass');
+    expect(text).toContain('requires PAW');
+    expect(text).toContain('app-deploy (App registration) has the service principal app-deploy (Service principal)');
+    expect(text).toContain('app-deploy (Service principal) is Global Administrator on tenant');
+    expect(text).toContain('sg-admins is eligible for Global Administrator · 2 h · approval on tenant');
   });
 });
 

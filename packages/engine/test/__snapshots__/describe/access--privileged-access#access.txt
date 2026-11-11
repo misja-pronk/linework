@@ -4,12 +4,18 @@ Roles, groups and access packages, who × where: Who × where. A table of 6 rows
 
 By row (Who by where)
 Columns: Northwind and AU Netherlands.
-- Break-glass accounts (Tier 0 · cloud-only · FIDO2 · no CA): Northwind: Global Administrator; AU Netherlands: Global Administrator, inherited (from Northwind)
-- adm-daan (Admin account · Daan Visser): Northwind: Global Administrator (eligible), inherited (via sg-entra-tier0-admins); AU Netherlands: Global Administrator (eligible), inherited (via sg-entra-tier0-admins, from Northwind)
-- sg-entra-tier0-admins (Tier 0 · PAW and phishing-resistant MFA): Northwind: Global Administrator (eligible); AU Netherlands: Global Administrator (eligible), inherited (from Northwind)
-- sg-entra-security-admins (Tier 1 · role-assignable group): Northwind: Security Administrator (eligible); AU Netherlands: Security Administrator (eligible), inherited (from Northwind)
-- sg-entra-endpoint-admins (Tier 1 · role-assignable group): Northwind: Intune Administrator (eligible); AU Netherlands: Intune Administrator (eligible), inherited (from Northwind)
+- Break-glass accounts (Tier 0 · cloud-only · FIDO2 keys): Northwind: Global Administrator; AU Netherlands: Global Administrator, inherited (from Northwind)
+- adm-daan (Admin account · Daan Visser): Northwind: Global Administrator (eligible), inherited (via sg-entra-tier0-admins, max 2 h, approval by sg-entra-tier0-admins); AU Netherlands: Global Administrator (eligible), inherited (via sg-entra-tier0-admins, from Northwind, max 2 h, approval by sg-entra-tier0-admins)
+- sg-entra-tier0-admins (Tier 0 · role-assignable group): Northwind: Global Administrator (eligible) (max 2 h, approval by sg-entra-tier0-admins); AU Netherlands: Global Administrator (eligible), inherited (from Northwind, max 2 h, approval by sg-entra-tier0-admins)
+- sg-entra-security-admins (Tier 1 · role-assignable group): Northwind: Security Administrator (eligible) (max 8 h); AU Netherlands: Security Administrator (eligible), inherited (from Northwind, max 8 h)
+- sg-entra-endpoint-admins (Tier 1 · role-assignable group): Northwind: Intune Administrator (eligible) (max 8 h); AU Netherlands: Intune Administrator (eligible), inherited (from Northwind, max 8 h)
 - sg-helpdesk-nl (Tier 2 · service desk Netherlands): AU Netherlands: Helpdesk Administrator (eligible for User Administrator)
+
+Layers
+Ways to look at this drawing by tag.
+- Tier 0 (tags tier0; 0 elements).
+- Tier 1 (tags tier1; 0 elements).
+- Tier 2 (tags tier2; 0 elements).
 
 Key
 - Indigo filled pill: Assigned directly

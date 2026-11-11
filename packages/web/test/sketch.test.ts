@@ -22,6 +22,20 @@ describe('kind by typing', () => {
     expect(matchKinds('sql', items)[0]!.kind).toMatch(/^sql-/);
     expect(matchKinds('zzz', items)).toEqual([]);
   });
+  it('finds the identity, data and governance kinds by the words people type', () => {
+    expect(matchKinds('appreg', items)[0]!.kind).toBe('app-registration');
+    expect(matchKinds('sp', items)[0]!.kind).toBe('service-principal');
+    expect(matchKinds('fic', items)[0]!.kind).toBe('federated-credential');
+    expect(matchKinds('dbx', items)[0]!.kind).toBe('databricks');
+    expect(matchKinds('vwan', items)[0]!.kind).toBe('virtual-wan');
+    expect(matchKinds('policy', items)[0]!.kind).toBe('policy');
+    const access = shapeKinds(findType('access')!);
+    expect(matchKinds('ca', access)[0]!.kind).toBe('conditional-access');
+    expect(matchKinds('paw', access)[0]!.kind).toBe('paw');
+    expect(matchKinds('appreg', access)[0]!.kind).toBe('app-registration');
+    expect(matchKinds('mfa', access)[0]!.kind).toBe('authentication-strength');
+    expect(matchKinds('kv', shapeKinds(findType('sequence')!))[0]!.kind).toBe('key-vault');
+  });
   it('reads a prefix only when it names a kind', () => {
     expect(readTyped('fw: Edge firewall', items)).toMatchObject({ name: 'Edge firewall', query: 'fw', kind: { kind: 'firewall' } });
     expect(readTyped('kv:', items)).toMatchObject({ name: '', kind: { kind: 'key-vault' } });

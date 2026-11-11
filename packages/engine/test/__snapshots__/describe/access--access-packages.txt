@@ -6,7 +6,7 @@ Groups and elements
 - Finance staff (department = Finance)
 - Finance (Catalog)
   - Assigned automatically (Policy)
-  - Manager → Finance controller approves (180 days · review quarterly)
+  - Approval: manager → Finance controller (180 days · review quarterly)
   - Finance basics (Access package)
   - ERP key user (Access package)
 - Finance team (Microsoft 365 group · Teams)
@@ -14,23 +14,23 @@ Groups and elements
 - Northwind ERP (Enterprise application)
 - Fabrikam (Connected organisation · auditors)
 - External partners (Catalog)
-  - Finance controller approves (90 days · review monthly)
+  - Approval: Finance controller (90 days · review monthly)
   - Year-end audit (Access package)
 - Finance reports (Power BI app)
 - Emma de Wit (Accountant)
 - Sam Okafor (Guest · Fabrikam)
 
 Connections
-- Finance staff connects to Assigned automatically and connects to Manager → Finance controller approves.
+- Finance staff connects to Assigned automatically and connects to Approval: manager → Finance controller.
 - Assigned automatically connects to Finance basics.
-- Manager → Finance controller approves connects to ERP key user.
-- Finance basics connects to Finance team, connects to Finance team site (Member) and connects to Northwind ERP (Finance user).
-- ERP key user connects to Northwind ERP (Key user).
-- Fabrikam connects to Finance controller approves.
-- Finance controller approves connects to Year-end audit.
-- Year-end audit connects to Finance team site (Visitor) and connects to Finance reports (Viewer).
-- Emma de Wit connects to Finance basics.
-- Sam Okafor connects to Year-end audit.
+- Approval: manager → Finance controller connects to ERP key user.
+- Finance basics grants Finance team, grants Finance team site (Member) and grants Northwind ERP (Finance user).
+- ERP key user grants Northwind ERP (Key user).
+- Fabrikam connects to Approval: Finance controller.
+- Approval: Finance controller connects to Year-end audit.
+- Year-end audit grants Finance team site (Visitor) and grants Finance reports (Viewer).
+- Emma de Wit holds Finance basics.
+- Sam Okafor holds Year-end audit.
 
 Walkthrough
 1. Catalogs: Finance owns its own catalog. Partner access lives in a separate catalog, with its own owners.

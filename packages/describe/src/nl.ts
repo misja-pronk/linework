@@ -166,6 +166,22 @@ export const nl = {
   '{n}% done': '{n}% klaar',
   '{tone}{icon} symbol': '{tone}symbool {icon}',
   '{who} through {phases} and {steps}': '{who} door {phases} en {steps}',
+  // Lines that say who may do what (access, github's members, the azure type's role assignments).
+  'holds {to}|hold {to}': 'heeft {to}|hebben {to}',
+  'grants {to}{over}|grant {to}{over}': 'geeft {to}{over}|geven {to}{over}',
+  'is a member of {to}|are members of {to}': 'is lid van {to}|zijn lid van {to}',
+  'owns {to}|own {to}': 'is eigenaar van {to}|zijn eigenaar van {to}',
+  'has the service principal {to}|have the service principal {to}': 'heeft de service-principal {to}|hebben de service-principal {to}',
+  'is a federated credential of {to}|are federated credentials of {to}': 'is een gefedereerde referentie van {to}|zijn gefedereerde referenties van {to}',
+  'is {label} on {to}|are {label} on {to}': 'is {label} op {to}|zijn {label} op {to}',
+  'holds a role on {to}|hold a role on {to}': 'heeft een rol op {to}|hebben een rol op {to}',
+  'is eligible for {label} on {to}|are eligible for {label} on {to}': 'kan {label} activeren op {to}|kunnen {label} activeren op {to}',
+  'is eligible for a role on {to}|are eligible for a role on {to}': 'kan een rol activeren op {to}|kunnen een rol activeren op {to}',
+  'applies to {to}|apply to {to}': 'geldt voor {to}|gelden voor {to}',
+  'excludes {to}|exclude {to}': 'sluit {to} uit|sluiten {to} uit',
+  'requires {to}|require {to}': 'vereist {to}|vereisen {to}',
+  'checks the location {to}|check the location {to}': 'kijkt naar de locatie {to}|kijken naar de locatie {to}',
+  'covers {to}|cover {to}': 'geldt voor de app {to}|gelden voor de app {to}',
 } as const satisfies Record<string, string>;
 
 /**

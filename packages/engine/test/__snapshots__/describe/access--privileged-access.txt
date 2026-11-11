@@ -1,35 +1,48 @@
 Northwind privileged access
 
-Roles, groups and access packages diagram: Entra roles by tier, eligible through PIM, with break-glass accounts and administrative units. 7 elements in 1 group, with 8 connections.
+Roles, groups and access packages diagram: Entra roles by tier, eligible through PIM and guarded by Conditional Access, with break-glass accounts and administrative units. 10 elements in 1 group, with 14 connections.
 
 Groups and elements
-- Break-glass accounts (Tier 0 · cloud-only · FIDO2 · no CA)
+- CA001 Admins (All cloud apps)
+- sg-entra-tier0-admins (Tier 0 · role-assignable group)
+- sg-entra-security-admins (Tier 1 · role-assignable group)
+- sg-entra-endpoint-admins (Tier 1 · role-assignable group)
+- Break-glass accounts (Tier 0 · cloud-only · FIDO2 keys)
+- PAW (Intune-managed · admin use only)
+- Phishing-resistant MFA (FIDO2 or Windows Hello)
 - Northwind (Entra ID tenant)
   - AU Netherlands (Administrative unit · dynamic)
 - adm-daan (Admin account · Daan Visser)
-- sg-entra-tier0-admins (Tier 0 · PAW and phishing-resistant MFA)
-- sg-entra-security-admins (Tier 1 · role-assignable group)
-- sg-entra-endpoint-admins (Tier 1 · role-assignable group)
 - sg-helpdesk-nl (Tier 2 · service desk Netherlands)
 
 Connections
-- Break-glass accounts connects to Northwind (Global Administrator).
-- adm-daan connects to sg-entra-tier0-admins.
-- sg-entra-tier0-admins connects to Northwind (Global Administrator) and connects to Northwind (Privileged Role Administrator).
-- sg-entra-security-admins connects to Northwind (Security Administrator).
-- sg-entra-endpoint-admins connects to Northwind (Intune Administrator).
-- sg-helpdesk-nl connects to AU Netherlands (Helpdesk Administrator) and connects to AU Netherlands (User Administrator).
+- CA001 Admins applies to sg-entra-tier0-admins, applies to sg-entra-security-admins, applies to sg-entra-endpoint-admins, excludes Break-glass accounts, requires PAW and requires Phishing-resistant MFA.
+- sg-entra-tier0-admins is eligible for Global Administrator · 2 h · approval on Northwind and is eligible for Privileged Role Administrator · 2 h · approval on Northwind.
+- sg-entra-security-admins is eligible for Security Administrator · 8 h on Northwind.
+- sg-entra-endpoint-admins is eligible for Intune Administrator · 8 h on Northwind.
+- Break-glass accounts is Global Administrator on Northwind.
+- adm-daan is a member of sg-entra-tier0-admins.
+- sg-helpdesk-nl is Helpdesk Administrator on AU Netherlands and is eligible for User Administrator on AU Netherlands.
 
 Walkthrough
 1. Three tiers: Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
 2. Break-glass: Two cloud-only accounts hold Global Administrator permanently, for when sign-in or PIM fails. Excluded from Conditional Access, FIDO2 keys in a safe, and an alert on every sign-in.
   - Break-glass accounts: Alert on every sign-in
-3. No standing Tier 0: Tier 0 admins use a separate admin account on a privileged access workstation. Global Administrator is eligible only, and activation needs a second admin's approval.
-  - sg-entra-tier0-admins: Approval, phishing-resistant MFA, max 2 h
-4. Tier 1, just in time: Security and endpoint admins activate their own role for a task, with MFA and a reason, for at most eight hours.
-5. Tier 2, scoped: The Dutch service desk resets passwords only for the users in its administrative unit, and can never touch an admin account.
+3. Admins sign in safely: One Conditional Access policy covers every admin group. It requires a privileged access workstation and a phishing-resistant method, and leaves out the break-glass accounts.
+4. No standing Tier 0: Tier 0 admins use a separate admin account. Global Administrator is eligible only, for two hours at most, and a second Tier 0 admin approves each activation.
+5. Tier 1, just in time: Security and endpoint admins activate their own role for a task, with MFA and a reason, for at most eight hours.
+6. Tier 2, scoped: The Dutch service desk resets passwords only for the users in its administrative unit, and can never touch an admin account.
+
+Layers
+Ways to look at this drawing by tag.
+- Tier 0 (tags tier0; 8 elements).
+- Tier 1 (tags tier1; 7 elements).
+- Tier 2 (tags tier2; 1 element).
 
 Key
 - Dotted line: Member of
-- Solid sky line: Role assignment
+- Solid sky line with ticks: Role assignment
 - Dashed sky line: Eligible, activated through PIM
+- Solid rose line: Policy applies to
+- Dotted rose line with ticks: Excluded from the policy
+- Dashed rose line with ticks: Policy requires

@@ -24,13 +24,19 @@ import {
 
 export const principalKinds: KindTable = {
   user: { label: 'User', icon: 'user', tone: 'slate' },
-  guest: { label: 'Guest', icon: 'user-round', tone: 'orange' },
-  group: { label: 'Security group', icon: 'users', tone: 'blue' },
+  guest: { label: 'Guest', icon: 'user-round', tone: 'orange', keywords: ['b2b', 'external user'] },
+  group: { label: 'Security group', icon: 'users', tone: 'blue', keywords: ['sg'] },
   'dynamic-group': { label: 'Dynamic group', icon: 'users', tone: 'teal' },
   'role-assignable-group': { label: 'Role-assignable group', icon: 'shield-user', tone: 'violet' },
   'm365-group': { label: 'Microsoft 365 group', icon: 'users', tone: 'sky' },
-  'service-principal': { label: 'Service principal', icon: 'bot', tone: 'indigo' },
-  'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'indigo' },
+  'service-principal': { label: 'Service principal', icon: 'bot', tone: 'indigo', keywords: ['sp', 'enterprise app', 'enterprise application'] },
+  'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'indigo', keywords: ['mi', 'msi', 'uami'] },
+  // The definition of an application (client id, credentials, API permissions); its service principal is what holds roles.
+  'app-registration': { label: 'App registration', icon: 'file-badge', tone: 'indigo', keywords: ['appreg', 'app reg', 'application', 'client id'] },
+  // Lets a workload outside Entra (GitHub Actions, Kubernetes) sign in as an app with its platform's token: no secret.
+  'federated-credential': { label: 'Federated credential', icon: 'link', tone: 'indigo', keywords: ['fic', 'federation', 'oidc', 'workload identity federation'] },
+  device: { label: 'Device', icon: 'laptop', tone: 'slate', keywords: ['laptop', 'intune', 'endpoint'] },
+  paw: { label: 'Privileged access workstation', icon: 'laptop-minimal-check', tone: 'rose', keywords: ['paw', 'admin workstation', 'saw'] },
   'connected-org': { label: 'Connected organisation', icon: 'handshake', tone: 'orange' },
   // What an export names but no longer finds: a deleted user or group that still holds a role.
   unknown: { label: 'Identity not found', icon: 'circle-question-mark', tone: 'rose' },
@@ -54,22 +60,44 @@ export const resourceKinds: KindTable = {
   'administrative-unit': { label: 'Administrative unit', icon: 'folder', tone: 'violet' },
 };
 
+/** Conditional Access, and what its policies ask for: drawn before the people they apply to. */
+export const policyKinds: KindTable = {
+  'conditional-access': { label: 'Conditional Access policy', icon: 'shield-half', tone: 'rose', keywords: ['ca', 'ca policy', 'conditional access'] },
+  'authentication-strength': { label: 'Authentication strength', icon: 'fingerprint-pattern', tone: 'amber', keywords: ['mfa', 'fido2', 'passkey', 'phishing-resistant'] },
+  'named-location': { label: 'Named location', icon: 'map-pin', tone: 'teal', keywords: ['location', 'ip range', 'country', 'trusted network'] },
+  'compliance-policy': { label: 'Device compliance policy', icon: 'badge-check', tone: 'green', keywords: ['compliance', 'compliant', 'intune'] },
+};
+
+/** Each kind of line: its entry in the key, and (as the line's kind) what describe says it does. */
 const edgeStyles = {
-  holds: { label: 'Holds package', line: 'solid', tone: 'green' },
+  holds: { label: 'Holds package', line: 'solid', tone: 'green', kind: 'Holds' },
   request: { label: 'Can request', line: 'dashed', tone: 'slate' },
-  grant: { label: 'Package grants', line: 'solid', tone: 'violet' },
-  member: { label: 'Member of', line: 'dotted', tone: 'slate' },
-  role: { label: 'Role assignment', line: 'solid', tone: 'sky' },
-  eligible: { label: 'Eligible, activated through PIM', line: 'dashed', tone: 'sky' },
-} as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone }>;
+  grant: { label: 'Package grants', line: 'solid', tone: 'violet', kind: 'Grants' },
+  member: { label: 'Member of', line: 'dotted', tone: 'slate', kind: 'Member of' },
+  owns: { label: 'Owns', line: 'dashed', tone: 'amber', kind: 'Owns' },
+  instance: { label: 'App and its service principal', line: 'solid', tone: 'indigo', kind: 'Service principal' },
+  federated: { label: 'Federated credential of the app', line: 'dotted', tone: 'indigo', kind: 'Federated credential of' },
+  role: { label: 'Role assignment', line: 'solid', tone: 'sky', kind: 'Role assignment' },
+  eligible: { label: 'Eligible, activated through PIM', line: 'dashed', tone: 'sky', kind: 'Eligible' },
+  applies: { label: 'Policy applies to', line: 'solid', tone: 'rose', kind: 'Applies to' },
+  excludes: { label: 'Excluded from the policy', line: 'dotted', tone: 'rose', kind: 'Excludes', loose: true },
+  requires: { label: 'Policy requires', line: 'dashed', tone: 'rose', kind: 'Requires', loose: true },
+  location: { label: 'Location condition', line: 'dotted', tone: 'teal', kind: 'Location condition', loose: true },
+  covers: { label: 'Policy covers app', line: 'solid', tone: 'slate', kind: 'Covers' },
+} as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean }>;
 
 interface Principal {
   kind?: string;
   label?: string;
   caption?: string;
   'member-of'?: string | string[];
+  /** Who owns it (a group's or an app's owners). */
+  owners?: string | string[];
+  /** A service principal's or a federated credential's app registration. */
+  app?: string;
   /** The object id in the directory: an import recognises the principal by it, whatever it is called here. */
   'object-id'?: string;
+  tags?: string[];
 }
 
 interface Resource {
@@ -79,15 +107,53 @@ interface Resource {
   in?: string;
   /** The id where it lives (an Azure resource id, a repository's full name): as object-id, for imports. */
   'resource-id'?: string;
+  tags?: string[];
 }
 
+/** A package's way in: who may request, who approves, for how long. */
 interface Policy {
+  /** Its own id, for steps and focus; otherwise it is <package>:policy:<n>. */
+  id?: string;
   requestors?: string | string[];
   approval?: string | string[];
   duration?: string;
   review?: string;
   /** Assigned automatically to the requestors (auto-assignment policy). */
   auto?: boolean;
+}
+
+/** A Conditional Access policy, or what one asks for: an authentication strength, a named location, device compliance. */
+interface Control {
+  kind?: string;
+  label?: string;
+  caption?: string;
+  /** Who it applies to: users, groups, directory roles. */
+  targets?: string | string[];
+  /** Who it leaves out: the break-glass accounts. */
+  excludes?: string | string[];
+  /** The apps it covers: resource ids, or words such as "All cloud apps". */
+  apps?: string | string[];
+  /** Named locations it checks. */
+  locations?: string | string[];
+  /** What a sign-in needs: an authentication strength, a device, a PAW, or words such as MFA. */
+  requires?: string | string[];
+  /** Blocks access instead of granting it. */
+  block?: boolean;
+  state?: 'on' | 'report-only' | 'off';
+  tags?: string[];
+}
+
+/** An assignment in full: with the settings Privileged Identity Management (PIM) activates an eligible one with. */
+interface Assignment {
+  principal: string;
+  role: string;
+  scope: string;
+  eligible?: boolean;
+  /** How long one activation lasts at most, e.g. 8 h. */
+  activation?: string;
+  /** Who approves an activation: principal ids or words. */
+  approval?: string | string[];
+  tags?: string[];
 }
 
 interface Package {
@@ -100,6 +166,7 @@ interface Package {
   /** Who holds the package now; used by the access view. */
   holders?: string[];
   'object-id'?: string;
+  tags?: string[];
 }
 
 interface Role {
@@ -128,8 +195,10 @@ export interface AccessSource {
   packages?: Record<string, Package>;
   resources?: Record<string, string | Resource>;
   roles?: Record<string, Role | null>;
+  /** Conditional Access policies and what they use. */
+  policies?: Record<string, string | Control>;
   /** "who is role on scope", or "who is eligible role on scope" for a role that is activated through PIM. */
-  assignments?: (string | { principal: string; role: string; scope: string; eligible?: boolean })[];
+  assignments?: (string | Assignment)[];
   /** An earlier state of the same diagram: the who × where matrix then shows what was gained and lost. Written by `carto diff`. */
   was?: AccessSource;
 }
@@ -145,7 +214,8 @@ class Model {
   packages: [string, Package][];
   roles: [string, Role][];
   catalogs: [string, Catalog][];
-  assignments: { principal: string; role: string; scope: string; eligible: boolean; path: (string | number)[] }[] = [];
+  controls: [string, Control][];
+  assignments: (Assignment & { eligible: boolean; path: (string | number)[] })[] = [];
 
   constructor(
     public src: AccessSource,
@@ -158,6 +228,7 @@ class Model {
     this.packages = Object.entries(src.packages ?? {});
     this.roles = Object.entries(src.roles ?? {}).map(([id, r]) => [id, r ?? {}]);
     this.catalogs = norm<Catalog>(src.catalogs, 'label');
+    this.controls = norm<Control>(src.policies, 'kind');
 
     for (const [i, a] of (src.assignments ?? []).entries()) {
       const path = ['assignments', i];
@@ -171,9 +242,29 @@ class Model {
       else if (!this.role(v.role)) ctx.error(path, `There is no role "${v.role}"`);
       else if (!this.resource(v.scope)) ctx.error(path, `There is no resource "${v.scope}"`);
       else this.assignments.push({ ...v, eligible: !!v.eligible, path });
+      if (typeof a === 'object' && !a.eligible && (a.activation || a.approval))
+        ctx.warn(path, 'activation and approval are how PIM activates an eligible role: add eligible: true, or leave them out');
     }
-    for (const [id, p] of this.principals)
+    for (const [id, p] of this.principals) {
       for (const g of list(p['member-of'])) if (!this.principal(g)) ctx.error(['principals', id, 'member-of'], `There is no group "${g}"`);
+      for (const o of list(p.owners)) if (!this.principal(o)) ctx.error(['principals', id, 'owners'], `There is no principal "${o}"`);
+      if (p.app) {
+        if (this.principal(p.app)?.kind !== 'app-registration') ctx.error(['principals', id, 'app'], `There is no app registration "${p.app}"`);
+        else if (p.kind !== 'service-principal' && p.kind !== 'federated-credential')
+          ctx.warn(['principals', id, 'app'], 'app: names the app registration of a service principal or a federated credential');
+      }
+    }
+    for (const [id, c] of this.controls) {
+      for (const key of ['targets', 'excludes'] as const)
+        for (const t of list(c[key])) if (!this.principal(t) && !this.resource(t)) ctx.error(['policies', id, key], `There is no principal "${t}"`);
+      for (const l of list(c.locations)) if (!this.control(l)) ctx.error(['policies', id, 'locations'], `There is no named location "${l}" under policies`);
+    }
+    // Every card has its own id: a package policy's own id may not be taken by anything else.
+    const taken = new Set([...this.principals, ...this.resources, ...this.packages, ...this.controls].map(([id]) => id));
+    for (const [id, p] of this.packages)
+      for (const [i, pol] of this.policies(p).entries())
+        if (pol.id && taken.has(pol.id)) ctx.error(['packages', id, 'policy', ...(Array.isArray(p.policy) ? [i] : []), 'id'], `"${pol.id}" is already the id of something else`);
+        else if (pol.id) taken.add(pol.id);
     for (const [id, r] of this.resources) if (r.in && !this.resource(r.in)) ctx.error(['resources', id, 'in'], `There is no resource "${r.in}"`);
     for (const [id, r] of this.roles) for (const p of list(r.inherits)) if (!this.role(p)) ctx.error(['roles', id, 'inherits'], `There is no role "${p}"`);
     for (const [id, p] of this.packages) {
@@ -189,8 +280,14 @@ class Model {
   principal = (id: string) => this.principals.find(([p]) => p === id)?.[1];
   resource = (id: string) => this.resources.find(([r]) => r === id)?.[1];
   role = (id: string) => this.roles.find(([r]) => r === id)?.[1];
+  control = (id: string) => this.controls.find(([c]) => c === id)?.[1];
   label = (id: string) =>
-    this.principal(id)?.label ?? this.resource(id)?.label ?? this.packages.find(([p]) => p === id)?.[1].label ?? this.role(id)?.label ?? id;
+    this.principal(id)?.label ??
+    this.resource(id)?.label ??
+    this.packages.find(([p]) => p === id)?.[1].label ??
+    this.role(id)?.label ??
+    this.control(id)?.label ??
+    id;
 
   grants(p: Package): { target: string; role: string }[] {
     return (p.grants ?? []).flatMap((g) =>
@@ -200,6 +297,19 @@ class Model {
 
   policies(p: Package): Policy[] {
     return Array.isArray(p.policy) ? p.policy : p.policy ? [p.policy] : [];
+  }
+
+  /** Approval stages in order, by name: "manager → Finance controller". */
+  approvers(v: string | string[] | undefined): string {
+    return list(v)
+      .map((a) => (this.principal(a) ? this.label(a) : a))
+      .join(' → ');
+  }
+
+  /** How an eligible assignment is activated, in words: "max 4 h, approval by sg-platform-admins". */
+  activation(a: Assignment): string | undefined {
+    const parts = [a.activation && `max ${a.activation}`, list(a.approval).length && `approval by ${this.approvers(a.approval)}`].filter(Boolean);
+    return parts.length ? parts.join(', ') : undefined;
   }
 
   /** Groups a principal is in, directly or through other groups, with the first group on the path. */
@@ -297,7 +407,17 @@ class Model {
           const from = a.scope !== scope ? this.label(a.scope) : undefined;
           const role = this.role(a.role);
           const text = role?.label ?? a.role;
-          add(scope, { role: a.role, text: a.eligible ? `${text} (eligible)` : text, direct: !s.via && !from, via: s.via, from, tone: role?.tone ?? 'indigo', ...(a.eligible ? { eligible: true } : {}) });
+          const pim = a.eligible ? this.activation(a) : undefined;
+          add(scope, {
+            role: a.role,
+            text: a.eligible ? `${text} (eligible)` : text,
+            direct: !s.via && !from,
+            via: s.via,
+            from,
+            tone: role?.tone ?? 'indigo',
+            ...(a.eligible ? { eligible: true } : {}),
+            ...(pim ? { activation: pim } : {}),
+          });
         }
     // App and site roles from a package: a fixed text, not one of the roles.
     for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, tone: 'indigo' });
@@ -327,9 +447,11 @@ export interface Reach {
   tone: Tone;
   /** Eligible only: activated through PIM when needed, not held until then. */
   eligible?: boolean;
+  /** How it is activated: "max 4 h, approval by sg-platform-admins". */
+  activation?: string;
 }
 
-const reachNote = (r: Reach) => [r.via && `via ${r.via}`, r.from && `from ${r.from}`].filter(Boolean).join(', ') || undefined;
+const reachNote = (r: Reach) => [r.via && `via ${r.via}`, r.from && `from ${r.from}`, r.activation].filter(Boolean).join(', ') || undefined;
 
 function principalHeader(m: Model, id: string): MatrixHeader {
   const p = m.principal(id)!;
@@ -350,11 +472,27 @@ function graphView(m: Model): Graph {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const used = new Set<keyof typeof edgeStyles>();
-  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[]) => {
+  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[]) => {
     used.add(style);
-    const s = edgeStyles[style];
-    edges.push({ id: `e${edges.length}`, from: { node: from }, to: { node: to }, label, line: s.line, tone: s.tone, start: 'none', end: 'arrow', path });
+    const s: { line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean } = edgeStyles[style];
+    edges.push({
+      id: `e${edges.length}`,
+      from: { node: from },
+      to: { node: to },
+      label,
+      line: s.line,
+      tone: s.tone,
+      start: 'none',
+      end: 'arrow',
+      ...(s.kind ? { kind: s.kind } : {}),
+      ...(s.loose ? { loose: true } : {}),
+      ...(tags?.length ? { tags } : {}),
+      path,
+    });
   };
+  // Each line points at its own list item, so deleting one line removes only that one.
+  const at = (base: (string | number)[], v: unknown, i: number) => [...base, ...(Array.isArray(v) ? [i] : [])];
+  const tagged = (t: string[] | undefined) => (t?.length ? { tags: t } : {});
 
   for (const [id, c] of m.catalogs)
     groups.push({ id: `catalog:${id}`, label: c.label ?? id, caption: 'Catalog', icon: 'layout-grid', tone: 'violet', border: 'dashed', path: ['catalogs', id] });
@@ -364,54 +502,97 @@ function graphView(m: Model): Graph {
   for (const [id, r] of m.resources) {
     const k = resourceKinds[r.kind ?? ''];
     if (parents.has(id))
-      groups.push({ id, parent: r.in, label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate', border: 'solid', path: ['resources', id] });
+      groups.push({ id, parent: r.in, label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate', border: 'solid', ...tagged(r.tags), path: ['resources', id] });
     else
-      nodes.push({ id, parent: r.in, shape: { kind: 'card', label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, path: ['resources', id] });
+      nodes.push({ id, parent: r.in, shape: { kind: 'card', label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(r.tags), path: ['resources', id] });
+  }
+  for (const [id, c] of m.controls) {
+    const k = policyKinds[c.kind ?? ''];
+    nodes.push({ id, shape: { kind: 'card', label: c.label ?? id, caption: c.caption ?? controlCaption(m, c), icon: k?.icon, tone: k?.tone ?? 'rose' }, ...tagged(c.tags), path: ['policies', id] });
   }
   for (const [id, p] of m.principals) {
     const k = principalKinds[p.kind ?? ''];
-    nodes.push({ id, shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, path: ['principals', id] });
+    nodes.push({ id, shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(p.tags), path: ['principals', id] });
   }
   for (const [id, p] of m.packages)
     nodes.push({
       id,
       parent: p.catalog ? `catalog:${p.catalog}` : undefined,
       shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? 'Access package', icon: 'package', tone: 'violet' },
+      ...tagged(p.tags),
       path: ['packages', id],
     });
 
-  for (const [id, p] of m.principals)
-    // Each line points at its own list item, so deleting one line removes only that one.
-    for (const [i, g] of list(p['member-of']).entries())
-      if (m.principal(g)) edge(id, g, 'member', undefined, ['principals', id, 'member-of', ...(Array.isArray(p['member-of']) ? [i] : [])]);
+  for (const [id, p] of m.principals) {
+    const base = ['principals', id];
+    for (const [i, g] of list(p['member-of']).entries()) if (m.principal(g)) edge(id, g, 'member', undefined, at([...base, 'member-of'], p['member-of'], i));
+    for (const [i, o] of list(p.owners).entries()) if (m.principal(o)) edge(o, id, 'owns', undefined, at([...base, 'owners'], p.owners, i));
+    // The app registration is the definition; its service principal is the app in this tenant, and what holds roles.
+    if (p.app && m.principal(p.app)?.kind === 'app-registration') {
+      if (p.kind === 'federated-credential') edge(id, p.app, 'federated', undefined, [...base, 'app']);
+      else edge(p.app, id, 'instance', undefined, [...base, 'app']);
+    }
+  }
+  for (const [id, c] of m.controls) {
+    const base = ['policies', id];
+    const lines = [
+      ['targets', 'applies'],
+      ['excludes', 'excludes'],
+      ['apps', 'covers'],
+      ['locations', 'location'],
+      ['requires', 'requires'],
+    ] as const;
+    for (const [key, style] of lines)
+      for (const [i, t] of list(c[key]).entries())
+        if (m.principal(t) || m.resource(t) || m.control(t)) edge(id, t, style, undefined, at([...base, key], c[key], i), c.tags);
+  }
   for (const [id, p] of m.packages) {
     // Each policy is its own card between requestors and package: who approves, for how long.
     for (const [i, pol] of m.policies(p).entries()) {
-      const approvers = list(pol.approval).map((a) => (m.principal(a) ? m.label(a) : a));
-      const label = pol.auto ? 'Assigned automatically' : approvers.length ? `${approvers.join(' → ')} approves` : 'No approval';
+      const label = pol.auto ? 'Assigned automatically' : list(pol.approval).length ? `Approval: ${m.approvers(pol.approval)}` : 'No approval';
       const caption = [pol.duration, pol.review && `review ${pol.review}`].filter(Boolean).join(' · ') || 'Policy';
-      const policyId = `${id}:policy:${i}`;
-      const path = ['packages', id, 'policy', ...(Array.isArray(p.policy) ? [i] : [])];
+      const policyId = pol.id ?? `${id}:policy:${i}`;
+      const path = at(['packages', id, 'policy'], p.policy, i);
       nodes.push({
         id: policyId,
         parent: p.catalog ? `catalog:${p.catalog}` : undefined,
         shape: { kind: 'card', label: label.charAt(0).toUpperCase() + label.slice(1), caption, icon: 'list-checks', tone: 'slate' },
+        ...tagged(p.tags),
         path,
       });
-      for (const [j, r] of list(pol.requestors).entries())
-        if (m.principal(r)) edge(r, policyId, 'request', undefined, [...path, 'requestors', ...(Array.isArray(pol.requestors) ? [j] : [])]);
+      for (const [j, r] of list(pol.requestors).entries()) if (m.principal(r)) edge(r, policyId, 'request', undefined, at([...path, 'requestors'], pol.requestors, j));
       edge(policyId, id, 'request', undefined, path);
     }
     for (const [i, h] of (p.holders ?? []).entries()) if (m.principal(h)) edge(h, id, 'holds', undefined, ['packages', id, 'holders', i]);
     for (const [i, g] of m.grants(p).entries())
       if (m.principal(g.target) || m.resource(g.target)) edge(id, g.target, 'grant', m.principal(g.target) ? undefined : g.role, ['packages', id, 'grants', i]);
   }
-  for (const a of m.assignments) edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', m.label(a.role), a.path);
+  for (const a of m.assignments) {
+    // On the line, PIM's settings in short: how long at most, and whether someone approves (who, the matrix and describe say).
+    const pim = a.eligible ? [a.activation, list(a.approval).length && 'approval'].filter(Boolean).join(' · ') : '';
+    edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', pim ? `${m.label(a.role)} · ${pim}` : m.label(a.role), a.path, a.tags);
+  }
 
   const legend: LegendItem[] = (Object.keys(edgeStyles) as (keyof typeof edgeStyles)[])
     .filter((k) => used.has(k))
     .map((k) => ({ label: edgeStyles[k].label, line: edgeStyles[k].line, tone: edgeStyles[k].tone }));
   return { title: m.src.title, subtitle: m.src.subtitle, direction: m.src.direction ?? 'right', groups, nodes, edges, legend };
+}
+
+/** A Conditional Access card's caption when none is written: its state, and what it blocks or asks for in words. */
+function controlCaption(m: Model, c: Control): string {
+  const k = policyKinds[c.kind ?? ''];
+  if (c.kind && c.kind !== 'conditional-access') return k?.label ?? c.kind;
+  const words = (v: string | string[] | undefined) => list(v).filter((x) => !m.principal(x) && !m.resource(x) && !m.control(x));
+  const apps = words(c.apps);
+  const needs = words(c.requires);
+  const parts = [
+    c.state === 'report-only' ? 'Report-only' : c.state === 'off' ? 'Off' : undefined,
+    apps.length ? apps.join(', ') : undefined,
+    c.block ? 'blocks access' : needs.length ? `requires ${needs.join(' and ')}` : undefined,
+  ].filter(Boolean);
+  const text = parts.join(' · ');
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : (k?.label ?? 'Conditional Access policy');
 }
 
 // ---------------------------------------------------------------- matrix views
@@ -433,7 +614,9 @@ const pillLegend = (direct: string, inherited: string, checks = false): LegendIt
   { label: inherited, swatch: checks ? 'check-outline' : 'outline', tone: 'indigo' },
 ];
 
-const inMatrix = (m: Model) => m.principals.filter(([, p]) => !['dynamic-group', 'connected-org'].includes(p.kind ?? '')).map(([id]) => id);
+/** Who the who × where matrix has a row for: not who only requests, and not what never holds a role itself (an app registration, a device). */
+const NO_ROW = ['dynamic-group', 'connected-org', 'app-registration', 'federated-credential', 'device', 'paw'];
+const inMatrix = (m: Model) => m.principals.filter(([, p]) => !NO_ROW.includes(p.kind ?? '')).map(([id]) => id);
 
 /** Resources in tree order, so a scope sits right before what it contains. */
 function scopesInOrder(m: Model): string[] {
@@ -723,12 +906,13 @@ function build(src: AccessSource, ctx: BuildContext): Graph {
 
 const strings = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] };
 const objectId = { type: 'string', description: 'The object id in the directory: an import recognises it by this, whatever it is called here' };
+const tags = { type: 'array', items: { type: 'string' }, description: 'Free words that layers pick it by, e.g. [tier0]' };
 const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
   anyOf: [
     { enum: kinds },
     {
       type: 'object',
-      properties: { kind: { enum: kinds }, label: { type: 'string' }, caption: { type: 'string' }, ...extra },
+      properties: { kind: { enum: kinds }, label: { type: 'string' }, caption: { type: 'string' }, ...extra, tags },
       additionalProperties: false,
     },
   ],
@@ -736,6 +920,7 @@ const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
 const policy = {
   type: 'object',
   properties: {
+    id: { type: 'string', pattern: idPattern, description: 'Its own id, for steps and focus (otherwise <package>:policy:<n>)' },
     requestors: { ...strings, description: 'Principals who may request the package' },
     approval: { ...strings, description: 'Approvers in order, e.g. [manager, sg-security]' },
     duration: { type: 'string', description: 'e.g. 180 days' },
@@ -751,6 +936,7 @@ const palette: PaletteItem[] = [
   { collection: 'packages', kind: 'package', label: 'Access package', icon: 'package', tone: 'violet' },
   ...Object.entries(resourceKinds).map(([kind, k]) => ({ collection: 'resources', kind, ...k })),
   { collection: 'roles', kind: 'role', label: 'Role', icon: 'shield-check', tone: 'indigo' },
+  ...Object.entries(policyKinds).map(([kind, k]) => ({ collection: 'policies', kind, ...k })),
 ];
 
 export const access: DiagramType<AccessSource> = {
@@ -763,6 +949,7 @@ export const access: DiagramType<AccessSource> = {
     'Which group or access package grants which role',
     'Answer “who can reach production?” as a matrix',
     'Review Entra ID governance: catalogs, packages, approvals',
+    'Privileged access: PIM, admin tiers, Conditional Access and PAWs',
   ],
   notFor: [
     { text: 'Where the resources run', use: 'azure' },
@@ -771,6 +958,7 @@ export const access: DiagramType<AccessSource> = {
   keywords: [
     'access', 'permission', 'role', 'rbac', 'group', 'access package', 'entra', 'identity', 'iam', 'who has access', 'who can', 'privilege',
     'governance', 'catalog', 'principal', 'security group', 'matrix', 'least privilege', 'audit',
+    'pim', 'conditional access', 'paw', 'app registration', 'service principal', 'workload identity',
   ],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
@@ -786,7 +974,26 @@ export const access: DiagramType<AccessSource> = {
       principals: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: entry(Object.keys(principalKinds), { 'member-of': strings, 'object-id': objectId }),
+        additionalProperties: entry(Object.keys(principalKinds), {
+          'member-of': strings,
+          owners: { ...strings, description: 'Who owns it: a group’s or an app’s owners' },
+          app: { type: 'string', description: 'A service principal’s or a federated credential’s app registration (a principal of kind app-registration)' },
+          'object-id': objectId,
+        }),
+      },
+      policies: {
+        type: 'object',
+        description: 'Conditional Access policies, and the authentication strengths, named locations and compliance policies they use',
+        propertyNames: { pattern: idPattern },
+        additionalProperties: entry(Object.keys(policyKinds), {
+          targets: { ...strings, description: 'Who it applies to: users, groups, directory roles' },
+          excludes: { ...strings, description: 'Who it leaves out, e.g. the break-glass accounts' },
+          apps: { ...strings, description: 'The apps it covers: resource ids, or words such as All cloud apps' },
+          locations: { ...strings, description: 'Named locations it checks (ids under policies)' },
+          requires: { ...strings, description: 'What a sign-in needs: an authentication strength, a device or PAW, a compliance policy, or words such as MFA' },
+          block: { type: 'boolean', description: 'Blocks access instead of granting it' },
+          state: { enum: ['on', 'report-only', 'off'] },
+        }),
       },
       catalogs: {
         type: 'object',
@@ -810,6 +1017,7 @@ export const access: DiagramType<AccessSource> = {
             policy: { anyOf: [policy, { type: 'array', items: policy }] },
             holders: { type: 'array', items: { type: 'string' } },
             'object-id': objectId,
+            tags,
           },
           additionalProperties: false,
         },
@@ -856,6 +1064,9 @@ export const access: DiagramType<AccessSource> = {
                 role: { type: 'string' },
                 scope: { type: 'string' },
                 eligible: { type: 'boolean', description: 'Eligible only: activated through Privileged Identity Management (PIM) when needed' },
+                activation: { type: 'string', description: 'PIM: how long one activation lasts at most, e.g. 8 h' },
+                approval: { ...strings, description: 'PIM: who approves an activation, principal ids or words, in order' },
+                tags,
               },
               additionalProperties: false,
             },
@@ -880,15 +1091,36 @@ export const access: DiagramType<AccessSource> = {
   },
   references(src) {
     const out: Reference[] = [];
-    const has = (c: 'principals' | 'resources' | 'roles' | 'catalogs' | 'packages', id: string) => !!src[c] && Object.hasOwn(src[c]!, id);
-    // A value that is one id or a list of ids.
-    const ids = (v: unknown, path: (string | number)[], collection: 'principals' | 'resources' | 'roles') => {
+    type Collection = 'principals' | 'resources' | 'roles' | 'catalogs' | 'packages' | 'policies';
+    const has = (c: Collection, id: string) => !!src[c] && Object.hasOwn(src[c]!, id);
+    // A value that is one id or a list of ids, each in the first of the collections that has it (words name none).
+    const ids = (v: unknown, path: (string | number)[], ...collections: Collection[]) => {
+      const where = (x: string) => collections.find((c) => has(c, x));
       if (typeof v === 'string') {
         // A single id: deleting what it names removes this field, not the list (policy) around it.
-        if (has(collection, v)) out.push({ path, id: v, start: 0, collection, onDelete: 'key' });
-      } else if (Array.isArray(v)) v.forEach((x, i) => typeof x === 'string' && has(collection, x) && out.push({ path: [...path, i], id: x, start: 0, collection }));
+        const collection = where(v);
+        if (collection) out.push({ path, id: v, start: 0, collection, onDelete: 'key' });
+      } else if (Array.isArray(v))
+        v.forEach((x, i) => {
+          const collection = typeof x === 'string' ? where(x) : undefined;
+          if (collection) out.push({ path: [...path, i], id: x, start: 0, collection });
+        });
     };
-    for (const [id, p] of Object.entries(src.principals ?? {})) if (p && typeof p === 'object') ids(p['member-of'], ['principals', id, 'member-of'], 'principals');
+    for (const [id, p] of Object.entries(src.principals ?? {}))
+      if (p && typeof p === 'object') {
+        ids(p['member-of'], ['principals', id, 'member-of'], 'principals');
+        ids(p.owners, ['principals', id, 'owners'], 'principals');
+        ids(p.app, ['principals', id, 'app'], 'principals');
+      }
+    for (const [id, c] of Object.entries(src.policies ?? {}))
+      if (c && typeof c === 'object') {
+        const base = ['policies', id];
+        ids(c.targets, [...base, 'targets'], 'principals', 'resources');
+        ids(c.excludes, [...base, 'excludes'], 'principals', 'resources');
+        ids(c.apps, [...base, 'apps'], 'resources');
+        ids(c.locations, [...base, 'locations'], 'policies');
+        ids(c.requires, [...base, 'requires'], 'policies', 'principals');
+      }
     for (const [id, r] of Object.entries(src.resources ?? {})) if (r && typeof r === 'object') ids(r.in, ['resources', id, 'in'], 'resources');
     for (const [id, r] of Object.entries(src.roles ?? {})) if (r) ids(r.inherits, ['roles', id, 'inherits'], 'roles');
     for (const [id, p] of Object.entries(src.packages ?? {})) {
@@ -918,13 +1150,28 @@ export const access: DiagramType<AccessSource> = {
         out.push({ path: ['assignments', i, 'principal'], id: a.principal, start: 0, collection: 'principals', onDelete: 'item' });
         out.push({ path: ['assignments', i, 'role'], id: a.role, start: 0, collection: 'roles', onDelete: 'item' });
         out.push({ path: ['assignments', i, 'scope'], id: a.scope, start: 0, collection: 'resources', onDelete: 'item' });
+        ids(a.approval, ['assignments', i, 'approval'], 'principals');
       }
     }
     return out;
   },
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
-    const is = (collection: 'principals' | 'packages' | 'resources', id: string) => !!src[collection] && id in src[collection]!;
+    const is = (collection: 'principals' | 'packages' | 'resources' | 'policies', id: string) => !!src[collection] && id in src[collection]!;
+    const kindOf = (collection: 'principals' | 'policies', id: string) => {
+      const v = src[collection]?.[id];
+      return typeof v === 'string' ? v : v?.kind;
+    };
+    if (is('policies', from)) {
+      // A Conditional Access policy applies to people and covers apps; what it asks for (a device, a strength) it requires.
+      if (is('policies', to)) return { path: ['policies', from, kindOf('policies', to) === 'named-location' ? 'locations' : 'requires'], value: to };
+      if (is('principals', to)) return { path: ['policies', from, ['device', 'paw'].includes(kindOf('principals', to) ?? '') ? 'requires' : 'targets'], value: to };
+      if (is('resources', to)) {
+        const r = src.resources![to];
+        return { path: ['policies', from, (typeof r === 'string' ? r : r?.kind) === 'directory-role' ? 'targets' : 'apps'], value: to };
+      }
+      return 'Connect a policy to who it applies to, an app it covers, or what it requires';
+    }
     if (is('principals', from) && is('principals', to)) return { path: ['principals', from, 'member-of'], value: to };
     if (is('principals', from) && is('packages', to)) return { path: ['packages', to, 'holders'], value: from };
     if (is('packages', from) && is('principals', to)) return { path: ['packages', from, 'grants'], value: to };
@@ -934,7 +1181,7 @@ export const access: DiagramType<AccessSource> = {
       if (!role) return 'Add a role first: a person or group gets a role on a resource';
       return { path: ['assignments'], value: `${from} is ${role} on ${to}` };
     }
-    return 'Connect a person or group to a group, package or resource, or a package to what it grants';
+    return 'Connect a person or group to a group, package or resource, a package to what it grants, or a policy to who it applies to';
   },
   template: `type: access
 title: Engineering access

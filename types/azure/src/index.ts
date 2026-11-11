@@ -11,6 +11,8 @@ export const config: GraphTypeConfig = {
     vnet: { label: 'Virtual network', icon: 'waypoints', tone: 'sky' },
     subnet: { label: 'Subnet', icon: 'square-dashed', tone: 'sky', border: 'dashed' },
     'aks-cluster': { label: 'AKS cluster', icon: 'boxes', tone: 'blue' },
+    // A Virtual WAN hub, with the firewall and gateways Microsoft runs in it.
+    'virtual-hub': { label: 'Virtual hub', icon: 'router', tone: 'sky', keywords: ['vhub', 'vwan hub'] },
     'on-premises': { label: 'On-premises', icon: 'building', tone: 'slate' },
     boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
   },
@@ -47,7 +49,24 @@ export const config: GraphTypeConfig = {
     firewall: { label: 'Firewall', icon: 'shield', tone: 'rose' },
     nsg: { label: 'Network security group', icon: 'shield-check', tone: 'rose' },
     'entra-id': { label: 'Entra ID', icon: 'fingerprint-pattern', tone: 'slate', keywords: ['aad', 'identity'] },
-    'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'slate' },
+    'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'slate', keywords: ['mi', 'msi', 'uami'] },
+    // Workload identities in Entra ID: the app registration (the definition), its service principal (what holds
+    // roles in the tenant) and the federated credential that lets code outside Azure sign in as it without a secret.
+    'app-registration': { label: 'App registration', icon: 'file-badge', tone: 'indigo', keywords: ['appreg', 'app reg', 'application', 'client id'] },
+    'service-principal': { label: 'Service principal', icon: 'bot', tone: 'indigo', keywords: ['sp', 'enterprise app', 'enterprise application'] },
+    'federated-credential': { label: 'Federated credential', icon: 'link', tone: 'indigo', keywords: ['fic', 'federation', 'oidc', 'workload identity federation'] },
+    // Governance: a subscription or management group drawn as one card, and Azure Policy.
+    subscription: { label: 'Subscription', icon: 'folder-key', tone: 'amber', keywords: ['sub'] },
+    'management-group': { label: 'Management group', icon: 'layers', tone: 'slate', keywords: ['mg'] },
+    policy: { label: 'Azure Policy', icon: 'file-check', tone: 'slate', keywords: ['guardrail', 'deny', 'audit'] },
+    initiative: { label: 'Policy initiative', icon: 'list-checks', tone: 'slate', keywords: ['policy set', 'policy initiative'] },
+    // Data and analytics.
+    databricks: { label: 'Databricks', icon: 'flame', tone: 'rose', keywords: ['dbx', 'spark', 'unity catalog', 'adb'] },
+    'sql-warehouse': { label: 'SQL warehouse', icon: 'warehouse', tone: 'indigo', keywords: ['dwh', 'synapse', 'warehouse'] },
+    fabric: { label: 'Microsoft Fabric', icon: 'layers-2', tone: 'teal', keywords: ['onelake', 'lakehouse', 'power bi'] },
+    // Virtual WAN: Microsoft's managed hub and spoke.
+    'virtual-wan': { label: 'Virtual WAN', icon: 'chart-network', tone: 'sky', keywords: ['vwan'] },
+    'virtual-hub': { label: 'Virtual hub', icon: 'router', tone: 'sky', keywords: ['vhub', 'vwan hub'] },
     'log-analytics': { label: 'Log Analytics', icon: 'chart-line', tone: 'green' },
     'app-insights': { label: 'Application Insights', icon: 'activity', tone: 'green' },
     monitor: { label: 'Azure Monitor', icon: 'gauge', tone: 'green' },
@@ -73,6 +92,8 @@ export const config: GraphTypeConfig = {
     data: { label: 'Data flow', line: 'solid', tone: 'violet' },
     identity: { label: 'Identity', line: 'dotted', tone: 'amber' },
     management: { label: 'Management', line: 'dotted', tone: 'slate' },
+    // An identity → the scope it holds a role on, the role as the label: "Contributor", "Key Vault Secrets User".
+    role: { label: 'Role assignment', line: 'dashed', tone: 'indigo' },
   },
   // Groups can be trust boundaries (docs/types.md#architecture).
   trust: true,

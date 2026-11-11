@@ -25,6 +25,7 @@ const names = `
   align-horizontal-distribute-center align-vertical-distribute-center lock-open grid-3x3 map magnet focus
   arrow-right
   hand diamond diamond-plus square-plus circle triangle rows-3 sticky-note file refresh-cw
+  shield-half laptop-minimal-check file-badge flame layers-2 chart-network
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);
