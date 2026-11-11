@@ -3,7 +3,7 @@
 import './preview.css';
 import { is } from './keys.ts';
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Box, Point } from '@cartography/core';
+import type { Box, PaletteItem, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
@@ -11,6 +11,7 @@ import { PALETTE_MIME } from './add-menu.tsx';
 import { describeResult } from './describe.ts';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
 import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
+import { matchKinds } from './sketch.ts';
 
 export interface Selection {
   kind: 'node' | 'group' | 'edge';
@@ -27,6 +28,22 @@ export interface PreviewControl {
   wholly(): boolean;
   /** After the next drawing: one that was wholly in view (`was`) and no longer is (a long drag) fits again. */
   keepInView(was: boolean): void;
+  /** Opens the name editor over an element, starting with `initial` when given (typed over it), else
+   * its name selected; `fresh`: just made by a sketch key. False when it cannot be named in place. */
+  rename(s: Selection, opts?: { initial?: string; fresh?: boolean }): boolean;
+  /** A name editor is open. */
+  renaming(): boolean;
+}
+
+/** How a name typed in place was left: Enter, Tab (and on to a new connected box), Escape, or elsewhere. */
+export type LabelExit = 'enter' | 'tab' | 'escape' | 'blur';
+
+/** Where the selection is on screen, in pixels from the pane's top left. */
+export interface ScreenRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 /** What a label editor can be opened on: an element, or the diagram's title and subtitle. */
@@ -47,6 +64,13 @@ interface Props {
   /** The text a label editor starts with, or undefined when it cannot be edited in place. */
   labelOf(t: LabelTarget): string | undefined;
   onLabel(t: LabelTarget, text: string): void;
+  /** Takes over a name typed on an element (not the title): every exit, changed or not, with the kind
+   * picked from the list while naming; `fresh` when a sketch key had just made it. */
+  onLabelDone?(t: Selection, text: string | undefined, how: LabelExit, opts: { kind?: PaletteItem; fresh: boolean; was: string }): void;
+  /** The kinds a name can start with ("fw: …"), for the list under the name editor. */
+  kindsFor?(t: Selection): readonly PaletteItem[] | undefined;
+  /** Drawn over the drawing at the selection (a menu, a hint): its screen box, and whether a name is being typed. */
+  overlay?(rect: ScreenRect | undefined, renaming: boolean): React.ReactNode;
   /** A node dragged to a new top-left, in pin coordinates; `done` on release, with the group it was
    * dropped into when that changed (null: out of all groups). */
   onMove(id: string, pin: Point, done: boolean, group?: string | null): void;
@@ -158,7 +182,9 @@ export function Preview(p: Props) {
   /** The marquee while it is dragged, in pixels relative to the frame. */
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number }>();
   /** The label being edited in place. */
-  const [editing, setEditing] = useState<{ target: LabelTarget; text: string; el?: Element }>();
+  const [editing, setEditing] = useState<{ target: LabelTarget; text: string; el?: Element; initial?: string; fresh?: boolean }>();
+  const editingNow = useRef(false);
+  editingNow.current = !!editing;
   /** Space held: dragging pans, like in drawing apps. */
   const [spacePan, setSpacePan] = useState(false);
   /** The node under the pointer, for its connect handle. */
@@ -230,6 +256,58 @@ export function Preview(p: Props) {
       path.before(hit);
     }
   }, [result?.svg]);
+
+  // What still moves after an edit (the layout keeps what was there where it was, stay.ts) glides
+  // there in 240 ms, so people watching can follow where a box went; lines that changed fade in.
+  // Positions are compared in pin space: the view already makes up for the drawing's origin moving.
+  const lastPlaced = useRef<{ doc: number | string; nodes: Map<string, Point>; groups: Map<string, Point>; edges: Map<string, string> }>(null);
+  useLayoutEffect(() => {
+    const placed = result?.placed;
+    const root = drawingEl.current;
+    if (!placed || !root || stale) return;
+    const s = placed.shift ?? { x: 0, y: 0 };
+    const at = (m: Map<string, Box>) => new Map([...m].map(([id, b]) => [id, { x: b.x + s.x, y: b.y + s.y }]));
+    const now = { doc: docKey, nodes: at(placed.nodes), groups: at(placed.groups), edges: new Map([...placed.edges].map(([id, e]) => [id, e.points.map((q) => `${Math.round(q.x + s.x)},${Math.round(q.y + s.y)}`).join(' ')])) };
+    const was = lastPlaced.current;
+    lastPlaced.current = now;
+    if (!was || was.doc !== docKey || drag.current || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const moving: [Element, number, number][] = [];
+    const glide = (attr: string, before: Map<string, Point>, after: Map<string, Point>) => {
+      for (const [id, q] of after) {
+        const b = before.get(id);
+        if (!b || Math.hypot(b.x - q.x, b.y - q.y) < 0.5) continue;
+        const el = root.querySelector(`[${attr}="${CSS.escape(id)}"]`);
+        if (el) moving.push([el, b.x - q.x, b.y - q.y]);
+      }
+    };
+    glide('data-node', was.nodes, now.nodes);
+    glide('data-group', was.groups, now.groups);
+    const fading = [...root.querySelectorAll<SVGElement>('[data-edge]')].filter((el) => {
+      const id = el.getAttribute('data-edge')!;
+      return was.edges.has(id) && was.edges.get(id) !== now.edges.get(id) && moving.length > 0;
+    });
+    if (!moving.length) return;
+    for (const [el, dx, dy] of moving) {
+      const st = (el as SVGElement).style;
+      st.transition = 'none';
+      st.transform = `translate(${dx}px, ${dy}px)`;
+    }
+    for (const el of fading) {
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+    }
+    // Read once so the start is painted before the transition to the new place begins.
+    void root.getBoundingClientRect();
+    for (const [el] of moving) {
+      const st = (el as SVGElement).style;
+      st.transition = 'transform 240ms cubic-bezier(0.2, 0, 0, 1)';
+      st.transform = '';
+    }
+    for (const el of fading) {
+      el.style.transition = 'opacity 240ms ease-out';
+      el.style.opacity = '';
+    }
+  }, [result?.svg]); // eslint-disable-line react-hooks/exhaustive-deps -- once per drawing
 
   /** The pane size the view was last placed for (see the resize observer below). */
   const paneSize = useRef({ w: 0, h: 0 });
@@ -382,6 +460,8 @@ export function Preview(p: Props) {
     fitNext: () => void (refit.current = { always: true, was: true }),
     wholly,
     keepInView: (was: boolean) => void (refit.current = { always: false, was }),
+    rename: (s, opts) => editLabel(s, undefined, opts),
+    renaming: () => editingNow.current,
   }));
 
   // When the pane changes size (inspector opens, splitter moves): a drawing that was wholly in view
@@ -771,10 +851,11 @@ export function Preview(p: Props) {
   };
 
   /** Opens the label editor over an element, the title or the subtitle; false when it cannot be edited in place. */
-  const editLabel = (target: LabelTarget, el?: Element): boolean => {
+  const editLabel = (target: LabelTarget, el?: Element, opts: { initial?: string; fresh?: boolean } = {}): boolean => {
     const text = p.labelOf(target);
     if (text == null || (!el && !selectedBox(result, target as Selection))) return false;
-    setEditing({ target, text, el });
+    editingNow.current = true;
+    setEditing({ target, text, el, ...opts });
     return true;
   };
   /** Where the label editor sits, from the current view, so it follows a view that moves. */
@@ -795,6 +876,14 @@ export function Preview(p: Props) {
     // Nodes and lines: over their middle; groups: over the header strip where the label sits.
     const cy = t.kind === 'group' ? view.y + (b.y + 22) * view.scale : view.y + (b.y + b.height / 2) * view.scale;
     return { left: cx - width / 2, top: cy - height / 2, width, height, size: 14 };
+  };
+
+  /** The selection's box on screen (one element, or all of a multiple selection), for what floats over it. */
+  const overlayRect = (): ScreenRect | undefined => {
+    const boxes = selection.map((s) => selectedBox(result, s)).filter((b): b is Box => !!b);
+    if (!boxes.length || dragging) return undefined;
+    const u = union(boxes);
+    return { left: view.x + u.x * view.scale, top: view.y + u.y * view.scale, width: u.width * view.scale, height: u.height * view.scale };
   };
 
   /** Where a palette item dropped at a point lands: the group under it that takes it (and the one that
@@ -1052,14 +1141,21 @@ export function Preview(p: Props) {
           style={{ left: Math.min(marquee.x0, marquee.x1), top: Math.min(marquee.y0, marquee.y1), width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0) }}
         />
       )}
+      {p.overlay?.(overlayRect(), !!editing)}
       {editing && editorRect(editing.target, editing.el) && (
         <LabelEditor
-          text={editing.text}
+          key={`${editing.target.kind}:${editing.target.id}:${editing.fresh ? 'fresh' : ''}`}
+          text={editing.initial ?? editing.text}
+          caret={editing.initial != null}
+          kinds={editing.target.kind === 'node' || editing.target.kind === 'group' ? p.kindsFor?.(editing.target) : undefined}
           {...editorRect(editing.target, editing.el)!}
-          onDone={(text) => {
+          onDone={(text, how, kind) => {
+            const { target, fresh } = editing;
+            editingNow.current = false;
             setEditing(undefined);
-            if (text != null && text !== editing.text) p.onLabel(editing.target, text);
             frame.current?.focus({ preventScroll: true });
+            if (p.onLabelDone && (target.kind === 'node' || target.kind === 'group')) return p.onLabelDone(target, text, how, { kind, fresh: !!fresh, was: editing.text });
+            if (text != null && text !== editing.text) p.onLabel(target, text);
           }}
         />
       )}
@@ -1104,37 +1200,78 @@ export function Preview(p: Props) {
   );
 }
 
-/** A label typed in place: Enter keeps it, Esc drops it, and no key reaches the drawing's shortcuts. */
-function LabelEditor(p: { text: string; left: number; top: number; width: number; height: number; size: number; onDone(text: string | undefined): void }) {
+/** A label typed in place: Enter keeps it, Esc drops it, and no key reaches the drawing's shortcuts.
+ * Tab keeps it too (the app goes on to a new connected box). With kinds, "fw:" lists the kinds that
+ * word names, and ↑ ↓ pick one. */
+function LabelEditor(p: { text: string; caret?: boolean; kinds?: readonly PaletteItem[]; left: number; top: number; width: number; height: number; size: number; onDone(text: string | undefined, how: LabelExit, kind?: PaletteItem): void }) {
   const [text, setText] = useState(p.text);
+  const [pick, setPick] = useState(0);
   const done = useRef(false);
-  const finish = (t: string | undefined) => {
+  const listId = useId();
+  const word = p.kinds ? /^\s*([A-Za-z][A-Za-z0-9-]{0,23})\s*:(?!\/\/)/.exec(text)?.[1] : undefined;
+  const options = useMemo(() => (word && p.kinds ? matchKinds(word, p.kinds, 5) : []), [word, p.kinds]);
+  const chosen = options.length ? options[Math.min(pick, options.length - 1)] : undefined;
+  const finish = (value: string | undefined, how: LabelExit) => {
     if (done.current) return;
     done.current = true;
-    p.onDone(t);
+    p.onDone(value, how, value == null ? undefined : chosen);
   };
   return (
-    <input
-      className="label-editor"
-      aria-label={t('Label')}
-      autoFocus
-      onFocus={(e) => e.currentTarget.select()}
-      value={text}
-      spellCheck={false}
-      style={{ left: p.left, top: p.top, width: p.width, height: p.height, fontSize: p.size }}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={() => finish(text.trim() || undefined)}
-      onPointerDown={(e) => e.stopPropagation()}
-      onPointerUp={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') finish(text.trim() || undefined);
-        else if (e.key === 'Escape') finish(undefined);
-        else return;
-        e.preventDefault();
-      }}
-    />
+    <>
+      <input
+        className="label-editor"
+        aria-label={t('Label')}
+        autoFocus
+        onFocus={(e) => (p.caret ? e.currentTarget.setSelectionRange(text.length, text.length) : e.currentTarget.select())}
+        value={text}
+        spellCheck={false}
+        autoComplete="off"
+        role={p.kinds ? 'combobox' : undefined}
+        aria-expanded={p.kinds ? options.length > 0 : undefined}
+        aria-controls={options.length ? listId : undefined}
+        aria-activedescendant={chosen ? `${listId}-${options.indexOf(chosen)}` : undefined}
+        aria-autocomplete={p.kinds ? 'list' : undefined}
+        style={{ left: p.left, top: p.top, width: p.width, height: p.height, fontSize: p.size }}
+        onChange={(e) => {
+          setText(e.target.value);
+          setPick(0);
+        }}
+        onBlur={() => finish(text.trim() || undefined, 'blur')}
+        onPointerDown={(e) => e.stopPropagation()}
+        onPointerUp={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.nativeEvent.isComposing) return;
+          if (e.key === 'Enter') finish(text.trim() || undefined, 'enter');
+          else if (e.key === 'Tab' && !e.shiftKey) finish(text.trim() || undefined, 'tab');
+          else if (e.key === 'Escape') finish(undefined, 'escape');
+          else if (options.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) setPick((i) => (i + (e.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length);
+          else return;
+          e.preventDefault();
+        }}
+      />
+      {options.length > 0 && (
+        <ul className="kind-list" id={listId} role="listbox" aria-label={t('Kind')} style={{ left: p.left, top: p.top + p.height + 4, minWidth: Math.min(p.width, 260) }}>
+          {options.map((o, i) => (
+            <li
+              key={o.collection + o.kind}
+              id={`${listId}-${i}`}
+              role="option"
+              aria-selected={o === chosen}
+              onPointerDown={(e) => {
+                // Picked with the pointer: the name editor keeps the focus.
+                e.preventDefault();
+                e.stopPropagation();
+                setPick(i);
+              }}
+            >
+              <Icon name={o.icon} size={14} /> <span>{o.label}</span> <code>{o.kind}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
