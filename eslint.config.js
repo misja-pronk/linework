@@ -35,7 +35,7 @@ export default defineConfig(
       '@typescript-eslint/no-misused-promises': 'error',
       // A default is a deliberate "and the rest": only switches without one have to name every case.
       '@typescript-eslint/switch-exhaustiveness-check': ['error', { considerDefaultExhaustiveForUnions: true }],
-      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
     },
   },
   {
