@@ -131,12 +131,13 @@ export function dashAttr(line: 'solid' | 'dashed' | 'dotted' | undefined, width:
 
 /**
  * The second mark of a line style over its stroke `d`: short ticks across it, beads on it, or a
- * double line (a light core in a wider stroke). Drawn on top of the line, in its colour.
+ * double line (a light core in a wider stroke). Drawn on top of the line, in its colour. Ticks and
+ * beads are small and sparse: enough to tell two lines apart in grey, never louder than the line.
  */
 export function patternOver(pattern: LinePattern | undefined, d: string, color: string, width: number, theme: Theme, dash = ''): string {
   if (!pattern) return '';
-  if (pattern === 'ticks') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 4.5)}" stroke-dasharray="1.3 11" stroke-dashoffset="-5"/>`;
-  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3)}" stroke-dasharray="0.01 12" stroke-dashoffset="-5" stroke-linecap="round"/>`;
+  if (pattern === 'ticks') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 3.2)}" stroke-dasharray="1.1 15" stroke-dashoffset="-7"/>`;
+  if (pattern === 'beads') return `<path d="${d}" fill="none" stroke="${color}" stroke-width="${r1(width + 2)}" stroke-dasharray="0.01 16" stroke-dashoffset="-7" stroke-linecap="round"/>`;
   return `<path d="${d}" fill="none" stroke="${theme.surface}" stroke-width="${r1(Math.max(1, width * 0.4))}" stroke-linejoin="round"${dash}/>`;
 }
 
