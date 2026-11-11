@@ -23,12 +23,12 @@ interface Props {
   onShortcuts(): void;
 }
 
-/** One cell of the title block: a small-capital name and its value. The name is generated content, so
- * the value is what the cell's text is (screen readers still read both). */
+/** One cell of the title block: a small-capital name and its value, both text (the capitals are the
+ * font's small capitals, so the name reads and copies as written). */
 function Cell({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <span className={className ? `status-cell ${className}` : 'status-cell'} data-label={label}>
-      {children}
+    <span className={className ? `status-cell ${className}` : 'status-cell'}>
+      <span className="status-label">{label}</span> {children}
     </span>
   );
 }

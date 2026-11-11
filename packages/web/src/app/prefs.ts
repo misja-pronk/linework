@@ -67,6 +67,8 @@ export function usePrefs() {
   const showYaml = () => (setView('code'), setYamlFolded(false), setForceYaml(true));
   /** The Drawing tab: the YAML folds to its rail (the builder's shapes stay where they are). */
   const showDrawing = () => view === 'code' && setYamlFolded(true);
+  /** A way of working asked for (⌘\\, a command, the start dialog's YAML): the YAML way shows the YAML. */
+  const openView = (v: View) => (v === 'code' ? showYaml() : setView(v));
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -74,6 +76,6 @@ export function usePrefs() {
   useEffect(() => store.set('theme', pref), [pref]);
   useEffect(() => store.set('split', split), [split]);
 
-  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, windowWidth };
+  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
 }
 export type Prefs = ReturnType<typeof usePrefs>;
