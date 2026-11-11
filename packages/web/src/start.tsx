@@ -37,16 +37,17 @@ function useDrawing(text: string | undefined, theme: 'light' | 'dark', load?: (f
   useEffect(() => {
     if (!text) return;
     let stop = false;
-    const timer = setTimeout(async () => {
-      const r = await render(text, {
+    const timer = setTimeout(() => {
+      void render(text, {
         theme,
         fonts: 'none',
         idPrefix: `s${thumbIds++}`,
         load,
-      }).catch(() => undefined);
-      if (stop || !r) return;
-      if (r.svg) setSvg(r.svg);
-      setErrors(r.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? t('Line {line}: {message}', { line: d.line, message: d.message }) : d.message)));
+      }).then((r) => {
+        if (stop) return;
+        if (r.svg) setSvg(r.svg);
+        setErrors(r.diagnostics.filter((d) => d.severity === 'error').map((d) => (d.line ? t('Line {line}: {message}', { line: d.line, message: d.message }) : d.message)));
+      }, () => undefined);
     }, 250);
     return () => {
       stop = true;
@@ -196,13 +197,14 @@ function useThumbs(list: Starter[], theme: 'light' | 'dark') {
   const ids = list.map((s) => s.id).join('|');
   useEffect(() => {
     let stop = false;
-    (async () => {
+    void (async () => {
       for (const s of list) {
         const key = `${theme}:${s.id}`;
         if (stop) return;
         if (thumbs.has(key)) continue;
-        const r = await render(s.text, { theme, fonts: 'none', idPrefix: `t${thumbIds++}`, load: exampleLoader(s.id) });
-        thumbs.set(key, r.svg ?? '');
+        // One starter that fails to draw gets an empty card; the ones after it are still drawn.
+        const r = await render(s.text, { theme, fonts: 'none', idPrefix: `t${thumbIds++}`, load: exampleLoader(s.id) }).catch(() => undefined);
+        thumbs.set(key, r?.svg ?? '');
         if (!stop) redraw((n) => n + 1);
       }
     })();

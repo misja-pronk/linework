@@ -114,9 +114,11 @@ export function useTemplateChoice(ws: Workspace | undefined, onError: (m: string
     e.target.value = '';
     if (!file) return;
     if (!/\.(potx|pptx)$/i.test(file.name)) return onError(t('{name} is not a PowerPoint template: pick a .potx or .pptx', { name: file.name }));
-    choose({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+    const bytes = await file.arrayBuffer().catch(() => undefined);
+    if (!bytes) return onError(t('Cannot read {path}', { path: file.name }));
+    choose({ name: file.name, bytes: new Uint8Array(bytes) });
   };
-  const picker = <input ref={input} type="file" accept=".potx,.pptx,application/vnd.openxmlformats-officedocument.presentationml.template,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden onChange={onFile} data-pptx-template />;
+  const picker = <input ref={input} type="file" accept=".potx,.pptx,application/vnd.openxmlformats-officedocument.presentationml.template,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden onChange={(e) => void onFile(e)} data-pptx-template />;
   return {
     chosen,
     found,

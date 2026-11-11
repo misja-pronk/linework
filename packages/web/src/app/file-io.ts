@@ -170,7 +170,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
       setWs(next);
       setRemembered(next.dir);
       const first = diagrams(next)[0];
-      if (first) openInFolder(next, first);
+      if (first) await openInFolder(next, first);
       else notify(t('No diagrams in {name} yet: start from a template and save it there', { name: next.name }));
     } catch (e) {
       notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
