@@ -14,6 +14,20 @@ pnpm carto export shop.yaml --to html             # one interactive HTML file to
 pnpm web                                          # the editor → http://localhost:5178
 ```
 
+Or build the command line once and run it with plain Node.js 24, anywhere, without the clone's
+`node_modules`:
+
+```sh
+pnpm build                                        # the web app, packages/cli/dist and packages/mcp/dist
+node packages/cli/dist/carto.mjs render shop.yaml -o shop.png
+cp -r packages/cli/dist ~/opt/carto && ln -s ~/opt/carto/carto.mjs ~/bin/carto   # carto on your PATH
+pnpm smoke                                        # check the bundles from a folder outside the repo
+```
+
+`carto.mjs` is one file with everything inside; the folder holds what it reads beside it: `fonts/`,
+`examples/`, `web/` (the editor `carto serve` serves) and resvg's native binary for PNG. That binary
+is for the machine that built it (macOS arm64, Linux x64, …): build on the platform you run on.
+
 `pnpm carto --help` lists every command in five groups (Create, Draw, Export, Check, Look); `carto <command> --help` puts the common options first.
 
 ![Survey](docs/themes/png/survey-azure.png)

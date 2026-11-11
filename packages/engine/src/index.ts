@@ -247,6 +247,42 @@ const focusOnly = { type: 'object', properties: { focus: focusSchema } };
 const layersOnly = { type: 'object', properties: { layers: layersSchema } };
 const modelOnly = (keys: readonly string[]) => ({ type: 'object', properties: Object.fromEntries(keys.map((k) => [k, modelProperties[k as keyof typeof modelProperties]])) });
 
+/** What a type is checked against, made once per type (the precompiled validators are found by these schemas). */
+interface Checks {
+  /** The type's own keys. */
+  props: Record<string, unknown>;
+  /** A type whose schema lists views: takes every model key itself. */
+  listed: boolean;
+  /** The model keys the diagram may have. */
+  keys: readonly string[];
+  /** The model keys on their own, for a type whose schema does not list them. */
+  model: object;
+  /** An included diagram of this type may have what this one may: the model keys, and a focus and steps of its own. */
+  included: object;
+}
+const checked = new Map<DiagramType, Checks>();
+function checksOf(type: DiagramType): Checks {
+  let c = checked.get(type);
+  if (!c) {
+    const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
+    const listed = 'views' in props;
+    const keys = modelKeys.filter((k) => listed || !(k in props));
+    const model = modelOnly(keys);
+    const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, layers: layersSchema, ...model.properties, ...props } };
+    checked.set(type, (c = { props, listed, keys, model, included }));
+  }
+  return c;
+}
+
+/**
+ * Every JSON Schema render validates a diagram against. scripts/validators.ts compiles them ahead of
+ * time into packages/core/src/generated/validators.ts, so nothing is compiled with Function() at
+ * run time (the web app's Content-Security-Policy has no 'unsafe-eval').
+ */
+export function validatedSchemas(): object[] {
+  return [modelSchema, stepsOnly, focusOnly, layersOnly, ...[...new Set([...types, c4, systems])].flatMap((t) => [t.schema, checksOf(t).model, checksOf(t).included])];
+}
+
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
   const source = parseSource(text);
   const diagnostics = [...source.diagnostics];
@@ -276,7 +312,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const lang = diagramLang(langRef) ?? opts.lang ?? 'en';
   if (langRef != null && !diagramLang(langRef)) diagnostics.push(source.at(['lang'], 'lang is the language of the words the drawing adds itself: en or nl', 'warning'));
   const rest = asWritten;
-  const props = (type.schema as { properties?: Record<string, unknown> }).properties ?? {};
+  const { props, listed, keys, model: modelChecks, included } = checksOf(type);
   // Steps are about presenting, shared by every type as well (unless a type has steps of its own).
   const stepsRef = 'steps' in props ? undefined : rest.steps;
   if (!('steps' in props)) delete rest.steps;
@@ -287,19 +323,15 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const layersRef = 'layers' in props ? undefined : rest.layers;
   if (!('layers' in props)) delete rest.layers;
   const own: Source = { ...source, data: rest };
-  const listed = 'views' in props;
-  const keys = modelKeys.filter((k) => listed || !(k in props));
   const isModelKey = (k: string) => (keys as string[]).includes(k);
   const plain = Object.fromEntries(Object.entries(rest).filter(([k]) => !isModelKey(k)));
-  const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelOnly(keys))];
+  const invalid = isModel ? validate(own, modelSchema) : listed ? validate(own, type.schema) : [...validate({ ...source, data: plain }, type.schema), ...validate(own, modelChecks)];
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
   if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
-  // An included diagram of this type may have what this one may: the model keys, and a focus and steps of its own (only read past here).
-  const included = { ...type.schema, properties: { focus: focusSchema, steps: stepsSchema, layers: layersSchema, ...modelOnly(keys).properties, ...props } };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;

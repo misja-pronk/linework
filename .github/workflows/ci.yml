@@ -30,6 +30,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      # The CLI and MCP bundles (and the web app carto serve serves), run from a folder outside the repo.
+      - run: pnpm build
+      - run: pnpm smoke
       - run: pnpm licences
       - run: pnpm pack:check
       # Only what users run counts; dev tooling advisories go through Renovate.

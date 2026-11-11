@@ -2,6 +2,7 @@
 import { isMap, isScalar, isSeq, LineCounter, parseDocument, type Document, type Node } from 'yaml';
 import { Ajv, type ErrorObject } from 'ajv';
 import type { Path } from './model.ts';
+import * as validators from './generated/validators.ts';
 
 export interface Diagnostic {
   severity: 'error' | 'warning';
@@ -88,13 +89,48 @@ function rangeOf(node: unknown): [number, number] | undefined {
   return r ? [r[0], r[1]] : undefined;
 }
 
-const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true, verbose: true });
-const compiled = new WeakMap<object, ReturnType<typeof ajv.compile>>();
+/** How the validators are compiled: ahead of time by scripts/validators.ts, or here for a schema it did not see. */
+export const ajvOptions = { allErrors: true, strict: false, allowUnionTypes: true, verbose: true } as const;
+
+/** A compiled validator, as Ajv makes them. */
+type Check = ((data: unknown) => boolean) & { errors?: ErrorObject[] | null };
+
+/** A schema's name among the precompiled validators: a hash of its JSON, the same in the build and here. */
+export function schemaKey(schema: object): string {
+  const s = JSON.stringify(schema);
+  // cyrb53: 53 bits, plenty for a few hundred schemas.
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `v${(4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)}_${s.length.toString(36)}`;
+}
+
+const compiled = new WeakMap<object, Check>();
+let ajv: Ajv | undefined;
+
+/**
+ * The validator of a schema: precompiled when the build saw it (every schema the engine checks
+ * with, see validatedSchemas), else compiled here. Compiling here uses Function(), which the web
+ * app's Content-Security-Policy forbids: a test keeps the precompiled ones current.
+ */
+function checkOf(schema: object): Check {
+  let check = compiled.get(schema);
+  if (!check) {
+    check = (validators as Record<string, Check | undefined>)[schemaKey(schema)] ?? (ajv ??= new Ajv(ajvOptions)).compile(schema);
+    compiled.set(schema, check);
+  }
+  return check;
+}
 
 /** Validate source data against a JSON Schema and turn the errors into readable diagnostics. */
 export function validate(source: Source, schema: object): Diagnostic[] {
-  let check = compiled.get(schema);
-  if (!check) compiled.set(schema, (check = ajv.compile(schema)));
+  const check = checkOf(schema);
   if (check(source.data)) return [];
   // A section of its own written two spaces in ("messages:" under "participants:") reads as an entry
   // of the one above: say so once, rather than what such an entry would need.

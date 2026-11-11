@@ -53,7 +53,7 @@ editor that has the diagram's folder open. Nothing leaves your computer.
 ## carto serve
 
 ```sh
-carto serve docs/architecture      # or: pnpm carto serve <folder>
+node packages/cli/dist/carto.mjs serve docs/architecture   # after pnpm build; or: pnpm carto serve <folder>
 ```
 
 One local process for one folder: the web editor at `http://127.0.0.1:4317/`, reading and writing the
@@ -66,19 +66,27 @@ claude mcp add --transport http cartography http://127.0.0.1:4317/mcp --header "
 
 The token is made once and kept in `~/.cartography/serve-token`, so this works every time. Only
 requests from this computer with the token get in. Files the agent writes show up in the editor,
-marked; ⌘Z takes them back. `--port` picks another port. Build the web app first (`pnpm web:build`).
+marked; ⌘Z takes them back. `--port` picks another port. The bundle serves the copy of the web app
+beside it (`dist/web`, made by `pnpm build`); `pnpm carto serve` from the source serves
+`packages/web/dist` (`pnpm web:build` first).
 
 ## Setup (local, from a clone)
 
-Nothing is on npm yet. Clone the repo and `pnpm install`, then point your client at the server
-source, run with tsx. Below, `/path/to/cartography` is your clone.
+Nothing is on npm yet. Clone the repo, `pnpm install` and `pnpm build`: that bundles the server into
+`packages/mcp/dist/server.mjs`, one file that runs on plain Node.js 24 (no tsx, no `node_modules`).
+The folder beside it holds what it reads: `fonts/`, `examples/` and resvg's native binary for PNG,
+built for the machine you built on. Copy the whole `dist` folder anywhere you like; below,
+`/path/to/cartography` is your clone. `pnpm smoke` checks the bundle from a folder outside the repo.
 
 **Claude Code** (the server starts in your project, so `path: docs/arch.svg` lands there):
 
 ```sh
-claude mcp add cartography -- /path/to/cartography/node_modules/.bin/tsx /path/to/cartography/packages/mcp/src/main.ts
+claude mcp add cartography -- node /path/to/cartography/packages/mcp/dist/server.mjs
 # for every project: add --scope user before the name
 ```
+
+Working on the server itself? Point the client at the source instead, run with tsx:
+`/path/to/cartography/node_modules/.bin/tsx /path/to/cartography/packages/mcp/src/main.ts`.
 
 **VS Code** (Copilot's agent mode and other VS Code agents): install the Cartography extension
 ([vscode](vscode.md)); it registers the server with VS Code itself (VS Code 1.101 or later), run on
@@ -95,8 +103,8 @@ extension, add `.vscode/mcp.json` to the project by hand:
   "servers": {
     "cartography": {
       "type": "stdio",
-      "command": "/path/to/cartography/node_modules/.bin/tsx",
-      "args": ["/path/to/cartography/packages/mcp/src/main.ts"]
+      "command": "node",
+      "args": ["/path/to/cartography/packages/mcp/dist/server.mjs"]
     }
   }
 }
@@ -111,10 +119,7 @@ extension, add `.vscode/mcp.json` to the project by hand:
   "mcpServers": {
     "cartography": {
       "command": "node",
-      "args": [
-        "/path/to/cartography/node_modules/tsx/dist/cli.mjs",
-        "/path/to/cartography/packages/mcp/src/main.ts"
-      ]
+      "args": ["/path/to/cartography/packages/mcp/dist/server.mjs"]
     }
   }
 }
@@ -124,17 +129,17 @@ Desktop does not start the server in a project folder, so ask for absolute outpu
 (`/Users/me/Desktop/arch.png`), or just look at the PNG it shows in the chat. If Desktop cannot find
 `node`, use the full path from `which node` (Node 24 or later).
 
-**Other MCP clients**: any client that runs stdio servers. Command `node`, arguments
-`/path/to/cartography/node_modules/tsx/dist/cli.mjs /path/to/cartography/packages/mcp/src/main.ts`,
-working directory wherever diagrams should be written. To poke at it by hand:
+**Other MCP clients**: any client that runs stdio servers. Command `node`, argument
+`/path/to/cartography/packages/mcp/dist/server.mjs`, working directory wherever diagrams should be
+written. To poke at it by hand:
 
 ```sh
-npx @modelcontextprotocol/inspector /path/to/cartography/node_modules/.bin/tsx /path/to/cartography/packages/mcp/src/main.ts
+npx @modelcontextprotocol/inspector node /path/to/cartography/packages/mcp/dist/server.mjs
 ```
 
 ## Setup (once published)
 
-When `@cartography/mcp` is on npm, the clone and tsx go away:
+When `@cartography/mcp` is on npm, the clone and the build go away:
 
 ```sh
 claude mcp add cartography -- npx -y @cartography/mcp
