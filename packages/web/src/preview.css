@@ -1,40 +1,165 @@
-/* The drawing canvas (preview.tsx): pan and zoom, selection, dragging, connecting, labels typed in place, the zoom bar. */
+/* The drawing canvas (preview.tsx): pan and zoom, selection, dragging, connecting, labels typed in place,
+   the zoom bar. Map room: the table with a graticule, zone rulers along its top and left edges, the sheet
+   lying on it with a second sheet under it, a scale bar, and rust only for what is selected. */
 
+/* The graticule lines up with the rulers' zones: a line every 96 px from the rulers' inner edge. */
 .preview {
+  --ruler: 22px;
   position: absolute;
   inset: 0;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
-  background-color: var(--canvas);
-  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background:
+    linear-gradient(var(--graticule) 1px, transparent 1px) var(--ruler) var(--ruler) / 96px 96px,
+    linear-gradient(90deg, var(--graticule) 1px, transparent 1px) var(--ruler) var(--ruler) / 96px 96px,
+    var(--table);
   cursor: default;
   touch-action: none;
 }
 .preview.panning {
   cursor: grabbing;
 }
+
+/* Zone rulers: paper strips, A B C … across and 1 2 3 … down, a zone every two graticule squares. */
+.rulers {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.rulers::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: var(--ruler);
+  height: var(--ruler);
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.ruler {
+  position: absolute;
+  display: flex;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--text-faint);
+  font: 500 0.625rem/1 var(--mono);
+}
+.ruler.top {
+  left: var(--ruler);
+  right: 0;
+  top: 0;
+  height: var(--ruler);
+  border-bottom: 1px solid var(--rule);
+}
+.ruler.left {
+  left: 0;
+  top: var(--ruler);
+  bottom: 0;
+  width: var(--ruler);
+  flex-direction: column;
+  border-right: 1px solid var(--rule);
+}
+.ruler span {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ruler.top span {
+  width: 192px;
+}
+.ruler.left span {
+  height: 192px;
+}
+.ruler.top span + span {
+  border-left: 1px solid var(--rule2);
+}
+.ruler.left span + span {
+  border-top: 1px solid var(--rule2);
+}
+@media (max-width: 600px) {
+  .preview {
+    --ruler: 0px;
+  }
+  .rulers {
+    display: none;
+  }
+}
+
+/* The scale bar, bottom left: four segments that are a round number of drawing pixels at this zoom. */
+.scale-bar {
+  position: absolute;
+  left: calc(var(--ruler) + 20px);
+  bottom: 22px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.65625rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.scale-bar .mono {
+  font-size: 0.6875rem;
+  color: var(--text);
+}
+.scale-ticks {
+  display: flex;
+  height: 4px;
+  border: 1px solid var(--ink);
+}
+.scale-ticks i {
+  flex: 1;
+}
+.scale-ticks i:nth-child(odd) {
+  background: var(--ink);
+}
+.scale-ratio {
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.scale-ratio .mono {
+  margin-left: 4px;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+@container canvas (max-width: 620px) {
+  .scale-bar {
+    display: none;
+  }
+}
+
 .stage {
   position: absolute;
   left: 0;
   top: 0;
   transform-origin: 0 0;
 }
-/* Fitting again after the pane changed: a short glide, not a jump. */
+/* Fitting again after the pane changed: a short glide, so people can follow where a box went. */
 .stage.easing {
-  transition: transform 240ms ease;
+  transition: transform 240ms var(--ease);
 }
 @media (prefers-reduced-motion: reduce) {
   .stage.easing {
     transition: none;
   }
 }
+/* The sheet: white paper on the table, a hairline round it and a second sheet offset under it. The
+   offset stays 5 px on screen at any zoom (--inv is one over the zoom, set on the stage). */
 .drawing {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sheet);
   line-height: 0;
+  outline: calc(1px * var(--inv, 1)) solid var(--rule2);
+  box-shadow:
+    calc(5px * var(--inv, 1)) calc(5px * var(--inv, 1)) 0 calc(-1px * var(--inv, 1)) var(--paper),
+    calc(5px * var(--inv, 1)) calc(5px * var(--inv, 1)) 0 0 var(--rule2);
 }
 .drawing [data-node],
 .drawing [data-edge],
@@ -42,20 +167,82 @@
   cursor: pointer;
 }
 .drawing [data-node]:hover > rect:first-child {
-  stroke: var(--accent);
+  stroke: var(--ink);
 }
 .stage.stale {
   opacity: 0.6;
   filter: grayscale(0.5);
   transition: opacity 200ms;
 }
+
+/* The selection: a rust ring drawn on like a pen stroke, square handles at its corners, and the
+   element's id and kind in a small mono callout above it once the ring is drawn. */
 .selection-ring {
   position: absolute;
-  border: 2px solid var(--accent);
-  border-radius: 14px;
+  border: 2px solid var(--rust);
+  border-radius: calc(6px * var(--inv, 1));
   pointer-events: none;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+  animation: ring-draw 160ms var(--ease);
 }
+@keyframes ring-draw {
+  from {
+    clip-path: inset(-40px 100% 100% -40px);
+  }
+  to {
+    clip-path: inset(-40px);
+  }
+}
+.sel-handle {
+  position: absolute;
+  width: calc(7px * var(--inv, 1));
+  height: calc(7px * var(--inv, 1));
+  background: var(--sheet);
+  border: calc(1.5px * var(--inv, 1)) solid var(--rust);
+}
+.sel-handle.tl {
+  left: calc(-4.5px * var(--inv, 1));
+  top: calc(-4.5px * var(--inv, 1));
+}
+.sel-handle.tr {
+  right: calc(-4.5px * var(--inv, 1));
+  top: calc(-4.5px * var(--inv, 1));
+}
+.sel-handle.bl {
+  left: calc(-4.5px * var(--inv, 1));
+  bottom: calc(-4.5px * var(--inv, 1));
+}
+.sel-handle.br {
+  right: calc(-4.5px * var(--inv, 1));
+  bottom: calc(-4.5px * var(--inv, 1));
+}
+.sel-callout {
+  position: absolute;
+  left: calc(-2px * var(--inv, 1));
+  bottom: 100%;
+  margin-bottom: calc(6px * var(--inv, 1));
+  padding: 0 calc(4px * var(--inv, 1));
+  font: 500 calc(10.5px * var(--inv, 1)) / 1.5 var(--mono);
+  color: var(--rust);
+  background: var(--sheet);
+  white-space: nowrap;
+  animation: fade 120ms ease-out 160ms backwards;
+}
+@media (forced-colors: active) {
+  .selection-ring,
+  .sel-handle {
+    border-color: Highlight;
+  }
+  .sel-callout {
+    color: CanvasText;
+  }
+}
+/* Keys moved the focus here: an ink ring outside the rust one, so it reads as focus, not a second selection. */
+.selection-ring.focus {
+  border-style: solid;
+  outline: calc(2px * var(--inv, 1)) solid var(--ink);
+  outline-offset: calc(3px * var(--inv, 1));
+}
+
 .preview-empty {
   position: absolute;
   inset: 0;
@@ -69,44 +256,60 @@
   text-align: center;
   line-height: 1.5;
 }
+
+/* The zoom control, bottom right: a ruled strip of paper. */
 .zoom {
   position: absolute;
   right: 16px;
-  bottom: 16px;
+  bottom: 14px;
+  z-index: 3;
   display: flex;
-  align-items: center;
-  padding: 3px;
-  gap: 2px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  align-items: stretch;
+  height: 30px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
 }
 .zoom button {
   display: grid;
   place-items: center;
-  height: 28px;
-  min-width: 28px;
+  min-width: 32px;
+  padding: 0 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: 0;
   background: none;
   color: var(--text-muted);
   cursor: pointer;
 }
+.zoom button + button {
+  border-left: 1px solid var(--rule2);
+}
 .zoom button:hover {
-  background: var(--bg);
+  background: var(--hover);
   color: var(--text);
 }
-.zoom-level {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
-  padding: 0 6px;
-  min-width: 48px !important;
+.zoom button:focus-visible {
+  outline-offset: -2px;
 }
-@media (forced-colors: active) {
-  .selection-ring {
-    border-color: Highlight;
-  }
+.zoom-level {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.71875rem;
+  padding: 0 6px;
+  min-width: 52px !important;
+  color: var(--text) !important;
+}
+.zoom-sep {
+  width: 1px;
+  background: var(--rule);
+}
+.zoom button.on {
+  color: var(--paper);
+  background: var(--ink);
+}
+.zoom button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 @media (forced-colors: active) {
   .connect-handle,
@@ -119,7 +322,7 @@
 }
 /* Keys go to the drawing: a ring inside the pane, so it is not clipped by the pane's edge. */
 .preview:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 .preview.dragging-pan {
@@ -136,24 +339,30 @@
 .marquee {
   position: absolute;
   z-index: 3;
-  border: 1px solid var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border-radius: 2px;
+  border: 1px dashed var(--rust);
+  background: color-mix(in srgb, var(--rust) 6%, transparent);
   pointer-events: none;
 }
-/* A label typed in place, over the shape it names. */
+/* A label typed in place, over the shape it names: a white field ruled underneath in rust. */
 .label-editor {
   position: absolute;
   z-index: 6;
   padding: 0 10px;
-  border: 2px solid var(--accent);
-  border-radius: 8px;
-  background: var(--surface);
+  border: none;
+  border-bottom: 2px solid var(--rust);
+  border-radius: 0;
+  background: var(--sheet);
   color: var(--text);
+  caret-color: var(--rust);
   font: inherit;
   font-weight: 600;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow);
+  box-shadow: 0 0 0 1px var(--rule2);
   outline: none;
+}
+@media (forced-colors: active) {
+  .label-editor {
+    outline: 2px solid Highlight;
+  }
 }
 .preview.dragging-node,
 .preview.dragging-node *,
@@ -166,9 +375,9 @@
 }
 .drop-ring {
   position: absolute;
-  border: 2px dashed var(--accent);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 2px dashed var(--rust);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--rust) 6%, transparent);
   pointer-events: none;
 }
 /* Says what a drop from the palette does here, at the top right so the group's own label stays readable. */
@@ -177,10 +386,11 @@
   top: 0;
   right: 0;
   transform: translateY(-100%);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--on-fill);
-  font-weight: 600;
+  border-radius: var(--radius);
+  background: var(--rust);
+  color: var(--accent-text);
+  font-family: var(--mono);
+  font-weight: 500;
   white-space: nowrap;
 }
 .drop-ring.refused {
@@ -189,13 +399,14 @@
 }
 .drop-ring.refused > span {
   background: var(--danger);
+  color: var(--on-fill);
 }
 /* Where a shape dragged from the palette will land: it stays there. */
 .drop-ghost {
   position: absolute;
-  border: 2px dashed var(--accent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 2px dashed var(--rust);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--rust) 10%, transparent);
   pointer-events: none;
 }
 .connect-handle {
@@ -204,9 +415,9 @@
   height: 16px;
   padding: 0;
   border-radius: 50%;
-  border: 2px solid var(--surface);
-  background: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+  border: 2px solid var(--sheet);
+  background: var(--rust);
+  box-shadow: 0 0 0 1px var(--rust);
   cursor: crosshair;
   transform-origin: center;
 }
@@ -224,37 +435,17 @@
   overflow: visible;
 }
 .link-line line {
-  stroke: var(--accent);
+  stroke: var(--rust);
   stroke-dasharray: 6 4;
 }
 .link-line marker path {
-  fill: var(--accent);
+  fill: var(--rust);
 }
 .preview.dragging-connect,
 .preview.dragging-connect * {
   cursor: crosshair !important;
 }
-.selection-ring.focus {
-  border-style: solid;
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 22%, transparent);
-}
 .preview.dragging-bend,
 .preview.dragging-bend * {
   cursor: grabbing !important;
-}
-.zoom-sep {
-  width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: var(--border);
-}
-.zoom button.on {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.zoom button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }

@@ -1,14 +1,30 @@
 /* The drawing's toolbar (canvas-tools.tsx), and how it folds in a narrow pane. */
 
+/* A strip of paper, ruled: the tools in it are bare icons in muted ink, the one that is on in ink. */
 .canvas-tools {
   display: flex;
+  align-items: center;
   gap: 2px;
-  padding: 3px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  height: 36px;
+  padding: 0 3px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   z-index: 5;
+  animation: rise 120ms ease-out;
+}
+.canvas-tools .tool-label {
+  color: var(--text);
+}
+.canvas-tools .tool.active .tool-label {
+  color: inherit;
+}
+.tool-sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--rule2);
 }
 /* What ⋯ repeats of the toolbar shows once that folds away. */
 .canvas-tools [role='menuitem'].tool-folded {

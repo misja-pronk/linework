@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, us
 import type { Box, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
+import { setReadout } from './readout.ts';
 import { t } from './i18n/index.ts';
 import { PALETTE_MIME } from './add-menu.tsx';
 import { describeResult } from './describe.ts';
@@ -623,6 +624,7 @@ export function Preview(p: Props) {
       return;
     }
     const pin = dragPin(d, e);
+    setReadout({ x: pin.x, y: pin.y, width: Math.round(d.box!.width), height: Math.round(d.box!.height) });
     if (d.mode === 'group') {
       cancelAnimationFrame(frameReq.current);
       frameReq.current = requestAnimationFrame(() => p.onMoveGroup(d.group!, pin, false));
@@ -662,6 +664,7 @@ export function Preview(p: Props) {
     setLink(undefined);
     setMarquee(undefined);
     setSnap(undefined);
+    setReadout(undefined);
     if ((d.mode === 'node' || d.mode === 'group' || d.mode === 'bend') && d.moved) p.onDragCancel();
   };
 
@@ -673,6 +676,7 @@ export function Preview(p: Props) {
     setDropTarget(undefined);
     setMarquee(undefined);
     setSnap(undefined);
+    setReadout(undefined);
     cancelAnimationFrame(frameReq.current);
     if (cancelled) {
       drag.current = d;
@@ -969,13 +973,14 @@ export function Preview(p: Props) {
         p.onKeyDown(e);
       }}
     >
+      <Rulers />
       {empty ? (
         <div className="preview-empty">
           <Icon name="triangle-exclamation-point" size={20} />
           <p>{t('Nothing to draw yet. Fix the problems in the editor, or start from a template.')}</p>
         </div>
       ) : (
-        <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
+        <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, ['--inv' as string]: 1 / view.scale }}>
           <div className="drawing" ref={drawingEl} dangerouslySetInnerHTML={{ __html: result!.svg! }} />
           {target && (
             <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }}>
@@ -1024,7 +1029,14 @@ export function Preview(p: Props) {
                   aria-label={s === selected ? announce : undefined}
                   className={s === selected && kb ? 'selection-ring focus' : 'selection-ring'}
                   style={{ left: b.x - 5, top: b.y - 5, width: b.width + 10, height: b.height + 10, borderWidth: 2 / view.scale }}
-                />
+                >
+                  {/* Square corner handles, and over the one selected element its id and kind, like a surveyor's callout. */}
+                  <i className="sel-handle tl" />
+                  <i className="sel-handle tr" />
+                  <i className="sel-handle bl" />
+                  <i className="sel-handle br" />
+                  {s === selected && !dragging && <span className="sel-callout" aria-hidden="true">{calloutOf(result, s)}</span>}
+                </div>
               )
             );
           })}
@@ -1081,6 +1093,7 @@ export function Preview(p: Props) {
           onCentre={(x, y) => setView((v) => ({ ...v, x: f!.clientWidth / 2 - x * v.scale, y: (f!.clientHeight - BAR) / 2 - y * v.scale }))}
         />
       )}
+      <ScaleBar scale={view.scale} />
       <div className="zoom" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <button onClick={() => zoomAt(1 / 1.2)} title={t('Zoom out (⌘−)')} aria-label={t('Zoom out')}>
           <Icon name="minus" />
@@ -1135,6 +1148,56 @@ function LabelEditor(p: { text: string; left: number; top: number; width: number
         e.preventDefault();
       }}
     />
+  );
+}
+
+/** The selected element's callout: its id and the kind it is written as ("afw-hub · firewall"). */
+function calloutOf(result: RenderResult | undefined, s: Selection): string {
+  const g = result?.graph;
+  const kind = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.kind : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.kind : t('line');
+  return kind && kind !== s.id ? `${s.id} · ${kind}` : s.id;
+}
+
+/** Zone rulers along the top and the left, A B C … across and 1 2 3 … down, one zone every two
+ * graticule squares: a place on the table can be named ("it is in C3") on a shared screen. */
+const ZONE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const ZONE_NUMBERS = Array.from({ length: 24 }, (_, i) => String(i + 1));
+function Rulers() {
+  return (
+    <div className="rulers" aria-hidden="true">
+      <div className="ruler top">
+        {ZONE_LETTERS.map((z) => (
+          <span key={z}>{z}</span>
+        ))}
+      </div>
+      <div className="ruler left">
+        {ZONE_NUMBERS.map((z) => (
+          <span key={z}>{z}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Nice lengths for the scale bar, in drawing pixels. */
+const SCALE_STEPS = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
+/** The scale bar: four alternating segments that are a round number of drawing pixels at this zoom. */
+function ScaleBar({ scale }: { scale: number }) {
+  const length = SCALE_STEPS.find((d) => d * scale >= 96) ?? SCALE_STEPS[SCALE_STEPS.length - 1]!;
+  const ratio = scale >= 1 ? `${+scale.toFixed(1)} : 1` : `1 : ${+(1 / scale).toFixed(1)}`;
+  return (
+    <div className="scale-bar" aria-hidden="true">
+      <span className="scale-ticks" style={{ width: Math.round(length * scale) }}>
+        <i />
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className="mono">{length} px</span>
+      <span className="scale-ratio">
+        {t('Scale')} <span className="mono">{ratio}</span>
+      </span>
+    </div>
   );
 }
 
