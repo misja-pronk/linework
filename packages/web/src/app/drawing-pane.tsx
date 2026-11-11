@@ -153,6 +153,7 @@ export function DrawingPane(p: Props) {
         grid={craft.grid}
         minimap={craft.minimap && !p.sheetOnly}
         page={craft.page && !p.sheetOnly}
+        clearBottom={p.session ? 88 : undefined}
         pinned={drawing.pinnedIds}
         onToggle={craft.toggle}
         control={p.control}

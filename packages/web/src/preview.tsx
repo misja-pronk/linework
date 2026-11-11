@@ -110,6 +110,8 @@ interface Props {
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
   children?: React.ReactNode;
+  /** Pixels at the bottom the drawing keeps clear of (a strip floats there); outgrowing the rest fits it again. */
+  clearBottom?: number;
 }
 
 interface View {
@@ -325,7 +327,7 @@ export function Preview(p: Props) {
     const pad = 32;
     const top = Math.max(pad, floatingTop(f));
     const w = f.clientWidth - 2 * pad;
-    const h = f.clientHeight - top - BAR;
+    const h = f.clientHeight - top - (p.clearBottom ?? BAR);
     // With the page shown, the page (and its label) is what fits and is centred: it is wider or taller
     // than the drawing. Where it stands is read off the screen and taken back into drawing units with
     // the stage's transform at this very moment (a glide may be under way).
@@ -351,7 +353,7 @@ export function Preview(p: Props) {
     fittedView.current = next;
     setEasing(ease);
     setView(next);
-  }, [result?.width, result?.height, p.page]);
+  }, [result?.width, result?.height, p.page, p.clearBottom]);
   /** A view change that keeps a fitted view fitted (it follows the drawing or the pane, not people). */
   const carry = (v: View, next: View) => {
     if (v === fittedView.current) fittedView.current = next;
@@ -395,7 +397,7 @@ export function Preview(p: Props) {
     const f = frame.current;
     if (!f || !result?.width || !result.height || view !== fittedView.current) return;
     const paneMoved = f.clientWidth !== fittedPane.current.w || f.clientHeight !== fittedPane.current.h;
-    const fits = view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - BAR / 2;
+    const fits = view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - (p.clearBottom ?? BAR / 2);
     if (!paneMoved && fits) return;
     const run = () => {
       const st = settleState.current;
@@ -407,7 +409,7 @@ export function Preview(p: Props) {
     window.clearTimeout(settle.current);
     settle.current = window.setTimeout(run, 0);
     return () => window.clearTimeout(settle.current);
-  }, [view, result?.width, result?.height]);
+  }, [view, result?.width, result?.height, p.clearBottom]);
   useEffect(() => {
     if (!easing) return;
     const t = window.setTimeout(() => setEasing(false), 260);
