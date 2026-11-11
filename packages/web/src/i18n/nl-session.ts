@@ -58,6 +58,7 @@ export const nlSession = {
   'Rename': 'Hernoemen',
   'Put the selected boxes in a new group': 'De gekozen vakken in een nieuwe groep zetten',
   'Undo; Esc while naming a new box takes it away': 'Ongedaan maken; Esc tijdens het benoemen van een nieuw vak haalt het weg',
+  'Delete the selected boxes': 'De gekozen vakken verwijderen',
   'Deselect; with nothing selected, end the session': 'Selectie opheffen; als niets gekozen is, de sessie beëindigen',
   'drawing live: ⇧S, then the drawing’s keys are these': 'live tekenen: ⇧S, dan zijn dit de toetsen van de tekening',
 } as const;

@@ -143,7 +143,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'session-nearest', keys: ['arrowleft', 'arrowup', 'arrowright', 'arrowdown'], show: '← ↑ → ↓', what: 'Nearest box in that direction', context: 'session', group: 'Session' },
   { id: 'session-rename', keys: ['f2'], show: 'F2 / double-click', what: 'Rename', context: 'session', group: 'Session' },
   { id: 'session-group', keys: ['mod+g'], what: 'Put the selected boxes in a new group', context: 'session', group: 'Session' },
-  { id: 'session-delete', keys: ['backspace', 'delete'], what: 'Delete', context: 'session', group: 'Session' },
+  { id: 'session-delete', keys: ['backspace', 'delete'], what: 'Delete the selected boxes', context: 'session', group: 'Session' },
   { id: 'session-undo', keys: ['mod+z'], what: 'Undo; Esc while naming a new box takes it away', context: 'session', group: 'Session' },
   { id: 'session-escape', keys: ['escape'], what: 'Deselect; with nothing selected, end the session', context: 'session', group: 'Session' },
 
