@@ -85,7 +85,8 @@ fs.writeFileSync(file, text);
 const broken = stub.openDocument(path.join(work, 'broken.yaml'), 'type: systems\nnodes:\n  a: { kind: apii }\n');
 const collection = stub.state.collections.find((c) => c.name === 'cartography');
 const problems = await until(() => collection.get(broken.uri)?.length && collection.get(broken.uri));
-check(problems.some((d) => d.message.startsWith('"kind" must be one of') && d.range.start.line === 2), 'bundle: problems at the right line, in the CLI words');
+// The words of core's source.ts (as carto validate prints them): the value, the nearest kind, a few allowed.
+check(problems.some((d) => d.message.startsWith('"kind" cannot be "apii": did you mean api?') && d.range.start.line === 2 && d.range.start.character === 7), 'bundle: problems at the right line, in the CLI words');
 
 // 3. The preview page in Chromium, with what the extension posts.
 const doc = stub.openDocument(file, text);

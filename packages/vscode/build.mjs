@@ -23,6 +23,10 @@ export async function buildExtension() {
     legalComments: 'none',
     logLevel: 'warning',
     external: ['vscode'],
+    // CommonJS has no import.meta.url, and code in the bundle builds URLs on it when it loads
+    // (pdfkit's ICC profile, the theme's font files): without this the bundle throws on require.
+    define: { 'import.meta.url': '__cartoUrl' },
+    banner: { js: "const __cartoUrl = require('node:url').pathToFileURL(__filename).href;" },
   };
   await build({ ...node, entryPoints: { extension: 'src/extension.ts' }, outdir: dist });
   await build({ absWorkingDir: here, bundle: true, format: 'iife', platform: 'browser', target: 'es2022', minify, legalComments: 'none', logLevel: 'warning', entryPoints: { webview: 'src/webview/main.ts' }, outdir: dist });
