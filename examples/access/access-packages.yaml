@@ -1,0 +1,70 @@
+# Entra ID entitlement management: catalogs, access packages, their policies and what they grant.
+#   catalogs     containers for packages and the resources they hand out (each drawn as a dashed box)
+#   packages     grants:   a group id (membership), or { resource: role } for an app role or a SharePoint site role
+#                policy:   who may request, the approval stages in order (a principal id or plain words such as
+#                          manager), how long it lasts, the access review;
+#                          a list of policies gives a package several ways in (staff and guests, say)
+#                holders:  who holds it today (used by the who × where view)
+#   principals   connected-org is a partner organisation whose users may request as guests
+# Switch the view to packages for the packages × grants table, or to access for who × where.
+type: access
+title: Northwind finance access packages
+subtitle: Who may request what, who approves, and for how long
+view: graph   # graph, access or packages
+
+principals:
+  finance-staff: { kind: dynamic-group, label: Finance staff, caption: department = Finance }
+  fabrikam: { kind: connected-org, label: Fabrikam, caption: Connected organisation · auditors }
+  finance-team: { kind: m365-group, label: Finance team, caption: Microsoft 365 group · Teams }
+  emma: { kind: user, label: Emma de Wit, caption: Accountant }
+  auditor: { kind: guest, label: Sam Okafor, caption: Guest · Fabrikam }
+
+catalogs:
+  finance: Finance
+  partners: External partners
+
+packages:
+  # Every Finance employee gets the basics without asking: an automatic assignment policy.
+  basic:
+    catalog: finance
+    label: Finance basics
+    grants: [finance-team, team-site: Member, erp: Finance user]
+    policy: { requestors: [finance-staff], auto: true }
+    holders: [emma]
+  # More rights in the ERP: two approval stages, an end date and a quarterly review.
+  key-user:
+    catalog: finance
+    label: ERP key user
+    grants: [erp: Key user]
+    policy: { requestors: [finance-staff], approval: [manager, Finance controller], duration: 180 days, review: quarterly }
+  # Guests from a connected organisation: read-only, short, reviewed every month.
+  audit:
+    catalog: partners
+    label: Year-end audit
+    grants: [team-site: Visitor, reports: Viewer]
+    policy: { requestors: [fabrikam], approval: [Finance controller], duration: 90 days, review: monthly }
+    holders: [auditor]
+
+resources:
+  # What the packages hand out: an app role on an enterprise app, or a role on a SharePoint site.
+  team-site: { kind: sharepoint-site, label: Finance team site }
+  erp: { kind: app, label: Northwind ERP, caption: Enterprise application }
+  reports: { kind: app, label: Finance reports, caption: Power BI app }
+
+# For presenting. A package's policy card is named <package>:policy:<n>, its first policy 0.
+steps:
+  - title: Catalogs
+    caption: Finance owns its own catalog. Partner access lives in a separate catalog, with its own owners.
+  - title: The basics, automatically
+    caption: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
+    focus: [finance-staff, "basic:policy:0", basic]
+    path: [basic -> finance-team, basic -> team-site, basic -> erp]
+  - title: More rights, two approvals
+    caption: Key users are approved by their manager and then by the controllers. The access ends after 180 days unless a review keeps it.
+    focus: [finance-staff, "key-user:policy:0", key-user]
+    path: key-user -> erp
+  - title: Guests from a connected organisation
+    caption: Fabrikam's auditors request access themselves. The controllers approve, it is read-only, and it ends after 90 days.
+    focus: [fabrikam, "audit:policy:0", auditor, audit]
+    path: [audit -> team-site, audit -> reports]
+    note: { auditor: Guest removed when the last package ends }
