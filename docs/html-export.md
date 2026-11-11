@@ -46,7 +46,7 @@ the details panel.
   rows, columns and cells, items and branches do not click (yet); their text is in the drawing itself and in the
   page's text for screen readers and search.
 - **Drill-down**: double-click an element (or ↵, or *Open …* in its details) to go to the view a level down, or to
-  what its link names. Breadcrumbs above the drawing go back up; ⌫ and the browser's back button retrace the way.
+  what its link names. Breadcrumbs above the drawing and ⌫ go back up a level; the browser's back button (⌥←) retraces the way.
   A deployment node that runs a model element links to the model.
 - **Steps**: a drawing with `steps:` has a bar at the bottom with the step's title and caption; ← and → go
   through them and on to the next view. **Present** (`P`) goes full screen and walks every step of every view; a click

@@ -87,7 +87,7 @@ export const nl = {
   search: 'zoeken',
   'the next element in the drawing': 'het volgende element in de tekening',
   'open what the element leads to': 'openen waar het element naartoe leidt',
-  back: 'terug',
+  'up a level': 'een niveau omhoog',
   'present full screen': 'presenteren op volledig scherm',
   'light or dark': 'licht of donker',
   'close, stop presenting': 'sluiten, stoppen met presenteren',
