@@ -3,6 +3,7 @@
 // server writes them to disk, and the editors show them as a proposal; both check the input here first.
 import { isMap, isSeq, parseDocument, YAMLSeq, type Document } from 'yaml';
 import type { DiagramType } from './diagram-type.ts';
+import type { LayoutSidecar } from './model.ts';
 import { deleteEntryUnsafe, isEntryPath, renameEntryUnsafe } from './entry-edit.ts';
 import { printPreserving } from './yaml-print.ts';
 
@@ -120,4 +121,10 @@ export function renamePins<T extends { nodes?: Record<string, unknown>; groups?:
   if (!pins || !renames.size) return pins;
   const move = <V>(m: Record<string, V> | undefined) => (m ? Object.fromEntries(Object.entries(m).map(([k, v]) => [renames.get(k) ?? k, v])) : m);
   return { ...pins, ...(pins.nodes ? { nodes: move(pins.nodes) } : {}), ...(pins.groups ? { groups: move(pins.groups) } : {}), ...(pins.locked ? { locked: pins.locked.map((k) => renames.get(k) ?? k) } : {}) };
+}
+
+/** The pins of the diagram and of each of its views, following renamed ids. */
+export function renamePinsEverywhere(side: LayoutSidecar, renames: Map<string, string>): LayoutSidecar {
+  const top = renamePins(side, renames)!;
+  return side.views ? { ...top, views: Object.fromEntries(Object.entries(side.views).map(([k, v]) => [k, renamePins(v, renames)!])) } : top;
 }

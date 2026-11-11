@@ -7,7 +7,7 @@ import { parseSource, withoutBadges, type Diagnostic, type DiagramType, type Lay
 import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { importMermaid } from '@cartography/import';
 import { measure, score, type LayoutMetrics } from '@cartography/layout';
-import { toPng } from '@cartography/cli/png';
+import { toPng } from './png.ts';
 
 const examplesDir = new URL('../../../examples/', import.meta.url);
 

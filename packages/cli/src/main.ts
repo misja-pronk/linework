@@ -89,6 +89,7 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 Decks and animations: carto deck --stages, carto animate --stages.
                                                 More: docs/transitions.md
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
+  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
   carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it
@@ -274,6 +275,7 @@ const groups: [string, [string, string][]][] = [
     ['animate', t('steps or layers as a GIF, MP4 or WebM')],
     ['stages', t('as-is, transition stages and to-be: each, compared, a roadmap')],
     ['watch', t('render again on every save')],
+    ['serve', t('the web editor for a folder, and an MCP endpoint for your AI')],
   ]],
   [t('Export'), [
     ['export', '--to html|md|confluence|drawio|excalidraw|mermaid'],
@@ -369,6 +371,7 @@ const parsed = (() => {
   allowPositionals: true,
   options: {
     out: { type: 'string', short: 'o' },
+    port: { type: 'string' },
     format: { type: 'string', short: 'f', default: 'svg' },
     theme: { type: 'string', short: 't' },
     pack: { type: 'string', multiple: true },
@@ -2086,6 +2089,35 @@ async function main(): Promise<number> {
       if (files.length !== 1 || !values.out) return (console.error(files.length > 1 ? t('carto animate takes one diagram') : helpFor(command)), 1);
       if (!themeFlag()) return 1;
       return (await animateFile(files[0]!)) ? 0 : 1;
+    case 'serve': {
+      if (files.length > 1) return (console.error(helpFor(command)), 1);
+      const root = path.resolve(files[0] ?? '.');
+      if (!isFolder(root)) return (console.error(t('{file}: not a folder', { file: files[0] ?? '.' })), 1);
+      const port = values.port === undefined ? 4317 : Number(values.port);
+      if (!(Number.isInteger(port) && port >= 0 && port < 65536)) throw new UsageError(t('--port takes a number, e.g. --port 4317'));
+      const app = path.resolve(import.meta.dirname, '../../web/dist');
+      if (!fs.existsSync(path.join(app, 'index.html'))) return (console.error(t('The web app is not built yet: run pnpm web:build first')), 1);
+      const { serve } = await import('./serve.ts');
+      let s: Awaited<ReturnType<typeof serve>>;
+      try {
+        s = await serve({ root, port, app, log: (l) => console.error(dim(l)) });
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code === 'EADDRINUSE') return (console.error(t('Port {port} is in use: pick another with --port', { port })), 1);
+        throw e;
+      }
+      console.log(`${bold(t('Cartography for {folder}', { folder: root }))}
+  ${t('Editor')}  ${s.url}/
+  MCP     ${s.url}/mcp
+`);
+      console.log(dim(t('Connect your AI (once; the token stays the same):')));
+      console.log(`  claude mcp add --transport http cartography ${s.url}/mcp --header "Authorization: Bearer ${s.token}"
+`);
+      console.log(dim(t('Ctrl+C to stop')));
+      const stop = () => (s.close(), process.exit(0));
+      process.on('SIGINT', stop);
+      process.on('SIGTERM', stop);
+      return new Promise(() => {});
+    }
     case 'watch': {
       if (!themeFlag()) return 1;
       for (const f of files) {

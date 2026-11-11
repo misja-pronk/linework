@@ -2,7 +2,7 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point } from '@cartography/core';
+import { packLayout, viewPins, withViewPins, type Diagnostic, type EdgeOverride, type GraphNode, type LayoutSidecar, type Link, type PaletteItem, type Path, type Point, renamePins } from '@cartography/core';
 import { Editor, type EditorHandle } from './editor.tsx';
 import { Preview, type LabelTarget, type PreviewControl, type Selection } from './preview.tsx';
 import { arrange, nearestToward, type ArrangeOp, type Direction } from './craft.ts';
@@ -37,7 +37,9 @@ import { useLayers } from './layers-control.tsx';
 import { useStages } from './stages/use-stages.tsx';
 import { useCompare } from './compare/index.tsx';
 import { AskPanel } from './ai/ask-panel.tsx';
-import { renamePins } from './ai/ask.ts';
+import { forYourAi } from './ai/copy.ts';
+import { useLive } from './live/use-live.ts';
+import { served, servedFolder } from './live/serve.ts';
 import { Present, type PresentDoc } from './present.tsx';
 import { StepsStrip } from './steps-strip.tsx';
 import { addStep, deleteStep, moveStep, renameStep, stepsPath } from './steps-edit.ts';
@@ -287,15 +289,13 @@ export function App() {
   const [stepAt, setStepAt] = useState<{ doc: string; view?: string; n: number }>();
   const stepNo = stepAt && stepAt.doc === docId && stepAt.view === viewName ? stepAt.n : undefined;
   const [presenting, setPresenting] = useState(false);
-  /** The Ask panel (⌘J), and a question the palette put in it. */
+  /** The Your AI panel (⌘J): proposals from the user's own agent, and files changed on disk. */
   const [asking, setAsking] = useState(false);
-  /** The Ask panel stays mounted (its conversation kept) behind another tab until it is closed. */
+  /** The panel stays mounted (what was decided kept) behind another tab until it is closed. */
   const [askKept, setAskKept] = useState(false);
-  const [askSeed, setAskSeed] = useState<{ text: string; n: number }>();
-  const askWith = (q?: string) => {
+  const askWith = () => {
     setAsking(true);
     setAskKept(true);
-    if (q) setAskSeed((s) => ({ text: q, n: (s?.n ?? 0) + 1 }));
   };
   const toggleAsk = () => (asking ? setAsking(false) : askWith());
   // A focus set here (F) on top of what the YAML says, per document and view: null shows everything although the YAML has one.
@@ -407,6 +407,30 @@ export function App() {
   const type = result?.type ?? drawn?.type;
   const diagnostics = result?.diagnostics ?? NONE;
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
+  /** A file of the folder that changed on disk while open, already in the editor (Your AI panel). */
+  const [diskChange, setDiskChange] = useState<{ doc: number; path: string; before: string; after: string }>();
+  const checkDisk = useRef<() => void>(() => undefined);
+  const live = useLive(
+    () => ({
+      path: ws && doc.path ? doc.path : undefined,
+      text,
+      type,
+      selection: selection.map((s) => ({ kind: s.kind, id: s.id })),
+      view: drawn?.view,
+      layers: drawn?.layers?.active,
+      stage: drawn?.stage,
+      step: stepNo,
+      problems: diagnostics.map((d) => ({ severity: d.severity, message: d.message, ...(d.line ? { line: d.line } : {}) })),
+      dirty,
+    }),
+    docKey,
+    { changed: (p) => p === onDisk.current.doc.path && checkDisk.current(), propose: askWith },
+  );
+  const copyForAi = async () => {
+    if (!type) return;
+    await navigator.clipboard.writeText(forYourAi({ yaml: textNow(), type, file: docFile, selection: selection.map((s) => s.id) }));
+    notify(t('Copied: paste it into your AI, then paste its YAML back here'));
+  };
   const warnings = diagnostics.length - errors;
   const entries = useMemo(() => entryRanges(rendered?.text ?? '', result?.graph), [rendered?.text, result?.graph]);
   const current = rendered?.text === text;
@@ -603,9 +627,9 @@ export function App() {
     }
   };
 
-  const openFolder = async (dir?: FileSystemDirectoryHandle) => {
+  const openFolder = async (dir?: FileSystemDirectoryHandle, given?: Workspace) => {
     try {
-      const next = dir ? await reopen(dir) : await pickFolder();
+      const next = given ?? (dir ? await reopen(dir) : await pickFolder());
       if (!next) return;
       // After a reload the document of that folder is back with its edits: carry on with it.
       if (!ws && doc.path && next.files.has(doc.path)) {
@@ -625,6 +649,12 @@ export function App() {
       notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' });
     }
   };
+
+  // Opened by carto serve: its folder is the workspace, read and written through the server.
+  useEffect(() => {
+    const s = served();
+    if (s) void servedFolder(s).then(scan).then((next) => openFolder(undefined, next), (e: unknown) => notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
+  }, []);
 
   const openInFolder = async (w: Workspace, path: string) => {
     // Switching files keeps work: saved first where it lives, otherwise asked.
@@ -1825,9 +1855,8 @@ export function App() {
   /** What the last import or export said, while its document is open. */
   const shownNotes = notes?.doc === doc.name ? notes : undefined;
   const buildCommands = (): Command[] => [
-    { id: 'ask', group: 'Claude', label: asking ? t('Close Ask Claude') : t('Ask Claude…'), hint: t('a change or a question about the diagram, with your API key'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
-    { id: 'ask-explain', group: 'Claude', label: t('Explain this diagram'), icon: 'sparkles', run: () => askWith('Explain this diagram: what it shows and how the parts work together.') },
-    { id: 'ask-review', group: 'Claude', label: t('Review for threats, single points of failure, missing monitoring'), icon: 'sparkles', run: () => askWith('Review this diagram for security threats, single points of failure and missing monitoring.') },
+    { id: 'ask', group: t('Your AI'), label: asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
+    ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void copyForAi() }] : []),
     ...wsTools.commands,
     ...trace.commands,
     ...blocks.commands,
@@ -2412,8 +2441,8 @@ export function App() {
               <button className="tool" onClick={present} title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
                 <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>P</kbd>
               </button>
-              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={t('Ask Claude for a change or about the diagram ({key})', { key: keyHint('ask') })} aria-label={t('Ask Claude')} aria-expanded={asking} disabled={!type}>
-                <Icon name="sparkles" /> <span className="tool-label">{t('Ask')}</span> <kbd>{keyHint('ask')}</kbd>
+              <button className={asking ? 'tool active' : 'tool'} onClick={toggleAsk} title={t('Proposals from your own AI ({key})', { key: keyHint('ask') })} aria-label={t('Your AI')} aria-expanded={asking} disabled={!type}>
+                <Icon name="sparkles" /> <span className="tool-label">{t('AI')}</span> <kbd>{keyHint('ask')}</kbd>{live.proposal && <span className="tool-count unread">1</span>}
               </button>
               <button className={notesOpen ? 'tool active' : 'tool'} onClick={toggleNotes} title={t('Review notes (⇧N); N adds one on the selection')} aria-pressed={notesOpen} aria-label={unreadNotes ? t('Notes, {count} open, {unread} unread', { count: openNotes.length, unread: unreadNotes }) : t('Notes, {count} open', { count: openNotes.length })}>
                 <Icon name="message-square" />
@@ -2556,8 +2585,8 @@ export function App() {
               <button role="tab" aria-selected={sideTab === 'review'} onClick={() => showSide('review')} disabled={!type} title={t('Architecture review ({key})', { key: keyHint('arch-review') })}>
                 <Icon name="shield-check" size={14} /> <span className="tab-label">{t('Review')}</span>{reviewTool.count > 0 && <span className="tab-count">{reviewTool.count}</span>}
               </button>
-              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={t('Ask Claude ({key})', { key: keyHint('ask') })}>
-                <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Ask Claude')}</span>
+              <button role="tab" aria-selected={sideTab === 'ask'} onClick={() => showSide('ask')} disabled={!type} title={t('Your AI ({key})', { key: keyHint('ask') })}>
+                <Icon name="sparkles" size={14} /> <span className="tab-label">{t('Your AI')}</span>
               </button>
             </div>
           {askKept && (
@@ -2565,18 +2594,18 @@ export function App() {
               hidden={sideTab !== 'ask'}
               text={text}
               type={type}
-              file={docFile}
-              graph={drawn?.graph}
-              placed={drawn?.placed}
-              selection={selection}
-              diagnostics={diagnostics}
               sidecar={sidecar}
               load={load}
               theme={theme}
-              docKey={docKey}
-              seed={askSeed}
+              live={live}
+              change={diskChange?.doc === docKey ? diskChange : undefined}
               onAccept={(yaml, renames) => apply(yaml, renames.size ? (renamePins(vpins, renames) ?? null) : undefined)}
-              onRef={(r) => select(r)}
+              onUndoChange={() => {
+                editor.current?.undo();
+                setDiskChange(undefined);
+              }}
+              onDismissChange={() => setDiskChange(undefined)}
+              onCopyForAi={() => void copyForAi()}
               onClose={() => {
                 setAsking(false);
                 setAskKept(false);

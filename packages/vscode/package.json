@@ -206,11 +206,13 @@
   },
   "devDependencies": {
     "@cartography/core": "workspace:*",
+    "@cartography/diff": "workspace:*",
     "@cartography/docs-plugins": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/export": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/interop": "workspace:*",
+    "@cartography/mcp": "workspace:*",
     "@cartography/theme": "workspace:*",
     "@playwright/test": "^1.65.0",
     "@types/markdown-it": "^14.2.0",

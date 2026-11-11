@@ -380,8 +380,8 @@ describe('carto errors and help', () => {
     expect(top.code).toBe(0);
     expect(top.out).toMatch(/^Draw {4}render/m);
     for (const g of ['Create', 'Draw', 'Export', 'Check', 'Look']) expect(top.out).toMatch(new RegExp(`^${g} `, 'm'));
-    // One line per command in five groups, the three export-* folded into export --to: 28 lines with review and stages, one screen.
-    expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(28);
+    // One line per command in five groups, the three export-* folded into export --to: 29 lines with review, stages and serve, one screen.
+    expect(top.out.trimEnd().split('\n').length).toBeLessThanOrEqual(29);
     const render = carto('render', '--help');
     expect(render.code).toBe(0);
     expect(render.out).toContain('carto render <file.yaml…>');

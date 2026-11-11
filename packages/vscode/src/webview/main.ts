@@ -171,7 +171,58 @@ window.addEventListener('message', (e: MessageEvent<ToView>) => {
     highlighted = m.items;
     paintHighlight();
   } else if (m.type === 'rasterize') void rasterize(m);
+  else if (m.type === 'proposal') showProposal(m);
+  else if (m.type === 'proposal-done') proposal.hidden = true;
 });
+
+// A change from the user's AI, or from disk: the marked drawing or the YAML diff, and the verdict.
+const proposal = $('proposal');
+let applied = false;
+function showProposal(m: Extract<ToView, { type: 'proposal' }>) {
+  applied = !!m.applied;
+  $('pSummary').textContent = m.summary;
+  $('pCounts').textContent = m.counts;
+  // The SVG is the engine's own drawing, made in the extension from the document's text.
+  $('pDrawing').innerHTML = m.svg ?? '';
+  const pre = $('pYaml');
+  pre.textContent = '';
+  for (const l of m.lines) {
+    const span = document.createElement('span');
+    span.className = l.kind;
+    span.textContent = l.kind === 'fold' ? `⋯ ${l.count} unchanged line${l.count === 1 ? '' : 's'}\n` : `${l.kind === 'add' ? '+ ' : l.kind === 'del' ? '− ' : '  '}${l.text}\n`;
+    pre.append(span);
+  }
+  $('pAccept').textContent = applied ? 'Keep' : 'Accept ⏎';
+  $('pReject').textContent = applied ? 'Undo' : 'Reject Esc';
+  $('pFine').textContent = applied ? 'Changed on disk; already in the editor. Undo takes all of it back.' : 'Accept is one undo step. Pins stay.';
+  proposal.hidden = false;
+  $('pAccept').focus();
+}
+const verdict = (accept: boolean) => {
+  if (proposal.hidden) return;
+  proposal.hidden = true;
+  send({ type: 'verdict', accept });
+};
+$('pAccept').addEventListener('click', () => verdict(true));
+$('pReject').addEventListener('click', () => verdict(false));
+$('pTab').addEventListener('click', () => {
+  const yaml = $('pYaml');
+  yaml.hidden = !yaml.hidden;
+  $('pDrawing').hidden = !yaml.hidden;
+  $('pTab').textContent = yaml.hidden ? 'YAML' : 'Drawing';
+});
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (proposal.hidden) return;
+    if (e.key === 'Enter' && !(e.target as HTMLElement).closest('button')) verdict(true);
+    else if (e.key === 'Escape') verdict(!!applied);
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  },
+  true,
+);
 
 /** SVG to PNG in the page's own canvas: no native code in the extension. */
 async function rasterize(m: Extract<ToView, { type: 'rasterize' }>) {

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { questionsFor } from '@cartography/core';
 import { findType, themes, types } from '@cartography/engine';
 import { editDiagram } from './edit.ts';
+import { discoveredLink, proposeChange, type LiveLink } from './live.ts';
 import { describeDiagram, diffDiagrams } from './insight.ts';
 import { getSchema, importMermaidText, listTypes, newDiagram, renderDiagram, validateDiagram, type Checked } from './tools.ts';
 
@@ -15,7 +16,7 @@ const version = '0.0.0';
 const instructions = `Cartography turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
 Workflow: list_types → get_schema(type) → write YAML → validate → fix every error (each has line, column and a hint) and act on the layout suggestions → render.
 Validate before every render; "quality.verdict" should be "clean" or "good".
-To change an existing diagram, use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
+When the user has the diagram open in an editor (VS Code, or carto serve in the browser), get_context says what they have open and selected; "this", "the selected" and "here" mean that. Change an open diagram with propose: the user sees the change marked and accepts or rejects it. Otherwise, or when propose says no editor is open, use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
 const failed = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
@@ -72,8 +73,14 @@ function summary(r: Checked): string {
   return q ? `Valid ${r.type} diagram. Layout ${q.verdict} (score ${q.score}, ${q.crossings} crossings).${q.suggestions.length ? ' Suggestions below.' : ''}` : `Valid ${r.type} diagram.`;
 }
 
-export function createServer(cwd = process.cwd()): McpServer {
+export interface ServerOptions {
+  /** The editor to ask for get_context and propose; by default the one found through discovery.ts. */
+  live?: LiveLink;
+}
+
+export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): McpServer {
   const server = new McpServer({ name: 'cartography', version }, { instructions });
+  const live = opts.live ?? discoveredLink(cwd);
 
   server.registerTool(
     'list_types',
@@ -177,6 +184,36 @@ export function createServer(cwd = process.cwd()): McpServer {
       const { yaml, ...rest } = r;
       const head = !r.ok ? `Not written: the change does not validate. ${summary(r)}` : r.written ? `Wrote ${r.written}${r.pins ? ` and ${r.pins}` : ''}. ${summary(r)}` : summary(r);
       return { ...(r.ok ? {} : { isError: true }), content: [{ type: 'text', text: head }, ...json(rest).content, ...(yaml && (!r.written || !r.ok) ? [{ type: 'text' as const, text: yaml }] : [])] };
+    }),
+  );
+
+  server.registerTool(
+    'get_context',
+    {
+      title: 'What the user has open',
+      description:
+        'What the user has open in the Cartography editor (VS Code or carto serve): the diagram file, the ids of what is selected, the view, layers, stage and step shown, the problems, and whether there are unsaved changes. Call it when the user says "this", "the selected", "here". Says so when no editor is connected.',
+      annotations: { readOnlyHint: true },
+    },
+    safely(async () => {
+      const c = await live.context();
+      if (!c) return { content: [{ type: 'text', text: 'No editor is connected (VS Code with the Cartography extension, or carto serve in the browser). Work on the files directly.' }] };
+      return { content: [{ type: 'text', text: c.file ? `Open: ${c.file}${c.selection.length ? `, selected: ${c.selection.map((s) => s.id).join(', ')}` : ', nothing selected'}.` : 'A diagram that is not saved as a file yet is open.' }, ...json(c).content] };
+    }),
+  );
+
+  server.registerTool(
+    'propose',
+    {
+      title: 'Propose a change',
+      description:
+        'Shows a change to the diagram open in the user\'s editor as a proposal: the drawing with what is added, changed and removed marked, and the YAML diff. The user accepts or rejects it; the tool returns that outcome ("accepted", "rejected") once they decide. The edits are the same as edit_diagram\'s and are checked first: a change that does not validate is not shown and comes back with its problems. When the file is not open in an editor ("not-open" or "no-editor"), use edit_diagram instead. On accept the editor applies it; it is on disk once the user saves.',
+      inputSchema: { file: z.string().describe('The diagram file, as get_context names it (absolute, or relative to the working directory)'), edits, summary: z.string().optional().describe('One sentence: what the change does, for the user deciding on it') },
+    },
+    safely(async (args) => {
+      const r = await proposeChange(live, args, cwd);
+      const said: Record<string, string> = { accepted: 'Accepted: the change is applied in the editor.', rejected: 'Rejected: the diagram is as it was.', invalid: 'Not shown: the change does not apply or does not validate.' };
+      return { ...(r.outcome === 'invalid' || r.outcome === 'failed' ? { isError: true } : {}), content: [{ type: 'text', text: [said[r.outcome] ?? '', r.message ?? ''].filter(Boolean).join(' ') }, ...json(r).content] };
     }),
   );
 

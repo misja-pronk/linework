@@ -312,6 +312,7 @@ export const workspace = {
   onDidChangeTextDocument: events.change.event,
   onDidCloseTextDocument: events.close.event,
   onDidChangeConfiguration: events.config.event,
+  onDidChangeWorkspaceFolders: () => new Disposable(),
   getConfiguration: (section: string) => ({ get: <T>(key: string, fallback: T): T => (`${section}.${key}` in state.config ? (state.config[`${section}.${key}`] as T) : fallback) }),
   createFileSystemWatcher: () => ({ onDidChange: () => new Disposable(), onDidCreate: () => new Disposable(), onDidDelete: () => new Disposable(), dispose() {} }),
   openTextDocument: async (arg: Uri | { content?: string; language?: string }) => {

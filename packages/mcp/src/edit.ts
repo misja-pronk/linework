@@ -1,7 +1,7 @@
 // edit_diagram: small edits by YAML path, checked, applied, drawn, and only then written. The rest of
 // the file keeps its bytes (comments too), and an id that is renamed takes its pins along.
 import fs from 'node:fs';
-import { applyOperations, checkOperations, parseSource, renamePins, type LayoutSidecar, type Operation } from '@cartography/core';
+import { applyOperations, checkOperations, parseSource, renamePinsEverywhere, type Operation } from '@cartography/core';
 import { findType, render } from '@cartography/engine';
 import { load, problems, quality, reader, resolvePath, type Checked, type Input } from './tools.ts';
 
@@ -24,12 +24,6 @@ export interface Edited extends Checked {
   error?: string;
 }
 
-/** The pins of the diagram and of each view, following renamed ids. */
-export function renameSidecar(side: LayoutSidecar, renames: Map<string, string>): LayoutSidecar {
-  const top = renamePins(side, renames)!;
-  return side.views ? { ...top, views: Object.fromEntries(Object.entries(side.views).map(([k, v]) => [k, renamePins(v, renames)!])) } : top;
-}
-
 /** The edits as a change: the new text and the ids renamed, or why not. */
 export function applyEdits(text: string, edits: unknown): { text: string; renames: Map<string, string> } | { error: string } {
   const ops = checkOperations(edits);
@@ -47,7 +41,7 @@ export async function editDiagram(req: EditRequest, cwd = process.cwd()): Promis
   const src = load(req, cwd);
   const applied = applyEdits(src.text, req.edits);
   if ('error' in applied) return { ok: false, problems: [], error: applied.error };
-  const sidecar = src.sidecar && applied.renames.size ? renameSidecar(src.sidecar, applied.renames) : src.sidecar;
+  const sidecar = src.sidecar && applied.renames.size ? renamePinsEverywhere(src.sidecar, applied.renames) : src.sidecar;
   const r = await render(applied.text, { fonts: 'none', load: reader(src.dir), sidecar });
   const ok = !!r.svg && !r.diagnostics.some((d) => d.severity === 'error');
   const renames = applied.renames.size ? { renames: Object.fromEntries(applied.renames) } : {};

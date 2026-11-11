@@ -5,20 +5,23 @@
   "license": "MIT",
   "description": "MCP server for Cartography: list types, read schemas, validate with layout quality, render SVG/PNG",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./http": "./src/http.ts",
+    "./discovery": "./src/discovery.ts"
   },
   "bin": {
     "cartography-mcp": "./src/main.ts"
   },
   "dependencies": {
-    "@cartography/cli": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/describe": "workspace:*",
     "@cartography/diff": "workspace:*",
     "@cartography/engine": "workspace:*",
     "@cartography/import": "workspace:*",
     "@cartography/layout": "workspace:*",
+    "@cartography/theme": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "@resvg/resvg-js": "^2.6.2",
     "zod": "^4.6.7"
   }
 }

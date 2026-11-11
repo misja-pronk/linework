@@ -140,7 +140,7 @@ export const nlShell = {
 
   // keys.ts: what each shortcut does
   'Commands, elements, templates': 'Commando’s, elementen, sjablonen',
-  'Ask Claude: a change or a question (↵ accepts a change, Esc rejects it)': 'Vraag het Claude: een wijziging of een vraag (↵ neemt een wijziging over, Esc wijst haar af)',
+  'Your AI: changes your own AI agent proposes (↵ accepts one, Esc rejects it)': 'Je AI: wijzigingen die je eigen AI-agent voorstelt (↵ neemt er een over, Esc wijst hem af)',
   Save: 'Opslaan',
   'Open a file': 'Een bestand openen',
   'Export SVG': 'SVG exporteren',

@@ -1,9 +1,9 @@
-// The YAML side of a proposed change: a line diff with a few lines of context around each change,
-// the rest folded. Diagrams are small, so a plain longest-common-subsequence table is fast enough.
+// The YAML side of a proposed change, in the web editor and the VS Code preview: a line diff with a
+// few lines of context around each change, the rest folded. Diagrams are small, so a plain longest-common-subsequence table is fast enough.
 
-export type Line = { kind: 'same' | 'add' | 'del'; text: string; old?: number; new?: number } | { kind: 'fold'; count: number };
+export type YamlDiffLine = { kind: 'same' | 'add' | 'del'; text: string; old?: number; new?: number } | { kind: 'fold'; count: number };
 
-export function lineDiff(before: string, after: string, context = 3): Line[] {
+export function yamlDiff(before: string, after: string, context = 3): YamlDiffLine[] {
   const a = before.replace(/\n$/, '').split('\n');
   const b = after.replace(/\n$/, '').split('\n');
   // Common start and end first: most changes are local, and the table stays small.
@@ -13,7 +13,7 @@ export function lineDiff(before: string, after: string, context = 3): Line[] {
   while (end < a.length - start && end < b.length - start && a[a.length - 1 - end] === b[b.length - 1 - end]) end++;
   const x = a.slice(start, a.length - end);
   const y = b.slice(start, b.length - end);
-  const lines: Line[] = a.slice(0, start).map((text, i) => ({ kind: 'same', text, old: i + 1, new: i + 1 }));
+  const lines: YamlDiffLine[] = a.slice(0, start).map((text, i) => ({ kind: 'same', text, old: i + 1, new: i + 1 }));
   if (x.length * y.length > 4_000_000) {
     // Too big to align: all of it out, all of it in.
     x.forEach((text, i) => lines.push({ kind: 'del', text, old: start + i + 1 }));
@@ -35,10 +35,10 @@ export function lineDiff(before: string, after: string, context = 3): Line[] {
 }
 
 /** Unchanged runs longer than twice the context fold to a count. */
-function fold(lines: Line[], context: number): Line[] {
+function fold(lines: YamlDiffLine[], context: number): YamlDiffLine[] {
   const changed = lines.map((l) => l.kind === 'add' || l.kind === 'del');
   const near = lines.map((_, i) => changed.slice(Math.max(0, i - context), i + context + 1).some(Boolean));
-  const out: Line[] = [];
+  const out: YamlDiffLine[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (near[i]) out.push(lines[i]!);
     else {

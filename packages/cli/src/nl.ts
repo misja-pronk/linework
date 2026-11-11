@@ -10,6 +10,15 @@ export const nl = {
   'several diagrams in one deck': 'meer diagrammen in één deck',
   'steps or layers as a GIF, MP4 or WebM': 'stappen of lagen als GIF, MP4 of WebM',
   'render again on every save': 'opnieuw renderen bij elke keer opslaan',
+  'the web editor for a folder, and an MCP endpoint for your AI': 'de webeditor voor een map, en een MCP-endpoint voor je AI',
+  '{file}: not a folder': '{file}: geen map',
+  '--port takes a number, e.g. --port 4317': '--port neemt een getal, bijvoorbeeld --port 4317',
+  'The web app is not built yet: run pnpm web:build first': 'De webapp is nog niet gebouwd: voer eerst pnpm web:build uit',
+  'Port {port} is in use: pick another with --port': 'Poort {port} is in gebruik: kies een andere met --port',
+  'Cartography for {folder}': 'Cartography voor {folder}',
+  'Editor': 'Editor',
+  'Connect your AI (once; the token stays the same):': 'Verbind je AI (eenmalig; het token blijft hetzelfde):',
+  'Ctrl+C to stop': 'Ctrl+C om te stoppen',
   'a web page that carries the drawing': 'een webpagina met de tekening erin',
   'check files and their views': 'bestanden en hun weergaven controleren',
   'architecture review rules: findings, fixes, a report': 'regels voor de architectuurreview: bevindingen, oplossingen, een rapport',
@@ -336,6 +345,8 @@ export const nlHelp: Record<string, string> = {
                [--no-captions]                      en de frames als PNG). Meer: docs/animate.md`,
   [`  carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)`]:
     `  carto watch  <file.yaml…> [same options]      opnieuw renderen bij elke keer opslaan (en als ingevoegde bestanden wijzigen)`,
+  [`  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI`]:
+    `  carto serve  [folder] [--port 4317]           de webeditor voor een map, met een MCP-endpoint voor je eigen AI`,
   [`  carto embed <file.yaml|-> [-o out.html]       a web page that carries everything: the drawing, zoom and drill-down
                [--view name] [--theme name]         --static: the drawing alone, no script; --fragment: only the
                [--static] [--fragment] [--css]      figure, for a page of your own, and --css: the stylesheet with it`]:
