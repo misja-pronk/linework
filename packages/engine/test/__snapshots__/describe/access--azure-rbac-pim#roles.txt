@@ -1,0 +1,15 @@
+Northwind Azure access
+
+Roles, groups and access packages, roles × permissions: Roles × permissions. A table of 5 rows by 5 columns.
+
+By row (Role by permission)
+Columns: read, create and change, assign roles, restart apps and manage secrets.
+- Reader: read: yes
+- Contributor (includes Reader): read: yes, inherited; create and change: yes
+- Owner (includes Contributor): read: yes, inherited; create and change: yes, inherited; assign roles: yes
+- Shop App Operator (custom) (includes Reader): read: yes, inherited; restart apps: yes
+- Key Vault Secrets Officer: manage secrets: yes
+
+Key
+- Indigo check mark: Granted by the role
+- Indigo outlined check mark: Included from another role

@@ -1,0 +1,39 @@
+Northwind Azure access
+
+Roles, groups and access packages, who gets what, as a graph: Azure roles from management group to resource, standing and eligible through PIM. 8 elements in 4 groups, with 9 connections.
+
+Groups and elements
+- Priya Shah (Developer)
+- sg-shop-developers (Security group)
+- Northwind (Management group)
+  - Landing zones (Management group)
+    - sub-shop-dev (Subscription)
+    - sub-shop-prod (Subscription)
+      - rg-shop-prod (Resource group)
+        - kv-shop-prod (Key Vault)
+- Daan Visser (Platform engineer)
+- sg-azure-platform-admins (Security group)
+- sg-azure-readers (Security and finance)
+- sg-shop-operations (Security group)
+
+Connections
+- Priya Shah connects to sg-shop-developers.
+- sg-shop-developers connects to sub-shop-dev (Contributor), connects to sub-shop-prod (Reader) and connects to rg-shop-prod (Contributor).
+- Daan Visser connects to sg-azure-platform-admins.
+- sg-azure-platform-admins connects to Northwind (Owner).
+- sg-azure-readers connects to Northwind (Reader).
+- sg-shop-operations connects to rg-shop-prod (Shop App Operator (custom)) and connects to kv-shop-prod (Key Vault Secrets Officer).
+
+Walkthrough
+1. Scopes: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.
+2. Standing access: Read-only at the top for security and finance. Developers can change dev and read production.
+3. Changing production goes through PIM: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
+  - sg-shop-developers: MFA and a reason, max 8 h
+4. Least privilege for operations: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
+5. No standing Owner: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
+  - sg-azure-platform-admins: A second admin approves, max 4 h
+
+Key
+- Dotted line: Member of
+- Solid sky line: Role assignment
+- Dashed sky line: Eligible, activated through PIM

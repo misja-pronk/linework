@@ -244,6 +244,8 @@ Examples: [examples/erd](../examples/erd)
 
 Use it to show which group or access package grants which role on which resource, to answer "who can reach production?" as a matrix (`view: access`), or to review Entra ID governance: catalogs, packages, approvals. One file gives four views: `graph`, `access`, `packages` and `roles`.
 
+An assignment reads `sg-ops is owner on prod`; `sg-ops is eligible owner on prod` is one that is activated through Privileged Identity Management (PIM): drawn dashed, and in the matrix after what is held now. Entra roles take the tenant or an `administrative-unit` as their scope.
+
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
 ```yaml

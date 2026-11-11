@@ -24,10 +24,14 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
+  'access/access-packages.yaml': 0,
+  'access/azure-rbac-pim.yaml': 0,
+  'access/privileged-access.yaml': 2, // the service desk's eligible line up into its unit passes the Tier 1 lines into the tenant
   'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
   'azure/hub-spoke.yaml': 0,
   'azure/microservices.yaml': 4,
   'azure/web-shop.yaml': 0,
+  'azure/workload-identities.yaml': 1, // the line out to Microsoft Graph passes the web app's line down to its vault
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
@@ -46,6 +50,8 @@ const crossingBudget: Record<string, number> = {
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
+  'data-products/northwind-mesh.yaml': 1, // Orders and Customers both feed Revenue and the sales dashboard, which stand in one column
+  'data-products/northwind-orders-product.yaml': 2, // the contract stands beside the product: the lines out of its ports go around it
   'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
   'deployment/aws.yaml': 2, // the OrderPlaced lines into the queue each run on their own: lines with a label never share a trunk
   'deployment/aws.yaml#prod': 2, // the same
@@ -140,11 +146,14 @@ const jogBudget: Record<string, number> = {
   'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
   'data-products/customer-detailed.yaml': 2, // the same as customer.yaml, and a line stepping clear of a card it passes
   'data-products/customer-focus.yaml': 2, // the same, twice
+  'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
+  'data-products/northwind-orders-product.yaml': 2, // the two output ports' lines step aside around the contract
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
   'access/engineering.yaml': 2, // wrapped for a slide: the package lines into the security group step aside
+  'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   // A mind map's branches leave the centre on curves, drawn as short pieces that each read as a step: no kinks a reader sees.
@@ -194,6 +203,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'access/privileged-access.yaml': 1, // Privileged Role Administrator, beside Tier 0's other eligible line into the tenant
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
@@ -209,6 +219,7 @@ const touchBudget: Record<string, number> = {
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
 const returns: Record<string, number> = {
   'workspace/containers.yaml': 2, // customer → web and app, drawn above the boundary they enter
+  'azure/workload-identities.yaml': 1, // the shared identity's line up to the storage account, beside the function it serves
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
   'process/pull-request.yaml': 2, // a red build and requested changes both go back to the developer's commit

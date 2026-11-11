@@ -1,0 +1,45 @@
+Northwind finance access packages
+
+Roles, groups and access packages diagram: Who may request what, who approves, and for how long. 14 elements in 2 groups, with 14 connections.
+
+Groups and elements
+- Finance staff (department = Finance)
+- Finance (Catalog)
+  - Assigned automatically (Policy)
+  - Manager → Finance controller approves (180 days · review quarterly)
+  - Finance basics (Access package)
+  - ERP key user (Access package)
+- Finance team (Microsoft 365 group · Teams)
+- Finance team site (SharePoint site)
+- Northwind ERP (Enterprise application)
+- Fabrikam (Connected organisation · auditors)
+- External partners (Catalog)
+  - Finance controller approves (90 days · review monthly)
+  - Year-end audit (Access package)
+- Finance reports (Power BI app)
+- Emma de Wit (Accountant)
+- Sam Okafor (Guest · Fabrikam)
+
+Connections
+- Finance staff connects to Assigned automatically and connects to Manager → Finance controller approves.
+- Assigned automatically connects to Finance basics.
+- Manager → Finance controller approves connects to ERP key user.
+- Finance basics connects to Finance team, connects to Finance team site (Member) and connects to Northwind ERP (Finance user).
+- ERP key user connects to Northwind ERP (Key user).
+- Fabrikam connects to Finance controller approves.
+- Finance controller approves connects to Year-end audit.
+- Year-end audit connects to Finance team site (Visitor) and connects to Finance reports (Viewer).
+- Emma de Wit connects to Finance basics.
+- Sam Okafor connects to Year-end audit.
+
+Walkthrough
+1. Catalogs: Finance owns its own catalog. Partner access lives in a separate catalog, with its own owners.
+2. The basics, automatically: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
+3. More rights, two approvals: Key users are approved by their manager and then by the controllers. The access ends after 180 days unless a review keeps it.
+4. Guests from a connected organisation: Fabrikam's auditors request access themselves. The controllers approve, it is read-only, and it ends after 90 days.
+  - Sam Okafor: Guest removed when the last package ends
+
+Key
+- Solid green line with ticks: Holds package
+- Dashed line: Can request
+- Solid violet line: Package grants

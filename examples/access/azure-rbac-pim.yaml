@@ -1,0 +1,67 @@
+# Azure RBAC across the scope hierarchy, with Privileged Identity Management (PIM).
+#   resources    the scopes, nested with `in:`: management group → subscription → resource group → resource.
+#                A role assigned on a scope is inherited by everything inside it.
+#   assignments  "who is role on scope" is active (standing) access;
+#                "who is eligible role on scope" is PIM: held only after activation, drawn dashed.
+# Switch the view (graph, access, roles) to see the same file as a who × where matrix
+# (effective access, with where it is inherited from) or as roles × permissions.
+type: access
+title: Northwind Azure access
+subtitle: Azure roles from management group to resource, standing and eligible through PIM
+view: graph   # graph, access or roles
+
+principals:
+  # People are in groups; groups hold the roles.
+  priya: { kind: user, label: Priya Shah, caption: Developer, member-of: sg-shop-devs }
+  daan: { kind: user, label: Daan Visser, caption: Platform engineer, member-of: sg-platform-admins }
+  sg-platform-admins: { kind: group, label: sg-azure-platform-admins }
+  sg-azure-readers: { kind: group, label: sg-azure-readers, caption: Security and finance }
+  sg-shop-devs: { kind: group, label: sg-shop-developers }
+  sg-shop-ops: { kind: group, label: sg-shop-operations }
+
+resources:
+  # The scope tree. Add a subscription or resource group by giving it an `in:`.
+  mg-northwind: { kind: management-group, label: Northwind }
+  mg-landing-zones: { kind: management-group, label: Landing zones, in: mg-northwind }
+  sub-shop-dev: { kind: subscription, label: sub-shop-dev, in: mg-landing-zones }
+  sub-shop-prod: { kind: subscription, label: sub-shop-prod, in: mg-landing-zones }
+  rg-shop-prod: { kind: resource-group, label: rg-shop-prod, in: sub-shop-prod }
+  kv-shop-prod: { kind: key-vault, label: kv-shop-prod, in: rg-shop-prod }
+
+roles:
+  # Built-in roles, one custom role and a data-plane role. permissions feed the roles view.
+  reader: { label: Reader, permissions: [read] }
+  contributor: { label: Contributor, inherits: reader, permissions: [create and change] }
+  owner: { label: Owner, inherits: contributor, permissions: [assign roles] }
+  app-operator: { label: Shop App Operator (custom), inherits: reader, permissions: [restart apps] }
+  kv-secrets-officer: { label: Key Vault Secrets Officer, permissions: [manage secrets] }
+
+assignments:
+  # Broad and read-only at the top; anything that changes production is eligible, not standing.
+  - sg-azure-readers is reader on mg-northwind
+  - sg-platform-admins is eligible owner on mg-northwind
+  - sg-shop-devs is contributor on sub-shop-dev
+  - sg-shop-devs is reader on sub-shop-prod
+  - sg-shop-devs is eligible contributor on rg-shop-prod
+  - sg-shop-ops is app-operator on rg-shop-prod
+  - sg-shop-ops is eligible kv-secrets-officer on kv-shop-prod
+
+# For presenting: one point per step.
+steps:
+  - title: Scopes
+    caption: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.
+    focus: [mg-northwind]
+  - title: Standing access
+    caption: Read-only at the top for security and finance. Developers can change dev and read production.
+    path: [sg-azure-readers -> mg-northwind, sg-shop-devs -> sub-shop-dev, sg-shop-devs -> sub-shop-prod]
+  - title: Production through PIM
+    caption: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
+    path: [priya -> sg-shop-devs -> rg-shop-prod]
+    note: { sg-shop-devs: "MFA and a reason, max 8 h" }
+  - title: Operations, least privilege
+    caption: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
+    path: [sg-shop-ops -> rg-shop-prod, sg-shop-ops -> kv-shop-prod]
+  - title: No standing Owner
+    caption: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
+    path: [daan -> sg-platform-admins -> mg-northwind]
+    note: { sg-platform-admins: "A second admin approves, max 4 h" }

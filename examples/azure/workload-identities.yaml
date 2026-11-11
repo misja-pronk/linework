@@ -1,0 +1,58 @@
+# Workload identities: how code signs in to Azure without a secret, and what each identity may do.
+#   app registration + service principal   for code outside Azure (here GitHub Actions, through a federated credential)
+#   system-assigned managed identity        part of one resource, gone when the resource is deleted (in the caption)
+#   user-assigned managed identity          a resource of its own, shared by the workloads that use it
+# Lines in the identity style read "signs in as" or "holds this role on"; the label is the role or API permission.
+type: azure
+title: Northwind workload identities
+subtitle: Which identity each workload signs in with, and which roles it holds where
+
+groups:
+  github: { kind: boundary, label: GitHub, caption: northwind/shop }
+  tenant: { kind: tenant, label: Northwind, caption: Entra ID tenant }
+  prod: { kind: subscription, label: sub-shop-prod }
+  rg: { kind: resource-group, label: rg-shop-prod, in: prod }
+
+nodes:
+  # Outside Azure: a workflow that deploys, with no secret stored anywhere.
+  workflow: { kind: external, label: deploy.yml, caption: GitHub Actions · environment prod, icon: git-branch, in: github }
+  # In Entra ID: the app registration (the definition) and its service principal (the identity that holds roles).
+  app-reg: { kind: entra-id, label: app-shop-deploy, caption: App registration · federated credential, icon: app-window, in: tenant }
+  sp: { kind: entra-id, label: app-shop-deploy, caption: Service principal (enterprise app), icon: bot, in: tenant }
+  graph: { kind: external, label: Microsoft Graph, caption: Microsoft API, icon: webhook }
+  # In the subscription: workloads, their identities, and what they reach.
+  web: { kind: app-service, label: app-shop-web, caption: App Service · system-assigned identity, in: rg }
+  jobs: { kind: function-app, label: func-shop-jobs, in: rg }
+  uami: { kind: managed-identity, label: id-shop-jobs, caption: User-assigned managed identity, in: rg }
+  vault: { kind: key-vault, label: kv-shop-prod, in: rg }
+  blob: { kind: storage, label: stshopexports, in: rg }
+
+edges:
+  # GitHub's OIDC token is exchanged for an Entra token: the federated credential trusts this repo and environment only.
+  - workflow -> app-reg: { label: OIDC token, style: identity }
+  - app-reg -> sp: { label: instance in tenant, style: management }
+  - sp -> rg: { label: Contributor, style: identity }
+  # The web app's own identity reads secrets.
+  - web -> vault: { label: Key Vault Secrets User, style: identity }
+  # The function signs in as the shared identity, which writes exports and reads users from Graph.
+  - jobs -> uami: { label: signs in as, style: identity }
+  - uami -> blob: { label: Storage Blob Data Contributor, style: identity }
+  - uami -> graph: { label: User.Read.All (application), style: identity }
+
+steps:
+  - title: Three kinds
+    caption: An app registration with its service principal for code outside Azure, and managed identities for code inside it. None of them has a secret to leak.
+  - title: Deploying from GitHub
+    caption: The workflow presents GitHub's OIDC token. The federated credential trusts only northwind/shop in environment prod, and Entra issues a token for the service principal.
+    path: workflow -> app-reg -> sp
+    note: { app-reg: "repo:northwind/shop:environment:prod" }
+  - title: Pipeline, least privilege
+    caption: The service principal is Contributor on one resource group, not on the subscription.
+    path: sp -> rg
+  - title: System-assigned
+    caption: The web app's identity lives and dies with the app, and may only read secrets from its own vault.
+    path: web -> vault
+  - title: User-assigned
+    caption: The jobs run as an identity of their own, which can be shared and survives a redeploy. It writes exports and reads users through an application permission on Microsoft Graph.
+    path: [jobs -> uami -> blob, uami -> graph]
+    note: { graph: Needs admin consent }

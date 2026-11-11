@@ -1,0 +1,68 @@
+# Privileged access to Entra ID: admin tiers, PIM for Entra roles, break-glass accounts and administrative units.
+#   resources    the tenant, and administrative units (AU) inside it: an Entra role assigned on an AU covers
+#                only the users, groups and devices in that unit
+#   roles        Entra roles, coloured by tier (tone): rose Tier 0, amber Tier 1, teal Tier 2;
+#                permissions feed the roles view (Global Administrator includes the others)
+#   principals   role-assignable groups hold the roles, so only Privileged Role Administrators can change who is in them;
+#                admins use separate cloud-only admin accounts
+#   assignments  "eligible" is PIM: nobody holds a Tier 0 or Tier 1 role until they activate it.
+#                Only the two break-glass accounts hold Global Administrator permanently.
+# Conditional Access and PAWs are told in the captions and steps: they guard the sign-in, not the role.
+type: access
+title: Northwind privileged access
+subtitle: Entra roles by tier, eligible through PIM, with break-glass accounts and administrative units
+view: graph   # graph, access or roles
+
+principals:
+  # Tier 0: controls the tenant.
+  # Two accounts in practice (bg-01 and bg-02), drawn as one card: add a second if you want both on the slide.
+  break-glass: { kind: user, label: Break-glass accounts, caption: Tier 0 · cloud-only · FIDO2 · no CA }
+  adm-daan: { kind: user, label: adm-daan, caption: Admin account · Daan Visser, member-of: sg-tier0 }
+  sg-tier0: { kind: role-assignable-group, label: sg-entra-tier0-admins, caption: Tier 0 · PAW and phishing-resistant MFA }
+  # Tier 1: manages services.
+  sg-security: { kind: role-assignable-group, label: sg-entra-security-admins, caption: Tier 1 · role-assignable group }
+  sg-endpoint: { kind: role-assignable-group, label: sg-entra-endpoint-admins, caption: Tier 1 · role-assignable group }
+  # Tier 2: supports users, within an administrative unit.
+  sg-helpdesk-nl: { kind: role-assignable-group, label: sg-helpdesk-nl, caption: Tier 2 · service desk Netherlands }
+
+resources:
+  tenant: { kind: tenant, label: Northwind, caption: Entra ID tenant }
+  au-nl: { kind: administrative-unit, label: AU Netherlands, caption: Administrative unit · dynamic, in: tenant }
+
+roles:
+  helpdesk: { label: Helpdesk Administrator, tone: teal, permissions: [reset passwords] }
+  user-admin: { label: User Administrator, tone: teal, inherits: helpdesk, permissions: [manage users] }
+  intune-admin: { label: Intune Administrator, tone: amber, permissions: [manage devices] }
+  security-admin: { label: Security Administrator, tone: amber, permissions: [manage security policies] }
+  pra: { label: Privileged Role Administrator, tone: rose, permissions: [assign roles and PIM] }
+  global-admin: { label: Global Administrator, tone: rose, inherits: [pra, security-admin, intune-admin, user-admin], permissions: [everything else] }
+
+assignments:
+  # Permanent and active: the break-glass accounts only.
+  - break-glass is global-admin on tenant
+  # Tier 0 and Tier 1: eligible, activated through PIM.
+  - sg-tier0 is eligible global-admin on tenant
+  - sg-tier0 is eligible pra on tenant
+  - sg-security is eligible security-admin on tenant
+  - sg-endpoint is eligible intune-admin on tenant
+  # Tier 2: scoped to an administrative unit.
+  - sg-helpdesk-nl is helpdesk on au-nl
+  - sg-helpdesk-nl is eligible user-admin on au-nl
+
+steps:
+  - title: Three tiers
+    caption: Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
+  - title: Break-glass
+    caption: Two cloud-only accounts hold Global Administrator permanently, for when sign-in or PIM fails. Excluded from Conditional Access, FIDO2 keys in a safe, and an alert on every sign-in.
+    focus: [break-glass, tenant]
+    note: { break-glass: Alert on every sign-in }
+  - title: No standing Tier 0
+    caption: Tier 0 admins use a separate admin account on a privileged access workstation. Global Administrator is eligible only, and activation needs a second admin's approval.
+    path: adm-daan -> sg-tier0 -> tenant
+    note: { sg-tier0: "Approval, phishing-resistant MFA, max 2 h" }
+  - title: Tier 1, just in time
+    caption: Security and endpoint admins activate their own role for a task, with MFA and a reason, for at most eight hours.
+    focus: [sg-security, sg-endpoint, tenant]
+  - title: Tier 2, scoped
+    caption: The Dutch service desk resets passwords only for the users in its administrative unit, and can never touch an admin account.
+    focus: [sg-helpdesk-nl, au-nl]

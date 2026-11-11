@@ -1,5 +1,6 @@
 // Roles, groups and access packages (Entra ID governance and Azure RBAC), in four views:
 //   graph     who may request → access package → group / app role → role on scope
+//             (an eligible assignment, activated through PIM, is drawn dashed)
 //   access    who × where, the effective role, and where it comes from
 //   packages  access packages × what they grant
 //   roles     roles × permissions, including inherited ones
@@ -49,6 +50,8 @@ export const resourceKinds: KindTable = {
   organization: { label: 'Organisation', icon: 'building', tone: 'slate' },
   repo: { label: 'Repository', icon: 'folder-git-2', tone: 'slate' },
   'directory-role': { label: 'Directory role', icon: 'shield-user', tone: 'violet' },
+  // A scope for Entra roles: a role assigned on it covers only the users, groups and devices in it.
+  'administrative-unit': { label: 'Administrative unit', icon: 'folder', tone: 'violet' },
 };
 
 const edgeStyles = {
@@ -57,6 +60,7 @@ const edgeStyles = {
   grant: { label: 'Package grants', line: 'solid', tone: 'violet' },
   member: { label: 'Member of', line: 'dotted', tone: 'slate' },
   role: { label: 'Role assignment', line: 'solid', tone: 'sky' },
+  eligible: { label: 'Eligible, activated through PIM', line: 'dashed', tone: 'sky' },
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone }>;
 
 interface Principal {
@@ -124,13 +128,15 @@ export interface AccessSource {
   packages?: Record<string, Package>;
   resources?: Record<string, string | Resource>;
   roles?: Record<string, Role | null>;
-  assignments?: (string | { principal: string; role: string; scope: string })[];
+  /** "who is role on scope", or "who is eligible role on scope" for a role that is activated through PIM. */
+  assignments?: (string | { principal: string; role: string; scope: string; eligible?: boolean })[];
   /** An earlier state of the same diagram: the who × where matrix then shows what was gained and lost. Written by `carto diff`. */
   was?: AccessSource;
 }
 
 const list = (v: string | string[] | undefined) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-const ASSIGNMENT = /^\s*([A-Za-z0-9_-]+)\s+is\s+([A-Za-z0-9_-]+)\s+on\s+([A-Za-z0-9_-]+)\s*$/;
+// "sg-ops is owner on prod", or "sg-ops is eligible owner on prod" (PIM). Groups: principal, eligible, role, scope.
+const ASSIGNMENT = /^\s*([A-Za-z0-9_-]+)\s+is\s+(?:(eligible)\s+)?([A-Za-z0-9_-]+)\s+on\s+([A-Za-z0-9_-]+)\s*$/;
 
 /** Everything resolved once, shared by all views. */
 class Model {
@@ -139,7 +145,7 @@ class Model {
   packages: [string, Package][];
   roles: [string, Role][];
   catalogs: [string, Catalog][];
-  assignments: { principal: string; role: string; scope: string; path: (string | number)[] }[] = [];
+  assignments: { principal: string; role: string; scope: string; eligible: boolean; path: (string | number)[] }[] = [];
 
   constructor(
     public src: AccessSource,
@@ -156,7 +162,7 @@ class Model {
     for (const [i, a] of (src.assignments ?? []).entries()) {
       const path = ['assignments', i];
       const m = typeof a === 'string' ? ASSIGNMENT.exec(a) : null;
-      const v = typeof a === 'string' ? (m ? { principal: m[1]!, role: m[2]!, scope: m[3]! } : undefined) : a;
+      const v = typeof a === 'string' ? (m ? { principal: m[1]!, role: m[3]!, scope: m[4]!, eligible: !!m[2] } : undefined) : a;
       if (!v) {
         ctx.error(path, 'An assignment reads "who is role on scope", e.g. "sg-devs is contributor on rg-dev"');
         continue;
@@ -164,7 +170,7 @@ class Model {
       if (!this.principal(v.principal)) ctx.error(path, `There is no principal "${v.principal}"`);
       else if (!this.role(v.role)) ctx.error(path, `There is no role "${v.role}"`);
       else if (!this.resource(v.scope)) ctx.error(path, `There is no resource "${v.scope}"`);
-      else this.assignments.push({ ...v, path });
+      else this.assignments.push({ ...v, eligible: !!v.eligible, path });
     }
     for (const [id, p] of this.principals)
       for (const g of list(p['member-of'])) if (!this.principal(g)) ctx.error(['principals', id, 'member-of'], `There is no group "${g}"`);
@@ -221,6 +227,14 @@ class Model {
     if (seen.has(role)) return 0;
     seen.add(role);
     return 1 + list(this.role(role)?.inherits).reduce((s, r) => s + this.rank(r, seen), 0);
+  }
+
+  /** Whether a role is the other one or includes it, so activating the other adds nothing. */
+  includes(role: string, other: string, seen = new Set<string>()): boolean {
+    if (role === other) return true;
+    if (seen.has(role)) return false;
+    seen.add(role);
+    return list(this.role(role)?.inherits).some((r) => this.includes(r, other, seen));
   }
 
   permissions(role: string, seen = new Set<string>()): Map<string, boolean> {
@@ -282,13 +296,15 @@ class Model {
         for (const scope of this.covered(a.scope)) {
           const from = a.scope !== scope ? this.label(a.scope) : undefined;
           const role = this.role(a.role);
-          add(scope, { role: a.role, text: role?.label ?? a.role, direct: !s.via && !from, via: s.via, from, tone: role?.tone ?? 'indigo' });
+          const text = role?.label ?? a.role;
+          add(scope, { role: a.role, text: a.eligible ? `${text} (eligible)` : text, direct: !s.via && !from, via: s.via, from, tone: role?.tone ?? 'indigo', ...(a.eligible ? { eligible: true } : {}) });
         }
     // App and site roles from a package: a fixed text, not one of the roles.
     for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, tone: 'indigo' });
     const rank = (r: Reach) => (r.role ? this.rank(r.role) : 0);
     for (const [scope, list] of out) {
-      list.sort((x, y) => rank(y) - rank(x) || Number(y.direct) - Number(x.direct));
+      // What is held now before what has to be activated first: an eligible role is no standing access.
+      list.sort((x, y) => Number(!!x.eligible) - Number(!!y.eligible) || rank(y) - rank(x) || Number(y.direct) - Number(x.direct));
       // One entry per role: the first way it is reached.
       out.set(scope, list.filter((r, i) => list.findIndex((x) => x.text === r.text) === i));
     }
@@ -309,6 +325,8 @@ export interface Reach {
   /** The scope above it was assigned on. */
   from?: string;
   tone: Tone;
+  /** Eligible only: activated through PIM when needed, not held until then. */
+  eligible?: boolean;
 }
 
 const reachNote = (r: Reach) => [r.via && `via ${r.via}`, r.from && `from ${r.from}`].filter(Boolean).join(', ') || undefined;
@@ -388,7 +406,7 @@ function graphView(m: Model): Graph {
     for (const [i, g] of m.grants(p).entries())
       if (m.principal(g.target) || m.resource(g.target)) edge(id, g.target, 'grant', m.principal(g.target) ? undefined : g.role, ['packages', id, 'grants', i]);
   }
-  for (const a of m.assignments) edge(a.principal, a.scope, 'role', m.label(a.role), a.path);
+  for (const a of m.assignments) edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', m.label(a.role), a.path);
 
   const legend: LegendItem[] = (Object.keys(edgeStyles) as (keyof typeof edgeStyles)[])
     .filter((k) => used.has(k))
@@ -441,8 +459,13 @@ function accessView(m: Model, was?: Model): Graph {
   const cells = rows.map((p) => {
     const reach = m.reach(p);
     return columns.map((scope) => {
-      const best = reach.get(scope)?.[0];
-      return best ? cellOf(best) : undefined;
+      const all = reach.get(scope) ?? [];
+      const best = all[0];
+      if (!best) return undefined;
+      // Held now, and more on activation: the cell says both.
+      const more = best.eligible ? [] : all.filter((r) => r.eligible && r.role && !(best.role && m.includes(best.role, r.role)));
+      const cell = cellOf(best);
+      return more.length ? { ...cell, note: [cell.note, `eligible for ${more.map((r) => m.label(r.role!)).join(', ')}`].filter(Boolean).join('; ') } : cell;
     });
   });
   return matrixGraph(
@@ -631,7 +654,7 @@ function check(m: Model, ctx: BuildContext) {
     if (kind === 'unknown') ctx.warn(a.path, `${what} is held by an identity that no longer exists (${m.label(a.principal)}): the assignment can go`);
     // A role held in part says nothing about which part: two of them need not be the same.
     if ((kind === 'user' || kind === 'guest') && !m.role(a.role)?.part) {
-      const group = m.assignments.find((x) => x.role === a.role && x.scope === a.scope && GROUPS.includes(m.principal(x.principal)?.kind ?? ''));
+      const group = m.assignments.find((x) => x.role === a.role && x.scope === a.scope && x.eligible === a.eligible && GROUPS.includes(m.principal(x.principal)?.kind ?? ''));
       if (group) ctx.warn(a.path, `${m.label(a.principal)} is ${what} directly, where ${m.label(group.principal)} holds the same role: membership of the group would do`);
     }
   }
@@ -828,7 +851,12 @@ export const access: DiagramType<AccessSource> = {
             {
               type: 'object',
               required: ['principal', 'role', 'scope'],
-              properties: { principal: { type: 'string' }, role: { type: 'string' }, scope: { type: 'string' } },
+              properties: {
+                principal: { type: 'string' },
+                role: { type: 'string' },
+                scope: { type: 'string' },
+                eligible: { type: 'boolean', description: 'Eligible only: activated through Privileged Identity Management (PIM) when needed' },
+              },
               additionalProperties: false,
             },
           ],
@@ -884,7 +912,8 @@ export const access: DiagramType<AccessSource> = {
       if (typeof a === 'string') {
         const m = new RegExp(ASSIGNMENT.source, 'd').exec(a);
         if (!m?.indices) continue;
-        (['principals', 'roles', 'resources'] as const).forEach((c, g) => out.push({ path: ['assignments', i], id: m[g + 1]!, start: m.indices![g + 1]![0], collection: c, onDelete: 'item' }));
+        // Groups 1, 3 and 4: group 2 is the word eligible.
+        ([['principals', 1], ['roles', 3], ['resources', 4]] as const).forEach(([c, g]) => out.push({ path: ['assignments', i], id: m[g]!, start: m.indices![g]![0], collection: c, onDelete: 'item' }));
       } else if (a) {
         out.push({ path: ['assignments', i, 'principal'], id: a.principal, start: 0, collection: 'principals', onDelete: 'item' });
         out.push({ path: ['assignments', i, 'role'], id: a.role, start: 0, collection: 'roles', onDelete: 'item' });

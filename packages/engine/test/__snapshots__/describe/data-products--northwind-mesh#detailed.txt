@@ -1,0 +1,48 @@
+Northwind data mesh
+
+Data products, detailed: Detailed. 15 elements in 3 groups, with 15 connections.
+
+Groups and elements
+- Sales (Domain · Sales analytics)
+  - ERP (Orders and invoices)
+  - Orders (Source-aligned · v2.3.0 · Order management team)
+  - orders (Data contract · v2.3.0 · internal)
+  - CRM (Source · SaaS)
+  - Customers (Source-aligned · v1.6.0 · CRM team)
+  - customers (Data contract · v1.6.0 · confidential)
+- Supply chain (Domain · Supply chain data)
+  - Demand forecast (Consumer-aligned · beta · v0.4.0 · Planning analytics)
+  - Warehouse management (Source · Database)
+  - Stock levels (Source-aligned · v1.1.0 · Warehouse team)
+- Finance (Domain · Finance data)
+  - Revenue (Aggregate · v3.0.0 · Finance data team)
+  - revenue (Data contract · v3.0.0 · internal)
+  - General ledger (Source · ERP)
+- Sales dashboard (Dashboard)
+- Replenishment (Application)
+- CFO dashboard (Dashboard)
+
+Connections
+- ERP connects to Orders.in:0.
+- Orders.out:orders connects to Demand forecast.in:0, connects to Revenue.in:0, connects to Sales dashboard and is linked with orders.
+- Demand forecast.out:forecast connects to Replenishment.
+- Revenue.out:revenue connects to CFO dashboard and is linked with revenue.
+- CRM connects to Customers.in:0.
+- Customers.out:customers connects to Revenue.in:1, connects to Sales dashboard and is linked with customers.
+- Warehouse management connects to Stock levels.in:0.
+- Stock levels.out:stock connects to Demand forecast.in:1.
+- General ledger connects to Revenue.in:2.
+
+Walkthrough
+1. Domains own their data: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
+2. Source-aligned products: Each operational system is read once, by the team that knows it, and published under a contract.
+3. Products built on products: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
+4. Self-serve platform: One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+5. Federated governance: The domains agree on the rules that every contract follows, such as classification, PII and freshness. The platform checks them automatically.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract
