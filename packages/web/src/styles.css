@@ -13,7 +13,7 @@
   --border-strong: #cfd5dd;
   --text: #0f172a;
   --text-muted: #475569;
-  --text-faint: #667085;
+  --text-faint: #5f6a7d;
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-soft: #ecebfd;
@@ -21,6 +21,10 @@
   --danger: #e11d48;
   --warning: #d97706;
   --success: #059669;
+  /* The bright ones are for fills and icons; text takes these, 4.5:1 on every editor ground. */
+  --danger-ink: #be123c;
+  --warning-ink: #a34a08;
+  --success-ink: #047857;
   --active-line: #f6f7fb;
   --entry-band: #eef0ff;
   --selection: #dcdafc;
@@ -32,8 +36,8 @@
   --syn-key: #4338ca;
   --syn-string: #0f766e;
   --syn-atom: #b45309;
-  --syn-comment: #6b7689;
-  --syn-punct: #8a94a6;
+  --syn-comment: #5f6a7d;
+  --syn-punct: #656f81;
   --syn-meta: #be185d;
 }
 
@@ -55,6 +59,9 @@
   --danger: #fb7185;
   --warning: #fbbf24;
   --success: #34d399;
+  --danger-ink: #fb7185;
+  --warning-ink: #fbbf24;
+  --success-ink: #34d399;
   --active-line: #151b24;
   --entry-band: #1c1f3d;
   --selection: #2f2d66;
@@ -67,7 +74,7 @@
   --syn-string: #5eead4;
   --syn-atom: #fbbf24;
   --syn-comment: #8691a3;
-  --syn-punct: #6b7686;
+  --syn-punct: #7f8999;
   --syn-meta: #f472b6;
 }
 
@@ -438,7 +445,7 @@ kbd {
   padding: 7px 12px;
   border-radius: 99px;
   font-size: 12px;
-  color: var(--warning);
+  color: var(--warning-ink);
   background: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -524,13 +531,13 @@ kbd {
   padding: 2px 6px;
   margin-left: -6px;
   border-radius: 6px;
-  color: var(--success);
+  color: var(--success-ink);
 }
 .status-problems.has-errors {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 .status-problems.has-warnings {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 .status-problems:hover {
   background: var(--bg);
@@ -868,15 +875,41 @@ kbd {
   }
 }
 
+/* Forced colours (Windows high contrast) drop box shadows: what a shadow said, an outline says here. */
+@media (forced-colors: active) {
+  :focus-visible,
+  .preview:focus-visible,
+  .type-card:has(.type-main:focus-visible),
+  .field input:focus,
+  .field select:focus,
+  .search-field:focus-within {
+    outline: 2px solid Highlight;
+  }
+  .selection-ring {
+    border-color: Highlight;
+  }
+  .type-card.best,
+  .note-thread.active,
+  .finding-row.active,
+  .canvas-pane.review-mode .preview {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .connect-handle,
+  .bend-handle {
+    border-color: CanvasText;
+  }
+}
+
 /* ------------------------------------------------------------- builder */
 
 .preview:focus {
   outline: none;
 }
-/* A quiet sign that keys go to the drawing; strong rings stay for real keyboard focus elsewhere. */
+/* Keys go to the drawing: a ring inside the pane, so it is not clipped by the pane's edge. */
 .preview:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .preview.dragging-pan {
   cursor: grabbing;
@@ -1304,15 +1337,18 @@ span.tool-more {
 }
 .field input:focus,
 .field select:focus {
-  outline: none;
+  /* Transparent, so it shows in forced colours where the shadow is dropped. */
+  outline: 2px solid transparent;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .field.invalid input {
   border-color: var(--danger);
 }
 .field-error {
-  color: var(--danger);
+  color: var(--danger-ink);
   font-size: 11.5px;
 }
 .field input[type='checkbox'] {
@@ -1358,7 +1394,7 @@ span.tool-more {
   padding: 0 9px;
 }
 .button.danger:hover {
-  color: var(--danger);
+  color: var(--danger-ink);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 .toast.error {
@@ -1379,6 +1415,7 @@ span.tool-more {
   transform-origin: center;
 }
 .connect-handle::after {
+  /* 28 by 28 to the pointer, the dot stays 16 (WCAG target size). */
   content: '';
   position: absolute;
   inset: -8px;
@@ -2003,7 +2040,7 @@ button.rail {
   gap: 6px;
 }
 .icon-packs-error {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 .icon-vendors {
   display: grid;
@@ -2110,7 +2147,7 @@ button.rail {
   top: 4px;
   right: 6px;
   font-size: 9.5px;
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 .icon-pick {
   margin-top: 12px;
@@ -2252,7 +2289,6 @@ button.rail {
   border-color: var(--accent);
   box-shadow: var(--shadow);
   transform: translateY(-1px);
-  outline: none;
 }
 .mode-card kbd {
   margin-left: auto;
@@ -2542,7 +2578,7 @@ button.rail {
   margin-top: 2px;
 }
 .callout.error {
-  color: var(--danger);
+  color: var(--danger-ink);
   background: color-mix(in srgb, var(--danger) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
 }
@@ -2552,7 +2588,7 @@ button.rail {
   border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
 }
 .callout.warn > .icon {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 .callout strong {
   color: var(--text);
@@ -2683,8 +2719,11 @@ button.rail {
   color: var(--text-faint);
 }
 .search-field:focus-within {
+  outline: 2px solid transparent;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 4px var(--accent-soft);
 }
 .search-field input {
   flex: 1;
@@ -2768,6 +2807,11 @@ button.rail {
 }
 .type-main:focus-visible {
   outline: none;
+}
+/* The ring goes round the whole card, not only its picture and name. */
+.type-card:has(.type-main:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .type-thumb {
   height: 96px;
@@ -3066,6 +3110,12 @@ button.type-pill:hover {
 .bend-handle:not([data-horizontal]) {
   width: 10px;
   height: 18px;
+}
+/* The grip looks small; the area that takes the pointer is at least 24 by 24 (WCAG target size). */
+.bend-handle::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
 }
 .bend-handle.bent {
   background: var(--accent);
@@ -3516,7 +3566,7 @@ button.type-pill:hover {
   border-bottom: 1px solid var(--border);
 }
 .viewer-note.error {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 .viewer-stage {
   flex: 1;
@@ -3945,7 +3995,7 @@ button.type-pill:hover {
   white-space: nowrap;
 }
 .page-frame.small .page-label {
-  color: var(--warning);
+  color: var(--warning-ink);
 }
 /* Where text would still be readable on the page; what lies outside it is outlined. */
 .page-readable {

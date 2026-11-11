@@ -85,7 +85,6 @@
 .block-card:focus-visible {
   border-color: var(--accent);
   background: var(--accent-soft);
-  outline: none;
 }
 .block-thumb {
   display: block;
