@@ -27,7 +27,7 @@ Connections
 - agw-orders connects to ingress-nginx (Private network: HTTPS).
 - ingress-nginx connects to orders-api (Private network).
 - orders-api signs in with id-orders and connects to pe-kv (Private network: secrets).
-- id-orders signs in with kv-orders-prd (Secrets User).
+- id-orders is Secrets User on kv-orders-prd.
 - pe-kv connects to kv-orders-prd (Private network).
 - aks-orders-prd connects to pe-acr (Private network: image pull) and connects to afw-hub (Private network: egress · UDR).
 - pe-acr connects to crordersprd (Private network).
@@ -48,5 +48,5 @@ Ways to look at this drawing by tag.
 Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Dotted amber line: Identity
 - Amber badge: Identity badge
+- Dashed indigo line with ticks: Role assignment

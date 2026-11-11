@@ -8,7 +8,7 @@ Groups and elements
     - app-portal (Managed identity)
     - func-portal-jobs (Managed identity)
   - rg-portal-network (Resource group)
-    - vnet-portal-weu (10.1.12.0/22 · peered to the hub)
+    - vnet-portal-weu (10.1.12.0/22)
       - snet-app (10.1.12.0/24 · VNet integration)
         - rt-portal (0.0.0.0/0 → 10.0.0.68)
       - snet-pe (10.1.13.0/24)

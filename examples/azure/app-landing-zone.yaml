@@ -16,7 +16,7 @@ groups:
   sub: { kind: subscription, label: sub-portal-prd, caption: Landing zone · Corp }
   rg-app: { kind: resource-group, label: rg-portal-app, in: sub }
   rg-network: { kind: resource-group, label: rg-portal-network, in: sub }
-  vnet: { kind: vnet, label: vnet-portal-weu, caption: 10.1.12.0/22 · peered to the hub, in: rg-network }
+  vnet: { kind: vnet, label: vnet-portal-weu, caption: 10.1.12.0/22, in: rg-network }
   snet-pe: { kind: subnet, label: snet-pe, caption: 10.1.13.0/24, in: vnet }
   snet-app: { kind: subnet, label: snet-app, caption: 10.1.12.0/24 · VNet integration, in: vnet }
   rg-monitor: { kind: resource-group, label: rg-portal-monitor, in: sub }

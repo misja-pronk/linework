@@ -31,9 +31,9 @@ nodes:
   silver: { kind: storage, label: silver, caption: Cleaned · conformed, in: lake }
   gold: { kind: storage, label: gold, caption: Business-ready · Delta, in: lake }
 
-  dbw: { kind: service, icon: layers, tone: blue, label: dbw-nw-data, caption: Databricks · Unity Catalog · VNet-injected, in: rg-process }
+  dbw: { kind: databricks, label: dbw-nw-data, caption: Databricks · Unity Catalog · VNet-injected, in: rg-process }
 
-  sqlwh: { kind: service, icon: database, tone: indigo, label: Serverless SQL warehouse, caption: Databricks SQL, in: rg-serve }
+  sqlwh: { kind: sql-warehouse, label: Serverless SQL warehouse, caption: Databricks SQL, in: rg-serve }
   bi: { kind: users, label: Power BI, caption: Reports · DirectQuery }
 
 edges:

@@ -13,15 +13,15 @@ groups:
   sub: { kind: subscription, label: sub-webshop-prd, caption: Landing zone · Online }
   rg-edge: { kind: resource-group, label: rg-shop-edge, caption: Global, in: sub }
   rg-app: { kind: resource-group, label: rg-shop-app, caption: West Europe, in: sub }
-  cae: { kind: boundary, label: cae-shop, caption: Container Apps environment · internal, in: rg-app }
+  cae: { kind: boundary, label: cae-shop, caption: Container Apps · internal, in: rg-app }
   rg-data: { kind: resource-group, label: rg-shop-data, caption: West Europe, in: sub }
 
 nodes:
   customers: { kind: users, label: Customers }
 
-  afd: { kind: front-door, label: afd-shop, caption: Premium · WAF policy, in: rg-edge, tags: [security] }
+  afd: { kind: front-door, label: afd-shop, caption: Premium · WAF, in: rg-edge, tags: [security] }
 
-  web: { kind: app-service, label: app-shop-web, caption: Storefront · Private Link origin, in: rg-app }
+  web: { kind: app-service, label: app-shop-web, caption: Storefront, in: rg-app }
   api: { kind: container-app, label: ca-shop-orders, caption: Orders API, in: cae }
   id: { kind: managed-identity, label: id-shop, caption: User-assigned, in: rg-app, tags: [security] }
 
@@ -38,8 +38,8 @@ edges:
   # The identity and the roles it holds
   - web -> id: { style: identity, badge: true, tags: [security] }
   - api -> id: { style: identity, badge: true, tags: [security] }
-  - id -> kv: { label: Secrets User, style: identity, tags: [security] }
-  - id -> sql: { label: db_datawriter, style: identity, tags: [security] }
+  - id -> kv: { label: Secrets User, style: role, tags: [security] }
+  - id -> sql: { label: db_datawriter, style: role, tags: [security] }
 
 layers:
   security:

@@ -6,10 +6,10 @@ Groups and elements
 - Customers (Users)
 - sub-webshop-prd (Landing zone · Online)
   - rg-shop-edge (Global)
-    - afd-shop (Premium · WAF policy)
+    - afd-shop (Premium · WAF)
   - rg-shop-app (West Europe)
-    - app-shop-web (Storefront · Private Link origin)
-    - cae-shop (Container Apps environment · internal)
+    - app-shop-web (Storefront)
+    - cae-shop (Container Apps · internal)
       - ca-shop-orders (Orders API)
     - id-shop (User-assigned)
   - rg-shop-data (West Europe)
@@ -22,7 +22,7 @@ Connections
 - afd-shop connects to app-shop-web (Private network: Private Link) and connects to stshopmedia (Private network: /media).
 - app-shop-web connects to ca-shop-orders (Private network: REST) and signs in with id-shop.
 - ca-shop-orders signs in with id-shop and connects to sqldb-shop (Private network: TDS).
-- id-shop signs in with sqldb-shop (db_datawriter) and signs in with kv-shop-prd (Secrets User).
+- id-shop is db_datawriter on sqldb-shop and is Secrets User on kv-shop-prd.
 
 Walkthrough
 1. The web shop in one subscription. Front Door is the only thing with a public address.
@@ -37,5 +37,5 @@ Ways to look at this drawing by tag.
 Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Dotted amber line: Identity
 - Amber badge: Identity badge
+- Dashed indigo line with ticks: Role assignment
