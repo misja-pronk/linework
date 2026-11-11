@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RepoDiagram, RepoKind, RepoScan } from '@cartography/import';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { t, say } from './i18n/index.ts';
 import './repo.css';
 
@@ -31,7 +31,7 @@ export interface RepoOffer {
 }
 
 export function RepoDialog({ offer, onWrite, onOpen, onClose }: { offer: RepoOffer; onWrite(chosen: RepoDiagram[]): void; onOpen(d: RepoDiagram): void; onClose(): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const { diagrams, hints } = offer.scan;
   const [picked, setPicked] = useState(() => new Set(diagrams.map((d) => d.file)));
   const [at, setAt] = useState(0);
@@ -59,7 +59,7 @@ export function RepoDialog({ offer, onWrite, onOpen, onClose }: { offer: RepoOff
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="shortcuts repo-dialog" role="dialog" aria-label={t('Diagrams from the code')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts repo-dialog" role="dialog" aria-modal="true" ref={modal} aria-label={t('Diagrams from the code')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
             <Icon name="folder-git-2" /> {t('Diagrams from the code in {name}', { name: offer.name })}

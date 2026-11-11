@@ -3,7 +3,7 @@
 // by picking it from the set. Everything stays in this browser.
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';
 import { coverage, folderFiles, iconSvg, importDownload, listFiles, mapKind, removePack, searchIcons, unmapKind, useIconPacks, vendorKinds, vendors, zipFiles, type StoredPack, type Vendor } from './icon-packs.ts';
 
@@ -13,7 +13,7 @@ const canPickFolder = typeof window !== 'undefined' && 'showDirectoryPicker' in 
 const dataUri = (svg: string) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
 
 export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(message: string, tone?: 'error'): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const s = useIconPacks();
   const [open, setOpen] = useState<Vendor | undefined>(() => ORDER.find((v) => s.packs[v]));
   const sheet = useRef<HTMLDivElement>(null);
@@ -72,7 +72,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
     <div className="overlay" onMouseDown={onClose}>
       <div
         className={`shortcuts icon-packs${over ? ' dropping' : ''}`}
-        role="dialog"
+        role="dialog" aria-modal="true" ref={modal}
         aria-label={t('Official icons')}
         onMouseDown={(e) => e.stopPropagation()}
         onDragOver={(e) => (e.preventDefault(), setOver(true))}

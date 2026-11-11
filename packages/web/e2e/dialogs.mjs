@@ -1,5 +1,6 @@
 // Every dialog fits the window: at 1280×800 and 1512×900 it ends above the bottom edge and its buttons
 // can be clicked without scrolling the page (review 3: Rename everywhere cut off its primary button).
+// Each is modal: focus moves in, Tab stays in, Escape closes and gives focus back.
 // Opens each dialog the way people do, by key or menu. node e2e/dialogs.mjs <outDir>
 import fs from 'node:fs';
 import path from 'node:path';
@@ -46,6 +47,22 @@ async function check(page, size, name, sel) {
   if (f.hidden.length) fail(`${size} ${name}: buttons not reachable: ${f.hidden.join(', ')}`);
 }
 
+/** The top dialog is modal: aria-modal, focus inside, and Tab and ⇧Tab go round without leaving it. */
+async function modal(page, size, name) {
+  const at = () =>
+    page.evaluate(() => {
+      const d = [...document.querySelectorAll('[role=dialog], [role=alertdialog]')].filter((x) => x.getBoundingClientRect().height > 0).at(-1);
+      return { modal: d?.getAttribute('aria-modal'), inside: !!d && d.contains(document.activeElement) };
+    });
+  const s = await at();
+  if (s.modal !== 'true') fail(`${size} ${name}: not aria-modal`);
+  if (!s.inside) return fail(`${size} ${name}: focus is not in the dialog`);
+  for (const key of [...Array(12).fill('Tab'), ...Array(6).fill('Shift+Tab')]) {
+    await page.keyboard.press(key);
+    if (!(await at()).inside) return fail(`${size} ${name}: ${key} left the dialog`);
+  }
+}
+
 async function fresh(viewport, text = shop) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.setDefaultTimeout(8000);
@@ -79,11 +96,14 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
       await page.waitForSelector(sel, { timeout: 6000 });
       await page.waitForTimeout(500);
       await check(page, size, name, sel);
+      await modal(page, size, name);
     } catch (e) {
       fail(`${size} ${name}: ${e.message.split('\n')[0]}`);
     }
     await close(page);
     await page.locator('.overlay').waitFor({ state: 'detached', timeout: 3000 }).catch(() => close(page));
+    // Escape closed it and focus went back where it came from, not to the page.
+    if (await page.evaluate(() => document.activeElement === document.body)) fail(`${size} ${name}: focus not given back on close`);
   };
 
   await run('trace', async () => (await select(page, 'users'), await page.keyboard.press('Shift+Q')), '.trace-dialog');
@@ -104,6 +124,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
   await start.reload();
   await start.waitForSelector('.start .type-card');
   await check(start, size, 'start', '.start');
+  await modal(start, size, 'start');
   await start.locator('.type-main', { hasText: 'Azure infrastructure' }).click();
   await start.locator('.template-card', { hasText: 'Template' }).first().click();
   await start.waitForSelector('.mode-card');
@@ -119,4 +140,4 @@ if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-console.log('every dialog fits at 1280×800 and 1512×900');
+console.log('every dialog fits at 1280×800 and 1512×900, and is modal');

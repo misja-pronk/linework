@@ -7,7 +7,7 @@ import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType, type LayoutSidecar } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { store } from './store.ts';
 import { questionsFor, type Question } from './ai/questions.ts';
 import { buildPrompt, extractYaml, promptText, type Answers } from './ai/prompt.ts';
@@ -117,7 +117,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
   const [step, setStep] = useState<Step>(incoming ? 'import' : initial ? 'mode' : 'type');
   /** A wizard's drawing that the AI mode starts from ("Ask Claude to refine it"). */
   const [draft, setDraft] = useState<string>();
-  useRestoreFocus();
+  const modal = useModal();
 
   // Esc goes one step back, then closes.
   const back = () => (step === 'ask' && draft ? setStep('wizard') : PREVIOUS[step] ? setStep(PREVIOUS[step]) : onClose());
@@ -149,7 +149,7 @@ export function Start({ theme, initial, incoming, current, onOpen, onClose }: { 
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className={`templates start step-${step}`} role="dialog" aria-label={t('Start a diagram')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`templates start step-${step}`} role="dialog" aria-modal="true" ref={modal} aria-label={t('Start a diagram')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           {step !== 'type' && (
             <button className="icon-button" onClick={back} aria-label={t('Back')} title={t('Back (Esc)')}>

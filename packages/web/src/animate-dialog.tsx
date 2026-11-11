@@ -2,7 +2,7 @@
 // exports, Escape closes, and every choice is one click (or arrow keys within a group).
 import { useEffect, useState, type ReactNode } from 'react';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { store } from './store.ts';
 import { t } from './i18n/index.ts';
 import type { ExportInput } from './export.ts';
@@ -36,7 +36,7 @@ function Choice<T extends string | number>({ label, value, options, onChange }: 
 }
 
 export function AnimateDialog({ input, name, theme, onClose, onDone }: { input: () => ExportInput; name: string; theme: 'light' | 'dark'; onClose(): void; onDone(message: string, tone?: 'error'): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const [choice, setChoice] = useState(() => ({ ...DEFAULT, ...store.get<Partial<typeof DEFAULT>>('animation'), theme }));
   const [stories, setStories] = useState<{ steps: number; layers: number }>();
   const [video, setVideo] = useState<Record<'mp4' | 'webm', boolean>>();
@@ -94,7 +94,7 @@ export function AnimateDialog({ input, name, theme, onClose, onDone }: { input: 
 
   return (
     <div className="overlay" onMouseDown={() => !busy && onClose()}>
-      <div className="shortcuts animate-dialog" role="dialog" aria-label={t('Animation')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts animate-dialog" role="dialog" aria-modal="true" ref={modal} aria-label={t('Animation')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
             <Icon name="circle-play" /> {t('Animation')}

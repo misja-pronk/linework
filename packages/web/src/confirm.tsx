@@ -1,7 +1,7 @@
 // Asking before something is lost, in the app's own dialog (not the browser's confirm(), which looks
 // like another program and stops everything): a question, the safe choice, and the one that goes on.
 import { useCallback, useState } from 'react';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 
 export interface Ask {
   title: string;
@@ -21,12 +21,13 @@ export function useConfirm() {
 }
 
 function ConfirmDialog(p: Ask & { done(ok: boolean): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   return (
     <div className="overlay" onMouseDown={() => p.done(false)}>
       <div
         className="palette confirm-dialog"
         role="alertdialog"
+        ref={modal}
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-text"

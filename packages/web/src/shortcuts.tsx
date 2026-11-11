@@ -2,7 +2,7 @@
 // from keys.ts, the same table the key handlers read; a search narrows them.
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from './icon.tsx';
-import { useRestoreFocus } from './menu.tsx';
+import { useModal } from './menu.tsx';
 import { sheetKeys, SHORTCUTS, type KeyContext } from './keys.ts';
 import { say, t, useUiLang } from './i18n/index.ts';
 
@@ -29,7 +29,7 @@ const GROUPS: [string, string][] = [
 const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip', note: 'in a note', focus: 'in a focus', compare: 'comparing', 'layers-panel': 'in the panel' };
 
 export function Shortcuts({ onClose }: { onClose(): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const lang = useUiLang();
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -51,7 +51,7 @@ export function Shortcuts({ onClose }: { onClose(): void }) {
   }, [query, lang]);
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="shortcuts" role="dialog" aria-label={t('Keyboard shortcuts')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="shortcuts" role="dialog" aria-modal="true" ref={modal} aria-label={t('Keyboard shortcuts')} onMouseDown={(e) => e.stopPropagation()}>
         <header>
           <h2>
             <Icon name="keyboard" /> {t('Shortcuts')}

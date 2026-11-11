@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { render } from '@cartography/engine';
 import { dynamicView, sequenceYaml, traceAsk, type DynamicView, type TraceAsk, type Traceable, type Traced, type TraceMeta } from '@cartography/trace';
 import { Icon } from '../icon.tsx';
-import { useRestoreFocus } from '../menu.tsx';
+import { useModal } from '../menu.tsx';
 import { t as tr } from '../i18n/index.ts';
 
 let ids = 0;
@@ -28,7 +28,6 @@ export function TraceDialog({
   onAddView?(d: DynamicView): void;
   onClose(): void;
 }) {
-  useRestoreFocus();
   const r = useMemo(() => traceAsk(t, { ...ask, limit: 9 }), [t, ask]);
   const [n, setN] = useState(0);
   const option = r.options[n];
@@ -40,6 +39,7 @@ export function TraceDialog({
   /** The preview fitted whole, or at its own size to read (a click or Z switches). */
   const [actual, setActual] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  useModal(box);
 
   useEffect(() => {
     let live = true;
@@ -74,7 +74,7 @@ export function TraceDialog({
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette trace-dialog" role="dialog" aria-label={tr('Trace a request')} tabIndex={-1} ref={box} onKeyDown={keys} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette trace-dialog" role="dialog" aria-modal="true" aria-label={tr('Trace a request')} tabIndex={-1} ref={box} onKeyDown={keys} onMouseDown={(e) => e.stopPropagation()}>
         <header className="trace-head">
           <Icon name="arrow-left-right" />
           <strong>{tr('Trace a request')}</strong>

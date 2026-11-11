@@ -3,12 +3,12 @@ import { useMemo, useState } from 'react';
 import { lineDiff, type DiagramType } from '@cartography/core';
 import { blockText, checkValues, idPrefix, labelChoices, slug, BLOCK_NAME, type Block, type Instance, type LabelChoice, type Selected, type Updated } from '@cartography/blocks';
 import { Icon } from '../icon.tsx';
-import { useRestoreFocus } from '../menu.tsx';
+import { useModal } from '../menu.tsx';
 import { t } from '../i18n/index.ts';
 
 /** Its parameters, defaults filled in; ↵ inserts. */
 export function InsertDialog(p: { block: Block; thumb?: string; where: string; onInsert(values: Record<string, string>): void; onClose(): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(p.block.params.map((x) => [x.name, x.default])));
   const bad = checkValues(p.block, values);
   const ok = !Object.keys(bad).length;
@@ -18,7 +18,7 @@ export function InsertDialog(p: { block: Block; thumb?: string; where: string; o
   };
   return (
     <div className="overlay" onMouseDown={p.onClose}>
-      <div className="palette block-dialog" role="dialog" aria-label={t('Insert {block}', { block: p.block.title })} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys}>
+      <div className="palette block-dialog" role="dialog" aria-modal="true" ref={modal} aria-label={t('Insert {block}', { block: p.block.title })} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys}>
         <header className="rename-head">
           <Icon name="boxes" />
           <strong>{p.block.title}</strong>
@@ -67,7 +67,7 @@ export function SaveDialog(p: {
   onSave(r: SaveRequest): void;
   onClose(): void;
 }) {
-  useRestoreFocus();
+  const modal = useModal();
   const prefix = useMemo(() => idPrefix(p.selected.entries.map((e) => e.id)), [p.selected]);
   const choices = useMemo(() => labelChoices(p.selected, prefix), [p.selected, prefix]);
   const first = p.selected.entries.find((e) => e.collection === 'groups') ?? p.selected.entries[0];
@@ -94,7 +94,7 @@ export function SaveDialog(p: {
   const counts = `${t('{count} entry|{count} entries', { count: p.selected.entries.length })}, ${t('{count} line|{count} lines@drawn', { count: p.selected.items.length })}`;
   return (
     <div className="overlay" onMouseDown={p.onClose}>
-      <div className="palette block-dialog save" role="dialog" aria-label={t('Save as block')} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys}>
+      <div className="palette block-dialog save" role="dialog" aria-modal="true" ref={modal} aria-label={t('Save as block')} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys}>
         <header className="rename-head">
           <Icon name="package" />
           <strong>{t('Save as block')}</strong>
@@ -182,7 +182,7 @@ export interface UpdatePlan {
 
 /** Each instance older than its block, with what updating it would change; ↵ updates the ticked ones. */
 export function UpdateDialog(p: { plans: UpdatePlan[]; onApply(picked: UpdatePlan[]): void; onClose(): void }) {
-  useRestoreFocus();
+  const modal = useModal();
   const [picked, setPicked] = useState(() => new Set(p.plans.filter((x) => !('error' in x.result)).map((x) => `${x.instance.block}#${x.instance.no}`)));
   const chosen = p.plans.filter((x) => picked.has(`${x.instance.block}#${x.instance.no}`));
   const keys = (e: React.KeyboardEvent) => {
@@ -191,7 +191,7 @@ export function UpdateDialog(p: { plans: UpdatePlan[]; onApply(picked: UpdatePla
   };
   return (
     <div className="overlay" onMouseDown={p.onClose}>
-      <div className="palette block-dialog update" role="dialog" aria-label={t('Update instances')} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys} tabIndex={-1}>
+      <div className="palette block-dialog update" role="dialog" aria-modal="true" ref={modal} aria-label={t('Update instances')} onMouseDown={(e) => e.stopPropagation()} onKeyDown={keys} tabIndex={-1}>
         <header className="rename-head">
           <Icon name="refresh-cw" />
           <strong>{t('Update instances')}</strong>

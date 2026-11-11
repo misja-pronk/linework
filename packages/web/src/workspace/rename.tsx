@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { lineDiff, planRename, type RenameOptions, type RenamePlan, type WorkspaceIndex } from '@cartography/core';
 import { Icon } from '../icon.tsx';
-import { useRestoreFocus } from '../menu.tsx';
+import { useModal } from '../menu.tsx';
 import { t } from '../i18n/index.ts';
 
 export function RenameEverywhere({
@@ -22,7 +22,7 @@ export function RenameEverywhere({
   onApply(plan: RenamePlan): void;
   onClose(): void;
 }) {
-  useRestoreFocus();
+  const modal = useModal();
   const el = index.elements.get(element)?.[0];
   const [id, setId] = useState(el?.name ?? element);
   const [label, setLabel] = useState('');
@@ -38,7 +38,7 @@ export function RenameEverywhere({
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette rename-everywhere" role="dialog" aria-label={t('Rename {id} everywhere', { id: element })} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette rename-everywhere" role="dialog" aria-modal="true" ref={modal} aria-label={t('Rename {id} everywhere', { id: element })} onMouseDown={(e) => e.stopPropagation()}>
         <header className="rename-head">
           <Icon name="tag" />
           <strong>{t('Rename everywhere')}</strong>

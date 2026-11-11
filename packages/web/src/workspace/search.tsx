@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchWorkspace, type WorkspaceIndex, type WsHit } from '@cartography/core';
 import { Icon } from '../icon.tsx';
-import { useRestoreFocus } from '../menu.tsx';
+import { useModal } from '../menu.tsx';
 import type { Place } from './use-workspace.ts';
 import { t } from '../i18n/index.ts';
 
@@ -19,7 +19,7 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
   /** Which of the drawings of the active element Enter opens. */
   const [where, setWhere] = useState(0);
   const list = useRef<HTMLDivElement>(null);
-  useRestoreFocus();
+  const modal = useModal();
   const hits = useMemo(() => searchWorkspace(index, query, 60), [index, query]);
   useEffect(() => (setAt(0), setWhere(0)), [query]);
   useEffect(() => setWhere(0), [at]);
@@ -41,7 +41,7 @@ export function WorkspaceSearch({ index, scope, onOpen, onClose }: { index: Work
 
   return (
     <div className="overlay" onMouseDown={onClose}>
-      <div className="palette ws-search" role="dialog" aria-label={t('Search the folder')} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette ws-search" role="dialog" aria-modal="true" ref={modal} aria-label={t('Search the folder')} onMouseDown={(e) => e.stopPropagation()}>
         <div className="palette-input">
           <Icon name="search" />
           <input
