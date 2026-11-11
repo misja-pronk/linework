@@ -80,7 +80,7 @@ function entrySchemas(type: DiagramType, collection: string): Schema[] {
 }
 
 /** The property whose enum holds a palette kind: kind for most, class for data products. */
-function kindKey(type: DiagramType, collection: string, kind: string): string | undefined {
+export function kindKey(type: DiagramType, collection: string, kind: string): string | undefined {
   for (const s of entrySchemas(type, collection))
     for (const [k, v] of Object.entries((s.properties ?? {}) as Record<string, Schema>))
       if ([v, ...(v.anyOf ?? [])].some((x: Schema) => Array.isArray(x.enum) && x.enum.includes(kind))) return k;

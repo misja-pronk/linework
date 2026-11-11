@@ -25,6 +25,9 @@ interface GlobalKeys {
   savePng(): void;
   view: View;
   setView(v: View): void;
+  /** In a session only the sheet shows: the keys that open other panes or views stay quiet. */
+  session: boolean;
+  toggleSession(): void;
 }
 
 /** The window's keys: F6 between the panes, and those that work anywhere (⌘K, ⌘S, P…). */
@@ -43,7 +46,9 @@ export function useGlobalKeys(k: GlobalKeys) {
       if (e.defaultPrevented) return;
       const id = shortcutFor(e, typing || k.modal || k.presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (k.modal && id !== 'palette') || k.presenting) return;
-      if (id === 'sheet') k.setModal('shortcuts');
+      if (k.session && ['present', 'ask', 'switch-view'].includes(id)) return;
+      if (id === 'session') k.toggleSession();
+      else if (id === 'sheet') k.setModal('shortcuts');
       else if (id === 'present') k.present();
       else if (id === 'palette') k.setModal((m) => (m === 'palette' ? undefined : 'palette'));
       else if (id === 'ask') k.toggleAsk();
@@ -76,6 +81,8 @@ interface CanvasKeys {
   redo(): void;
   addShape(): void;
   connect(): void;
+  /** Sketching keys first (sketching.ts): in a session typing names and Tab adds; true when taken. */
+  sketch(e: React.KeyboardEvent): boolean;
 }
 
 /** The drawing's keys, when it has the focus itself. */
@@ -111,6 +118,7 @@ export function canvasKeys(c: CanvasKeys) {
 
   return (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
+    if (c.sketch(e)) return;
     const arrange = arrangeKey(e);
     if (arrange) {
       pinning.arrangeSelection(arrange);

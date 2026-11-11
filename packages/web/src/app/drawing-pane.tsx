@@ -19,6 +19,8 @@ import type { Navigation } from './navigation.ts';
 import type { Pins } from './pins.ts';
 import type { Select } from './selection.ts';
 import type { Notify } from './toasts.tsx';
+import type { Sketching } from './sketching.ts';
+import { SelectionMenu, SessionHeader, SessionStrip, SketchHint } from '../session.tsx';
 
 interface Props {
   drawing: Drawing;
@@ -49,6 +51,18 @@ interface Props {
   naming: number | undefined;
   onNamed(): void;
   notify: Notify;
+  sketching: Sketching;
+  /** Only the sheet on screen (a session, or its end): no page frame, no minimap. */
+  sheetOnly: boolean;
+  /** In a session: only the sheet, a strip, and a menu over the selection. */
+  session?: {
+    title: string;
+    /** The sketch hint under the selection (the first few sessions). */
+    hint: boolean;
+    end(): void;
+    undo(): void;
+    connect(): void;
+  };
 }
 
 export function DrawingPane(p: Props) {
@@ -74,6 +88,39 @@ export function DrawingPane(p: Props) {
         onSelectMany={p.select.selectMany}
         labelOf={edits.labelOf}
         onLabel={edits.onLabel}
+        onLabelDone={p.sketching.named}
+        kindsFor={p.sketching.kindsFor}
+        overlay={(rect, renaming) => {
+          const s = p.session;
+          const g = result?.graph;
+          if (!s || !rect || !g || !type) return null;
+          const nodes = p.selection.filter((x) => x.kind === 'node');
+          const one = p.selection.length === 1 ? p.selection[0] : undefined;
+          const node = one?.kind === 'node' ? g.nodes.find((n) => n.id === one.id) : undefined;
+          // Groups a selected box can go in (by what its type says), not the one it is in.
+          const collection = node ? String(node.path[0]) : nodes.length ? String(g.nodes.find((n) => n.id === nodes[0]!.id)?.path[0] ?? '') : '';
+          const groups = g.groups.filter((x) => x.path.length === 2 && x.id !== node?.parent && !!parentKey(type, collection, String(x.path[0])));
+          return (
+            <>
+              {!renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1) && (
+                <SelectionMenu
+                  key={p.selection.map((x) => x.id).join(' ')}
+                  rect={rect}
+                  single={!!node}
+                  kinds={node ? (p.sketching.kindsFor(one!) ?? []) : []}
+                  kind={node?.kind}
+                  groups={groups}
+                  canGroup={nodes.length > 0}
+                  onKind={(item) => p.sketching.kindTo(item)}
+                  onGroup={(into) => p.sketching.group(into)}
+                  onConnect={s.connect}
+                  onDelete={() => (p.selection.length > 1 ? edits.removeAll() : edits.remove())}
+                />
+              )}
+              {s.hint && (renaming || one?.kind === 'node') && <SketchHint rect={rect} naming={renaming} />}
+            </>
+          );
+        }}
         onMove={edits.move}
         onConnect={edits.connect}
         onMoveGroup={(id, at, done) => {
@@ -104,8 +151,9 @@ export function DrawingPane(p: Props) {
         locked={drawing.locked}
         bent={drawing.bent}
         grid={craft.grid}
-        minimap={craft.minimap}
-        page={craft.page}
+        minimap={craft.minimap && !p.sheetOnly}
+        page={craft.page && !p.sheetOnly}
+        clearBottom={p.session ? 88 : undefined}
         pinned={drawing.pinnedIds}
         onToggle={craft.toggle}
         control={p.control}
@@ -181,6 +229,24 @@ export function DrawingPane(p: Props) {
           />
         )}
       </Preview>
+      {p.session && <SessionHeader title={p.session.title} />}
+      {p.session && (
+        <SessionStrip
+          onAdd={() => {
+            const one = p.selection.length === 1 ? p.selection[0] : undefined;
+            if (one?.kind === 'node') p.sketching.tab(one.id);
+            else p.sketching.first();
+            (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
+          }}
+          canGroup={p.selection.some((x) => x.kind === 'node')}
+          onGroup={() => p.sketching.group()}
+          steps={stepList.length}
+          step={drawn?.step}
+          onStep={nav.stepBy}
+          onUndo={p.session.undo}
+          onEnd={p.session.end}
+        />
+      )}
       {p.compareView}
       {stepList.length > 0 && (
         <StepsStrip

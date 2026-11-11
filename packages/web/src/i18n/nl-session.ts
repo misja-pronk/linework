@@ -1,0 +1,64 @@
+// The editor's Dutch for session mode and sketching on the canvas (session.tsx, app/session.ts, app/sketching.ts).
+export const nlSession = {
+  // The session's own lines and strip
+  'Session': 'Sessie',
+  'esc leaves session': 'esc verlaat de sessie',
+  'Session: only the sheet, to draw live with people watching ({key}; Esc leaves)': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken ({key}; Esc verlaat)',
+  'Add a box (Tab adds one connected to the selection)': 'Een vak toevoegen (Tab voegt er een toe dat aan de selectie vastzit)',
+  'Put the selected boxes in a group (⌘G)': 'De gekozen vakken in een groep zetten (⌘G)',
+  'Step {n}/{m}': 'Stap {n}/{m}',
+  'All steps': 'Alle stappen',
+  'End session': 'Sessie beëindigen',
+  'Session ended: nothing changed': 'Sessie beëindigd: er is niets veranderd',
+  'Sessions on the light theme': 'Sessies in het lichte thema',
+  'Light reads best through screen sharing and video compression': 'Licht blijft het best leesbaar bij scherm delen en videocompressie',
+
+  // The menu over the selection
+  'Group into…': 'In groep…',
+  'Connect': 'Verbinden',
+  'New group': 'Nieuwe groep',
+  'Kind…': 'Soort…',
+  'That kind does not fit what is selected': 'Die soort past niet bij wat gekozen is',
+  'Select the boxes to group first': 'Kies eerst de vakken die in een groep moeten',
+  'This diagram type has no groups': 'Dit soort diagram heeft geen groepen',
+  'These cannot go in a group here': 'Deze kunnen hier niet in een groep',
+
+  // The hint under the selection
+  'keeps the name': 'houdt de naam',
+  'adds a connected box': 'voegt een verbonden vak toe',
+  'picks a kind': 'kiest een soort',
+  'adds a sibling': 'voegt er een naast toe',
+  'type to rename': 'typ om te hernoemen',
+  'undo': 'ongedaan maken',
+
+  // What changed
+  'What changed': 'Wat er veranderd is',
+  'In this session, on {title}': 'In deze sessie, aan {title}',
+  'What changed in {title}': 'Wat er veranderd is aan {title}',
+  'Copied what changed': 'Wijzigingen gekopieerd',
+  'Copy as text': 'Kopiëren als tekst',
+  'Show on the drawing': 'Laten zien in de tekening',
+  'Nothing that shows in the drawing changed': 'Niets wat in de tekening te zien is, is veranderd',
+  'The two versions could not be compared': 'De twee versies konden niet worden vergeleken',
+  'the start of the session': 'het begin van de sessie',
+
+  // The keys (keys.ts, the "?" sheet)
+  'Session: only the sheet, to draw live with people watching (Esc leaves)': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken (Esc verlaat)',
+  'Keep the name and add a box connected from it, named next': 'De naam houden en er een verbonden vak aan toevoegen, dat je daarna benoemt',
+  'While naming: a kind first picks the kind (↑ ↓ in the list)': 'Tijdens het benoemen: een soort vooraan kiest de soort (↑ ↓ in de lijst)',
+  'Tab while naming': 'Tab tijdens benoemen',
+  'fw: name': 'fw: naam',
+  'Type a name': 'Een naam typen',
+  'Rename the selected box; with nothing selected, a first box': 'Het gekozen vak hernoemen; als niets gekozen is, een eerste vak',
+  'Add a box connected from the selected one, and name it': 'Een vak toevoegen dat aan het gekozen vak vastzit, en het benoemen',
+  'Add a sibling: in the same group, connected from the same box': 'Er een naast zetten: in dezelfde groep, verbonden vanaf hetzelfde vak',
+  'Back to the box this one is connected from': 'Terug naar het vak waar dit vak aan vastzit',
+  'Nearest box in that direction': 'Dichtstbijzijnde vak in die richting',
+  'F2 / double-click': 'F2 / dubbelklik',
+  'Rename': 'Hernoemen',
+  'Put the selected boxes in a new group': 'De gekozen vakken in een nieuwe groep zetten',
+  'Undo; Esc while naming a new box takes it away': 'Ongedaan maken; Esc tijdens het benoemen van een nieuw vak haalt het weg',
+  'Delete the selected boxes': 'De gekozen vakken verwijderen',
+  'Deselect; with nothing selected, end the session': 'Selectie opheffen; als niets gekozen is, de sessie beëindigen',
+  'drawing live: ⇧S, then the drawing’s keys are these': 'live tekenen: ⇧S, dan zijn dit de toetsen van de tekening',
+} as const;

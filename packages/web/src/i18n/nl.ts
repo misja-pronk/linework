@@ -7,5 +7,6 @@ import { nlApp } from './nl-app.ts';
 import { nlDialogs } from './nl-dialogs.ts';
 import { nlPanels } from './nl-panels.ts';
 import { nlShow } from './nl-show.ts';
+import { nlSession } from './nl-session.ts';
 
-export const nl = { ...nlShell, ...nlApp, ...nlDialogs, ...nlPanels, ...nlShow } as const satisfies Record<string, string>;
+export const nl = { ...nlShell, ...nlApp, ...nlDialogs, ...nlPanels, ...nlShow, ...nlSession } as const satisfies Record<string, string>;

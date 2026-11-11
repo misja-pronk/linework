@@ -294,7 +294,9 @@ export function useCompare(ctx: CompareContext) {
   );
 
   const toggle = () => (baseline ? setBaseline(undefined) : void choose());
-  return { active: !!baseline, commands, view, dialogs, button, toggle };
+  /** Compares with a version handed in (the start of a session). */
+  const compareWith = (b: Baseline) => start(b);
+  return { active: !!baseline, commands, view, dialogs, button, toggle, compareWith };
 }
 
 function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Promise<Snapshot[]>; onCancel(): void; onTake(label: string, toFolder: boolean): void }) {

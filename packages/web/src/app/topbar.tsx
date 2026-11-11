@@ -10,6 +10,7 @@ import { BrandMark } from '../brand-mark.tsx';
 import { canUseFolders, type Workspace } from '../files.ts';
 import type { Doc } from './document.ts';
 import { ExportMenu, type ExportMenuProps } from './export-menu.tsx';
+import { keyHint } from '../keys.ts';
 
 interface Props {
   ws: Workspace | undefined;
@@ -28,6 +29,9 @@ interface Props {
   onTypeGuide(): void;
   onNew(): void;
   onCommands(): void;
+  /** Session mode (⇧S): only the sheet, to draw live with people watching. */
+  session: boolean;
+  toggleSession(): void;
   notify(message: string, opts?: { tone?: 'error' }): void;
   exportMenu: ExportMenuProps;
 }
@@ -98,6 +102,9 @@ export function Topbar(p: Props) {
         </button>
         <button className="button ghost wide-only" onClick={p.onNew} title={t('A new diagram: from a template or an example')}>
           <Icon name="file-plus" /> {t('New')}
+        </button>
+        <button className="button ghost session-toggle" onClick={p.toggleSession} aria-pressed={p.session} title={t('Session: only the sheet, to draw live with people watching ({key}; Esc leaves)', { key: keyHint('session') })}>
+          <Icon name="users" /> <span className="wide-only">{t('Session')}</span>
         </button>
         {/* On a phone the actions above fold into one menu. */}
         <div className="menu-anchor narrow-only">

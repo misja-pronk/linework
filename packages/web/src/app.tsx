@@ -3,7 +3,7 @@
 // editor's one undo history. The state lives in the hooks of app/, the panes are app/'s components;
 // this file puts them together.
 import './app.css';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PreviewControl, Selection } from './preview.tsx';
 import { useCraftPrefs } from './craft-actions.tsx';
 import { AddMenu } from './add-menu.tsx';
@@ -38,11 +38,14 @@ import { DrawingPane } from './app/drawing-pane.tsx';
 import { inspected, SidePanel, useSidePanel } from './app/side-panel.tsx';
 import { StatusBar } from './app/status-bar.tsx';
 import { Dialogs } from './app/dialogs.tsx';
+import { useSession } from './app/session.ts';
+import { useSketching } from './app/sketching.ts';
+import { SessionEnd } from './session.tsx';
 
 export function App() {
   useUiLang();
   const prefs = usePrefs();
-  const { theme, view } = prefs;
+  const { view } = prefs;
   const toasts = useToasts();
   const { notify } = toasts;
   /** Questions before something is lost, in the app's own dialog (confirm.tsx). */
@@ -54,6 +57,12 @@ export function App() {
   const workspace = useWorkspace();
   const { ws } = workspace;
   const { load, docId, docFile, here } = useDocPlace(ws, doc);
+  /** Drawing live with people watching: only the sheet, on the light theme unless that is switched off. */
+  const session = useSession({ textNow, pins });
+  const theme: 'light' | 'dark' = session.sheetOnly && session.light ? 'light' : prefs.theme;
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme, prefs.theme]);
   const navState = useNavigationState(docId);
   const { viewName, stepNo, focusAsked } = navState;
   const side = useSidePanel();
@@ -101,6 +110,19 @@ export function App() {
   const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.openView, focusDrawing, pinsToSave: pinning.pinsToSave });
   const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify });
   const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, previewControl, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
+  const endSession = () => {
+    session.end();
+    if (textNow() === session.start?.text) notify(t('Session ended: nothing changed'));
+  };
+  const sketching = useSketching({ drawing, selection: selState, pins: pinning, edits, previewControl, textNow, undo, notify, session: session.on, leave: endSession, used: () => {} });
+  const toggleSession = () => {
+    if (session.on) return endSession();
+    session.begin();
+    setAdding(false);
+    focusDrawing();
+    // The sheet has the whole window now: the drawing fits it, once the panes have gone.
+    requestAnimationFrame(() => requestAnimationFrame(() => previewControl.current?.fit()));
+  };
   const nav = useNavigation({ state: navState, drawing, text, textNow, ws, doc, here, selection, notify, apply: pinning.apply, ready: edits.ready, undo, nodeName: edits.nodeName, openInFolder: files.openInFolder, pick: files.pick, dropModal });
 
   const { selNode, selGroup, selEdge } = inspected(drawing, selected, sel.pathOf);
@@ -140,6 +162,12 @@ export function App() {
     onSelect: (s) => sel.select(s),
   });
   const layers = layering.ui(drawn, comparing.active);
+  // The session's delta on the drawing: back in the editor once that comparison is closed.
+  const wasComparing = useRef(false);
+  useEffect(() => {
+    if (wasComparing.current && !comparing.active) session.setReview(false);
+    wasComparing.current = comparing.active;
+  }, [comparing.active]); // eslint-disable-line react-hooks/exhaustive-deps -- on the comparison closing only
 
   /** A: the popup over the drawing, or in the builder view the shapes panel that is already open. */
   const addShape = () => {
@@ -147,14 +175,15 @@ export function App() {
     if (search) search.focus();
     else setAdding((a) => !a);
   };
-  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView });
-  const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect') });
+  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView, session: session.on, toggleSession });
+  const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect'), sketch: sketching.onKey });
+  const title = (result?.graph as { title?: string } | undefined)?.title || doc.name.replace(/\.ya?ml$/i, '');
   const commands = () =>
     buildCommands({ drawing, selection, selected, select: sel.select, ws, doc, pins, view, setView: prefs.openView, setPref: prefs.setPref, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, asking: side.asking, toggleAsk: side.toggleAsk, copyForAi, viewName, files, exports, edits, pinning, nav, modals, craft, previewControl, undo, redo, more: { compare: comparing.commands, layers: layers.commands } });
   const toggleTheme = () => prefs.setPref(theme === 'dark' ? 'light' : 'dark');
 
   return (
-    <div className="app" onDragOverCapture={files.onDragFiles} onDragLeaveCapture={files.onDragLeave} onDropCapture={files.onDropFiles}>
+    <div className={session.sheetOnly ? 'app in-session' : 'app'} onDragOverCapture={files.onDragFiles} onDragLeaveCapture={files.onDragLeave} onDropCapture={files.onDropFiles}>
       <Topbar
         ws={ws}
         remembered={workspace.remembered}
@@ -170,6 +199,8 @@ export function App() {
         onTypeGuide={() => (modals.setGuiding(true), setModal('templates'))}
         onNew={() => setModal('templates')}
         onCommands={() => setModal('palette')}
+        session={session.on}
+        toggleSession={toggleSession}
         notify={notify}
         exportMenu={{ exports, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, written: nav.written, hasPins: !!pins, onDescribe: () => modals.setDescribing(true), saveYaml: files.saveYaml, downloadYaml: files.downloadYaml }}
       />
@@ -270,6 +301,9 @@ export function App() {
           naming={navState.naming}
           onNamed={() => navState.setNaming(undefined)}
           notify={notify}
+          sketching={sketching}
+          sheetOnly={session.sheetOnly}
+          session={session.on ? { title, hint: session.hint, end: endSession, undo, connect: () => setModal('connect') } : undefined}
         />
         {sideOpen && (
           <SidePanel
@@ -335,6 +369,22 @@ export function App() {
         editor={editor}
         dropping={files.dropping}
       />
+      {session.ended && (
+        <SessionEnd
+          before={{ text: session.ended.text, ...(session.ended.pins ? { pins: session.ended.pins } : {}) }}
+          after={{ text: session.ended.text2, ...(session.ended.pins2 ? { pins: session.ended.pins2 } : {}) }}
+          {...(load ? { load } : {})}
+          title={title}
+          notify={notify}
+          onClose={() => (session.dismiss(), focusDrawing())}
+          onShow={() => {
+            const e = session.ended!;
+            session.dismiss();
+            session.setReview(true);
+            comparing.compareWith({ id: 'session', kind: 'snapshot', name: t('the start of the session'), text: e.text, ...(e.pins ? { sidecar: e.pins } : {}) });
+          }}
+        />
+      )}
       {toasts.toast && <Toast key={toasts.toast.message} toast={toasts.toast} onDone={toasts.clear} />}
     </div>
   );
