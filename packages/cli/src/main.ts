@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | review | diff | notes | decisions | new | import | export | threats | share | icons | themes | types | describe | export-md | export-confluence
+// carto render | deck | watch | validate | diff | new | export | share | icons | themes | types | describe | serve
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';

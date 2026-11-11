@@ -1589,14 +1589,6 @@ button.rail {
   opacity: 0.45;
   cursor: default;
 }
-.tab-count {
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  padding: 0 5px;
-  border-radius: 99px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
 
 .files {
   min-height: 0;
@@ -2300,14 +2292,6 @@ button.rail {
   background: var(--accent-soft);
   color: var(--accent);
 }
-.mode-ai .mode-icon {
-  background: linear-gradient(135deg, #ede9fe, #fce7f3);
-  color: #7c3aed;
-}
-:root[data-theme='dark'] .mode-ai .mode-icon {
-  background: linear-gradient(135deg, #2e1f5e, #4a1d3a);
-  color: #c4b5fd;
-}
 .mode-text {
   display: flex;
   flex-direction: column;
@@ -2911,9 +2895,6 @@ button.rail {
   gap: 8px;
   padding: 10px 0 12px;
   border-top: 1px dashed var(--border);
-}
-.type-not-item {
-  color: var(--text-muted);
 }
 .type-not-links {
   display: flex;

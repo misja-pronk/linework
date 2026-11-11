@@ -136,13 +136,11 @@ const download = async (menuItem) => {
   await page.keyboard.press('[');
   await wait(300);
   check('[ goes back', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
-  // N and P are the drawing's (a note, presenting): under the comparison they do nothing.
+  // P is the drawing's (presenting): under the comparison it does nothing.
   await page.keyboard.press('p');
-  await page.keyboard.press('n');
   await wait(300);
   if (await page.locator('.present').count()) fail('P presented while comparing');
-  if (await page.locator('.note-composer').count()) fail('N started a note while comparing');
-  check('P and N leave the change alone', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
+  check('P leaves the change alone', await page.locator('.cmp-item.current').getAttribute('data-step'), '1');
   await page.locator('.cmp-item').first().click();
   check('a click picks a change', await page.locator('.cmp-item.current').getAttribute('data-step'), '0');
   await wait(400);

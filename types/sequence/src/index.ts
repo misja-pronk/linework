@@ -71,7 +71,7 @@ interface ParticipantEntry {
   icon?: string;
   tone?: Tone;
   box?: string;
-  /** The element it stands for in another diagram or the model: where-used follows it. */
+  /** The element it stands for in another diagram or the model: the HTML export drills into it. */
   ref?: string;
 }
 

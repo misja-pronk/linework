@@ -102,7 +102,6 @@ export const nlShow = {
   '{n} of {count}': '{n} van {count}',
 
   // export.ts, and words several dialogs share
-  Starting: 'Beginnen',
   Close: 'Sluiten',
   Format: 'Formaat',
   Size: 'Grootte',
@@ -135,10 +134,6 @@ export const nlShow = {
   "Draw the diagram in its own theme on the template's slides, rather than in the template's colours and fonts": "Teken het diagram in zijn eigen thema op de dia's van het sjabloon, niet in de kleuren en lettertypen van het sjabloon",
   "Keep the diagram's own look": 'Eigen uiterlijk van het diagram houden',
   'Stop using {name}': '{name} niet meer gebruiken',
-
-  // repo-dialog.tsx
-  Diagrams: 'Diagrammen',
-  Open: 'Openen',
 
   // icon-packs-dialog.tsx, icon-packs.ts
   '{vendor} icons: {have} of {of} kinds have an icon': 'Iconen van {vendor}: {have} van {of} soorten hebben een icoon',

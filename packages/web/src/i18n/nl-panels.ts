@@ -365,15 +365,9 @@ export const nlPanels = {
   '{count} minute ago|{count} minutes ago': '{count} minuut geleden|{count} minuten geleden',
   '{count} hour ago|{count} hours ago': '{count} uur geleden|{count} uur geleden',
   '{count} day ago|{count} days ago': '{count} dag geleden|{count} dagen geleden',
-  'Copied': 'Gekopieerd',
-  // crumbs.tsx
-  'Back': 'Terug',
-  // rename.tsx
-  // search.tsx
-  '{count} element|{count} elements': '{count} element|{count} elementen',
-  // where-used.tsx
-  // use-tools.tsx
   // words the panels share
+  'Back': 'Terug',
+  '{count} element|{count} elements': '{count} element|{count} elementen',
   'All': 'Alles',
   'Edit': 'Bewerken',
   'Delete': 'Verwijderen',

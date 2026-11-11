@@ -77,8 +77,6 @@ async function run(width, height, theme) {
     const side = await box('.side');
     if (!side) fail(`${tag}: no side panel for the selection`);
     else if (overlap(tools, side)) fail(`${tag}: the toolbar runs under the side panel`);
-    const crumbs = await box('.crumbs');
-    if (crumbs && overlap(crumbs, tools)) fail(`${tag}: crumbs over the toolbar`);
     // The page is fitted and centred in the drawing's pane, never under the side panel.
     const frame = (await page.locator('.page-frame').count()) ? await box('.page-frame') : null;
     if (frame && (frame.x < c.x - 1 || frame.x + frame.width > c.x + c.width + 1)) fail(`${tag}: the page runs out of the drawing's pane (${Math.round(frame.x)}–${Math.round(frame.x + frame.width)} in ${Math.round(c.x)}–${Math.round(c.x + c.width)})`);
@@ -87,7 +85,7 @@ async function run(width, height, theme) {
     if (mini && mini.width * mini.height > c.width * c.height * 0.08) fail(`${tag}: the minimap takes ${Math.round((100 * mini.width * mini.height) / (c.width * c.height))}% of the drawing`);
   });
 
-  // Zoomed in, the floating breadcrumbs and tools may sit over the drawing; fit and zoom to the
+  // Zoomed in, the floating tools may sit over the drawing; fit and zoom to the
   // selection never put what they show under them.
   await step('fit and zoom to selection stay clear of the tools', async () => {
     // The topmost and the bottommost element: a selection taller than wide, the case that ran under the tools.

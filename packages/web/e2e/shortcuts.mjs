@@ -96,11 +96,7 @@ await step('⌘D outside the drawing stays the browser’s', async () => {
   if ((await yaml()).split('kind:').length !== before.split('kind:').length) fail('⌘D in the YAML duplicated an element');
 });
 
-await step('Caps Lock: N adds a note, S a step, as without it', async () => {
-  await page.click('.drawing [data-node="api"]');
-  await capsKey('n');
-  await page.waitForSelector('.note-composer');
-  await page.keyboard.press('Escape');
+await step('Caps Lock: S adds a step, as without it', async () => {
   await page.click('.drawing [data-node="api"]');
   await capsKey('s');
   await page.waitForSelector('.steps-strip');

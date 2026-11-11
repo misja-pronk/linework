@@ -63,7 +63,6 @@ export const nlDialogs = {
   // words the dialogs share
   Next: 'Volgende',
   More: 'Meer',
-  Yes: 'Ja',
   No: 'Nee',
 
   // inspector.tsx

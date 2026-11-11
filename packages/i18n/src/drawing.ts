@@ -1,11 +1,10 @@
-// The words a drawing and its exports add themselves (the KEY, "Step 3 of 7", a review's headings),
+// The words a drawing and its exports add themselves (the KEY, "Step 3 of 7"),
 // in the diagram's `lang:`. Kind names and key labels that types write are in ./terms.ts.
 import { translator, type Lang } from './index.ts';
 import { terms } from './terms.ts';
 import { nl } from './drawing-nl.ts';
 
 export { terms };
-export type DrawingMessage = keyof typeof nl;
 
 /** A drawing's own word in its language: tr(theme.lang, 'KEY'). */
 export const tr = translator(nl);
