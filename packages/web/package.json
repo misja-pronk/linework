@@ -22,7 +22,6 @@
     "@cartography/layout": "workspace:*",
     "@cartography/review": "workspace:*",
     "@cartography/theme": "workspace:*",
-    "@cartography/trace": "workspace:*",
     "@cartography/wizards": "workspace:*",
     "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.11.1",

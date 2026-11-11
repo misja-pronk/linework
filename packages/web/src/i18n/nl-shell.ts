@@ -134,7 +134,6 @@ export const nlShell = {
   'Comparing versions': 'Versies vergelijken',
   'Folder (one model)': 'Map (één model)',
   Blocks: 'Blokken',
-  'Trace a request': 'Een request volgen',
   'YAML editor': 'YAML-editor',
   'Mouse and trackpad': 'Muis en trackpad',
 
@@ -236,9 +235,6 @@ export const nlShell = {
   'Insert a block (into the selected group); its parameters, then ↵': 'Een blok invoegen (in de geselecteerde groep); de parameters, dan ↵',
   'Save the selection as a block, with its groups and the lines between': 'De selectie als blok opslaan, met haar groepen en de lijnen ertussen',
   'From the Blocks section onto the drawing or into a group: it stays where dropped': 'Uit de sectie Blokken op de tekening of in een groep: het blijft waar je het loslaat',
-  'Two selected: a request from the first to the second; one: until it ends': 'Twee geselecteerd: een request van de eerste naar de tweede; één: tot het eindigt',
-  'In the trace dialog: pick a route; Z shows the preview at its own size': 'In het venster Request volgen: kies een route; Z toont de voorvertoning op ware grootte',
-  'In the trace dialog: open as a new sequence diagram / add to the model as a dynamic view': 'In het venster Request volgen: openen als nieuw sequentiediagram / aan het model toevoegen als dynamische weergave',
   'Move it (pins it), snapping to guides; drop into a group to nest': 'Verplaatsen (zet het vast), met hulplijnen; loslaten in een groep nest het',
   'Move that part of it (bends are kept)': 'Dat deel ervan verplaatsen (knikken blijven)',
   'Take that bend out of the line': 'Die knik uit de lijn halen',
@@ -254,7 +250,6 @@ export const nlShell = {
   'Comment the line': 'De regel uitcommentariëren',
 
   // keys.ts: how the sheet writes gestures
-  '↑ ↓ or 1–9': '↑ ↓ of 1–9',
   '⌘↓ / double-click': '⌘↓ / dubbelklik',
   '↵ / F2 / double-click': '↵ / F2 / dubbelklik',
   '→ / Space': '→ / spatie',

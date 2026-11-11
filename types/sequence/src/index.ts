@@ -71,18 +71,8 @@ interface ParticipantEntry {
   icon?: string;
   tone?: Tone;
   box?: string;
-  /** The element it stands for in another diagram or the model (a trace writes it): where-used and "Show in the source" follow it. */
+  /** The element it stands for in another diagram or the model: where-used follows it. */
   ref?: string;
-}
-
-/** Where a traced sequence came from (docs/trace.md): the file and view, and what was traced. */
-export interface TracedFrom {
-  file?: string;
-  view?: string;
-  from?: string;
-  to?: string;
-  steps?: boolean;
-  until?: string;
 }
 
 export interface SequenceSource {
@@ -99,7 +89,6 @@ export interface SequenceSource {
   messages?: unknown[];
   /** The old name of messages. */
   steps?: unknown[];
-  traced?: TracedFrom;
 }
 
 /** Where the messages of a sequence or a frame are: `messages:`, or the old `steps:`. */
@@ -363,19 +352,6 @@ const schema = {
     captions: { enum: ['kinds', 'written'], description: 'kinds (default): a participant without a caption says its kind; written: only the captions written here' },
     activations: { enum: ['auto', 'explicit'], description: 'auto: calls open activations, replies close them; explicit: only +b, -a, activate:' },
     footers: { type: 'boolean', description: 'Repeat the participants under the lifelines' },
-    traced: {
-      type: 'object',
-      description: 'Where this was traced from (carto trace, or "Trace a request" in the editor): the file, its view, and what was traced',
-      properties: {
-        file: { type: 'string', description: 'The diagram traced, relative to this one' },
-        view: { type: 'string' },
-        from: { type: 'string', description: 'Where the request starts' },
-        to: { type: 'string', description: 'Where it ends' },
-        steps: { type: 'boolean', description: 'Traced along the steps of the diagram or the dynamic view' },
-        until: { type: 'string', description: 'Followed until each call ends' },
-      },
-      additionalProperties: false,
-    },
     boxes: {
       type: 'object',
       propertyNames: { pattern: idPattern },
@@ -397,7 +373,7 @@ const schema = {
               icon: { type: 'string' },
               tone,
               box: { type: 'string', pattern: idPattern, description: 'The box it is drawn in' },
-              ref: { type: 'string', description: 'The element it stands for, in the model or the diagram it was traced from' },
+              ref: { type: 'string', description: 'The element it stands for, in the model or another diagram' },
             },
             additionalProperties: false,
           },

@@ -20,7 +20,6 @@ import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
 import { indexWorkspace, isDiagramFile, threatMarkdown } from '@cartography/core';
-import { dynamicView, sequenceYaml, traceable, traceAsk, type TraceMeta } from '@cartography/trace';
 import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { badLang, explicitLang, helpText, t } from './i18n.ts';
 import { matchTypes, packLayout, parseSidecar, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
@@ -84,11 +83,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
   carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
-  carto trace <file.yaml> --from a --to b       a request traced along the relations, as a sequence diagram:
-               [--view v] [--all] [--pick n]    the shortest route (--all: every route, --pick: route n), with
-               [--steps] [--dynamic] [-o x]     replies for calls; without --to, followed until each call ends;
-                                                --steps: along the diagram's steps or a dynamic view; --dynamic:
-                                                a C4 dynamic view to add to views: instead. More: docs/trace.md
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
@@ -196,7 +190,6 @@ const groups: [string, [string, string][]][] = [
     ['validate', t('check files and their views')],
     ['review', t('architecture review rules: findings, fixes, a report')],
     ['diff', t('what changed between two versions')],
-    ['trace', t('a request through it, as a sequence diagram')],
     ['threats', t('the threat table')],
     ['notes', t('review notes')],
     ['decisions', t('architecture decisions: log, table, new')],
@@ -227,7 +220,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1, trace: 2 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, decisions: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -330,9 +323,6 @@ const parsed = (() => {
     yes: { type: 'boolean', short: 'y' },
     from: { type: 'string' },
     to: { type: 'string' },
-    pick: { type: 'string' },
-    steps: { type: 'boolean' },
-    dynamic: { type: 'boolean' },
     wizard: { type: 'string' },
     answers: { type: 'string' },
     notes: { type: 'boolean' },
@@ -412,49 +402,6 @@ function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): 
   const decorate = (d: { svg: string; width: number; height: number; origin?: { x: number; y: number } }) => withReviewNotes(d, graph, placed, notes, theme, { view: r.view });
   const marked = r.svg && r.width && r.height ? decorate({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }) : undefined;
   return { ...r, ...(marked ? { svg: marked.svg, width: marked.width, height: marked.height } : {}), remarks: noteLines(notes, graph, r.view), annotate: decorate };
-}
-
-/**
- * carto trace: a request through the architecture as a sequence diagram (docs/trace.md). Between
- * --from and --to the best route, every route with --all, route n with --pick; without --to the
- * calls followed until each ends; --steps along the diagram's story. --dynamic: a C4 dynamic view.
- */
-async function traceCommand(): Promise<number> {
-  const [f] = files;
-  if (f && !values.from && !values.steps) return (console.error(`${t("carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram's steps")}\n${t('Options: carto {command} --help', { command: 'trace' })}`), 1);
-  if (!f) return (console.error(helpFor('trace')), 1);
-  const traced = await traceable(fs.readFileSync(f, 'utf8'), { load: loaderFor(f), file: path.basename(f), view: values.view });
-  const errors = traced.diagnostics.filter((d) => d.severity === 'error');
-  if (errors.length) return (report(f, errors), 1);
-  const pick = values.pick ? Number(values.pick) : undefined;
-  if (pick !== undefined && !(Number.isInteger(pick) && pick >= 1)) throw new UsageError(t('--pick takes a route number: 1, 2, …'));
-  const r = traceAsk(traced, { from: values.from, to: values.to, steps: values.steps, limit: values.all ? 20 : Math.max(5, pick ?? 0) });
-  if (r.error) return (console.error(`${f}: ${r.error}`), 1);
-  if (pick !== undefined && pick > r.options.length) return (console.error(t('{file}: there is {count} route, not {pick}|{file}: there are {count} routes, not {pick}', { file: f, count: r.options.length, pick })), 1);
-  const chosen = values.all ? r.options.map((o, i) => [o, i] as const) : [[r.options[(pick ?? 1) - 1]!, (pick ?? 1) - 1] as const];
-  // The sequence names the traced file relative to where it is written.
-  const out = values.out && values.out !== '-' ? values.out : undefined;
-  const rel = path.relative(out ? path.dirname(path.resolve(out)) : process.cwd(), path.resolve(f)).split(path.sep).join('/');
-  const ask = [`carto trace ${f}`, ...(values.view ? [`--view ${values.view}`] : []), ...(values.steps ? ['--steps'] : [`--from ${r.from}`, ...(r.to ? [`--to ${r.to}`] : [])])].join(' ');
-  if (r.options.length > 1 && !values.all) {
-    console.error(pick ? t('{count} routes, route {pick}:', { count: r.options.length, pick }) : t('{count} routes, the first:', { count: r.options.length }));
-    r.options.forEach((o, i) => console.error(`  ${i + 1}. ${o.summary}`));
-  }
-  const texts = chosen.map(([o, i]) => {
-    const meta: TraceMeta = { file: rel, ...(traced.view ? { view: traced.view } : {}), mode: r.mode, from: r.from, to: r.to, pick: { n: i + 1, of: r.options.length }, command: `${ask}${r.options.length > 1 ? ` --pick ${i + 1}` : ''}` };
-    if (!values.dynamic) return sequenceYaml(traced.graph, o, meta);
-    const d = dynamicView(traced.graph, o, meta);
-    if (!d) throw new UsageError(t('{file} has no model: a dynamic view needs model elements (elements:, or include: of a model)', { file: f }));
-    return d.yaml;
-  });
-  if (!out) process.stdout.write(texts.join('---\n'));
-  else
-    texts.forEach((text, i) => {
-      const name = i ? out.replace(/(\.ya?ml)?$/, (ext) => `-${i + 1}${ext || '.yaml'}`) : out;
-      fs.writeFileSync(name, text);
-      console.error(`${f} → ${name}  ${dim(chosen[i]![0].summary)}`);
-    });
-  return 0;
 }
 
 /** carto notes: the threads as markdown; --merge-driver: git's three-way merge of a notes file. */
@@ -1191,8 +1138,6 @@ async function main(): Promise<number> {
       }
       return r.diagnostics.some((d) => d.severity === 'error') ? 1 : 0;
     }
-    case 'trace':
-      return traceCommand();
     case 'share': {
       const [f] = files;
       if (!f) return (console.error(helpFor(command)), 1);

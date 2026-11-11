@@ -21,7 +21,6 @@ const GROUPS: [string, string][] = [
   ['Comparing versions', ''],
   ['Folder (one model)', 'with a folder open'],
   ['Blocks', ''],
-  ['Trace a request', ''],
   ['YAML editor', 'when the YAML has focus'],
   ['Mouse and trackpad', ''],
 ];

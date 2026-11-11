@@ -39,7 +39,6 @@ export const nl = {
   'unknown command "{name}"': 'onbekend commando "{name}"',
   'unknown command "{name}". Did you mean "carto {guess}"?': 'onbekend commando "{name}". Bedoel je "carto {guess}"?',
   '--lang is en or nl, not "{value}"': '--lang is en of nl, niet "{value}"',
-  '--pick takes a route number: 1, 2, …': '--pick neemt een routenummer: 1, 2, …',
   '--icons is official or lucide, not "{value}"': '--icons is official of lucide, niet "{value}"',
   '--template is a PowerPoint template, .potx or .pptx: {file}': '--template is een PowerPoint-sjabloon, .potx of .pptx: {file}',
   '-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/': '-o {out} noemt één bestand, maar {why}: geef een map, bijvoorbeeld -o {folder}/',
@@ -106,11 +105,7 @@ export const nl = {
   'note {id} ({status}) is about "{was}", which is no longer in the diagram': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat',
   'note {id} ({status}) is about "{was}", which is no longer in the diagram (view {view})': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat (weergave {view})',
 
-  // trace, notes, threats, share
-  '{file}: there is {count} route, not {pick}|{file}: there are {count} routes, not {pick}': '{file}: er is {count} route, geen {pick}|{file}: er zijn {count} routes, geen {pick}',
-  '{count} routes, route {pick}:': '{count} routes, route {pick}:',
-  '{count} routes, the first:': '{count} routes, de eerste:',
-  '{file} has no model: a dynamic view needs model elements (elements:, or include: of a model)': '{file} heeft geen model: een dynamische weergave heeft modelelementen nodig (elements:, of include: van een model)',
+  // notes, threats, share
   'carto notes: {ours} or {theirs} is not a notes file': 'carto notes: {ours} of {theirs} is geen notitiebestand',
   '{file}: no review notes ({path} is not there)': '{file}: geen reviewnotities ({path} bestaat niet)',
   '{file}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)': '{file}: hier is geen dreigingsmodel: zet trust: bij een groep, of threats: bij een element of lijn (docs/threats.md)',
@@ -181,11 +176,9 @@ export const nl = {
   'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
-  'a request through it, as a sequence diagram': 'een verzoek erdoorheen, als sequentiediagram',
   'the threat table': 'de dreigingstabel',
   'review notes': 'reviewnotities',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
-  'carto trace needs where the request starts: --from <element> (with --to <element> for one route), or --steps to follow the diagram\'s steps': 'carto trace moet weten waar het verzoek begint: --from <element> (met --to <element> voor één route), of --steps om de stappen van het diagram te volgen',
   '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
   'as-is, transition stages and to-be: each, compared, a roadmap': 'huidig, tussenstappen en gewenst: elk apart, vergeleken, als roadmap',
 } as const satisfies Record<string, string>;
@@ -313,17 +306,6 @@ export const nlHelp: Record<string, string> = {
                [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats`]:
     `  carto threats <file.yaml> [-o threats.md]    de dreigingstabel (STRIDE-dreigingen, vertrouwensgrenzen) als markdown;
                [--view name]                    --view: van een van de weergaven van een model. Getekend: carto render --view threats`,
-  [`  carto trace <file.yaml> --from a --to b       a request traced along the relations, as a sequence diagram:
-               [--view v] [--all] [--pick n]    the shortest route (--all: every route, --pick: route n), with
-               [--steps] [--dynamic] [-o x]     replies for calls; without --to, followed until each call ends;
-                                                --steps: along the diagram's steps or a dynamic view; --dynamic:
-                                                a C4 dynamic view to add to views: instead. More: docs/trace.md`]:
-    `  carto trace <file.yaml> --from a --to b       een verzoek gevolgd langs de relaties, als sequencediagram:
-               [--view v] [--all] [--pick n]    de kortste route (--all: elke route, --pick: route n), met
-               [--steps] [--dynamic] [-o x]     antwoorden op aanroepen; zonder --to gevolgd tot elke aanroep eindigt;
-                                                --steps: langs de stappen van het diagram of een dynamische weergave;
-                                                --dynamic: in plaats daarvan een dynamische C4-weergave om aan views:
-                                                toe te voegen. Meer: docs/trace.md`,
   [`  carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)`]:

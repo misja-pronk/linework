@@ -180,11 +180,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'save-block', keys: ['shift+b'], what: 'Save the selection as a block, with its groups and the lines between', context: 'drawing', group: 'Blocks' },
   { id: 'drop-block', keys: [], show: 'Drag a block', what: 'From the Blocks section onto the drawing or into a group: it stays where dropped', context: 'mouse', group: 'Mouse and trackpad' },
 
-  // ------------------------------------------------------------ trace a request
-  { id: 'trace', keys: ['shift+q'], what: 'Two selected: a request from the first to the second; one: until it ends', context: 'drawing', group: 'Trace a request' },
-  { id: 'trace-pick', keys: [], show: '↑ ↓ or 1–9', what: 'In the trace dialog: pick a route; Z shows the preview at its own size', context: 'not-typing', group: 'Trace a request' },
-  { id: 'trace-open', keys: [], show: '↵ / ⌥↵', what: 'In the trace dialog: open as a new sequence diagram / add to the model as a dynamic view', context: 'not-typing', group: 'Trace a request' },
-
   // ------------------------------------------------------------ mouse and trackpad
   { id: 'drag', keys: [], show: 'Drag an element', what: 'Move it (pins it), snapping to guides; drop into a group to nest', context: 'mouse', group: 'Mouse and trackpad' },
   { id: 'drag-line', keys: [], show: 'Drag a selected line', what: 'Move that part of it (bends are kept)', context: 'mouse', group: 'Mouse and trackpad' },

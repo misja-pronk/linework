@@ -1,4 +1,4 @@
-// The editor's Dutch: the side panels: notes, decisions, review, Your AI, blocks, compare, trace and the folder tools.
+// The editor's Dutch: the side panels: notes, decisions, review, Your AI, blocks, compare and the folder tools.
 export const nlPanels = {
   // ask-panel.tsx
   'Your AI': 'Je AI',
@@ -429,42 +429,8 @@ export const nlPanels = {
   '{count} minute ago|{count} minutes ago': '{count} minuut geleden|{count} minuten geleden',
   '{count} hour ago|{count} hours ago': '{count} uur geleden|{count} uur geleden',
   '{count} day ago|{count} days ago': '{count} dag geleden|{count} dagen geleden',
-  // trace-dialog.tsx
-  'until it ends': 'tot het einde',
-  'along the steps': 'langs de stappen',
-  'Trace a request': 'Een request volgen',
-  'Routes': 'Routes',
-  '{count} call|{count} calls': '{count} aanroep|{count} aanroepen',
-  'Preview of the sequence diagram, at its own size: click or Z to switch': 'Voorbeeld van het sequentiediagram, op ware grootte: klik of Z om te wisselen',
-  'Preview of the sequence diagram, fitted: click or Z to switch': 'Voorbeeld van het sequentiediagram, passend: klik of Z om te wisselen',
-  'Fit the preview (Z)': 'Voorbeeld passend maken (Z)',
-  'At its own size (Z)': 'Op ware grootte (Z)',
   'Copied': 'Gekopieerd',
-  'Copy YAML': 'YAML kopiëren',
-  "Add these calls to the model's views: as a C4 dynamic view": 'Deze aanroepen toevoegen aan de weergaven van het model: als dynamische C4-weergave',
-  'Add as a dynamic view': 'Toevoegen als dynamische weergave',
-  'Open as a new diagram': 'Openen als nieuw diagram',
-  // use-trace.tsx
-  'Wait for the drawing, then trace': 'Wacht op de tekening en volg dan',
-  '{file} is not open here: open its folder to go there': '{file} is hier niet open: open de map ervan om erheen te gaan',
-  'Trace': 'Volgen',
-  'Trace a request from {from} to {to}': 'Request volgen van {from} naar {to}',
-  'as a sequence diagram, routes to pick from': 'als sequentiediagram, met routes om uit te kiezen',
-  'Trace a request from {from} until it ends': 'Request volgen van {from} tot het einde',
-  'every call followed to a store, an external system or a person': 'elke aanroep gevolgd tot een opslag, een extern systeem of een persoon',
-  'Trace a request from {from} to…': 'Request volgen van {from} naar…',
-  'pick where it ends': 'kies waar het eindigt',
-  'Trace this dynamic view as a sequence diagram': 'Deze dynamische weergave volgen als sequentiediagram',
-  'Trace the steps as a sequence diagram': 'De stappen volgen als sequentiediagram',
-  'their routes in order, with replies': 'hun routes op volgorde, met antwoorden',
-  'Traced from': 'Gevolgd vanuit',
-  'Show {name} in {file}': '{name} tonen in {file}',
-  'Traces of this diagram': 'Traces van dit diagram',
   'Open {file}': '{file} openen',
-  'Added the dynamic view {name}: ⌘Z takes it out again': 'Dynamische weergave {name} toegevoegd: ⌘Z haalt hem weer weg',
-  'Trace from {from} to…': 'Volgen van {from} naar…',
-  'From {from} to': 'Van {from} naar',
-  'Select one element to trace from, or two to trace between (⇧-click the second)': 'Selecteer één element om vanaf te volgen, of twee om ertussen te volgen (⇧-klik op het tweede)',
   // crumbs.tsx
   'The landscape ({place})': 'Het landschap ({place})',
   'Where this drawing is': 'Waar deze tekening staat',

@@ -374,13 +374,6 @@ describe('carto errors and help', () => {
     expect(carto('describe', 'fmt.yaml', '--format', 'docx').err).toContain('carto describe writes text, md or html');
   }, 120_000);
 
-  it('trace without --from says what is missing', () => {
-    write('tr.yaml', 'type: systems\nnodes:\n  a: service\n  b: database\nedges:\n  - a -> b\n');
-    const r = carto('trace', 'tr.yaml');
-    expect(r.code).toBe(1);
-    expect(r.err).toMatch(/^carto trace needs where the request starts: --from <element>/);
-  }, 120_000);
-
   it('export --to is the umbrella; the export-* commands stay', () => {
     write('ex.yaml', 'type: systems\nnodes:\n  a: service\n  b: database\nedges:\n  - a -> b\n');
     expect(carto('export', 'ex.yaml', '--to', 'html', '-o', 'ex.html').code).toBe(0);

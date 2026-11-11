@@ -46,7 +46,6 @@ import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
-import { useTrace } from './trace/use-trace.tsx';
 import { useBlocks } from './blocks/use-blocks.tsx';
 import { useReview } from './notes-state.ts';
 import { NoteMarkers, NotesPanel, type NoteFilter } from './notes-panel.tsx';
@@ -76,9 +75,6 @@ interface Saved {
   savedText?: string | null;
 }
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-/** ⌘ on Mac, Ctrl elsewhere; on Mac, Ctrl stays the editor's (Emacs-style line keys). */
-const mod = (e: { metaKey: boolean; ctrlKey: boolean }) => (isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
 const NONE: Diagnostic[] = [];
 const NUDGE = 8;
 /** Copied entries, kept in memory: the page's own clipboard (the system one stays free for text). */
@@ -1659,35 +1655,6 @@ export function App() {
     if (decisionsTool.open && notesOpen) toggleNotes();
   }, [decisionsTool.open]);
 
-  // Trace a request through the drawing into a sequence diagram (trace/).
-  const trace = useTrace({
-    ws,
-    file: ws && doc.path ? doc.path : docId,
-    inFolder: !!(ws && doc.path),
-    text: rendered?.text ?? text,
-    drawn,
-    current,
-    selection,
-    theme,
-    index: wsTools.index,
-    // In a folder the diagram traced is saved first; outside one the toast's Undo brings it back.
-    openNew: (next, name, path) =>
-      void (path ? leave() : Promise.resolve(true)).then((ok) => {
-        if (!ok) return;
-        fileHandle.current = undefined;
-        open(next, path ? { name, path } : { name }, undefined, false, t('Traced into {name}: ⌘S keeps it', { name }));
-        if (path) notify(t('Traced into {path}: ⌘S writes it into the folder', { path }));
-        setSavedText(null);
-        focusDrawing();
-      }),
-    replace: (next, name) => {
-      editor.current?.replace(next);
-      if (name) setPicked({ doc: docId, name });
-    },
-    go: (p) => void wsTools.go(p),
-    notify,
-  });
-
   // Reusable fragments (blocks/): the shapes panel's Blocks section, B and ⇧B, drops, updates.
   const blocks = useBlocks({
     ws,
@@ -1746,7 +1713,6 @@ export function App() {
     { id: 'ask', group: t('Your AI'), label: asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void copyForAi() }] : []),
     ...wsTools.commands,
-    ...trace.commands,
     ...blocks.commands,
     { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('template, then AI, builder or YAML'), icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
@@ -1867,7 +1833,7 @@ export function App() {
       }
       // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
-      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || trace.onKey(e, mod(e), !!typing) || blocks.onKey(e, !!typing))) return e.preventDefault();
+      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || blocks.onKey(e, !!typing))) return e.preventDefault();
       if (e.defaultPrevented) return;
       const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (modal && id !== 'palette') || presenting) return;
@@ -2655,7 +2621,6 @@ export function App() {
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
-      {trace.dialog}
       {blocks.dialog}
       {noteMenu && (
         <div className="context-menu" style={{ left: noteMenu.x, top: noteMenu.y }}>
@@ -2671,7 +2636,6 @@ export function App() {
             <button role="menuitem" onClick={() => setNotesOpen(true)}>
               <Icon name="message-square" /> {t('Show the notes')}
             </button>
-            {trace.menuItems(() => setNoteMenu(undefined))}
             {blocks.menuItems(() => setNoteMenu(undefined))}
           </Menu>
         </div>

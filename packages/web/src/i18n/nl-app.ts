@@ -75,8 +75,6 @@ export const nlApp = {
   ', locked': ', vergrendeld',
   ', bent by hand': ', met de hand gebogen',
   ', pinned': ', vastgezet',
-  'Traced into {name}: ⌘S keeps it': 'Request gevolgd in {name}: ⌘S bewaart het',
-  'Traced into {path}: ⌘S writes it into the folder': 'Request gevolgd in {path}: ⌘S schrijft het in de map',
   'File': 'Bestand',
   'New diagram…': 'Nieuw diagram…',
   'template, then AI, builder or YAML': 'sjabloon, dan AI, Builder of YAML',
@@ -421,8 +419,5 @@ export const nlApp = {
   'Your name': 'Je naam',
   'Your name, shown on your notes; asked once': 'Je naam, getoond bij je notities; wordt één keer gevraagd',
   '{count} template|{count} templates': '{count} sjabloon|{count} sjablonen',
-  '{count} route|{count} routes': '{count} route|{count} routes',
-  'from {from} to {to} · {routes}': 'van {from} naar {to} · {routes}',
-  'from {from} until it ends': 'van {from} tot het einde',
   'After {source}.': 'Naar {source}.',
 } as const satisfies Record<string, string>;
