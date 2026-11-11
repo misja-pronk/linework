@@ -11,17 +11,18 @@ const problems = [];
 const fail = (m) => problems.push(m);
 let page;
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const open = async (text, name) => {
+/** `frameOn`: the page frame pref as the person left it; true unless said (it is off by default). */
+const open = async (text, name, frameOn = true) => {
   page = await (await browser.newContext({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2, acceptDownloads: true })).newPage();
   page.on('pageerror', (e) => fail(e.message));
   await page.addInitScript(
-    ({ text, name }) => {
+    ({ text, name, frameOn }) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } }, ...(frameOn == null ? {} : { page: frameOn }) })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
     },
-    { text, name },
+    { text, name, frameOn },
   );
   await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
   await page.waitForSelector('.drawing svg');
@@ -33,6 +34,11 @@ const frame = async () => {
   const b = await f.boundingBox();
   return { name: await f.getAttribute('data-page'), pt: Number(await f.getAttribute('data-pt')), small: (await f.getAttribute('class')).includes('small'), shape: b.width / b.height, label: await f.locator('.page-label').innerText() };
 };
+
+// 0. Nobody asked for the page: no frame on the canvas.
+await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label: App Service }\n', 'plain.yaml', null);
+if (await page.locator('.page-frame').count()) fail('the page frame shows without being asked for');
+await page.context().close();
 
 // 1. A small drawing: a 16:9 frame around it, readable, nothing flagged.
 await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label: App Service }\n  db: { kind: sql-database, label: Orders }\nedges:\n  - app -> db\n', 'small.yaml');
@@ -65,6 +71,7 @@ await open(example('cloud/aws-data-lake.yaml'), 'aws-data-lake.yaml');
   if (!(await page.locator('.page-readable').count())) fail('no readable part shown on a page that is too full');
   if (!(await page.locator('[data-overflow]').count())) fail('nothing flagged outside the readable part');
   if (!/under 6 pt/.test(f?.label ?? '')) fail(`the frame does not say the text is under 6 pt: "${f?.label}"`);
+  if (!/outlined: past the readable part/.test(f?.label ?? '')) fail(`the frame does not say what the outlines mean: "${f?.label}"`);
   await page.screenshot({ path: `${out}/s2-too-full.png` });
   // The page export: an SVG of the page's shape.
   await page.click('button:has-text("Export")');

@@ -99,38 +99,54 @@
   stroke: var(--ink);
 }
 /* The page the drawing is for: a thin frame around it, its name and text size above its corner. */
+/* The page, when asked for: a hairline in the rule with a small-caps label above it. Text too small on
+   it is said in the warning ink, with the part still readable dashed and what lies past it outlined. */
 .page-frame {
   position: absolute;
   border: 1px solid var(--rule);
   pointer-events: none;
-}
-.page-frame.small {
-  border-color: color-mix(in srgb, var(--warning) 70%, transparent);
 }
 .page-label {
   position: absolute;
   left: 0;
   bottom: 100%;
   transform-origin: 0 100%;
-  padding: 0 0 5px;
-  font: 500 10.5px/1.2 var(--mono);
+  display: flex;
+  align-items: center;
+  padding: 0 0 6px;
+  font: 600 11px/1.2 var(--font);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  white-space: nowrap;
+  white-space: pre;
 }
-.page-frame.small .page-label {
+.page-warn {
   color: var(--warning-ink);
 }
-/* Where text would still be readable on the page; what lies outside it is outlined. */
+.page-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--rule2);
+  color: var(--warning-ink);
+}
+.page-key i {
+  width: 12px;
+  height: 9px;
+  border: 1.5px solid var(--warning);
+  border-radius: 2px;
+}
 .page-readable {
   position: absolute;
-  border: 1px dashed color-mix(in srgb, var(--warning) 60%, transparent);
+  border: 1px dashed var(--rule);
   pointer-events: none;
 }
 .page-overflow {
   position: absolute;
-  border: 1.5px solid color-mix(in srgb, var(--warning) 75%, transparent);
+  border: 1.5px solid var(--warning);
   border-radius: var(--radius-plate);
-  background: color-mix(in srgb, var(--warning) 6%, transparent);
   pointer-events: none;
 }
 .pin-badge {

@@ -71,7 +71,7 @@
   --blank: #000000;
 
   /* YAML in the Survey inks. */
-  --syn-key: #40429b;
+  --syn-key: #2b4a6f;
   --syn-string: #2a6b5c;
   --syn-atom: #765d12;
   --syn-comment: #6b6253;
@@ -111,7 +111,7 @@
   --count: #ebb13c;
   --count-soft: #33290f;
 
-  --syn-key: #c4baff;
+  --syn-key: #a9c1dc;
   --syn-string: #67dbd4;
   --syn-atom: #ebb13c;
   --syn-comment: #949ca4;

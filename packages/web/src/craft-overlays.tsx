@@ -100,7 +100,19 @@ export function PageFrame(p: { width: number; height: number; page: { name: stri
     <>
       <div className={small ? 'page-frame small' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
         <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
-          {small ? t('Page: {name} · {pt} pt, under {min} pt', { name: p.page.name, pt: p.pt.toFixed(1), min: p.minPt }) : t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
+          {t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
+          {small && (
+            <>
+              {', '}
+              <span className="page-warn">{t('under {min} pt', { min: p.minPt })}</span>
+            </>
+          )}
+          {out.length > 0 && (
+            <span className="page-key">
+              <i aria-hidden="true" />
+              {t('outlined: past the readable part')}
+            </span>
+          )}
         </span>
       </div>
       {r && <div className="page-readable" style={{ left: r.x, top: r.y, width: r.width, height: r.height, borderWidth: line }} aria-hidden="true" />}
