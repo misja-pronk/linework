@@ -95,17 +95,22 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
     dropModal();
     if (!(await leave())) return;
     fileHandle.current = undefined;
-    open(withUiLang(s.text), { name: s.file, starter: s.id });
+    open(withUiLang(s.text), { name: s.file, starter: s.id }, undefined, true);
+    notify(t('Opened {name}', { name: s.title }));
     focusDrawing();
   };
 
-  /** From the start dialog: the chosen template or generated YAML, in the chosen way of working. */
+  /**
+   * From the start dialog: the chosen template, or a blank sheet. Unsaved changes were asked about
+   * first, so it says what opened without offering to undo it.
+   */
   const start = async (o: Opened) => {
     closeModal();
     if (!(await leave())) return;
     fileHandle.current = undefined;
     setView(o.view);
-    open(withUiLang(o.text), { name: o.name, starter: o.starter }, undefined, o.blank);
+    open(withUiLang(o.text), { name: o.name, starter: o.starter }, undefined, true);
+    if (!o.blank) notify(t('Opened {name}', { name: o.title ?? o.name }));
     if (o.view === 'code') requestAnimationFrame(() => editor.current?.focus());
     else focusDrawing();
   };

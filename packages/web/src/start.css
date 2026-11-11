@@ -1,8 +1,8 @@
-/* The start dialog (start.tsx), drawn as an atlas: an index of the diagram types on the left, the plates
-   (types, then their templates) numbered like map sheets on the table, a blank sheet first. Then the way
-   of working, and your AI. */
+/* The start dialog (start.tsx): first the drawings people come to make, as cards on the table, a blank
+   sheet and a search under them; then, one step further, every template: an index of the diagram types
+   on the left, their cards on the table. */
 
-/* The atlas takes nearly the whole window: it is where a session starts. */
+/* The dialog takes nearly the whole window: it is where a session starts. */
 .start-overlay {
   padding-top: 24px;
 }
@@ -47,28 +47,141 @@
 .start header h2 {
   flex: 1;
 }
-/* Type › Template › How, in small capitals; the step you are on in ink. */
-.steps {
+
+/* ------------------------------------------------------------- the first screen */
+
+.home {
+  flex: 1;
+  min-height: 0;
   display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px 32px 28px;
+  overflow-y: auto;
+  background: var(--table);
+}
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.scenario {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule2);
+  border-radius: var(--radius-plate);
+  background: var(--sheet);
+  overflow: hidden;
+  transition: border-color 120ms ease-out;
+}
+.scenario:hover {
+  border-color: var(--rule);
+}
+/* The card the keys are on: outlined in rust, the whole of it. */
+.scenario:has(.scenario-main:focus-visible) {
+  outline: 2px solid var(--rust);
+  outline-offset: -1px;
+}
+.scenario-main {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  margin: 0 8px 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 0.65625rem;
+  padding: 0 0 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.scenario-main:focus-visible {
+  outline: none;
+}
+.scenario-thumb {
+  height: 150px;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule2);
+  overflow: hidden;
+}
+.scenario-thumb > span {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.scenario-thumb svg {
+  width: 100%;
+  height: 100%;
+}
+.scenario-title {
+  padding: 0 16px;
+  font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+  line-height: 1.3;
 }
-.steps li + li::before {
-  content: '·';
-  margin: 0 8px 0 4px;
+.scenario-text {
+  padding: 0 16px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted);
 }
-.steps li[aria-current='true'] {
-  color: var(--ink);
+/* Related drawings: plain links under the card. */
+.scenario-also {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--rule2);
+  font-size: 0.78125rem;
+}
+.scenario-also button.link {
+  margin-left: 0;
+  padding: 0;
+}
+/* A blank sheet, the search and every template, on one line under the cards. */
+.home-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+}
+.home-foot .blank-sheet {
+  grid-column: auto;
+  min-height: 38px;
+  height: 38px;
+  padding: 0 14px;
+  gap: 10px;
+}
+.home-foot .blank-what {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-search {
+  min-width: 0;
+}
+.home-search .type-hint {
+  margin: 0;
+  padding: 8px 0 0;
+  border: none;
+}
+.home-search .type-hint button.link {
+  margin: 0 10px 0 0;
+  padding: 0;
+}
+.home-search .type-hint button.link.best {
+  color: var(--rust);
 }
 
-/* ------------------------------------------------------------- the atlas: index and plates */
+/* ------------------------------------------------------------- every template: index and cards */
 
 .atlas {
   flex: 1;
@@ -79,15 +192,8 @@
 .atlas-index {
   min-height: 0;
   overflow-y: auto;
-  padding: 24px 0 24px 24px;
+  padding: 12px 0 24px 24px;
   border-right: 1px solid var(--rule);
-}
-.atlas-label {
-  font-size: 0.65625rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
 }
 .atlas-index ul {
   margin: 12px 0 0;
@@ -99,7 +205,7 @@
 }
 .atlas-index button {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) 28px;
   align-items: center;
   width: 100%;
   min-height: 34px;
@@ -119,23 +225,18 @@
 }
 .atlas-index button[aria-current='true'] {
   font-weight: 600;
-}
-.atlas-index button[aria-current='true'] .atlas-no {
   color: var(--rust);
 }
-.atlas-no,
 .atlas-count {
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--text-faint);
+  text-align: right;
 }
 .atlas-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.atlas-count {
-  text-align: right;
 }
 .atlas-main {
   min-height: 0;
@@ -143,7 +244,7 @@
   flex-direction: column;
   background: var(--table);
 }
-/* Plate 00, before every template: an empty sheet. */
+/* An empty sheet, before every template. */
 .blank-sheet {
   grid-column: 1 / -1;
   display: flex;
@@ -158,6 +259,10 @@
   font-size: 0.84375rem;
   text-align: left;
   cursor: pointer;
+}
+.blank-sheet > svg {
+  flex: none;
+  color: var(--ink);
 }
 .blank-sheet strong {
   flex: none;
@@ -175,16 +280,8 @@
 .blank-what {
   min-width: 0;
 }
-/* A plate's number, the way a map sheet is numbered. */
-.plate-no {
-  flex: none;
-  font-family: var(--mono);
-  font-size: 0.65625rem;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-}
 
-/* The templates of a type: plates in a grid on the table. */
+/* The templates of a type: cards in a grid on the table. */
 .template-grid {
   flex: 1;
   min-height: 0;
@@ -199,7 +296,7 @@
 .template-card {
   display: flex;
   flex-direction: column;
-  min-height: 228px;
+  min-height: 218px;
   border: 1px solid var(--rule2);
   border-radius: var(--radius-plate);
   background: var(--sheet);
@@ -213,7 +310,7 @@
 .template-card:hover {
   border-color: var(--rule);
 }
-/* The plate the keys are on is the chosen one: outlined in rust. */
+/* The card the keys are on is the chosen one: outlined in rust. */
 .template-card:focus-visible {
   outline: 2px solid var(--rust);
   outline-offset: -1px;
@@ -270,9 +367,8 @@
   font-weight: 600;
 }
 .template-sub {
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  color: var(--text-faint);
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 @media (forced-colors: active) {
   .type-card.best {
@@ -280,282 +376,11 @@
     outline-offset: -2px;
   }
 }
-
-/* ------------------------------------------------------------- how to work */
-
-.mode-step {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 24px;
-  padding: 24px 32px 32px;
-  background: var(--table);
-}
-.mode-preview {
-  min-height: 0;
-  height: 100%;
-  background: var(--sheet);
-  outline: 1px solid var(--rule2);
-  box-shadow: var(--shadow-sheet);
-  display: grid;
-  place-items: center;
-  /* One cell the size of the box, so a tall drawing shrinks to fit instead of running out of it. */
-  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  padding: 20px;
-  overflow: hidden;
-}
-.mode-preview > div {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-}
-/* Fit inside the box, never larger than drawn: a single shape must not be blown up. */
-.mode-preview svg {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-}
-.modes {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.modes-intro {
-  margin: 0;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.65625rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-/* The ways of working: ruled rows on paper, the icon bare in ink. */
-.mode-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 12px 16px 4px;
-  border: none;
-  border-bottom: 1px solid var(--rule2);
-  background: none;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  transition: background-color 120ms ease-out;
-}
-.mode-card:hover {
-  background: var(--paper);
-}
-.mode-card:focus-visible {
-  outline: 2px solid var(--rust);
-  outline-offset: -2px;
-}
-.mode-card kbd {
-  margin-left: auto;
-}
-.mode-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: var(--ink);
-}
-.mode-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.mode-text strong {
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-.mode-text span {
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-}
-.blank-start {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 16px;
-  padding: 12px 14px;
-  border: 1px dashed var(--rule);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  color: var(--text-muted);
-  text-align: left;
-  cursor: pointer;
-}
-.blank-start:hover {
-  border-color: var(--ink);
-  color: var(--text);
-}
-.blank-start strong {
-  color: var(--text);
-}
-.blank-start kbd {
-  margin-left: auto;
-}
-
-/* ------------------------------------------------------------- your AI */
-
-.ask {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  background: var(--paper);
-}
-.ask-form {
-  overflow-y: auto;
-  padding: 24px 32px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-.ask-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.ask-label {
-  font-size: 0.65625rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-.ask-field small {
-  color: var(--text-faint);
-  font-size: 0.75rem;
-}
-.ask input,
-.ask textarea,
-.ask select {
-  font: inherit;
-  color: var(--text);
-  background: var(--sheet);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: 7px 10px;
-  resize: vertical;
-}
-.ask input:focus,
-.ask textarea:focus,
-.ask select:focus {
-  outline: 2px solid var(--ink);
-  outline-offset: -1px;
-  border-color: transparent;
-}
-.ask-run {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px;
-  background: var(--table);
-  border-left: 1px solid var(--rule);
-  overflow-y: auto;
-}
-.ask-run h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-.or {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-faint);
-  font-size: 0.75rem;
-}
-.or::before,
-.or::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--rule2);
-}
-.ask.result {
-  grid-template-columns: 400px 1fr;
-}
-.ask-stream {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--rule);
-  background: var(--sheet);
-}
-.ask-stream-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  font-size: 0.65625rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--rule2);
-}
-.ask-stream pre,
-.ask-stream .paste {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: 12px 16px;
-  overflow: auto;
-  font-family: var(--mono);
-  font-variant-ligatures: none;
-  font-size: 0.75rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  border: none;
-  border-radius: 0;
-  resize: none;
-}
-.ask-preview {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px 32px;
-  background: var(--table);
-}
-.ask-preview .mode-preview {
-  flex: 1;
-}
-.ask-preview footer {
-  display: flex;
-  gap: 8px;
-}
-.pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--rust);
-  animation: pulse 1s ease-in-out infinite;
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.3;
-  }
-}
 .chips:not(.inline) {
   flex-wrap: nowrap;
   align-items: center;
 }
-/* Type chips scroll sideways when they do not fit; the import stays put on the right. */
+/* Type chips scroll sideways when they do not fit. */
 .chip-row {
   display: flex;
   gap: 6px;
@@ -577,33 +402,6 @@
   white-space: nowrap;
   background: var(--sheet);
 }
-.chip-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.chip-group-label {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-faint);
-}
-.chip.more {
-  border-style: dashed;
-}
-.warnings {
-  margin: 4px 0 0;
-  padding-left: 18px;
-}
-.ask-run a {
-  color: var(--ink);
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 /* ------------------------------------------------------------- narrow */
 
@@ -614,24 +412,12 @@
   .atlas-index {
     display: none;
   }
-  .mode-step,
-  .ask,
-  .ask.result {
-    grid-template-columns: 1fr;
-    grid-template-rows: none;
-    overflow-y: auto;
+  .home-foot {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  /* Stacked: the form, then the run panel below it, one scroll for both. */
-  .ask-form,
-  .ask-run {
-    overflow: visible;
-  }
-  .ask-run {
-    border-left: none;
-    border-top: 1px solid var(--rule);
-  }
-  .mode-preview {
-    min-height: 200px;
+  .home-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 @media (max-width: 600px) {
@@ -645,14 +431,36 @@
   .start {
     height: calc(100vh - 16px);
   }
-  .steps {
-    display: none;
-  }
   .templates header {
     padding: 0 8px 0 16px;
   }
   .templates h2 {
     font-size: 1.0625rem;
+  }
+  .home {
+    gap: 16px;
+    padding: 16px;
+  }
+  .scenario-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .scenario-thumb {
+    height: 96px;
+  }
+  /* On a phone the blank sheet and the search come first: the cards are a long scroll. */
+  .home-foot {
+    order: -1;
+    grid-template-columns: 1fr;
+    padding: 0 0 16px;
+    border-top: none;
+    border-bottom: 1px solid var(--rule);
+  }
+  .home-search {
+    grid-row: auto;
+  }
+  .home-foot .import-chip {
+    justify-self: start;
   }
   .chips:not(.inline) {
     padding: 8px 16px 12px;

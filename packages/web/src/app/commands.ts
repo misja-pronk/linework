@@ -57,7 +57,7 @@ export function buildCommands(c: CommandsContext): Command[] {
   return [
     { id: 'ask', group: t('Your AI'), label: c.asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: c.toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void c.copyForAi() }] : []),
-    { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('template, then AI, builder or YAML'), icon: 'file-plus', run: () => modals.setModal('templates') },
+    { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('a ready drawing or a blank sheet'), icon: 'file-plus', run: () => modals.setModal('templates') },
     c.view === 'visual'
       ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => c.setView('code') }
       : { id: 'view-visual', group: t('View'), label: t('Builder (hide the YAML)'), icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => c.setView('visual') },
