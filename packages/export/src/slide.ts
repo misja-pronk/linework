@@ -1,8 +1,8 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type BlockShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, markStyle, type TagStyle } from '@cartography/render';
+import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, markStyle, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
@@ -15,8 +15,8 @@ export interface IconRef {
   svg: string;
 }
 
-/** Hands out relationship ids for icon pictures; the deck turns them into media parts. */
-export type IconSink = (name: string, color: string, size: number, stroke: number) => IconRef | undefined;
+/** Hands out relationship ids for icon pictures; the deck turns them into media parts. With `picture`: that SVG as it is, `size` by `height` px. */
+export type IconSink = (name: string, color: string, size: number, stroke: number, picture?: { svg: string; height: number }) => IconRef | undefined;
 
 export interface Placement {
   /** EMU per layout px. */
@@ -25,7 +25,11 @@ export interface Placement {
   y: number;
   /** Told the size (points) of every text set, so the smallest on a slide can be checked. */
   onText?(pt: number): void;
+  /** Told of every part drawn as one picture, because it has no native slide drawing yet. */
+  onPicture?(kind: PictureKind): void;
 }
+
+export type PictureKind = 'sequence' | 'gitflow' | 'roadmap';
 
 interface Item {
   xml: string;
@@ -228,8 +232,14 @@ class SlideDrawing {
       const box = placed.nodes.get(n.id);
       if (!box || state?.nodes[n.id] === 'hidden') continue;
       const s = n.shape;
-      // Sequence, git flow and roadmap diagrams have no native slide drawing yet.
-      if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap' || s.kind === 'journey-part') continue;
+      // The journey draws its own parts.
+      if (s.kind === 'journey-part') continue;
+      if (s.kind === 'sequence' || s.kind === 'gitflow' || s.kind === 'roadmap') {
+        as(state?.nodes[n.id]);
+        const pic = this.partPicture(n, s, box, quiet);
+        if (pic) out.push(pic.xml);
+        continue;
+      }
       if (s.kind === 'journey') {
         // The journey resolves its own colours per step, from the full theme.
         this.theme = full;
@@ -277,6 +287,27 @@ class SlideDrawing {
     if (state) for (const n of placeNotes(state, placed)) out.push(this.note(n).xml);
     if (graph.legend?.length) out.push(this.drawLegend(placed.height + (this.view ? noteMargins(this.view, placed).bottom : 0)).xml);
     return out.join('');
+  }
+
+  /**
+   * Sequence, git flow and roadmap diagrams have no native slide drawing yet: what render draws for
+   * them goes on the slide as one picture in its place, so the slide is never empty.
+   */
+  private partPicture(n: GraphNode, s: SequenceShape | GitflowShape | RoadmapShape, b: Box, quiet: Theme): Item | undefined {
+    const t = this.theme;
+    const shadow = 'carto-shadow';
+    const body = s.kind === 'sequence' ? drawSequence(s, b, t, shadow, this.state?.message ? { message: this.state.message, quiet } : undefined) : s.kind === 'gitflow' ? drawGitflow(s, b, t, shadow) : drawRoadmap(s, b, t);
+    // Room for the shadows and what reaches past the box.
+    const m = 16;
+    const [x, y, w, h] = [b.x - m, b.y - m, Math.ceil(b.width + 2 * m), Math.ceil(b.height + 2 * m)];
+    const filter = t.shadow.opacity > 0 ? `<filter id="${shadow}" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="${t.shadow.color}" flood-opacity="${t.shadow.opacity * 1.2}"/><feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="${t.shadow.color}" flood-opacity="${t.shadow.opacity}"/></filter>` : '';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}" font-family="${esc(t.font.family)}" text-rendering="geometricPrecision"><defs>${filter}</defs>${body}</svg>`;
+    const ref = this.icons(`picture:${n.id}`, '', w, 0, { svg, height: h });
+    if (!ref) return undefined;
+    this.at.onPicture?.(s.kind);
+    const f = this.frame(x, y, w, h);
+    const label = this.graph.title ?? tr(t.lang, 'Diagram');
+    return { xml: picture({ id: this.idFor(`node:${n.id}`), name: `Picture: ${label}`, descr: label, frame: f, ...ref }), box: f };
   }
 
   /** A callout of a step: a filled bubble next to its element, its text editable. */

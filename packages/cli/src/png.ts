@@ -13,9 +13,10 @@ export function toPng(svg: string, scale: number, extraFonts: string[] = []): Bu
   return resvg.render().asPng();
 }
 
-/** An icon's PNG fallback for slides, at a fixed pixel width. */
+/** An icon's or a picture's PNG fallback for slides, at a fixed pixel width. A picture with text gets the bundled faces. */
 export function iconPng(svg: string, width: number): Uint8Array {
-  return new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } }).render().asPng();
+  const fontFiles = svg.includes('<text') ? allFontFiles.map((u) => decodeURIComponent(u.pathname)) : [];
+  return new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { fontFiles, loadSystemFonts: false, defaultFontFamily: 'Inter' } }).render().asPng();
 }
 
 /** The theme's own bundled faces as TTF, for the PDF export: Instrument Sans and Geist Mono for Survey, nothing for a look in Inter. */

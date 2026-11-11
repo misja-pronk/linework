@@ -9,7 +9,7 @@ import { inThemeFonts, isDark, look, themes, type Theme } from '@cartography/the
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
 import { altOf } from './alt.ts';
-import { contentSize, drawDiagram, PX, type IconRef, type SlideImages } from './slide.ts';
+import { contentSize, drawDiagram, PX, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
 import { pages } from './steps.ts';
 import { chooseLayout, readTemplate, type PptxTemplate } from './template/read.ts';
 import { filled, footer, planSlide } from './template/place.ts';
@@ -81,7 +81,7 @@ export interface PptxOptions {
   keepLook?: boolean;
   /** With a template: keep its own slides, in front of the diagrams. */
   keepSlides?: boolean;
-  /** Told what of a template could not be used as it is (an accent too light to draw with). */
+  /** Told what of a template could not be used as it is (an accent too light to draw with), and what is drawn as a picture instead of native shapes. */
   onWarning?(message: string): void;
   /** Told, per slide of a drawing, the smallest text on it (points): under SLIDE_MIN_PT it is hard to read from the back of a room. */
   onSlide?(slide: SlideText): void;
@@ -147,7 +147,10 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
   const iconName = (n: number, ext: string) => (tpl ? `cartography-icon${n}.${ext}` : `icon${n}.${ext}`);
 
   // Icons are shared by all slides: one SVG (and PNG) part per icon, colour and size.
-  const media = new Map<string, { n: number; svg: string; size: number }>();
+  const media = new Map<string, { n: number; svg: string; size: number; height?: number }>();
+  // What is drawn as a picture is said once per drawing and kind.
+  const pictured = new Set<string>();
+  const kindName: Record<PictureKind, string> = { sequence: 'sequence diagram', gitflow: 'git flow', roadmap: 'roadmap' };
   const slides: { xml: string; rels: ox.Rel[]; notes: string[]; layout?: string }[] = [];
 
   if (opts.title) {
@@ -169,15 +172,15 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const state = view?.states[view.index];
     const rels: ox.Rel[] = [{ id: 'rId1', type: ox.relType.layout, target: '../slideLayouts/slideLayout1.xml' }];
     const refs = new Map<string, IconRef>();
-    const icons = (name: string, color: string, size: number, stroke: number): IconRef | undefined => {
-      const key = `${name}|${color}|${size}|${stroke}`;
+    const icons = (name: string, color: string, size: number, stroke: number, pic?: { svg: string; height: number }): IconRef | undefined => {
+      const key = pic ? pic.svg : `${name}|${color}|${size}|${stroke}`;
       const known = refs.get(key);
       if (known) return known;
       // An official icon comes as the SVG data URI the drawing has; a line icon is drawn in its colour.
-      const svg = name.startsWith('data:image/svg+xml;base64,') ? decodeBase64(name.slice(26)) : iconSvg(name, color, size, stroke);
+      const svg = pic ? pic.svg : name.startsWith('data:image/svg+xml;base64,') ? decodeBase64(name.slice(26)) : iconSvg(name, color, size, stroke);
       if (!svg) return undefined;
       let m = media.get(key);
-      if (!m) media.set(key, (m = { n: media.size + 1, svg, size }));
+      if (!m) media.set(key, (m = { n: media.size + 1, svg, size, ...(pic ? { height: pic.height } : {}) }));
       const ref: IconRef = { svg: `rId${rels.length + 1}` };
       rels.push({ id: ref.svg, type: ox.relType.image, target: `../media/${iconName(m.n, 'svg')}` });
       if (opts.rasterize) {
@@ -222,7 +225,12 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
       // In a template the drawing starts under the title, as a slide's content does; on our own slides it is centred.
       const y = tpl ? area.y : area.y + (area.h - c.height * k) / 2;
-      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: y + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)) };
+      const onPicture = (kind: PictureKind) => {
+        const said = `${d.name ?? graph.title ?? 'Diagram'}: the ${kindName[kind]} is drawn as a picture, not native shapes`;
+        if (!pictured.has(said)) opts.onWarning?.(said);
+        pictured.add(said);
+      };
+      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: y + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)), onPicture };
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
     tree += group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [drawing], altOf(d, 1500, view));
@@ -254,8 +262,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 
-  // Rasterise after drawing, once per icon, in parallel where the rasteriser is async.
-  const pngs = opts.rasterize ? await Promise.all([...media.values()].map((m) => opts.rasterize!(m.svg, Math.max(64, m.size * 8), Math.max(64, m.size * 8)))) : [];
+  // Rasterise after drawing, once per icon, in parallel where the rasteriser is async; a picture at twice its size.
+  const pngs = opts.rasterize ? await Promise.all([...media.values()].map((m) => (m.height ? opts.rasterize!(m.svg, m.size * 2, m.height * 2) : opts.rasterize!(m.svg, Math.max(64, m.size * 8), Math.max(64, m.size * 8))))) : [];
   const names: string[] = [];
   for (const [i, m] of [...media.values()].entries()) {
     files[`ppt/media/${iconName(m.n, 'svg')}`] = strToU8(m.svg);

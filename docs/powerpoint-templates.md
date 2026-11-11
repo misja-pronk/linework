@@ -3,7 +3,9 @@
 A client hands you their PowerPoint template (`.potx`, or a `.pptx` that serves as one) and wants the
 architecture slides in it. Cartography makes the deck inside that template: the slides use the template's
 layouts, master, logo, footer and slide numbers, the title goes into the template's title placeholder, and the
-diagram is drawn in the template's colours and fonts, still as native shapes you can edit.
+diagram is drawn in the template's colours and fonts, still as native shapes you can edit. A sequence
+diagram, git branching and a roadmap are the exception: they are one picture on the slide, with a warning
+(see [types](types.md)).
 
 ![A step of a walkthrough on a made-up corporate template: the title in the template's title bar, the drawing in its accent colours and body font, footer and slide number from the master](powerpoint-templates/corporate-step.png)
 

@@ -801,11 +801,11 @@ async function draw(file: string, fonts: RenderOptions['fonts']) {
 
 /** Slides and PDF pages, from one or many drawings; a brand theme carries over. */
 function document(format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme'], diagram?: string): Promise<Uint8Array> {
-  const t = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
+  const th = theme ?? (values.theme === 'dark' ? 'dark' : 'light');
   if (format === 'pptx')
-    return toPptx(drawings, { theme: t, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w), ...templateFlags(theme, diagram) });
+    return toPptx(drawings, { theme: th, aspect: values.aspect === '4:3' ? '4:3' : '16:9', font: values.font, title: values.title, subtitle: values.subtitle, steps: stepsFlag(), rasterize: (svg, w) => iconPng(svg, w), onWarning: (w) => console.error(`${yellow(t('warning'))}  ${w}`), ...templateFlags(theme, diagram) });
   const page = values.page === 'a4' || values.page === 'a3' ? values.page : 'fit';
-  return toPdf(drawings, { theme: t, page, fonts: interTtf(), families: themeTtf(typeof t === 'object' ? t : themes[t]), title: values.title, steps: stepsFlag() });
+  return toPdf(drawings, { theme: th, page, fonts: interTtf(), families: themeTtf(typeof th === 'object' ? th : themes[th]), title: values.title, steps: stepsFlag() });
 }
 
 /**

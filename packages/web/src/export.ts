@@ -162,8 +162,8 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   const bytes = template?.bytes ?? (named && template?.read ? await template.read(named.template) : undefined);
   const warnings: string[] = [];
   if (named && !bytes) warnings.push(t('the theme makes decks in {template}, which is not in the open folder: made without it', { template: named.template }));
-  const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}), onWarning: (w: string) => warnings.push(w) } : {};
-  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), ...inTemplate });
+  const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}) } : {};
+  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), onWarning: (w: string) => warnings.push(w), ...inTemplate });
   return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings };
 }
 
