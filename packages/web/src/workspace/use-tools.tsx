@@ -3,7 +3,7 @@
 // hands over what it can do (open a file, show a view, select, focus, replace the text); everything
 // about the workspace itself is here.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { drawingsOf, drillTarget, elementAt, notesPath, renamedId, renameNotesFile, renameSidecar, type LayoutSidecar, type RenamePlan, type WorkspaceIndex } from '@cartography/core';
+import { drawingsOf, drillTarget, elementAt, renameSidecar, type LayoutSidecar, type RenamePlan, type WorkspaceIndex } from '@cartography/core';
 import { findType } from '@cartography/engine';
 import type { RenderResult } from '@cartography/engine';
 import type { Command } from '../palette.tsx';
@@ -44,10 +44,6 @@ export interface Host {
   reveal(from: number, to: number): void;
   /** One undo step in the editor: the text and (when given) all the pins. */
   replace(text: string, pins?: LayoutSidecar | null): void;
-  /** The open diagram's review notes follow renamed ids. */
-  renameNotes(node: (id: string) => string): void;
-  /** Ids that review notes of the open diagram hang on. */
-  noteIds(): string[];
   refresh(ws: Workspace): void;
   notify(message: string, o?: { tone?: 'error'; action?: { label: string; run(): void } }): void;
 }
@@ -146,17 +142,13 @@ export function useWorkspaceTools(h: Host) {
   // ------------------------------------------------------------ rename
 
   const undoRename = useRef<() => Promise<void>>(undefined);
-  /** Pins (and notes) files that change with a plan. */
+  /** Pins files that change with a plan. */
   const pinsFollow = (plan: RenamePlan) =>
     [...plan.files, ...plan.drawnIn].flatMap((f) => {
       const side = sidecarPath(f.file);
       const open = f.file === h.file && h.inFolder;
       const text = open ? (h.pins ? JSON.stringify(h.pins) : undefined) : h.ws?.files.get(side)?.text;
-      const notes = open ? undefined : h.ws?.files.get(notesPath(f.file))?.text;
-      return [
-        ...(text && renameSidecar(text, f.node) ? [side] : []),
-        ...((open ? h.noteIds().some((id) => f.node(id) !== id) : notes && renameNotesFile(notes, f.node)) ? [notesPath(f.file)] : []),
-      ];
+      return text && renameSidecar(text, f.node) ? [side] : [];
     });
 
   const applyRename = async (plan: RenamePlan) => {
@@ -180,9 +172,6 @@ export function useWorkspaceTools(h: Host) {
       const was = ws!.files.get(side)?.text;
       const next = was && renameSidecar(was, f.node);
       if (was && next) writes.push({ path: side, before: was, after: next });
-      const notes = ws!.files.get(notesPath(f.file))?.text;
-      const moved = notes && renameNotesFile(notes, f.node);
-      if (notes && moved) writes.push({ path: notesPath(f.file), before: notes, after: moved });
     }
     try {
       for (const w of writes) await writeInFolder(ws!, w.path, w.after);
@@ -194,7 +183,6 @@ export function useWorkspaceTools(h: Host) {
     const pinsBefore = host.pins;
     const open = mine ?? drawnHere;
     const pinsHere = open && host.pins ? renameSidecar(JSON.stringify(host.pins), open.node) : undefined;
-    if (open) host.renameNotes(open.node);
     if (mine || pinsHere) host.replace(mine?.after ?? host.textNow(), pinsHere ? (JSON.parse(pinsHere) as LayoutSidecar) : undefined);
     if (ws) host.refresh(ws);
     if (here.node) pending.current = { ...here, node: open?.node(here.node) ?? here.node };
@@ -207,7 +195,6 @@ export function useWorkspaceTools(h: Host) {
         if (disk != null && disk !== w.after && !window.confirm(t('{path} changed after the rename. Put it back as it was before the rename anyway?', { path: w.path }))) continue;
         await writeInFolder(now.ws!, w.path, w.before);
       }
-      if (open && now.file === open.file) now.renameNotes((id) => (renamedId(id, plan.to, plan.from) !== id && open.node(renamedId(id, plan.to, plan.from)) === id ? renamedId(id, plan.to, plan.from) : id));
       if (pinsHere && !mine && now.file === open!.file) now.replace(now.textNow(), pinsBefore ?? null);
       if (mine) {
         if (now.file === mine.file && now.textNow() === mine.after) now.replace(mine.before, pinsBefore ?? null);

@@ -16,7 +16,6 @@ export const nl = {
   Classes: 'Klassen',
   Columns: 'Kolommen',
   Connections: 'Verbindingen',
-  Decisions: 'Besluiten',
   Diagram: 'Diagram',
   'Dotted lines': 'Stippellijnen',
   'Each person, with the people who report to them under them.': 'Iedereen, met daaronder de mensen die aan hem of haar rapporteren.',

@@ -59,7 +59,6 @@ repository, workflow, pull request, YAML, SVG.
 | Layer / Layers | Laag / Lagen |
 | Step / Steps | Stap / Stappen |
 | Focus | Focus |
-| Note (review note) | Notitie |
 | Review | Review |
 | Trust boundary | Vertrouwensgrens |
 | Compare | Vergelijken |

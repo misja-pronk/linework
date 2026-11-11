@@ -47,7 +47,6 @@ const PATHS: Record<string, string[]> = {
   down: ['M7 7h10v10', 'M7 17 17 7'],
   out: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
   grid: ['M4 4h7v7H4z', 'M13 4h7v7h-7z', 'M4 13h7v7H4z', 'M13 13h7v7h-7z'],
-  note: ['M5 4h14v12H9l-4 4V4Z'],
   printer: ['M7 9V4h10v5', 'M7 17H5a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2', 'M7 14h10v6H7z'],
 };
 function icon(name: string): SVGSVGElement {
@@ -150,7 +149,7 @@ const at = { x: 0, y: 0, k: 1 };
 let fitted = true;
 let size = { w: 1, h: 1 };
 let sheetSvg: SVGSVGElement | undefined;
-let panelFor: 'element' | 'notes' | undefined;
+let panelFor: 'element' | undefined;
 
 // ---------------------------------------------------------------- the frame
 
@@ -168,7 +167,6 @@ const els = {
   crumbs: h('div', { class: 'crumbs' }),
   pct: button('pct', t('Fit to the window (0)')),
   counter: h('div', { class: 'counter', 'aria-live': 'polite' }),
-  notesBtn: button('btn', t('Review notes')),
   search: h('div', { class: 'overlay', hidden: true }),
   keys: h('div', { class: 'overlay', hidden: true }),
   print: h('div', { class: 'print', 'aria-hidden': 'true' }),
@@ -192,10 +190,7 @@ function frame() {
   });
   const help = button('btn', t('Keys (?)'), icon('help'));
   help.addEventListener('click', () => showKeys(true));
-  els.notesBtn.append(icon('note'), h('span', {}));
-  els.notesBtn.hidden = true;
-  els.notesBtn.addEventListener('click', () => (panelFor === 'notes' ? closePanel() : showNotes()));
-  els.top.append(menu, titleLink, els.crumbs, h('div', { class: 'spacer' }), searchBtn, els.notesBtn, present, print, dark, help);
+  els.top.append(menu, titleLink, els.crumbs, h('div', { class: 'spacer' }), searchBtn, present, print, dark, help);
 
   const zoom = h('div', { class: 'zoom', role: 'group', 'aria-label': t('Zoom') });
   const zin = button('', t('Zoom in (+)'), icon('plus'));
@@ -371,7 +366,6 @@ function showHome() {
   els.stage.hidden = true;
   els.steps.hidden = true;
   (els.main.querySelector('.zoom') as HTMLElement).hidden = true;
-  els.notesBtn.hidden = true;
   closePanel();
   els.crumbs.replaceChildren();
   document.title = data.title;
@@ -400,10 +394,6 @@ function show(d: number, step: number, shape?: string) {
   }
   crumbs(drawing);
   stepBar(drawing, step);
-  els.notesBtn.hidden = !drawing.notes?.length;
-  const label = els.notesBtn.querySelector('span');
-  if (label) label.textContent = drawing.notes?.length ? t('Notes {count}', { count: drawing.notes.length }) : '';
-  if (panelFor === 'notes') drawing.notes?.length ? showNotes() : closePanel();
   document.title = `${longTitle(d)} · ${data.title}`;
   markSidebar();
   if (shape && drawing.shapes[shape] !== undefined) {
@@ -777,7 +767,7 @@ function tap(e: PointerEvent, target: EventTarget | null) {
 
 // ---------------------------------------------------------------- selection and details
 
-function ring(shape: string, soft = false) {
+function ring(shape: string) {
   sheetSvg?.querySelectorAll('.carto-hl').forEach((r) => r.remove());
   const el = shapeEl(shape);
   if (!el?.parentNode) return;
@@ -789,7 +779,7 @@ function ring(shape: string, soft = false) {
   }
   const pad = 5;
   const r = document.createElementNS(SVG_NS, 'rect');
-  r.setAttribute('class', `carto-hl${soft ? ' soft' : ''}`);
+  r.setAttribute('class', 'carto-hl');
   r.setAttribute('x', String(box.x - pad));
   r.setAttribute('y', String(box.y - pad));
   r.setAttribute('width', String(box.width + 2 * pad));
@@ -841,7 +831,6 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
   for (const p of el.props ?? []) facts.push(p);
   const parent = el.parent !== undefined ? data.elements[el.parent] : undefined;
   const where = el.where.filter(([d], i, all) => all.findIndex(([x]) => x === d) === i);
-  const notes = drawing.notes?.filter((n) => n.shape === shape) ?? [];
   openPanel(
     h('div', { class: 'head' }, h('div', {}, h('span', { class: 'caps' }, el.kind ?? 'element'), h('h3', {}, el.label)), close),
     el.technology ? h('span', { class: 'kind' }, el.technology) : null,
@@ -882,40 +871,7 @@ function details(el: PElement, drawing: PDrawing, shape: string) {
         }),
       ),
     ),
-    notes.length ? h('section', {}, h('span', { class: 'caps' }, t('Review notes')), ...notes.map(noteEl)) : null,
   );
-}
-
-function noteEl(n: NonNullable<PDrawing['notes']>[number]): HTMLElement {
-  return h(
-    'div',
-    { class: 'note' },
-    h('span', { class: 'num' }, String(n.n)),
-    h('div', { class: 'body' }, h('div', { class: 'meta' }, `${n.about} · ${n.author}, ${n.date}`), h('p', {}, n.text), ...n.replies.map((r) => h('div', { class: 'reply' }, h('div', { class: 'meta' }, `${r.author}, ${r.date}`), h('p', {}, r.text)))),
-  );
-}
-
-function showNotes() {
-  if (!here) return;
-  const notes = data.drawings[here.d]!.notes ?? [];
-  panelFor = 'notes';
-  const close = button('btn x', t('Close (Esc)'), icon('x'));
-  close.addEventListener('click', closePanel);
-  const list = notes.map((n) => {
-    const el = noteEl(n);
-    if (n.shape) {
-      el.setAttribute('tabindex', '0');
-      el.setAttribute('role', 'button');
-      const pick = () => {
-        ring(n.shape!, true);
-        centerOn(n.shape!);
-      };
-      el.addEventListener('click', pick);
-      el.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), pick()));
-    }
-    return el;
-  });
-  openPanel(h('div', { class: 'head' }, h('div', {}, h('span', { class: 'caps' }, t('Review')), h('h3', {}, plural(notes.length, 'open note'))), close), h('section', {}, ...list));
 }
 
 // ---------------------------------------------------------------- search
@@ -1113,7 +1069,7 @@ function keys() {
       e.preventDefault();
       f();
     };
-    // In the contents or the details panel the keys are the page's own (Space on a note); Escape still closes.
+    // In the contents or the details panel the keys are the page's own; Escape still closes.
     if (t.closest('.side, .panel') && k !== 'Escape') return;
     if (k === '/') return run(openSearch);
     if (k === '?') return run(() => showKeys(true));

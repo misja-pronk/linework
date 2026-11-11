@@ -6,9 +6,7 @@ import { registerCommands, type Previews } from './commands.ts';
 import { sidecarName } from './detect.ts';
 import { isDiagramDoc, Language, registerYamlSchemas } from './language.ts';
 import { Preview, type PreviewHost } from './preview.ts';
-import { NoteComments } from './notes.ts';
 import { showDiskChanges, startLive } from './live.ts';
-import { notesPath } from '@cartography/core';
 
 type Mode = 'preview' | 'present';
 
@@ -20,14 +18,11 @@ export function activate(context: vscode.ExtensionContext) {
   const language = new Language((doc) => ofDoc(doc).some((p) => p.mode === 'preview'));
   context.subscriptions.push(language, vscode.languages.registerCodeActionsProvider({ language: 'yaml' }, language, { providedCodeActionKinds: Language.kinds }));
 
-  const notes = new NoteComments();
-  context.subscriptions.push(notes);
   const host: PreviewHost = {
-    // The preview's drawing is the one the problems (and the review notes' lines) come from; the presenter's would only repeat them.
+    // The preview's drawing is the one the problems come from; the presenter's would only repeat them.
     drawn: (p, d) => {
       if (p.mode !== 'preview') return;
       language.drawn(p.doc, d.ask, d.result, d.version);
-      notes.update(p.doc, p.file, d.result);
     },
     command: (name, doc) => {
       const id = name === 'openEditor' ? 'cartography.openInEditor' : `cartography.${name}`;
@@ -45,7 +40,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const p = new Preview(doc, mode, context.extensionUri, host, () => {
         panels.delete(key);
-        if (mode === 'preview') notes.clear(doc.uri.toString());
         // Without a preview the language side checks the document itself again.
         language.update(doc, true);
       }, column);
@@ -102,11 +96,11 @@ export function activate(context: vscode.ExtensionContext) {
   );
   void vscode.commands.executeCommand('setContext', 'cartography.isDiagram', !!vscode.window.activeTextEditor && isDiagramDoc(vscode.window.activeTextEditor.document));
 
-  // A sidecar or notes file written elsewhere (the CLI's --stable, the web editor, git) redraws its
+  // A sidecar written elsewhere (the CLI's --stable, the web editor, git) redraws its
   // diagram; so do files a diagram includes, which is any YAML next to it.
-  const watcher = vscode.workspace.createFileSystemWatcher('**/*.{layout.json,notes.json,yaml,yml}');
+  const watcher = vscode.workspace.createFileSystemWatcher('**/*.{layout.json,yaml,yml}');
   const changed = (uri: vscode.Uri) => {
-    for (const p of panels.values()) if (p.file && p.file !== uri.fsPath && (sidecarName(p.file) === uri.fsPath || notesPath(p.file) === uri.fsPath || p.last?.result.includes?.length)) p.schedule();
+    for (const p of panels.values()) if (p.file && p.file !== uri.fsPath && (sidecarName(p.file) === uri.fsPath || p.last?.result.includes?.length)) p.schedule();
   };
   context.subscriptions.push(watcher, watcher.onDidChange(changed), watcher.onDidCreate(changed), watcher.onDidDelete(changed));
 

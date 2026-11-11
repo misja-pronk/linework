@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { drawingsOf, drillTarget, elementAt, indexWorkspace, lineDiff, parseNotes, planRename, renameNotesFile, renameSidecar, searchWorkspace, Workspace } from '@cartography/core';
+import { drawingsOf, drillTarget, elementAt, indexWorkspace, lineDiff, planRename, renameSidecar, searchWorkspace, Workspace } from '@cartography/core';
 import { findType, render } from '../src/index.ts';
 
 const dir = path.resolve(import.meta.dirname, '../../../examples/workspace');
@@ -204,17 +204,6 @@ describe('rename everywhere', () => {
     // A node with its own key and ref: keeps its pins.
     const deploy = planRename(indexWorkspace(bank()), 'ledger', 'core-ledger').files.find((f) => f.file === 'deployment.yaml')!;
     expect(deploy.node('ledger')).toBe('ledger');
-  });
-
-  it('carries review notes to the new ids', () => {
-    const files = bank();
-    files.delete('access.yaml');
-    const node = planRename(indexWorkspace(files), 'online', 'digital').files.find((f) => f.file === 'containers.yaml')!.node;
-    const thread = (id: string, anchor: object) => ({ id, author: 'A', created: '2026-11-10T10:00:00Z', text: 'Why?', status: 'open', anchor });
-    const before = JSON.stringify({ version: 1, threads: [thread('a1', { kind: 'node', id: 'online.api' }), thread('b2', { kind: 'edge', from: 'online.web', to: 'ledger' }), thread('c3', { kind: 'point', x: 1, y: 2 })] });
-    const after = parseNotes(renameNotesFile(before, node)).notes.threads;
-    expect(after.map((t) => t.anchor)).toEqual([{ kind: 'node', id: 'digital.api' }, { kind: 'edge', from: 'digital.web', to: 'ledger' }, { kind: 'point', x: 1, y: 2 }]);
-    expect(renameNotesFile(JSON.stringify({ version: 1, threads: [thread('d4', { kind: 'node', id: 'ledger' })] }), node)).toBeUndefined();
   });
 
   it('shows the change as a diff', () => {

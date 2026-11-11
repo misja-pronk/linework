@@ -109,8 +109,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     if (!d.graph || !d.placed) throw new Error('Nothing to export: fix the problems first');
     // Drawn in the theme's own faces, as the engine measured it.
     const { graph, placed } = d;
-    const plain = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view, images: d.images }));
-    const out = d.annotate ? d.annotate(plain) : plain;
+    const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view, images: d.images }));
     const svg = inlineImages(nameFaces(out.svg, monoFamily));
     const foot = footer ? FOOTER : 0;
     const sheet = !!opts.page && opts.page !== 'fit';

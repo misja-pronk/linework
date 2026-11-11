@@ -154,11 +154,8 @@ async function run(width, height, theme) {
   });
 
   await step('side panel tabs', async () => {
-    await page.click('.side-tabs button:has-text("Notes")');
-    await page.waitForSelector('.side .notes-panel');
     await page.click('.side-tabs button:has-text("Your AI")');
     await page.waitForSelector('.side .ask-panel:not([hidden])');
-    if (await page.locator('.side .notes-panel').count()) fail(`${tag}: notes and Ask at once`);
     const c = await box('.canvas-pane');
     const ask = await box('.side .ask-panel');
     if (overlap(c, ask)) fail(`${tag}: Ask covers the drawing`);
@@ -166,7 +163,7 @@ async function run(width, height, theme) {
     if (!/talks to no AI and no network/.test(await page.locator('.ask-sent > span').innerText())) fail(`${tag}: the Your AI panel does not say nothing is sent`);
     await page.screenshot({ path: `${out}/panes-${tag}-2-ask-tab.png` });
     await page.click('.side-tabs button:has-text("Properties")');
-    await page.waitForSelector('.side .inspector:not(.notes-panel)');
+    await page.waitForSelector('.side .inspector');
     // Ask kept its place behind the tab.
     if (!(await page.locator('.side .ask-panel[hidden]').count())) fail(`${tag}: Ask was dropped when switching tabs`);
   });

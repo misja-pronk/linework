@@ -3,12 +3,12 @@
 // for comes from the model (the workspace index), so a reader can click a box and see what it is,
 // where else it appears, and open the view a level down. Runs in Node and in the editor alike.
 import { parse as parseYaml } from 'yaml';
-import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, noteNumbers, notePlain, notesInView, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type NotesFile, type WorkspaceIndex } from '@cartography/core';
-import { noteSpots, render, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type WorkspaceIndex } from '@cartography/core';
+import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Theme } from '@cartography/theme';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
 import { describe as inWords, toText } from '@cartography/describe';
-import type { PDrawing, PElement, PFile, PNote, PStep, Picture } from './payload.ts';
+import type { PDrawing, PElement, PFile, PStep, Picture } from './payload.ts';
 import type { Lang } from '@cartography/i18n';
 import { tr } from '@cartography/i18n/drawing';
 
@@ -24,9 +24,6 @@ export interface HtmlExportInput {
   title?: string;
   /** A contents page and an index of elements (default: when there is more than one diagram). */
   site?: boolean;
-  /** Draw the open review notes as markers and list them. */
-  notes?: boolean;
-  notesFor?: (path: string) => NotesFile | undefined;
   sidecarFor?: (path: string) => LayoutSidecar | undefined;
   assetsFor?: (path: string) => RenderOptions['assets'];
   /** What every render gets as well: a theme picked, icon packs, official icons. */
@@ -234,7 +231,6 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     for (const d of first.diagnostics) if (d.severity === 'error') problems.push({ file, line: d.line, message: d.message });
     if (!first.svg) continue;
     lang ??= first.lang;
-    const notes = input.notes ? input.notesFor?.(file) : undefined;
     const pfile: PFile = { path: file, title: ix.files.get(file)?.title ?? first.graph?.title ?? baseOf(file), type: ix.files.get(file)?.type ?? first.type?.id ?? '', drawings: [] };
     files.push(pfile);
     if (first.graph?.subtitle) subtitles.set(file, first.graph.subtitle);
@@ -252,7 +248,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const dark = await render(text, { ...common, theme: 'dark', view: viewName, idPrefix });
       addTheme(light.theme);
       addTheme(dark.theme);
-      const pic = picture(marked(light, notes), marked(dark, notes));
+      const pic = picture(light, dark);
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? first.views?.find((v) => v.name === viewName)?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
       const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
@@ -342,11 +338,6 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         crumbs.push({ label: label(chain.at(-1)!) });
         pendingTrail.push({ drawing: index, crumbs });
       }
-
-      if (notes) {
-        const list = noteList(notes, graph, light, viewName);
-        if (list.length) drawing.notes = list;
-      }
     }
   }
 
@@ -382,35 +373,6 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   const model = [...ix.files.values()].find((f) => f.type === 'model' && f.title);
   const title = input.title ?? (site ? (model?.title ?? files[0]?.title) : files[0]?.title) ?? 'Diagrams';
   return { title, site, files, drawings, elements, themes, problems, ...(lang && lang !== 'en' ? { lang } : {}) };
-}
-
-/** The open review notes as markers on the drawing (the list goes into the page). */
-function marked(r: RenderResult, notes: NotesFile | undefined): RenderResult {
-  if (!notes || !r.svg || !r.graph || !r.placed || !r.width || !r.height || !r.theme) return r;
-  const m = withReviewNotes({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, r.graph, r.placed, notes, r.theme, { view: r.view, appendix: false });
-  return { ...r, svg: m.svg, width: m.width, height: m.height };
-}
-
-/** Open threads only: a resolved note is not for the customer. */
-function noteList(notes: NotesFile, graph: Graph, r: RenderResult, view: string | undefined): PNote[] {
-  const numbers = noteNumbers(notes);
-  const spots = r.placed ? new Map(noteSpots(notes, graph, r.placed, view, {}).map((s) => [s.thread.id, s])) : new Map();
-  return notesInView(notes, view)
-    .filter((t) => t.status === 'open')
-    .sort((a, b) => numbers.get(a.id)! - numbers.get(b.id)!)
-    .map((t) => {
-      const spot = spots.get(t.id);
-      const shape = t.anchor.kind === 'node' ? `n:${t.anchor.id}` : t.anchor.kind === 'group' ? `g:${t.anchor.id}` : undefined;
-      return {
-        n: numbers.get(t.id)!,
-        about: spot?.about ?? (t.anchor.kind === 'point' ? 'the drawing' : (t.anchor.label ?? ('id' in t.anchor ? t.anchor.id : `${t.anchor.from} → ${t.anchor.to}`))),
-        ...(shape ? { shape } : {}),
-        author: t.author || 'someone',
-        date: t.created.slice(0, 10),
-        text: notePlain(t.text).join('\n'),
-        replies: (t.replies ?? []).map((x) => ({ author: x.author || 'someone', date: x.created.slice(0, 10), text: notePlain(x.text).join('\n') })),
-      };
-    });
 }
 
 /** Light and dark as one picture; dark only when it differs (a brand theme draws the same in both). */

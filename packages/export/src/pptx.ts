@@ -40,10 +40,6 @@ export interface Drawing {
   alt?: string;
   /** The diagram type, as render() returns it: the alt text says what kind of drawing it is. */
   type?: { id: string; name: string };
-  /** Review notes, a line each: added to the speaker notes when an export asks for them. */
-  remarks?: string[];
-  /** Draws on the finished SVG before it goes on the page (review note markers in a PDF). */
-  annotate?(drawn: { svg: string; width: number; height: number; origin: { x: number; y: number } }): { svg: string; width: number; height: number };
 }
 
 /** SVG to PNG bytes at the given pixel size; icons get a PNG for apps that cannot show SVG. */
@@ -255,7 +251,6 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
     const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
-    if (d.remarks?.length) notes.push('', tr(lang, 'Review notes:'), ...d.remarks);
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 

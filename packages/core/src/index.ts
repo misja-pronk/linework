@@ -23,7 +23,6 @@ export * from './sidecar.ts';
 export * from './escape.ts';
 export * from './workspace.ts';
 export * from './workspace-rename.ts';
-export * from './notes.ts';
 export * from './layers.ts';
 export * from './yaml-print.ts';
 export * from './stages.ts';

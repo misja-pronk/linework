@@ -13,14 +13,13 @@ One name for each thing, the same in the editor, these docs and the `carto` comm
 | **YAML** | The way of working by writing the YAML, with the drawing beside it. | code view, Write YAML |
 | **Your AI** | The user's own AI agent (Claude Code, Copilot, Cursor…), working through Cartography's MCP server. In the editor, the panel (⌘J, Ctrl+I off a Mac) where its proposals are accepted or rejected and files changed on disk are shown; in the start dialog, the way of working that copies a prompt for it. Cartography has no AI of its own. The canvas toolbar's button says just *AI*. | Ask Claude, assistant |
 | **Wizard** | Questions after a reference architecture that make a finished diagram, without AI (*Answer questions* in the start dialog, `carto new --wizard`). | |
-| **Side panel** | The panel on the right, with three tabs: **Properties** (what is selected), **Notes** (review notes) and **Your AI**. | inspector |
+| **Side panel** | The panel on the right, with two tabs: **Properties** (what is selected) and **Your AI**. | inspector |
 | **Page** | The sheet or slide a drawing is fitted on for PowerPoint, PDF and the page exports: a 16:9 slide unless `aspect:` says otherwise (4:3, A4, A3). The frame on the drawing says *Page: 16:9 slide · 11 pt*. | slide (except as the page's name), frame |
 | **Pin** | A place you gave an element by dragging it, kept in the `.layout.json` next to the diagram. **Tidy** lays out again what is not pinned; **Tidy all** unpins everything. | position |
 | **Lock** | A pin that cannot be dragged by accident. | |
 | **Focus** | The drawing cut down to the selection and what is around it (`F`, `focus:`). | filter |
 | **Step** | One part of a drawing told in order (`steps:`), presented one at a time and exported as a slide or page each. | slide, frame |
 | **Snapshot** | A copy of the diagram kept to compare with later. | version |
-| **Note** | A review note on an element, a line or a spot, kept in the `.notes.json` next to the diagram. | comment |
 | **Folder** | A folder of diagrams opened in the editor and treated as one model: search, where used, rename everywhere. | workspace (only in the code) |
 | **Model** | Elements described once (`type: model`) and `include:`d by the diagrams that draw them. | |
 

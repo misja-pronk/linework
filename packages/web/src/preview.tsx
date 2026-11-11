@@ -21,8 +21,6 @@ export interface Selection {
 export interface PreviewControl {
   fit(): void;
   zoomToSelection(): void;
-  /** The middle of what is in view, in pin space (where a note without an element goes). */
-  centre(): Point | undefined;
   /** Fit once the next drawing is in (after a tidy: it may land anywhere). */
   fitNext(): void;
   /** Whether the whole drawing is in view now. */
@@ -91,7 +89,7 @@ interface Props {
   /** What a screen reader hears for the focused element. */
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
-  /** Drawn on the stage, over the drawing, at the zoom given (review note markers). */
+  /** Drawn on the stage, over the drawing, at the zoom given. */
   overlay?(scale: number): React.ReactNode;
   /** Right-click (or a two-finger click): what is under the pointer, and the point in pin space. */
   onContextMenu?(s: Selection | undefined, at: Point, client: { x: number; y: number }): void;
@@ -399,10 +397,6 @@ export function Preview(p: Props) {
     fitNext: () => void (refit.current = { always: true, was: true }),
     wholly,
     keepInView: (was: boolean) => void (refit.current = { always: false, was }),
-    centre: () => {
-      const r = frame.current?.getBoundingClientRect();
-      return r && pinAt(r.left + r.width / 2, r.top + (r.height - BAR) / 2);
-    },
   }));
 
   // When the pane changes size (inspector opens, splitter moves): a drawing that was wholly in view

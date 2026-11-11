@@ -17,7 +17,7 @@ export function RenameEverywhere({
   index: WorkspaceIndex;
   element: string;
   references: RenameOptions['references'];
-  /** Layout and notes files that change with the plan. */
+  /** Layout files that change with the plan. */
   pinsFollow(plan: RenamePlan): string[];
   onApply(plan: RenamePlan): void;
   onClose(): void;
@@ -68,7 +68,7 @@ export function RenameEverywhere({
           ) : (
             <>
               {t('{places} in {files}{pins}. One undo per file, and “Undo rename” for all of it.', { places: t('{count} place|{count} places', { count: places }), files: t('{count} file|{count} files', { count: plan.files.length }),
-              pins: pins.length ? t('; pins and notes follow in {list}', { list: pins.join(', ') }) : '' })}
+              pins: pins.length ? t('; pins follow in {list}', { list: pins.join(', ') }) : '' })}
             </>
           )}
         </div>

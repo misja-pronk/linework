@@ -79,7 +79,6 @@ export const nl = {
   '--all-layers: this diagram has no layers: (see docs/layers.md)': '--all-layers: dit diagram heeft geen layers: (zie docs/layers.md)',
   'nothing on this layer, not written': 'niets op deze laag, niet geschreven',
   '{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers': '{all} tekeningen: het geheel en {count} laag|{all} tekeningen: het geheel en {count} lagen',
-  '--notes: there is no {path}': '--notes: er is geen {path}',
   'no steps here: drawn as a whole': 'hier zijn geen stappen: als geheel getekend',
   'step {n}': 'stap {n}',
   'layout noted': 'layout onthouden',
@@ -98,13 +97,8 @@ export const nl = {
   '{count} stale entry dropped|{count} stale entries dropped': '{count} verouderde regel weggehaald|{count} verouderde regels weggehaald',
   '{count} stale entry dropped, nothing left: file removed|{count} stale entries dropped, nothing left: file removed': '{count} verouderde regel weggehaald, niets over: bestand verwijderd|{count} verouderde regels weggehaald, niets over: bestand verwijderd',
   'workspace ok: {count} diagram|workspace ok: {count} diagrams': 'map ok: {count} diagram|map ok: {count} diagrammen',
-  'note {id} is in view "{view}", which the diagram no longer has': 'notitie {id} staat in weergave "{view}", die het diagram niet meer heeft',
-  'note {id} ({status}) is about "{was}", which is no longer in the diagram': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat',
-  'note {id} ({status}) is about "{was}", which is no longer in the diagram (view {view})': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat (weergave {view})',
 
-  // notes, share
-  'carto notes: {ours} or {theirs} is not a notes file': 'carto notes: {ours} of {theirs} is geen notitiebestand',
-  '{file}: no review notes ({path} is not there)': '{file}: geen reviewnotities ({path} bestaat niet)',
+  // share
   '{file}: the link would be {size} kB, over the {limit} kB a link can safely carry. Share the file itself instead.': '{file}: de link zou {size} kB worden, meer dan de {limit} kB die een link veilig kan bevatten. Deel liever het bestand zelf.',
 
   // diff
@@ -151,7 +145,6 @@ export const nl = {
   'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
-  'review notes': 'reviewnotities',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
   '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
   'as-is, transition stages and to-be: each, compared, a roadmap': 'huidig, tussenstappen en gewenst: elk apart, vergeleken, als roadmap',
@@ -196,8 +189,6 @@ export const nlHelp: Record<string, string> = {
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
                [--focus orders] [--hops 2]      only that element (an id, a group, tag:x, kind:x) and what is within
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
-               [--notes]                        with the open review notes of <file>.notes.json: numbered markers
-                                                and the notes under the drawing (pptx: in the speaker notes)
                [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
                [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
@@ -220,8 +211,6 @@ export const nlHelp: Record<string, string> = {
                [--outline-text]                 met --svg-safe: tekst als contouren in het eigen lettertype van het thema
                [--focus orders] [--hops 2]      alleen dat element (een id, een groep, tag:x, kind:x) en wat binnen
                [--upstream | --downstream]      zoveel lijnen ervan ligt (standaard 1, of all); wat erheen leidt, of waar het heen leidt
-               [--notes]                        met de open reviewnotities uit <file>.notes.json: genummerde markeringen
-                                                en de notities onder de tekening (pptx: in de sprekersnotities)
                [--template customer.potx]       pptx: gemaakt in dat PowerPoint-sjabloon, met zijn indelingen, model,
                [--layout "Title Only"]          lettertypen en kleuren (de pptx: van een huisstijlthema noemt er ook een);
                [--keep-look] [--keep-slides]    --layout kiest de indeling, --keep-look houdt het eigen thema van het
@@ -249,15 +238,15 @@ export const nlHelp: Record<string, string> = {
   [`  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI`]:
     `  carto serve  [folder] [--port 4317]           de webeditor voor een map, met een MCP-endpoint voor je eigen AI`,
   [`  carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
-               [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
+               [--title "…"] [--all-steps]      dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
-                                                --notes: the open review notes too. More: docs/html-export.md`]:
+                                                More: docs/html-export.md`]:
     `  carto export-html <file.yaml|folder> [-o out.html]  één HTML-bestand om te versturen: elke weergave en stap getekend
-               [--notes] [--title "…"] [--all-steps]  (licht en donker), verschuiven en zoomen, presenteren, doorklikken, zoeken,
+               [--title "…"] [--all-steps]      (licht en donker), verschuiven en zoomen, presenteren, doorklikken, zoeken,
                                                 details per element, afdrukken; werkt offline vanaf schijf. Een bestand
                                                 neemt de diagrammen mee waar het naar doorklikt; een map krijgt een inhoudspagina.
-                                                --notes: ook de open reviewnotities. Meer: docs/html-export.md`,
+                                                Meer: docs/html-export.md`,
   [`  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
@@ -274,17 +263,15 @@ export const nlHelp: Record<string, string> = {
     `  carto share <file.yaml> [--base URL]          een link die het diagram alleen-lezen opent in de webapp; het diagram
                                                 reist mee in het #fragment van de link, nooit naar een server (standaard
                                                 http://localhost:5178/)`,
-  [`  carto validate <file.yaml…|folder>            check files and each of their views, print problems (and review
-                                                notes in <file>.notes.json whose element is gone); a folder also
-                                                across files: dangling ref:/of:, one id with two kinds, elements
-                                                that no diagram or view shows
+  [`  carto validate <file.yaml…|folder>            check files and each of their views, print problems; a folder
+                                                also across files: dangling ref:/of:, one id with two kinds,
+                                                elements that no diagram or view shows
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json`]:
-    `  carto validate <file.yaml…|folder>            controleert bestanden en elk van hun weergaven, toont problemen (en
-                                                reviewnotities in <file>.notes.json waarvan het element weg is); een map
-                                                ook over bestanden heen: ref:/of: naar niets, één id met twee soorten,
-                                                elementen die geen diagram of weergave laat zien
+    `  carto validate <file.yaml…|folder>            controleert bestanden en elk van hun weergaven, toont problemen; een
+                                                map ook over bestanden heen: ref:/of: naar niets, één id met twee
+                                                soorten, elementen die geen diagram of weergave laat zien
                [--drift]                        ook falen als <file>.layout.json dingen (of weergaven) vastzet,
                                                 buigt of vergrendelt die niet meer in het diagram staan
                [--drift --fix]                  die regels uit <file>.layout.json halen`,
@@ -311,16 +298,6 @@ export const nlHelp: Record<string, string> = {
                [--json] [--view name] [--fresh] [--exit-code]
                                                 --fresh legt de nieuwere tekening opnieuw uit in plaats van wat er
                                                 stond op zijn plek te houden; --exit-code geeft exit 1 als er iets veranderde`,
-  [`  carto notes <file.yaml…> [-o notes.md]       the review notes of <file>.notes.json as markdown, open ones
-               [--open | --all]                 (default), or resolved ones too`]:
-    `  carto notes <file.yaml…> [-o notes.md]       de reviewnotities uit <file>.notes.json als markdown, de open
-               [--open | --all]                 (standaard), of ook de afgehandelde`,
-  [`  carto notes --merge-driver <base> <ours> <theirs>
-                                                git's merge driver for notes files: merges two people's notes by
-                                                thread; set up once, see docs/notes.md`]:
-    `  carto notes --merge-driver <base> <ours> <theirs>
-                                                de merge driver van git voor notitiebestanden: voegt de notities van
-                                                twee mensen per draad samen; eenmalig instellen, zie docs/notes.md`,
   [`  carto new <type> [file.yaml]                  start from a template; no type: which to pick`]:
     `  carto new <type> [file.yaml]                  begin vanuit een sjabloon; zonder type: welk je kiest`,
   [`  carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing

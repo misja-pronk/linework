@@ -30,7 +30,7 @@ export interface PaneWants {
   editor: { width: number; folded: boolean };
   /** The YAML was opened from its rail on purpose: it stays open, even when the drawing gets less. */
   forceEditor?: boolean;
-  /** Room is kept for the side panel (properties, notes, Ask). */
+  /** Room is kept for the side panel (properties, Ask). */
   side: boolean;
 }
 

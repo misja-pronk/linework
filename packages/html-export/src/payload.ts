@@ -15,8 +15,6 @@ export interface Payload {
   elements: PElement[];
   /** Pictures that repeat (official icons), referred to from the SVGs as data-carto-icon="n". */
   icons: string[];
-  /** Review notes are drawn and listed. */
-  notes: boolean;
 }
 
 export interface PFile {
@@ -58,7 +56,6 @@ export interface PDrawing extends Picture {
   drill: Record<string, number>;
   /** The levels above, for breadcrumbs: the element and the drawing about it. */
   trail?: { label: string; to?: number }[];
-  notes?: PNote[];
 }
 
 export interface PElement {
@@ -79,13 +76,3 @@ export interface PElement {
   where: [number, string][];
 }
 
-export interface PNote {
-  n: number;
-  about: string;
-  /** The shape it hangs on, when it is drawn. */
-  shape?: string;
-  author: string;
-  date: string;
-  text: string;
-  replies: { author: string; date: string; text: string }[];
-}

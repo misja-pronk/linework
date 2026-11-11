@@ -14,7 +14,6 @@ const GROUPS: [string, string][] = [
   ['Layers', 'the panel keys work while it is open'],
   ['Arrange', 'the selected shapes'],
   ['Steps', ''],
-  ['Review notes', ''],
   ['Presenting', 'full screen'],
   ['Comparing versions', ''],
   ['Folder (one model)', 'with a folder open'],
@@ -23,7 +22,7 @@ const GROUPS: [string, string][] = [
   ['Mouse and trackpad', ''],
 ];
 
-const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip', note: 'in a note', focus: 'in a focus', compare: 'comparing', 'layers-panel': 'in the panel' };
+const WHERE: Partial<Record<KeyContext, string>> = { 'step-chip': 'on its chip', focus: 'in a focus', compare: 'comparing', 'layers-panel': 'in the panel' };
 
 export function Shortcuts({ onClose }: { onClose(): void }) {
   const modal = useModal();

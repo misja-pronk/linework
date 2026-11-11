@@ -214,40 +214,8 @@ export class DiagnosticCollection {
   dispose() {}
 }
 
-export class MarkdownString {
-  constructor(readonly value = '') {}
-}
-export enum CommentMode {
-  Editing = 0,
-  Preview = 1,
-}
-export enum CommentThreadState {
-  Unresolved = 0,
-  Resolved = 1,
-}
-export enum CommentThreadCollapsibleState {
-  Collapsed = 0,
-  Expanded = 1,
-}
-/** A comment thread as the comments API makes it; kept in state.commentThreads while not disposed. */
-export class CommentThread {
-  label?: string;
-  canReply = true;
-  state?: CommentThreadState;
-  collapsibleState?: CommentThreadCollapsibleState;
-  constructor(
-    readonly uri: Uri,
-    readonly range: Range,
-    readonly comments: { body: MarkdownString; author: { name: string } }[],
-  ) {}
-  dispose() {
-    state.commentThreads = state.commentThreads.filter((t) => t !== this);
-  }
-}
-
 // What the extension did, for the test.
 export const state = {
-  commentThreads: [] as CommentThread[],
   commands: new Map<string, (...a: unknown[]) => unknown>(),
   executed: [] as { id: string; args: unknown[] }[],
   collections: [] as DiagnosticCollection[],
@@ -363,19 +331,6 @@ export const window = {
   showInformationMessage: async (m: string) => void state.messages.push(m),
   showQuickPick: async () => undefined,
   showSaveDialog: async () => undefined,
-  showOpenDialog: async () => undefined,
-  createOutputChannel: () => ({ appendLine() {}, show() {} }),
-};
-
-export const comments = {
-  createCommentController: () => ({
-    createCommentThread: (uri: Uri, range: Range, list: CommentThread['comments']) => {
-      const t = new CommentThread(uri, range, list);
-      state.commentThreads.push(t);
-      return t;
-    },
-    dispose() {},
-  }),
 };
 
 export const env = {

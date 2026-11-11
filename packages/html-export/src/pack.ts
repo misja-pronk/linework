@@ -69,7 +69,7 @@ export interface PageStats {
   parts: { drawings: number; fonts: number; script: number; style: number };
 }
 
-export async function toPage(c: Collected, opts: { notes?: boolean; date?: Date } = {}): Promise<{ html: string; stats: PageStats }> {
+export async function toPage(c: Collected, opts: { date?: Date } = {}): Promise<{ html: string; stats: PageStats }> {
   const pictures = c.drawings.flatMap((d) => [d, ...(d.steps ?? [])]);
   const icons = shareIcons(pictures);
   const payload: Payload = {
@@ -82,7 +82,6 @@ export async function toPage(c: Collected, opts: { notes?: boolean; date?: Date 
     drawings: c.drawings,
     elements: c.elements,
     icons,
-    notes: !!opts.notes,
   };
   // mtime 0: the same diagrams give the same file.
   const data = base64(gzipSync(strToU8(JSON.stringify(payload)), { level: 9, mtime: 0 }));

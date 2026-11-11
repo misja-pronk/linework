@@ -18,6 +18,6 @@ export interface HtmlExport {
 
 export async function exportHtml(input: HtmlExportInput & { date?: Date }): Promise<HtmlExport> {
   const c = await collect(input);
-  const { html, stats } = await toPage(c, { notes: input.notes, date: input.date });
+  const { html, stats } = await toPage(c, { date: input.date });
   return { html, problems: c.problems, stats };
 }

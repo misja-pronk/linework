@@ -105,7 +105,6 @@ kbd{font:500 11px/1 var(--mono);padding:2px 5px;border:1px solid var(--line);bor
 .sheet [data-node],.sheet [data-group]{cursor:pointer}
 .sheet .drills{cursor:zoom-in}
 .sheet .carto-hl{fill:none;stroke:var(--accent);stroke-width:2.5;pointer-events:none}
-.sheet .carto-hl.soft{stroke-dasharray:6 4}
 .zoom{position:absolute;right:14px;bottom:14px;display:flex;background:var(--canvas);border:1px solid var(--line);border-radius:8px;overflow:hidden;z-index:2}
 .zoom button{width:34px;height:32px;border:0;background:none;cursor:pointer;color:var(--muted);display:grid;place-items:center}
 .zoom button:hover{background:var(--paper);color:var(--text)}
@@ -147,13 +146,6 @@ kbd{font:500 11px/1 var(--mono);padding:2px 5px;border:1px solid var(--line);bor
 .panel .open-btn{margin-top:16px;width:100%;justify-content:center;height:38px}
 .panel .tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
 .panel .tags span{font:11px var(--mono);color:var(--muted);background:var(--paper);border-radius:4px;padding:2px 6px}
-.note{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
-.note:last-child{border-bottom:0}
-.note .num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--canvas);font:600 11px/22px var(--sans);text-align:center}
-.note .body{min-width:0}
-.note .meta{font-size:12px;color:var(--muted)}
-.note p{margin:3px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
-.note .reply{margin:8px 0 0;padding-left:10px;border-left:2px solid var(--line)}
 .home{position:absolute;inset:0;overflow:auto;padding:44px 48px 64px;background:var(--table)}
 .home[hidden],.stage[hidden]{display:none}
 .home .wrap{max-width:1180px;margin:0 auto}

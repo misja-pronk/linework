@@ -8,7 +8,7 @@ import { pages, readTemplate, toPdf, toPptx, type Drawing, type PptxOptions } fr
 import { fontScale, ttfFiles } from './fonts.ts';
 import { configDir, coverageKinds, findIcons, iconGuide, importIcons, isVendor, listPacks, mapIcon, packSheet, readPack, unmapIcon } from './packs.ts';
 import { coverage } from '@cartography/icons';
-import { drift, findType, layerKey, render, withReviewNotes, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { drift, findType, layerKey, render, SLIDE_MIN_PT, slideTextPt, types, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { isThemeFile, resolveTheme, themeCatalog, themes, type Theme } from '@cartography/theme';
 import { toSafeSvg } from '@cartography/export/svg-safe';
 import { execFileSync } from 'node:child_process';
@@ -19,7 +19,6 @@ import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
 import { indexWorkspace, isDiagramFile } from '@cartography/core';
-import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { badLang, explicitLang, helpText, t } from './i18n.ts';
 import { matchTypes, packLayout, parseSidecar, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
 
@@ -43,8 +42,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--outline-text]                 with --svg-safe: text as outlines in the theme's own font
                [--focus orders] [--hops 2]      only that element (an id, a group, tag:x, kind:x) and what is within
                [--upstream | --downstream]      so many lines of it (default 1, or all); what feeds it, or what it feeds
-               [--notes]                        with the open review notes of <file>.notes.json: numbered markers
-                                                and the notes under the drawing (pptx: in the speaker notes)
                [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
                [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
@@ -67,10 +64,10 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
   carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
   carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
-               [--notes] [--title "…"] [--all-steps]  dark), pan and zoom, presenter, drill-down, search, element
+               [--title "…"] [--all-steps]      dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
-                                                --notes: the open review notes too. More: docs/html-export.md
+                                                More: docs/html-export.md
   carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
@@ -79,10 +76,9 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
-  carto validate <file.yaml…|folder>            check files and each of their views, print problems (and review
-                                                notes in <file>.notes.json whose element is gone); a folder also
-                                                across files: dangling ref:/of:, one id with two kinds, elements
-                                                that no diagram or view shows
+  carto validate <file.yaml…|folder>            check files and each of their views, print problems; a folder
+                                                also across files: dangling ref:/of:, one id with two kinds,
+                                                elements that no diagram or view shows
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
@@ -97,11 +93,6 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                [--json] [--view name] [--fresh] [--exit-code]
                                                 --fresh lays the newer drawing out from scratch instead of keeping
                                                 what was there in place; --exit-code exits 1 when something changed
-  carto notes <file.yaml…> [-o notes.md]       the review notes of <file>.notes.json as markdown, open ones
-               [--open | --all]                 (default), or resolved ones too
-  carto notes --merge-driver <base> <ours> <theirs>
-                                                git's merge driver for notes files: merges two people's notes by
-                                                thread; set up once, see docs/notes.md
   carto new <type> [file.yaml]                  start from a template; no type: which to pick
   carto new --wizard <name> [file.yaml]         answer a few questions, get a finished diagram (Azure landing
                [--answers answers.json] [-y]    zone, AKS baseline, AWS, C4, data mesh, …); --wizard list
@@ -168,7 +159,6 @@ const groups: [string, [string, string][]][] = [
   [t('Check'), [
     ['validate', t('check files and their views')],
     ['diff', t('what changed between two versions')],
-    ['notes', t('review notes')],
   ]],
   [t('Look'), [
     ['themes', t('built-in themes')],
@@ -196,7 +186,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, notes: 2, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -300,9 +290,6 @@ const parsed = (() => {
     to: { type: 'string' },
     wizard: { type: 'string' },
     answers: { type: 'string' },
-    notes: { type: 'boolean' },
-    open: { type: 'boolean' },
-    'merge-driver': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
     lang: { type: 'string' },
   },
@@ -354,90 +341,6 @@ function sidecarFor(file: string): LayoutSidecar | undefined {
   const r = parseSidecar(json);
   for (const w of r.warnings) console.error(`${p}  ${yellow(t('warning'))}  ${w}`);
   return r.sidecar;
-}
-
-/** The review notes next to a diagram; what cannot be read in them is said once. */
-function notesFor(file: string): NotesFile | undefined {
-  const p = notesPath(file);
-  if (!fs.existsSync(p)) return undefined;
-  const r = parseNotes(fs.readFileSync(p, 'utf8'));
-  for (const m of r.problems) console.error(`${p}  ${yellow(t('warning'))}  ${m}`);
-  return r.notes;
-}
-
-/** A drawing with its review notes: markers and an appendix in SVG, PNG and PDF; speaker notes in PowerPoint. */
-function annotated<T extends RenderResult>(r: T, notes: NotesFile | undefined): T & Pick<Drawing, 'remarks' | 'annotate'> {
-  if (!notes || !r.graph || !r.placed) return r;
-  const { graph, placed } = r;
-  const theme = r.theme ?? themes.light;
-  const decorate = (d: { svg: string; width: number; height: number; origin?: { x: number; y: number } }) => withReviewNotes(d, graph, placed, notes, theme, { view: r.view });
-  const marked = r.svg && r.width && r.height ? decorate({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }) : undefined;
-  return { ...r, ...(marked ? { svg: marked.svg, width: marked.width, height: marked.height } : {}), remarks: noteLines(notes, graph, r.view), annotate: decorate };
-}
-
-/** carto notes: the threads as markdown; --merge-driver: git's three-way merge of a notes file. */
-async function notesCommand(): Promise<number> {
-  if (values['merge-driver']) {
-    const [base, ours, theirs] = files;
-    if (!base || !ours || !theirs) return (console.error(helpFor('notes')), 1);
-    const read = (f: string) => parseNotes(fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '');
-    const [b, o, th] = [read(base), read(ours), read(theirs)];
-    // A side that is not a notes file is not merged by guessing: git keeps the conflict.
-    if ([o, th].some((x) => x.problems.some((p) => p.startsWith('not valid') || p.startsWith('no "threads"')))) return (console.error(t('carto notes: {ours} or {theirs} is not a notes file', { ours, theirs })), 1);
-    fs.writeFileSync(ours, printNotes(mergeNotes(b.notes, o.notes, th.notes)) ?? '{\n  "version": 1,\n  "threads": []\n}\n');
-    return 0;
-  }
-  if (!files.length) return (console.error(helpFor('notes')), 1);
-  const parts: string[] = [];
-  let ok = true;
-  for (const f of files) {
-    const notes = notesFor(f);
-    if (!notes) {
-      console.error(t('{file}: no review notes ({path} is not there)', { file: f, path: notesPath(f) }));
-      continue;
-    }
-    const { graph, views } = await graphsFor(f, notes);
-    if (!graph) ok = false;
-    parts.push(notesMarkdown(notes, { graph, views, title: graph?.title ?? path.basename(f), all: !!values.all && !values.open }));
-  }
-  const md = parts.join('\n');
-  if (!values.out || values.out === '-') process.stdout.write(md);
-  else if (md) {
-    fs.writeFileSync(values.out, md);
-    console.error(`${files.join(', ')} → ${values.out}`);
-  }
-  return ok ? 0 : 1;
-}
-
-/** The drawing of a diagram and of each view its notes were written in: what their anchors are looked up in. */
-async function graphsFor(file: string, notes: NotesFile): Promise<{ graph?: RenderResult['graph']; views: Record<string, NonNullable<RenderResult['graph']>> }> {
-  const text = fs.readFileSync(file, 'utf8');
-  const opts = { fonts: 'none' as const, load: loaderFor(file), file: path.basename(file), ...langOption };
-  const first = await render(text, opts);
-  const views: Record<string, NonNullable<RenderResult['graph']>> = {};
-  for (const v of new Set(notes.threads.map((t) => t.view).filter((x): x is string => !!x))) {
-    const r = await render(text, { ...opts, view: v });
-    if (r.graph && r.view === v) views[v] = r.graph;
-  }
-  return { graph: first.graph, views };
-}
-
-/** carto validate: notes whose element is gone, said as a warning each (they are kept, with what they were about). */
-async function checkNotes(file: string): Promise<void> {
-  const notes = notesFor(file);
-  if (!notes?.threads.length) return;
-  const { graph, views } = await graphsFor(file, notes);
-  if (!graph) return;
-  const p = notesPath(file);
-  for (const th of notes.threads) {
-    const g = th.view ? views[th.view] : graph;
-    if (th.view && !g) {
-      console.error(`${p}  ${yellow(t('warning'))}  ${t('note {id} is in view "{view}", which the diagram no longer has', { id: th.id, view: th.view })}`);
-      continue;
-    }
-    const r = resolveAnchor(th.anchor, g!);
-    if (r.state === 'orphaned') console.error(`${p}  ${yellow(t('warning'))}  ${th.view ? t('note {id} ({status}) is about "{was}", which is no longer in the diagram (view {view})', { id: th.id, status: th.status, was: r.was, view: th.view }) : t('note {id} ({status}) is about "{was}", which is no longer in the diagram', { id: th.id, status: th.status, was: r.was })}`);
-  }
 }
 
 /** Writes the sidecar the way the editor does; with nothing left in it the file goes. */
@@ -667,8 +570,6 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     if (values.stable) noteLayout(file, runs);
     return drawn.length === runs.length;
   }
-  const notes = values.notes ? notesFor(file) : undefined;
-  if (values.notes && !notes) console.error(`${shown}  ${yellow(t('warning'))}  ${t('--notes: there is no {path}', { path: notesPath(file) })}`);
   let ok = true;
   const stdout = values.out === '-' || (shown === 'stdin' && !values.out);
   for (const [i, result] of runs.entries()) {
@@ -681,8 +582,7 @@ async function renderFile(file: string, text = fs.readFileSync(file, 'utf8'), sh
     if ((values.step || (values['all-steps'] && !values['all-views'])) && !result.steps) console.error(`${shown}${view ? `#${view}` : ''}  ${yellow(t('warning'))}  ${t('no steps here: drawn as a whole')}`);
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = values['all-steps'] && result.steps && (format === 'svg' || format === 'png');
-    const plain = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
-    const shots = plain.map((r) => annotated(r, notes));
+    const shots = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
     if (stdout && runs.length + shots.length > 2) throw new UsageError(t('-o - writes one picture to standard output: give a folder for --all-views or --all-steps'));
     // A drawing with errors is not what was asked for: nothing is written, the errors say why.
     if (result.diagnostics.some((d) => d.severity === 'error')) {
@@ -1050,7 +950,7 @@ async function main(): Promise<number> {
       if (!fs.existsSync(f)) return (console.error(t('{file}: no such file or folder', { file: f })), 1);
       if (!themeFlag()) return 1;
       const { exportHtmlFile } = await import('./html-export.ts');
-      const r = await exportHtmlFile(f, values.out, { title: values.title, notes: values.notes, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale, ...langOption } });
+      const r = await exportHtmlFile(f, values.out, { title: values.title, allSteps: values['all-steps'], render: { themeOverride: forced, packs: values.pack, pack: readPack, iconsOverride: iconsFlag(), fontScale, ...langOption } });
       for (const p of r.problems) console.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${red(t('error'))}  ${p.message}`);
       if (!r.stats.drawings) return (console.error(t('{file}: nothing to draw', { file: f })), 1);
       const s = r.stats;
@@ -1121,7 +1021,6 @@ async function main(): Promise<number> {
             diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${x.page?.name ?? '16:9 slide'} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
         }
         report(f, diagnostics);
-        await checkNotes(f);
         const drifted = values.drift && !(await checkDrift(f));
         if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
         else console.log(`${f} ${dim(t('ok'))}`);
@@ -1145,8 +1044,6 @@ async function main(): Promise<number> {
         say: { red, yellow, dim },
       });
     }
-    case 'notes':
-      return notesCommand();
     case 'diff':
       if (!themeFlag()) return 1;
       return diffFiles();
@@ -1218,7 +1115,7 @@ async function main(): Promise<number> {
         await renderFile(f);
         follow();
         fs.watch(path.dirname(f), (_, name) => {
-          if (name && f.endsWith(name.replace(/\.(layout|notes)\.json$/, path.extname(f)))) again();
+          if (name && f.endsWith(name.replace(/\.layout\.json$/, path.extname(f)))) again();
         });
       }
       console.log(dim(t('watching… Ctrl+C to stop')));

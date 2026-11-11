@@ -8,13 +8,12 @@
 //     part of it ("online" → "digital" makes "online.api" "digital.api");
 //   - an entry that is the element by having the same id (a node `ledger:`, an access resource
 //     `ledger`) gets the new key, with whatever the type says refers to it (lines, `in:`, assignments);
-//   - in the pins (`.layout.json`) and the review notes (`.notes.json`), what is drawn under the old id.
+//   - in the pins (`.layout.json`), what is drawn under the old id.
 // A node with its own key and `ref: online` keeps its key: only the ref changes.
 import { isMap, isScalar, type Document, type Node, type Pair } from 'yaml';
 import { parseSource } from './source.ts';
 import { idPattern, type Reference } from './diagram-type.ts';
 import { sitesOf, type WorkspaceIndex } from './workspace.ts';
-import { parseNotes, printNotes, type NoteAnchor } from './notes.ts';
 import type { Path } from './model.ts';
 
 export interface RenameFile {
@@ -272,20 +271,6 @@ export function renameSidecar(json: string, node: (id: string) => string): strin
   const out = pins(v);
   if (isPlainMap(v.views)) out.views = Object.fromEntries(Object.entries(v.views).map(([k, p]) => [k, isPlainMap(p) ? pins(p) : p]));
   return changed ? JSON.stringify(out, null, 2) + '\n' : undefined;
-}
-
-/** Review notes (`<name>.notes.json`) after a rename: threads on an old id hang on the new one. Undefined when nothing changes. */
-export function renameNotesFile(json: string, node: (id: string) => string): string | undefined {
-  const { notes, problems } = parseNotes(json);
-  if (problems.length) return undefined;
-  let changed = false;
-  const move = (a: NoteAnchor): NoteAnchor => {
-    if (a.kind === 'node' || a.kind === 'group') return node(a.id) === a.id ? a : ((changed = true), { ...a, id: node(a.id) });
-    if (a.kind === 'edge' && (node(a.from) !== a.from || node(a.to) !== a.to)) return (changed = true), { ...a, from: node(a.from), to: node(a.to) };
-    return a;
-  };
-  const threads = notes.threads.map((t) => ({ ...t, anchor: move(t.anchor) }));
-  return changed ? printNotes({ ...notes, threads }) : undefined;
 }
 
 export interface DiffLine {

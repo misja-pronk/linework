@@ -2,8 +2,8 @@
 // files next to the diagram, its sidecar, and the font faces sent once instead of with every drawing.
 import fs from 'node:fs';
 import path from 'node:path';
-import { notesPath, parseNotes, parseSidecar, viewPins, withViewPins, type Box, type LayoutSidecar, type NotesFile } from '@cartography/core';
-import { render, withReviewNotes, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { parseSidecar, viewPins, withViewPins, type Box, type LayoutSidecar } from '@cartography/core';
+import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { sidecarName } from './detect.ts';
 
 export interface DrawAsk {
@@ -48,17 +48,6 @@ export function readSidecar(file: string | undefined): LayoutSidecar | undefined
   try {
     // What cannot be read of it is left out; the rest still pins the drawing.
     return parseSidecar(JSON.parse(fs.readFileSync(sidecarName(file), 'utf8'))).sidecar;
-  } catch {
-    return undefined;
-  }
-}
-
-/** The review notes next to a diagram (<name>.notes.json), when it has any. */
-export function readNotes(file: string | undefined): NotesFile | undefined {
-  if (!file) return undefined;
-  try {
-    const n = parseNotes(fs.readFileSync(notesPath(file), 'utf8')).notes;
-    return n.threads.length ? n : undefined;
   } catch {
     return undefined;
   }
@@ -139,10 +128,7 @@ export interface Drawn {
 export async function draw(ask: DrawAsk): Promise<Drawn> {
   const result = await render(ask.text, renderOptions(ask, { fonts: 'embed', interactive: true, hints: false, idPrefix: 'carto' }));
   if (!result.svg) return { result, fontCss: '' };
-  // The open review notes as numbered markers; their text is in the Comments panel and on hover.
-  const notes = readNotes(ask.file);
-  const marked = notes && result.graph && result.placed && result.theme && result.width && result.height ? withReviewNotes({ svg: result.svg, width: result.width, height: result.height, origin: result.origin }, result.graph, result.placed, notes, result.theme, { view: result.view, appendix: false }).svg : result.svg;
-  const { svg, css } = splitFonts(marked);
+  const { svg, css } = splitFonts(result.svg);
   return { result, picture: { ...pictureOf(result, svg), fonts: css ? `${result.theme?.name ?? ''}:${css.length}` : '' }, fontCss: css };
 }
 

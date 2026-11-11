@@ -174,22 +174,4 @@ edges:
     expect(p.files.map((f) => f.path)).toEqual(['context.yaml', 'containers.yaml']);
     expect(p.site).toBe(true);
   }, 30_000);
-
-  it('lists open review notes and never resolved ones', async () => {
-    const notes = {
-      version: 1 as const,
-      threads: [
-        { id: 'a', author: 'Ann', created: '2026-11-01T10:00:00Z', text: 'Is this **cached**?', anchor: { kind: 'node' as const, id: 'db' }, status: 'open' as const },
-        { id: 'b', author: 'Bob', created: '2026-11-02T10:00:00Z', text: 'secret resolved remark', anchor: { kind: 'node' as const, id: 'web' }, status: 'resolved' as const },
-      ],
-    };
-    const opts = { entries: ['shop.yaml'], read: (p: string) => (p === 'shop.yaml' ? hostile : undefined), notesFor: () => notes };
-    const off = payloadOf((await exportHtml(opts)).html);
-    expect(off.drawings[0]!.notes).toBeUndefined();
-    const on = await exportHtml({ ...opts, notes: true });
-    const p = payloadOf(on.html);
-    expect(p.drawings[0]!.notes).toEqual([{ n: 1, about: 'Orders DB', shape: 'n:db', author: 'Ann', date: '2026-11-01', text: 'Is this cached?', replies: [] }]);
-    expect(on.html).not.toContain('secret');
-    expect(JSON.stringify(p)).not.toContain('secret resolved remark');
-  });
 });

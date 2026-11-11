@@ -18,7 +18,6 @@ disk in Chrome, Safari, Firefox and Edge, needs no install and no hosted app, an
   | Option | |
   | --- | --- |
   | `-o out.html` | where to write it; by default next to the diagram (`shop.html`) or the folder (`architecture.html`) |
-  | `--notes` | the **open** review notes of `<name>.notes.json`: numbered markers and a Notes panel. Off by default; resolved notes are never in the file |
   | `--title "…"` | the page's title; by default the model's title, or the diagram's |
   | `--all-steps` | also the steps nobody wrote (a dynamic view's numbered lines, a sequence's messages) |
   | `--theme`, `--icons`, `--pack` | as for `carto render` |
@@ -88,4 +87,4 @@ The file is static. It carries a Content-Security-Policy that allows exactly its
 `data:` images and fonts, and nothing else: no requests, no other scripts, no `eval`. Everything taken from the YAML
 is text: the viewer only ever sets `textContent`, SVGs are parsed as XML and cleaned to the elements and attributes
 the renderer draws with, and links leave the page only for `http`, `https` and `mailto`, in a new tab, without a
-referrer. Review notes are left out unless asked for, and resolved ones always.
+referrer.

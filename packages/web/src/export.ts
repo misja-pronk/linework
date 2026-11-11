@@ -1,8 +1,8 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And an SVG that Office takes whole.
-import { render, SLIDE_MIN_PT, themes, withReviewNotes, type RenderResult } from '@cartography/engine';
-import { noteLines, type LayoutMemory, type LayoutSidecar, type NotesFile } from '@cartography/core';
+import { render, SLIDE_MIN_PT, themes } from '@cartography/engine';
+import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
 import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
@@ -26,29 +26,6 @@ export interface ExportInput {
   /** The layers switched on in the editor (layers-control.tsx): the export is what is on screen. */
   layers?: string[];
   layerMode?: 'only' | 'dim';
-  /** "With review notes": numbered markers and the notes under the drawing (PowerPoint: in the speaker notes). */
-  notes?: NotesFile;
-}
-
-/** The drawing as an export draws it: with the review notes when asked for, as they are. */
-function noted(r: RenderResult, input: ExportInput): RenderResult {
-  if (!input.notes || !r.svg || !r.graph || !r.placed || !r.width || !r.height) return r;
-  const theme = r.theme ?? themes[input.theme];
-  const d = withReviewNotes({ svg: r.svg, width: r.width, height: r.height, origin: r.origin }, r.graph, r.placed, input.notes, theme, { view: r.view });
-  return { ...r, svg: d.svg, width: d.width, height: d.height };
-}
-
-/** PowerPoint and PDF: the notes as speaker notes, and as markers drawn onto each page. */
-function notedDrawing(r: RenderResult, input: ExportInput) {
-  const { notes } = input;
-  if (!notes || !r.graph || !r.placed) return {};
-  const { graph, placed } = r;
-  const theme = r.theme ?? themes[input.theme];
-  type Drawn = { svg: string; width: number; height: number; origin: { x: number; y: number } };
-  return {
-    remarks: noteLines(notes, graph, r.view),
-    annotate: (d: Drawn) => ({ ...d, ...withReviewNotes(d, graph, placed, notes, theme, { view: r.view }) }),
-  };
 }
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
@@ -58,13 +35,13 @@ const MAX_PIXELS = 16_000_000;
 export const options = (input: ExportInput) => ({ theme: input.theme, themeOverride: brand().theme, ...iconOptions(), sidecar: input.sidecar, load: input.load, view: input.view, file: input.file, previous: input.previous, step: input.step, ...(input.focus !== undefined ? { focus: input.focus } : {}), ...(input.layers ? { layers: input.layers, layerMode: input.layerMode } : {}), fonts: 'embed' as const });
 
 export async function exportSvg(input: ExportInput): Promise<string> {
-  const r = noted(await render(input.text, options(input)), input);
+  const r = await render(input.text, options(input));
   if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
   return r.svg;
 }
 
 export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
-  const r = noted(await render(input.text, options(input)), input);
+  const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   const scale = Math.min(wanted, Math.sqrt(MAX_PIXELS / (r.width * r.height)));
   const img = new Image();
@@ -87,7 +64,7 @@ export async function exportPng(input: ExportInput, wanted = 2): Promise<Blob> {
 
 /** The SVG on its page (aspect: in the YAML, a 16:9 slide by default): the canvas grown to the page's shape, the drawing centred. */
 export async function exportPageSvg(input: ExportInput): Promise<string> {
-  const r = noted(await render(input.text, options(input)), input);
+  const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   if (!r.page) return r.svg;
   const { svgOnPage } = await import('@cartography/export');
@@ -96,7 +73,7 @@ export async function exportPageSvg(input: ExportInput): Promise<string> {
 
 /** A 1920 px wide picture of the page (a 1920×1080 slide by default): the drawing centred on the theme's background, with a margin. */
 export async function exportSlide(input: ExportInput): Promise<Blob> {
-  const r = noted(await render(input.text, options(input)), input);
+  const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   const page = r.page ?? { width: 1280, height: 720 };
   const W = page.width >= page.height ? 1920 : Math.round((1920 * page.width) / page.height);
@@ -143,7 +120,7 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   const shown = r.layers?.active.join('+');
   const layered = await Promise.all((r.layers?.list ?? []).filter((l) => l.name !== shown).map((l) => render(input.text, { ...options(input), layers: [l.name], layerMode: undefined, previous: undefined, step: undefined, fonts: 'none' })));
   const layerSlides = layered.filter((x) => x.graph && x.placed && !x.empty && x.layers?.kept).map((x) => ({ ...x, steps: undefined }));
-  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name, ...notedDrawing(x, input) }));
+  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name }));
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
@@ -172,14 +149,14 @@ export async function exportPdf(input: ExportInput, name?: string): Promise<Blob
   }
   // On the drawing's page (a 16:9 slide unless aspect: says otherwise), 1 px = 0.75 pt.
   const page = r.page ? { width: r.page.width * 0.75, height: r.page.height * 0.75 } : undefined;
-  const data = await toPdf({ ...r, name, ...notedDrawing(r, input) }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
+  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }
 
 /** What another tool's format could not hold, said to the person once the file is there. */
 /** An SVG that PowerPoint, Word and Keynote take whole: no CSS, no effects, system fonts, a group per node. */
 export async function exportSafeSvg(input: ExportInput): Promise<string> {
-  const r = noted(await render(input.text, { ...options(input), fonts: 'none' }), input);
+  const r = await render(input.text, { ...options(input), fonts: 'none' });
   if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
   const { toSafeSvg } = await import('@cartography/export/svg-safe');
   return toSafeSvg(r.svg);

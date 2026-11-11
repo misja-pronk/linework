@@ -22,8 +22,6 @@ export type KeyContext =
   | 'focus'
   /** The YAML editor has focus. */
   | 'editor'
-  /** Writing a review note. */
-  | 'note'
   /** The layers panel is open (L). */
   | 'layers-panel'
   /** A step's chip under the drawing has focus. */
@@ -117,13 +115,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'layers-close', keys: ['escape', 'l'], show: 'Esc / L', what: 'Close the panel', context: 'layers-panel', group: 'Layers' },
   { id: 'tag-search', keys: [], show: '#tag in ⌘K', what: 'Elements with that tag', context: 'mouse', group: 'Layers' },
 
-  // ------------------------------------------------------------ notes
-  { id: 'note', keys: ['n'], what: 'Add a note on the selection (nothing selected: in the middle of the view)', context: 'drawing', group: 'Review notes' },
-  { id: 'notes', keys: ['shift+n'], what: 'Notes panel', context: 'drawing', group: 'Review notes' },
-  { id: 'review', keys: ['shift+r'], what: 'Review mode: only the notes stand out', context: 'drawing', group: 'Review notes' },
-  { id: 'note-send', keys: ['mod+enter'], what: 'Send the note', context: 'note', group: 'Review notes' },
-  { id: 'note-cancel', keys: ['escape'], what: 'Cancel the note', context: 'note', group: 'Review notes' },
-  { id: 'note-here', keys: [], show: 'Right-click', what: 'Add a note on an element, a line or a spot', context: 'mouse', group: 'Mouse and trackpad' },
 
   // ------------------------------------------------------------ steps
   { id: 'step', keys: ['s'], what: 'Add a step: the selection stands out in it', context: 'drawing', group: 'Steps' },
@@ -288,7 +279,6 @@ export const TOGETHER: Record<string, KeyContext[]> = {
   drawing: ['anywhere', 'not-typing', 'drawing', 'folder', 'folder-anywhere'],
   'drawing in a focus': ['anywhere', 'not-typing', 'drawing', 'focus', 'folder', 'folder-anywhere'],
   yaml: ['anywhere', 'editor', 'folder-anywhere'],
-  note: ['anywhere', 'note', 'folder-anywhere'],
   'layers panel': ['anywhere', 'layers-panel'],
   'step chip': ['anywhere', 'not-typing', 'step-chip', 'folder', 'folder-anywhere'],
   'stage chip': ['anywhere', 'not-typing', 'stage-chip', 'folder', 'folder-anywhere'],
