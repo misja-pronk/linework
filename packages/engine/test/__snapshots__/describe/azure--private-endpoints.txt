@@ -1,0 +1,51 @@
+Private endpoints and DNS
+
+Azure infrastructure diagram: Northwind · PaaS without public access, resolved the same way from Azure and from the office. 13 elements in 11 groups, with 12 connections.
+
+Groups and elements
+- Head office (Amsterdam · 10.10.0.0/16)
+  - dc01.northwind.local (Conditional forwarders)
+- sub-connectivity (Platform · Connectivity)
+  - vnet-hub-weu (10.0.0.0/22)
+    - snet-dns-inbound (10.0.1.0/28)
+      - dnspr-hub (Inbound endpoint · 10.0.1.4)
+    - snet-dns-outbound (10.0.1.16/28)
+      - dnsfrs-hub (northwind.local → 10.10.0.10)
+  - rg-dns-privatelink (Zones linked to vnet-hub-weu)
+    - privatelink.database.windows.net (Private DNS zone)
+    - privatelink.blob.core.windows.net (Private DNS zone)
+    - privatelink.vaultcore.azure.net (Private DNS zone)
+- sub-claims-prd (Landing zone · Corp)
+  - vnet-claims-weu (10.1.8.0/22 · DNS 10.0.1.4)
+    - snet-app (10.1.8.0/24)
+      - vmss-claims (Claims API)
+    - snet-pe (10.1.9.0/24 · private endpoints)
+      - pe-sql-claims (10.1.9.4)
+      - pe-st-claims (10.1.9.5)
+      - pe-kv-claims (10.1.9.6)
+  - rg-claims-data (Public access disabled)
+    - sql-claims-prd (SQL Database)
+    - stclaimsprd (Storage account)
+    - kv-claims-prd (Key Vault)
+
+Connections
+- dc01.northwind.local connects to dnspr-hub (Private network: privatelink.*).
+- dnspr-hub connects to privatelink.database.windows.net (Management), connects to privatelink.blob.core.windows.net (Management), connects to privatelink.vaultcore.azure.net (Management) and connects to dnsfrs-hub (Management: northwind.local).
+- vmss-claims connects to dnspr-hub (Management: DNS), connects to pe-sql-claims (Private network), connects to pe-st-claims (Private network) and connects to pe-kv-claims (Private network).
+- pe-sql-claims connects to sql-claims-prd (Private network: TDS 1433).
+- pe-st-claims connects to stclaimsprd (Private network: HTTPS 443).
+- pe-kv-claims connects to kv-claims-prd (Private network: HTTPS 443).
+
+Walkthrough
+1. Three PaaS services, each reachable only through a private endpoint in the spoke.
+2. The app asks for a name: sql-claims-prd.database.windows.net is a CNAME to the privatelink name; the resolver answers from the private zone with 10.1.9.4.
+3. And connects privately: The connection goes to the endpoint's private IP in snet-pe, never over the internet.
+4. From the office: The office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
+
+Layers
+Ways to look at this drawing by tag.
+- Name resolution: One resolver, one set of privatelink zones, used by the spokes and the office alike. (tags dns; 7 elements).
+
+Key
+- Dashed teal line: Private network
+- Dotted line with ticks: Management
