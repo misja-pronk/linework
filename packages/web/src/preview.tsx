@@ -8,7 +8,6 @@ import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 import { PALETTE_MIME } from './add-menu.tsx';
 import { describeResult } from './describe.ts';
-import { BLOCK_MIME } from './blocks/blocks-panel.tsx';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
 import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
 
@@ -56,8 +55,6 @@ interface Props {
    * free space: it stays there, pinned. Without a point the layout places it; `refused` is the group
    * it was dropped on that cannot take it. */
   onPaletteDrop(index: number, at: Point | undefined, group: string | null, refused?: string): void;
-  /** A block (blocks/) dropped at a point (its top-left, pin coordinates), into the group under it if any. */
-  onBlockDrop?(name: string, at: Point | undefined, group: string | null): void;
   onKeyDown(e: React.KeyboardEvent): void;
   /** Dragged from one element's handle onto another. */
   onConnect(from: string, to: string): void;
@@ -89,10 +86,6 @@ interface Props {
   /** What a screen reader hears for the focused element. */
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
-  /** Drawn on the stage, over the drawing, at the zoom given. */
-  overlay?(scale: number): React.ReactNode;
-  /** Right-click (or a two-finger click): what is under the pointer, and the point in pin space. */
-  onContextMenu?(s: Selection | undefined, at: Point, client: { x: number; y: number }): void;
   children?: React.ReactNode;
 }
 
@@ -362,14 +355,6 @@ export function Preview(p: Props) {
     if (!f || !boxes.length) return fit();
     // Clear of the tools as fit() is: viewFor keeps its own 48 px on top of `top`.
     setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { top: Math.max(0, floatingTop(f) - 48), bottom: BAR, max: 2, min: MIN }));
-  };
-  /** A point of the pane (client pixels) in pin space. */
-  const pinAt = (cx: number, cy: number): Point | undefined => {
-    const f = frame.current;
-    if (!f || !result?.origin) return undefined;
-    const r = f.getBoundingClientRect();
-    const sh = result.placed?.shift ?? { x: 0, y: 0 };
-    return { x: (cx - r.left - view.x) / view.scale - result.origin.x + sh.x, y: (cy - r.top - view.y) / view.scale - result.origin.y + sh.y };
   };
   const wholly = () => {
     const f = frame.current;
@@ -844,12 +829,6 @@ export function Preview(p: Props) {
     return { into, refused: g && !into ? g : undefined, card };
   };
   const onDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes(BLOCK_MIME) && result?.placed && p.onBlockDrop) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      setDropTarget(groupAt(result.placed.groups, toLayout(e.clientX, e.clientY)) ?? undefined);
-      return;
-    }
     if (!e.dataTransfer.types.includes(PALETTE_MIME) || !result?.placed) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -858,15 +837,6 @@ export function Preview(p: Props) {
     setGhost({ card: d.card, refused: d.refused });
   };
   const onDrop = (e: React.DragEvent) => {
-    const block = e.dataTransfer.getData(BLOCK_MIME);
-    if (block && result?.placed && p.onBlockDrop) {
-      e.preventDefault();
-      setDropTarget(undefined);
-      const at = toLayout(e.clientX, e.clientY);
-      // On an empty drawing there is nothing to keep it in line with: the layout places it.
-      const empty = !result.placed.nodes.size && !result.placed.groups.size;
-      return p.onBlockDrop(block, empty ? undefined : toPin(at), groupAt(result.placed.groups, at));
-    }
     const raw = e.dataTransfer.getData(PALETTE_MIME);
     setDropTarget(undefined);
     setGhost(undefined);
@@ -951,17 +921,6 @@ export function Preview(p: Props) {
         setGhost(undefined);
       }}
       onDrop={onDrop}
-      onContextMenu={(e) => {
-        if (!p.onContextMenu || stale || !result?.svg) return;
-        const t = (document.elementFromPoint(e.clientX, e.clientY) ?? (e.target as Element)) as Element;
-        if (!t.closest('.stage')) return;
-        const at = pinAt(e.clientX, e.clientY);
-        if (!at) return;
-        e.preventDefault();
-        const hit = t.closest('[data-node],[data-group],[data-edge]') as HTMLElement | null;
-        const s: Selection | undefined = !hit ? undefined : hit.dataset.node != null ? { kind: 'node', id: hit.dataset.node } : hit.dataset.group != null ? { kind: 'group', id: hit.dataset.group } : { kind: 'edge', id: hit.dataset.edge! };
-        p.onContextMenu(s, at, { x: e.clientX, y: e.clientY });
-      }}
       onDoubleClick={(e) => {
         if (stale) return;
         // The title and subtitle are the drawing's first texts, before the layout's group.
@@ -1086,7 +1045,6 @@ export function Preview(p: Props) {
           {pinnedBoxes.length > 0 && <PinBadges boxes={pinnedBoxes} scale={view.scale} />}
           {line && <BendHandles points={line.points.map((q) => ({ x: q.x + o.x, y: q.y + o.y }))} scale={view.scale} bent={!!p.bent?.has(selected!.id)} />}
           {snap && <Guides snap={snap} at={pinToStage} scale={view.scale} />}
-          {p.overlay?.(view.scale)}
         </div>
       )}
       {marquee && (

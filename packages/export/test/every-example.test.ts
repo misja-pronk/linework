@@ -11,7 +11,7 @@ const examples = fileURLToPath(new URL('../../../examples', import.meta.url));
 const PNG = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
 
 describe('pptx of every example', () => {
-  const files = fs.readdirSync(examples).flatMap((d) => (fs.statSync(path.join(examples, d)).isDirectory() ? fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml') && !f.endsWith('.block.yaml')).map((f) => `${d}/${f}`) : []));
+  const files = fs.readdirSync(examples).flatMap((d) => (fs.statSync(path.join(examples, d)).isDirectory() ? fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`) : []));
   it('finds the examples', () => expect(files.length).toBeGreaterThan(50));
   for (const file of files)
     it(file, async () => {

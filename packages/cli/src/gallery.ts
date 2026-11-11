@@ -11,7 +11,7 @@ fs.mkdirSync(out, { recursive: true });
 const cards: string[] = [];
 let failed = false;
 for (const dir of fs.readdirSync(path.join(root, 'examples')).sort()) {
-  for (const file of fs.readdirSync(path.join(root, 'examples', dir)).filter((f) => f.endsWith('.yaml') && !f.endsWith('.block.yaml')).sort()) {
+  for (const file of fs.readdirSync(path.join(root, 'examples', dir)).filter((f) => f.endsWith('.yaml')).sort()) {
     const name = `${dir}-${file.replace(/\.yaml$/, '')}`;
     const text = fs.readFileSync(path.join(root, 'examples', dir, file), 'utf8');
     const load = (rel: string) => fs.readFileSync(path.resolve(root, 'examples', dir, rel), 'utf8');

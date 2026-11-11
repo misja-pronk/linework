@@ -107,8 +107,6 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1512, height: 900
   };
 
   await run('describe', async () => (await page.keyboard.press('Meta+k'), await page.keyboard.type('describe'), await page.waitForTimeout(150), await page.keyboard.press('Enter')), '.describe-dialog');
-  await run('insert-block', async () => (await page.locator('.drawing [data-group="vnet"]').first().click({ position: { x: 30, y: 12 } }), await page.keyboard.press('b'), await page.waitForSelector('.palette-item'), await page.keyboard.press('Enter')), '.block-dialog');
-  await run('save-block', async () => (await select(page, 'api'), await page.keyboard.down('Shift'), await page.locator('.drawing [data-node="db"]').click(), await page.keyboard.up('Shift'), await page.locator('.preview').focus(), await page.keyboard.press('Shift+B')), '.block-dialog.save');
   await run('snapshot', async () => (await select(page, 'api'), await page.keyboard.press('Meta+Shift+s')), '.snap-dialog > *');
   await run('shortcuts', async () => (await page.locator('.preview').focus(), await page.keyboard.press('?')), '.shortcuts');
   await run('icon-packs', async () => (await page.click('button[data-brand]'), await page.click('.menu [data-icon-packs]')), '[role="dialog"][aria-label="Official icons"]');

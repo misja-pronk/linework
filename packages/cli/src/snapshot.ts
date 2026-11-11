@@ -24,7 +24,7 @@ interface Shot {
 function exampleFiles(): string[] {
   return fs
     .readdirSync(path.join(root, 'examples'))
-    .flatMap((d) => fs.readdirSync(path.join(root, 'examples', d)).filter((f) => f.endsWith('.yaml') && !f.endsWith('.block.yaml')).map((f) => path.join('examples', d, f)))
+    .flatMap((d) => fs.readdirSync(path.join(root, 'examples', d)).filter((f) => f.endsWith('.yaml')).map((f) => path.join('examples', d, f)))
     .sort();
 }
 

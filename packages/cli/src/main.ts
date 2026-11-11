@@ -106,17 +106,9 @@ const helpAll = helpText(`carto — architecture diagrams that look good
   carto icons find <pack> <words…>              icons of the pack by name, to map one by hand
   carto icons map <pack> <kind> <words…|file>   give a kind an icon by hand (kept when a newer set is imported)
   carto icons unmap <pack> <kind>               the kind draws its line icon again
-               then: icons: official in a diagram, or --icons official|lucide on render, deck, watch, embed
+               then: icons: official in a diagram, or --icons official|lucide on render, deck or watch
   carto themes                                  built-in themes
   carto types [words…]                          which type to pick, best match first
-  carto blocks list [--json]                    reusable fragments (docs/blocks.md): ./blocks, your library in
-                                                ${configDir()}/blocks, and the starters
-  carto blocks show <block> [-o preview.svg|png] [--param k=v]   what it holds, its parameters and problems
-  carto blocks new <name> --from file.yaml --select a,b,c [--title …] [--user]
-                                                the selection, with its groups and the lines between, as
-                                                ./blocks/<name>.block.yaml (--user: into your library)
-  carto blocks insert <block> into <file.yaml> [--into group] [--param k=v…] [-o out.yaml|-]
-                                                as plain YAML, ids made unique, marked "# from block: name@hash"
 
 Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
@@ -139,7 +131,6 @@ const groups: [string, [string, string][]][] = [
   [t('Create'), [
     ['new', t('start from a template')],
     ['types', t('which diagram type to pick')],
-    ['blocks', t('reusable fragments: list, show, save, insert')],
   ]],
   [t('Draw'), [
     ['render', t('a diagram to SVG, PNG, PowerPoint or PDF')],
@@ -183,7 +174,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
  * How many entries of a command's help (a usage line, or an option line with what follows it) are
  * the ones most people need: the rest is under "More options". Commands not listed show all as common.
  */
-const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, new: 1, icons: 3, blocks: 2, 'export-html': 2, validate: 1 };
+const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, new: 1, icons: 3, 'export-html': 2, validate: 1 };
 
 /** One command's help: what it does, its common options, then the rest. */
 function commandHelp(cmd: string): string {
@@ -279,9 +270,6 @@ const parsed = (() => {
     all: { type: 'boolean' },
     base: { type: 'string' },
     into: { type: 'string' },
-    select: { type: 'string' },
-    param: { type: 'string', multiple: true },
-    user: { type: 'boolean' },
     from: { type: 'string' },
     to: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
@@ -836,8 +824,6 @@ async function main(): Promise<number> {
     return command || values.help ? 0 : 1;
   }
   switch (command) {
-    case 'blocks':
-      return (await import('./blocks.ts')).blocksCommand(files, { ...values, out: values.out }, helpFor('blocks'));
     case 'types':
       typeGuide(files.join(' '));
       return 0;

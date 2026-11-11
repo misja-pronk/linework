@@ -46,7 +46,6 @@ import { brand } from './brand.ts';
 import { OPEN_KEY } from './viewer.tsx';
 import { BrandMenu } from './brand-menu.tsx';
 import { useWorkspaceTools } from './workspace/use-tools.tsx';
-import { useBlocks } from './blocks/use-blocks.tsx';
 import { DescribeDialog } from './describe-dialog.tsx';
 import { copyRich, describeResult } from './describe.ts';
 import { t, say, useUiLang, withUiLang, type Message } from './i18n/index.ts';
@@ -319,8 +318,6 @@ export function App() {
   const previewControl = useRef<PreviewControl>(null);
   const dragStartedInView = useRef(false);
 
-  /** Right-click on the drawing: where, and on what. */
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; s?: Selection; at: Point }>();
   const type = result?.type ?? drawn?.type;
   const diagnostics = result?.diagnostics ?? NONE;
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
@@ -1513,26 +1510,6 @@ export function App() {
     notify,
   });
 
-  // Reusable fragments (blocks/): the shapes panel's Blocks section, B and ⇧B, drops, updates.
-  const blocks = useBlocks({
-    ws,
-    refresh: (w) => setWs({ ...w }),
-    inFolder: !!(ws && doc.path),
-    type,
-    text: rendered?.text ?? text,
-    textNow,
-    drawn,
-    current,
-    selection,
-    pathOf: (s) => pathOf(s),
-    theme,
-    // An inserted block grows the drawing: fit it again (review 3: it ran past the edge, under the
-    // minimap); dropped at a point it stays where dropped, kept in view.
-    apply: (next, nodePins) => (nodePins ? previewControl.current?.keepInView(true) : previewControl.current?.fitNext(), apply(next, nodePins ? withPins(nodePins) : undefined)),
-    selectPaths: (paths) => setPendingPaths(paths.map((p) => JSON.stringify(p))),
-    notify,
-  });
-
   // ------------------------------------------------------------ commands
 
   // Compare with an earlier version (compare/): its commands, its view over the drawing and its dialogs.
@@ -1570,7 +1547,6 @@ export function App() {
     { id: 'ask', group: t('Your AI'), label: asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void copyForAi() }] : []),
     ...wsTools.commands,
-    ...blocks.commands,
     { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('template, then AI, builder or YAML'), icon: 'file-plus', run: () => setModal('templates') },
     view === 'visual'
       ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => setView('code') }
@@ -1682,7 +1658,7 @@ export function App() {
       }
       // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
-      if (!modal && !presenting && (wsTools.onKey(e, !!typing) || blocks.onKey(e, !!typing))) return e.preventDefault();
+      if (!modal && !presenting && (wsTools.onKey(e, !!typing))) return e.preventDefault();
       if (e.defaultPrevented) return;
       const id = shortcutFor(e, typing || modal || presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (modal && id !== 'palette') || presenting) return;
@@ -1952,7 +1928,6 @@ export function App() {
         {view === 'visual' && type && (
           <aside className="shapes" aria-label={t('Shapes')}>
             <AddMenu inline items={type.palette} onAdd={(item) => add(item)} onClose={focusDrawing} />
-            {blocks.panel}
           </aside>
         )}
         {panes.editorMode === 'rail' && (
@@ -2043,7 +2018,6 @@ export function App() {
               add(item, group, at);
               if (refused) notify(t('{item} cannot go in {group}: placed outside it', { item: item.label, group: result?.graph?.groups.find((g) => g.id === refused)?.label ?? refused }));
             }}
-            onBlockDrop={blocks.onDrop}
             onKeyDown={onCanvasKey}
             locked={locked}
             bent={bent}
@@ -2054,11 +2028,6 @@ export function App() {
             onToggle={craft.toggle}
             control={previewControl}
             describe={describe}
-            overlay={(scale) => blocks.overlay(scale)}
-            onContextMenu={(s, at, client) => {
-              if (s) select(s, false);
-              setContextMenu({ x: client.x, y: client.y, s, at });
-            }}
             onBend={(id, via, done) => {
               const e = result?.graph?.edges.find((x) => x.id === id);
               if (!done) return setDraft({ edges: { [id]: { via, from: e?.from.node, to: e?.to.node } } });
@@ -2407,14 +2376,6 @@ export function App() {
       {modal === 'shortcuts' && <Shortcuts onClose={closeModal} />}
       {describing && description() && <DescribeDialog description={description()!} input={exportInput} onClose={() => setDescribing(false)} onDone={(message, tone) => notify(message, tone ? { tone } : {})} />}
       {wsTools.dialogs}
-      {blocks.dialog}
-      {contextMenu && (
-        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <Menu onClose={() => setContextMenu(undefined)}>
-            {blocks.menuItems(() => setContextMenu(undefined))}
-          </Menu>
-        </div>
-      )}
       {modal === 'templates' && <Start theme={theme} current={guiding ? typeId : undefined} onOpen={start} onClose={closeModal} />}
       {modal === 'problems' && (
         <Palette

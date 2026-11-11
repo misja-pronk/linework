@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@cartography/blocks": "workspace:*",
     "@cartography/core": "workspace:*",
     "@cartography/describe": "workspace:*",
     "@cartography/diff": "workspace:*",

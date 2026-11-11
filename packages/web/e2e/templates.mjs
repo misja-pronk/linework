@@ -26,8 +26,7 @@ const items = [
       if (!fs.statSync(d).isDirectory()) return [];
       return fs
         .readdirSync(d)
-        // Block files (docs/blocks.md) are fragments, not diagrams.
-        .filter((f) => /\.ya?ml$/.test(f) && !/\.block\.ya?ml$/.test(f))
+        .filter((f) => /\.ya?ml$/.test(f))
         .sort()
         .map((f) => ({ dir, f, text: fs.readFileSync(path.join(d, f), 'utf8') }))
         .filter((x) => /^type:\s*[\w-]+/m.test(x.text))

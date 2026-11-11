@@ -132,7 +132,6 @@ export const nl = {
   none: 'geen',
   Create: 'Maken',
   'start from a template': 'beginnen met een sjabloon',
-  'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
@@ -309,29 +308,13 @@ export const nlHelp: Record<string, string> = {
   [`  carto icons map <pack> <kind> <words…|file>   give a kind an icon by hand (kept when a newer set is imported)`]:
     `  carto icons map <pack> <kind> <words…|file>   geef een soort met de hand een icoon (blijft bij een nieuwere set)`,
   [`  carto icons unmap <pack> <kind>               the kind draws its line icon again
-               then: icons: official in a diagram, or --icons official|lucide on render, deck, watch, embed`]:
+               then: icons: official in a diagram, or --icons official|lucide on render, deck or watch`]:
     `  carto icons unmap <pack> <kind>               de soort tekent weer zijn lijnicoon
-               dan: icons: official in een diagram, of --icons official|lucide bij render, deck, watch, embed`,
+               dan: icons: official in een diagram, of --icons official|lucide bij render, deck of watch`,
   [`  carto themes                                  built-in themes`]:
     `  carto themes                                  ingebouwde thema's`,
   [`  carto types [words…]                          which type to pick, best match first`]:
     `  carto types [words…]                          welk type je kiest, beste match eerst`,
-  [`  carto blocks list [--json]                    reusable fragments (docs/blocks.md): ./blocks, your library in
-                                                {configDir}/blocks, and the starters`]:
-    `  carto blocks list [--json]                    herbruikbare fragmenten (docs/blocks.md): ./blocks, je bibliotheek in
-                                                {configDir}/blocks, en de starters`,
-  [`  carto blocks show <block> [-o preview.svg|png] [--param k=v]   what it holds, its parameters and problems`]:
-    `  carto blocks show <block> [-o preview.svg|png] [--param k=v]   wat erin zit, de parameters en problemen`,
-  [`  carto blocks new <name> --from file.yaml --select a,b,c [--title …] [--user]
-                                                the selection, with its groups and the lines between, as
-                                                ./blocks/<name>.block.yaml (--user: into your library)`]:
-    `  carto blocks new <name> --from file.yaml --select a,b,c [--title …] [--user]
-                                                de selectie, met haar groepen en de lijnen ertussen, als
-                                                ./blocks/<name>.block.yaml (--user: in je bibliotheek)`,
-  [`  carto blocks insert <block> into <file.yaml> [--into group] [--param k=v…] [-o out.yaml|-]
-                                                as plain YAML, ids made unique, marked "# from block: name@hash"`]:
-    `  carto blocks insert <block> into <file.yaml> [--into group] [--param k=v…] [-o out.yaml|-]
-                                                als gewone YAML, ids uniek gemaakt, gemarkeerd met "# from block: name@hash"`,
   [`Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
 so the same YAML and layout file always give the same picture. More: docs/ci.md`]:

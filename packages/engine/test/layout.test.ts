@@ -239,7 +239,7 @@ const returns: Record<string, number> = {
 };
 
 describe('layout quality', () => {
-  const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml') && !f.endsWith('.block.yaml')).map((f) => `${d}/${f}`));
+  const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
   // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
   const views = files.filter((f) => f.startsWith('c4/') || f.startsWith('deployment/') || f.startsWith('workspace/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
   it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).filter((k) => !k.includes('#')).sort()));

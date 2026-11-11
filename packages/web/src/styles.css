@@ -3616,7 +3616,7 @@ button.type-pill:hover {
   padding: 16px;
 }
 
-/* ------------------------------------------------------------- counts on the tools, the drawing's menu */
+/* ------------------------------------------------------------- counts on the tools */
 
 :root {
   --count: #b45309;
@@ -3640,15 +3640,6 @@ button.type-pill:hover {
 .tool-count.unread {
   background: var(--count);
   color: var(--surface);
-}
-.context-menu {
-  position: fixed;
-  z-index: 40;
-}
-.context-menu .menu {
-  left: 0;
-  right: auto;
-  top: 0;
 }
 
 .button:disabled {

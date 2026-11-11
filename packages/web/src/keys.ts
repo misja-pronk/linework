@@ -158,10 +158,6 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'forward', keys: ['mod+]'], what: 'Forward (not in the YAML: there it indents)', context: 'folder', group: 'Folder (one model)' },
   { id: 'rename-everywhere', keys: ['shift+f2'], what: 'Rename the selected element in every file', context: 'folder-anywhere', group: 'Folder (one model)' },
 
-  // ------------------------------------------------------------ blocks
-  { id: 'insert-block', keys: ['b'], what: 'Insert a block (into the selected group); its parameters, then ↵', context: 'drawing', group: 'Blocks' },
-  { id: 'save-block', keys: ['shift+b'], what: 'Save the selection as a block, with its groups and the lines between', context: 'drawing', group: 'Blocks' },
-  { id: 'drop-block', keys: [], show: 'Drag a block', what: 'From the Blocks section onto the drawing or into a group: it stays where dropped', context: 'mouse', group: 'Mouse and trackpad' },
 
   // ------------------------------------------------------------ mouse and trackpad
   { id: 'drag', keys: [], show: 'Drag an element', what: 'Move it (pins it), snapping to guides; drop into a group to nest', context: 'mouse', group: 'Mouse and trackpad' },

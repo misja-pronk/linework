@@ -142,7 +142,7 @@ const PROSE = new Set(['label', 'title', 'subtitle', 'caption', 'description', '
 
 /** Diagram files of a folder: YAML with a top-level type:, not a data contract or a layout. */
 // A Helm chart's Chart.yaml (type: application) and Kubernetes manifests have a top-level type: too, and are code, not diagrams.
-export const isDiagramFile = (path: string, text: string) => /\.ya?ml$/i.test(path) && !/\.(odcs|block)\.ya?ml$/i.test(path) && /^type:\s*[\w-]+/m.test(text) && !/(^|\/)Chart\.yaml$/.test(path) && !/^apiVersion\s*:/m.test(text);
+export const isDiagramFile = (path: string, text: string) => /\.ya?ml$/i.test(path) && !/\.odcs\.ya?ml$/i.test(path) && /^type:\s*[\w-]+/m.test(text) && !/(^|\/)Chart\.yaml$/.test(path) && !/^apiVersion\s*:/m.test(text);
 
 const dirOf = (file: string) => file.split('/').slice(0, -1).join('/');
 
