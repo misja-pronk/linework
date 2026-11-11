@@ -1,0 +1,71 @@
+/* The shapes to add (add-menu.tsx): as a popup over the drawing, or the shapes panel of the builder. */
+
+.add-menu {
+  position: absolute;
+  left: 16px;
+  top: 60px;
+  width: 280px;
+  max-height: calc(100% - 140px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  z-index: 6;
+  animation: rise 120ms ease-out;
+}
+.add-menu .palette-input input {
+  height: 42px;
+  font-size: 0.8125rem;
+}
+.add-list {
+  overflow-y: auto;
+  padding: 4px 6px 8px;
+}
+.add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: grab;
+}
+.add-item > .icon:last-child {
+  margin-left: auto;
+  color: var(--text-faint);
+  opacity: 0;
+}
+.add-item[aria-selected='true'] {
+  background: var(--accent-soft);
+}
+.add-item[aria-selected='true'] > .icon:last-child {
+  opacity: 1;
+}
+.tile {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--tone-fg);
+  background: var(--tone-bg);
+  flex: none;
+}
+.add-menu.inline {
+  position: static;
+  width: auto;
+  max-height: none;
+  min-height: 0;
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+.add-menu.inline .add-item:hover {
+  background: var(--accent-soft);
+}
+.add-menu.inline .add-item:hover > .icon:last-child {
+  opacity: 1;
+}

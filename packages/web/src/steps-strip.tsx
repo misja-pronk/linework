@@ -1,5 +1,6 @@
 // The steps of the drawing as a strip under the canvas: click one to see the drawing at that step,
 // and make, name, order and remove steps without typing YAML.
+import './steps-strip.css';
 import { useEffect, useRef, useState } from 'react';
 import type { StepState } from '@cartography/core';
 import { Icon } from './icon.tsx';

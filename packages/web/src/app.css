@@ -1,0 +1,136 @@
+/* The editor frame (app.tsx): top bar, panes and status bar on a grid; rails of folded panes; one pane at a time on narrow screens. */
+
+.app {
+  display: grid;
+  grid-template-rows: 52px 1fr 28px;
+  height: 100%;
+}
+.workspace {
+  display: grid;
+  /* Worked out in pane-layout.ts: the drawing keeps its room, the panes around it give way. */
+  grid-template-columns: var(--cols, 40% 1px 1fr);
+  min-height: 0;
+  position: relative;
+}
+.pane {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+/* A folded pane: a strip with its name on it, one click opens it again. */
+.rail {
+  min-height: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.rail-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+}
+button.rail {
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  justify-content: flex-start;
+}
+.rail-button:hover,
+.rail-button[aria-expanded='true'] {
+  color: var(--text);
+  background: var(--bg);
+}
+.rail-label {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 60vh;
+}
+.pane-tabs {
+  display: none;
+}
+@media (max-width: 900px) {
+  .app {
+    grid-template-rows: 52px auto 1fr 28px;
+  }
+  .pane-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .pane-tabs button {
+    flex: 1;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .pane-tabs button[aria-selected='true'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 550;
+  }
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .splitter,
+  .files,
+  .rail,
+  .fold-yaml {
+    display: none;
+  }
+  /* One pane at a time here: the YAML shows on its tab even when it is folded on a wide screen. */
+  .workspace.yaml-is-rail.show-yaml .editor-pane {
+    display: block;
+  }
+  .workspace.show-drawing .editor-pane,
+  .workspace.show-yaml .canvas-pane,
+  .workspace.show-yaml .side {
+    display: none;
+  }
+}
+.workspace.view-visual .editor-pane,
+.workspace.view-visual .splitter {
+  display: none;
+}
+.shapes {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+@media (max-width: 860px) {
+  .workspace.view-visual .shapes {
+    display: none;
+  }
+}
+@media (max-width: 860px) {
+  .workspace.view-visual {
+    grid-template-columns: 1fr;
+  }
+  .workspace.view-visual.show-yaml .editor-pane {
+    display: block;
+  }
+}

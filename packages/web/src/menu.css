@@ -1,0 +1,73 @@
+/* Menus (menu.tsx): the popover under a button, its items, headings and separators. */
+
+.menu-anchor {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: 38px;
+  z-index: 20;
+  min-width: 200px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.menu button:hover {
+  background: var(--bg);
+}
+.menu kbd {
+  margin-left: auto;
+}
+.menu .menu-note {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--text-faint);
+  font-size: 0.6875rem;
+}
+.menu-heading {
+  padding: 8px 9px 3px;
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.menu details > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--text-muted);
+}
+.menu details > summary::-webkit-details-marker {
+  display: none;
+}
+.menu details > summary:hover {
+  background: var(--bg);
+}
+.menu details[open] > summary .icon:last-child {
+  rotate: 180deg;
+}
+.menu hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 2px;
+}

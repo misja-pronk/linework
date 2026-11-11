@@ -1,5 +1,6 @@
 // The diagrams of the open folder: a list beside the YAML, or folded to a rail (and opened over the
 // drawing when there is no room beside it).
+import './files-pane.css';
 import { useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';

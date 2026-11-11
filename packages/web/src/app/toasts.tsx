@@ -1,4 +1,5 @@
 // Messages after an action: one at a time, gone after a few seconds, with an action to take (Undo).
+import './toasts.css';
 import { useCallback, useEffect, useState } from 'react';
 import { t } from '../i18n/index.ts';
 

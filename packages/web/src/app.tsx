@@ -2,6 +2,7 @@
 // Builder actions (inspector, palette, drag) are edits of the YAML text plus pins, all in the
 // editor's one undo history. The state lives in the hooks of app/, the panes are app/'s components;
 // this file puts them together.
+import './app.css';
 import { useRef, useState } from 'react';
 import type { PreviewControl, Selection } from './preview.tsx';
 import { useCraftPrefs } from './craft-actions.tsx';

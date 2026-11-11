@@ -1,0 +1,62 @@
+/* The status bar (status-bar.tsx). */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.statusbar .spacer {
+  flex: 1;
+}
+.status-problems {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  color: var(--success-ink);
+}
+.status-problems.has-errors {
+  color: var(--danger-ink);
+}
+.status-problems.has-warnings {
+  color: var(--warning-ink);
+}
+.status-problems:hover {
+  background: var(--bg);
+}
+.status-selected {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+}
+.status-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.status-link:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+@media (max-width: 900px) {
+  .statusbar > span:not(.spacer):not(:first-of-type) {
+    display: none;
+  }
+}

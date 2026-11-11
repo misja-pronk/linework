@@ -1,4 +1,5 @@
 // The status bar: problems, what is drawn, pins and the selection, the keys, the theme.
+import './status-bar.css';
 import type { GraphNode } from '@cartography/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';

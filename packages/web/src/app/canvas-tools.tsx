@@ -1,4 +1,5 @@
 // The drawing's toolbar: add, undo and redo, tidy, view, layers, focus, step, present, Your AI, and ⋯.
+import './canvas-tools.css';
 import { useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';

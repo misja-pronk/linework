@@ -1,5 +1,6 @@
 // Align, distribute, lock and the craft toggles (grid, minimap): their keys, palette entries and buttons, kept
 // out of app.tsx so the app only wires them to the selection.
+import './craft-actions.css';
 import { useCallback, useState } from 'react';
 import type { ArrangeOp } from './craft.ts';
 import type { Command } from './palette.tsx';

@@ -1,6 +1,8 @@
 // Starting a diagram in steps: pick the type (what do you want to draw?), a template of it, how to work
 // (describe it to your own AI, build it visually, or write YAML). For your AI a few answers become a
 // prompt to copy into any chat; its answer is pasted back. Cartography sends nothing anywhere itself.
+import './start.css';
+import './start-types.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { render, types } from '@cartography/engine';
 import { matchTypes, type DiagramType } from '@cartography/core';

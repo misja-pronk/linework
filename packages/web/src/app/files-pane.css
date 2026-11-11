@@ -1,0 +1,86 @@
+/* The diagrams of the open folder (files-pane.tsx). */
+
+/* Opened from its rail when there is no room beside: over the YAML and the drawing, until a file is picked. */
+.files.over {
+  position: absolute;
+  left: var(--rail-w, 40px);
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  z-index: 30;
+  box-shadow: var(--shadow);
+}
+.files header .icon-button {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+}
+.files-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.files {
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 8px 6px;
+}
+.files header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.file span:not(.dirty) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.file:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.file.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 550;
+}
+.files-empty {
+  padding: 8px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+.dirty {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  margin-left: auto;
+}
+.doc-name .dirty {
+  margin-left: 0;
+}

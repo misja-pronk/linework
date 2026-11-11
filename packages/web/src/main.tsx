@@ -1,3 +1,6 @@
+// The token layer and base styles first, then the shared controls: each component brings its own CSS after them.
+import './styles.css';
+import './controls.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { themes } from '@cartography/theme';
@@ -5,7 +8,6 @@ import { shareValue } from '@cartography/core';
 import { App } from './app.tsx';
 import { Viewer } from './viewer.tsx';
 import { registerDefaultFonts } from './fonts.ts';
-import './styles.css';
 
 // The same woff2 subsets the exports embed, so the preview measures and looks the same.
 registerDefaultFonts();

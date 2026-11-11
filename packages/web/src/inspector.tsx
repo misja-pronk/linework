@@ -1,5 +1,6 @@
 // The form for the selected element, generated from the type's schema (requirement B3/B6).
 // Text commits on Enter or leaving the field, so each change is one undo step.
+import './inspector.css';
 import { useEffect, useState } from 'react';
 import type { Field } from './builder.ts';
 import { Icon } from './icon.tsx';

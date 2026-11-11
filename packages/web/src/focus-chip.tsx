@@ -1,4 +1,5 @@
 // "Focused on Orders": what the drawing is cut down to, how far it reaches, and the way back to the whole.
+import './focus-chip.css';
 import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { t, say } from './i18n/index.ts';

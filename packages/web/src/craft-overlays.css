@@ -1,0 +1,139 @@
+/* Over the drawing while crafting (craft-overlays.tsx): guides, bend handles, locks and pins, the minimap, the page. */
+
+@container canvas (max-width: 760px) {
+  .minimap {
+    display: none;
+  }
+}
+/* Smart guides while dragging: thin lines in a warm colour that stands apart from the selection. */
+.guides {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  stroke: var(--guide);
+  fill: var(--guide);
+}
+.guides text {
+  stroke: none;
+  font-family: var(--font);
+  font-weight: 600;
+}
+.bend-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  z-index: 2;
+}
+.bend-handle[data-horizontal] {
+  width: 18px;
+  height: 10px;
+}
+.bend-handle:not([data-horizontal]) {
+  width: 10px;
+  height: 18px;
+}
+/* The grip looks small; the area that takes the pointer is at least 24 by 24 (WCAG target size). */
+.bend-handle::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
+.bend-handle.bent {
+  background: var(--accent);
+}
+.bend-handle:hover {
+  background: var(--accent-soft);
+}
+.lock-badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+.minimap {
+  position: absolute;
+  right: 16px;
+  bottom: 60px;
+  z-index: 4;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  line-height: 0;
+}
+.minimap svg {
+  cursor: pointer;
+  touch-action: none;
+}
+.mini-group {
+  fill: none;
+  stroke: var(--border-strong);
+}
+.mini-edge {
+  fill: none;
+  stroke: var(--text-faint);
+  opacity: 0.6;
+}
+.mini-node {
+  fill: var(--text-faint);
+  opacity: 0.55;
+}
+.mini-view {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  stroke: var(--accent);
+}
+/* The page the drawing is for: a thin frame around it, its name and text size above its corner. */
+.page-frame {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.page-frame.small {
+  border-color: color-mix(in srgb, var(--warning) 70%, transparent);
+}
+.page-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  transform-origin: 0 100%;
+  padding: 0 0 4px;
+  font: 500 11px/1.2 var(--font);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.page-frame.small .page-label {
+  color: var(--warning-ink);
+}
+/* Where text would still be readable on the page; what lies outside it is outlined. */
+.page-readable {
+  position: absolute;
+  border: 1px dashed color-mix(in srgb, var(--warning) 60%, transparent);
+  pointer-events: none;
+}
+.page-overflow {
+  position: absolute;
+  border: 1.5px solid color-mix(in srgb, var(--warning) 75%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warning) 6%, transparent);
+  pointer-events: none;
+}
+.pin-badge {
+  color: var(--accent);
+}

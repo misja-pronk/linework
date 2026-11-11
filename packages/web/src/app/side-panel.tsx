@@ -1,5 +1,6 @@
 // The one panel on the right, with tabs: the selection's properties (one element, or several to
 // arrange), or Your AI (proposals from the user's own agent, files changed on disk).
+import './side-panel.css';
 import { useMemo, useState } from 'react';
 import { renamePins, type Link, type Path } from '@cartography/core';
 import { t, say, type Message } from '../i18n/index.ts';

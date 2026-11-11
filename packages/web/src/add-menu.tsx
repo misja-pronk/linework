@@ -1,4 +1,5 @@
 // The type's palette (requirement B2): search with the keyboard, click to add, or drag onto the canvas.
+import './add-menu.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PaletteItem } from '@cartography/core';
 import { Icon } from './icon.tsx';

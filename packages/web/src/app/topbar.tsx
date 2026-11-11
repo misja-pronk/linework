@@ -1,4 +1,5 @@
 // The top bar: the document and its type, the way of working, New, Commands, the theme, Export.
+import './topbar.css';
 import { useState } from 'react';
 import type { DiagramType } from '@cartography/core';
 import { t } from '../i18n/index.ts';

@@ -1,0 +1,64 @@
+/* The drawing's toolbar (canvas-tools.tsx), and how it folds in a narrow pane. */
+
+.canvas-tools {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+/* What ⋯ repeats of the toolbar shows once that folds away. */
+.canvas-tools [role='menuitem'].tool-folded {
+  display: none;
+}
+.canvas-tools .menu button {
+  white-space: nowrap;
+}
+span.tool-more {
+  display: contents;
+}
+@container canvas (max-width: 1080px) {
+  .canvas-tools .tool kbd {
+    display: none;
+  }
+}
+@container canvas (max-width: 860px) {
+  .canvas-tools .tool-label {
+    display: none;
+  }
+  .canvas-tools .tool {
+    gap: 0;
+  }
+}
+@container canvas (max-width: 620px) {
+  .canvas-tools .tool-more {
+    display: none;
+  }
+  .canvas-tools [role='menuitem'].tool-folded {
+    display: flex;
+  }
+}
+@media (max-width: 600px) {
+  /* The canvas tools fit a phone: no key hints (no keyboard there), and they scroll sideways rather
+     than run off the edge when a view picker makes them wider. */
+  .canvas-tools {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .canvas-tools .tool {
+    flex: none;
+  }
+  .canvas-tools .tool kbd {
+    display: none;
+  }
+  /* Icons only (the names stay for screen readers and in the tooltips). */
+  .canvas-tools .tool {
+    font-size: 0;
+    gap: 0;
+    min-width: 36px;
+  }
+}

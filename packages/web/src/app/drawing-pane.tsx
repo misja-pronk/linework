@@ -1,6 +1,7 @@
 // The drawing's pane: the canvas (select, drag, connect, label in place), what floats over it (the
 // toolbar, the focus and layers chips, notes, the hint, the empty state, the add popup), the
 // comparison over it, and the steps strip under it.
+import './drawing-pane.css';
 import { useMemo } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';

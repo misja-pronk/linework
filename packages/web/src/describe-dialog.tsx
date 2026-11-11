@@ -8,6 +8,8 @@ import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';
 import { asMarkdown, asText, copyRich } from './describe.ts';
 import type { ExportInput } from './export.ts';
+// A sheet like the keyboard sheet: its look first, then what is its own.
+import './shortcuts.css';
 import './describe.css';
 
 function List({ items, ordered }: { items: Item[]; ordered?: boolean }) {

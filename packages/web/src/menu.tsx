@@ -1,4 +1,5 @@
 // A small dropdown: focus moves in, arrows move between items, Escape or a click outside closes it.
+import './menu.css';
 import { useEffect, useRef, useState } from 'react';
 
 /** An item a narrow layout hides (display: none) is skipped by the arrows. */

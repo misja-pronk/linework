@@ -1,6 +1,8 @@
 // The read-only viewer of a share link: the diagram comes out of the link's #fragment, which the
 // browser never sends to a server. Pan and zoom, views, presenting and exports work as in the
 // editor; "Open in editor" makes it a new document of this browser's own.
+import './app/topbar.css';
+import './viewer.css';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { decodeShare, type SharedDiagram } from '@cartography/core';
 import { useRender } from './use-render.ts';

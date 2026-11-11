@@ -1,0 +1,47 @@
+/* Toasts (toasts.tsx). */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 10px 9px 16px;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  animation: rise 160ms ease-out;
+}
+/* Next to the drawing's tools, under them: never over the zoom bar, the hint or a panel (see dockToast in toasts.tsx). */
+.toast.docked {
+  transform: none;
+  bottom: auto;
+  animation: drop 160ms ease-out;
+}
+@keyframes drop {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+.toast button {
+  border: none;
+  background: none;
+  color: var(--accent-soft);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+.toast button:hover {
+  background: color-mix(in srgb, var(--bg) 14%, transparent);
+}
+.toast.error {
+  background: var(--danger);
+  color: #fff;
+}

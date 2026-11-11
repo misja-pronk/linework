@@ -1,0 +1,101 @@
+/* The steps of the drawing, docked under the canvas (steps-strip.tsx). */
+
+.steps-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.steps-title {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+.steps-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.step-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.step-chip b {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+.step-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.step-chip.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 550;
+}
+.step-chip.active b {
+  color: var(--accent);
+}
+.step-chip.editing {
+  border-color: var(--accent);
+  cursor: text;
+}
+.step-chip input {
+  width: 180px;
+  border: none;
+  outline: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+}
+.step-chip.add {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+.step-chip.add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.step-chip kbd {
+  background: none;
+}
+.steps-keys {
+  flex: none;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+@media (max-width: 1280px) {
+  .steps-keys {
+    display: none;
+  }
+}
