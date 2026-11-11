@@ -1,140 +1,22 @@
 /* The drawing canvas (preview.tsx): pan and zoom, selection, dragging, connecting, labels typed in place,
-   the zoom bar. Map room: the table with a graticule, zone rulers along its top and left edges, the sheet
-   lying on it with a second sheet under it, a scale bar, and rust only for what is selected. */
+   the zoom bar. Map room: the table with a graticule, the sheet lying on it with a second sheet under it,
+   and rust only for what is selected. */
 
-/* The graticule lines up with the rulers' zones: a line every 96 px from the rulers' inner edge. */
 .preview {
-  --ruler: 22px;
   position: absolute;
   inset: 0;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
   background:
-    linear-gradient(var(--graticule) 1px, transparent 1px) var(--ruler) var(--ruler) / 96px 96px,
-    linear-gradient(90deg, var(--graticule) 1px, transparent 1px) var(--ruler) var(--ruler) / 96px 96px,
+    linear-gradient(var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px,
+    linear-gradient(90deg, var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px,
     var(--table);
   cursor: default;
   touch-action: none;
 }
 .preview.panning {
   cursor: grabbing;
-}
-
-/* Zone rulers: paper strips, A B C … across and 1 2 3 … down, a zone every two graticule squares. */
-.rulers {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-.rulers::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: 1;
-  width: var(--ruler);
-  height: var(--ruler);
-  background: var(--paper);
-  border-right: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-.ruler {
-  position: absolute;
-  display: flex;
-  overflow: hidden;
-  background: var(--paper);
-  color: var(--text-faint);
-  font: 500 0.625rem/1 var(--mono);
-}
-.ruler.top {
-  left: var(--ruler);
-  right: 0;
-  top: 0;
-  height: var(--ruler);
-  border-bottom: 1px solid var(--rule);
-}
-.ruler.left {
-  left: 0;
-  top: var(--ruler);
-  bottom: 0;
-  width: var(--ruler);
-  flex-direction: column;
-  border-right: 1px solid var(--rule);
-}
-.ruler span {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ruler.top span {
-  width: 192px;
-}
-.ruler.left span {
-  height: 192px;
-}
-.ruler.top span + span {
-  border-left: 1px solid var(--rule2);
-}
-.ruler.left span + span {
-  border-top: 1px solid var(--rule2);
-}
-@media (max-width: 600px) {
-  .preview {
-    --ruler: 0px;
-  }
-  .rulers {
-    display: none;
-  }
-}
-
-/* The scale bar, bottom left: four segments that are a round number of drawing pixels at this zoom. */
-.scale-bar {
-  position: absolute;
-  left: calc(var(--ruler) + 20px);
-  bottom: 22px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.65625rem;
-  color: var(--text-muted);
-  pointer-events: none;
-  white-space: nowrap;
-}
-.scale-bar .mono {
-  font-size: 0.6875rem;
-  color: var(--text);
-}
-.scale-ticks {
-  display: flex;
-  height: 4px;
-  border: 1px solid var(--ink);
-}
-.scale-ticks i {
-  flex: 1;
-}
-.scale-ticks i:nth-child(odd) {
-  background: var(--ink);
-}
-.scale-ratio {
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-.scale-ratio .mono {
-  margin-left: 4px;
-  letter-spacing: 0;
-  font-weight: 400;
-  color: var(--text-faint);
-}
-@container canvas (max-width: 620px) {
-  .scale-bar {
-    display: none;
-  }
 }
 
 .stage {

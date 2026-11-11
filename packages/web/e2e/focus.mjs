@@ -84,10 +84,12 @@ await wait(400);
 // 1. Nothing selected: no chip, the tool waits for a selection, and F says what it needs.
 {
   check('no chip without a focus', await chip(), '');
-  const tool = page.locator('.canvas-tools button:has-text("Focus")');
-  if (!(await tool.isVisible())) fail('no Focus button in the toolbar');
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  const tool = page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Focus")');
+  if (!(await tool.isVisible())) fail("no Focus in the toolbar's ⋯");
   else if (!(await tool.isDisabled())) fail('Focus should wait for a selection');
-  if (!(await tool.innerText()).includes('F')) fail('the Focus button does not show its key');
+  if (!(await tool.innerText()).includes('F')) fail('Focus in ⋯ does not show its key');
+  await page.keyboard.press('Escape');
   await page.locator('.preview').focus();
   await page.keyboard.press('f');
   await wait();

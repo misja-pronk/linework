@@ -1,4 +1,5 @@
-// The drawing's toolbar: add, undo and redo, tidy, view, layers, focus, step, present, Your AI, and ⋯.
+// The drawing's toolbar: add, undo and redo, the view, layers, present, and ⋯ for the rest (tidy, focus, a
+// step, Your AI, compare, the grid and the minimap).
 import './canvas-tools.css';
 import { useState } from 'react';
 import { t } from '../i18n/index.ts';
@@ -53,51 +54,41 @@ export function CanvasTools(p: Props) {
         <Icon name="redo-2" />
       </button>
       <span className="tool-sep" aria-hidden="true" />
-      <button className="tool" onClick={p.tidyLayout} title={t('Tidy: lay out again what is not pinned, pins stay (T)')} aria-label={t('Tidy')}>
-        <Icon name="layout-grid" />
-      </button>
-      {p.canTidyAll && (
-        <button className="tool tool-more" onClick={p.tidyAll} title={t('Tidy all: unpin everything and lay it out afresh (⌘Z undoes it)')} aria-label={t('Tidy all')}>
-          <Icon name="pin-off" />
-        </button>
-      )}
       <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} onChange={p.pickView} />
       {p.layersButton}
-      <button className={drawn?.focus ? 'tool tool-more active' : 'tool tool-more'} onClick={p.focusOnSelection} title={t('Focus: only what is selected and what is around it (F)')} aria-label={t('Focus')} disabled={!p.hasSelection && !p.focusOn}>
-        <Icon name="focus" /> <span className="tool-label">{t('Focus')}</span> <kbd>F</kbd>
-      </button>
-      {!p.hasSteps && (
-        <button className="tool tool-more" onClick={p.addStep} title={t('A step to present: what is selected stands out in it (S)')} aria-label={t('Add a step')} disabled={!p.hasType}>
-          <Icon name="layers" /> <span className="tool-label">{t('Step')}</span> <kbd>S</kbd>
-        </button>
-      )}
       <span className="tool-sep" aria-hidden="true" />
-      <button className="tool" onClick={p.present}title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
+      <button className="tool" onClick={p.present} title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
         <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>P</kbd>
       </button>
-      <button className={p.asking ? 'tool active' : 'tool'} onClick={p.toggleAsk} title={t('Proposals from your own AI ({key})', { key: keyHint('ask') })} aria-label={t('Your AI')} aria-expanded={p.asking} disabled={!p.hasType}>
-        <Icon name="sparkles" /> <span className="tool-label">{t('Your AI')}</span> <kbd>{keyHint('ask')}</kbd>{p.proposal && <span className="tool-count unread">1</span>}
-      </button>
-      {/* Compare and the view's switches, at every width (several items, so ⋯ never holds just one); in a narrow drawing also the tools that fold away, in the same order. */}
+      {/* Everything else, at every width: arranging, focus, a step, Your AI, comparing and the view's switches. */}
       <div className="menu-anchor tool-overflow">
-        <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label={t('More tools')} title={t('More: compare with an earlier version, zoom to the selection, grid, minimap')}>
+        <button className={toolsMore ? 'tool active' : 'tool'} onClick={() => setToolsMore((m) => !m)} aria-expanded={toolsMore} aria-haspopup="menu" aria-label={t('More tools')} title={t('More: tidy, focus, a step, your AI, compare, grid, minimap')}>
           <span className="more-dots" aria-hidden="true">⋯</span>
+          {p.proposal && !p.asking && <span className="tool-count unread">1</span>}
         </button>
         {toolsMore && (
           <Menu onClose={() => setToolsMore(false)}>
+            <button role="menuitem" onClick={() => (setToolsMore(false), p.tidyLayout())}>
+              <Icon name="layout-grid" /> {t('Tidy')} <kbd>{keyHint('tidy')}</kbd>
+            </button>
             {p.canTidyAll && (
-              <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), p.tidyAll())}>
+              <button role="menuitem" onClick={() => (setToolsMore(false), p.tidyAll())}>
                 <Icon name="pin-off" /> {t('Tidy all')}
               </button>
             )}
-            <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), p.focusOnSelection())} disabled={!p.hasSelection && !p.focusOn}>
-              <Icon name="focus" /> {t('Focus')} <kbd>F</kbd>
+            <button role="menuitem" onClick={() => (setToolsMore(false), p.focusOnSelection())} disabled={!p.hasSelection && !p.focusOn}>
+              <Icon name="focus" /> {t('Focus')} <kbd>{keyHint('focus')}</kbd>
             </button>
             {!p.hasSteps && (
-              <button role="menuitem" className="tool-folded" onClick={() => (setToolsMore(false), p.addStep())} disabled={!p.hasType}>
-                <Icon name="layers" /> {t('Add a step')} <kbd>S</kbd>
+              <button role="menuitem" onClick={() => (setToolsMore(false), p.addStep())} disabled={!p.hasType}>
+                <Icon name="layers" /> {t('Add a step')} <kbd>{keyHint('step')}</kbd>
               </button>
             )}
+            <hr />
+            {/* The one way to Your AI on the drawing (besides ⌘K): no AI is built in, it copies to and takes proposals from the user's own. */}
+            <button role="menuitem" onClick={() => (setToolsMore(false), p.toggleAsk())} disabled={!p.hasType}>
+              <Icon name="sparkles" /> {p.asking ? t('Close Your AI') : t('Your AI…')} <kbd>{keyHint('ask')}</kbd>
+            </button>
             <button role="menuitem" onClick={() => (setToolsMore(false), p.toggleCompare())}>
               <Icon name="clock" /> {p.comparing ? t('Stop comparing') : t('Compare with an earlier version')} <kbd>{keyHint('compare')}</kbd>
             </button>

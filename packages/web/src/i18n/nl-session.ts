@@ -2,8 +2,8 @@
 export const nlSession = {
   // The session's own lines and strip
   'Session': 'Sessie',
-  'esc leaves session': 'esc verlaat de sessie',
-  'Session: only the sheet, to draw live with people watching ({key}; Esc leaves)': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken ({key}; Esc verlaat)',
+  'Back to the editor, with what changed': 'Terug naar de editor, met wat er veranderde',
+  'Session: only the sheet, to draw live with people watching ({key})': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken ({key})',
   'Add a box (Tab adds one connected to the selection)': 'Een vak toevoegen (Tab voegt er een toe dat aan de selectie vastzit)',
   'Put the selected boxes in a group (⌘G)': 'De gekozen vakken in een groep zetten (⌘G)',
   'Step {n}/{m}': 'Stap {n}/{m}',
@@ -29,7 +29,11 @@ export const nlSession = {
   'picks a kind': 'kiest een soort',
   'adds a sibling': 'voegt er een naast toe',
   'type to rename': 'typ om te hernoemen',
-  'undo': 'ongedaan maken',
+  'cancels': 'annuleert',
+  'deselects': 'heft de selectie op',
+  'type to add a box': 'typ om een vak toe te voegen',
+  'adds a box': 'voegt een vak toe',
+  'click a box to select it': 'klik een vak om het te kiezen',
 
   // What changed
   'What changed': 'Wat er veranderd is',
@@ -43,7 +47,7 @@ export const nlSession = {
   'the start of the session': 'het begin van de sessie',
 
   // The keys (keys.ts, the "?" sheet)
-  'Session: only the sheet, to draw live with people watching (Esc leaves)': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken (Esc verlaat)',
+  'Session: only the sheet, to draw live with people watching (End session leaves)': 'Sessie: alleen het vel, om live te tekenen terwijl anderen meekijken (Sessie beëindigen verlaat hem)',
   'Keep the name and add a box connected from it, named next': 'De naam houden en er een verbonden vak aan toevoegen, dat je daarna benoemt',
   'While naming: a kind first picks the kind (↑ ↓ in the list)': 'Tijdens het benoemen: een soort vooraan kiest de soort (↑ ↓ in de lijst)',
   'Tab while naming': 'Tab tijdens benoemen',
@@ -59,6 +63,6 @@ export const nlSession = {
   'Put the selected boxes in a new group': 'De gekozen vakken in een nieuwe groep zetten',
   'Undo; Esc while naming a new box takes it away': 'Ongedaan maken; Esc tijdens het benoemen van een nieuw vak haalt het weg',
   'Delete the selected boxes': 'De gekozen vakken verwijderen',
-  'Deselect; with nothing selected, end the session': 'Selectie opheffen; als niets gekozen is, de sessie beëindigen',
+  'Close a menu, deselect, or cancel a name; with nothing selected, to End session (↵ ends it)': 'Een menu sluiten, de selectie opheffen of een naam annuleren; zonder selectie naar Sessie beëindigen (↵ beëindigt hem)',
   'drawing live: ⇧S, then the drawing’s keys are these': 'live tekenen: ⇧S, dan zijn dit de toetsen van de tekening',
 } as const;

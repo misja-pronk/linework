@@ -27,7 +27,8 @@ await page.reload();
 await page.evaluate(() => {
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('shop-model');
 });
-await page.click('button:has-text("Open folder")');
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("Open folder")');
 await page.waitForSelector('.files .file');
 const sidecarText = (name) =>
   page.evaluate(async (name) => {

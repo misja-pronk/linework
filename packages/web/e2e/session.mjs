@@ -116,7 +116,7 @@ const namedInBox = async (what) => {
   if (await page.locator('.statusbar').isVisible()) fail('the status bar shows in a session');
   if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== 'light') fail('a session is not on the light theme (the editor was dark)');
   const head = await page.locator('.session-head').innerText();
-  if (!/Session · Payments workshop/i.test(head.replace(/\s+/g, ' ')) || !/esc leaves session/i.test(head)) fail(`the session's line says: ${head}`);
+  if (!/Session · Payments workshop/i.test(head.replace(/\s+/g, ' ')) || /esc/i.test(head)) fail(`the session's line says: ${head}`);
   await onCanvas();
   await snap('blank');
 
@@ -129,7 +129,8 @@ const namedInBox = async (what) => {
   await written('orders-api: { kind: service, label: Orders API }');
   await onCanvas();
   await drawn('orders-api');
-  if ((await page.locator('.sketch-hint').count()) !== 1) fail('no sketch hint under the selection in the first session');
+  if ((await page.locator('.session-keys').count()) !== 1) fail('no sketch keys over the strip in the first session');
+  if (/undo/i.test(await page.locator('.session-keys').innerText())) fail('the sketch keys still say Esc undoes');
 
   // Tab: a box connected from it, named straight away; Tab again from the name goes on.
   await page.keyboard.press('Tab');
@@ -189,9 +190,12 @@ const namedInBox = async (what) => {
     if (m.x < 0 || m.y < 0 || m.x + m.width > 1440 || m.y + m.height > 900) fail('the selection menu runs out of the window');
     // The line into the firewall comes from above: the menu goes below rather than sit on it.
     if (m.y < b.y) fail('the selection menu sits on the line coming into the selection');
-    const hint = await page.locator('.sketch-hint').boundingBox();
-    if (hint && (hint.x < 0 || hint.x + hint.width > 1440 || hint.y + hint.height > 900)) fail('the sketch hint runs out of the window');
-    if (hint && Math.min(hint.y + hint.height, m.y + m.height) - Math.max(hint.y, m.y) > 0 && Math.min(hint.x + hint.width, m.x + m.width) - Math.max(hint.x, m.x) > 0) fail('the sketch hint and the menu overlap');
+    // One thing at the selection: the keys are over the strip, not next to the menu.
+    if (await page.locator('.sketch-hint').count()) fail('a second hint floats at the selection');
+    const hint = await page.locator('.session-keys').boundingBox();
+    const strip = await page.locator('.session-strip').boundingBox();
+    if (hint && (hint.x < 0 || hint.x + hint.width > 1440 || hint.y + hint.height > 900)) fail('the sketch keys run out of the window');
+    if (hint && strip && (hint.y + hint.height > strip.y || strip.y - hint.y > 60)) fail('the sketch keys are not just over the strip');
     await snap('selection-menu');
   }
 
@@ -210,12 +214,17 @@ const namedInBox = async (what) => {
   await settle();
   await snap('grouped');
 
-  // End: Esc deselects, Esc leaves; "What changed" tells the delta in sentences.
+  // End: Esc deselects and never leaves (the customer is watching); End session does, and "What
+  // changed" tells the delta in sentences.
   await page.locator('.preview').focus();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  if (!(await page.locator('.session-strip').count()) || (await page.locator('.session-end-dialog').count())) fail('Esc left the session');
+  await page.locator('.session-strip .session-end').click();
   await until('no "What changed" after the session', () => !!document.querySelector('.session-end-dialog .session-changes li'));
-  if (await page.locator('.session-strip').count()) fail('Esc did not leave the session');
+  if (await page.locator('.session-strip').count()) fail('End session did not leave the session');
   const told = await page.locator('.session-changes').innerText();
   for (const want of ['Checkout', 'Payments', 'Ledger', 'Edge firewall', 'Core banking']) if (!told.includes(want)) fail(`"What changed" does not mention ${want}:\n${told}`);
   if (!(await page.evaluate(() => !!document.activeElement?.closest('.session-end-dialog')))) fail('the focus is not in the "What changed" dialog');
@@ -262,7 +271,7 @@ edges:
   await page.keyboard.press('Shift+S');
   await page.waitForSelector('.app.in-session');
   await settle();
-  if (await page.locator('.sketch-hint').count()) fail('the sketch hint still shows after the first few sessions');
+  if (await page.locator('.session-keys').count()) fail('the sketch keys still show after the first few sessions');
   const steps = [
     ['api', 'Tab', 'Audit log'],
     ['db', 'Enter', 'Reports DB'],
@@ -290,9 +299,7 @@ edges:
   console.log(`stability: ${worst.join('; ')}`);
   // What does move glides there: after the session, Tidy all draws it from scratch and the boxes go
   // to their new places with a transition on them (not in one jump).
-  await page.locator('.preview').focus();
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  await page.locator('.session-strip .session-end').click();
   await until('no "What changed" after the prepared session', () => !!document.querySelector('.session-end-dialog'));
   await page.keyboard.press('Escape');
   await until('the editor did not come back', () => getComputedStyle(document.querySelector('.topbar')).display !== 'none');
@@ -307,7 +314,8 @@ edges:
         setTimeout(() => (obs.disconnect(), ok([...seen])), 1500);
       }),
   );
-  await page.locator('[aria-label="Tidy all"]').click();
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  await page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Tidy all")').click();
   const glided = await watch;
   console.log(`glide on Tidy all: ${glided.length} boxes (${glided.join(', ')})`);
   if (!glided.length) fail('nothing glided when Tidy all moved the boxes');
@@ -377,9 +385,15 @@ edges:
   await written('label: Spokes');
   await onCanvas();
   await snap('keyboard');
-  // Out of the session by keyboard: Esc twice, then the dialog closes with Esc and the drawing has the focus again.
+  // Out of the session by keyboard: Esc lets go of the selection, Esc again goes to End session (and
+  // a third would come back), ↵ ends it; the dialog closes with Esc and the drawing has the focus again.
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
+  if (!(await page.evaluate(() => document.activeElement?.classList.contains('session-end')))) fail('Esc with nothing selected did not go to End session');
+  await page.keyboard.press('Escape');
+  if (!(await page.evaluate(() => document.activeElement?.classList.contains('preview')))) fail('Esc on End session did not go back to the drawing');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Enter');
   await until('no "What changed" after a keyboard session', () => !!document.activeElement?.closest('.session-end-dialog'));
   await page.keyboard.press('Escape');
   await onCanvas();

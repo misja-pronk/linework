@@ -26,8 +26,6 @@ interface Props {
   notify: Notify;
   /** In a session: plain typing names boxes, Tab and Enter add them (elsewhere only Tab while naming). */
   session: boolean;
-  /** Esc with nothing selected, in a session. */
-  leave(): void;
   /** A box was added by a sketch key: the hint has been seen at work. */
   used(): void;
 }
@@ -50,7 +48,7 @@ interface Key {
   shiftKey: boolean;
 }
 
-export function useSketching({ drawing, selection: sel, pins: px, edits, previewControl, textNow, undo, notify, session, leave, used }: Props) {
+export function useSketching({ drawing, selection: sel, pins: px, edits, previewControl, textNow, undo, notify, session, used }: Props) {
   const { result, current, type } = drawing;
   const { selection, selected, setSelected, setSelection } = sel;
   const pending = useRef<Pending>(null);
@@ -285,9 +283,11 @@ export function useSketching({ drawing, selection: sel, pins: px, edits, preview
         if (selection.length > 1) edits.removeAll();
         else if (selected) edits.remove();
         return take();
+      // Esc only ever lets go, never leaves: the selection, and with none, the keys go to End session
+      // (↵ there ends it, Esc comes back).
       case 'Escape':
         if (selection.length) setSelection([]);
-        else leave();
+        else (document.querySelector('.session-end') as HTMLElement | null)?.focus({ preventScroll: true });
         return take();
     }
     // Plain typing: over the selected box its new name; on an empty selection, the first box of it.

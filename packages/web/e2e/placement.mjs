@@ -146,11 +146,12 @@ const b0 = await boxes();
   const b = await boxes();
   for (const id of ['users']) for (const g of ['sub', 'rg']) if (overlaps(b[id], b[g])) fail(`after Tidy ${id} overlaps ${g}`);
   await page.screenshot({ path: `${out}/p3-tidied.png` });
-  // ⇧T is no key any more (one Shift from T, it unpinned everything): Tidy all is a button, with Undo in its message.
+  // ⇧T is no key any more (one Shift from T, it unpinned everything): Tidy all is in the toolbar's ⋯, with Undo in its message.
   await page.keyboard.press('Shift+T');
   await wait(500);
   if (!(await pins()).nodes) fail('⇧T still unpins everything');
-  await page.click('.canvas-tools button[aria-label="Tidy all"]');
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  await page.click('.canvas-tools .menu [role="menuitem"]:has-text("Tidy all")');
   await wait(800);
   const all = await pins();
   if (all.nodes || all.groups) fail('Tidy all left pins: ' + JSON.stringify(all));

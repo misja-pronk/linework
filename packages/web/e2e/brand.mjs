@@ -88,7 +88,8 @@ await page.reload();
 await page.evaluate(() => {
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('client');
 });
-await page.click('button:has-text("Open folder")');
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("Open folder")');
 await page.waitForSelector('.files .file');
 await page.click('.files .file:has-text("shop.yaml")');
 await page.waitForTimeout(600);
@@ -96,13 +97,16 @@ const canvas = () => page.locator('.drawing svg > rect').first().getAttribute('f
 const before = await canvas();
 
 const pick = async (label) => {
+  await page.click('button[aria-label="More actions"]');
   await page.click('button[data-brand]');
   await page.click(`.menu [role="menuitem"]:has-text("${label}")`);
   await page.waitForTimeout(700);
 };
 await pick('Ocean');
 if ((await canvas()) !== '#F2F8FB') fail(`ocean canvas: ${await canvas()} (was ${before})`);
-if ((await page.locator('button[data-brand]').innerText()).trim() !== 'Ocean') fail('picker label');
+await page.click('button[aria-label="More actions"]');
+if ((await page.locator('button[data-brand] .brand-now').innerText()).trim() !== 'Ocean') fail('picker label');
+await page.keyboard.press('Escape');
 
 await pick('acme.theme.yaml');
 if ((await canvas()) !== '#FBF8F4') fail(`acme canvas: ${await canvas()}`);
@@ -113,6 +117,7 @@ if (!(await page.evaluate(() => document.fonts.check("600 14px 'Space Grotesk'")
 await page.screenshot({ path: path.join(out, 'brand-acme.png') });
 
 // Official icons: the guide, a zip, the sheet of shapes, a kind mapped by hand, the toggle.
+await page.click('button[aria-label="More actions"]');
 await page.click('button[data-brand]');
 await page.click('.menu [data-icon-packs]');
 const dialog = page.locator('[role="dialog"][aria-label="Official icons"]');

@@ -26,7 +26,8 @@ for (const scheme of ['light', 'dark']) {
     await page.waitForTimeout(150);
     await page.screenshot({ path: `${out}/palette.png` });
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'New' }).click();
+    await page.click('button[aria-label="More actions"]');
+    await page.getByRole('menuitem', { name: 'New diagram' }).click();
     await page.waitForTimeout(2500);
     await page.screenshot({ path: `${out}/templates.png` });
     await page.keyboard.press('Escape');

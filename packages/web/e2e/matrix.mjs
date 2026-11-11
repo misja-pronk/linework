@@ -32,7 +32,8 @@ await page.waitForSelector('.preview svg');
 
 // 1. New → "raci" finds the matrix type; its template opens.
 {
-  await page.getByRole('button', { name: 'New' }).click();
+  await page.click('button[aria-label="More actions"]');
+  await page.getByRole('menuitem', { name: 'New diagram' }).click();
   await page.waitForSelector('.start .scenario');
   await page.locator('.home .search-field input').fill('raci');
   await wait(400);

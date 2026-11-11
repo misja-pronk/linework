@@ -47,11 +47,13 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="vault"]', { timeout: 10000 });
 await wait(400);
 
-// 1. No steps yet: no strip, and the toolbar offers Step and Present.
+// 1. No steps yet: no strip, and the toolbar offers Present, and Add a step in its ⋯.
 {
   if (await page.locator('.steps-strip').count()) fail('a strip without steps');
   if (!(await page.locator('.canvas-tools button:has-text("Present")').isVisible())) fail('no Present button in the toolbar');
-  if (!(await page.locator('.canvas-tools button:has-text("Step")').isVisible())) fail('no Step button in the toolbar');
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  if (!(await page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Add a step")').isVisible())) fail("no Add a step in the toolbar's ⋯");
+  await page.keyboard.press('Escape');
 }
 
 // 2. A step from the selection: S, name it, and the YAML has it with the selection as its focus.

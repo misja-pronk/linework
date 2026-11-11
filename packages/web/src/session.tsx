@@ -1,5 +1,6 @@
-// What a session shows besides the sheet: a line top left (what this is, how to leave), one strip at the
-// bottom, a small menu over the selection, the sketch hint under it, and at the end "What changed".
+// What a session shows besides the sheet: a line top left (what this is), one strip at the
+// bottom (with the keys over it in the first few sessions), a small menu at the selection, and at the end
+// "What changed".
 import './session.css';
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { GraphGroup, PaletteItem } from '@cartography/core';
@@ -13,7 +14,7 @@ import { matchKinds } from './sketch.ts';
 import { comboLabel } from './keys.ts';
 import type { ScreenRect } from './preview.tsx';
 
-/** "Session · Web shop", and how to leave, along the top. */
+/** "Session · Web shop" along the top. The way out is End session in the strip: Esc never leaves, it only lets go. */
 export function SessionHeader({ title }: { title: string }) {
   return (
     <div className="session-head" aria-live="polite">
@@ -25,7 +26,6 @@ export function SessionHeader({ title }: { title: string }) {
         </span>
         <span className="session-name">{title}</span>
       </span>
-      <span className="session-leave">{t('esc leaves session')}</span>
     </div>
   );
 }
@@ -74,7 +74,12 @@ export function SessionStrip(p: StripProps) {
         <Icon name="undo-2" size={15} />
       </button>
       <i className="session-rule" />
-      <button className="session-end" onClick={p.onEnd}>
+      <button
+        className="session-end"
+        onClick={p.onEnd}
+        title={t('Back to the editor, with what changed')}
+        onKeyDown={(e) => e.key === 'Escape' && (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true })}
+      >
         {t('End session')}
       </button>
     </div>
@@ -180,10 +185,10 @@ function KindPicker({ kinds, onPick, onClose }: { kinds: readonly PaletteItem[];
   );
 }
 
-/** Next to the selection while sketching, the first few sessions only: the keys, each with what it does. */
-const SketchHint = forwardRef<HTMLDivElement, { naming: boolean }>(function SketchHint({ naming }, ref) {
+/** Over the strip while sketching, the first few sessions only: the keys, each with what it does. */
+export function SketchKeys({ naming, selected }: { naming: boolean; selected: boolean }) {
   return (
-    <div ref={ref} className="sketch-hint" role="note">
+    <p className="session-keys" role="note">
       {naming ? (
         <>
           <span>
@@ -196,10 +201,10 @@ const SketchHint = forwardRef<HTMLDivElement, { naming: boolean }>(function Sket
             <kbd>fw:</kbd> {t('picks a kind')}
           </span>
           <span>
-            <kbd>Esc</kbd> {t('undo')}
+            <kbd>Esc</kbd> {t('cancels')}
           </span>
         </>
-      ) : (
+      ) : selected ? (
         <>
           <span>
             <kbd>Tab</kbd> {t('adds a connected box')}
@@ -209,13 +214,21 @@ const SketchHint = forwardRef<HTMLDivElement, { naming: boolean }>(function Sket
           </span>
           <span>{t('type to rename')}</span>
           <span>
-            <kbd>Esc</kbd> {t('undo')}
+            <kbd>Esc</kbd> {t('deselects')}
           </span>
         </>
+      ) : (
+        <>
+          <span>{t('type to add a box')}</span>
+          <span>
+            <kbd>Tab</kbd> {t('adds a box')}
+          </span>
+          <span>{t('click a box to select it')}</span>
+        </>
       )}
-    </div>
+    </p>
   );
-});
+}
 
 interface Box {
   left: number;
@@ -244,7 +257,7 @@ function obstacles(own: Element[]): Obstacles {
   for (const el of document.querySelectorAll('.drawing [data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 4 });
   // Every word on the sheet: line labels, group headers, the title, the key.
   for (const el of document.querySelectorAll('.drawing svg text')) if (!el.closest('[data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 3 });
-  for (const el of document.querySelectorAll('.session-strip, .session-head > *, .label-editor, .kind-list')) if (!own.some((o) => o.contains(el))) boxes.push({ b: box(el.getBoundingClientRect()), w: 8 });
+  for (const el of document.querySelectorAll('.session-strip, .session-keys, .session-head > *, .label-editor, .kind-list')) if (!own.some((o) => o.contains(el))) boxes.push({ b: box(el.getBoundingClientRect()), w: 8 });
   const points: Obstacles['points'] = [];
   for (const g of document.querySelectorAll('.drawing [data-edge]')) {
     const path = g.querySelector('path');
@@ -281,27 +294,24 @@ function crowding(b: Box, o: Obstacles): number {
 interface FloatsProps {
   /** The selection's box, in pixels from the pane's top left. */
   rect: ScreenRect;
-  menu?: MenuProps;
-  /** The sketch hint, and whether a name is being typed. */
-  hint?: { naming: boolean };
+  menu: MenuProps;
 }
 
+type Side = 'above' | 'below' | 'right' | 'left';
+
 /**
- * The menu and the hint at the selection, together where they hide the least of the drawing: the menu
- * above the selection, else below it; the hint past the menu or on the other side, lined up with the
- * selection's left edge, or beside it on the right. Both stay inside the pane and the window, moved
- * along their side rather than off it.
+ * The menu at the selection, on the side where it hides the least of the drawing: above it by
+ * preference, else below, right or left of it. It stays inside the pane and the window, moved along its
+ * side rather than off it, and keeps its side while the view moves unless another is clearly better.
  */
-export function SelectionFloats({ rect, menu, hint }: FloatsProps) {
+export function SelectionFloats({ rect, menu }: FloatsProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const hintRef = useRef<HTMLDivElement>(null);
-  /** The sides last chosen: a side keeps its place unless the other is clearly better, so it does not flicker while the view moves. */
-  const was = useRef<{ menu?: 'above' | 'below'; hint?: 'above' | 'below' | 'right' }>({});
+  /** The side last chosen: kept unless another is clearly better, so the menu does not flicker. */
+  const was = useRef<Side>(undefined);
   useLayoutEffect(() => {
     const m = menuRef.current;
-    const h = hintRef.current;
-    const pane = (m ?? h)?.offsetParent as HTMLElement | null;
-    if (!pane) return;
+    const pane = m?.offsetParent as HTMLElement | null;
+    if (!m || !pane) return;
     const o = pane.getBoundingClientRect();
     // The room: the pane, inside the window.
     const minX = Math.max(0, -o.left) + MARGIN;
@@ -310,72 +320,38 @@ export function SelectionFloats({ rect, menu, hint }: FloatsProps) {
     const maxY = Math.min(pane.clientHeight, window.innerHeight - o.top) - MARGIN;
     const clampX = (left: number, w: number) => Math.max(minX, Math.min(left, maxX - w));
     const clampY = (top: number, ht: number) => Math.max(minY, Math.min(top, maxY - ht));
-    const own = [m, h].filter((x): x is HTMLDivElement => !!x);
-    const around = obstacles(own);
+    const around = obstacles([m]);
     const sel: Box = rect;
-    type Side = 'above' | 'below';
-    type HintSide = Side | 'right';
-    const sides = ['above', 'below'] as const;
-    const score = (b: Box, side: HintSide, prefer: HintSide, last?: HintSide, avoid?: Box) =>
+    const w = m.offsetWidth;
+    const ht = m.offsetHeight;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const at = (side: Side): Box => {
+      if (side === 'above' || side === 'below') return { left: clampX(cx - w / 2, w), top: clampY(side === 'above' ? rect.top - GAP - ht : rect.top + rect.height + GAP, ht), width: w, height: ht };
+      return { left: clampX(side === 'right' ? rect.left + rect.width + GAP : rect.left - GAP - w, w), top: clampY(cy - ht / 2, ht), width: w, height: ht };
+    };
+    const score = (b: Box, side: Side) =>
       crowding({ ...b, left: b.left + o.left, top: b.top + o.top }, around) +
       // Over the selection itself is worst: that is what everyone is looking at.
       (8 * overlap(b, sel)) / (b.width * b.height) +
-      (avoid ? (8 * overlap(b, avoid)) / (b.width * b.height) : 0) +
-      (side === prefer ? 0 : 0.15) -
-      (side === last ? 0.1 : 0);
-
-    // The menu centred on the selection; its two places.
-    const cx = rect.left + rect.width / 2;
-    const menuAt = (side: Side): Box | undefined => {
-      if (!m) return undefined;
-      const w = m.offsetWidth;
-      const ht = m.offsetHeight;
-      return { left: clampX(cx - w / 2, w), top: clampY(side === 'above' ? rect.top - GAP - ht : rect.top + rect.height + GAP, ht), width: w, height: ht };
-    };
-    // The hint from the selection's left edge (its right edge if it would run out of the room); on the
-    // menu's side it goes past the menu, on the other side next to the selection.
-    const hintAt = (side: HintSide, menuSide: Side | undefined, mb: Box | undefined): Box | undefined => {
-      if (!h) return undefined;
-      const w = h.offsetWidth;
-      const ht = h.offsetHeight;
-      // Or beside it, on the right, level with its middle: where a diagram often has room.
-      if (side === 'right') return { left: clampX(rect.left + rect.width + GAP, w), top: clampY(rect.top + rect.height / 2 - ht / 2, ht), width: w, height: ht };
-      const left = rect.left + w <= maxX ? clampX(rect.left, w) : clampX(rect.left + rect.width - w, w);
-      const past = mb && menuSide === side;
-      const top = side === 'below' ? (past ? mb.top + mb.height + 8 : rect.top + rect.height + GAP - 4) : past ? mb.top - 8 - ht : rect.top - (GAP - 4) - ht;
-      return { left, top: clampY(top, ht), width: w, height: ht };
-    };
-    // Both together: the pair that hides least, the menu weighing more (it is what the hands go to).
-    let best: { v: number; ms?: Side; mb?: Box; hs?: HintSide; hb?: Box } = { v: Infinity };
-    for (const ms of m ? sides : [undefined]) {
-      const mb = ms && menuAt(ms);
-      const mv = ms && mb ? 1.5 * score(mb, ms, 'above', was.current.menu) : 0;
-      for (const hs of h ? (['below', 'above', 'right'] as const) : [undefined]) {
-        const hb = hs && hintAt(hs, ms, mb);
-        const v = mv + (hs && hb ? score(hb, hs, 'below', was.current.hint, mb) + (hs === 'right' ? 0.25 : 0) : 0);
-        if (v < best.v) best = { v, ms, mb, hs, hb };
-      }
+      (side === 'above' ? 0 : side === 'below' ? 0.15 : 0.3) -
+      (side === was.current ? 0.1 : 0);
+    let best: { v: number; side: Side; b: Box } | undefined;
+    for (const side of ['above', 'below', 'right', 'left'] as const) {
+      const b = at(side);
+      const v = score(b, side);
+      if (!best || v < best.v) best = { v, side, b };
     }
-    if (m && best.mb && best.ms) {
-      was.current.menu = best.ms;
-      m.style.left = `${best.mb.left}px`;
-      m.style.top = `${best.mb.top}px`;
-      m.dataset.side = best.ms;
-      // The pointer stays at the selection's middle when the menu is moved along to stay in view.
-      m.style.setProperty('--point', `${Math.max(12, Math.min(best.mb.width - 12, cx - best.mb.left))}px`);
-    }
-    if (h && best.hb && best.hs) {
-      was.current.hint = best.hs;
-      h.style.left = `${best.hb.left}px`;
-      h.style.top = `${best.hb.top}px`;
-    }
+    if (!best) return;
+    was.current = best.side;
+    m.style.left = `${best.b.left}px`;
+    m.style.top = `${best.b.top}px`;
+    m.dataset.side = best.side;
+    // The pointer stays at the selection's middle when the menu is moved along to stay in view.
+    if (best.side === 'above' || best.side === 'below') m.style.setProperty('--point', `${Math.max(12, Math.min(best.b.width - 12, cx - best.b.left))}px`);
+    else m.style.setProperty('--point', `${Math.max(12, Math.min(best.b.height - 12, cy - best.b.top))}px`);
   });
-  return (
-    <>
-      {menu && <SelectionMenu ref={menuRef} {...menu} />}
-      {hint && <SketchHint ref={hintRef} naming={hint.naming} />}
-    </>
-  );
+  return <SelectionMenu ref={menuRef} {...menu} />;
 }
 
 interface EndProps {

@@ -238,7 +238,8 @@ const download = async (menuItem) => {
   }, files);
   // The unsaved document is discarded (asked twice: before the folder, and before its first file).
   const stop = discarding();
-  await page.click('button:has-text("Open folder")');
+  await page.click('button[aria-label="More actions"]');
+  await page.click('.menu button:has-text("Open folder")');
   await page.waitForSelector('.files .file.active:has-text("shop.yaml")');
   stop();
   await page.waitForSelector('.drawing [data-node="admin"]');

@@ -20,7 +20,7 @@ import type { Pins } from './pins.ts';
 import type { Select } from './selection.ts';
 import type { Notify } from './toasts.tsx';
 import type { Sketching } from './sketching.ts';
-import { SelectionFloats, SessionHeader, SessionStrip } from '../session.tsx';
+import { SelectionFloats, SessionHeader, SessionStrip, SketchKeys } from '../session.tsx';
 
 interface Props {
   drawing: Drawing;
@@ -57,7 +57,7 @@ interface Props {
   /** In a session: only the sheet, a strip, and a menu over the selection. */
   session?: {
     title: string;
-    /** The sketch hint under the selection (the first few sessions). */
+    /** The sketch keys over the strip (the first few sessions). */
     hint: boolean;
     end(): void;
     undo(): void;
@@ -93,37 +93,36 @@ export function DrawingPane(p: Props) {
         overlay={(rect, renaming) => {
           const s = p.session;
           const g = result?.graph;
-          if (!s || !rect || !g || !type) return null;
+          if (!s || !g || !type) return null;
           const nodes = p.selection.filter((x) => x.kind === 'node');
           const one = p.selection.length === 1 ? p.selection[0] : undefined;
           const node = one?.kind === 'node' ? g.nodes.find((n) => n.id === one.id) : undefined;
           // Groups a selected box can go in (by what its type says), not the one it is in.
           const collection = node ? String(node.path[0]) : nodes.length ? String(g.nodes.find((n) => n.id === nodes[0]!.id)?.path[0] ?? '') : '';
           const groups = g.groups.filter((x) => x.path.length === 2 && x.id !== node?.parent && !!parentKey(type, collection, String(x.path[0])));
-          const showMenu = !renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1);
-          const showHint = s.hint && (renaming || one?.kind === 'node');
-          if (!showMenu && !showHint) return null;
+          const showMenu = !!rect && !renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1);
           return (
-            <SelectionFloats
-              key={p.selection.map((x) => x.id).join(' ')}
-              rect={rect}
-              hint={showHint ? { naming: renaming } : undefined}
-              menu={
-                showMenu
-                  ? {
-                      single: !!node,
-                      kinds: node ? (p.sketching.kindsFor(one!) ?? []) : [],
-                      kind: node?.kind,
-                      groups,
-                      canGroup: nodes.length > 0,
-                      onKind: (item) => p.sketching.kindTo(item),
-                      onGroup: (into) => p.sketching.group(into),
-                      onConnect: s.connect,
-                      onDelete: () => (p.selection.length > 1 ? edits.removeAll() : edits.remove()),
-                    }
-                  : undefined
-              }
-            />
+            <>
+              {/* The keys, in one quiet line over the strip: the first few sessions only. */}
+              {s.hint && <SketchKeys naming={renaming} selected={!!p.selection.length} />}
+              {showMenu && rect && (
+                <SelectionFloats
+                  key={p.selection.map((x) => x.id).join(' ')}
+                  rect={rect}
+                  menu={{
+                    single: !!node,
+                    kinds: node ? (p.sketching.kindsFor(one!) ?? []) : [],
+                    kind: node?.kind,
+                    groups,
+                    canGroup: nodes.length > 0,
+                    onKind: (item) => p.sketching.kindTo(item),
+                    onGroup: (into) => p.sketching.group(into),
+                    onConnect: s.connect,
+                    onDelete: () => (p.selection.length > 1 ? edits.removeAll() : edits.remove()),
+                  }}
+                />
+              )}
+            </>
           );
         }}
         onMove={edits.move}

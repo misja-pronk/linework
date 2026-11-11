@@ -23,18 +23,6 @@
 .app.in-session .workspace > .canvas-pane {
   display: block !important;
 }
-/* The ground is the table with its graticule, as in the editor, without the rulers and the scale: the
-   only chrome is the line along the top and the strip at the bottom. */
-.app.in-session .rulers,
-.app.in-session .scale-bar {
-  display: none !important;
-}
-.app.in-session .preview {
-  background:
-    linear-gradient(var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px,
-    linear-gradient(90deg, var(--graticule) 1px, transparent 1px) 0 0 / 96px 96px,
-    var(--table);
-}
 /* The sheet lies on a second sheet, offset a little further than in the editor. */
 .app.in-session .drawing {
   box-shadow:
@@ -46,7 +34,7 @@
   outline: none;
 }
 
-/* ------------------------------------------------------------ along the top: what this is, how to leave */
+/* ------------------------------------------------------------ along the top: what this is */
 .session-head {
   position: absolute;
   top: 20px;
@@ -85,13 +73,6 @@
 .session-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.session-leave {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text-faint);
   white-space: nowrap;
 }
 
@@ -155,7 +136,7 @@
   outline-offset: -2px;
 }
 .session-strip kbd,
-.sketch-hint kbd {
+.session-keys kbd {
   margin: 0;
   font-family: var(--mono);
   font-size: 0.65625rem;
@@ -199,7 +180,7 @@
   z-index: 7;
   display: flex;
   align-items: center;
-  height: 40px;
+  height: 34px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--paper);
@@ -209,9 +190,10 @@
 }
 .sel-menu > button {
   height: 100%;
-  padding: 0 13px;
-  gap: 7px;
+  padding: 0 10px;
+  gap: 6px;
   border-radius: 0;
+  font-size: 0.8125rem;
 }
 .sel-menu > button + button {
   border-left: 1px solid var(--rule2);
@@ -240,6 +222,21 @@
   bottom: auto;
   top: -6px;
   transform: translateX(-50%) rotate(225deg);
+}
+/* Beside the selection: the pointer on the menu's near edge, level with the selection's middle. */
+.sel-menu[data-side='right']::after,
+.sel-menu[data-side='left']::after {
+  top: var(--point);
+  bottom: auto;
+}
+.sel-menu[data-side='right']::after {
+  left: -6px;
+  transform: translateY(-50%) rotate(135deg);
+}
+.sel-menu[data-side='left']::after {
+  left: auto;
+  right: -6px;
+  transform: translateY(-50%) rotate(-45deg);
 }
 .sel-pop {
   position: absolute;
@@ -350,25 +347,25 @@
   background: transparent;
 }
 
-/* ------------------------------------------------------------ the hint at the selection (placed by SelectionFloats) */
-.sketch-hint {
-  position: absolute;
+/* ------------------------------------------------------------ the keys, one quiet line over the strip (first sessions) */
+.session-keys {
+  position: fixed;
+  left: 50%;
+  bottom: 76px;
   z-index: 6;
+  transform: translateX(-50%);
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  max-width: min(640px, calc(100% - 16px));
-  padding: 6px 10px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--text-muted);
-  font-size: 0.78125rem;
+  gap: 4px 18px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.75rem;
   line-height: 1.4;
   pointer-events: none;
-  animation: fade 160ms ease-out;
 }
-.sketch-hint > span {
+.session-keys > span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -393,8 +390,7 @@
   .app.in-session .selection-ring {
     transition: none;
   }
-  .sel-menu,
-  .sketch-hint {
+  .sel-menu {
     animation: none;
   }
 }

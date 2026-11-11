@@ -67,7 +67,8 @@ await wait(400);
 if (!(await page.locator('.editor-pane').isVisible())) fail('⌘\\ did not show the YAML');
 
 // 3. A related drawing under a card opens the same way; over the edit, the app asks first.
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 await page.locator('.scenario-also button', { hasText: 'Private endpoints' }).click();
 await wait(1000);
 if (!(await yaml()).includes('title: Private endpoints')) fail('the Private endpoints link did not open it');
@@ -75,7 +76,8 @@ if (!asked.some((m) => m.includes('hub-spoke.yaml has changes'))) fail('opening 
 if (native.length) fail(`the browser's own dialog came up: ${JSON.stringify(native)}`);
 
 // 4. The search finds the type; its template opens straight away.
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 await page.locator('.home .search-field input').fill('vnet subnet');
 await wait();
 if (!(await page.locator('.home .type-hint button.best').innerText()).includes('Azure infrastructure')) fail('"vnet subnet" does not find Azure infrastructure first');
@@ -86,7 +88,8 @@ await wait(800);
 if (!/^type: azure/m.test(await yaml())) fail('the Azure template did not open');
 
 // 5. Blank sheet: an empty diagram in the builder, with a start on the canvas.
-await page.getByRole('button', { name: 'New' }).click();
+await page.click('button[aria-label="More actions"]');
+await page.getByRole('menuitem', { name: 'New diagram' }).click();
 await page.locator('.home-foot .blank-sheet').click();
 await wait(800);
 if (!(await yaml()).trim().startsWith('type: systems')) fail('blank start did not open an empty systems diagram');

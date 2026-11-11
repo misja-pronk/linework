@@ -2,9 +2,8 @@
 
 /*
  * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
- * notes on a row of their own under the tools), inside the zone rulers; the hint docked bottom-left above
- * the scale bar, the zoom bottom-right; toasts at the bottom centre of the window, lifted clear of the hint
- * while it shows; dialogs over everything, and a toast from before a dialog opened goes (one from the
+ * notes on a row of their own under the tools), the hint docked bottom-left, the zoom bottom-right;
+ * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over everything, and a toast from before a dialog opened goes (one from the
  * dialog itself shows on top).
  */
 .canvas-note {
@@ -64,12 +63,12 @@
   font: inherit;
   background: var(--sheet);
 }
-/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip: inside the rulers. */
+/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
 .canvas-top {
   position: absolute;
-  left: calc(var(--ruler, 0px) + 20px);
+  left: 20px;
   right: 16px;
-  top: calc(var(--ruler, 0px) + 20px);
+  top: 20px;
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -84,12 +83,11 @@
    labels (they stay in the tooltips and for screen readers), then the less used tools fold into ⋯. */
 .canvas-pane {
   container: canvas / inline-size;
-  --ruler: 22px;
 }
-/* Docked bottom-left, above the scale bar, away from the drawing's middle and the zoom controls. */
+/* Docked bottom-left, away from the drawing's middle and the zoom controls. */
 .hint {
   position: absolute;
-  left: calc(var(--ruler) + 20px);
+  left: 20px;
   bottom: 48px;
   z-index: 4;
   display: flex;
@@ -118,9 +116,6 @@
   }
 }
 @media (max-width: 600px) {
-  .canvas-pane {
-    --ruler: 0px;
-  }
   .hint {
     left: 8px;
     right: 8px;
