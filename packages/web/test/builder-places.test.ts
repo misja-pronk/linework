@@ -6,7 +6,7 @@ import { deleteEntry, renameEntry } from '../src/builder.ts';
 const azure = findType('azure')!;
 const errors = async (text: string) => (await render(text, { fonts: 'none' })).diagnostics.filter((d) => d.severity === 'error');
 
-// Steps, focus, views, threats and trust name drawn things too: a delete or rename in the builder follows them.
+// Steps, focus, views and trust name drawn things too: a delete or rename in the builder follows them.
 const told = `type: azure
 groups:
   vnet: { kind: vnet, label: vnet-shop, trust: true }
@@ -21,9 +21,6 @@ edges:
   - web -> api
   - api -> vault
   - api -> db
-threats:
-  - { on: vault, stride: I, title: Secrets leak }
-  - { on: "api -> db", stride: T, title: SQL injection }
 trust: [vnet]
 steps:
   - users -> web -> api: A customer orders.
@@ -36,12 +33,11 @@ steps:
 `;
 
 describe('builder delete and rename follow place-references', () => {
-  it('deleting a node leaves no step, focus, threat or note naming it', async () => {
+  it('deleting a node leaves no step, focus or note naming it', async () => {
     const t = deleteEntry(told, azure, ['nodes', 'vault'])!;
     expect(t).not.toMatch(/vault/);
     expect(t).toContain('title: Secrets');
     expect(t).toContain('show: [db]');
-    expect(t).toContain('SQL injection');
     expect(await errors(t)).toEqual([]);
   });
 
@@ -65,7 +61,7 @@ describe('builder delete and rename follow place-references', () => {
     expect(t).not.toMatch(/^trust/m);
   });
 
-  it('renaming follows steps, notes, focus and threats', async () => {
+  it('renaming follows steps, notes and focus', async () => {
     const t = renameEntry(told, azure, ['nodes', 'vault'], 'secrets')!;
     expect(t).not.toMatch(/vault:|-> vault|\[vault|on: vault/);
     expect(t).toContain('path: api -> secrets');

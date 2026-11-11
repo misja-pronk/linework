@@ -252,7 +252,7 @@ class SlideDrawing {
         continue;
       }
       out.push((s.kind === 'card' ? this.drawCard(n, s, box) : s.kind === 'table' ? this.drawTable(n, s, box) : s.kind === 'flow' ? this.drawFlow(n, s, box) : this.drawMatrix(n, s, box)).xml);
-      // Threat numbers on the top edge, as in the SVG.
+      // Tags on the top edge, as in the SVG.
       if (n.marks?.length && s.kind !== 'matrix') out.push(...this.tags(n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, markStyle(this.graph.environments)).map((i) => i.xml));
     }
     for (const g of graph.groups) {
@@ -263,7 +263,7 @@ class SlideDrawing {
       const pe = placed.edges.get(e.id)!;
       this.theme = state?.edges[e.id] === 'focus' ? strong : as(state?.edges[e.id]);
       if (!pe.label) continue;
-      // The room kept for a context map's end tags is not the label's; threat numbers end the label.
+      // The room kept for a context map's end tags is not the label's; tags end the label.
       const room = endsRoom(e.ends);
       let lb = besideShortLine(pe.points, room ? { ...pe.label, x: pe.label.x + room, width: pe.label.width - 2 * room } : pe.label, placed);
       if (e.marks?.length) {
@@ -513,7 +513,7 @@ class SlideDrawing {
   }
 
   /**
-   * A matrix that is a table (a threat table, a RACI or CRUD chart) as a real PowerPoint table: the
+   * A matrix that is a table (a RACI or CRUD chart) as a real PowerPoint table: the
    * same columns, header and sections, with each value in its tone as bold text, so it can be edited.
    */
   private matrixTable(n: GraphNode, m: MatrixShape, b: Box): Item {
@@ -580,7 +580,7 @@ class SlideDrawing {
     return { xml: table({ id: this.idFor(`node:${n.id}`), name: m.corner ? `Table: ${m.corner}` : 'Table', frame: f, columns: widths.map((w) => this.L(w)), rows }, this.fonts.sans), box: f };
   }
 
-  /** Tags on the drawing as small framed text boxes: threat numbers, a context map's U, D, ACL. */
+  /** Tags on the drawing as small framed text boxes: environments, a context map's U, D, ACL. */
   private tags(list: string[], x: number, cy: number, style: TagStyle | ((tag: string) => TagStyle)): Item[] {
     return tagBoxes(list, x, cy).map((b) => {
       const c = tagColors(this.theme, typeof style === 'function' ? style(b.text) : style);
@@ -994,7 +994,7 @@ class SlideDrawing {
       const w = Math.max(20, measureText(item.tag, chipText(t), 600) + 12);
       return [this.sp({ name: 'Swatch', frame: this.frame(x, cy - 9, w, 18), geom: this.roundRect({ x: 0, y: 0, width: w, height: 18 }, tagRadius(t, 18)), ...this.chipLook(tone), text: { anchor: 'ctr', paras: [{ align: 'ctr', runs: [this.run(item.tag, chipText(t), 600, tone.fg)] }] } })];
     }
-    if (item.swatch === 'mark') return this.tags([item.tag ?? 'T1'], x, cy, item.tag ? endStyle(item.tag) : 'threat');
+    if (item.swatch === 'mark') return this.tags([item.tag ?? ''], x, cy, endStyle(item.tag ?? ''));
     if (item.swatch === 'fill') return [box(20, 14, Math.min(7, t.radius.chip + 3), { color: tone.bg }, null)];
     if (item.swatch === 'outline') return [box(19, 13, Math.min(6.5, t.radius.chip + 2.5), null, { color, alpha: 0.7, width: this.L(1), dash: 'dashed' }, 0.5)];
     if (item.swatch === 'check' || item.swatch === 'check-outline') {

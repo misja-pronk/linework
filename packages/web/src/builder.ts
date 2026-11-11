@@ -617,7 +617,7 @@ export function edgeFields(text: string, type: DiagramType, path: Path): Field[]
     const label = titleCase(key);
     if (Array.isArray(s.enum)) fields.push({ key, kind: 'select', label, value: v == null ? '' : String(v), options: s.enum.map(String), hint: s.description, allowEmpty: true });
     else if (s.type === 'boolean') fields.push({ key, kind: 'toggle', label, value: v === true, hint: s.description });
-    // A list of words (threats [S, T], a context map's patterns [OHS, PL]); longer entries are edited in the YAML.
+    // A list of words (a context map's patterns [OHS, PL]); longer entries are edited in the YAML.
     else if (s.type === 'array' && (v == null || (Array.isArray(v) && v.every((x) => typeof x === 'string')))) fields.push({ key, kind: 'list', label, value: (v as string[] | undefined) ?? [], hint: s.description });
     else if (s.type === 'array') fields.push({ key, kind: 'yaml', label, summary: summary(v), hint: s.description });
     else fields.push({ key, kind: 'text', label, value: v == null ? '' : String(v), hint: s.description });

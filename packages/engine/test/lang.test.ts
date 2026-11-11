@@ -67,13 +67,11 @@ describe('lang: nl', () => {
     expect(text).toContain('Legenda');
   });
 
-  it('draws a threat model, its table and focus in Dutch', async () => {
-    const text = fs.readFileSync(new URL('../../../examples/systems/threat-model.yaml', import.meta.url), 'utf8');
+  it('draws trust boundaries and a focus in Dutch', async () => {
+    const text = fs.readFileSync(new URL('../../../examples/systems/trust-zones.yaml', import.meta.url), 'utf8');
     const r = await render(nl(text), { fonts: 'none' });
     expect(r.graph!.legend!.map((l) => l.label)).toContain('Vertrouwensgrens');
     expect(r.graph!.groups.some((g) => g.caption === 'Vertrouwensgrens')).toBe(true);
-    const table = await render(nl(text), { fonts: 'none', view: 'threats' });
-    expect(table.graph!.title).toMatch(/— dreigingen$/);
     const focused = await render(nl(shop), { fonts: 'none', focus: 'winkel' });
     expect(focused.graph!.subtitle).toMatch(/^Focus op Webwinkel, 1 stap ver$/);
   });

@@ -4,7 +4,7 @@ Azure infrastructure diagram: Every environment at once. 9 elements in 5 groups,
 
 Groups and elements
 - Users
-- Front Door and WAF (Front Door): threats prod
+- Front Door and WAF (Front Door): tagged prod
 - Shop (Subscription)
   - rg-shop (Resource group)
     - Storefront (Static Web App · React): Runs Storefront (shop.web): Shows the catalogue and takes orders
@@ -13,13 +13,13 @@ Groups and elements
         - Orders API (Container App · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
       - snet-data (Subnet)
         - Orders DB (PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
-        - Read replica (PostgreSQL): threats prod
-    - kv-shop (Key Vault): threats prod, test
+        - Read replica (PostgreSQL): tagged prod
+    - kv-shop (Key Vault): tagged prod, test
     - order-events (Service Bus): Runs order-events (shop.bus): One message for every placed order
     - Mailer (Function App · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
 
 Connections
-- Users send traffic to Front Door and WAF over HTTPS and send traffic to Storefront over HTTPS [threats test, dev].
+- Users send traffic to Front Door and WAF over HTTPS and send traffic to Storefront over HTTPS [tagged test, dev].
 - Front Door and WAF sends traffic to Storefront.
 - Storefront connects to Orders API (Calls [REST]).
 - Orders API connects to Orders DB (Private network: SQL), signs in with kv-shop and connects to order-events (OrderPlaced).

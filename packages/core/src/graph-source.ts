@@ -15,7 +15,7 @@ import { term, tr } from '@cartography/i18n/drawing';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
 import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';
-import { applyThreats, overlayKeys, threatFields, threatKindsOf, threatTable, type ThreatKinds } from './threats.ts';
+import { applyTrust, trustFields, trustKeys } from './trust.ts';
 
 export interface EdgeStyle {
   label: string;
@@ -34,11 +34,8 @@ export interface GraphTypeConfig {
   plainEdge?: string;
   /** Model kinds this type draws as one of its own, e.g. database → sql-database. Unknown kinds become a plain card. */
   kindAliases?: Record<string, string>;
-  /**
-   * The threat overlay (threats.ts): trust boundaries, STRIDE threats and the threat table view.
-   * `true` lets the rules find outside parties and data stores by the usual kind names.
-   */
-  threats?: ThreatKinds | true;
+  /** Groups can be trust boundaries (trust.ts): `trust:` on a group or the diagram, `kind: trust-boundary`. */
+  trust?: boolean;
 }
 
 /**
@@ -107,11 +104,8 @@ export interface GraphSource {
   captions?: 'kinds' | 'written';
   /** Set by the model layer: where drawn entries are written when not at their usual place. */
   origin?: Origins;
-  /** The threat overlay's own keys (threats.ts) and the view asked for: diagram or threats. */
-  threats?: unknown[];
+  /** Groups that are trust boundaries (trust.ts). */
   trust?: string[];
-  'threat-rules'?: string;
-  view?: string;
 }
 
 /** References in node-and-edge YAML: `in:` and edge ends. */
@@ -128,7 +122,7 @@ export function graphReferences(src: GraphSource): Reference[] {
 const envSchema = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] };
 
 export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string): object {
-  const overlay = !!cfg.threats;
+  const trust = !!cfg.trust;
   const entry = (kinds: string[], extra: Record<string, object> = {}) => ({
     anyOf: [
       { enum: kinds },
@@ -176,15 +170,15 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       subtitle: { type: 'string' },
       direction: { enum: ['right', 'down'] },
       captions: { enum: ['kinds', 'written'], description: 'kinds (default): a card without a caption says its kind; written: only the captions written here' },
-      groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds), overlay ? threatFields.group : {}) },
+      groups: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: entry(Object.keys(cfg.groupKinds), trust ? trustFields.group : {}) },
       nodes: {
         type: 'object',
         propertyNames: { pattern: idPattern },
-        additionalProperties: entry(Object.keys(cfg.nodeKinds), { badges: { type: 'array', items: { type: 'string' } }, ...(overlay ? threatFields.node : {}) }),
+        additionalProperties: entry(Object.keys(cfg.nodeKinds), { badges: { type: 'array', items: { type: 'string' } } }),
       },
-      edges: { type: 'array', items: edgeItemSchema(overlay ? { ...styles, ...threatFields.edge } : styles) },
+      edges: { type: 'array', items: edgeItemSchema(styles) },
       ...badges,
-      ...(overlay ? { ...threatFields.top, view: { enum: ['diagram', 'threats'], description: 'diagram, or its threat table' } } : {}),
+      ...(trust ? trustFields.top : {}),
       ...modelProperties,
     },
     additionalProperties: false,
@@ -197,8 +191,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   if (ctx.model || refs) {
     const model = ctx.model ?? { ...emptyCatalogue() };
     model.used = true;
-    // A view is drawn from the model; what the threat overlay says stays with the diagram.
-    src = { ...viewSource(src, cfg, model, ctx), ...overlayKeys(src as Record<string, unknown>) };
+    // A view is drawn from the model; its trust boundaries stay with the diagram.
+    src = { ...viewSource(src, cfg, model, ctx), ...trustKeys(src as Record<string, unknown>) };
   }
   const origin = src.origin;
   // Every environment in one drawing: what only some of them have says which, as a tag on it.
@@ -367,9 +361,8 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     ...(steps.length ? { steps } : {}),
     ...(environments.length ? { environments } : {}),
   };
-  if (!cfg.threats) return graph;
-  applyThreats(graph, src as Record<string, unknown>, cfg.threats === true ? threatKindsOf(cfg.nodeKinds) : cfg.threats, ctx);
-  return src.view === 'threats' ? threatTable(graph, ctx.lang) : graph;
+  if (cfg.trust) applyTrust(graph, src as Record<string, unknown>, ctx);
+  return graph;
 }
 
 function breakCycles(groups: GraphGroup[], ctx: BuildContext) {

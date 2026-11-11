@@ -258,7 +258,7 @@ const COUNTED = new Set(['one', 'zeroOrOne', 'many', 'oneOrMany', 'zeroOrMany'])
 
 /**
  * A line that may share a trunk: nothing on it says which line it is (no label, step number, end
- * tags or threat marks), and no crow's feet, except between table rows: the lines into one key
+ * tags or other marks), and no crow's feet, except between table rows: the lines into one key
  * row all end in the same mark there and may come in as one.
  */
 export function plainLine(e: GraphEdge): boolean {

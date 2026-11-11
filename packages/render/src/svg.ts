@@ -128,7 +128,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     // In the editor an empty group says what it is for; exports stay clean.
     const hint = opts.interactive && opts.hints !== false && !filled.has(g.id) ? textMid(box.x + box.width / 2, box.y + (box.height + theme.space.group.header) / 2, tr(theme.lang, 'Drop shapes here'), theme.size.caption, 500, theme.textFaint, 'middle') : '';
     const mark = g.links?.length ? linkMark(box.x + box.width - 16 - 12, box.y + 22 - 6, theme) : '';
-    // Threat numbers sit on the top edge, at the end, where they never cover the name.
+    // Tags sit on the top edge, at the end, where they never cover the name.
     const tags = g.marks?.length ? drawTags(theme, g.marks, box.x + box.width - 16 - tagsWidth(g.marks) - (mark ? 24 : 0), box.y, markStyle(graph.environments)) : '';
     out.push(linked(g.links, `<g${data('group', g.id)}>${tip(g.description)}${g.focused ? focusRing(box, theme.radius.group, theme) : ''}${drawGroup(g, box, theme, ground.depth(g.id), !!mark, groupImages?.get(g.id))}${hint}${mark}${tags}</g>`, opts));
   }
@@ -178,7 +178,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const body = dim ? drawn.replaceAll(` filter="url(#${id}-shadow)"`, '').replaceAll('<image ', '<image opacity="0.35" ') : drawn;
     const boxed = shape.kind !== 'flow' || shape.form === 'task' || shape.form === 'subprocess' || shape.form === 'state';
     const mark = link && shape.kind !== 'matrix' && boxed ? linkMark(box.x + box.width - 12 - 9, box.y + 8, theme) : '';
-    // Threat numbers on the top edge, at the end: on the card, never over its name.
+    // Tags on the top edge, at the end: on the card, never over its name.
     const tags = n.marks?.length && shape.kind !== 'matrix' ? drawTags(theme, n.marks, box.x + box.width - 10 - tagsWidth(n.marks), box.y, markStyle(graph.environments)) : '';
     // Marked as standing back in words too: a look without shadows shows it only in its colours.
     out.push(linked(n.links, `<g${data('node', n.id)}${dim ? data('dim', '') : ''}>${tip(n.description)}${n.focused ? focusRing(box, theme.radius.card, theme) : ''}${body}${mark}${tags}</g>`, opts));
@@ -331,7 +331,7 @@ function drawGroup(g: GraphGroup, b: Box, theme: Theme, depth = 0, link = false,
   const lk = look(theme).group;
   const tone = theme.tones[g.tone];
   // Depth tints tell nesting; where a theme draws no outline, a dashed boundary still gets one.
-  // A trust boundary is the threat model's dashed line: heavier, longer dashes, in the threat colour.
+  // A trust boundary is a heavier line with longer dashes, in rose.
   const line = g.trust ? theme.tones.rose.fg : (groupLine(theme, tone) ?? (g.border === 'dashed' ? theme.border : undefined));
   const dash = g.trust ? ' stroke-dasharray="8 4"' : g.border === 'dashed' ? ` stroke-dasharray="${lk.dash}"` : '';
   const weight = g.trust ? Math.max(1.6, theme.stroke.group + 0.6) : theme.stroke.group;
@@ -700,7 +700,7 @@ function drawEdgeLabel(label: string, b: Box, theme: Theme, ground: string, line
   const h = 20;
   const y = b.y + (b.height - h) / 2;
   const n = step ? stepMark(b.x + 10, y + h / 2, step, theme) : '';
-  // Threat numbers end the label, after its text; a line without a label shows only them.
+  // Tags end the label, after its text; a line without a label shows only them.
   const tagW = marks?.length ? tagsWidth(marks) : 0;
   const tags = tagW ? drawTags(theme, marks!, b.x + b.width - tagW, y + h / 2, style) : '';
   if (tagW) b = { ...b, width: b.width - tagW - TAG.GAP };

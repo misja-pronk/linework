@@ -1,5 +1,5 @@
 // Places that name drawn things by id outside the entries themselves: presentation steps, the focus,
-// views' rules, threats written apart (`on:`) and trust boundaries listed by id. A type declares the
+// views' rules and trust boundaries listed by id. A type declares the
 // references inside its own entries (DiagramType.references); these are shared by every type, so one
 // walker finds them for a builder delete or rename, and nothing is left naming what is gone.
 //
@@ -8,12 +8,11 @@
 //     - { title: Keys, path: api -> vault, note: { vault: Managed identity } }
 //   focus: { on: [orders, tag:pii] }
 //   views: { ops: { include: [api, db], exclude: legacy } }
-//   threats: [{ on: "api -> db", stride: E }]
 //   trust: [shop]
 import type { Path } from './model.ts';
 
 /** selector: an id, id.*, a group or a route in a list or field; route: a step that is a route; note: a step note's key. */
-export type PlaceRole = 'selector' | 'route' | 'note' | 'threat' | 'trust';
+export type PlaceRole = 'selector' | 'route' | 'note' | 'trust';
 
 export interface PlaceSite {
   /** The scalar holding the text; with `key`, the map that has `key` as one of its keys. */
@@ -75,8 +74,6 @@ export function placeSites(data: unknown, owns: (key: string) => boolean = () =>
       if (raw.focus != null) focus(raw.focus, [...at, 'focus']);
       if (raw.kind !== 'dynamic') steps(raw.steps, [...at, 'steps']);
     }
-  if (Array.isArray(data.threats))
-    data.threats.forEach((t, i) => isMap(t) && typeof t.on === 'string' && out.push({ path: ['threats', i, 'on'], text: t.on, role: 'threat' }));
   if (Array.isArray(data.trust)) data.trust.forEach((t, i) => typeof t === 'string' && out.push({ path: ['trust', i], text: t, role: 'trust' }));
   return out;
 }

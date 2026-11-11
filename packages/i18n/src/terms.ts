@@ -254,7 +254,6 @@ export const terms: Record<string, string> = {
   'Consulted: asked before': 'Consulted: vooraf gevraagd',
   'Informed: told after': 'Informed: achteraf ingelicht',
   'Aggregated link (2× or more)': 'Gebundelde verbinding (2× of meer)',
-  'Threat, see the threat table': 'Dreiging, zie de dreigingstabel',
   // Capability maps and roadmaps
   Maturity: 'Volwassenheid',
   Investment: 'Investering',

@@ -491,7 +491,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     const desc = toText(said, { title: false }).trim();
     out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}`, lang });
   }
-  // A model's views, and what the type draws besides (a threat table of the view): its first own view is the drawing itself.
+  // A model's views, and the views the type draws besides: its first own view is the drawing itself.
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
   const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
   return {

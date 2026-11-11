@@ -30,7 +30,7 @@ export interface RouteRequest {
   /**
    * How the line is drawn, as "pattern|tone|start mark|end mark|width". Lines drawn alike may share
    * a trunk; without a style a line keeps its own path. A line with a label, tags at its ends (U, D,
-   * ACL) or threat marks has none, nor has one with crow's feet other than between table rows: on a
+   * ACL) or other marks has none, nor has one with crow's feet other than between table rows: on a
    * shared trunk a reader could not tell which line those belong to, and two lines would seem to
    * link their far ends.
    */

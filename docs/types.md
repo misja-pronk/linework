@@ -41,7 +41,7 @@ A big drawing of boxes and lines can be cut down to one thing and what is around
 | A grid with a value per cell: a RACI chart, a CRUD matrix of services × data, an ownership table | [Matrix](#matrix) | `matrix` |
 | Classes, interfaces and enums with their members, and how they relate: extends, implements, composition (UML) | [Class diagram](#class-diagram) | `class` |
 | A central topic with branches around it: a brainstorm, a workshop agenda, options before a decision | [Mind map](#mind-map) | `mindmap` |
-| Trust boundaries and STRIDE threats on an architecture, with a threat table | [Architecture](#architecture), [C4](#c4-model) or [Azure](#azure-infrastructure) with a [threat overlay](threats.md) | `systems`, `c4`, `azure` |
+| Trust boundaries on an architecture | [Architecture](#architecture), [C4](#c4-model) or [Azure](#azure-infrastructure) with trust boundaries | `systems`, `c4`, `azure` |
 
 Look-alikes that trip people up:
 
@@ -62,7 +62,7 @@ Look-alikes that trip people up:
 - **What one person feels along the way** is a Journey map; **what every role does, and who decides** is a Process.
 - **Services and how requests flow between them** are Architecture; **bounded contexts and who depends on whose model** are a Context map.
 - **Who may reach which resource, through which group or role** is Access; **who does what in a programme** (RACI) or **which service touches which data** (CRUD) is a Matrix.
-- **A threat model** is not a type of its own: mark trust boundaries and threats on the Architecture, C4 or Azure diagram you already have, and draw its threat table as a view.
+- **Trust boundaries** are not a type of their own: mark them on the Architecture, C4 or Azure diagram you already have.
 - **What is done, in order** is a Process; **what one thing is at any moment** (open, paid, shipped) is a State machine. A process has people doing things; a state machine has one subject that changes.
 - **What the business does** is a Capability map; **which systems do it and how they talk** is Architecture. A capability map names systems only as the support of a capability.
 - **Who reports to whom, and how teams work together** is Teams; **GitHub teams and their repositories** are GitHub design; **who may do what in Entra or Azure** is Access.
@@ -95,7 +95,7 @@ edges:
   - orders -> db: SQL
 ```
 
-A threat model is this type with trust boundaries and STRIDE threats on it: `trust: true` on a group, `threats: [S, T]` on an element or line, and the *Threat table* view. See [threats.md](threats.md).
+Any group can be a **trust boundary**: `kind: trust-boundary`, or `trust: true` on a group of another kind (a string names the boundary: `trust: PCI scope`). A boundary is a heavier dashed line in rose, with *Trust boundary* next to its name, so it reads without colour too; the key explains it. A diagram drawn from a model names its boundaries in a list: `trust: [shop, ledger]`. The same works in C4 and Azure diagrams; see [examples/systems/trust-zones.yaml](../examples/systems/trust-zones.yaml).
 
 Examples: [examples/systems](../examples/systems)
 

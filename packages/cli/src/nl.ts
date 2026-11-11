@@ -90,7 +90,6 @@ export const nl = {
   '{count} step|{count} steps': '{count} stap|{count} stappen',
   '{count} page|{count} pages': "{count} pagina|{count} pagina's",
   '{count} slide|{count} slides': "{count} dia|{count} dia's",
-  '{count} threat|{count} threats': '{count} dreiging|{count} dreigingen',
   'watching… Ctrl+C to stop': 'kijkt mee… Ctrl+C om te stoppen',
 
   // validate
@@ -104,10 +103,9 @@ export const nl = {
   'note {id} ({status}) is about "{was}", which is no longer in the diagram': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat',
   'note {id} ({status}) is about "{was}", which is no longer in the diagram (view {view})': 'notitie {id} ({status}) gaat over "{was}", dat niet meer in het diagram staat (weergave {view})',
 
-  // notes, threats, share
+  // notes, share
   'carto notes: {ours} or {theirs} is not a notes file': 'carto notes: {ours} of {theirs} is geen notitiebestand',
   '{file}: no review notes ({path} is not there)': '{file}: geen reviewnotities ({path} bestaat niet)',
-  '{file}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)': '{file}: hier is geen dreigingsmodel: zet trust: bij een groep, of threats: bij een element of lijn (docs/threats.md)',
   '{file}: the link would be {size} kB, over the {limit} kB a link can safely carry. Share the file itself instead.': '{file}: de link zou {size} kB worden, meer dan de {limit} kB die een link veilig kan bevatten. Deel liever het bestand zelf.',
 
   // diff
@@ -164,7 +162,6 @@ export const nl = {
   'reusable fragments: list, show, save, insert': 'herbruikbare fragmenten: tonen, bekijken, opslaan, invoegen',
   Export: 'Exporteren',
   'a link that opens it in the web app': 'een link die het opent in de webapp',
-  'the threat table': 'de dreigingstabel',
   'review notes': 'reviewnotities',
   'carto <command> --help: its options · carto help all: everything · - is stdin or stdout': 'carto <opdracht> --help: de opties · carto help all: alles · - is stdin of stdout',
   '{file}: a file is in the way where a folder is needed (-o names a folder when it has no extension)': '{file}: er staat een bestand waar een map nodig is (-o is een map als er geen extensie is)',
@@ -281,19 +278,15 @@ export const nlHelp: Record<string, string> = {
                                                 --notes: ook de open reviewnotities; --decisions: de architectuurbesluiten
                                                 van de map, als pagina en in de details. Meer: docs/html-export.md`,
   [`  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
-               [--view name | --all-views]      elements, connections in reading order, steps, layers, threats
+               [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
                [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md`]:
     `  carto describe <file.yaml> [-o out.md|.txt|.html]  het diagram in gewone woorden: wat het laat zien, de groepen en
-               [--view name | --all-views]      elementen, verbindingen in leesvolgorde, stappen, lagen, dreigingen
+               [--view name | --all-views]      elementen, verbindingen in leesvolgorde, stappen, lagen, vertrouwensgrenzen
                [--format text|md|html]          en legenda (sequence: de berichten; ERD: tabellen en relaties).
                [--stages]                       de stages: wat elke stage toevoegt, wijzigt, weghaalt en vervangt
                                                 Dezelfde woorden staan in elke SVG, PNG, PDF en dia. docs/describe.md`,
-  [`  carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
-               [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats`]:
-    `  carto threats <file.yaml> [-o threats.md]    de dreigingstabel (STRIDE-dreigingen, vertrouwensgrenzen) als markdown;
-               [--view name]                    --view: van een van de weergaven van een model. Getekend: carto render --view threats`,
   [`  carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)`]:

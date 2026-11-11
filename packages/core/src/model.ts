@@ -4,7 +4,6 @@ import type { SequenceArrow, SequenceShape } from './sequence.ts';
 import type { GitflowShape } from './gitflow.ts';
 import type { RoadmapShape } from './roadmap.ts';
 import type { JourneyPartShape, JourneyShape } from './journey.ts';
-import type { ThreatRow } from './threats.ts';
 import type { BlockShape } from './block.ts';
 
 /** Where something came from in the YAML source, e.g. ['nodes', 'web', 'label']. */
@@ -27,13 +26,11 @@ export interface Graph {
   steps?: GraphStep[];
   /** The main line of a process, one beat per stop: laid out straight, and what a step-through walks when no steps are written. */
   walk?: GraphBeat[];
-  /** The threat overlay's rows (see threats.ts): what the threat table and `carto threats` list. */
-  threats?: ThreatRow[];
   /** How a type's own layout is asked to arrange the drawing, as the source says (a capability map in bands, four areas to a row). */
   arrange?: Record<string, string | number | boolean>;
   /** The drawing is a tree along its solid lines (an org chart): a focus on one element keeps its whole branch and the line up to the top. */
   tree?: boolean;
-  /** Environment names drawn as marks (a drawing of every environment at once): outlined tags, not threats. */
+  /** Environment names drawn as marks (a drawing of every environment at once): outlined tags. */
   environments?: string[];
 }
 
@@ -77,9 +74,9 @@ export interface GraphGroup {
   tags?: string[];
   /** What a focus view is about (see focus.ts): drawn with a ring. */
   focused?: boolean;
-  /** A trust boundary of a threat model: drawn as a heavier dashed line in the threat colour. */
+  /** A trust boundary (trust.ts): drawn as a heavier dashed line in rose. */
   trust?: boolean;
-  /** Short tags drawn on it, such as threat numbers (T1, T2): they say it in text, never in colour alone. */
+  /** Short tags drawn on it, such as the environments it is in: they say it in text, never in colour alone. */
   marks?: string[];
   path: Path;
 }
@@ -103,7 +100,7 @@ export interface GraphNode {
   focused?: boolean;
   /** Whose icon set to look in first (aws, gcp, azure) when a diagram mixes vendors. */
   pack?: string;
-  /** Short tags drawn on its top edge, such as threat numbers (T1, T2). */
+  /** Short tags drawn on its top edge, such as the environments it is in. */
   marks?: string[];
 }
 
@@ -189,7 +186,7 @@ export interface MatrixShape {
   plain?: boolean;
   /** A comparison with an earlier state: cells carry a `change`, and those without one are drawn quietly. */
   compare?: boolean;
-  /** A plain table whose text wraps at this width instead of widening its column (a threat table). */
+  /** A plain table whose text wraps at this width instead of widening its column. */
   wrap?: number;
   /** Exported to slides as a real table, with cells to type in, instead of drawn shapes. */
   table?: boolean;
@@ -278,7 +275,7 @@ export interface GraphEdge {
   step?: number;
   /** Says nothing about what comes before what (a key between two contracts): the layout does not rank by it. */
   loose?: boolean;
-  /** Short tags drawn after its label, such as threat numbers (T1). */
+  /** Short tags drawn after its label, such as the environments it is in. */
   marks?: string[];
   /** Tags as written, for layers (layers.ts) and rules like "tag:pii". */
   tags?: string[];

@@ -37,7 +37,6 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 | Compare with an earlier version or a snapshot | `⇧⌘D`, `carto diff` | [compare](docs/compare.md) |
 | Your own AI (Claude Code, Copilot, Cursor…) changes diagrams through MCP: proposals to accept, files changed on disk marked | `⌘J`, `carto serve` | [ai](docs/ai.md), [mcp](docs/mcp.md) |
 | One model, many diagrams; a folder as one model | `⌘P`, `⌘↓`, `⌘↑`, `⇧F2` | [model](docs/model.md), [workspace](docs/workspace.md) |
-| Threat models, trust boundaries, STRIDE | `carto threats`, `--view threats` | [threats](docs/threats.md) |
 | Describe a diagram in plain words | Export → Describe in words, `carto describe` | [describe](docs/describe.md) |
 | One interactive HTML file to send | Export → Interactive HTML, `carto export --to html` | [html export](docs/html-export.md) |
 | PowerPoint and PDF, a slide per step; a client's template | Export, `carto deck` | [powerpoint templates](docs/powerpoint-templates.md) |

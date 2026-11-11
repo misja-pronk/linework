@@ -367,7 +367,7 @@ describe('examples/deployment', () => {
     const prod = (await show('aws.yaml', 'prod')).graph!;
     expect(prod.environments).toBeUndefined();
     expect([...prod.nodes, ...prod.groups, ...prod.edges].some((x) => x.marks?.length)).toBe(false);
-    // Outlined in ink: a threat mark is rose.
+    // Outlined in ink: a stage mark is rose.
     expect(r.svg).toContain('>dev</text>');
   });
 

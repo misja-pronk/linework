@@ -8,7 +8,7 @@ const WORDS: Record<string, string> = {
   afdeling: 'team', afdelingen: 'teams', eigenaar: 'owner', eigenaren: 'owners', leverancier: 'vendor', partner: 'partner',
   // access
   toegang: 'access', rechten: 'permissions', bevoegdheden: 'permissions', autorisatie: 'authorization', inloggen: 'login',
-  identiteit: 'identity', geheimen: 'secrets', sleutels: 'keys', beveiliging: 'security', dreiging: 'threat', dreigingen: 'threats',
+  identiteit: 'identity', geheimen: 'secrets', sleutels: 'keys', beveiliging: 'security',
   aanval: 'attack', aanvallen: 'attacks', risico: 'risk', risicos: 'risks', vertrouwensgrens: 'trust boundary',
   // systems and infrastructure
   systeem: 'system', systemen: 'systems', landschap: 'landscape', applicatie: 'application', applicaties: 'applications',

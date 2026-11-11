@@ -110,7 +110,7 @@ const crossingBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 1, // Orders' confirmation line passes its own OrderPlaced line
   'systems/saas-platform.yaml': 1, // wrapped into two columns for a slide (text 3.5 → 4.5 pt): the two ways in pass each other above the edge zone
-  'systems/threat-model.yaml': 1,
+  'systems/trust-zones.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 
@@ -226,7 +226,7 @@ const returns: Record<string, number> = {
   'deployment/aws.yaml#prod': 1, // wrapped the way the first environment is
   'model/containers.yaml': 2,
   'network/campus.yaml': 2,
-  'systems/threat-model.yaml': 2,
+  'systems/trust-zones.yaml': 2,
   'c4/kestrel-bank.yaml#payment': 2,
   'deployment/model.yaml#containers': 2,
   'systems/saas-platform.yaml': 2,

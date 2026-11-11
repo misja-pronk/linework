@@ -1,5 +1,5 @@
 // Renaming and deleting an entry by its YAML path, with everything that names it: lines, `in:`
-// keys, steps, focus, views and threats. Text in, text out, so comments and order stay. The
+// keys, steps, focus, views and trust boundaries. Text in, text out, so comments and order stay. The
 // editor's builder and the path-based edits (edit.ts: MCP tools, proposals) share these.
 import { isMap, isScalar, isSeq, parseDocument, type Document } from 'yaml';
 import type { DiagramType, Reference } from './diagram-type.ts';
@@ -78,7 +78,7 @@ const ownsKey = (type: DiagramType) => {
   return (k: string) => k in props;
 };
 
-/** Steps, focus, views, threats and trust that name `from` (place-refs.ts) name `to` instead. */
+/** Steps, focus, views and trust that name `from` (place-refs.ts) name `to` instead. */
 function renamePlaces(doc: Document, type: DiagramType, from: string, to: string) {
   const refs = placeRefsTo(doc.toJS(), from, ownsKey(type)).sort((a, b) => b.start - a.start);
   for (const r of refs) {
@@ -111,8 +111,7 @@ function dropSite(doc: Document, s: PlaceSite) {
     }
     return prune(doc, s.path);
   }
-  // A threat about what is gone goes with it.
-  const at = s.role === 'threat' ? s.path.slice(0, -1) : s.path;
+  const at = s.path;
   doc.deleteIn(at);
   if (at.at(-1) === 'on') {
     doc.deleteIn(at.slice(0, -1));

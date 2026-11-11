@@ -19,8 +19,7 @@
 import {
   buildGraph,
   emptyCatalogue,
-  overlayKeys,
-  threatViews,
+  trustKeys,
   graphReferences,
   graphSchema,
   viewSource,
@@ -82,7 +81,7 @@ export const c4Config: GraphTypeConfig = {
     dotted: { label: 'Supporting', line: 'dotted' },
   },
   plainEdge: 'Relationship',
-  threats: true,
+  trust: true,
   // Words of the architecture type and of other tools, for models shared with it.
   kindAliases: {
     system: 'software-system',
@@ -225,16 +224,14 @@ export const c4: DiagramType<GraphSource> = {
     let resolved = src;
     if (ctx.model || refs) {
       const m: ModelContext = ctx.model ? { ...ctx.model, elements: c4Elements(ctx.model.elements) } : { ...emptyCatalogue() };
-      // What the threat overlay says stays with the diagram, whichever view is drawn.
-      resolved = { ...viewSource(src, c4Config, m, ctx), ...overlayKeys(src as Record<string, unknown>) };
+      // Its trust boundaries stay with the diagram, whichever view is drawn.
+      resolved = { ...viewSource(src, c4Config, m, ctx), ...trustKeys(src as Record<string, unknown>) };
       if (ctx.model) ctx.model.used = true;
     }
     const graph = buildGraph(resolved, c4Config, { ...ctx, model: undefined });
-    // The threat table is a table, not C4 cards.
-    return resolved.view === 'threats' ? graph : decorate(graph, resolved);
+    return decorate(graph, resolved);
   },
   references: graphReferences,
-  views: threatViews,
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
     const known = (id: string) => (!!src.nodes && Object.hasOwn(src.nodes, id)) || (!!src.groups && Object.hasOwn(src.groups, id));

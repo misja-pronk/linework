@@ -286,19 +286,8 @@ layers:
   }, 60_000);
 });
 
-describe('threats and share', () => {
-  const model = fs.readFileSync(path.join(root, 'examples/systems/threat-model.yaml'), 'utf8');
-  it('writes the threat table as markdown, and says when there is no threat model', () => {
-    write('tm.yaml', model);
-    const r = carto('threats', 'tm.yaml', '-o', 'tm.md');
-    expect(r.code).toBe(0);
-    expect(read('tm.md')).toContain('| T1 | Storefront → API gateway | Spoofing |');
-    write('plain.yaml', 'type: systems\nnodes:\n  a: service\n');
-    const none = carto('threats', 'plain.yaml');
-    expect(none.code).toBe(1);
-    expect(none.err).toContain('no threat model here');
-  }, 30_000);
-
+describe('carto share', () => {
+  const model = fs.readFileSync(path.join(root, 'examples/systems/trust-zones.yaml'), 'utf8');
   it('prints a share link for a base URL, and refuses one too long for a link', () => {
     write('tm.yaml', model);
     const r = carto('share', 'tm.yaml', '--base', 'https://carto.example/');
@@ -315,7 +304,7 @@ describe('threats and share', () => {
 
 describe('carto errors and help', () => {
   it('says a missing file in one line and exits 1, for every command that reads one', () => {
-    for (const args of [['render', 'missing.yaml'], ['validate', 'missing.yaml'], ['share', 'missing.yaml'], ['threats', 'missing.yaml'], ['deck', 'missing.yaml', '-o', 'd.pptx']]) {
+    for (const args of [['render', 'missing.yaml'], ['validate', 'missing.yaml'], ['share', 'missing.yaml'], ['deck', 'missing.yaml', '-o', 'd.pptx']]) {
       const r = carto(...args);
       expect(r.code, args.join(' ')).toBe(1);
       expect(r.err.trim(), args.join(' ')).toBe(`carto: ${args[1]}: no such file or folder`);

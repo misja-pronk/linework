@@ -1,0 +1,33 @@
+type: systems
+title: Web shop trust zones
+subtitle: Checkout across five trust boundaries
+
+groups:
+  internet: { kind: trust-boundary, label: Internet }
+  edge: { kind: zone, label: Edge (DMZ), trust: true }
+  app: { kind: zone, label: Application zone, trust: true }
+  data: { kind: zone, label: Data zone, in: app, trust: true }
+  psp: { kind: trust-boundary, label: Payment provider }
+
+nodes:
+  shopper: { kind: users, label: Shopper, in: internet }
+  admin: { kind: user, label: Shop admin, in: internet }
+  cdn: { kind: cdn, label: CDN + WAF, in: edge }
+  web: { kind: client, label: Storefront, in: edge }
+  api: { kind: gateway, label: API gateway, in: app }
+  orders: { kind: service, label: Orders service, in: app }
+  backoffice: { kind: service, label: Back office, in: app }
+  db: { kind: database, label: Orders DB, in: data }
+  sessions: { kind: cache, label: Session cache, in: data }
+  stripe: { kind: payments, label: Stripe, in: psp }
+
+edges:
+  - shopper -> cdn: HTTPS
+  - cdn -> web: HTTPS
+  - web -> api: REST over TLS
+  - admin -> backoffice: HTTPS
+  - api -> orders: gRPC
+  - orders -> db: SQL over TLS
+  - orders -> sessions: RESP
+  - orders -> stripe: HTTPS
+  - backoffice -> db: SQL over TLS

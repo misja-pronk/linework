@@ -4,7 +4,7 @@ AWS and Google Cloud diagram: Every environment at once. 10 elements in 9 groups
 
 Groups and elements
 - Users
-- Storefront (CloudFront · React): Runs Storefront (shop.web): Shows the catalogue and takes orders; threats prod, test
+- Storefront (CloudFront · React): Runs Storefront (shop.web): Shows the catalogue and takes orders; tagged prod, test
 - shop (Account)
   - eu-west-1 (Region)
     - vpc-shop (VPC · 10.20.0.0/16)
@@ -14,17 +14,17 @@ Groups and elements
           - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
         - Isolated subnet
           - Orders DB (RDS database · PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
-      - eu-west-1b (Availability zone): threats prod
+      - eu-west-1b (Availability zone): tagged prod
         - Private subnet
           - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
         - Isolated subnet
           - Standby (RDS database)
-    - Site files (S3 bucket): threats prod, test
+    - Site files (S3 bucket): tagged prod, test
     - order-events (SQS queue): Runs order-events (shop.bus): One message for every placed order
     - Mailer (Lambda function · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
 
 Connections
-- Users send traffic to Storefront over HTTPS and send traffic to Load balancer over HTTPS [threats dev].
+- Users send traffic to Storefront over HTTPS and send traffic to Load balancer over HTTPS [tagged dev].
 - Storefront sends traffic to Load balancer (/api) and connects to Site files (Private network).
 - Load balancer connects to Orders API (ECS service) (Private network) and connects to Orders API (ECS service) (Private network).
 - Orders API (ECS service) connects to Orders DB (Reads and writes [SQL]) and connects to order-events (OrderPlaced).

@@ -2,7 +2,7 @@
 
 Every diagram has a plain-language description, made from its model (no AI, nothing leaves your machine): what it
 shows, its groups and what they hold, each element with its kind and description, the connections in reading
-order, the steps as a numbered walkthrough, layers, threats, the decisions about it and what the key means. It is
+order, the steps as a numbered walkthrough, layers, trust boundaries, the decisions about it and what the key means. It is
 written so a reader grasps the architecture in half a minute, and so a screen reader can say what a picture shows.
 
 ```text
@@ -87,7 +87,7 @@ elements with one name are told apart by their kind (*web (Service)*, *web (Depl
 | Context map | each relation with its ends: *Catalogue (upstream, open host service) and Ordering (downstream): Customer/Supplier* |
 
 After that, for every type: the **walkthrough** (written steps, with their notes) or a dynamic view's numbered
-**steps**; **layers** with their tags; **trust boundaries** and the **threat** table in words; the architecture
+**steps**; **layers** with their tags; **trust boundaries**; the architecture
 **decisions** about the drawing (CLI and exports from a folder with [decisions](decisions.md)); and the **key**, each
 sample in words (*Dashed violet line: Async message*, *Shade 4 of 4 (strongest): €600k–€800k*).
 

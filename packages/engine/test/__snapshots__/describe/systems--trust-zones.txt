@@ -1,0 +1,39 @@
+Web shop trust zones
+
+Architecture diagram: Checkout across five trust boundaries. 10 elements in 5 groups, with 9 connections.
+
+Groups and elements
+- Internet (Trust boundary)
+  - Shopper (Users)
+  - Shop admin (User)
+- Edge (DMZ) (Trust boundary)
+  - CDN + WAF (CDN)
+  - Storefront (Web app)
+- Application zone (Trust boundary)
+  - API gateway
+  - Orders service
+  - Data zone (Trust boundary)
+    - Orders DB (Database)
+    - Session cache
+  - Back office (Service)
+- Payment provider (Trust boundary)
+  - Stripe (Payments)
+
+Connections
+- Shopper connects to CDN + WAF over HTTPS.
+- CDN + WAF connects to Storefront over HTTPS.
+- Storefront connects to API gateway (REST over TLS).
+- API gateway connects to Orders service over gRPC.
+- Orders service connects to Orders DB (SQL over TLS), connects to Session cache (RESP) and connects to Stripe over HTTPS.
+- Shop admin connects to Back office over HTTPS.
+- Back office connects to Orders DB (SQL over TLS).
+
+Trust boundaries
+- Internet
+- Edge (DMZ)
+- Application zone
+- Data zone
+- Payment provider
+
+Key
+- Rose heavy dashed boundary: Trust boundary

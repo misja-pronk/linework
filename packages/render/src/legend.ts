@@ -201,7 +201,7 @@ export function legendItem(item: LegendItem, theme: Theme, x0: number, cy: numbe
     const w = Math.max(20, measureText(item.tag, chipText(theme), 600) + 12);
     return chipBack(theme, x0, cy - 9, w, 18, t, tagRadius(theme, 18)) + `<text x="${r1(x0 + w / 2)}" y="${r1(cy + baselineOffset(chipText(theme)))}" font-size="${chipText(theme)}" font-weight="600" fill="${t.fg}" text-anchor="middle">${esc(item.tag)}</text>` + label;
   }
-  if (item.swatch === 'mark') return drawTags(theme, [item.tag ?? 'T1'], x0, cy, item.tag ? endStyle(item.tag) : 'threat') + label;
+  if (item.swatch === 'mark') return drawTags(theme, [item.tag ?? ''], x0, cy, endStyle(item.tag ?? '')) + label;
   if (item.swatch === 'fill') return `<rect x="${x0}" y="${cy - 7}" width="20" height="14" rx="${Math.min(7, theme.radius.chip + 3)}" fill="${theme.tones[item.tone ?? 'blue'].bg}"/>` + label;
   if (item.swatch === 'check' || item.swatch === 'check-outline') {
     // The same filled or dashed check circle as the matrix cells.

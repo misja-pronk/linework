@@ -12,7 +12,7 @@
 //     - api -> bus: { label: OrderPlaced, style: async }
 //
 // Process flows use step, decision, start and end: shapes that speak for themselves, so no caption.
-import { buildGraph, graphReferences, graphSchema, threatViews, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
 
 export const config: GraphTypeConfig = {
   groupKinds: {
@@ -20,7 +20,7 @@ export const config: GraphTypeConfig = {
     system: { label: 'System', icon: 'boxes', tone: 'blue' },
     boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
     zone: { label: 'Zone', icon: 'shield', tone: 'teal', border: 'dashed', keywords: ['network', 'dmz', 'vpc', 'subnet'] },
-    'trust-boundary': { label: 'Trust boundary', icon: 'shield', tone: 'rose', border: 'dashed', keywords: ['threat model', 'security', 'stride', 'internet'] },
+    'trust-boundary': { label: 'Trust boundary', icon: 'shield', tone: 'rose', border: 'dashed', keywords: ['threat model', 'security', 'internet'] },
     team: { label: 'Team', icon: 'users', tone: 'violet', border: 'dashed', keywords: ['owner'] },
     domain: { label: 'Domain', icon: 'layers', tone: 'indigo', border: 'dashed', keywords: ['bounded context', 'layer'] },
     cluster: { label: 'Cluster', icon: 'boxes', tone: 'sky', keywords: ['kubernetes', 'k8s'] },
@@ -74,7 +74,7 @@ export const config: GraphTypeConfig = {
   },
   plainEdge: 'Connection',
   // Shared-model (C4) words for what this type already draws.
-  threats: true,
+  trust: true,
   kindAliases: { person: 'user', actor: 'user', 'software-system': 'system', component: 'service', web: 'client', spa: 'client', db: 'database', bus: 'topic', 'event-stream': 'topic' },
 };
 
@@ -107,7 +107,6 @@ export const systems: DiagramType<GraphSource> = {
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
   references: graphReferences,
-  views: threatViews,
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
     const known = (id: string) => (!!src.nodes && Object.hasOwn(src.nodes, id)) || (!!src.groups && Object.hasOwn(src.groups, id));

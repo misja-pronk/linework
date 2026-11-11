@@ -19,7 +19,7 @@ import { accessChanges, type AccessChange, type AccessSource } from '@cartograph
 import { accessOf } from '@cartography/github';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
 import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
-import { indexWorkspace, isDiagramFile, threatMarkdown } from '@cartography/core';
+import { indexWorkspace, isDiagramFile } from '@cartography/core';
 import { healNotes, mergeNotes, noteLines, notesInView, notesMarkdown, notesPath, parseNotes, printNotes, resolveAnchor, type NotesFile } from '@cartography/core';
 import { badLang, explicitLang, helpText, t } from './i18n.ts';
 import { matchTypes, packLayout, parseSidecar, sameLayoutNote, viewPins, withViewPins, type Diagnostic, type DiagramType, type LayoutSidecar } from '@cartography/core';
@@ -77,12 +77,10 @@ const helpAll = helpText(`carto — architecture diagrams that look good
                                                 --notes: the open review notes too; --decisions: the folder's
                                                 architecture decisions, as a page and in the details. More: docs/html-export.md
   carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
-               [--view name | --all-views]      elements, connections in reading order, steps, layers, threats
+               [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
                [--stages]                       its stages: what each one adds, changes, removes and replaces
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
-  carto threats <file.yaml> [-o threats.md]    the threat table (STRIDE threats, trust boundaries) as markdown;
-               [--view name]                    --view: of one of a model's views. Drawn: carto render --view threats
   carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
@@ -180,7 +178,6 @@ const groups: [string, [string, string][]][] = [
   [t('Check'), [
     ['validate', t('check files and their views')],
     ['diff', t('what changed between two versions')],
-    ['threats', t('the threat table')],
     ['notes', t('review notes')],
     ['decisions', t('architecture decisions: log, table, new')],
   ]],
@@ -1108,24 +1105,6 @@ async function main(): Promise<number> {
         console.error(`${f} → ${values.out}`);
       }
       return 0;
-    }
-    case 'threats': {
-      const [f] = files;
-      if (!f) return (console.error(helpFor(command)), 1);
-      const r = await render(fs.readFileSync(f, 'utf8'), { fonts: 'none', load: loaderFor(f), file: path.basename(f), view: values.view, ...langOption });
-      report(f, r.diagnostics);
-      if (!r.graph) return 1;
-      if (!r.graph.threats) {
-        console.error(t('{file}: no threat model here: add trust: to a group, or threats: to an element or line (docs/threats.md)', { file: f }));
-        return 1;
-      }
-      const md = threatMarkdown(r.graph);
-      if (!values.out || values.out === '-') process.stdout.write(md);
-      else {
-        fs.writeFileSync(values.out, md);
-        console.error(`${f} → ${values.out}  ${dim(t('{count} threat|{count} threats', { count: r.graph.threats.length }))}`);
-      }
-      return r.diagnostics.some((d) => d.severity === 'error') ? 1 : 0;
     }
     case 'share': {
       const [f] = files;

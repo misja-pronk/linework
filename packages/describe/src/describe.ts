@@ -1,10 +1,10 @@
 // A diagram in plain words, made from its model and nothing else (no AI): what it shows, what is in
-// it, what connects to what in reading order, its steps, layers, threats and key. Each kind of drawing
+// it, what connects to what in reading order, its steps, layers, trust boundaries and key. Each kind of drawing
 // is told the way a person would tell it: a sequence as its messages in order, a database as its
 // tables and how they relate, a matrix row by row, a journey phase by phase, a roadmap lane by lane,
 // an org chart as who reports to whom. Kept short: someone should grasp the drawing in half a minute.
 import { term } from '@cartography/i18n/drawing';
-import { strideNames, type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@cartography/core';
+import { type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@cartography/core';
 import type { BlockShape, GitflowShape, JourneyShape, JourneyStep, MatrixShape, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
 import type { Description, Item, Section } from './text.ts';
 import { listWords as joinWords, lookup, translator, type Lang, type Params } from '@cartography/i18n';
@@ -79,7 +79,7 @@ function describeIn(input: DescribeInput): Description {
     : tellGraph(graph, input.type?.id);
   const about = clean(graph.subtitle);
   const summary = [`${kind}${about ? `: ${sentence(about)}` : '.'}`, told.size ? sentence(told.size) : ''].filter(Boolean).join(' ');
-  const sections = [...told.sections, ...walkthrough(graph, input), ...layerSection(input), ...threatSections(graph), ...decisionSection(input), ...keySection(graph)];
+  const sections = [...told.sections, ...walkthrough(graph, input), ...layerSection(input), ...trustSection(graph), ...decisionSection(input), ...keySection(graph)];
   return { title, summary, sections: sections.filter((x) => x.text || x.items?.length) };
 }
 
@@ -185,14 +185,14 @@ function elementText(n: GraphNode): string {
   const detail = detailOf(n).filter((d, i, all) => d.toLowerCase() !== nameOf(n).toLowerCase() && all.findIndex((x) => x.toLowerCase() === d.toLowerCase()) === i);
   const said = [s.kind === 'card' ? s.body : undefined, n.description, s.kind === 'flow' && s.lines?.length ? s.lines.join('; ') : undefined].map(clean).filter((x): x is string => !!x);
   const unique = said.filter((x, i) => said.indexOf(x) === i);
-  const marks = n.marks?.length ? [d('threats {ids}', { ids: n.marks.join(', ') })] : [];
+  const marks = n.marks?.length ? [d('tagged {ids}', { ids: n.marks.join(', ') })] : [];
   const badges = s.kind === 'card' && s.badges?.length ? [d('with {names}', { names: listWords(s.badges) })] : [];
   return `${nameOf(n)}${detail.length ? ` (${detail.join(', ')})` : ''}${[...unique, ...badges, ...marks].length ? `: ${[...unique, ...badges, ...marks].join('; ')}` : ''}`;
 }
 
 function groupText(g: GraphGroup): string {
   const detail = [g.caption?.replace(/^\[(.*)\]$/, '$1'), g.lane ? d('lane') : '', g.trust ? d('trust boundary') : ''].filter((x, i, all): x is string => !!x && x.toLowerCase() !== g.label.toLowerCase() && all.findIndex((y) => y?.toLowerCase() === x.toLowerCase()) === i);
-  const said = [clean(g.description), g.marks?.length ? d('threats {ids}', { ids: g.marks.join(', ') }) : ''].filter(Boolean);
+  const said = [clean(g.description), g.marks?.length ? d('tagged {ids}', { ids: g.marks.join(', ') }) : ''].filter(Boolean);
   return `${nameOf(g)}${detail.length ? ` (${detail.join(', ')})` : ''}${said.length ? `: ${said.join('; ')}` : ''}`;
 }
 
@@ -347,7 +347,7 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
       const n = byId.get(id);
       return !!n && 'shape' in n && n.shape.kind === 'flow' && n.shape.form === 'note';
     })();
-    const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row), plural, flow)}${e.marks?.length ? ` [${d('threats {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
+    const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row), plural, flow)}${e.marks?.length ? ` [${d('tagged {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
     items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${listWords(parts)}`) });
   }
   return items;
@@ -848,19 +848,9 @@ function layerSection(input: DescribeInput): Section[] {
   return [{ heading: d('Layers'), text: d('Ways to look at this drawing by tag.'), items: list.map((l) => ({ text: sentence(`${l.title ?? l.name}${l.caption ? `: ${clean(l.caption)}` : ''} (${d('tags {tags}', { tags: l.tags.join(', ') })}${l.count != null ? `; ${plural(l.count, 'element')}` : ''})`) })) }];
 }
 
-function threatSections(graph: Graph): Section[] {
-  const out: Section[] = [];
+function trustSection(graph: Graph): Section[] {
   const trust = graph.groups.filter((g) => g.trust);
-  if (trust.length) out.push({ heading: d('Trust boundaries'), items: trust.map((g) => ({ text: nameOf(g) })) });
-  const rows = graph.threats ?? [];
-  if (rows.length)
-    out.push({
-      heading: d('Threats'),
-      items: rows.map((t) => ({
-        text: `${d('{id} on {name}', { id: t.id, name: t.on })}: ${sentence(t.title ? `${t.title} (${t.stride.map((x) => strideNames[x]).join(', ')})` : t.stride.map((x) => strideNames[x]).join(', '))} ${d('Status')} ${w(t.status)}${t.mitigation ? `; ${d('mitigation')}: ${sentence(lowerFirst(t.mitigation))}` : '.'}`,
-      })),
-    });
-  return out;
+  return trust.length ? [{ heading: d('Trust boundaries'), items: trust.map((g) => ({ text: nameOf(g) })) }] : [];
 }
 
 function decisionSection(input: DescribeInput): Section[] {

@@ -17,7 +17,7 @@ export * from './c4-views.ts';
 export * from './memory.ts';
 export * from './steps.ts';
 export * from './focus.ts';
-export * from './threats.ts';
+export * from './trust.ts';
 export * from './share.ts';
 export * from './sidecar.ts';
 export * from './escape.ts';
