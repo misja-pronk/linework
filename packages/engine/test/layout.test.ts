@@ -102,6 +102,7 @@ const crossingBudget: Record<string, number> = {
   'sequence/checkout.yaml': 0,
   'sequence/entra-sign-in.yaml': 0,
   'sequence/managed-identity.yaml': 0,
+  'sequence/service-bus-events.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
   'states/device-connection.yaml': 1, // wrapped into two rows for a slide (2.94:1 at 6.6 pt -> 1.70:1 at 8.4 pt)
   'states/document-approval.yaml': 2, // wrapped into rows for a slide (3.89:1 at 6.7 pt -> 1.23:1 at 8.5 pt): the review's lines back pass Draft's
