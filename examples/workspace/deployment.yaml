@@ -1,12 +1,14 @@
 # Production on Azure: each node runs a model element (of:), the model's relations are drawn between them.
+# Sized for a slide: the resource group sits in the Production subscription, left out here, and the
+# three edges below say the model's "Calls", "Submits payments" and "Publishes" by their protocol.
 type: azure
 title: Harbour Bank
 subtitle: Production
+direction: right
 include: [model.yaml]
 
 groups:
-  prod: { kind: subscription, label: Production }
-  rg: { kind: resource-group, label: rg-harbour-prod, in: prod }
+  rg: { kind: resource-group, label: rg-harbour-prod }
   vnet: { kind: vnet, label: vnet-harbour, in: rg }
   apps: { kind: subnet, label: snet-apps, in: vnet }
   data: { kind: subnet, label: snet-data, in: vnet }
@@ -19,3 +21,8 @@ nodes:
   events: { of: payments.events, kind: event-hub, in: rg }
   db: { of: online.db, kind: postgres, in: data }
   ledger: { ref: ledger, kind: external }
+
+edges:
+  - web -> api: HTTPS
+  - api -> gateway: gRPC
+  - engine -> events: Kafka

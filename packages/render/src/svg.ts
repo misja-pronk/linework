@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowHeight, rowMarks, sectionHeight, STACK, STEP_ROOM, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -509,30 +509,35 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   if (shape.caption)
     s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX + 1), theme.size.caption, 400, theme.textMuted);
 
-  let y = b.y + head;
+  const grid = tableGrid(shape, theme);
+  // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
+  for (const c of grid.columns.slice(1)) s += `<line x1="${r1(b.x + c.x)}" y1="${r1(yh)}" x2="${r1(b.x + c.x)}" y2="${r1(b.y + b.height)}" stroke="${theme.border}" stroke-width="1"/>`;
   const marks = markWidth(shape);
-  const rh = rowHeight(shape, theme);
   for (const [i, row] of shape.rows.entries()) {
+    const at = grid.rows[i]!;
+    const col = grid.columns[at.column]!;
+    // The last column reaches the table's right edge (a table may be drawn wider than measured).
+    const cx = b.x + col.x;
+    const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;
+    const y = b.y + at.y;
     if (row.kind === 'section') {
-      const sh = sectionHeight(row, theme);
-      if (row.label) s += textMid(b.x + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
-      else s += `<line x1="${r1(b.x)}" y1="${r1(y + sh / 2)}" x2="${r1(b.x + b.width)}" y2="${r1(y + sh / 2)}" stroke="${theme.border}" stroke-width="1"/>`;
-      y += sh;
+      const sh = at.height;
+      if (row.label) s += textMid(cx + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
+      else s += `<line x1="${r1(cx)}" y1="${r1(y + sh / 2)}" x2="${r1(cx + cw)}" y2="${r1(y + sh / 2)}" stroke="${theme.border}" stroke-width="1"/>`;
       continue;
     }
-    const cy = y + rh / 2;
-    if (i > 0 && shape.rows[i - 1]?.kind === 'row' && shape.form !== 'class')
-      s += `<line x1="${r1(b.x + t.padX)}" y1="${r1(y)}" x2="${r1(b.x + b.width - t.padX)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
-    for (const [k, m] of rowMarks(row).entries()) s += drawIcon(m.icon, b.x + t.padX + k * 15, cy - 6.5, 13, theme.tones[m.tone].fg, 1.75);
-    if (row.sign) s += textMid(b.x + t.padX, cy, row.sign, monoCell(theme), 500, theme.textMuted, undefined, monoAttr(theme), 'mono');
+    const cy = y + at.height / 2;
+    if (i > 0 && shape.rows[i - 1]?.kind === 'row' && grid.rows[i - 1]!.column === at.column && shape.form !== 'class')
+      s += `<line x1="${r1(cx + t.padX)}" y1="${r1(y)}" x2="${r1(cx + cw - t.padX)}" y2="${r1(y)}" stroke="${theme.border}" stroke-opacity="0.6" stroke-width="1"/>`;
+    for (const [k, m] of rowMarks(row).entries()) s += drawIcon(m.icon, cx + t.padX + k * 15, cy - 6.5, 13, theme.tones[m.tone].fg, 1.75);
+    if (row.sign) s += textMid(cx + t.padX, cy, row.sign, monoCell(theme), 500, theme.textMuted, undefined, monoAttr(theme), 'mono');
     const [name, type] = row.cells;
     const style = (c: { italic?: boolean; underline?: boolean }) => (c.italic ? ' font-style="italic"' : '') + (c.underline ? ' text-decoration="underline"' : '');
-    if (name) s += textMid(b.x + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text, undefined, style(name));
+    if (name) s += textMid(cx + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text, undefined, style(name));
     if (type?.text)
       s += lk.mono.type
-        ? textMid(b.x + b.width - t.padX, cy, type.text, monoCell(theme), 400, theme.textMuted, 'end', monoAttr(theme), 'mono')
-        : textMid(b.x + b.width - t.padX, cy, type.text, theme.size.cell, 400, theme.textMuted, 'end');
-    y += rh;
+        ? textMid(cx + cw - t.padX, cy, type.text, monoCell(theme), 400, theme.textMuted, 'end', monoAttr(theme), 'mono')
+        : textMid(cx + cw - t.padX, cy, type.text, theme.size.cell, 400, theme.textMuted, 'end');
   }
   return s;
 }

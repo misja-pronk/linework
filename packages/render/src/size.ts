@@ -224,22 +224,51 @@ export function tableColumns(shape: TableShape, theme: Theme) {
   return { name, type };
 }
 
-function tableSize(shape: TableShape, theme: Theme): NodeSize {
+/** Where a table's rows stand: each row's column (x and width from the table's left edge) and top, and the table's size. */
+export interface TableGrid {
+  width: number;
+  height: number;
+  columns: { x: number; width: number }[];
+  rows: { column: number; y: number; height: number }[];
+}
+
+/** A table's rows in one column, or in two (shape.split): the first column's rows, then the second's beside them. */
+export function tableGrid(shape: TableShape, theme: Theme): TableGrid {
   const t = theme.space.table;
-  const cols = tableColumns(shape, theme);
   const titleWidth = 16 + 8 + measureText(shape.title, theme.size.label, 600) + (shape.italic ? 4 : 0);
   const captionWidth = shape.caption ? measureText(shape.caption, theme.size.caption, 400) : 0;
-  const rowWidth = markWidth(shape) + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
-  const width = 2 * t.padX + Math.max(titleWidth, captionWidth, rowWidth);
-
-  const rowY: Record<string, number> = {};
-  let y = tableHeader(shape, theme);
-  for (const r of shape.rows) {
-    const h = r.kind === 'row' ? rowHeight(shape, theme) : sectionHeight(r, theme);
-    if (r.kind === 'row') rowY[r.id] = y + h / 2;
-    y += h;
+  const at = shape.split != null && shape.split > 0 && shape.split < shape.rows.length ? shape.split : shape.rows.length;
+  const parts = at < shape.rows.length ? [shape.rows.slice(0, at), shape.rows.slice(at)] : [shape.rows];
+  const marks = markWidth(shape);
+  const widths = parts.map((rows) => {
+    const cols = tableColumns({ ...shape, rows }, theme);
+    return 2 * t.padX + marks + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
+  });
+  // The header spans the columns: a title wider than they are widens the last one.
+  const need = Math.max(t.minWidth, 2 * t.padX + Math.max(titleWidth, captionWidth));
+  const sum = widths.reduce((a, b) => a + b, 0);
+  if (sum < need) widths[widths.length - 1]! += need - sum;
+  const columns = widths.map((w, i) => ({ x: Math.round(widths.slice(0, i).reduce((a, b) => a + b, 0)), width: Math.round(w) }));
+  const rows: TableGrid['rows'] = [];
+  let bottom = tableHeader(shape, theme);
+  for (const [column, part] of parts.entries()) {
+    let y = tableHeader(shape, theme);
+    for (const r of part) {
+      const h = r.kind === 'row' ? rowHeight(shape, theme) : sectionHeight(r, theme);
+      rows.push({ column, y, height: h });
+      y += h;
+    }
+    bottom = Math.max(bottom, y);
   }
-  return { width: Math.round(Math.max(t.minWidth, width)), height: y + (shape.rows.length ? 6 : 0), rowY };
+  const last = columns[columns.length - 1]!;
+  return { width: last.x + last.width, height: bottom + (shape.rows.length ? 6 : 0), columns, rows };
+}
+
+function tableSize(shape: TableShape, theme: Theme): NodeSize {
+  const grid = tableGrid(shape, theme);
+  const rowY: Record<string, number> = {};
+  for (const [i, r] of shape.rows.entries()) if (r.kind === 'row') rowY[r.id] = grid.rows[i]!.y + grid.rows[i]!.height / 2;
+  return { width: grid.width, height: grid.height, rowY };
 }
 
 /** Room in front of a group's label: its icon and a gap, kept whether or not this group has one so labels line up; nothing where the theme shows no group icons. */

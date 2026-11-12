@@ -47,15 +47,16 @@ import {
   type Placed,
   type Source,
   type StepState,
+  type Word,
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
-import { drawSvg, size, type SvgOptions } from '@cartography/render';
+import { drawSvg, size, smallestTextPx, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
 import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import { format, type Lang } from '@cartography/i18n';
+import { term, tr } from '@cartography/i18n/drawing';
 import { diagramLang, translateGraph } from './lang.ts';
 
 const typesOfVendor = (vendor: string) => (iconVendors as Record<string, { types: string[] }>)[vendor]?.types ?? [];
@@ -209,8 +210,18 @@ export interface RenderResult {
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
+  /**
+   * The type's own view the diagram as written is (its `view:`, else the type's default), a hidden
+   * one too (a mesh written `view: detailed`): what the drawing is while no view is asked for.
+   */
+  asWritten?: { name: string; title?: string };
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
+  /**
+   * This drawing is read scrolling, not shown on one slide (a long sequence as a whole): it is
+   * presented by the type's other views (its phases), so the slide check is theirs.
+   */
+  scroll?: boolean;
   /** Files read through `include:`, relative to the diagram. */
   includes?: string[];
   /** The steps the drawing can be told in (written, or the numbered lines of a dynamic view, or a sequence's messages), and the one drawn. */
@@ -338,8 +349,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let includes: string[] | undefined;
   let onlyViews = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
-  const ownViews = type.views?.(rest);
-  const ownView = opts.view && ownViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
+  // The titles the type gives its views, in the drawing's language (the picker shows them, a view's title is its subtitle).
+  // A context mark (public@exposure) only tells two meanings of one English word apart: never drawn.
+  const word: Word = (text, params) => format(term(lang, text).replace(/@[\w-]+$/, ''), lang, params);
+  const allViews = type.views?.(rest, word);
+  const ownView = opts.view && allViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
+  // A hidden view is drawn when asked for by name, and offered nowhere.
+  const ownViews = allViews?.filter((v) => !v.hidden);
   if (ownView) opts = { ...opts, view: undefined };
   if (Object.keys(rest).some(isModelKey)) {
     const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : included), report, self: opts.file, text });
@@ -358,7 +374,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
   // A focus asked for is about elements and lines: a diagram that opens as one of its tables (view: access) is focused in the type's first view, its graph.
-  else if (opts.focus != null && ownViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews[0]!.name };
+  else if (opts.focus != null && allViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews![0]!.name };
 
   // Problems in entries that came from another file point at its include entry.
   const where = (path: Path, message: string): [Path, string] => {
@@ -371,14 +387,16 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     load: opts.load,
     model,
     lang,
+    word,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
   graph = translateGraph(graph, lang, built);
   // Another of the type's own views than the one the file is written for: its subtitle is about that
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
   const written = typeof rest.view === 'string' ? rest.view : (ownViews?.find((v) => v.default) ?? ownViews?.[0])?.name;
-  const viewTitle = ownView && ownView !== written ? ownViews!.find((v) => v.name === ownView)?.title : undefined;
-  if (viewTitle && graph.title) graph = { ...graph, subtitle: viewTitle };
+  const viewTitle = ownView && ownView !== written ? allViews!.find((v) => v.name === ownView)?.title : undefined;
+  // Without a title of its own the view's name is the drawing's title: a phase says which one it is.
+  if (viewTitle) graph = graph.title ? { ...graph, subtitle: viewTitle } : { ...graph, title: viewTitle };
   // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
   const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
   const focusOwn = model?.view ? model.view.focus : focusRef;
@@ -425,7 +443,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
-  const autoDirection = (model?.view?.direction ?? data.direction) == null;
+  // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape, nor cut into rows.
+  const steady = !!allViews?.find((v) => v.name === (built as { view?: unknown }).view)?.steady;
+  const autoDirection = !steady && (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
   // before it, nothing pinned) that shows mostly what the first view shows is drawn the way that one
@@ -435,7 +455,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
   let seed: LayoutMemory | undefined;
   // A table (an access matrix) is not laid out: nothing to share.
-  const table = (name: string | undefined) => !!ownViews?.find((v) => v.name === name)?.table;
+  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === name)?.table;
   // Views of different kinds (a C4 context and a component view) are different pictures.
   const kindOf = (name: string) => model?.views.get(name)?.kind;
   if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
@@ -453,7 +473,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // (the editor's memory, or its own note in the sidecar), never from the whole drawing's note or a view's.
   const only = lens.info?.mode === 'only' && !!lens.info.active.length;
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
-  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
   if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus && !only) {
     if (seeds.size > 64) seeds.clear();
     seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });
@@ -464,7 +484,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const named = (id: string) => graph.groups.find((g) => g.id === id)?.label ?? id;
   for (const id of placed.nudged ?? []) diagnostics.push({ severity: 'warning', message: `${named(id)} was pinned on top of another pinned element: it is drawn beside it. Drag it where it should go, or Tidy` });
   // Steps come after the layout, so nothing moves between them: they only change what shows and what stands out.
-  const told = model?.view ? model.view.present : (stepsRef as unknown[] | undefined);
+  // A table of the type's own (who × where) names none of the elements the steps are about: it is not told in them.
+  const drawnView = (built as { view?: unknown }).view;
+  const asTable = typeof drawnView === 'string' && table(drawnView);
+  // A view of only a part (one domain of a mesh) is not the whole story the steps tell.
+  const asPart = typeof drawnView === 'string' && !!allViews?.find((v) => v.name === drawnView)?.part;
+  const told = model?.view ? model.view.present : asTable || asPart ? undefined : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
@@ -489,6 +514,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}`, lang });
   }
   // A model's views, and the views the type draws besides: its first own view is the drawing itself.
+  // The type's own view this file is written for: model views and includes come first, so not with those.
+  const writtenView = !model?.views.size && ownViews?.length ? allViews!.find((v) => v.name === written) : undefined;
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
   const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
   return {
@@ -507,6 +534,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
+    ...(!model?.view && writtenView ? { asWritten: { name: writtenView.name, ...(writtenView.title ? { title: writtenView.title } : {}) } } : {}),
+    ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),
     ...(includes?.length ? { includes } : {}),
     ...(steps.length ? { steps } : {}),
     ...(steps.length && !told ? { stepsImplied: true } : {}),
@@ -621,8 +650,6 @@ const SLIDE = { width: 1280, height: 720 };
  * 7.5 pt at full size: under 6 pt the drawing is shrunk to less than four fifths, too much for one page.
  */
 export const SLIDE_MIN_PT = 6;
-/** Text smaller than this (px) is detail (a tag, a count, a badge): it may get small before the drawing is too big for a page. */
-const DETAIL_PX = 10;
 
 /** A page a drawing is meant for, in CSS pixels (96 to the inch). */
 export interface Page {
@@ -649,44 +676,46 @@ export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
   return { name: `${Math.round(a * 100) / 100}:1 page`, width: Math.round(720 * a), height: 720 };
 }
 
+// Which text counts: render's smallestTextPx (and DETAIL_PX), the rule the deck reports its slides by too.
+export { DETAIL_PX, smallestTextPx } from '@cartography/render';
+
 /**
- * The smallest size (px) of the text a reader needs in a drawing's SVG: the words on cards, lines and
- * groups, not the asides (the word KEY, the imprint, a map sheet's grid letters, marked data-aside)
- * nor the details under DETAIL_PX (tags, counts, badges).
- * Undefined when it has no such text.
+ * The smallest text a reader needs in a drawing (smallestTextPx), in points, at `ptPerPx` points per
+ * drawing px: on a slide, the scale the PowerPoint export gives it (export's slideScale, or the
+ * `scale` its onSlide reports). Said to a tenth, and compared as said. Undefined when it has no text.
  */
-export function smallestTextPx(svg: string): number | undefined {
-  const sizes = [...svg.matchAll(/<text\b[^>]*>/g)]
-    .filter((m) => !m[0].includes('data-aside'))
-    .map((m) => Number(/font-size="([\d.]+)"/.exec(m[0])?.[1]))
-    .filter((n) => n >= DETAIL_PX);
-  return sizes.length ? Math.min(...sizes) : undefined;
+export function textPtAt(svg: string, ptPerPx: number): number | undefined {
+  const px = smallestTextPx(svg);
+  return px == null ? undefined : Math.round(px * ptPerPx * 10) / 10;
 }
 
 /**
- * The smallest text of a drawing, in points, when it is fitted onto a page (a 16:9 slide, 13.33
- * inches wide, unless another is given): what `carto validate` warns about below SLIDE_MIN_PT.
+ * The smallest text of a drawing, in points, when the whole SVG (its own title and margins with it)
+ * is fitted onto a page (a 16:9 slide, 13.33 inches wide, unless another is given): what an SVG or PNG
+ * placed on that page shows, and what `carto validate` measures a sheet of paper (aspect: a4) by. A
+ * slide is measured on the slide the PowerPoint export makes instead (textPtAt with its scale).
  * Undefined when it has no text.
  */
 export function slideTextPt(svg: string, width: number, height: number, page: { width: number; height: number } = SLIDE): number | undefined {
-  const px = smallestTextPx(svg);
-  if (px == null || !width || !height) return undefined;
-  const scale = Math.min(page.width / width, page.height / height);
-  // A pixel is three quarters of a point; said to a tenth, and compared as said.
-  return Math.round(px * scale * 0.75 * 10) / 10;
+  if (!width || !height) return undefined;
+  // A pixel is three quarters of a point.
+  return textPtAt(svg, Math.min(page.width / width, page.height / height) * 0.75);
 }
 
 /**
  * The part of the page the drawing can fill with its smallest text still SLIDE_MIN_PT: the page
  * shrunk (in drawing px) to where the text would be just readable. What lies outside it is too much
- * for one page: on the canvas it is marked.
+ * for one page: on the canvas it is marked. `ptPerPx`: the scale the drawing really gets there (on a
+ * slide, the PowerPoint export's), when that is not the whole SVG fitted onto the page.
  */
-export function readableArea(svg: string, page: { width: number; height: number }): { width: number; height: number } | undefined {
+export function readableArea(svg: string, page: { width: number; height: number }, fit?: { width: number; height: number; ptPerPx: number }): { width: number; height: number } | undefined {
   const px = smallestTextPx(svg);
   if (px == null) return undefined;
   // At scale s text is px * s * 0.75 pt: readable while s >= SLIDE_MIN_PT / (px * 0.75).
   const s = SLIDE_MIN_PT / (px * 0.75);
-  return { width: page.width / s, height: page.height / s };
+  // Where the drawing gets less than the whole page (a slide's margins and title row), the page is that much smaller for it.
+  const room = fit ? fit.ptPerPx / (0.75 * Math.min(page.width / fit.width, page.height / fit.height)) : 1;
+  return { width: (page.width * room) / s, height: (page.height * room) / s };
 }
 
 /** `aspect:` as written: "16:9", "4:3", a4, a4-portrait (and the like), a number (width / height) or "auto". */

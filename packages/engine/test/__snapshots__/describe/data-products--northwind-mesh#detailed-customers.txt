@@ -1,0 +1,21 @@
+Northwind data mesh
+
+Data products, customers in detail: Customers in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Sales (Domain · Sales analytics)
+  - CRM (Source · SaaS)
+  - Customers (Source-aligned · v1.6.0 · CRM team)
+  - customers (Data contract · v1.6.0 · confidential)
+- Revenue (Finance · Aggregate)
+- Sales dashboard (Dashboard)
+
+Connections
+- CRM connects to Customers.in:0.
+- Customers.out:customers connects to Revenue, connects to Sales dashboard and is linked with customers.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract

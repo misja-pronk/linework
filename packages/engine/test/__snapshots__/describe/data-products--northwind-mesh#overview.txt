@@ -1,0 +1,44 @@
+Northwind data mesh
+
+Data products, overview: Data products owned by the domains, from operational systems to the people who use them. 12 elements in 3 groups, with 12 connections.
+
+Groups and elements
+- Sales (Domain · Sales analytics)
+  - ERP (Orders and invoices)
+  - Orders (Source-aligned · v2.3.0 · Order management team)
+  - CRM (Source · SaaS)
+  - Customers (Source-aligned · v1.6.0 · CRM team)
+- Supply chain (Domain · Supply chain data)
+  - Demand forecast (Consumer-aligned · beta · v0.4.0 · Planning analytics)
+  - Warehouse management (Source · Database)
+  - Stock levels (Source-aligned · v1.1.0 · Warehouse team)
+- Finance (Domain · Finance data)
+  - Revenue (Aggregate · v3.0.0 · Finance data team)
+  - General ledger (Source · ERP)
+- Sales dashboard (Dashboard)
+- Replenishment (Application)
+- CFO dashboard (Dashboard)
+
+Connections
+- ERP connects to Orders (CDC).
+- Orders connects to Demand forecast, connects to Revenue and connects to Sales dashboard.
+- Demand forecast connects to Replenishment.
+- Revenue connects to CFO dashboard.
+- CRM connects to Customers (daily).
+- Customers connects to Revenue and connects to Sales dashboard.
+- Warehouse management connects to Stock levels (hourly).
+- Stock levels connects to Demand forecast.
+- General ledger connects to Revenue (nightly).
+
+Walkthrough
+1. Domains own their data: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
+2. Source-aligned products: Each operational system is read once, by the team that knows it, and published under a contract.
+3. Products built on products: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
+4. Self-serve platform: One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+5. Federated governance: The domains agree on the rules that every contract follows, such as classification, PII and freshness. The platform checks them automatically.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

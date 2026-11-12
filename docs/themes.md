@@ -251,6 +251,6 @@ Per export:
 ## Icon packs (bring your own)
 
 The official Azure, AWS, Google Cloud and Kubernetes icons are downloaded by you and imported once, in the editor
-(theme menu → **Official icons…**) or with `carto icons import <zip>`; a diagram then uses them with
+(top bar **⋯** → **Diagram theme, icons, language…** → **Official icons…**) or with `carto icons import <zip>`; a diagram then uses them with
 `icons: official`. Where to download each set, how matching and hand mapping work, how they look in each theme
 and in each export, and what may be shared: [icons.md](icons.md).

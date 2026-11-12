@@ -143,7 +143,7 @@ A process runs left to right; `direction: down` is `flowchart TD`. A diamond wit
 
 ## Examples
 
-[examples/process](../examples/process): an access request with approval, incident handling, order to cash, a release with a manual gate, onboarding with work in parallel, and a build-buy-reuse decision tree without lanes.
+[examples/process](../examples/process): an access request with approval, incident handling, order to cash, a pull request and its release to production with an approval gate (one story in two parts), onboarding with work in parallel, and a build-buy-reuse decision tree without lanes.
 
 ## What it does not do
 

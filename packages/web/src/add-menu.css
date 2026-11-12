@@ -1,4 +1,4 @@
-/* The shapes to add (add-menu.tsx): as a popup over the drawing, or the shapes panel of the builder. */
+/* The shapes to add (add-menu.tsx): as the quick add over the drawing, or the shapes tab of the builder. */
 
 .add-menu {
   position: absolute;
@@ -10,7 +10,7 @@
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   z-index: 6;
   animation: rise 120ms ease-out;
@@ -28,7 +28,7 @@
   align-items: center;
   gap: 10px;
   padding: 5px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: grab;
 }
 .add-item > .icon:last-child {
@@ -37,19 +37,18 @@
   opacity: 0;
 }
 .add-item[aria-selected='true'] {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 .add-item[aria-selected='true'] > .icon:last-child {
   opacity: 1;
 }
+/* A kind's icon, bare, in the ink the drawing gives that kind: no tile behind it. */
 .tile {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 22px;
+  height: 22px;
   color: var(--tone-fg);
-  background: var(--tone-bg);
   flex: none;
 }
 .add-menu.inline {
@@ -64,8 +63,15 @@
   animation: none;
 }
 .add-menu.inline .add-item:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 .add-menu.inline .add-item:hover > .icon:last-child {
   opacity: 1;
+}
+/* Where the quick add puts a shape when a group is selected. */
+.add-into {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

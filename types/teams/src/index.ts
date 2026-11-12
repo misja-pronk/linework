@@ -14,7 +14,7 @@
 //     - checkout -> payments: x-as-a-service   the first uses what the second provides
 //     - enablement -> checkout: facilitating
 //     - checkout <-> fraud: collaboration
-import { parseLink, parseLinks, tones, type BlockForm, type BlockShape, type BuildContext, type DiagramType, type GraphEdge, type GraphNode, type Graph, type LegendItem, type Link, type PaletteItem, type Path, type Reference, type Tone } from '@cartography/core';
+import { english, parseLink, parseLinks, tones, type BlockForm, type BlockShape, type BuildContext, type DiagramType, type GraphEdge, type GraphNode, type Graph, type LegendItem, type Link, type PaletteItem, type Path, type Reference, type Tone } from '@cartography/core';
 import { orgLayout } from './org.ts';
 import { topologyLayout } from './topology.ts';
 
@@ -251,7 +251,7 @@ function buildTopology(src: TeamsSource, ctx: BuildContext): Graph {
     const size = e.size ?? (e.members?.length || undefined);
     const lead = e.lead ? personShorthand(src.people?.[e.lead]).name ?? e.lead : undefined;
     const caption = [e.caption, lead ? `Lead: ${lead}` : undefined].filter(Boolean).join(' · ');
-    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: `${size} ${size === 1 ? 'person' : 'people'}` } : {}) };
+    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: (ctx.word ?? english)('{count} person|{count} people', { count: String(size) }) } : {}) };
     const links = linksOf(e, path, ctx);
     nodes.push({ id, shape, path, kind: k, ...(links?.length ? { links } : {}), description: [KIND_NAME[k], e.description].filter(Boolean).join('. ') });
   }
@@ -458,8 +458,9 @@ interactions:
     if (Object.hasOwn(teamsMap, from) && Object.hasOwn(teamsMap, to)) return { path: ['interactions'], value: `${from} -> ${to}: x-as-a-service` };
     return 'Connect a manager to a report, or one team to another';
   },
-  views(src) {
-    return hasPeople(src) && hasTeams(src) ? [{ name: 'org', title: 'Org chart' }, { name: 'topology', title: 'Team Topologies' }] : [];
+  views(src, word = english) {
+    // Team Topologies is the name of the method: it stays.
+    return hasPeople(src) && hasTeams(src) ? [{ name: 'org', title: word('Org chart') }, { name: 'topology', title: 'Team Topologies' }] : [];
   },
   async layout(sized, _pins, previous) {
     return sized.graph.tree ? orgLayout(sized, previous) : topologyLayout(sized);

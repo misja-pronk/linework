@@ -1,0 +1,20 @@
+Web shop data mesh
+
+Data products, payments in detail: Payments in detail. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Payment provider settlements (Outside the mesh)
+- Finance (Domain)
+  - Payments (Source-aligned · v3.2.0 · Finance data)
+  - Revenue (Consumer-aligned · v1.2.0 · Finance data)
+  - settled payments (Data contract · v3.2.0 · restricted)
+
+Connections
+- Payment provider settlements connects to Payments.in:0.
+- Payments.out:settled-payments connects to Revenue and is linked with settled payments.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract

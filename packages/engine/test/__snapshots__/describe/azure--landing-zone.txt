@@ -1,0 +1,31 @@
+Azure landing zone
+
+Azure infrastructure diagram: Northwind · management groups, subscriptions and the policy assigned at each level (CAF / ALZ). 8 elements in 11 groups.
+
+Groups and elements
+- Tenant root group (northwind.onmicrosoft.com)
+  - Northwind (Allowed regions · Defender for Cloud · diagnostics to Log Analytics)
+    - Platform (Run by the platform team)
+      - Management (Nothing added here)
+        - sub-management (Log Analytics · Automation)
+      - Connectivity (DDoS protection on VNets)
+        - sub-connectivity (Hub VNet · firewall · DNS)
+      - Identity (No public IPs · VM backup)
+        - sub-identity (Domain controllers)
+    - Landing zones (Subnets need an NSG · no RDP/SSH from the internet · TLS 1.2)
+      - Corp (No public IPs · PaaS only through private endpoints)
+        - sub-erp-prd (Peered to the hub)
+        - sub-intranet-prd (Peered to the hub)
+      - Online (WAF in front of web apps)
+        - sub-webshop-prd (Front Door · WAF)
+    - Sandbox (No peering · no VPN or ExpressRoute)
+      - sub-sandbox-dev (Experiments)
+    - Decommissioned (No new resources)
+      - sub-crm-old (Retired 2026)
+
+Walkthrough
+1. The management group hierarchy of the Northwind landing zone, with a subscription per workload.
+2. Policy is inherited: The baseline at Northwind applies to every subscription; each level below only adds to it.
+3. Platform: Shared services in their own subscriptions, run by the platform team.
+4. Landing zones: Corp workloads are private and peered to the hub; Online workloads face the internet behind a WAF.
+5. Sandbox and decommissioned: Sandboxes cannot reach the corporate network; a retired subscription accepts no new resources.

@@ -1,95 +1,122 @@
-/* Cartography editor: the token layer, resets, base typography and what holds everywhere. Colours follow the
-   diagram theme tokens, so app and drawing feel like one thing. Each component's own styles are in the CSS
-   file next to it (imported there); the controls they share are in controls.css. */
+/* Cartography editor: the token layer, resets, base typography and what holds everywhere. The look is
+   "Map room": the editor is the table a map sheet lies on. Paper for the bars and panels, hairline rules,
+   small-capital plate labels, ink for everything that acts, and rust only for "this is selected" (the
+   colour the Survey look draws its own accent in, so the frame and the drawing read as one object).
+   Each component's own styles are in the CSS file next to it (imported there); the controls they share
+   are in controls.css. Every text token is at least 4.5:1 on the grounds it is used on, every border that
+   says "this is a control" at least 3:1 (test/contrast.test.ts checks the pairs). */
 
 /* ------------------------------------------------------------- tokens */
 
 :root {
-  --font: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --mono: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
-  --radius: 10px;
+  /* The Survey look's own pair: the same woff2 subsets the drawing embeds (fonts.ts registers them). */
+  --font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  /* Controls are cut square with a hint of a corner; plates (cards, dialogs) a little more. */
+  --radius: 2px;
+  --radius-plate: 4px;
+  /* Ink, not bounce: fades and slides ease out, nothing springs. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
 
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --editor-bg: #ffffff;
-  --canvas: #eef0f3;
-  --canvas-dot: #d5d9e0;
-  --border: #e3e6eb;
-  --border-strong: #cfd5dd;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --text-faint: #5f6a7d;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #ecebfd;
+  /* Map room: the table under everything, the paper of bars and panels, the white sheet. */
+  --table: #efebe2;
+  --paper: #f7f4ee;
+  --sheet: #ffffff;
+  /* rule: borders that say "this is a control" (3.3:1 on paper); rule2: separators that only order things. */
+  --rule: #8c8677;
+  --rule2: #d6cfc0;
+  --ink: #16212c;
+  --rust: #b5491b;
+  --hover: #ede8dd;
+  --graticule: rgb(140 134 119 / 0.16);
+
+  /* The names the components use, pointed at the palette above. */
+  --bg: var(--hover);
+  --surface: var(--paper);
+  --editor-bg: var(--sheet);
+  --canvas: var(--table);
+  --canvas-dot: var(--graticule);
+  --border: var(--rule2);
+  --border-strong: var(--rule);
+  --text: var(--ink);
+  --text-muted: #5a5346;
+  --text-faint: #6b6253;
+  /* The accent is the selection's: rust. What acts (the primary button, the active tool) is ink. */
+  --accent: var(--rust);
+  --accent-hover: #963c16;
+  --accent-soft: #f6e6dc;
   --accent-text: #ffffff;
-  --danger: #e11d48;
-  --warning: #d97706;
-  --success: #059669;
+  --danger: #b4323c;
+  --warning: #a67a12;
+  --success: #3d7938;
   /* The bright ones are for fills and icons; text takes these, 4.5:1 on every editor ground. */
-  --danger-ink: #be123c;
-  --warning-ink: #a34a08;
-  --success-ink: #047857;
-  --active-line: #f6f7fb;
-  --entry-band: #eef0ff;
-  --selection: #dcdafc;
-  --guide: #e8590c;
-  --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.08);
-  --shadow-sheet: 0 1px 3px rgb(15 23 42 / 0.08), 0 12px 40px rgb(15 23 42 / 0.1);
-  --overlay: rgb(15 23 42 / 0.28);
-  /* Counts on the tools (a proposal waiting, layers on). */
-  --count: #b45309;
-  --count-soft: #fdf3e2;
+  --danger-ink: #9b2834;
+  --warning-ink: #6f5510;
+  --success-ink: #2f6a2b;
+  --active-line: #faf8f3;
+  --entry-band: #f3eee4;
+  --selection: #f1ddd0;
+  /* Smart guides: the Survey sky ink, apart from the rust of the selection. */
+  --guide: #1e7495;
+  --shadow: 0 1px 0 var(--rule2), 0 10px 24px -14px rgb(40 34 22 / 0.3);
+  /* The sheet lies on the table with a second sheet under it: offset paper, not a blur. */
+  --shadow-sheet: 5px 5px 0 -1px var(--paper), 5px 5px 0 0 var(--rule2);
+  --overlay: rgb(22 33 44 / 0.3);
+  /* Counts on the tools (a proposal waiting, layers on): the Survey amber ink. */
+  --count: #6f5510;
+  --count-soft: #f3ead2;
   /* The same in both themes: text on a strong fill (the danger toast, a drop label on the accent), and the
      screen blanked while presenting. */
   --on-fill: #ffffff;
   --blank: #000000;
 
-  --syn-key: #4338ca;
-  --syn-string: #0f766e;
-  --syn-atom: #b45309;
-  --syn-comment: #5f6a7d;
-  --syn-punct: #656f81;
-  --syn-meta: #be185d;
+  /* YAML in the Survey inks. */
+  --syn-key: #2b4a6f;
+  --syn-string: #2a6b5c;
+  --syn-atom: #765d12;
+  --syn-comment: #6b6253;
+  --syn-punct: #6b6253;
+  --syn-meta: #9b2834;
 }
 
+/* Night chart: the table is survey-dark's canvas one step deeper; rules stay above 3:1. */
 :root[data-theme='dark'] {
-  --bg: #0b0f14;
-  --surface: #161b23;
-  --editor-bg: #10151c;
-  --canvas: #0b0f14;
-  --canvas-dot: #1f2630;
-  --border: #242b36;
-  --border-strong: #323b48;
-  --text: #e8ebf0;
-  --text-muted: #a3adbb;
-  --text-faint: #8691a3;
-  --accent: #8b85ff;
-  --accent-hover: #a29dff;
-  --accent-soft: #25244d;
-  --accent-text: #0b0f14;
-  --danger: #fb7185;
-  --warning: #fbbf24;
-  --success: #34d399;
-  --danger-ink: #fb7185;
-  --warning-ink: #fbbf24;
-  --success-ink: #34d399;
-  --active-line: #151b24;
-  --entry-band: #1c1f3d;
-  --selection: #2f2d66;
-  --guide: #ff8a4c;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.4);
-  --shadow-sheet: 0 0 0 1px #1d232d, 0 12px 40px rgb(0 0 0 / 0.5);
-  --overlay: rgb(0 0 0 / 0.55);
-  --count: #fbbf24;
-  --count-soft: #33270f;
+  --table: #0f1316;
+  --paper: #171c20;
+  --sheet: #13171b;
+  --rule: #6a737b;
+  --rule2: #2c343b;
+  --ink: #ece9e2;
+  --rust: #e8875a;
+  --hover: #20272c;
+  --graticule: rgb(148 156 164 / 0.09);
 
-  --syn-key: #a5a1ff;
-  --syn-string: #5eead4;
-  --syn-atom: #fbbf24;
-  --syn-comment: #8691a3;
-  --syn-punct: #7f8999;
-  --syn-meta: #f472b6;
+  --text-muted: #aeb4ba;
+  --text-faint: #949ca4;
+  --accent-hover: #f09d76;
+  --accent-soft: #3a2519;
+  --accent-text: #0f1316;
+  --danger: #e2727d;
+  --warning: #ebb13c;
+  --success: #94d78f;
+  --danger-ink: #ef8f98;
+  --warning-ink: #ebb13c;
+  --success-ink: #94d78f;
+  --active-line: #181d22;
+  --entry-band: #1d2329;
+  --selection: #4a2f22;
+  --guide: #5daabb;
+  --shadow: 0 1px 0 #0b0e10, 0 12px 28px -14px rgb(0 0 0 / 0.7);
+  --overlay: rgb(5 7 9 / 0.62);
+  --count: #ebb13c;
+  --count-soft: #33290f;
+
+  --syn-key: #a9c1dc;
+  --syn-string: #67dbd4;
+  --syn-atom: #ebb13c;
+  --syn-comment: #949ca4;
+  --syn-punct: #949ca4;
+  --syn-meta: #d1838d;
 }
 
 /* ------------------------------------------------------------- resets and base typography */
@@ -107,7 +134,7 @@ body {
   font-family: var(--font);
   font-size: 0.8125rem;
   color: var(--text);
-  background: var(--bg);
+  background: var(--paper);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -116,20 +143,36 @@ button {
   color: inherit;
 }
 kbd {
-  font-family: var(--font);
-  font-size: 0.6875rem;
+  font-family: var(--mono);
+  font-size: 0.65625rem;
+  font-weight: 500;
   color: var(--text-faint);
   border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 1px 5px;
-  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 0 4px;
+  background: var(--sheet);
 }
+code {
+  font-family: var(--mono);
+}
+/* Lucide geometry at 1.5 (icon.tsx): drawn bare in ink, like the diagram's own icons. */
 .icon {
   flex: none;
 }
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* A plate label: small capitals, tracked, the way a map names its parts. */
+.caps {
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.mono {
+  font-family: var(--mono);
 }
 
 /* ------------------------------------------------------------- everywhere */
@@ -156,10 +199,11 @@ kbd {
     opacity: 0;
   }
 }
+/* Panels and dialogs slide 8 px as they fade in. */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.99);
+    transform: translateY(8px);
   }
 }
 @media (prefers-reduced-motion: reduce) {

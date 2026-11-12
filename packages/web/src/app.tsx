@@ -3,10 +3,9 @@
 // editor's one undo history. The state lives in the hooks of app/, the panes are app/'s components;
 // this file puts them together.
 import './app.css';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PreviewControl, Selection } from './preview.tsx';
 import { useCraftPrefs } from './craft-actions.tsx';
-import { AddMenu } from './add-menu.tsx';
 import { forYourAi } from './ai/copy.ts';
 import { useConfirm } from './confirm.tsx';
 import { useLayers } from './layers-control.tsx';
@@ -28,21 +27,25 @@ import { pinActions } from './app/pins.ts';
 import { useEdits } from './app/edits.ts';
 import { useExports } from './app/exports.ts';
 import { buildCommands } from './app/commands.ts';
-import { canvasKeys, useGlobalKeys } from './app/key-handlers.ts';
+import { canvasKeys, OUTLINE_KEYS, useGlobalKeys } from './app/key-handlers.ts';
 import { kindLabel } from './app/names.ts';
 import { Topbar } from './app/topbar.tsx';
 import { FilesPane } from './app/files-pane.tsx';
 import { EditorPane } from './app/editor-pane.tsx';
 import { CanvasTools } from './app/canvas-tools.tsx';
 import { DrawingPane } from './app/drawing-pane.tsx';
+import { LeftPanel, openOnShapes } from './app/outline.tsx';
 import { inspected, SidePanel, useSidePanel } from './app/side-panel.tsx';
 import { StatusBar } from './app/status-bar.tsx';
 import { Dialogs } from './app/dialogs.tsx';
+import { useSession } from './app/session.ts';
+import { useSketching } from './app/sketching.ts';
+import { SessionEnd } from './session.tsx';
 
 export function App() {
   useUiLang();
   const prefs = usePrefs();
-  const { theme, view } = prefs;
+  const { view } = prefs;
   const toasts = useToasts();
   const { notify } = toasts;
   /** Questions before something is lost, in the app's own dialog (confirm.tsx). */
@@ -54,6 +57,12 @@ export function App() {
   const workspace = useWorkspace();
   const { ws } = workspace;
   const { load, docId, docFile, here } = useDocPlace(ws, doc);
+  /** Drawing live with people watching: only the sheet, on the light theme unless that is switched off. */
+  const session = useSession({ textNow, pins });
+  const theme: 'light' | 'dark' = session.sheetOnly && session.light ? 'light' : prefs.theme;
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme, prefs.theme]);
   const navState = useNavigationState(docId);
   const { viewName, stepNo, focusAsked } = navState;
   const side = useSidePanel();
@@ -98,16 +107,40 @@ export function App() {
   };
   const disk = useDiskSync({ ws, setWs: workspace.setWs, document: document_, notify, show: side.askWith, served: live.served });
   const pinning = pinActions({ drawing, pins, editor, previewControl, selection, notify, acted: prefs.acted });
-  const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.setView, focusDrawing, pinsToSave: pinning.pinsToSave });
+  const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.openView, focusDrawing, pinsToSave: pinning.pinsToSave });
   const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify });
-  const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, previewControl, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
+  const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
+  const endSession = () => {
+    session.end();
+    if (textNow() === session.start?.text) notify(t('Session ended: nothing changed'));
+  };
+  const sketching = useSketching({ drawing, selection: selState, pins: pinning, edits, previewControl, textNow, undo, notify, session: session.on, used: () => {} });
+  const toggleSession = () => {
+    if (session.on) return endSession();
+    session.begin();
+    setAdding(false);
+    focusDrawing();
+    // The sheet has the whole window now: the drawing fits it, once the panes have gone.
+    requestAnimationFrame(() => requestAnimationFrame(() => previewControl.current?.fit()));
+  };
   const nav = useNavigation({ state: navState, drawing, text, textNow, ws, doc, here, selection, notify, apply: pinning.apply, ready: edits.ready, undo, nodeName: edits.nodeName, openInFolder: files.openInFolder, pick: files.pick, dropModal });
+  /** The toolbar's tools in the editor and in a session alike (canvas-tools.tsx). */
+  const barCommon = {
+    hasType: !!type,
+    canGroup: selection.some((x) => x.kind === 'node'),
+    group: () => sketching.group(),
+    undo,
+    redo,
+    steps: nav.stepList.length,
+    step: drawn?.step,
+    stepBy: nav.stepBy,
+  };
 
   const { selNode, selGroup, selEdge } = inspected(drawing, selected, sel.pathOf);
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
-  /** One panel on the right, with tabs: the selection's properties, or Your AI. */
-  const sideOpen = side.asking || (side.inspector && hasProperties);
+  /** One panel on the right, with tabs: the selection's properties (the drawing's when nothing is selected), or Your AI. It stays open, so selecting never resizes the drawing. */
+  const sideOpen = side.asking || side.inspector;
   const paneWants = { width: prefs.windowWidth, folder: !!ws, view, editor: { width: prefs.split * prefs.windowWidth, folded: prefs.yamlFolded }, forceEditor: prefs.forceYaml, side: side.inspector || sideOpen };
   const panes = paneLayout({ ...paneWants, files: prefs.filesPref });
   /** The focused element as a screen reader says it: name, kind, and whether it is pinned or locked. */
@@ -140,35 +173,41 @@ export function App() {
     onSelect: (s) => sel.select(s),
   });
   const layers = layering.ui(drawn, comparing.active);
+  // The session's delta on the drawing: back in the editor once that comparison is closed.
+  const wasComparing = useRef(false);
+  useEffect(() => {
+    if (wasComparing.current && !comparing.active) session.setReview(false);
+    wasComparing.current = comparing.active;
+  }, [comparing.active]); // eslint-disable-line react-hooks/exhaustive-deps -- on the comparison closing only
 
-  /** A: the popup over the drawing, or in the builder view the shapes panel that is already open. */
-  const addShape = () => {
-    const search = view === 'visual' ? (document.querySelector('.shapes input') as HTMLInputElement | null) : null;
-    if (search) search.focus();
-    else setAdding((a) => !a);
-  };
-  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.setView });
-  const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect') });
+  /** A: the quick add over the drawing, in both views (the builder's shapes tab is for browsing). */
+  const addShape = () => setAdding((a) => !a);
+  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView, session: session.on, toggleSession });
+  const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect'), sketch: sketching.onKey });
+  const title = (result?.graph as { title?: string } | undefined)?.title || doc.name.replace(/\.ya?ml$/i, '');
   const commands = () =>
-    buildCommands({ drawing, selection, selected, select: sel.select, ws, doc, pins, view, setView: prefs.setView, setPref: prefs.setPref, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, asking: side.asking, toggleAsk: side.toggleAsk, copyForAi, viewName, files, exports, edits, pinning, nav, modals, craft, previewControl, undo, redo, more: { compare: comparing.commands, layers: layers.commands } });
+    buildCommands({ drawing, selection, selected, select: sel.select, ws, doc, pins, view, setView: prefs.openView, setPref: prefs.setPref, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, asking: side.asking, toggleAsk: side.toggleAsk, copyForAi, viewName, files, exports, edits, pinning, nav, modals, craft, previewControl, undo, redo, more: { compare: comparing.commands, layers: layers.commands } });
   const toggleTheme = () => prefs.setPref(theme === 'dark' ? 'light' : 'dark');
 
   return (
-    <div className="app" onDragOverCapture={files.onDragFiles} onDragLeaveCapture={files.onDragLeave} onDropCapture={files.onDropFiles}>
+    <div className={session.sheetOnly ? 'app in-session' : 'app'} onDragOverCapture={files.onDragFiles} onDragLeaveCapture={files.onDragLeave} onDropCapture={files.onDropFiles}>
       <Topbar
         ws={ws}
         remembered={workspace.remembered}
         doc={doc}
         dirty={document_.dirty}
         type={type}
-        view={view}
-        setView={prefs.setView}
+        yamlOpen={panes.editorMode === 'open'}
+        showYaml={prefs.showYaml}
+        showDrawing={prefs.showDrawing}
         theme={theme}
         toggleTheme={toggleTheme}
         openFolder={(dir) => void files.openFolder(dir)}
         onTypeGuide={() => (modals.setGuiding(true), setModal('templates'))}
         onNew={() => setModal('templates')}
         onCommands={() => setModal('palette')}
+        session={session.on}
+        toggleSession={toggleSession}
         notify={notify}
         exportMenu={{ exports, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, written: nav.written, hasPins: !!pins, onDescribe: () => modals.setDescribing(true), saveYaml: files.saveYaml, downloadYaml: files.downloadYaml }}
       />
@@ -195,9 +234,18 @@ export function App() {
           open={(p) => void files.openInFolder(ws!, p)}
         />
         {view === 'visual' && type && (
-          <aside className="shapes" aria-label={t('Shapes')}>
-            <AddMenu inline items={type.palette} onAdd={(item) => edits.add(item)} onClose={focusDrawing} />
-          </aside>
+          <LeftPanel
+            graph={drawn?.graph ?? result?.graph}
+            selection={selection}
+            select={(s) => sel.select(s)}
+            toggle={sel.toggle}
+            nodeName={edits.nodeName}
+            rename={(s) => previewControl.current?.rename(s)}
+            focusDrawing={focusDrawing}
+            onKey={(e) => onCanvasKey(e, OUTLINE_KEYS)}
+            items={type.palette}
+            onAdd={(item) => edits.add(item)}
+          />
         )}
         <EditorPane
           editor={editor}
@@ -215,6 +263,7 @@ export function App() {
           setSplit={prefs.setSplit}
           setYamlFolded={prefs.setYamlFolded}
           setForceYaml={prefs.setForceYaml}
+          onShapes={() => (openOnShapes(), prefs.setView('visual'))}
         />
         <DrawingPane
           drawing={drawing}
@@ -228,32 +277,44 @@ export function App() {
           onKeyDown={onCanvasKey}
           describe={describe}
           tools={
-            <CanvasTools
-              drawn={drawn}
-              hasType={!!type}
-              adding={adding}
-              addShape={addShape}
-              undo={undo}
-              redo={redo}
-              tidyLayout={pinning.tidyLayout}
-              canTidyAll={!!(vpins || drawing.drawnLayout?.held)}
-              tidyAll={pinning.tidyAll}
-              pickView={(name) => navState.setPicked({ doc: docId, name })}
-              layersButton={layers.button}
-              hasSelection={!!selection.length}
-              focusOn={nav.focusOn}
-              focusOnSelection={nav.focusOnSelection}
-              hasSteps={!!nav.stepList.length}
-              addStep={nav.addStepFromSelection}
-              present={nav.present}
-              asking={side.asking}
-              toggleAsk={side.toggleAsk}
-              proposal={!!live.proposal}
-              comparing={comparing.active}
-              toggleCompare={comparing.toggle}
-              zoomToSelection={() => previewControl.current?.zoomToSelection()}
-              craft={craft}
-            />
+            // After a session, while what changed is shown on the sheet alone: no tools.
+            session.sheetOnly && !session.on ? null : session.on ? (
+              <CanvasTools
+                {...barCommon}
+                addShape={() => {
+                  // Tab's add: a box connected from the selected one, else a first one; the keys stay on the drawing.
+                  const one = selection.length === 1 ? selection[0] : undefined;
+                  if (one?.kind === 'node') sketching.tab(one.id);
+                  else sketching.first();
+                  focusDrawing();
+                }}
+                session={{ end: endSession }}
+              />
+            ) : (
+              <CanvasTools
+                {...barCommon}
+                addShape={addShape}
+                drawn={drawn}
+                adding={adding}
+                tidyLayout={pinning.tidyLayout}
+                canTidyAll={!!(vpins || drawing.drawnLayout?.held)}
+                tidyAll={pinning.tidyAll}
+                pickView={(name) => navState.setPicked({ doc: docId, name })}
+                layersButton={layers.button}
+                hasSelection={!!selection.length}
+                focusOn={nav.focusOn}
+                focusOnSelection={nav.focusOnSelection}
+                addStep={nav.addStepFromSelection}
+                present={nav.present}
+                asking={side.asking}
+                toggleAsk={side.toggleAsk}
+                proposal={!!live.proposal}
+                comparing={comparing.active}
+                toggleCompare={comparing.toggle}
+                zoomToSelection={() => previewControl.current?.zoomToSelection()}
+                craft={craft}
+              />
+            )
           }
           layersChip={layers.chip}
           focusOff={focusAsked === null && !!drawn?.focusWritten}
@@ -268,6 +329,9 @@ export function App() {
           naming={navState.naming}
           onNamed={() => navState.setNaming(undefined)}
           notify={notify}
+          sketching={sketching}
+          sheetOnly={session.sheetOnly}
+          session={session.on ? { title, hint: session.hint, connect: () => setModal('connect') } : undefined}
         />
         {sideOpen && (
           <SidePanel
@@ -303,6 +367,7 @@ export function App() {
         warnings={drawing.warnings}
         ms={rendered?.ms}
         graph={result?.graph}
+        typeId={type?.id}
         pinCount={drawing.pinCount}
         selection={selection}
         selected={selected}
@@ -332,7 +397,24 @@ export function App() {
         editor={editor}
         dropping={files.dropping}
       />
-      {toasts.toast && <Toast key={toasts.toast.message} toast={toasts.toast} onDone={toasts.clear} />}
+      {session.ended && (
+        <SessionEnd
+          before={{ text: session.ended.text, ...(session.ended.pins ? { pins: session.ended.pins } : {}) }}
+          after={{ text: session.ended.text2, ...(session.ended.pins2 ? { pins: session.ended.pins2 } : {}) }}
+          {...(load ? { load } : {})}
+          title={title}
+          notify={notify}
+          onClose={() => (session.dismiss(), focusDrawing())}
+          onShow={() => {
+            const e = session.ended!;
+            session.dismiss();
+            session.setReview(true);
+            comparing.compareWith({ id: 'session', kind: 'snapshot', name: t('the start of the session'), text: e.text, ...(e.pins ? { sidecar: e.pins } : {}) });
+          }}
+        />
+      )}
+      {/* Keyed on the quick add too: it opening docks the toast again, under it. */}
+      {toasts.toast && <Toast key={`${toasts.toast.message}${adding ? ' +add' : ''}`} toast={toasts.toast} onDone={toasts.clear} />}
     </div>
   );
 }

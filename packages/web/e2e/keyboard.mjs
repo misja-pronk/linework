@@ -25,6 +25,8 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
+  // The YAML starts folded to its rail; these steps type in it.
+  localStorage.setItem('cartography:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');

@@ -1,4 +1,48 @@
 type: gitflow
-title: GitHub Flow with environments
-subtitle: Every pull request gets a preview; every merge to main ships
-preset: github-flow
+title: GitHub flow with environments
+subtitle: "Northwind Orders API: short-lived branches into main, every merge to dev and test, a tagged release to production"
+
+# The branches behind process/pull-request.yaml and process/release-to-production.yaml:
+# one long-lived branch (main), everything else lives for a pull request and is deleted on merge.
+# Branches need no declaring: the prefix (feature/, fix/, dependabot/) gives the colour and lane.
+
+# A track under the branches: where each commit was deployed.
+environments: [dev, test, production]
+
+# The history, oldest first. A branch starts on its first commit, from main.
+steps:
+  - commit: main
+    label: Release 1.3
+    tag: v1.3.0
+    deploy: production
+
+  # Two pull requests at the same time, each on its own branch.
+  - commit: feature/order-export
+    label: Export endpoint
+  - commit: fix/vat-rounding
+    label: Round VAT per line
+  - commit: feature/order-export
+    label: Fix lint
+    note: Checks red, then green
+  - merge: fix/vat-rounding -> main
+    note: Squash merge
+    deploy: [dev, test]
+  - commit: feature/order-export
+    label: Review fixes
+    note: Changes requested
+  - merge: feature/order-export -> main
+    note: Approved
+    deploy: [dev, test]
+  - commit: dependabot/azure-identity
+    label: Bump Azure.Identity
+  - merge: dependabot/azure-identity -> main
+    deploy: [dev, test]
+
+  # The release: a tested commit on main gets a tag, and the production
+  # environment waits for an approver before it deploys.
+  - tag: v1.4.0
+    on: main
+  - note: Approval gate
+    on: main
+  - deploy: production
+    on: main

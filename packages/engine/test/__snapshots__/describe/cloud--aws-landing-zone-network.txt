@@ -1,0 +1,33 @@
+AWS landing zone network
+
+AWS and Google Cloud diagram: How the workload accounts reach the internet and the data centre. 8 elements in 7 groups, with 7 connections.
+
+Groups and elements
+- Data centre (On-premises · 172.16.0.0/16)
+  - Core router
+- Network (444444444444)
+  - Direct Connect (1 Gbps)
+  - Transit gateway
+  - Egress (VPC · 10.0.0.0/22)
+    - Inspection (Network Firewall)
+    - Central egress (NAT gateway)
+- shop-prod (555555555555)
+  - vpc-prod (VPC · 10.10.0.0/16)
+    - Web shop (EKS)
+- Internet
+- shop-dev (666666666666)
+  - vpc-dev (VPC · 10.20.0.0/16)
+    - Web shop (dev) (EKS)
+
+Connections
+- Core router connects to Direct Connect (VPN / interconnect: BGP).
+- vpc-prod connects to Transit gateway (Private network: attachment).
+- Transit gateway connects to Direct Connect (VPN / interconnect) and connects to Inspection (Private network: 0.0.0.0/0).
+- Inspection connects to Central egress (Private network).
+- Central egress sends traffic to Internet.
+- vpc-dev connects to Transit gateway (Private network).
+
+Key
+- Solid sky line: Public traffic
+- Dashed teal line: Private network
+- Dashed orange line with beads: VPN / interconnect

@@ -103,9 +103,8 @@ Only a chat window? **Copy for your AI** (command palette, or the Your AI panel)
 diagram, its type's JSON Schema and short instructions. Paste it into any chat, say what to change,
 and paste the YAML it answers back into the editor.
 
-For a new diagram, the start dialog's **Your AI** asks a few questions about what to draw, copies
-them as a prompt with the schema and an example, and takes the answer back: paste it, see it drawn,
-open it.
+For a new diagram, open the template or example closest to it from the start dialog (*New*) and copy
+that for your AI: the example shows it the style, and its answer replaces the drawing.
 
 ## From other tools
 

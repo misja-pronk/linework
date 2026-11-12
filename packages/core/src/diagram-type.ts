@@ -44,9 +44,16 @@ export interface DiagramType<Source = any> {
    * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
    * and the editor's view picker choose one; build gets it as the source's `view`. `table`: the view is
    * not elements and lines, so a focus asked for is drawn in the first view instead. `default`: the one
-   * drawn when none is asked for (else the first); the file's subtitle is about that one.
+   * drawn when none is asked for (else the first); the file's subtitle is about that one. `scroll`:
+   * the view is read scrolling, too long for one slide (a whole sequence), and is presented by the
+   * other views (its phases): `carto validate` checks those for slides, and only hints at this one.
+   * `hidden`: drawn when asked for by name (`view:` or `--view`), not offered in the picker or checked
+   * view by view. `part`: the view draws only a part of the source (one domain), so the steps written
+   * for the whole are not told in it. `steady`: the view is drawn in the source's direction (the type's
+   * default when it has none), never turned for its shape: one data product reads from left to right.
+   * A title is put in the drawing's language with `word` (see Word); without it, in English.
    */
-  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean }[];
+  views?(source: Source, word?: Word): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean; hidden?: boolean; part?: boolean; steady?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */
@@ -108,6 +115,22 @@ export interface Reference {
   among?: number;
 }
 
+/**
+ * A text the type writes itself, in the drawing's language: word('Overview'), or a pattern with
+ * placeholders, word('{name} in detail', { name }). What fills a placeholder (a name the author
+ * wrote) stays as written. 'one|many' picks a form by {count}; a word that means something else
+ * elsewhere carries a context mark, word('public@exposure'), left out of the English. The Dutch is in
+ * the terms of @cartography/i18n.
+ */
+export type Word = (english: string, params?: Record<string, string>) => string;
+
+/** A Word that keeps the English: the placeholders filled, nothing translated; 'one|many' picks by {count}. */
+export const english: Word = (text, params) => {
+  const forms = text.replace(/@[\w-]+$/, '').split('|');
+  const one = forms.length > 1 && Number(params?.count) === 1;
+  return forms[one ? 0 : forms.length - 1]!.replace(/\{(\w+)\}/g, (m, k: string) => params?.[k] ?? m);
+};
+
 export interface BuildContext {
   error(path: Path, message: string): void;
   warn(path: Path, message: string): void;
@@ -121,6 +144,8 @@ export interface BuildContext {
   model?: ModelContext;
   /** The diagram's `lang:`: the words the type adds itself (a key label it puts together) in that language. */
   lang?: Lang;
+  /** The words the type writes itself (a section heading, a count), in the drawing's language: as views() gets them. Absent: English. */
+  word?: Word;
 }
 
 export interface PaletteItem {

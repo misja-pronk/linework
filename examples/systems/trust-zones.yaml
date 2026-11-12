@@ -7,7 +7,8 @@ groups:
   edge: { kind: zone, label: Edge (DMZ), trust: true }
   app: { kind: zone, label: Application zone, trust: true }
   data: { kind: zone, label: Data zone, in: app, trust: true }
-  psp: { kind: trust-boundary, label: Payment provider }
+  # The payment provider, named by its name: a shorter header keeps the drawing slide-wide.
+  psp: { kind: trust-boundary, label: Stripe }
 
 nodes:
   shopper: { kind: users, label: Shopper, in: internet }
@@ -19,7 +20,7 @@ nodes:
   backoffice: { kind: service, label: Back office, in: app }
   db: { kind: database, label: Orders DB, in: data }
   sessions: { kind: cache, label: Session cache, in: data }
-  stripe: { kind: payments, label: Stripe, in: psp }
+  stripe: { kind: payments, label: Card payments, in: psp }
 
 edges:
   - shopper -> cdn: HTTPS

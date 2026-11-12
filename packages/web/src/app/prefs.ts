@@ -6,6 +6,12 @@ import { store } from '../store.ts';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
+/** How many visits show the first-visit hint before it has done its job (as the sketch hint does sessions). */
+export const HINT_VISITS = 3;
+/** This visit's number, counted once when the editor loads. */
+const VISIT = (store.get<number>('visits') ?? 0) + 1;
+store.set('visits', VISIT);
+
 function useSystemDark() {
   const q = useMemo(() => window.matchMedia('(prefers-color-scheme: dark)'), []);
   const [dark, setDark] = useState(q.matches);
@@ -45,8 +51,8 @@ export function usePrefs() {
     setViewState(v);
     store.set('view', v);
   };
-  /** The first-visit hint, until it is dismissed once. */
-  const [hint, setHint] = useState(() => !store.get('hinted'));
+  /** The first-visit hint, in the first few visits only, until it is dismissed once. */
+  const [hint, setHint] = useState(() => !store.get('hinted') && VISIT <= HINT_VISITS);
   const dismissHint = () => {
     setHint(false);
     store.set('hinted', true);
@@ -57,11 +63,18 @@ export function usePrefs() {
   /** The file list and the YAML as people left them: open, or folded to a rail (pane-layout.ts). */
   const [filesPref, setFilesPrefState] = useState<'list' | 'rail'>(() => (store.get('files') === 'rail' ? 'rail' : 'list'));
   const setFilesPref = (v: 'list' | 'rail') => (setFilesPrefState(v), store.set('files', v));
-  const [yamlFolded, setYamlFoldedState] = useState(() => store.get<boolean>('yaml-folded') === true);
+  // The YAML stays out of sight until it is opened: folded to its rail unless people left it open.
+  const [yamlFolded, setYamlFoldedState] = useState(() => store.get<boolean>('yaml-folded') !== false);
   const setYamlFolded = (v: boolean) => (setYamlFoldedState(v), store.set('yaml-folded', v), setForceYaml(false));
   /** The YAML opened from its rail although there is no room: it stays open until folded again. */
   const [forceYaml, setForceYaml] = useState(false);
   const windowWidth = useWindowWidth();
+  /** The YAML tab: the YAML beside the drawing, open even when the window is narrow (asked for on purpose). */
+  const showYaml = () => (setView('code'), setYamlFolded(false), setForceYaml(true));
+  /** The Drawing tab: the YAML folds to its rail (the builder's shapes stay where they are). */
+  const showDrawing = () => view === 'code' && setYamlFolded(true);
+  /** A way of working asked for (⌘\\, a command, the start dialog's YAML): the YAML way shows the YAML. */
+  const openView = (v: View) => (v === 'code' ? showYaml() : setView(v));
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -69,6 +82,6 @@ export function usePrefs() {
   useEffect(() => store.set('theme', pref), [pref]);
   useEffect(() => store.set('split', split), [split]);
 
-  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, windowWidth };
+  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
 }
 export type Prefs = ReturnType<typeof usePrefs>;

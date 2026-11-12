@@ -12,17 +12,17 @@ nodes:
   Check credit: { in: finance, kind: service }
   Confirm order: { in: sales, kind: user }
   Ask for prepayment: sales
-  Pick and pack: { in: warehouse, kind: manual }
-  Ship goods: warehouse
+  Pick, pack and ship: { in: warehouse, kind: manual }
   Send invoice: { in: finance, kind: service }
   Invoice: document
   Payment term: { kind: timer, label: 30 days }
   Send reminder: { in: finance, kind: service }
   Book payment: finance
-  Order closed: end
 
+# Picking, packing and shipping are one warehouse step and booking the payment ends the process,
+# so the whole order fits on one slide.
 flow:
-  - Order received -> Check credit -> Credit ok? -yes-> Confirm order -> Pick and pack -> Ship goods -> Send invoice -> Payment term -> Paid? -yes-> Book payment -> Order closed
+  - Order received -> Check credit -> Credit ok? -yes-> Confirm order -> Pick, pack and ship -> Send invoice -> Payment term -> Paid? -yes-> Book payment
   - Credit ok? -no-> Ask for prepayment -> Confirm order
   - Paid? -no-> Send reminder -> Payment term
   - Send invoice -> Invoice

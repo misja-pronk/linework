@@ -26,6 +26,8 @@ export type KeyContext =
   | 'present'
   /** Comparing versions: these keys before the editor's. */
   | 'compare'
+  /** In a session, the drawing has focus: typing names, Tab and Enter add. */
+  | 'session'
   /** Mouse and trackpad: on the sheet, no key to press. */
   | 'mouse';
 
@@ -55,9 +57,11 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'next-pane', keys: ['f6', 'shift+f6'], what: 'Next / previous pane: YAML, drawing, properties', context: 'anywhere', group: 'Anywhere' },
   { id: 'sheet', keys: ['?'], what: 'This sheet', context: 'not-typing', group: 'Anywhere' },
   { id: 'present', keys: ['p', 'mod+enter'], what: 'Present full screen (not while typing)', context: 'not-typing', group: 'Anywhere' },
+  { id: 'session', keys: ['shift+s'], what: 'Session: only the sheet, to draw live with people watching (End session leaves)', context: 'not-typing', group: 'Anywhere' },
 
   // ------------------------------------------------------------ the drawing
   { id: 'add', keys: ['a'], what: 'Add a shape', context: 'drawing', group: 'Drawing' },
+  { id: 'group', keys: ['mod+g'], what: 'Put the selected boxes in a new group', context: 'drawing', group: 'Drawing' }, // in a session too (sketching.ts)
   { id: 'connect', keys: ['c'], what: 'Connect the selected element to…', context: 'drawing', group: 'Drawing' },
   { id: 'cycle', keys: ['tab', 'shift+tab'], what: 'Next / previous element', context: 'drawing', group: 'Drawing' },
   { id: 'nearest', keys: ['alt+arrowleft', 'alt+arrowup', 'alt+arrowright', 'alt+arrowdown'], show: '⌥ ← ↑ → ↓', what: 'Nearest element in that direction', context: 'drawing', group: 'Drawing' },
@@ -68,6 +72,8 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'paste', keys: ['mod+v'], what: 'Paste', context: 'drawing', group: 'Drawing' },
   { id: 'select-all', keys: ['mod+a'], what: 'Select every shape', context: 'drawing', group: 'Drawing' },
   { id: 'edit', keys: ['enter', 'f2'], show: '↵ / F2 / double-click', what: 'Edit the selected element (↵ saves, Esc returns)', context: 'drawing', group: 'Drawing' },
+  { id: 'name-next', keys: [], show: 'Tab while naming', what: 'Keep the name and add a box connected from it, named next', context: 'drawing', group: 'Drawing' },
+  { id: 'name-kind', keys: [], show: 'fw: name', what: 'While naming: a kind first picks the kind (↑ ↓ in the list)', context: 'drawing', group: 'Drawing' },
   { id: 'escape', keys: ['escape'], what: 'Deselect; with nothing selected, leave the focus; cancel a drag', context: 'drawing', group: 'Drawing' },
   { id: 'undo', keys: ['mod+z'], what: 'Undo (text, edits and moves)', context: 'drawing', group: 'Drawing' },
   { id: 'redo', keys: ['mod+shift+z', 'mod+y'], what: 'Redo', context: 'drawing', group: 'Drawing' },
@@ -129,6 +135,18 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'present-links', keys: ['tab', 'shift+tab'], show: 'Tab ↵ / ⌘-click', what: 'Follow a link (⌫ comes back)', context: 'present', group: 'Presenting' },
   { id: 'present-back', keys: ['backspace'], what: 'Back from a link', context: 'present', group: 'Presenting' },
   { id: 'present-stop', keys: ['escape'], what: 'Stop', context: 'present', group: 'Presenting' },
+
+  // ------------------------------------------------------------ a session
+  { id: 'session-type', keys: [], show: 'Type a name', what: 'Rename the selected box; with nothing selected, a first box', context: 'session', group: 'Session' },
+  { id: 'session-tab', keys: ['tab'], what: 'Add a box connected from the selected one, and name it', context: 'session', group: 'Session' },
+  { id: 'session-enter', keys: ['enter'], what: 'Add a sibling: in the same group, connected from the same box', context: 'session', group: 'Session' },
+  { id: 'session-back', keys: ['shift+tab'], what: 'Back to the box this one is connected from', context: 'session', group: 'Session' },
+  { id: 'session-nearest', keys: ['arrowleft', 'arrowup', 'arrowright', 'arrowdown'], show: '← ↑ → ↓', what: 'Nearest box in that direction', context: 'session', group: 'Session' },
+  { id: 'session-rename', keys: ['f2'], show: 'F2 / double-click', what: 'Rename', context: 'session', group: 'Session' },
+  { id: 'session-zoom', keys: [], show: '⇧1 / ⇧2', what: 'Zoom to fit / to the selection (while naming a box, they are typed)', context: 'session', group: 'Session' },
+  { id: 'session-delete', keys: ['backspace', 'delete'], what: 'Delete the selected boxes', context: 'session', group: 'Session' },
+  { id: 'session-undo', keys: ['mod+z'], what: 'Undo; Esc while naming a new box takes it away', context: 'session', group: 'Session' },
+  { id: 'session-escape', keys: ['escape'], what: 'Close a menu, deselect, or cancel a name; with nothing selected, to End session (↵ ends it)', context: 'session', group: 'Session' },
 
   // ------------------------------------------------------------ comparing
   { id: 'compare', keys: ['mod+shift+d'], what: 'Compare with last saved, a snapshot, another file or a commit', context: 'drawing', group: 'Comparing versions' },
@@ -260,4 +278,5 @@ export const TOGETHER: Record<string, KeyContext[]> = {
   'step chip': ['anywhere', 'not-typing', 'step-chip'],
   present: ['present'],
   compare: ['anywhere', 'compare'],
+  session: ['anywhere', 'session'],
 };

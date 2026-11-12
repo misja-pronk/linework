@@ -1,7 +1,7 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And an SVG that Office takes whole.
-import { render, SLIDE_MIN_PT, themes } from '@cartography/engine';
+import { render, SLIDE_MIN_PT, themes, type RenderResult } from '@cartography/engine';
 import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
 import type { FamilyBytes, SlideText } from '@cartography/export';
 import { iconOptions } from './icon-packs.ts';
@@ -27,6 +27,12 @@ export interface ExportInput {
   layers?: string[];
   layerMode?: 'only' | 'dim';
 }
+
+/**
+ * The views a drawing read scrolling (a whole sequence) is presented by, on slides and pages: its
+ * type's other views (the phases). None for any other drawing.
+ */
+export const presentedBy = (r: Pick<RenderResult, 'scroll' | 'views' | 'view' | 'asWritten'>) => (r.scroll ? (r.views ?? []).filter((v) => v.name !== (r.view ?? r.asWritten?.name)) : []);
 
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
@@ -110,17 +116,29 @@ export interface PptxTemplateInput {
   read?(path: string): Promise<Uint8Array | undefined>;
 }
 
-export async function exportPptx(input: ExportInput, name?: string, template?: PptxTemplateInput): Promise<{ blob: Blob; small: SlideText[]; warnings: string[] }> {
+export interface PptxOptions extends PptxTemplateInput {
+  /** Leave out the drawing on screen when it is read scrolling (a whole sequence): only the views that present it. */
+  withoutScroll?: boolean;
+}
+
+/**
+ * `scroll`: the drawing on screen is read scrolling (a whole sequence), and is slide 1 of `slides`;
+ * the views after it present it (its phases), so its text is not counted in `small`.
+ */
+export async function exportPptx(input: ExportInput, name?: string, template?: PptxOptions): Promise<{ blob: Blob; small: SlideText[]; warnings: string[]; scroll?: { slides: number; by: string[] } }> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error(t('Nothing to export: fix the problems first'));
-  const others = (r.views ?? []).filter((v) => v.name !== r.view);
+  // The drawing as written is one of the type's own views (data products: the one in `view:`): one slide for both.
+  const others = (r.views ?? []).filter((v) => v.name !== (r.view ?? r.asWritten?.name));
+  const by = presentedBy(r);
   // The other views as they are drawn from scratch (with their own pins): only the one on screen has a drawing before it.
   const rest = await Promise.all(others.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })));
   // Then a slide per layer of the drawing on screen (its steps are told on the slides before), all but the one on screen.
   const shown = r.layers?.active.join('+');
   const layered = await Promise.all((r.layers?.list ?? []).filter((l) => l.name !== shown).map((l) => render(input.text, { ...options(input), layers: [l.name], layerMode: undefined, previous: undefined, step: undefined, fonts: 'none' })));
   const layerSlides = layered.filter((x) => x.graph && x.placed && !x.empty && x.layers?.kept).map((x) => ({ ...x, steps: undefined }));
-  const drawings = [r, ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name }));
+  const shownFirst = !(template?.withoutScroll && by.length);
+  const drawings = [...(shownFirst ? [r] : []), ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name }));
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
@@ -130,14 +148,22 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   const warnings: string[] = [];
   if (named && !bytes) warnings.push(t('the theme makes decks in {template}, which is not in the open folder: made without it', { template: named.template }));
   const inTemplate = bytes ? { template: bytes, keepLook: template?.bytes ? !!template.keepLook : !!named?.keepLook, ...(!template?.bytes && named?.layout ? { layout: named.layout } : {}) } : {};
-  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.smallestPt < SLIDE_MIN_PT && small.push(t), onWarning: (w: string) => warnings.push(w), ...inTemplate });
-  return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings };
+  // The drawing on screen comes first, a slide per step it is told in.
+  const scrollSlides = by.length && shownFirst ? Math.max(1, r.stepsImplied ? 0 : (r.steps?.length ?? 0)) : 0;
+  const data = await toPptx(drawings, { theme: r.theme ?? input.theme, rasterize, aspect, onSlide: (t) => t.slide > scrollSlides && t.smallestPt < SLIDE_MIN_PT && small.push(t), onWarning: (w: string) => warnings.push(w), ...inTemplate });
+  return { blob: new Blob([data as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), small, warnings, ...(scrollSlides ? { scroll: { slides: scrollSlides, by: by.map((v) => v.title ?? v.name) } } : {}) };
 }
 
-/** Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own faces embedded. */
-export async function exportPdf(input: ExportInput, name?: string): Promise<Blob> {
+/**
+ * Vector PDF, one page fitted to the drawing (one per step when it has steps), with the theme's own
+ * faces embedded. A drawing read scrolling (a whole sequence) is followed by a page per view that
+ * presents it (its phases), or with `withoutScroll` only those.
+ */
+export async function exportPdf(input: ExportInput, name?: string, opts: { withoutScroll?: boolean } = {}): Promise<Blob> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error(t('Nothing to export: fix the problems first'));
+  const by = presentedBy(r);
+  const rest = (await Promise.all(by.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })))).filter((x) => x.graph && x.placed && !x.empty);
   const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
   const bytes = async (u: URL) => new Uint8Array(await (await fetch(u)).arrayBuffer());
@@ -149,7 +175,8 @@ export async function exportPdf(input: ExportInput, name?: string): Promise<Blob
   }
   // On the drawing's page (a 16:9 slide unless aspect: says otherwise), 1 px = 0.75 pt.
   const page = r.page ? { width: r.page.width * 0.75, height: r.page.height * 0.75 } : undefined;
-  const data = await toPdf({ ...r, name }, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
+  const drawings = [...(opts.withoutScroll && rest.length ? [] : [r]), ...rest].map((x) => ({ ...x, name }));
+  const data = await toPdf(drawings, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }
 

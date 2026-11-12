@@ -54,6 +54,7 @@ export const nl = {
   // Files
   error: 'fout',
   warning: 'waarschuwing',
+  hint: 'tip',
   file: 'bestand',
   that: 'dat',
   '{file}: no such file or folder': '{file}: bestand of map bestaat niet',
@@ -229,12 +230,16 @@ export const nlHelp: Record<string, string> = {
                                                 reist mee in het #fragment van de link, nooit naar een server (standaard
                                                 http://localhost:5178/)`,
   [`  carto validate <file.yaml…|folder>            check files (each diagram of a folder) and each of their views,
-                                                print problems
+                                                print problems; warns when the smallest text on its PowerPoint
+                                                slide (as carto render --format pptx makes it) is under 6 pt
+               [--template x.potx] [--layout name]  measure that on a slide of a PowerPoint template
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json`]:
     `  carto validate <file.yaml…|folder>            controleert bestanden (elk diagram van een map) en elk van hun
-                                                weergaven, toont problemen
+                                                weergaven, toont problemen; waarschuwt als de kleinste tekst op de
+                                                PowerPoint-dia (zoals carto render --format pptx die maakt) onder 6 pt is
+               [--template x.potx] [--layout name]  dat meten op een dia van een PowerPoint-sjabloon
                [--drift]                        ook falen als <file>.layout.json dingen (of weergaven) vastzet,
                                                 buigt of vergrendelt die niet meer in het diagram staan
                [--drift --fix]                  die regels uit <file>.layout.json halen`,

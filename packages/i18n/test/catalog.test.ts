@@ -36,6 +36,11 @@ describe('messages', () => {
     expect(term('nl', 'App Service · .NET 9')).toBe('App Service · .NET 9');
     expect(term('en', 'Users')).toBe('Users');
   });
+  it('translates a pattern whole, before the names are filled in', () => {
+    expect(format(term('nl', 'Heatmap: {scale}'), 'nl', { scale: term('nl', 'Maturity') })).toBe('Heatmap: Volwassenheid');
+    expect(format(term('nl', '{name} in detail'), 'nl', { name: 'Support' })).toBe('Support in detail');
+    expect(term('nl', 'Overview')).toBe('Overzicht');
+  });
 });
 
 describe('the drawing catalog', () => {
@@ -49,7 +54,8 @@ describe('the drawing catalog', () => {
   });
   it('has terms that some type or example still writes', () => {
     const src = sourceText(['types', 'packages/core/src', 'packages/render/src', 'packages/engine/src']);
-    const unused = Object.keys(terms).filter((k) => !src.includes(`'${k}'`) && !src.includes(`"${k}"`) && !src.includes(`${k}`));
+    // A backslash is written twice in a string literal ('Who \\ where').
+    const unused = Object.keys(terms).filter((k) => !src.includes(k) && !src.includes(k.replace(/\\/g, '\\\\')));
     expect(unused).toEqual([]);
   });
 });

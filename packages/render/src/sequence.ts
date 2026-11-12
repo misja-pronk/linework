@@ -4,7 +4,7 @@
 // owns its row, and a row is as tall as its wrapped label.
 import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
+import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { cardStroke, iconTile, numberMark, shadowAttr, esc } from './paint.ts';
 
@@ -109,6 +109,14 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const lanes = shape.participants;
   const lane = new Map(lanes.map((p, i) => [p.id, i]));
   const widths = lanes.map((p) => headerWidth(p, theme));
+  // The room a lane takes across: its header, or more where it is a box of its own whose name is wider.
+  const room = widths.map((w, i) => {
+    const b = lanes[i]!.box;
+    const box = b !== undefined && lanes.filter((p) => p.box === b).length === 1 ? shape.boxes.find((x) => x.id === b) : undefined;
+    if (!box) return w;
+    const lab = groupLabel(theme, box.label);
+    return Math.max(w, Math.ceil(measureText(lab.text, lab.size, 600, 'sans', lab.tracking)) + 28 - 2 * K.box.pad);
+  });
   const headerHeight = lanes.some((p) => p.caption) ? K.head.captioned : K.head.plain;
   const L = K.label;
 
@@ -207,7 +215,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const want = (m: Map<number, number>, l: number, v: number) => m.set(l, Math.max(m.get(l) ?? 0, v));
   for (let k = 0; k + 1 < lanes.length; k++)
     if ((lanes[k]!.box || lanes[k + 1]!.box) && lanes[k]!.box !== lanes[k + 1]!.box)
-      aparts.push({ a: k, b: k + 1, min: (widths[k]! + widths[k + 1]!) / 2 + K.gap + 2 * K.box.pad });
+      aparts.push({ a: k, b: k + 1, min: (room[k]! + room[k + 1]!) / 2 + K.gap + 2 * K.box.pad });
   const numberRoom = (ev: Ev<'message'>) => (ev.number !== undefined ? 2 * K.number + 6 : 0);
   for (const [r, row] of rows.entries()) {
     const ev = row.ev;
@@ -230,8 +238,47 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       if (ev.side === 'left' && a > 0) aparts.push({ a: a - 1, b: a, min: need });
     }
   }
-  const { centres } = spread(widths, K.gap, aparts);
+  let { centres } = spread(room, K.gap, aparts);
   const cx = (l: number) => centres[l]!;
+
+  // The clear gaps along a message between the lifelines it passes, each with the room a label has in
+  // it: the first from the sender, past its number, up to the bar or lifeline of the next lane.
+  const gapsOf = (r: number, ev: Ev<'message'>) => {
+    const a = lane.get(ev.from)!;
+    const b = lane.get(ev.to)!;
+    const dir = b > a ? 1 : -1;
+    const x1 = cx(a) + edgeOffset(a, r, dir as 1 | -1);
+    const x2 = cx(b) + edgeOffset(b, r, -dir as 1 | -1);
+    const start = x1 + dir * numberRoom(ev);
+    const out: { k: number; from: number; to: number; room: number }[] = [];
+    for (let k = a; k !== b; k += dir) {
+      const from = k === a ? start : cx(k) + dir * (Math.abs(edgeOffset(k, r, 1)) + K.bar);
+      const to = k + dir === b ? x2 : cx(k + dir) - dir * (Math.abs(edgeOffset(k + dir, r, 1)) + K.bar);
+      out.push({ k, from, to, room: Math.abs(to - from) - 24 });
+    }
+    return out;
+  };
+  // A message that passes an activation bar on its way: its label must not lie on that bar.
+  const passesBar = (r: number, ev: Ev<'message'>) => {
+    const a = lane.get(ev.from)!;
+    const b = lane.get(ev.to)!;
+    for (let k = Math.min(a, b) + 1; k < Math.max(a, b); k++) if (deepest(spans, track, k, r) >= 0) return true;
+    return false;
+  };
+  // Where such a label fits no gap, the gap with the most room already widens to hold it: the label
+  // reads on one line beside the bar instead of across it, at the least cost in width.
+  const misfits: Apart[] = [];
+  for (const [r, row] of rows.entries()) {
+    const ev = row.ev;
+    if (ev?.kind !== 'message' || ev.from === ev.to || !row.lines?.length || !passesBar(r, ev)) continue;
+    const text = widest(row.lines, L.size, 500);
+    const gaps = gapsOf(r, ev);
+    if (gaps.some((g) => g.room >= text)) continue;
+    const best = gaps.reduce((x, y) => (y.room > x.room ? y : x));
+    const dir = lane.get(ev.to)! > lane.get(ev.from)! ? 1 : -1;
+    misfits.push({ a: best.k, b: best.k + dir, min: Math.abs(cx(best.k + dir) - cx(best.k)) + text - best.room });
+  }
+  if (misfits.length) centres = spread(room, K.gap, [...aparts, ...misfits]).centres;
 
   // Labels were wrapped narrow to ask for room; where a gap turned out wider (another label asked
   // for more), use it: fewer lines, shorter rows. Notes over several lifelines wrap to their width.
@@ -240,8 +287,10 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     if (ev?.kind === 'message' && ev.from !== ev.to && ev.label) {
       const a = lane.get(ev.from)!;
       const b = lane.get(ev.to)!;
-      const room = Math.abs(cx(b) - cx(a)) - 32 - numberRoom(ev) - Math.abs(edgeOffset(a, r, 1)) - Math.abs(edgeOffset(b, r, 1));
-      if (room <= L.max) continue;
+      // A label beside a bar it passes keeps to the widest clear gap, narrower if it has to be.
+      const bar = passesBar(r, ev);
+      const room = bar ? Math.max(...gapsOf(r, ev).map((g) => g.room)) : Math.abs(cx(b) - cx(a)) - 32 - numberRoom(ev) - Math.abs(edgeOffset(a, r, 1)) - Math.abs(edgeOffset(b, r, 1));
+      if (room <= L.max && !(bar && widest(row.lines!, L.size, 500) > room && room >= L.max / 2)) continue;
       row.lines = wrapLines(ev.label, L.size, 500, Math.min(room, 2 * L.max));
       const text = row.lines.length * L.line + 6;
       row.size = 8 + text + 14;
@@ -290,16 +339,8 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
         const half = widest(lines, L.size, 500) / 2;
         // A label across several lifelines sits in the first gap from the sender that holds it, so it
         // does not lie on a lifeline or bar in between; centred over the whole line otherwise.
-        const start = x1 + dir * numberRoom(ev);
-        let mid = (start + x2) / 2;
-        for (let k = a; k !== b; k += dir) {
-          const from = k === a ? start : cx(k) + dir * (Math.abs(edgeOffset(k, r, 1)) + K.bar);
-          const to = k + dir === b ? x2 : cx(k + dir) - dir * (Math.abs(edgeOffset(k + dir, r, 1)) + K.bar);
-          if (Math.abs(to - from) - 24 >= 2 * half) {
-            mid = (from + to) / 2;
-            break;
-          }
-        }
+        const gap = gapsOf(r, ev).find((g) => g.room >= 2 * half);
+        const mid = gap ? (gap.from + gap.to) / 2 : (x1 + dir * numberRoom(ev) + x2) / 2;
         messages.push({ ev, y: at(r), x1, x2, mid, lines });
         // Frames hug the lifelines with room for the bars on them, not just the line ends.
         const reach = (l: number) => Math.abs(edgeOffset(l, r, 1)) + K.bar;
@@ -380,14 +421,14 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const boxes = shape.boxes.flatMap((b) => {
     const members = lanes.map((p, i) => (p.box === b.id ? i : -1)).filter((i) => i >= 0);
     if (!members.length) return [];
-    const x = Math.min(...members.map((i) => cx(i) - widths[i]! / 2)) - K.box.pad;
-    const x2 = Math.max(...members.map((i) => cx(i) + widths[i]! / 2)) + K.box.pad;
+    const x = Math.min(...members.map((i) => cx(i) - room[i]! / 2)) - K.box.pad;
+    const x2 = Math.max(...members.map((i) => cx(i) + room[i]! / 2)) + K.box.pad;
     return [{ box: { x, y: 0, width: x2 - x, height: height0 }, label: b.label, tone: b.tone }];
   });
 
   // Shift so the leftmost thing drawn sits at 0.
   const xs: [number, number][] = [
-    ...lanes.map((_, i) => [cx(i) - widths[i]! / 2, cx(i) + widths[i]! / 2] as [number, number]),
+    ...lanes.map((_, i) => [cx(i) - room[i]! / 2, cx(i) + room[i]! / 2] as [number, number]),
     ...boxes.map((b) => [b.box.x, b.box.x + b.box.width] as [number, number]),
     ...frames.map((f) => [f.box.x, f.box.x + f.box.width] as [number, number]),
     ...(extent.filter(Boolean) as [number, number][]),
@@ -454,24 +495,23 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   const limit = now ? now.y + (now.self?.h ?? 0) + 4 : Infinity;
   const out: string[] = [`<g transform="translate(${r1(at.x)} ${r1(at.y)})">`];
   const tone = (t: Tone) => theme.tones[t];
-  // Under the messages over a frame, over a note.
+  // Under the messages over a frame. A note lies on top of the box like a sticky note: its words stay clear.
   const sides: string[] = [];
-  const noteSides: string[] = [];
 
   for (const b of g.boxes) {
     const t = tone(b.tone);
     const line = groupLine(theme, t);
     const fill = groupFill(theme, 0, t);
     out.push(rect(b.box, theme.radius.group, `fill="${fill}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
-    // A frame or note that reaches past the box (it spans a participant outside it) lies over its
-    // side: the side is drawn again on top, so the box stays whole and the frame reads as crossing it.
+    // A frame that reaches past the box (it spans a participant outside it) lies over its side: the
+    // side is drawn again on top, so the box stays whole and the frame reads as crossing it.
     if (line)
-      for (const [o, onNote] of [...g.frames.map((f) => [f.box, false] as const), ...g.notes.map((n) => [n.box, true] as const)])
+      for (const o of g.frames.map((f) => f.box))
         for (const x of [b.box.x, b.box.x + b.box.width])
           if (o.x < x - 1 && o.x + o.width > x + 1 && o.y < b.box.y + b.box.height && o.y + o.height > b.box.y) {
             const y0 = Math.max(b.box.y + theme.radius.group, o.y);
             const y1 = Math.min(b.box.y + b.box.height - theme.radius.group, o.y + o.height);
-            if (y1 > y0) (onNote ? noteSides : sides).push(`<path d="M${r1(x)} ${r1(y0)}V${r1(y1)}" stroke="${line}" stroke-width="${theme.stroke.group}" fill="none"/>`);
+            if (y1 > y0) sides.push(`<path d="M${r1(x)} ${r1(y0)}V${r1(y1)}" stroke="${line}" stroke-width="${theme.stroke.group}" fill="none"/>`);
           }
     const lab = groupLabel(theme, b.label);
     const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
@@ -479,19 +519,34 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   }
 
   const fills = frameFills(g, theme);
-  // The colour under a point: the innermost frame there, else a box, else the page. Labels cut their halo in it.
+  // The colour under a point: the page, a box over it, the frames over that (outer first; a wash lies
+  // over what is under it). Labels and notes lie on a patch of it.
   const ground = (x: number, y: number): string => {
-    for (let i = g.frames.length - 1; i >= 0; i--) if (fills[i]!.solid && inside(g.frames[i]!.box, x, y)) return fills[i]!.fill;
-    if (look(theme).group.tints) for (const b of g.boxes) if (inside(b.box, x, y)) return groupFill(theme, 0, tone(b.tone));
-    return theme.canvas;
+    let c = theme.canvas;
+    for (const b of g.boxes) if (inside(b.box, x, y)) c = groupFill(theme, 0, tone(b.tone));
+    for (const [i, f] of g.frames.entries()) if (inside(f.box, x, y)) c = fills[i]!.solid ? fills[i]!.fill : mix(fills[i]!.fill, c, 0.7);
+    return c;
+  };
+  // A solid patch of that colour from x0 to x1, cut where a box or frame begins or ends, so a label
+  // over the side of a box hides the side (and any lifeline) without a patch of the wrong colour.
+  const edges = [...g.boxes.map((b) => b.box), ...g.frames.map((f) => f.box)].flatMap((b) => [b.x, b.x + b.width]);
+  const patch = (x0: number, x1: number, y0: number, y1: number): string => {
+    const cuts = [x0, ...edges.filter((e) => e > x0 && e < x1).sort((p, q) => p - q), x1];
+    const runs: { from: number; to: number; fill: string }[] = [];
+    for (let i = 0; i + 1 < cuts.length; i++) {
+      if (cuts[i + 1]! <= cuts[i]!) continue;
+      const fill = ground((cuts[i]! + cuts[i + 1]!) / 2, (y0 + y1) / 2);
+      const last = runs.at(-1);
+      if (last?.fill === fill) last.to = cuts[i + 1]!;
+      else runs.push({ from: cuts[i]!, to: cuts[i + 1]!, fill });
+    }
+    return runs.map((p) => `<rect x="${r1(p.from)}" y="${r1(y0)}" width="${r1(p.to - p.from)}" height="${r1(y1 - y0)}" fill="${p.fill}"/>`).join('');
   };
   for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrameBack(f, theme, fills[i]!));
 
   const [y1, y2] = g.lifeline;
   for (const h of g.headers)
     out.push(`<path d="M${r1(h.x)} ${r1(y1)}V${r1(y2)}" stroke="${theme.edge}" stroke-opacity="0.75" stroke-width="1.2" stroke-dasharray="1.5 4" stroke-linecap="round"/>`);
-
-  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
 
   for (const b of g.bars) {
     if (b.box.y > limit) continue;
@@ -500,11 +555,13 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     out.push(rect({ ...b.box, height: Math.min(b.box.height, limit - b.box.y + 6) }, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
   }
 
-  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  // A divider's name stays readable where an activation runs on through it; a box's side redrawn over a
+  // frame goes under the frame's tab and branch words.
+  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
   out.push(...sides);
-  for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, ground));
-  for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme));
-  out.push(...noteSides);
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, patch));
+  for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme, ground(n.box.x + n.box.width / 2, n.box.y + n.box.height / 2)));
   for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));
 
   for (const h of g.headers) {
@@ -628,10 +685,12 @@ function drawDivider(d: { y: number; label: string }, width: number, theme: Them
   );
 }
 
-function drawNote(b: Box, lines: string[], centred: boolean, theme: Theme): string {
+function drawNote(b: Box, lines: string[], centred: boolean, theme: Theme, back: string): string {
   const t = theme.tones.amber;
   const N = K.note;
-  let s = rect(b, Math.min(8, theme.radius.card), `fill="${t.bg}" fill-opacity="0.8" stroke="${t.line}" stroke-width="1"`);
+  // On a solid patch of what lies behind it, so the lifelines it covers do not run through its words.
+  let s = rect(b, Math.min(8, theme.radius.card), `fill="${back}"`);
+  s += rect(b, Math.min(8, theme.radius.card), `fill="${t.bg}" fill-opacity="0.8" stroke="${t.line}" stroke-width="1"`);
   const x = centred ? b.x + b.width / 2 : b.x + N.padX;
   for (const [i, l] of lines.entries()) s += text(x, b.y + N.padY + N.line * i + N.line / 2, l, N.size, 400, theme.text, centred ? 'middle' : undefined);
   return s;
@@ -660,7 +719,7 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
   return s + text(cx, cy, r.label, theme.size.label, 600, theme.text, 'middle');
 }
 
-function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) => string): string {
+function drawMessage(m: Message, theme: Theme, patch: (x0: number, x1: number, y0: number, y1: number) => string): string {
   const ev = m.ev;
   const L = K.label;
   const color = ev.arrow === 'async' ? theme.tones.violet.fg : ev.arrow === 'reply' ? theme.edge : theme.textMuted;
@@ -668,8 +727,14 @@ function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) =>
   const k = look(theme).line.dashScale ? Math.max(1, w / 1.4) : 1;
   const dash = ev.arrow === 'reply' ? ` stroke-dasharray="${r1(5 * k)} ${r1(4 * k)}"` : '';
   const stroke = `stroke="${color}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" fill="none"`;
-  // Words keep clear of what they cross with an outline in the colour of the ground they lie on.
-  const halo = (x: number, y: number) => ` stroke="${ground(x, y)}" stroke-width="4" stroke-linejoin="round" paint-order="stroke"`;
+  // Words lie on a patch of the ground under them, so no lifeline or box side runs through or between
+  // them: a real shape, which PNG and PowerPoint draw as the browser does (an outlined halo leaves the
+  // gaps between words open).
+  const backing = (x: number, cy: number, l: string, anchor: 'start' | 'middle') => {
+    const w = measureText(l, L.size, 500) + 2 * 4;
+    const x0 = anchor === 'middle' ? x - w / 2 : x - 4;
+    return patch(x0, x0 + w, cy - L.line / 2, cy + L.line / 2);
+  };
   let s = '';
   const num = ev.number !== undefined;
   if (m.self) {
@@ -684,7 +749,8 @@ function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) =>
       tx += 2 * K.number + 6;
     }
     const top = y + h / 2 - (m.lines.length * L.line) / 2;
-    for (const [i, l] of m.lines.entries()) s += text(tx, top + L.line * i + L.line / 2, l, L.size, 500, theme.text, undefined, halo(tx + 12, top + L.line * i + L.line / 2));
+    for (const [i, l] of m.lines.entries()) s += backing(tx, top + L.line * i + L.line / 2, l, 'start');
+    for (const [i, l] of m.lines.entries()) s += text(tx, top + L.line * i + L.line / 2, l, L.size, 500, theme.text);
     return s;
   }
   const dir = m.x2 > m.x1 ? 1 : -1;
@@ -695,7 +761,8 @@ function drawMessage(m: Message, theme: Theme, ground: (x: number, y: number) =>
   if (num) s += numberBadge(ev.number!, m.x1 + dir * (K.number + 2), m.y, theme);
   const mid = m.mid;
   const base = m.y - 6 - m.lines.length * L.line;
-  for (const [i, l] of m.lines.entries()) s += text(mid, base + L.line * i + L.line / 2, l, L.size, 500, theme.text, 'middle', halo(mid, base + L.line * i + L.line / 2));
+  for (const [i, l] of m.lines.entries()) s += backing(mid, base + L.line * i + L.line / 2, l, 'middle');
+  for (const [i, l] of m.lines.entries()) s += text(mid, base + L.line * i + L.line / 2, l, L.size, 500, theme.text, 'middle');
   return s;
 }
 

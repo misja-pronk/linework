@@ -253,8 +253,48 @@ const isPlural = (n: GraphNode | GraphGroup | undefined) => !!n && 'kind' in n &
 
 const PLURAL: Record<string, string> = { mounts: 'mount', moves: 'move', leads: 'lead', sends: 'send', calls: 'call', signs: 'sign', depends: 'depend', gets: 'get', connects: 'connect', is: 'are' };
 
+/**
+ * A line that says who may do what (an access diagram's, github's Member of, the azure type's Role
+ * assignment), by its kind: "is Contributor on rg-shop", "applies to sg-tier0-admins".
+ */
+function accessClause(e: GraphEdge, to: string, plural: boolean): string | undefined {
+  const label = clean(e.label);
+  const p = { to, label: label ?? '', over: label ? ` (${label})` : '', count: plural ? 2 : 1 };
+  switch ((e.kind ?? '').toLowerCase()) {
+    case 'holds':
+      return d('holds {to}|hold {to}', p);
+    case 'grants':
+      return d('grants {to}{over}|grant {to}{over}', p);
+    case 'member of':
+      return d('is a member of {to}|are members of {to}', p);
+    case 'owns':
+      return d('owns {to}|own {to}', p);
+    case 'service principal':
+      return d('has the service principal {to}|have the service principal {to}', p);
+    case 'federated credential of':
+      return d('is a federated credential of {to}|are federated credentials of {to}', p);
+    case 'role assignment':
+      return label ? d('is {label} on {to}|are {label} on {to}', p) : d('holds a role on {to}|hold a role on {to}', p);
+    case 'eligible':
+      return label ? d('is eligible for {label} on {to}|are eligible for {label} on {to}', p) : d('is eligible for a role on {to}|are eligible for a role on {to}', p);
+    case 'applies to':
+      return d('applies to {to}|apply to {to}', p);
+    case 'excludes':
+      return d('excludes {to}|exclude {to}', p);
+    case 'requires':
+      return d('requires {to}|require {to}', p);
+    case 'location condition':
+      return d('checks the location {to}|check the location {to}', p);
+    case 'covers':
+      return d('covers {to}|cover {to}', p);
+  }
+  return undefined;
+}
+
 /** One line as a clause after its source: "calls Orders API (REST)", "sends OrderPlaced to order-events". */
 function clause(e: GraphEdge, to: string, plural: boolean, flow: 'process' | 'states' | undefined): string {
+  const access = flow ? undefined : accessClause(e, to, plural);
+  if (access) return access;
   if (L !== 'en') return clauseSaid(e, to, plural, flow);
   const label = clean(e.label);
   const s = (verb: string) => (plural ? (PLURAL[verb] ?? verb) : verb);

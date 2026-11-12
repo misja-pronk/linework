@@ -32,6 +32,10 @@ export interface DotVariant {
   /** Hand dot the nodes and groups in reverse order: its first ordering follows the input. (Lines
    * keep their order: it decides which line of a cycle dot turns around.) */
   reverse?: boolean;
+  /** Keep each annex's column to it (annex.ts): what its table's other lines lead to stands after it. */
+  annex?: boolean;
+  /** Stand each annex in its table's column (annex.ts stacks it under the table), out of the way of the table's other lines. */
+  stack?: boolean;
 }
 
 /** Positions of nodes and groups; edges are routed separately. */
@@ -119,8 +123,20 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
     const one = near.filter(([, other]) => other === b).length === 1;
     if (one || loose.has(b)) lines.push(`  ${q(a)} -> ${q(b)} [style=invis, weight=${one ? 1 : 0}];`);
   }
+  // An annex (a contract on its table's row, see annex.ts) has its column to itself: what the
+  // table's other lines lead to stands after it, so those lines can run on under it.
+  for (const e of variant.stack ? graph.edges : []) {
+    if (!e.annex || groupIds.has(e.from.node) || groupIds.has(e.to.node)) continue;
+    lines.push(`  { rank=same; ${q(e.from.node)}; ${q(e.to.node)}; }`);
+  }
+  for (const e of variant.annex ? graph.edges : []) {
+    if (!e.annex || groupIds.has(e.from.node) || groupIds.has(e.to.node)) continue;
+    const after = new Set(graph.edges.filter((o) => !o.annex && !o.loose && o.from.node === e.from.node && o.to.node !== e.to.node && !groupIds.has(o.to.node) && !back.has(o.id)).map((o) => o.to.node));
+    for (const t of after) lines.push(`  ${q(e.to.node)} -> ${q(t)} [style=invis, weight=0];`);
+  }
   lines.push('}');
 
+  if (process.env.DOTDUMP && variant.stack) console.error(lines.join('\n'));
   const gv = await load();
   const out = JSON.parse(gv.layout(lines.join('\n'), 'json', 'dot', { yInvert: true })) as DotJson;
   const nodes = new Map<string, Box>();

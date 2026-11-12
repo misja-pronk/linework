@@ -1,0 +1,465 @@
+/* Session mode (session.tsx, app/session.ts) and sketching on the canvas: only the app's tokens, so a
+   new palette in styles.css carries over. Hairline rules, 2px corners, small-caps labels. */
+
+/* ------------------------------------------------------------ only the sheet */
+.app.in-session {
+  grid-template-rows: 1fr;
+}
+.app.in-session > .topbar,
+.app.in-session > .statusbar,
+.app.in-session > .pane-tabs,
+.app.in-session .workspace > :not(.canvas-pane),
+.app.in-session .canvas-top,
+.app.in-session .preview > .hint,
+.app.in-session .preview > .zoom,
+.app.in-session .canvas-pane > .steps-strip,
+.app.in-session .connect-handle {
+  display: none !important;
+}
+.app.in-session .workspace {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 1fr !important;
+}
+.app.in-session .workspace > .canvas-pane {
+  display: block !important;
+}
+/* The steps strip is not there: the sheet goes down to the window's edge, the toolbar with it. */
+.app.in-session .canvas-pane.with-steps .preview {
+  bottom: 0;
+}
+/* The sheet lies on a second sheet, offset a little further than in the editor. */
+.app.in-session .drawing {
+  box-shadow:
+    calc(6px * var(--inv, 1)) calc(6px * var(--inv, 1)) 0 calc(-1px * var(--inv, 1)) var(--paper),
+    calc(6px * var(--inv, 1)) calc(6px * var(--inv, 1)) 0 0 var(--rule2);
+}
+/* The selection shows where the keys go; a ring round the whole sheet would frame the shared screen. */
+.app.in-session .preview:focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------ along the top: what this is */
+.session-head {
+  position: absolute;
+  top: 20px;
+  left: 28px;
+  right: 28px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1;
+}
+.session-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.session-caps {
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+/* A rule between "Session" and the title; the " · " stays for screen readers and copied text. */
+.session-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--rule);
+  font-size: 0;
+  overflow: hidden;
+}
+.session-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the toolbar (canvas-tools.css), a size up for a shared screen */
+.app.in-session .zoom-room {
+  display: none;
+}
+.app.in-session .canvas-tools {
+  height: 44px;
+  padding: 0 6px;
+}
+.app.in-session .canvas-tools .tool {
+  height: 34px;
+  padding: 0 10px;
+  gap: 8px;
+  font-size: 0.84375rem;
+}
+.app.in-session .canvas-tools .tool:not(:disabled) .icon {
+  color: var(--text-muted);
+}
+.app.in-session .canvas-tools .tool:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.app.in-session .canvas-tools kbd,
+.session-keys kbd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.65625rem;
+  font-weight: 500;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--ink);
+  line-height: 1.3;
+}
+.session-gap {
+  flex: 1;
+  min-width: 12px;
+}
+.sel-menu > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84375rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sel-menu > button .icon {
+  color: var(--text-muted);
+}
+.sel-menu > button:hover,
+.sel-menu > button[aria-expanded='true'] {
+  background: var(--hover);
+}
+.sel-menu button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------ the menu at the selection (placed by SelectionFloats) */
+.sel-menu {
+  --point: 50%;
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  height: 34px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--rule2);
+  white-space: nowrap;
+  animation: fade 120ms ease-out;
+}
+.sel-menu > button {
+  height: 100%;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: 0;
+  font-size: 0.8125rem;
+}
+.sel-menu > button + button {
+  border-left: 1px solid var(--rule2);
+}
+.sel-menu > .sel-kind {
+  font-weight: 600;
+}
+.sel-menu > button[aria-label] .icon {
+  color: var(--ink);
+}
+/* A little pointer at the selection: under the menu when it is above it, on top when below. */
+.sel-menu::after {
+  content: '';
+  position: absolute;
+  left: var(--point);
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  transform: translateX(-50%) rotate(45deg);
+  pointer-events: none;
+}
+.sel-menu[data-side='below']::after {
+  bottom: auto;
+  top: -6px;
+  transform: translateX(-50%) rotate(225deg);
+}
+/* Beside the selection: the pointer on the menu's near edge, level with the selection's middle. */
+.sel-menu[data-side='right']::after,
+.sel-menu[data-side='left']::after {
+  top: var(--point);
+  bottom: auto;
+}
+.sel-menu[data-side='right']::after {
+  left: -6px;
+  transform: translateY(-50%) rotate(135deg);
+}
+.sel-menu[data-side='left']::after {
+  left: auto;
+  right: -6px;
+  transform: translateY(-50%) rotate(-45deg);
+}
+.sel-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -1px;
+  z-index: 1;
+  min-width: 220px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.sel-pop button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+.sel-pop button:hover,
+.sel-pop button:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.kind-pop input {
+  height: 30px;
+  margin-bottom: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  color: var(--text);
+  caret-color: var(--rust);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+.kind-pop ul,
+.kind-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kind-pop li,
+.kind-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.kind-pop li .icon,
+.kind-list li .icon {
+  color: var(--text-muted);
+}
+/* The kind the keys are on: ink on the hover tint, a rule at its left (rust is for the selection). */
+.kind-pop li[aria-selected='true'],
+.kind-list li[aria-selected='true'] {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--ink);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ naming in place: the kinds a prefix names */
+.kind-list {
+  position: absolute;
+  z-index: 8;
+  padding: 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.kind-list code {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+}
+/* The name being typed: on the sheet, a rust underline and caret, nothing round it. */
+.app.in-session .label-editor {
+  border-radius: 0;
+  border: none;
+  border-bottom: 2px solid var(--rust);
+  background: var(--sheet);
+  box-shadow: none;
+  caret-color: var(--rust);
+  font-size: 15px;
+  font-weight: 600;
+}
+/* In the box it names: the box is the field (sized and set like the name it becomes). */
+.app.in-session .label-editor.in-shape {
+  border-bottom-width: 1.5px;
+  background: transparent;
+}
+
+/* ------------------------------------------------------------ the keys, one quiet line over the toolbar (first sessions) */
+.session-keys {
+  position: fixed;
+  left: 50%;
+  bottom: 68px;
+  z-index: 6;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.session-keys > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the selection: a rust ring that follows a box that glides */
+.app.in-session .selection-ring {
+  border-width: calc(2.5px * var(--inv, 1)) !important;
+  border-radius: calc(8px * var(--inv, 1));
+  box-shadow: none;
+  transition: left 240ms var(--ease), top 240ms var(--ease), width 240ms var(--ease), height 240ms var(--ease);
+}
+/* The keys are always here in a session: no second, ink ring for focus. */
+.app.in-session .selection-ring.focus {
+  outline: none;
+}
+.app.in-session .sel-callout {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app.in-session .selection-ring {
+    transition: none;
+  }
+  .sel-menu {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------ what changed */
+.session-end-back {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: var(--overlay);
+  animation: fade 120ms ease-out;
+}
+.session-end-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow: auto;
+  padding: 22px 24px 18px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-plate);
+  background: var(--paper);
+  color: var(--text);
+  box-shadow: var(--shadow-sheet);
+  animation: rise 140ms ease-out;
+}
+.session-end-head {
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.session-end-kicker {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.65625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.session-end-dialog h2 {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.session-end-sub {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 0.84375rem;
+}
+.session-end-wait {
+  margin: 14px 0;
+  color: var(--text-muted);
+  font-size: 0.84375rem;
+}
+.session-changes {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.session-changes li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule2);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.session-change-mark {
+  flex: none;
+  width: 12px;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-faint);
+}
+.is-added .session-change-mark {
+  color: var(--success-ink);
+}
+.is-removed .session-change-mark {
+  color: var(--danger-ink);
+}
+.is-changed .session-change-mark {
+  color: var(--text-muted);
+}
+.session-end-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ------------------------------------------------------------ the top bar's toggle */
+.session-toggle[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--hover);
+}

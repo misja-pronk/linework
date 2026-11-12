@@ -84,10 +84,12 @@ await wait(400);
 // 1. Nothing selected: no chip, the tool waits for a selection, and F says what it needs.
 {
   check('no chip without a focus', await chip(), '');
-  const tool = page.locator('.canvas-tools button:has-text("Focus")');
-  if (!(await tool.isVisible())) fail('no Focus button in the toolbar');
+  await page.click('.canvas-tools button[aria-label="More tools"]');
+  const tool = page.locator('.canvas-tools .menu [role="menuitem"]:has-text("Focus")');
+  if (!(await tool.isVisible())) fail("no Focus in the toolbar's ⋯");
   else if (!(await tool.isDisabled())) fail('Focus should wait for a selection');
-  if (!(await tool.innerText()).includes('F')) fail('the Focus button does not show its key');
+  if (!(await tool.innerText()).includes('F')) fail('Focus in ⋯ does not show its key');
+  await page.keyboard.press('Escape');
   await page.locator('.preview').focus();
   await page.keyboard.press('f');
   await wait();
@@ -104,19 +106,20 @@ await wait(400);
   if (!c.includes('Focused on Orders API') || !c.includes('4 of 7') || !c.includes('1 hop') || !c.includes('Both ways') || !c.includes('Esc')) fail('the chip should say what is in focus, how far and the way back: ' + c);
   if (!(await page.locator('.drawing svg').innerHTML()).includes('Focus on Orders API')) fail('the drawing should say under its title what it is cut down to');
   check('the YAML stays as it is', await yaml(), text);
-  // With the inspector open the chip goes under the toolbar, and the drawing (its title too) is fitted below both.
+  // The chip sits at the top left, the toolbar along the bottom; the drawing (its title too) is fitted below the chip.
   await wait(400);
   const box = (q) => page.locator(q).boundingBox();
   const title = await page.locator('.drawing svg > text').first().boundingBox();
   let [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
-  if (tag.y < bar.y + bar.height && tag.x < bar.x + bar.width) fail(`the chip overlaps the toolbar: ${JSON.stringify([bar, tag])}`);
+  if (tag.y + tag.height > bar.y) fail(`the chip should be over the toolbar, at the top: ${JSON.stringify([bar, tag])}`);
   if (title.y < tag.y + tag.height + 8) fail(`the title is crowded under the chip: chip bottom ${tag.y + tag.height}, title top ${title.y}`);
   await page.screenshot({ path: `${out}/f1-focus.png` });
-  // Without the inspector there is room beside the toolbar: the chip sits there.
+  // Deselected: the chip stays where it was.
   await page.keyboard.press('Escape');
   await wait(400);
+  const was = tag;
   [bar, tag] = [await box('.canvas-tools'), await box('.focus-chip')];
-  if (Math.abs(bar.y - tag.y) > 2 || tag.x < bar.x + bar.width) fail(`the chip should sit beside the toolbar: ${JSON.stringify([bar, tag])}`);
+  if (Math.abs(was.y - tag.y) > 2 || Math.abs(was.x - tag.x) > 2) fail(`the chip moved when the selection went: ${JSON.stringify([was, tag])}`);
   await page.screenshot({ path: `${out}/f1b-focus-wide.png` });
   await select('api');
 }
@@ -246,7 +249,7 @@ await wait(400);
   await wait(400);
   // The status bar counts what a sequence draws: participants and messages.
   const status = await page.locator('.statusbar').innerText();
-  if (!status.includes('2 participants · 2 messages')) fail('the status bar does not count participants and messages: ' + status.split('\n').slice(0, 3).join(' '));
+  if (!/Participants 2\s+Messages 2/.test(status)) fail('the status bar does not count participants and messages: ' + status.split('\n').slice(0, 3).join(' '));
   const any = page.locator('.drawing [data-node]').first();
   if (await any.count()) {
     await any.click();
@@ -296,23 +299,29 @@ await wait(400);
   await page.screenshot({ path: `${out}/f6-lineage.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // V shows the detailed view without touching the YAML.
+  // V shows the first detailed view (a mesh has one per domain or product) without touching the YAML.
   const before = await yaml();
+  const picked = () => page.locator('.view-picker select').inputValue().catch(() => '');
+  const detailed = () => page.locator('.drawing [data-node^="contract:"]').count();
   await page.locator('.preview').focus();
   await page.keyboard.press('v');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the contracts'));
-  if ((await page.locator('.view-picker select').inputValue().catch(() => '')) !== 'detailed') fail('the view picker should say Detailed');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show a detailed view with its contract'));
+  if (!(await picked()).startsWith('detailed-')) fail('the view picker should say which detailed view: ' + (await picked()));
   check('V leaves the YAML as it is', await yaml(), before);
-  await page.keyboard.press('v');
-  await page.waitForFunction(() => !document.querySelector('.drawing [data-node^="contract:"]'), null, { timeout: 5000 }).catch(() => fail('V again should go back to the overview'));
+  // V goes on through the detailed views and comes back to the overview.
+  for (let i = 0; i < 8 && (await picked()).startsWith('detailed-'); i++) {
+    await page.keyboard.press('v');
+    await wait(500);
+  }
+  if ((await picked()).startsWith('detailed-') || (await detailed())) fail('V should come back to the overview: ' + (await picked()));
   // From the palette, then kept in the YAML on request.
-  await palette('show the detailed view');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show the detailed view'));
+  await palette('next view');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show a detailed view'));
   check('the palette leaves the YAML as it is', await yaml(), before);
   await palette('write view: detailed');
   await wait(600);
-  if (!/^view: detailed/m.test(await yaml())) fail('writing the view should put view: detailed in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
-  if (!(await page.locator('.drawing [data-node^="contract:"]').count())) fail('the drawing should stay detailed once the view is written');
+  if (!/^view: detailed-/m.test(await yaml())) fail('writing the view should put view: detailed-… in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
+  if (!(await detailed())) fail('the drawing should stay detailed once the view is written');
   await page.keyboard.press('Meta+Backslash');
   await page.screenshot({ path: `${out}/f7-detailed.png` });
 }

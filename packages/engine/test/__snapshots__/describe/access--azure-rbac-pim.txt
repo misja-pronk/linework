@@ -1,0 +1,39 @@
+Northwind Azure access
+
+Roles, groups and access packages diagram: Azure roles from management group to resource, standing and eligible through PIM. 8 elements in 4 groups, with 9 connections.
+
+Groups and elements
+- Priya Shah (Developer)
+- sg-shop-developers (Security group)
+- Northwind (Management group)
+  - Landing zones (Management group)
+    - sub-shop-dev (Subscription)
+    - sub-shop-prod (Subscription)
+      - rg-shop-prod (Resource group)
+        - kv-shop-prod (Key Vault)
+- Daan Visser (Platform engineer)
+- sg-azure-platform-admins (Security group)
+- sg-azure-readers (Security and finance)
+- sg-shop-operations (Security group)
+
+Connections
+- Priya Shah is a member of sg-shop-developers.
+- sg-shop-developers is Contributor on sub-shop-dev, is Reader on sub-shop-prod and is eligible for Contributor · 8 h on rg-shop-prod.
+- Daan Visser is a member of sg-azure-platform-admins.
+- sg-azure-platform-admins is eligible for Owner · 4 h · approval on Northwind.
+- sg-azure-readers is Reader on Northwind.
+- sg-shop-operations is Shop App Operator (custom) on rg-shop-prod and is eligible for Key Vault Secrets Officer on kv-shop-prod.
+
+Walkthrough
+1. Scopes: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.
+2. Standing access: Read-only at the top for security and finance. Developers can change dev and read production.
+3. Production through PIM: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
+  - sg-shop-developers: MFA and a reason
+4. Operations, least privilege: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
+5. No standing Owner: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
+  - sg-azure-platform-admins: A second admin approves
+
+Key
+- Dotted line: Member of
+- Solid sky line: Role assignment
+- Dashed sky line: Eligible, activated through PIM

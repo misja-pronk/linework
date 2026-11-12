@@ -16,6 +16,7 @@
 // same tiers read as a grid. Address ranges are checked the way the network type checks an IP plan.
 import {
   buildGraph,
+  english,
   graphReferences,
   graphSchema,
   parseEdge,
@@ -341,6 +342,7 @@ function check(src: CloudSource, ctx: BuildContext) {
 // ---------------------------------------------------------------- build
 
 function build(src: CloudSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   check(src, ctx);
   const info = read(src);
   // Labels that follow from the details; the details themselves end up in the caption after the build.
@@ -402,7 +404,8 @@ function build(src: CloudSource, ctx: BuildContext): Graph {
     const tier = tiers.includes(e.tier as Tier) ? e.tier : info.tierOf(e.in)?.tier;
     if (tier) n.rank = tiers.indexOf(tier) + 1;
     if (e.caption !== undefined) continue;
-    n.shape.caption = join([n.shape.caption, e.size, e.exposure, e.zone]);
+    const exposure = e.exposure === 'public' ? word('public@exposure') : e.exposure === 'internal' ? word('internal@exposure') : undefined;
+    n.shape.caption = join([n.shape.caption, e.size, exposure, e.zone]);
   }
   return graph;
 }
@@ -465,22 +468,18 @@ export const cloud: DiagramType<CloudSource> = {
   template: `type: cloud
 provider: aws
 title: Web shop on AWS
-subtitle: Production, three availability zones
+subtitle: Production, two availability zones
 direction: down
 
 groups:
-  account: { kind: account, label: shop-prod, account: "123456789012" }
-  region: { kind: region, region: eu-west-1, in: account }
-  vpc: { kind: vpc, label: vpc-shop, cidr: 10.0.0.0/16, in: region }
+  account: { kind: account, label: shop-prod, account: "123456789012", region: eu-west-1 }
+  vpc: { kind: vpc, label: vpc-shop, cidr: 10.0.0.0/16, in: account }
   az-a: { kind: zone, zone: eu-west-1a, in: vpc }
   az-b: { kind: zone, zone: eu-west-1b, in: vpc }
-  az-c: { kind: zone, zone: eu-west-1c, in: vpc }
   app-a: { kind: subnet, tier: private, cidr: 10.0.10.0/24, in: az-a }
   app-b: { kind: subnet, tier: private, cidr: 10.0.11.0/24, in: az-b }
-  app-c: { kind: subnet, tier: private, cidr: 10.0.12.0/24, in: az-c }
   data-a: { kind: subnet, tier: isolated, cidr: 10.0.20.0/24, in: az-a }
   data-b: { kind: subnet, tier: isolated, cidr: 10.0.21.0/24, in: az-b }
-  data-c: { kind: subnet, tier: isolated, cidr: 10.0.22.0/24, in: az-c }
 
 nodes:
   users: users
@@ -489,21 +488,16 @@ nodes:
   alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public }
   web-a: { kind: ecs, label: Web shop, in: app-a, size: 2 tasks }
   web-b: { kind: ecs, label: Web shop, in: app-b, size: 2 tasks }
-  web-c: { kind: ecs, label: Web shop, in: app-c, size: 2 tasks }
   db-a: { kind: aurora, label: Orders (reader), in: data-a }
   db-b: { kind: aurora, label: Orders (writer), in: data-b }
-  db-c: { kind: aurora, label: Orders (reader), in: data-c }
 
 edges:
   - users -> cdn: { label: HTTPS, style: public }
   - cdn -> alb: { style: public }
   - alb -> web-a: { style: private }
   - alb -> web-b: { style: private }
-  - alb -> web-c: { style: private }
   - web-a -> db-b: { style: private }
   - web-b -> db-b: { label: SQL, style: private }
-  - web-c -> db-b: { style: private }
-  - db-b -> db-a: { style: data }
-  - db-b -> db-c: { label: replication, style: data }
+  - db-b -> db-a: { label: replication, style: data }
 `,
 };

@@ -34,11 +34,12 @@ export function arrangeCommands(run: (op: ArrangeOp) => void): Command[] {
   return ARRANGE.map((a) => ({ id: `arrange:${a.op}`, group: t('Arrange'), label: say(a.label), hint: t('selected shapes'), icon: a.icon, shortcut: keyName(a), run: () => run(a.op) }));
 }
 
-/** Snapping to the grid, the minimap and the page frame, kept per browser. */
+/** Snapping to the grid, the minimap and the page frame, kept per browser. The page frame is off until
+ * asked for (⇧P, the canvas tools, the command): on the sheet it read as noise. */
 export function useCraftPrefs() {
   const [grid, setGrid] = useState(() => store.get<boolean>('grid') ?? false);
   const [minimap, setMinimap] = useState(() => store.get<boolean>('minimap') ?? true);
-  const [page, setPage] = useState(() => store.get<boolean>('page') ?? true);
+  const [page, setPage] = useState(() => store.get<boolean>('page') ?? false);
   const toggle = useCallback((what: 'grid' | 'minimap' | 'page') => {
     const set = what === 'grid' ? setGrid : what === 'minimap' ? setMinimap : setPage;
     set((v) => {

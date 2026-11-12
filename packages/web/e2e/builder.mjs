@@ -15,6 +15,8 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
   localStorage.setItem('cartography:started', 'true');
+  // The YAML starts folded to its rail; these steps read what the editor shows.
+  localStorage.setItem('cartography:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');
@@ -192,12 +194,16 @@ await page.keyboard.press('Escape');
 await page.keyboard.press('Meta+0');
 await wait(300);
 const nodeCount = await page.locator('.drawing [data-node]').count();
-// Unselected: the first click opens the inspector, which narrows the canvas; the second click still
-// lands on the node, not on the inspector that now covers where the node was.
-if (await page.locator('.inspector').count()) fail('inspector open before the double-click');
+// Unselected: the side panel shows the drawing and stays where it is, so the first click selects
+// without moving the drawing and the second click lands on the same node.
+if (await page.locator('.inspector[data-selection]').count()) fail('something still inspected before the double-click');
+if (!(await page.locator('.inspector[aria-label="Drawing"]').count())) fail('the side panel does not show the drawing when nothing is selected');
+const sheetBefore = await page.locator('.preview svg').first().boundingBox();
 const vb = await page.locator('.drawing [data-node="vault"]').boundingBox();
 await page.mouse.dblclick(vb.x + vb.width / 2, vb.y + vb.height / 2);
 await wait(300);
+const sheetAfter = await page.locator('.preview svg').first().boundingBox();
+if (Math.abs(sheetAfter.x - sheetBefore.x) > 0.5 || Math.abs(sheetAfter.width - sheetBefore.width) > 0.5) fail(`selecting moved the drawing: ${JSON.stringify(sheetBefore)} → ${JSON.stringify(sheetAfter)}`);
 if (!(await page.locator('.label-editor').isVisible())) fail('double-click did not open the label editor');
 // "a" would add a shape and "c" connect: typed here they are just letters.
 await page.keyboard.type('Vault a c');
@@ -295,7 +301,10 @@ await page.evaluate(() => {
 await page.reload();
 await page.waitForSelector('.drawing [data-node="app"]');
 // The trackpad way: the shapes listed beside the drawing in the builder, dragged over.
-await page.locator('.view-switch button', { hasText: 'Builder' }).click();
+// The Drawing tab folds the YAML to its rail; the rail shows the shapes.
+await page.locator('.view-switch button', { hasText: 'Drawing' }).click();
+await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
+await page.locator('.left-tabs [role="tab"]', { hasText: 'Shapes' }).click();
 await wait(600);
 await page.locator('.preview').focus();
 await page.keyboard.press('Meta+0');
@@ -370,8 +379,9 @@ await page.click('.inspector button[aria-label="Close properties"]');
 await wait(1200);
 oc = await offCentre();
 if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after the inspector closed the drawing is ${oc.off}px off centre`);
-for (const mode of ['YAML', 'Builder']) {
-  await page.locator('.view-switch button', { hasText: mode }).click();
+for (const mode of ['YAML', 'Drawing', 'Shapes']) {
+  if (mode === 'Shapes') await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
+  else await page.locator('.view-switch button', { hasText: mode }).click();
   await wait(1200);
   oc = await offCentre();
   if (Math.abs(oc.off) > 24 || !oc.fits) fail(`after switching to ${mode} the drawing is ${oc.off}px off centre${oc.fits ? '' : ' and clipped'}`);

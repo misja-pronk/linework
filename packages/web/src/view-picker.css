@@ -19,7 +19,7 @@
   text-overflow: ellipsis;
 }
 .view-picker select:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--radius);
 }

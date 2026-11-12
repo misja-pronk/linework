@@ -51,7 +51,8 @@ await page.reload();
 await page.evaluate(() => {
   window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('client');
 });
-await page.click('button:has-text("Open folder")');
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("Open folder")');
 await page.waitForSelector('.files .file');
 await page.click('.files .file:has-text("shop.yaml")');
 await page.waitForSelector('.preview svg');
@@ -98,8 +99,9 @@ if (!Object.keys(d.parts).some((p) => p.startsWith('ppt/media/cartography-icon')
 
 // 2. Remembered for this folder after a reload.
 await page.reload();
-// Reopening the remembered folder takes a click, as the browser asks for access again.
-await page.click('header button:has-text("client")');
+// Reopening the remembered folder (in the top bar's ⋯) takes a click, as the browser asks for access again.
+await page.click('button[aria-label="More actions"]');
+await page.click('.menu button:has-text("client")');
 await page.waitForSelector('.files .file');
 await page.click('.files .file:has-text("shop.yaml")');
 await page.waitForSelector('.preview svg');

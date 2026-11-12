@@ -105,7 +105,7 @@
 .present-ring {
   position: absolute;
   border: 3px solid var(--present-accent, var(--accent));
-  border-radius: 12px;
+  border-radius: var(--radius-plate);
   pointer-events: none;
 }
 .present-tools,
@@ -135,7 +135,7 @@
   height: 30px;
   padding: 0 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: none;
   color: var(--present-muted, var(--text-muted));
   cursor: pointer;
@@ -178,7 +178,7 @@
   top: 22px;
   transform: translateX(-50%);
   padding: 8px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-plate);
   background: var(--present-text, var(--text));
   color: var(--present-canvas, var(--bg));
   font-size: 0.875rem;
@@ -215,7 +215,7 @@
   height: 26px;
   padding: 0 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: none;
   color: inherit;
   font: inherit;

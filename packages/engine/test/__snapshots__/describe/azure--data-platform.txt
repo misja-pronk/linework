@@ -1,36 +1,45 @@
 Data platform
 
-Azure infrastructure diagram: From sources to reports. 11 elements in 5 groups, with 10 connections.
+Azure infrastructure diagram: Northwind · from sources to reports through a bronze, silver and gold lake, all on private networking. 11 elements in 7 groups, with 10 connections.
 
 Groups and elements
 - Sources (Boundary)
-  - ERP (External system)
-  - CRM (External system)
-  - Web shop events (App Service)
-- Data (Subscription)
-  - rg-ingest (Resource group)
-    - Pipelines (Data Factory)
-    - Clickstream (Event Hubs)
-  - rg-lake (Resource group)
-    - Raw zone (Storage account)
-    - Spark jobs (Transform)
-    - Curated zone (Storage account)
-  - rg-serve (Resource group)
-    - Warehouse (SQL Database)
-    - Product search (AI Search)
-- Analysts (Users)
+  - ERP (SQL Server · nightly)
+  - CRM (REST API · hourly)
+  - Web shop (Clickstream events)
+- sub-data-prd (Landing zone · Corp)
+  - rg-data-ingest (Resource group)
+    - adf-nw-data (Managed VNet)
+    - evh-clickstream (Event Hubs)
+  - rg-data-lake (Resource group)
+    - stnwlakeprd (ADLS Gen2)
+      - bronze (Raw)
+      - silver (Cleaned)
+      - gold (Business-ready)
+  - rg-data-serve (Resource group)
+    - Serverless SQL warehouse (Databricks SQL)
+    - Power BI (Fabric capacity · F64)
+  - rg-data-process (Resource group)
+    - dbw-nw-data (Unity Catalog · VNet-injected)
 
 Connections
-- ERP connects to Pipelines (nightly).
-- Pipelines sends data to Raw zone.
-- Raw zone sends data to Spark jobs.
-- Spark jobs sends data to Curated zone.
-- Curated zone sends data to Warehouse and sends data to Product search.
-- Warehouse connects to Analysts (reports).
-- CRM connects to Pipelines (hourly).
-- Web shop events sends data to Clickstream (events).
-- Clickstream sends data to Raw zone.
+- ERP sends data to adf-nw-data.
+- adf-nw-data sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (model).
+- gold sends data to Serverless SQL warehouse.
+- Serverless SQL warehouse sends data to Power BI (DirectQuery).
+- CRM sends data to adf-nw-data.
+- Web shop sends data to evh-clickstream.
+- evh-clickstream sends data to bronze.
+- dbw-nw-data connects to stnwlakeprd (Management: jobs).
+
+Walkthrough
+1. One subscription with a resource group per stage, and the lake in the middle.
+2. Ingest: Data Factory copies batch sources into bronze; web shop events stream in through Event Hubs.
+3. Refine: Databricks jobs clean bronze into silver and model silver into gold, governed by Unity Catalog.
+4. Serve: Power BI reports, running on the Fabric capacity, query gold through a serverless SQL warehouse (DirectQuery).
 
 Key
-- Solid line: Connection
 - Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

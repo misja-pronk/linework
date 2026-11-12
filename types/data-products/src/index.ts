@@ -1,7 +1,12 @@
 // Data products (data mesh): domains, source systems, data products with input and output ports,
 // data contracts on output ports, and consumers. One file, two levels of detail:
-//   overview   products as cards, lineage between them
-//   detailed   products as tables with their ports; lines attach to the exact port, contracts beside them
+//   overview          products as cards, lineage between them
+//   detailed-<domain> one domain's products as tables with their ports and contracts, and what they
+//                     read from and are read by as cards (offered when products sit in several domains;
+//                     products without a domain get detailed-other)
+//   detailed-<product> one product the same way: offered instead of its domain's view when that domain
+//                     holds more than one product and a contract among them (a contract is tall)
+//   detailed          every product as a table: offered when there is no split, else only when asked by name
 // `detail: [id]` (or `detail: true` on a product) shows only some products in detail.
 //
 //   products:
@@ -12,6 +17,7 @@
 //       outputs:
 //         orders: { kind: table, contract: orders-v2 }
 import {
+  english,
   idPattern,
   parseSource,
   type BuildContext,
@@ -28,6 +34,7 @@ import {
   type RowMark,
   type TableRow,
   type Tone,
+  type Word,
 } from '@cartography/core';
 import { findField, readOdcs, type ContractModel } from './odcs.ts';
 
@@ -78,6 +85,8 @@ const styles = {
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
 
 const CONTRACT_TONE: Tone = 'violet';
+/** A contract with this many rows (sections counted) or more stands in two columns. */
+const SPLIT_ROWS = 8;
 
 interface Named {
   label?: string;
@@ -120,7 +129,8 @@ export interface DataProductSource {
   title?: string;
   subtitle?: string;
   direction?: 'right' | 'down';
-  view?: 'overview' | 'detailed';
+  /** overview, detailed (every product), detailed-<domain> (one domain's products, detailed-other: those without one) or detailed-<product>. */
+  view?: string;
   /** Products shown in detail in the overview. */
   detail?: string[];
   /** Show contracts next to detailed products (default true). */
@@ -132,6 +142,52 @@ export interface DataProductSource {
   products?: Record<string, Product | null>;
   consumers?: Record<string, Consumer | string | null>;
   contracts?: Record<string, Contract | null>;
+}
+
+interface Part {
+  view: string;
+  title: string;
+  /** The domain drawn (with product: the domain that product is in); none: the products without a domain. */
+  domain?: string;
+  /** One product drawn, not its whole domain. */
+  product?: string;
+  /** Drawn when asked for by name, not offered: the domain view of a domain that is offered product by product. */
+  hidden?: boolean;
+}
+
+/**
+ * The detailed views: one per domain that has products, and detailed-other for products without one (a
+ * domain called other: detailed-no-domain). A contract is the tall part of a detailed drawing, so a domain
+ * that holds more than one product, a contract among them, is offered product by product instead
+ * (detailed-<product>, or detailed-product-<product> where that name is taken); its domain view is still
+ * drawn when asked for by name.
+ */
+function detailParts(src: DataProductSource, word: Word = english): Part[] {
+  const domains = src.domains ?? {};
+  const products = Object.entries(src.products ?? {}).map(([id, p]) => [id, p ?? {}] as const);
+  const has = (d: string) => Object.hasOwn(domains, d);
+  const groups: { domain?: string; view: string; title: string; members: (readonly [string, Product])[] }[] = Object.entries(domains)
+    .map(([id, d]) => ({ domain: id, view: `detailed-${id}`, title: word('{name} in detail', { name: (typeof d === 'string' ? d : d?.label) ?? id }), members: products.filter(([, p]) => p.domain === id) }))
+    .filter((g) => g.members.length);
+  const loose = products.filter(([, p]) => !p.domain || !has(p.domain));
+  if (loose.length) groups.push({ view: has('other') ? 'detailed-no-domain' : 'detailed-other', title: word('Other products in detail'), members: loose });
+  const contracted = ([, p]: readonly [string, Product]) => Object.values(p.outputs ?? {}).some((o) => !!o && typeof o === 'object' && !!o.contract);
+  const split = (g: (typeof groups)[number]) => src['show-contracts'] !== false && g.members.length > 1 && g.members.some(contracted);
+  const taken = new Set(groups.map((g) => g.view));
+  const parts: Part[] = [];
+  for (const g of groups) {
+    if (!split(g)) {
+      parts.push({ view: g.view, title: g.title, domain: g.domain });
+      continue;
+    }
+    for (const [id, p] of g.members) {
+      const view = taken.has(`detailed-${id}`) ? `detailed-product-${id}` : `detailed-${id}`;
+      parts.push({ view, title: word('{name} in detail', { name: p.label ?? id }), domain: g.domain, product: id });
+    }
+  }
+  // The domain views that were split stay drawable by name, after the ones offered.
+  for (const g of groups) if (split(g)) parts.push({ view: g.view, title: g.title, domain: g.domain, hidden: true });
+  return parts;
 }
 
 const entry = <T extends object>(v: T | string | null | undefined): T => (typeof v === 'string' ? ({ kind: v } as unknown as T) : (v ?? ({} as T)));
@@ -152,6 +208,7 @@ export function parseField(spec: string | null): { type: string; marks: RowMark[
 }
 
 function build(src: DataProductSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   const products = Object.entries(src.products ?? {}).map(([id, p]) => [id, p ?? {}] as const);
   const sources = Object.entries(src.sources ?? {}).map(([id, s]) => [id, entry<Placed>(s)] as const);
   const consumers = Object.entries(src.consumers ?? {}).map(([id, c]) => [id, entry<Consumer>(c)] as const);
@@ -173,10 +230,17 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       else seen.set(id, collection);
     }
 
-  const detailed = new Set(src.view === 'detailed' ? products.map(([id]) => id) : products.filter(([, p]) => p.detail).map(([id]) => id));
+  // detailed-<domain> or detailed-<product>: those products in detail, and only what they connect to besides.
+  const parts = typeof src.view === 'string' && src.view.startsWith('detailed-') ? detailParts(src) : [];
+  const part = parts.find((p) => p.view === src.view);
+  if (parts.length && !part) ctx.error(['view'], `There is no view "${src.view}": the detailed views are ${parts.filter((p) => !p.hidden).map((p) => p.view).join(', ')}`);
+  const inPart = (id: string, p: Product) => (part?.product ? id === part.product : part?.domain ? p.domain === part.domain : !p.domain || !domains.has(p.domain));
+  const detailed = new Set(
+    part ? products.filter(([id, p]) => inPart(id, p)).map(([id]) => id) : src.view === 'detailed' ? products.map(([id]) => id) : products.filter(([, p]) => p.detail).map(([id]) => id),
+  );
   for (const [i, id] of (src.detail ?? []).entries()) {
-    if (productMap.has(id)) detailed.add(id);
-    else ctx.error(['detail', i], `There is no product "${id}"`);
+    if (!productMap.has(id)) ctx.error(['detail', i], `There is no product "${id}"`);
+    else if (!part) detailed.add(id);
   }
   const showContracts = src['show-contracts'] !== false;
 
@@ -197,7 +261,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   };
 
   const nodes: GraphNode[] = [];
-  const usedClasses = new Set<string>();
+  const classOf = new Map<string, string>();
   for (const [id, s] of sources) {
     const k = sourceKinds[s.kind ?? ''] ?? sourceKinds.application!;
     nodes.push({
@@ -211,7 +275,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   const outputsOf = (p: Product) => Object.entries(p.outputs ?? {}).map(([id, o]) => [id, port(o)] as const);
   for (const [id, p] of products) {
     const k = classes[p.class ?? ''] ?? classes['source-aligned']!;
-    usedClasses.add(p.class ?? 'source-aligned');
+    classOf.set(id, p.class ?? 'source-aligned');
     // The owner comes last: a long one is cut at the edge of the card, and a status or version cut in half says nothing.
     const caption = p.caption ?? [k.label, p.status, p.version != null && `v${p.version}`, p.owner].filter(Boolean).join(' · ');
     const parent = domainOf(p.domain, ['products', id, 'domain']);
@@ -220,7 +284,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       continue;
     }
     const rows: TableRow[] = [];
-    if (p.inputs?.length) rows.push({ kind: 'section', label: 'Input ports' });
+    if (p.inputs?.length) rows.push({ kind: 'section', label: word('Input ports') });
     for (const [i, r] of (p.inputs ?? []).entries()) {
       const ref = refOf(r);
       const name = ref.name ?? refLabel(ref.from);
@@ -235,7 +299,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       });
     }
     const outs = outputsOf(p);
-    if (outs.length) rows.push({ kind: 'section', label: 'Output ports' });
+    if (outs.length) rows.push({ kind: 'section', label: word('Output ports') });
     for (const [pid, o] of outs) {
       const pk = portKinds[o.kind ?? ''];
       rows.push({
@@ -291,11 +355,10 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     return productMap.get(r.node)?.label ?? r.node;
   }
 
-  const edges: GraphEdge[] = [];
-  const used = new Set<keyof typeof styles>();
+  let edges: GraphEdge[] = [];
+  const styleOf = new Map<string, keyof typeof styles>();
   const merged = new Map<string, GraphEdge>();
   const edge = (from: Endpoint, to: Endpoint, style: keyof typeof styles, label: string | undefined, path: (string | number)[]) => {
-    used.add(style);
     const s: { line: GraphEdge['line']; tone?: Tone } = styles[style];
     // Between two cards, several ports collapse into one line.
     const key = !from.row && !to.row ? `${from.node}|${to.node}|${style}` : undefined;
@@ -308,6 +371,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     const [start, end]: [GraphEdge['start'], GraphEdge['end']] = style === 'relation' ? ['zeroOrMany', 'one'] : ['none', style === 'contract' ? 'none' : 'arrow'];
     const e: GraphEdge = { id: `e${edges.length}`, from, to, label, line: s.line, tone: s.tone, start, end, path };
     edges.push(e);
+    styleOf.set(e.id, style);
     if (key) merged.set(key, e);
   };
   const flowFrom = (ref: Ref, path: (string | number)[], to: Endpoint) => {
@@ -339,9 +403,10 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       if (!showContracts || !detailed.has(id) || !model) continue;
       if (!shown.has(o.contract)) {
         shown.add(o.contract);
-        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12), path: ['contracts', o.contract] });
+        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12, word), path: ['contracts', o.contract] });
       }
       edge({ node: id, row: `out:${pid}` }, { node: `contract:${o.contract}` }, 'contract', undefined, path);
+      edges.at(-1)!.annex = true;
     }
 
   // Foreign keys of the contracts (ODCS relationships): field to field, inside a contract and between two that are both drawn.
@@ -375,6 +440,45 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     }
   }
 
+  // A tall contract stands in two columns, its guarantees and checks beside its schema: about as tall
+  // as its product, so it sits by it without lifting the drawing. Not one with keys drawn to its fields:
+  // a line to a field would cross the second column.
+  for (const id of shown) {
+    const node = nodes.find((n) => n.id === `contract:${id}`)!;
+    if (node.shape.kind !== 'table' || edges.some((e) => (e.from.node === node.id && e.from.row) || (e.to.node === node.id && e.to.row))) continue;
+    const rows = node.shape.rows;
+    const at = rows.findIndex((r, i) => i > 0 && r.kind === 'section' && (r.label === word('Guarantees') || r.label === word('Quality checks')));
+    if (rows.length >= SPLIT_ROWS && at > 0) node.shape = { ...node.shape, split: at };
+  }
+
+  let drawn = nodes;
+  let drawnGroups = groups;
+  if (part) {
+    // The products in view and their contracts, and the cards one line away from them: nothing further.
+    const core = new Set([...detailed, ...nodes.filter((n) => n.id.startsWith('contract:')).map((n) => n.id)]);
+    const keep = new Set(core);
+    for (const e of edges) {
+      if (core.has(e.from.node)) keep.add(e.to.node);
+      if (core.has(e.to.node)) keep.add(e.from.node);
+    }
+    // A card from another domain stands on its own, its domain named first: one box for the domain in view keeps the slide narrow.
+    const own = part.domain ? `domain:${part.domain}` : undefined;
+    drawn = nodes
+      .filter((n) => keep.has(n.id))
+      .map((n) => {
+        if (!n.parent || n.parent === own) return n;
+        const g = groups.find((x) => x.id === n.parent)!;
+        // A product from elsewhere is a neighbour here: its domain and class say enough (its version and team are in its own view).
+        const product = productMap.get(n.id);
+        const caption = product && !product.caption ? [g.label, (classes[product.class ?? ''] ?? classes['source-aligned']!).label] : [g.label, n.shape.kind === 'card' ? n.shape.caption : undefined];
+        const shape = n.shape.kind === 'card' ? { ...n.shape, caption: caption.filter(Boolean).join(' · ') } : n.shape;
+        return { ...n, parent: undefined, shape };
+      });
+    edges = edges.filter((e) => keep.has(e.from.node) && keep.has(e.to.node) && (core.has(e.from.node) || core.has(e.to.node)));
+    drawnGroups = groups.filter((g) => g.id === own);
+  }
+  const usedClasses = new Set(drawn.map((n) => classOf.get(n.id)));
+  const used = new Set(edges.map((e) => styleOf.get(e.id)));
   const legend: LegendItem[] = [
     ...Object.keys(classes)
       .filter((c) => usedClasses.has(c))
@@ -386,7 +490,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
         return { label: s.label, line: s.line, tone: s.tone };
       }),
   ];
-  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups, nodes, edges, legend };
+  return { title: src.title, subtitle: src.subtitle, direction: src.direction ?? 'right', groups: drawnGroups, nodes: drawn, edges, legend };
 }
 
 /** A contract from its file (if any) with the keys written in the diagram on top. */
@@ -440,14 +544,14 @@ function contractAt(contracts: Map<string, Contract>, from: string, ref: string)
   return named.length === 1 ? named[0]![0] : undefined;
 }
 
-function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number): GraphNode['shape'] {
+function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number, word: Word): GraphNode['shape'] {
   const rows: TableRow[] = [];
   let room = maxFields;
   let hidden = 0;
   for (const [i, schema] of m.schemas.entries()) {
     if (!schema.fields.length) continue;
     // Several schema objects (tables, topics) each get their own section.
-    if (room > 0) rows.push({ kind: 'section', label: m.schemas.length > 1 ? (schema.name ?? 'Schema') : 'Schema' });
+    if (room > 0) rows.push({ kind: 'section', label: m.schemas.length > 1 ? (schema.name ?? word('Schema')) : word('Schema') });
     for (const f of schema.fields) {
       if (room-- <= 0) {
         hidden++;
@@ -456,10 +560,10 @@ function contractShape(id: string, c: Contract, m: ContractModel, maxFields: num
       rows.push({ kind: 'row', id: `field:${i}:${f.name}`, marks: f.marks, cells: [{ text: f.name, strong: f.marks.includes('pk') }, { text: f.type, muted: true, mono: true }] });
     }
   }
-  if (hidden && maxFields > 0) rows.push({ kind: 'row', id: 'field:more', cells: [{ text: `+ ${hidden} more field${hidden === 1 ? '' : 's'}`, muted: true }] });
-  if (m.sla.length) rows.push({ kind: 'section', label: 'Guarantees' });
+  if (hidden && maxFields > 0) rows.push({ kind: 'row', id: 'field:more', cells: [{ text: word('+ {count} more field|+ {count} more fields', { count: String(hidden) }), muted: true }] });
+  if (m.sla.length) rows.push({ kind: 'section', label: word('Guarantees') });
   for (const [k, v] of m.sla) rows.push({ kind: 'row', id: `sla:${k}`, icon: 'gauge', tone: CONTRACT_TONE, cells: [{ text: k }, { text: v, muted: true }] });
-  if (m.quality.length) rows.push({ kind: 'section', label: 'Quality checks' });
+  if (m.quality.length) rows.push({ kind: 'section', label: word('Quality checks') });
   for (const [i, q] of m.quality.entries()) rows.push({ kind: 'row', id: `quality:${i}`, icon: 'check', tone: 'green', cells: [{ text: q }] });
   const caption = c.caption ?? ['Data contract', m.version != null && `v${m.version}`, m.classification].filter(Boolean).join(' · ');
   return { kind: 'table', title: m.label ?? id, caption, icon: 'file-check', tone: CONTRACT_TONE, rows };
@@ -502,7 +606,11 @@ const schema = {
     title: { type: 'string' },
     subtitle: { type: 'string' },
     direction: { enum: ['right', 'down'] },
-    view: { enum: ['overview', 'detailed'], description: 'overview: products as cards; detailed: ports, contracts and fields' },
+    view: {
+      anyOf: [{ enum: ['overview', 'detailed'] }, { type: 'string', pattern: '^detailed-.+$' }],
+      description:
+        "overview: products as cards; detailed-<domain>: one domain's products with ports, contracts and fields (detailed-other: those without a domain); detailed-<product>: one product so, for a domain with several products and a contract among them; detailed: every product",
+    },
     detail: { type: 'array', items: { type: 'string' }, description: 'Products shown in detail in the overview' },
     'show-contracts': { type: 'boolean', description: 'Show data contracts next to detailed products (default true)' },
     'contract-fields': { type: 'integer', minimum: 0, description: 'Most fields a contract shows before "+ n more" (default 12, 0 hides fields)' },
@@ -613,8 +721,19 @@ export const dataProducts: DiagramType<DataProductSource> = {
     (src.detail ?? []).forEach((id, i) => out.push({ path: ['detail', i], id, start: 0, collection: 'products' }));
     return out;
   },
-  views(src) {
-    return src.products && Object.keys(src.products).length ? [{ name: 'overview', title: 'Overview' }, { name: 'detailed', title: 'Detailed' }] : [];
+  views(src, word = english) {
+    if (!src.products || !Object.keys(src.products).length) return [];
+    const overview = { name: 'overview', title: word('Overview') };
+    const parts = detailParts(src, word);
+    // One domain (or none) drawn whole: one detailed drawing. Else one per domain or product, the whole mesh in detail only when asked for.
+    if (parts.length < 2) return [overview, { name: 'detailed', title: word('Detailed') }];
+    return [
+      overview,
+      // One product reads from left to right: what it reads, the product and its contract, who reads it.
+      ...parts.filter((p) => !p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, ...(p.product ? { steady: true } : {}) })),
+      { name: 'detailed', title: word('Every product in detail'), hidden: true },
+      ...parts.filter((p) => p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, hidden: true })),
+    ];
   },
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
@@ -630,7 +749,7 @@ export const dataProducts: DiagramType<DataProductSource> = {
   template: `type: data-products
 title: Customer data products
 subtitle: From operational systems to fit-for-purpose products
-view: overview   # overview or detailed
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 # detail: [customer-360]   # only these products in detail
 
 domains:

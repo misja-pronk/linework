@@ -1,0 +1,18 @@
+Checkout
+
+Sequence, order: Order. 4 participants and 5 messages.
+
+Participants
+- Shopper
+- Shop system
+  - Storefront (Web app)
+  - Orders API (Service)
+  - Orders DB (Database)
+
+Message flow
+In order, top to bottom.
+- 1. Shopper calls Storefront: Place order.
+- 2. Storefront calls Orders API: POST /orders.
+- 3. Orders API does: Validate cart and prices.
+- 4. Orders API calls Orders DB: INSERT order (pending).
+- 5. Orders DB replies to Orders API: order id.

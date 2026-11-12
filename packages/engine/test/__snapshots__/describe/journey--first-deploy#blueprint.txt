@@ -9,7 +9,7 @@ Persona: Ravi Menon
 
 By phase
 - Discover
-  - Hears about the platform in a guild demo (feels curious, 3 of 5)
+  - Sees the platform in a guild demo (feels curious, 3 of 5)
     - Thinks: “Looks good in a demo. Will it fit our service?”
     - Through Guild meeting
     - With Platform team
@@ -39,7 +39,7 @@ By phase
     - Through Terminal and Slack
     - With Platform support
     - Pain: Secret names differ per environment
-    - Pain: Database request is still a ticket
+    - Pain: Database needs a ticket
     - Idea: Database as a self-service resource
     - Measured: 1 ticket, 1 day
     - Frontstage: Support channel answers
@@ -67,7 +67,7 @@ By phase
     - Support: Policy engine
     - Support: Change register
 - Run
-  - Watches the service on the standard dashboard (feels in control, 5 of 5)
+  - Watches the standard dashboard (feels in control, 5 of 5)
     - Says: “Dashboards and alerts were there before I asked.”
     - Through Grafana and Alerts
     - Works well: Golden signals out of the box

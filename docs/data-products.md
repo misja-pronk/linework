@@ -12,11 +12,31 @@ The diagram is [examples/data-products/mesh.yaml](../examples/data-products/mesh
 
 ## Ports, contracts and keys
 
-`view: detailed` opens the products up: input and output ports, and the contract behind a port with its schema, guarantees and quality checks.
+The detailed views open the products up: input and output ports, and the contract behind a port with its schema, guarantees and quality checks. A whole mesh in detail is far too much for one slide, so it is drawn one domain at a time, and a domain with a contract among several products one product at a time:
+
+| View | What it draws |
+| --- | --- |
+| `overview` | Every product as a card, with the lineage between them |
+| `detailed-<domain>` (`detailed-finance`) | That domain's products with their ports and contracts, in the domain's box. What they read from and who reads them stand beside it as plain cards, captioned with their domain and class (*Sales · Source-aligned*); what is further away is left out |
+| `detailed-<product>` (`detailed-orders`, *Orders in detail*) | One product the same way: the product with its ports and contract, in its domain's box; the other products of its domain it reads or feeds as cards in that box, the rest as cards beside it. Drawn from left to right: what it reads, the product and its contract, who reads it |
+| `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
+| `detailed` | Every product in detail at once |
+
+In a product's view the story runs in one band from left to right: what it reads, the product, who reads it. Its contract hangs under the product (or beside it, above the port's lines), joined to its port by the dashed line, so the lines from the port run straight on to their readers. A contract of eight rows or more sets its guarantees and quality checks in a second column beside its schema, about as tall as the product; not one with keys drawn to its fields.
+
+Which ones the view picker (and `carto render --all-views`, `carto validate`) offers follows one rule that does not depend on the drawing. A contract is the tall part of a detailed drawing, and two of them stacked, or one next to another product, no longer fit a slide. So:
+
+- A domain with **one product**, or with **no contract** on any of its products' ports, gets one view: `detailed-<domain>`.
+- A domain with **more than one product and a contract among them** gets one view per product: `detailed-<product>`, in the order the products are written. Its `detailed-<domain>` is still drawn when written as `view:` or asked for with `--view`, but not offered.
+- The products without a domain count as one domain (`detailed-other`).
+- With `show-contracts: false` there is nothing tall, and nothing is split.
+- When a product's id is also a view's name (a domain called `orders` next to a product `orders`), the product's view is `detailed-product-<id>`.
+
+When this leaves one detailed view (one domain drawn whole, or none), that view is `detailed`. So a mesh of one domain, Payments with its contract and Revenue beside it ([finance.yaml](../examples/data-products/finance.yaml)), offers `detailed-payments` and `detailed-revenue`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` (the editor's view picker then lists it, as *Every product in detail*, while the file is written so) or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's or a product's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
 
 ![Customer 360 with its ports and the contracts it reads](data-products/customer-360.png)
 
-This is [examples/data-products/mesh-detailed.yaml](../examples/data-products/mesh-detailed.yaml): the same mesh (`include: [mesh.yaml]`), cut down to one product and what it reads. The violet lines between fields are the `relationships` of the contracts, new in ODCS 3.1, drawn with crow's feet like in a database design:
+This is [examples/data-products/mesh-detailed.yaml](../examples/data-products/mesh-detailed.yaml): the same mesh (`include: [mesh.yaml]`), cut down to Customer 360 and the Customers product it reads, each with its contract. Its view `orders-contract` takes the orders contract on its own, with the keys inside it: the whole cut is too tall for one slide. The violet lines between fields are the `relationships` of the contracts, new in ODCS 3.1, drawn with crow's feet like in a database design:
 
 ```yaml
 schema:

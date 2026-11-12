@@ -1,0 +1,29 @@
+Managed identity, service to service
+
+Sequence, whole sequence: Northwind Orders API on App Service reaches Key Vault, Storage and SQL without a single secret in its configuration. 6 participants and 11 messages.
+
+Participants
+- App Service app-orders-prod
+  - Orders API (system-assigned identity)
+  - Identity endpoint (IDENTITY_ENDPOINT)
+- Microsoft Entra ID (Identity provider)
+- Key Vault (kv-orders-prod)
+- Storage account (stordersexport)
+- Azure SQL (sqldb-orders)
+
+Message flow
+In order, top to bottom.
+- Key Vault:
+- 1. Orders API calls Identity endpoint: Token for vault.azure.net.
+- 2. Identity endpoint calls Microsoft Entra ID: Token request as the managed identity.
+- 3. Microsoft Entra ID replies to Identity endpoint: Access token, aud vault.azure.net.
+- 4. Identity endpoint replies to Orders API: Access token, cached until it expires.
+- 5. Orders API calls Key Vault: Get secret orders-signing-key.
+- 6. Key Vault does: RBAC: Key Vault Secrets User?
+- 7. Key Vault replies to Orders API: Secret value.
+- Storage and SQL:
+- 8. Orders API calls Storage account: Put blob, token for storage.azure.com.
+- 9. Storage account replies to Orders API: 201 Created (role: Storage Blob Data Contributor).
+- 10. Orders API calls Azure SQL: Connect, token for database.windows.net.
+- 11. Azure SQL replies to Orders API: Rows (database user app-orders-prod, db_datareader).
+- Note over Storage account and Azure SQL: No password, key or connection string in the app: nothing to leak or rotate

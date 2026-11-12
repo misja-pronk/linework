@@ -1,4 +1,4 @@
-// The type chooser: a card per type, a search that ranks them, "Not for → X" jumps, the chosen type's
+// The types under "All templates": a card per type, a search that ranks them, the chosen type's
 // templates with its guidance, and the type pill in the top bar. Light, dark and a phone. node e2e/types.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
@@ -13,6 +13,8 @@ async function run(name, viewport, colorScheme) {
   await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.waitForSelector('.start .scenario');
+  await page.locator('.home-foot .import-chip').click();
   await page.waitForSelector('.start .type-card');
   await wait(1800);
   await page.screenshot({ path: `${out}/${name}-1-types.png` });
@@ -28,11 +30,8 @@ async function run(name, viewport, colorScheme) {
   if (await page.locator('.search-field input').inputValue()) fail('Esc did not clear the search');
   if (!(await page.locator('.start').count())) fail('Esc with text closed the dialog');
 
-  // "Not for → Database design" puts focus on that card.
-  await page.locator('[data-type="systems"] .type-not button', { hasText: 'Database design' }).click();
-  await wait(500);
-  if ((await page.evaluate(() => document.activeElement?.closest('.type-card')?.getAttribute('data-type'))) !== 'erd') fail('Not-for link did not jump to erd');
-  await page.keyboard.press('Enter');
+  // A type's card shows its templates with its guidance.
+  await page.locator('[data-type="erd"] .type-main').click();
   await page.waitForSelector('.type-summary');
   await wait(1200);
   if (!(await page.locator('.type-summary', { hasText: 'Database design' }).count())) fail('templates step lacks the type guidance');
@@ -43,16 +42,15 @@ async function run(name, viewport, colorScheme) {
   await wait();
   if ((await page.evaluate(() => document.activeElement?.closest('.type-card')?.getAttribute('data-type'))) !== 'erd') fail('back did not land on the chosen type');
 
-  // Arrow keys from the search box into the cards, Enter opens, Enter on the template, 3 for YAML.
+  // Arrow keys from the search box into the cards, Enter opens the type, Enter on the template opens it.
   await page.locator('.search-field input').focus();
   await page.keyboard.type('vnet subnet');
   await page.keyboard.press('Enter');
   await page.waitForSelector('.template-card');
   await wait(300);
   await page.keyboard.press('Enter');
-  await page.waitForSelector('.mode-card');
-  await page.keyboard.press('3');
   await wait(1200);
+  if (await page.locator('.start').count()) fail('Enter on a template did not open it');
   const pill = page.locator('.type-pill');
   if (await pill.isVisible()) {
     if ((await pill.innerText()) !== 'Azure infrastructure') fail('pill shows the wrong type');

@@ -1,0 +1,22 @@
+Web shop data mesh
+
+Data products, customer 360 in detail: Customer 360 in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Customer (Domain)
+  - Customers (Source-aligned · v1.4.0 · CRM team)
+  - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
+  - customer profiles (Data contract · v0.9.0)
+- Campaign tool (Application)
+- Orders (Sales · Source-aligned)
+
+Connections
+- Customers connects to Customer 360.in:1.
+- Customer 360.out:profiles connects to Campaign tool and is linked with customer profiles.
+- Orders connects to Customer 360.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract

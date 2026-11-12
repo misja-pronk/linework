@@ -20,32 +20,47 @@ const crossingBudget: Record<string, number> = {
   'class/strategy.yaml': 0,
   'mindmap/capability-brainstorm.yaml': 0,
   'mindmap/workshop-agenda.yaml': 0,
-  'access/engineering.yaml': 2, // wrapped into columns for a slide (0.71:1 at 4 pt -> 1.73:1 at 5.1 pt): the grants to production pass the package lines
+  'access/engineering.yaml': 0,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
-  'azure/data-platform.yaml': 1, // wrapped for a slide: the clickstream's line to the raw zone passes the pipelines'
+  'access/access-packages.yaml': 0,
+  'access/azure-rbac-pim.yaml': 0,
+  'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
+  'azure/aks-baseline.yaml': 0,
+  'azure/app-landing-zone.yaml': 0,
+  'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
+  'azure/landing-zone.yaml': 0,
   'azure/microservices.yaml': 4,
+  'azure/private-endpoints.yaml': 0,
   'azure/web-shop.yaml': 0,
+  'azure/web-app.yaml': 0,
+  'azure/workload-identities.yaml': 0,
   'context-map/e-commerce.yaml': 0,
   'c4/kestrel-bank.yaml': 0,
   'c4/kestrel-bank.yaml#landscape': 0,
   'c4/kestrel-bank.yaml#context': 0,
   'c4/kestrel-bank.yaml#containers': 0,
+  'c4/kestrel-bank.yaml#notifications': 0,
   'c4/kestrel-bank.yaml#components': 1,
   'c4/kestrel-bank.yaml#payment': 0,
+  'c4/kestrel-bank.yaml#payment-notice': 0,
   'c4/kestrel-bank.yaml#production': 0,
-  'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 2.32:1 at 4.8 pt): the stream's line down to the raw zone passes the change data capture's
+  'c4/kestrel-bank.yaml#production-data': 0,
+  'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 1.84:1 at 6.3 pt): the stream's line down to the raw zone passes the change data capture's
   'cloud/aws-landing-zone.yaml': 0,
+  'cloud/aws-landing-zone-network.yaml': 0,
   'cloud/aws-three-tier.yaml': 0,
   'cloud/gcp-data-platform.yaml': 0,
-  'cloud/multi-cloud.yaml': 0,
+  'cloud/multi-cloud.yaml': 2, // left to right for a slide: the interconnect and CDC lines to Google Cloud pass the shop's lines down to the data centre
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 1, // lines keep clear of the cards they pass: the dashboard's line crosses the one from orders
   'data-products/customer-focus.yaml': 0,
   'data-products/finance.yaml': 0,
   'data-products/mesh.yaml': 0,
+  'data-products/northwind-mesh.yaml': 1, // Orders and Customers both feed Revenue and the sales dashboard, which stand in one column
+  'data-products/northwind-orders-product.yaml': 0,
   'data-products/mesh-detailed.yaml': 3, // keys run field to field between contracts that stand by their own product, across the port lines
   'deployment/aws.yaml': 2, // the OrderPlaced lines into the queue each run on their own: lines with a label never share a trunk
   'deployment/aws.yaml#prod': 2, // the same
@@ -72,9 +87,9 @@ const crossingBudget: Record<string, number> = {
   'workspace/context.yaml': 0,
   'workspace/data-products.yaml': 0,
   'workspace/deployment.yaml': 0,
-  'workspace/model.yaml': 0,
+  'workspace/model.yaml': 1, // the landscape drawn left to right for a slide (5.1 → 7.0 pt): the retail customer's line down into Harbour Online passes the advisor's line to the desk
   'network/campus.yaml': 0,
-  'network/hybrid-cloud.yaml': 1, // the VPN backup passes the ExpressRoute gateway's line: both gateways stand in one subnet
+  'network/hybrid-cloud.yaml': 0,
   'network/office-ip-plan.yaml': 0,
   'network/small-office.yaml': 0,
   'github/setup.yaml': 0,
@@ -86,7 +101,8 @@ const crossingBudget: Record<string, number> = {
   'process/incident-handling.yaml': 0,
   'process/onboarding.yaml': 1, // the manager's branch passes IT's line on its way down
   'process/order-to-cash.yaml': 0,
-  'process/release-with-gate.yaml': 0,
+  'process/pull-request.yaml': 0,
+  'process/release-to-production.yaml': 0,
   'roadmap/migration-waves.yaml': 0,
   'roadmap/now-next-later.yaml': 0,
   'journey/access-request.yaml': 0,
@@ -95,11 +111,13 @@ const crossingBudget: Record<string, number> = {
   'journey/first-deploy.yaml': 0,
   'matrix/crud-services.yaml': 0,
   'matrix/raci-migration.yaml': 0,
-  'kubernetes/inference.yaml': 0,
+  'kubernetes/inference.yaml': 1, // the router's chat and embeddings lines leave its side one over the other
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,
   'sequence/checkout.yaml': 0,
-  'sequence/oauth-login.yaml': 0,
+  'sequence/entra-sign-in.yaml': 0,
+  'sequence/managed-identity.yaml': 0,
+  'sequence/service-bus-events.yaml': 0,
   'sequence/pipeline-handshake.yaml': 0,
   'states/device-connection.yaml': 1, // wrapped into two rows for a slide (2.94:1 at 6.6 pt -> 1.70:1 at 8.4 pt)
   'states/document-approval.yaml': 2, // wrapped into rows for a slide (3.89:1 at 6.7 pt -> 1.23:1 at 8.5 pt): the review's lines back pass Draft's
@@ -107,14 +125,14 @@ const crossingBudget: Record<string, number> = {
   'states/pull-request.yaml': 0,
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 1, // Orders' confirmation line passes its own OrderPlaced line
-  'systems/saas-platform.yaml': 1, // wrapped into two columns for a slide (text 3.5 → 4.5 pt): the two ways in pass each other above the edge zone
+  'systems/saas-platform.yaml': 2, // the overview: the host dashboard's way in passes the guests' line to their app, and the app's OIDC line over to Auth0
+  'systems/saas-platform.yaml#cluster': 0,
   'systems/trust-zones.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
-  'systems/saas-platform.yaml': 1, // the guest app's way in comes down beside CloudFront, under the Public edge title
   'deployment/aws.yaml#prod': 1, // one load balancer now (main): the OrderPlaced line from zone 1a, labelled and so on its own, runs over the top of zone 1b on its way to the queue
 };
 
@@ -123,25 +141,32 @@ const jogBudget: Record<string, number> = {
   // The Harbour Bank workspace example (examples/workspace), as drawn when it was added.
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
+  'workspace/model.yaml': 2, // the landscape left to right: the lines into the ledger step aside into its side
   'workspace/data-products.yaml': 2,
   'systems/invoice-walkthrough.yaml': 1, // three lines out of Orders' side: confirmation steps a lane down past the SQL line
   // A lane aside: lines keep clear of the cards they pass and do not start where another ends on its track.
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'model/deployment.yaml': 1,
+  'azure/hub-spoke.yaml': 2, // the second peering line steps out of the firewall's side beside the first, and the way out to the internet above them
+  'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
-  'cloud/aws-landing-zone.yaml': 1,
+  'cloud/aws-three-tier.yaml': 1, // the web shops' lines into the writer: one steps a lane aside past the other
+  'cloud/gcp-data-platform.yaml': 1, // the change data capture's line into the raw datasets steps around the streaming pipeline
+  'cloud/multi-cloud.yaml': 2, // left to right for a slide: the lines out of the shop step aside on their way down
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
   'c4/kestrel-bank.yaml#components': 2, // two labelled lines into one side each keep their own path now, and one end steps aside
   'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
   'data-products/customer-detailed.yaml': 2, // the same as customer.yaml, and a line stepping clear of a card it passes
   'data-products/customer-focus.yaml': 2, // the same, twice
+  'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
+  'data-products/northwind-orders-product.yaml': 2, // the sources' lines step into their input ports
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
-  'access/engineering.yaml': 2, // wrapped for a slide: the package lines into the security group step aside
+  'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   // A mind map's branches leave the centre on curves, drawn as short pieces that each read as a step: no kinks a reader sees.
@@ -152,15 +177,17 @@ const jogBudget: Record<string, number> = {
   'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
   'states/pull-request.yaml': 4, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
-  'systems/saas-platform.yaml': 1, // wrapped for a slide: the host dashboard's way in steps aside past the guest app's
+  'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
+  'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
   'states/device-connection.yaml': 1, // update verified, between two returns
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
+  'c4/kestrel-bank.yaml#production-data': 1, // Reads logins, on the line down from the banking API past Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
   'workspace/containers.yaml': 1,
   'c4/kestrel-bank.yaml#containers': 1,
@@ -171,7 +198,6 @@ const bendBudget: Record<string, number> = {
 const orderBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'c4/kestrel-bank.yaml#production': 3,
-  'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way
   'cloud/multi-cloud.yaml': 1,
   // One load balancer across both zones (as AWS runs it) no longer pins zone a to the left: zone b lands first.
@@ -191,6 +217,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'access/privileged-access.yaml': 1, // Privileged Role Administrator, beside Tier 0's other eligible line into the tenant
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
@@ -201,43 +228,52 @@ const touchBudget: Record<string, number> = {
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
   'workspace/deployment.yaml': 1,
+  'azure/web-app.yaml': 1, // db_datawriter, on its role line down to SQL, sits against the TDS line running down beside it
 };
 
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
 const returns: Record<string, number> = {
   'workspace/containers.yaml': 2, // customer → web and app, drawn above the boundary they enter
+  'azure/workload-identities.yaml': 1, // the shared identity's line up to the storage account, beside the function it serves
   'process/incident-handling.yaml': 1,
   'process/order-to-cash.yaml': 1,
-  'process/release-with-gate.yaml': 1,
+  'process/pull-request.yaml': 2, // a red build and requested changes both go back to the developer's commit
   'states/device-connection.yaml': 6, // and one more: wrapped into two rows for a slide
   'states/document-approval.yaml': 2, // and one more: wrapped into rows for a slide
   'states/order-lifecycle.yaml': 3, // wrapped into three rows for a slide: the lines on to the next row run back
   'states/pull-request.yaml': 4,
   'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
+  'azure/data-platform.yaml': 1, // wrapped for a slide: serving stands under the ingest, so gold's line down to the warehouse runs back
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
   'deployment/azure.yaml#prod': 1,
-  'deployment/aws.yaml#prod': 1, // wrapped the way the first environment is
+  'deployment/aws.yaml': 2, // users and the storefront stand to the left for a slide: their lines into the region run back
+  'deployment/aws.yaml#prod': 2, // wrapped the way the first environment is
+  'deployment/aws.yaml#test': 2, // the same
   'model/containers.yaml': 2,
   'network/campus.yaml': 2,
   'systems/trust-zones.yaml': 2,
   'c4/kestrel-bank.yaml#payment': 2,
   'deployment/model.yaml#containers': 2,
-  'systems/saas-platform.yaml': 2,
-  'access/engineering.yaml': 3,
+  'systems/saas-platform.yaml': 4, // the overview: the ways in from the apps left of the cloud, OIDC up over it to Auth0, and the events back up to the cluster
   'data-products/customer.yaml': 3,
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
   'workspace/containers.yaml#payments': 3,
-  'azure/data-platform.yaml': 2, // wrapped into two rows for a slide (3.95:1 at 4.4 pt -> 1.67:1 at 5.2 pt): the lines down to the lake and the serving group run back
+  // Lines that run back where a view is drawn to fit a slide.
+  'cloud/aws-three-tier.yaml': 1, // the writer replicates to the reader in the zone to its left
+  'c4/kestrel-bank.yaml#notifications': 2, // the notifier sends to Postbird and the push gateway, drawn under the boundary on the left
+  'c4/kestrel-bank.yaml#payment-notice': 1,
+  'c4/kestrel-bank.yaml#production': 1, // wrapped for a slide: the line down to the core ledger runs back to its start
 };
 
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
-  // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
-  const views = files.filter((f) => f.startsWith('c4/') || f.startsWith('deployment/') || f.startsWith('workspace/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
+  // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a
+  // deployment, and each view of any other example that has a budget of its own.
+  const views = files.flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
   it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).filter((k) => !k.includes('#')).sort()));
 
   for (const key of [...files, ...views])
@@ -262,7 +298,8 @@ describe('layout quality', () => {
 
   const c4 = fs.readFileSync(path.join(examples, 'c4/kestrel-bank.yaml'), 'utf8');
   it('keeps groups apart in a deployment view drawn top-down', async () => {
-    const down = c4.replace('    kind: deployment\n', '    kind: deployment\n    direction: down\n');
+    // The production view is written left to right (to fit a slide); turned top-down here.
+    const down = c4.replace('    direction: right\n', '').replace('    kind: deployment\n', '    kind: deployment\n    direction: down\n');
     expect(down).not.toBe(c4);
     const r = await render(down, { fonts: 'none', view: 'production' });
     expect(r.placed!.memory!.variant).toMatch(/^down\//);
@@ -274,8 +311,12 @@ describe('layout quality', () => {
   });
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
-    // Drawn on its own (not the way the first environment was), as it would be without the others.
-    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev', previous: null });
+    // Drawn on its own (not the way the first environment was), as it would be without the others,
+    // and with the account around the region that the example leaves out to fit a slide: one more group title to pass.
+    const aws = fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8');
+    const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
+    expect(inAccount).not.toBe(aws);
+    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
@@ -332,7 +373,7 @@ describe('layout quality', () => {
     expect(ragged).toEqual([]);
   });
   it('starts the cards of one column on one line, left to right', async () => {
-    // Drawn for a slide it turns top-down: asked left to right, the sources share their left edge.
+    // Drawn left to right, the sources share their left edge.
     const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
     const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
@@ -372,7 +413,8 @@ describe('drawn again', () => {
     const memory = first.placed!.memory!;
     // A drawing that was turned and wrapped for the page: the search is long, its answer is kept.
     expect(memory.variant).toMatch(/w\d/);
-    const edited = text.replace('label: Web shop CDN', 'label: Web shop content delivery network');
+    // An edit that keeps the card's width: drawn left to right, a wider card would rightly push what follows it.
+    const edited = text.replace('label: Web shop CDN', 'label: Shop CDN');
     const [fresh, again] = await race(
       () => render(edited, { fonts: 'none', load }),
       () => render(edited, { fonts: 'none', load, previous: memory }),
@@ -543,10 +585,12 @@ describe('group titles', () => {
     expect(crosses(out.get('e')!.points)).toBe(false);
   });
   it('take the lane under them: a fan-out into the next row comes in from the top', async () => {
-    // Drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
-    const r = await render(fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { wrap: false } });
-    for (const id of ['lb', 'events']) {
+    // The cluster view turned top-down and drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
+    const text = fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8').replace('    direction: right\n', '    direction: down\n');
+    const r = await render(text, { fonts: 'none', view: 'cluster', tuning: { wrap: false } });
+    for (const id of ['cloud.edge.lb', 'cloud.data.events']) {
       const lines = r.graph!.edges.filter((e) => e.from.node === id);
+      expect(lines, id).toHaveLength(2);
       for (const e of lines) {
         const pts = r.placed!.edges.get(e.id)!.points;
         const [a, b] = [pts[pts.length - 2]!, pts[pts.length - 1]!];

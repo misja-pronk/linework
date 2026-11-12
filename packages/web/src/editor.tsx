@@ -2,11 +2,11 @@
 // highlight on the entry of whatever is selected in the drawing. Builder edits go through
 // transactions here too, so one undo history covers typing and drawing.
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { EditorState, StateEffect, StateField, Transaction, type Extension } from '@codemirror/state';
+import { EditorState, Prec, StateEffect, StateField, Transaction, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentLess, indentMore, invertedEffects, redo, undo } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { autocompletion, closeBrackets, closeBracketsKeymap, closeCompletion, completionKeymap, completionStatus, selectedCompletion } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { lintGutter, setDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { yaml } from '@codemirror/lang-yaml';
@@ -109,6 +109,23 @@ function yamlEnter(view: EditorView): boolean {
 }
 
 /**
+ * Enter with a suggestion open that is exactly the word already typed ("type: sequence"): accepting
+ * it would change nothing and swallow the new line, so the suggestion closes and Enter is a new line.
+ */
+function enterPastTypedSuggestion(view: EditorView): boolean {
+  const { state } = view;
+  if (completionStatus(state) !== 'active') return false;
+  const picked = selectedCompletion(state);
+  const r = state.selection.main;
+  if (!picked || !r.empty) return false;
+  const line = state.doc.lineAt(r.head);
+  const word = /[\w.-]*$/.exec(line.text.slice(0, r.head - line.from))![0];
+  if (word !== picked.label || (picked.apply != null && picked.apply !== picked.label)) return false;
+  closeCompletion(view);
+  return yamlEnter(view);
+}
+
+/**
  * Spaces typed right after Enter on a line that only has the suggested indentation: the person indents
  * by hand, so their spaces replace the suggestion instead of adding to it (typed or pasted YAML keeps
  * its own indentation).
@@ -146,16 +163,16 @@ const highlight = HighlightStyle.define([
 ]);
 
 const theme = EditorView.theme({
-  '&': { height: '100%', fontSize: '13px', backgroundColor: 'var(--editor-bg)', color: 'var(--text)' },
+  '&': { height: '100%', fontSize: '12.5px', backgroundColor: 'var(--editor-bg)', color: 'var(--text)' },
   '.cm-scroller': { fontFamily: 'var(--mono)', lineHeight: '1.6' },
-  '.cm-content': { padding: '12px 0', caretColor: 'var(--accent)' },
+  '.cm-content': { padding: '12px 0', caretColor: 'var(--ink)' },
   '.cm-gutters': { backgroundColor: 'var(--editor-bg)', color: 'var(--text-faint)', border: 'none' },
   '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--active-line)' },
   '.cm-entry': { backgroundColor: 'var(--entry-band)' },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--selection) !important' },
-  '.cm-tooltip': { border: '1px solid var(--border)', borderRadius: '8px', backgroundColor: 'var(--surface)', boxShadow: 'var(--shadow)', overflow: 'hidden' },
+  '.cm-tooltip': { border: '1px solid var(--border)', borderRadius: 'var(--radius)', backgroundColor: 'var(--surface)', boxShadow: 'var(--shadow)', overflow: 'hidden' },
   '.cm-tooltip-autocomplete > ul > li': { padding: '3px 10px !important' },
-  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--accent-soft)', color: 'var(--text)' },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--hover)', color: 'var(--text)' },
   '.cm-completionDetail': { color: 'var(--text-faint)', fontStyle: 'normal', marginLeft: '8px' },
   '.cm-completionInfo': { padding: '6px 10px', maxWidth: '280px' },
   '.cm-diagnostic': { padding: '6px 10px', borderLeftWidth: '3px' },
@@ -183,6 +200,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
     closeBrackets(),
     highlightActiveLine(),
     highlightSelectionMatches(),
+    Prec.highest(keymap.of([{ key: 'Enter', run: enterPastTypedSuggestion }])),
     autocompletion({ override: [schemaCompletion], icons: false }),
     syntaxHighlighting(highlight),
     yaml(),

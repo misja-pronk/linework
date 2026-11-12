@@ -3,13 +3,12 @@ title: Campus network
 subtitle: Collapsed core, two buildings, distribution and access layers
 
 groups:
-  wan: { kind: wan, label: Internet and WAN }
   campus: { kind: site, label: Head office campus, cidr: 10.30.0.0/16 }
   north: { kind: zone, label: Building North, in: campus }
   south: { kind: zone, label: Building South, in: campus }
 
 nodes:
-  isp: { kind: isp, label: Dual ISP, in: wan, tier: internet }
+  isp: { kind: isp, label: Dual ISP, model: Internet and WAN, tier: internet }
   fw: { kind: firewall, label: fw-campus, in: campus, model: FortiGate 400F, ha: true, tier: edge }
   core: { kind: l3-switch, label: core-01/02, in: campus, model: Catalyst 9500, ha: SVL, tier: core, ip: 10.30.0.1 }
   dist-n: { kind: l3-switch, label: dist-north, in: north, model: Catalyst 9300, ha: stack, tier: distribution, ip: 10.30.1.1 }

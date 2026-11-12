@@ -44,7 +44,7 @@ diagram, git branching and a roadmap are the exception: they are one picture on 
 | Diagram title | the layout's title placeholder: position, face, size and colour are the template's |
 | The drawing | the layout's content or picture placeholder when it has one; otherwise the room under the title, between the master's text margins, down to the footers. It keeps clear of what the master and the layout draw there (a logo, a rule, a stripe). In a template it starts under the title rather than in the middle. |
 | Subtitle | a text box under the title, in the template's body face |
-| Step title and caption | the layout's caption placeholder (*Picture with Caption*) when it has one, otherwise under the drawing |
+| Step title and caption | the layout's caption placeholder (*Picture with Caption*) when it has one, otherwise under the title, in the subtitle's row; beside the drawing when the drawing is too tall for what is left under it |
 | Footer, slide number, date | copied from the layout onto each diagram slide, where the master shows them (a master that hides the date keeps it hidden) |
 | Speaker notes | as without a template, on the template's notes master; one is added when it has none |
 | Title slide (`--title`) | the template's **Title Slide** layout, its title and subtitle placeholders |
@@ -52,6 +52,17 @@ diagram, git branching and a roadmap are the exception: they are one picture on 
 The template's own sample slides are left out, with their pictures, notes, sections and custom shows; the
 thumbnail is dropped, as it showed the template's first slide. The template's masters, layouts, theme, embedded
 fonts and media stay byte for byte as they were.
+
+### How small the text gets
+
+A template usually leaves the drawing less room than Cartography's own slide: a title bar, a footer, a logo, wider
+margins. The drawing is scaled into the room the table above describes, and that is the room it is measured in.
+The editor's PowerPoint export names the slides whose smallest text a reader needs (names on cards, lines and
+groups) comes out under 6 pt, as made in the template. On the command line, `carto validate --template
+customer.potx` (with `--layout` as for `carto render`) says the same per diagram before you make the deck; a
+diagram whose brand theme names a template (`pptx:`) is measured in it without asking. Without a template,
+validate and the editor's page frame (⇧P) measure Cartography's own slide: the title top left, the drawing in
+the rest with modest margins, nearly as large as the drawing fitted whole.
 
 ## Colours and fonts
 

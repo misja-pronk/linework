@@ -1,0 +1,27 @@
+Nightly export handshake
+
+Sequence, check and confirm: Check and confirm. 4 participants and 6 messages.
+
+Participants
+- Partner SFTP (External system)
+- Data platform
+  - Orchestrator (Worker)
+  - Raw zone (Storage)
+  - Warehouse (Database)
+
+Message flow
+In order, top to bottom.
+- 1. Orchestrator calls Warehouse: Run quality checks.
+- 2. Warehouse replies to Orchestrator: Results.
+- Alternative: All checks pass
+  - 3. Orchestrator calls Warehouse: Swap staging into production.
+  - 4. Orchestrator sends to Partner SFTP: ACK batch 8812.
+- Else: Row counts differ from the manifest
+  - 5. Orchestrator calls Raw zone: Move batch to quarantine.
+  - 6. Orchestrator sends to Partner SFTP: NACK batch 8812, reason.
+- See Retry and back-off policy (over Partner SFTP and Orchestrator)
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

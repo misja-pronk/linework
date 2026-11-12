@@ -1,0 +1,20 @@
+Nightly export handshake
+
+Sequence, load: Load. 3 participants and 6 messages.
+
+Participants
+- Data platform
+  - Orchestrator (Worker)
+  - Raw zone (Storage)
+  - Warehouse (Database)
+
+Message flow
+In order, top to bottom.
+- 1. Orchestrator calls Raw zone: Read manifest.
+- 2. Raw zone replies to Orchestrator: 3 files, 1.2 GB.
+- In parallel: orders
+  - 3. Orchestrator calls Warehouse: COPY orders.
+  - 4. Warehouse replies to Orchestrator: 1,204,331 rows.
+- And: order_lines
+  - 5. Orchestrator calls Warehouse: COPY order_lines.
+  - 6. Warehouse replies to Orchestrator: 4,881,020 rows.

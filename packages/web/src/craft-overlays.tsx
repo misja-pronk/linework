@@ -6,7 +6,8 @@ import { useRef } from 'react';
 import type { Box, Placed, Point } from '@cartography/core';
 import type { Snap } from './craft.ts';
 import { Icon } from './icon.tsx';
-import { t } from './i18n/index.ts';
+import { listWords } from '@cartography/i18n';
+import { t, uiLang } from './i18n/index.ts';
 
 /** Alignment lines and equal-gap marks; `at` maps pin space to the stage. */
 export function Guides({ snap, at, scale }: { snap: Snap; at(p: Point): Point; scale: number }) {
@@ -83,24 +84,46 @@ export function PinBadges({ boxes, scale }: { boxes: Box[]; scale: number }) {
  * The page the drawing is for (a 16:9 slide unless aspect: says otherwise), fitted around it: a thin
  * frame with its name and the size the smallest text comes out at. Under the readable size the frame
  * says so, the part of the page where text would still be readable shows dashed, and what lies
- * outside that part is marked: it is what makes the page too full.
+ * outside that part is marked: it is what makes the page too full. A drawing read scrolling (a whole
+ * sequence) says instead which views put it on slides (its phases), and nothing is marked.
  */
-export function PageFrame(p: { width: number; height: number; page: { name: string; width: number; height: number }; pt: number; minPt: number; readable?: { width: number; height: number }; boxes: Box[]; scale: number }) {
+export function PageFrame(p: { width: number; height: number; page: { name: string; width: number; height: number }; pt: number; minPt: number; readable?: { width: number; height: number }; boxes: Box[]; scale: number; presentedBy?: string[] }) {
+  // A drawing read scrolling (a whole sequence) is not put on one slide: its views are (its phases).
+  // So no page is drawn around it, only the label over it.
+  const scroll = !!p.presentedBy?.length && p.pt < p.minPt;
   const a = p.page.width / p.page.height;
-  const w = Math.max(p.width, p.height * a);
-  const h = w / a;
+  const w = scroll ? p.width : Math.max(p.width, p.height * a);
+  const h = scroll ? p.height : w / a;
   const x = (p.width - w) / 2;
   const y = (p.height - h) / 2;
-  const small = p.pt < p.minPt;
+  const small = p.pt < p.minPt && !scroll;
   // The readable part, centred on the drawing as the page is.
   const r = small && p.readable ? { x: (p.width - p.readable.width) / 2, y: (p.height - p.readable.height) / 2, ...p.readable } : undefined;
   const out = r ? p.boxes.filter((b) => b.x < r.x || b.y < r.y || b.x + b.width > r.x + r.width || b.y + b.height > r.y + r.height) : [];
   const line = 1 / p.scale;
   return (
     <>
-      <div className={small ? 'page-frame small' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
+      <div className={small ? 'page-frame small' : scroll ? 'page-frame scroll' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
         <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
-          {small ? t('Page: {name} · {pt} pt, under {min} pt', { name: p.page.name, pt: p.pt.toFixed(1), min: p.minPt }) : t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
+          {t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
+          {small && (
+            <>
+              {', '}
+              <span className="page-warn">{t('under {min} pt', { min: p.minPt })}</span>
+            </>
+          )}
+          {scroll && (
+            <>
+              {', '}
+              <span className="page-scroll">{t('too long for one slide: on slides as {views}', { views: listWords(uiLang(), p.presentedBy!) })}</span>
+            </>
+          )}
+          {out.length > 0 && (
+            <span className="page-key">
+              <i aria-hidden="true" />
+              {t('outlined: past the readable part')}
+            </span>
+          )}
         </span>
       </div>
       {r && <div className="page-readable" style={{ left: r.x, top: r.y, width: r.width, height: r.height, borderWidth: line }} aria-hidden="true" />}

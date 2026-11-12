@@ -1,6 +1,6 @@
 Data lake on AWS
 
-AWS and Google Cloud diagram: From sources to dashboards, lakehouse on S3. 15 elements in 5 groups, with 15 connections.
+AWS and Google Cloud diagram: From sources to dashboards, lakehouse on S3. 14 elements in 5 groups, with 14 connections.
 
 Groups and elements
 - Sources
@@ -22,19 +22,17 @@ Groups and elements
     - Warehouse (Redshift)
     - Churn model (SageMaker)
     - Dashboards (QuickSight)
-- Analysts (Users)
 
 Connections
-- ERP sends data to Change data capture (nightly).
+- ERP sends data to Change data capture.
 - Change data capture sends data to Raw zone.
 - Raw zone sends data to ETL jobs.
-- ETL jobs sends data to Curated zone and is linked with Catalog and grants (catalog).
-- Curated zone sends data to Ad-hoc SQL, sends data to Warehouse (Spectrum) and sends data to Churn model.
+- ETL jobs sends data to Curated zone and is linked with Catalog and grants.
+- Curated zone sends data to Ad-hoc SQL, sends data to Warehouse and sends data to Churn model.
 - Ad-hoc SQL sends data to Dashboards.
 - Warehouse sends data to Dashboards.
-- Dashboards connects to Analysts.
-- Orders database sends data to Change data capture (CDC).
-- Web and app events sends data to Clickstream (events).
+- Orders database sends data to Change data capture.
+- Web and app events sends data to Clickstream.
 - Clickstream sends data to Delivery.
 - Delivery sends data to Raw zone.
 

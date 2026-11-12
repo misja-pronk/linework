@@ -101,7 +101,7 @@ describe('validate', () => {
   });
 
   it('measures the other direction before suggesting it', async () => {
-    const r = await validateDiagram({ file: 'examples/cloud/aws-landing-zone.yaml' }, root);
+    const r = await validateDiagram({ file: 'examples/network/campus.yaml' }, root);
     expect(r.quality!.suggestions.join(' ')).toMatch(/"direction: right" lays this out better \(score \d+ instead of \d+/);
   });
 

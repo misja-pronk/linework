@@ -5,33 +5,33 @@ Roles, groups and access packages, who gets what, as a graph: Who gets what, as 
 Groups and elements
 - Engineering (department = Engineering)
 - Engineering (Catalog)
-  - Manager approves (180 days · review quarterly)
+  - Approval: manager (180 days · review quarterly)
+  - Approval: manager → sg-platform-admins (30 days)
   - Developer access (Access package)
-  - Manager → sg-platform-admins approves (30 days)
   - Platform admin (Access package)
 - sg-developers (Security group)
 - GitHub Enterprise (Application)
+- sg-platform-admins (Role-assignable group)
 - Test (Subscription)
 - Production (Subscription)
   - rg-shop (Resource group)
-- sg-platform-admins (Role-assignable group)
 - Contoso partners (Connected organisation)
 - Alice (User)
 - Bob (Contoso) (Guest)
 - GitHub deploy (Service principal)
 
 Connections
-- Engineering (department = Engineering) connects to Manager approves.
-- Manager approves connects to Developer access.
-- Developer access connects to sg-developers and connects to GitHub Enterprise (User).
-- sg-developers connects to Manager → sg-platform-admins approves, connects to Test (Contributor) and connects to Production (Reader).
-- Manager → sg-platform-admins approves connects to Platform admin.
-- Platform admin connects to sg-platform-admins.
-- sg-platform-admins connects to Production (Owner).
-- Contoso partners connects to Manager approves.
-- Alice connects to Developer access.
-- Bob (Contoso) connects to Developer access.
-- GitHub deploy connects to rg-shop (Contributor).
+- Engineering (department = Engineering) connects to Approval: manager and connects to Approval: manager → sg-platform-admins.
+- Approval: manager connects to Developer access.
+- Approval: manager → sg-platform-admins connects to Platform admin.
+- Developer access grants sg-developers and grants GitHub Enterprise (User).
+- Platform admin grants sg-platform-admins.
+- sg-developers is Contributor on Test and is Reader on Production.
+- sg-platform-admins is Owner on Production.
+- Contoso partners connects to Approval: manager.
+- Alice holds Developer access.
+- Bob (Contoso) holds Developer access.
+- GitHub deploy is Contributor on rg-shop.
 
 Key
 - Solid green line with beads: Holds package

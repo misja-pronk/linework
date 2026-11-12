@@ -1,6 +1,6 @@
 Checkout
 
-Sequence diagram: Card payment with a payment provider, confirmed by webhook. 6 participants and 17 messages.
+Sequence diagram: Card payment with a payment provider, confirmed by webhook. 6 participants and 19 messages.
 
 Participants
 - Shopper
@@ -13,6 +13,7 @@ Participants
 
 Message flow
 In order, top to bottom.
+- Order:
 - 1. Shopper calls Storefront: Place order.
 - 2. Storefront calls Orders API: POST /orders.
 - 3. Orders API does: Validate cart and prices.
@@ -24,16 +25,19 @@ In order, top to bottom.
 - 8. Orders API replies to Storefront: 201 Created.
 - 9. Storefront sends to Stripe: Confirm card (3-D Secure in the browser).
 - Note over Orders API and Stripe: The order stays pending until the webhook arrives, never on the browser's word
+- Confirmation:
 - Alternative: Payment succeeded
   - 10. Stripe sends to Orders API: webhook payment_intent.succeeded.
   - 11. Orders API calls Orders DB: UPDATE order SET status = paid.
   - 12. Orders DB replies to Orders API: ok.
   - 13. Orders API sends to order-events: OrderPaid.
 - Else: Card declined
-  - 14. Stripe sends to Orders API: webhook payment_failed.
+  - 14. Stripe sends to Orders API: webhook payment_intent.payment_failed.
   - 15. Orders API calls Orders DB: UPDATE order SET status = failed.
   - 16. Orders DB replies to Orders API: ok.
-- 17. Storefront replies to Shopper: Order confirmation.
+- 17. Storefront calls Orders API: Poll GET /orders/{id}.
+- 18. Orders API replies to Storefront: status: paid or failed.
+- 19. Storefront replies to Shopper: Confirmation, or try another card.
 
 Key
 - Arrow with a filled head: Call

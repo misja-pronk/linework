@@ -1,0 +1,81 @@
+type: azure
+title: Private endpoints and DNS
+subtitle: Northwind · every PaaS service behind a private endpoint of its own, resolved the same way from Azure and from the office
+
+# Left to right: head office → hub (DNS resolver, private DNS zones) → spoke (app, private endpoints) → PaaS.
+# The PaaS services have public network access disabled: the only way in is the private endpoint.
+# Name resolution: spoke VNets use the resolver's inbound IP (10.0.1.4) as their DNS server; the
+# office DNS forwards the privatelink.* names there too. The privatelink zones live once, centrally,
+# linked to the hub VNet.
+# Two services show the pattern, so the drawing fits one slide; the subtitle and the last step say it repeats. Key Vault:
+# zone privatelink.vaultcore.azure.net, an endpoint pe-kv-claims (10.1.9.6) in snet-pe.
+# Captions stay short so it reads on a slide: the office is Amsterdam, the spoke VNet uses
+# 10.0.1.4 as its DNS server, and snet-pe holds only private endpoints.
+# Adding a service: a node in rg-data, a private endpoint in snet-pe, a zone in rg-dns and the
+# two lines app → pe → service.
+
+groups:
+  onprem: { kind: on-premises, label: Head office, caption: 10.10.0.0/16 }
+
+  conn: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
+  hub: { kind: vnet, label: vnet-hub-weu, caption: 10.0.0.0/22, in: conn }
+  dns-in: { kind: subnet, label: snet-dns-in, caption: 10.0.1.0/28, in: hub }
+  dns-out: { kind: subnet, label: snet-dns-out, caption: 10.0.1.16/28, in: hub }
+  rg-dns: { kind: resource-group, label: rg-dns-privatelink, caption: Linked to the hub, in: conn }
+
+  sub-app: { kind: subscription, label: sub-claims-prd, caption: Landing zone · Corp }
+  spoke: { kind: vnet, label: vnet-claims-weu, caption: 10.1.8.0/22, in: sub-app }
+  snet-app: { kind: subnet, label: snet-app, caption: 10.1.8.0/24, in: spoke }
+  snet-pe: { kind: subnet, label: snet-pe, caption: 10.1.9.0/24, in: spoke }
+  rg-data: { kind: resource-group, label: rg-claims-data, caption: Public access off, in: sub-app }
+
+nodes:
+  office-dns: { kind: dns, label: dc01.northwind.local, caption: Forwards privatelink.*, in: onprem, tags: [dns] }
+
+  resolver: { kind: dns, label: dnspr-hub, caption: Inbound · 10.0.1.4, in: dns-in, tags: [dns] }
+  ruleset: { kind: dns, label: dnsfrs-hub, caption: northwind.local → 10.10.0.10, in: dns-out, tags: [dns] }
+  zone-sql: { kind: dns, label: privatelink.database.windows.net, caption: Private DNS zone, in: rg-dns, tags: [dns] }
+  zone-blob: { kind: dns, label: privatelink.blob.core.windows.net, caption: Private DNS zone, in: rg-dns, tags: [dns] }
+
+  app: { kind: vmss, label: vmss-claims, caption: Claims API, in: snet-app }
+  pe-sql: { kind: private-endpoint, label: pe-sql-claims, caption: 10.1.9.4, in: snet-pe }
+  pe-blob: { kind: private-endpoint, label: pe-st-claims, caption: 10.1.9.5, in: snet-pe }
+
+  sql: { kind: sql-database, label: sql-claims-prd, in: rg-data }
+  blob: { kind: storage, label: stclaimsprd, in: rg-data }
+
+edges:
+  # How a name is found
+  - office-dns -> resolver: { style: private, tags: [dns] }
+  - resolver ..> zone-sql: { style: management, tags: [dns] }
+  - resolver ..> zone-blob: { style: management, tags: [dns] }
+  - app ..> resolver: { label: DNS, style: management, tags: [dns] }
+  # Names the other way: Azure asks the office DNS for northwind.local through the outbound endpoint
+  - resolver ..> ruleset: { style: management, tags: [dns] }
+  # How the traffic flows
+  - app -> pe-sql: { style: private }
+  - app -> pe-blob: { style: private }
+  - pe-sql -> sql: { label: TDS 1433, style: private }
+  - pe-blob -> blob: { label: HTTPS 443, style: private }
+
+layers:
+  dns:
+    tags: [dns]
+    title: Name resolution
+    caption: One resolver, one set of privatelink zones, used by the spokes and the office alike.
+
+steps:
+  - Two PaaS services show the pattern, each reachable only through a private endpoint in the spoke.
+  - title: The app asks for a name
+    caption: The SQL name is a CNAME to its privatelink name; the resolver answers 10.1.9.4 from the private zone.
+    path: app -> resolver -> zone-sql
+  - title: And connects privately
+    caption: The connection goes to the endpoint's private IP in snet-pe, never over the internet.
+    path: app -> pe-sql -> sql
+  - title: From the office
+    caption: Office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
+    path: office-dns -> resolver
+  - title: Every service the same way
+    caption: Key Vault, Service Bus… each gets an endpoint in snet-pe and a zone, linked to the hub once.
+    focus: [snet-pe, rg-dns, rg-data]
+    note: { pe-sql: "Next: pe-kv-claims · 10.1.9.6", zone-sql: "Next: privatelink.vaultcore.azure.net" }

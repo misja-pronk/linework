@@ -34,7 +34,8 @@ export function tidy(p: Placement, graph: Graph, header: number, pad: number, ga
   const straight = () => edges.filter((e) => Math.abs(across(nodes.get(e.from.node)!) - across(nodes.get(e.to.node)!)) < 0.5).length;
 
   // Tables with lines to their rows are lined up by row (align.ts); moving them would add jogs.
-  const rowBound = new Set(graph.edges.flatMap((e) => [e.from.row ? e.from.node : '', e.to.row ? e.to.node : '']));
+  // So is an annex, set against its table (annex.ts).
+  const rowBound = new Set(graph.edges.flatMap((e) => [e.from.row ? e.from.node : '', e.to.row || e.annex ? e.to.node : '']));
   // Centres on the grid, one shared centre line at a time: all nodes on it move together or none
   // does, so what was lined up stays lined up.
   for (const axis of ['x', 'y'] as const) {

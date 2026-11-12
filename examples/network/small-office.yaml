@@ -2,8 +2,10 @@ type: network
 title: Small office
 subtitle: One site, four VLANs behind an active/passive firewall pair
 
+# The ISP (on the internet side) and the firewall share the edge tier, so the ISP stands beside
+# the office instead of above it and the drawing fits a slide. nas-01 is a Synology DS923+.
+
 groups:
-  internet: internet
   office: { kind: site, label: Utrecht office, cidr: 10.20.0.0/16 }
   mgmt: { kind: vlan, label: Management, in: office, vlan: 1, cidr: 10.20.1.0/24 }
   staff: { kind: vlan, label: Staff, in: office, vlan: 10, cidr: 10.20.10.0/24 }
@@ -11,12 +13,12 @@ groups:
   guest: { kind: vlan, label: Guest, in: office, vlan: 30, cidr: 10.20.30.0/24 }
 
 nodes:
-  isp: { kind: isp, label: KPN Fibre, in: internet, ip: 203.0.113.1 }
-  fw: { kind: firewall, label: fw-utr, in: office, model: FortiGate 60F, ha: true, ip: 10.20.1.1 }
+  isp: { kind: isp, label: KPN Fibre, ip: 203.0.113.1, tier: edge }
+  fw: { kind: firewall, label: fw-utr, in: office, model: FortiGate 60F, ha: true, ip: 10.20.1.1, tier: edge }
   core: { kind: switch, label: sw-core, in: mgmt, model: USW Pro 24 PoE, ip: 10.20.1.2 }
   ap1: { kind: access-point, label: ap-ground, in: mgmt, model: U6 Pro, ip: 10.20.1.11 }
   ap2: { kind: access-point, label: ap-first, in: mgmt, model: U6 Pro, ip: 10.20.1.12 }
-  nas: { kind: nas, label: nas-01, in: staff, model: Synology DS923+, ip: 10.20.10.5 }
+  nas: { kind: nas, label: nas-01, in: staff, model: DS923+, ip: 10.20.10.5 }
   printer: { kind: printer, label: print-01, in: staff, ip: 10.20.10.9 }
   laptops: { kind: clients, label: Laptops, in: staff }
   phones: { kind: phone, label: Desk phones, in: voice }

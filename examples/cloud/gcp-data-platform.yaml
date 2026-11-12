@@ -3,12 +3,13 @@ provider: gcp
 title: Data platform on Google Cloud
 subtitle: BigQuery at the centre, one project per stage
 
+# The three projects sit in one folder (data) in the organization; left out of the drawing so it
+# fits a slide.
 groups:
   sources: { kind: boundary, label: Sources }
-  folder: { kind: folder, label: data }
-  ingest: { kind: project, label: Ingest, project: acme-data-ingest, in: folder }
-  warehouse: { kind: project, label: Warehouse, project: acme-data-warehouse, in: folder }
-  serve: { kind: project, label: Serve, project: acme-data-serve, in: folder }
+  ingest: { kind: project, label: Ingest, project: acme-data-ingest }
+  warehouse: { kind: project, label: Warehouse, project: acme-data-warehouse }
+  serve: { kind: project, label: Serve, project: acme-data-serve }
 
 nodes:
   saas: { kind: external, label: SaaS apps, caption: CRM and billing, in: sources }
@@ -26,24 +27,26 @@ nodes:
   marts: { kind: bigquery, label: Data marts, in: warehouse }
   governance: { kind: dataplex, label: Catalog and quality, in: warehouse }
 
+  # Analysts read the dashboards.
   looker: { kind: looker, label: Dashboards, in: serve }
   models: { kind: vertex-ai, label: Forecast models, in: serve }
 
-  analysts: { kind: users, label: Analysts }
-
+# The lines say what they are by their style (see the key), so the drawing stays slide-sized:
+# SaaS apps drop daily files in the landing bucket, Datastream captures changes (CDC) from the
+# orders database, and Composer loads the bucket into BigQuery and runs the Dataform transformations,
+# whose lineage Dataplex catalogues.
 edges:
-  - saas -> landing: { label: daily files, style: data }
-  - orders -> cdc: { label: CDC, style: data }
-  - clicks -> events: { label: events, style: data }
+  - saas -> landing: { style: data }
+  - orders -> cdc: { style: data }
+  - clicks -> events: { style: data }
   - events -> streaming: { style: data }
-  - landing -> schedule: { style: data }
-  - schedule -> raw: { label: load, style: data }
+  - landing -> raw: { style: data }
   - cdc -> raw: { style: data }
   - streaming -> raw: { style: data }
-  - raw -> transform: { style: data }
-  - transform -> marts: { style: data }
-  - schedule -> transform: { label: runs, style: management }
-  - transform -- governance: { label: lineage }
+  - schedule -> raw: { style: management }
+  - schedule -> transform: { style: management }
+  - raw -> marts: { style: data }
+  - transform -> marts: { style: management }
+  - transform -- governance
   - marts -> looker: { style: data }
   - marts -> models: { style: data }
-  - looker -> analysts

@@ -1,0 +1,38 @@
+type: sequence
+title: Managed identity, service to service
+subtitle: "Northwind Orders API on App Service reaches Key Vault, Storage and SQL without a single secret in its configuration"
+autonumber: true
+
+# The app and the endpoint it asks for tokens run together in the App Service
+# sandbox; on a VM or AKS node the same request goes to IMDS (169.254.169.254).
+boxes:
+  appservice: { label: App Service app-orders-prod, tone: blue }
+
+participants:
+  app: { kind: service, label: Orders API, caption: system-assigned identity, box: appservice }
+  idep: { kind: gateway, label: Identity endpoint, caption: IDENTITY_ENDPOINT, box: appservice }
+  entra: { kind: identity, label: Microsoft Entra ID }
+  kv: { kind: key-vault, label: Key Vault, caption: kv-orders-prod }
+  blob: { kind: storage, label: Storage account, caption: stordersexport }
+  sql: { kind: database, label: Azure SQL, caption: sqldb-orders }
+
+messages:
+  - divider: Key Vault
+  # A token is for one resource (its audience); the SDK (DefaultAzureCredential) asks per resource and caches it.
+  - app -> idep: Token for vault.azure.net
+  - idep -> entra: Token request as the managed identity
+  - entra --> idep: Access token, aud vault.azure.net
+  - idep --> app: Access token, cached until it expires
+  - app -> kv: Get secret orders-signing-key
+  # Azure RBAC on the vault: without a role that allows the data action the answer is 403.
+  - kv -> kv: "RBAC: Key Vault Secrets User?"
+  - kv --> app: Secret value
+  # The same for every resource, each with a token for its own audience.
+  - divider: Storage and SQL
+  - app -> blob: Put blob, token for storage.azure.com
+  - blob --> app: "201 Created (role: Storage Blob Data Contributor)"
+  # SQL does not use Azure RBAC for data: the identity is a contained database user with database roles.
+  - app -> sql: Connect, token for database.windows.net
+  - sql --> app: "Rows (database user app-orders-prod, db_datareader)"
+  - note: "No password, key or connection string in the app: nothing to leak or rotate"
+    over: [blob, sql]

@@ -32,22 +32,16 @@ await page.waitForSelector('.preview svg');
 
 // 1. New → "raci" finds the matrix type; its template opens.
 {
-  await page.getByRole('button', { name: 'New' }).click();
-  await page.waitForSelector('.start .type-card');
-  await page.keyboard.type('raci');
+  await page.click('button[aria-label="More actions"]');
+  await page.getByRole('menuitem', { name: 'New diagram' }).click();
+  await page.waitForSelector('.start .scenario');
+  await page.locator('.home .search-field input').fill('raci');
   await wait(400);
-  const first = await page.locator('.start .type-card').first().innerText();
-  if (!first.includes('Matrix')) fail(`"raci" does not find the matrix type first: ${first.split('\n')[0]}`);
-  await page.locator('.type-main', { hasText: 'Matrix' }).first().click();
+  const first = await page.locator('.home .type-hint button.best').innerText().catch(() => '(none)');
+  if (!first.includes('Matrix')) fail(`"raci" does not find the matrix type first: ${first}`);
+  await page.keyboard.press('Enter');
   await page.locator('.template-card', { hasText: 'Template' }).first().click();
-  await page.waitForSelector('.mode-card').catch(() => {});
-  await page.keyboard.press('3').catch(() => {});
   await wait(800);
-  if (!/^type: matrix/m.test(await yaml())) {
-    // The mode step may differ: open the template the way the dialog offers it.
-    await page.locator('.mode-card').last().click().catch(() => {});
-    await wait(800);
-  }
   if (!/^type: matrix/m.test(await yaml())) fail('the matrix template did not open');
 }
 

@@ -91,12 +91,12 @@ export function useNavigation(p: Props) {
   };
   /**
    * V: the next view of the diagram; the YAML stays as it is. Views the type draws itself (data products
-   * overview and detailed) go round without "as written", which is one of them: the one in `view:`.
+   * overview and detailed per domain or product) go round without "as written", which is one of them: the one in `view:`.
    */
   /** Only views the type draws itself (no model `views:`, nothing included): as written is one of them. */
   const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews && !/^(views|include):/m.test(textNow());
   /** The view drawn: one picked, else for a type with views of its own the one in its `view:` (or its first). */
-  const viewNow = () => viewName ?? (ownViews ? (drawn!.views!.find((v) => v.name === /^view:[ \t]*([\w-]+)/m.exec(textNow())?.[1]) ?? drawn!.views![0]!).name : undefined);
+  const viewNow = () => viewName ?? (ownViews ? (drawn!.asWritten ?? drawn!.views![0]!).name : undefined);
   const nextView = () => {
     const list = ownViews ? viewList().slice(1) : viewList();
     if (list.length < 2) return notify(t('This diagram has one view'));

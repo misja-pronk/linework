@@ -6,6 +6,7 @@ import { compact } from './compact.ts';
 import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
+import { clearAnnexLines, liftAnnexes, stackAnnexes } from './annex.ts';
 import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
@@ -53,6 +54,11 @@ const VARIANTS: [string, DotVariant][] = [
   ['same', { sameRank: true }],
   ['out', { attrs: 'ordering=out' }],
   ['same-rev', { sameRank: true, reverse: true }],
+  // Asked only of a drawing with annexes (annex.ts): each set beside its table, clear of the table's other lines.
+  ['annex', { annex: true }],
+  ['same-annex', { sameRank: true, annex: true }],
+  ['stack', { stack: true }],
+  ['same-stack', { sameRank: true, stack: true }],
 ];
 
 /**
@@ -134,6 +140,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
+    const asked = best;
     // A long chain drawn left to right can end up many times wider than tall, and a deep tree drawn
     // top-down many times taller than wide: neither fits a slide or a page. When the source did not
     // choose a direction, the other one is tried too and kept when its shape is nearer the target
@@ -168,7 +175,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       const kept = best;
       best = wrapped(best, spacing, target) ?? best;
       // The other direction, wrapped, may read better still (a drawing far off the page's shape both ways).
-      const other = turnedAlt && turnedAlt !== kept && graph.nodes.length <= WRAP_ALL && off(turnedAlt.placed, graph, target) > WRAP_OFF ? wrapped(turnedAlt, spacing, target, best) : undefined;
+      // The drawing in the direction not kept: that one, wrapped, may read better still.
+      const unkept = turnedAlt && (turnedAlt === kept ? asked : turnedAlt);
+      const other = unkept && unkept !== kept && graph.nodes.length <= WRAP_ALL && off(unkept.placed, graph, target) > WRAP_OFF ? wrapped(unkept, spacing, target, best) : undefined;
       if (other && readsBetter(other, best, target)) best = other;
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
@@ -286,6 +295,10 @@ export function slideReadability(scale: number, crossings: number, backward: num
 
 /** A wrapped drawing comes out at least this much larger on the page (its text a fifth larger). */
 const LARGER = 1.2;
+/** Or, for a drawing whose text is under 6 pt on the slide (SLIDE_SCALE), at least this much larger (its text 15% larger). */
+const LARGER_SMALL = 1.15;
+/** How much larger a wrapped drawing must come out than one at page scale `sb` to be worth it. */
+const largerThan = (sb: number) => (sb < SLIDE_SCALE ? LARGER_SMALL : LARGER) * sb;
 /** Or comes out about as large (text at most 3% smaller) and nearer a slide's shape. */
 const AS_LARGE = 0.97;
 /** Up to this many nodes every way of wrapping is tried (inside groups, chains, loose cuts, four parts). */
@@ -360,8 +373,14 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // slide's shape at text as large.
   const [sa, sb] = [pageScale(a.placed, a.sized.graph, target), pageScale(b.placed, b.sized.graph, target)];
   const shaped = outOfBand(a.placed, a.sized.graph, target) < outOfBand(b.placed, b.sized.graph, target) - NEARER && sa >= AS_LARGE * sb;
-  return sb < READABLE_SCALE && (sa >= LARGER * sb || shaped) && beats(readability(a, b, target), readsAs(b, target));
+  if (sb < READABLE_SCALE && (sa >= largerThan(sb) || shaped) && beats(readability(a, b, target), readsAs(b, target))) return true;
+  // Or when it brings text that is too small for a slide up to readable (SLIDE_SCALE) at no cost:
+  // no more crossings, no new flaw, and reading better however weighed.
+  const r = readability(a, b, target);
+  return sb < SLIDE_SCALE && sa >= SLIDE_SCALE && metricsOf(a).crossings <= crossed && r != null && r > readsAs(b, target) + 1e-9 && (readability(a, b, target, 0) ?? -Infinity) > readsAs(b, target, 0) + 1e-9;
 }
+/** The page scale at which the small labels on lines (10 px) come out at 6 pt on the page, the least a slide should have. */
+const SLIDE_SCALE = 0.8;
 /** For larger text a drawing may take on this many more crossings (half as many again as it has when its text is tiny), no more: past that it is a tangle, however large. */
 const SMALL_CROSSINGS = 2;
 const beats = (r: number | undefined, than: number) => r != null && r > than + WRAP_GAIN + 1e-9;
@@ -434,7 +453,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
         // Weighed with small text double only where readsBetter would (text too small, and clearly larger or nearer a slide's shape).
         const weighed = beat.some((b) => {
           const sb = pageScale(b.placed, s.graph, target);
-          return sb < READABLE_SCALE && (sq >= LARGER * sb || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
+          return sb < READABLE_SCALE && (sq >= largerThan(sb) || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
         });
         cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, i: cuts.length });
       }
@@ -497,17 +516,30 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   // dot ranks and orders differently when asked differently, and no one way suits every diagram.
   // Small diagrams try a few ways, each drawn in full, and the best one is kept. Big diagrams ask once.
   const big = graph.nodes.length > VARIANT_LIMIT;
-  const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : big ? VARIANTS.slice(0, 1) : VARIANTS;
+  // One table with annexes (one data product and its contracts): its annexes are set by annex.ts, under or
+  // beside it, so its other lines run straight on; dot's own placement would put them in those lines' way.
+  // With annexes on several tables that costs more than it wins, and dot's own placement is weighed too.
+  const annexed = new Set(graph.edges.filter((e) => e.annex).map((e) => e.from.node)).size;
+  const offered = VARIANTS.filter(([, v]) => (annexed === 1 ? !!(v.annex || v.stack) : annexed > 1 || !(v.annex || v.stack)));
+  const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : big ? offered.slice(0, 1) : offered;
   // A big diagram with a drawing before it is drawn the way that one was (packed or not, straightened
   // or not) and no other: every candidate is routed in full, which is most of the time a layout takes,
   // and next to the previous drawing kept as it was the other three rarely win.
   const was = big ? parseKey(prev?.variant) : undefined;
   if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror };
   let best: Choice | undefined;
+  // A contract stacked under its product makes a tall column: where that leaves the text too small for
+  // a slide and another way does not, the other way wins whatever its score.
+  const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
+  const fits = (c: Choice) => annexed !== 1 || target == null || pageScale(c.placed, c.sized.graph, target) >= SLIDE_SCALE;
   for (const [name, variant] of ways) {
     const c = await candidates(sized, spacing, tuning, name, variant, prev);
-    if (!best || c.cost < best.cost - 1e-9) best = c;
+    // A way that cannot be drawn so (an annex with no room under its table) is no candidate.
+    if (!c) continue;
+    if (!best || (fits(c) !== fits(best) ? fits(c) : c.cost < best.cost - 1e-9)) best = c;
   }
+  // Asked one way only (a drawing before it was stacked) and that way cannot be drawn now: dot's own placement.
+  best ??= (await candidates(sized, spacing, { ...tuning, dot: undefined }, 'plain', {}, prev))!;
   if (stay && prev?.nodes?.size) {
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
     if (kept) {
@@ -557,14 +589,17 @@ function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
 }
 
 /** The best drawing from one way of asking dot: as placed or in a mirror, compacted or not, straightened or not. */
-async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice> {
+async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice | undefined> {
   const { graph } = sized;
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
   const widest = Math.max(0, ...[...sized.edgeLabels.values()].map((l) => l.width));
   const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
   const fit = tuning.labelRoom === 'fit' && graph.direction === 'right' && sized.edgeLabels.size > 0;
-  const dot = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
+  const stacked = variant.stack ? stackAnnexes(placed, sized, spacing.groupPad, spacing.nodeGap) : undefined;
+  if (variant.stack && !stacked) return undefined;
+  const dot = variant.annex ? liftAnnexes(placed, sized, spacing.groupPad, spacing.nodeGap) : (stacked ?? placed);
   // Seen in a mirror a placement can have its groups in the order they are written. Which of the two
   // draws better only shows when drawn, so a small diagram draws both; a big one takes the mirror.
   const turned = tuning.mirror === false ? undefined : inOrder(dot, graph, sized.groupHeader - spacing.groupPad);
@@ -693,13 +728,14 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     return [...out].sort();
   };
   const edges: RouteRequest[] = [];
+  const clear = clearAnnexLines(sized, p);
   for (const e of graph.edges) {
     const from = end(e.from, e.start);
     const to = end(e.to, e.end);
-    // Dotted lines (lookups, management) route last, so the main flow gets the best paths.
+    // Dotted lines (lookups, management) and the lines up to an annex that stands clear (annex.ts) route last, so the main flow gets the best paths.
     // Only plain lines share a trunk (see plainLine): what is written on a shared trunk could belong to either line.
     const style = plainLine(e) ? `${e.line}|${e.tone ?? ''}|${e.start}|${e.end}|${e.width ?? 1}` : undefined;
-    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' ? 1 : 0, style, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
+    if (from && to) edges.push({ id: e.id, from, to, label: sized.edgeLabels.get(e.id), order: e.line === 'dotted' || clear.has(e.id) ? 1 : 0, style, via: via?.get(e.id), home: home(e.from.node, e.to.node) });
   }
   const soft = graph.groups.flatMap((g) => {
     const b = p.groups.get(g.id);

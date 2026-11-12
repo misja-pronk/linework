@@ -132,6 +132,8 @@ Examples: [examples/c4](../examples/c4) · guide: [c4.md](c4.md)
 
 Use it to map the resources in a subscription, show which VNet or subnet each service sits in, or draw hub and spoke, private endpoints, Front Door and firewalls. Supporting links (Key Vault, identities) can be badges instead of lines.
 
+Besides the services there are kinds for identity (`app-registration`, `service-principal`, `federated-credential`, `managed-identity`), governance (`subscription` and `management-group` as cards, `policy` and `initiative` for Azure Policy), data (`databricks`, `sql-warehouse`, `fabric`) and Virtual WAN (`virtual-wan`, and `virtual-hub` as a card or a group). Line styles: `public`, `private`, `data`, `identity`, `management`, and `role` for a role assignment: identity → scope, the role as its label (`- sp -> rg: { label: Contributor, style: role }`).
+
 Not for: a cloud-neutral overview (use `systems`), Entra groups and roles (use `access`).
 
 ```yaml
@@ -244,6 +246,21 @@ Examples: [examples/erd](../examples/erd)
 
 Use it to show which group or access package grants which role on which resource, to answer "who can reach production?" as a matrix (`view: access`), or to review Entra ID governance: catalogs, packages, approvals. One file gives four views: `graph`, `access`, `packages` and `roles`.
 
+An assignment reads `sg-ops is owner on prod`; `sg-ops is eligible owner on prod` is one that is activated through Privileged Identity Management (PIM): drawn dashed, and in the matrix after what is held now. The long form adds PIM's settings, shown on the line and in the matrix: `{ principal: sg-ops, role: owner, scope: prod, eligible: true, activation: 4 h, approval: sg-security }`. Entra roles take the tenant or an `administrative-unit` as their scope.
+
+Principals are people and groups, and also workload identities and devices: `service-principal`, `managed-identity`, `app-registration` (a service principal or a `federated-credential` names its app with `app:`), `device` and `paw` (a privileged access workstation). `owners:` draws who owns a group or an app. `policies:` holds Conditional Access: a `conditional-access` policy `targets` people, groups or directory roles, `excludes` some (the break-glass accounts), covers `apps`, checks `locations` (a `named-location`) and `requires` an `authentication-strength`, a `compliance-policy`, a device or PAW, or words such as MFA; `block: true` and `state: report-only` say the rest. A package policy can have its own `id:` for steps and focus. Principals, resources, packages, policies and assignments take `tags:`, so `layers:` work (a layer per admin tier, say).
+
+```yaml
+policies:
+  ca-admins: { kind: conditional-access, label: CA001 Admins, targets: [sg-tier0], excludes: break-glass, requires: [paw, phish-mfa] }
+  phish-mfa: { kind: authentication-strength, label: Phishing-resistant MFA }
+principals:
+  paw: { kind: paw, label: PAW }
+  app-deploy: { kind: app-registration, label: app-shop-deploy, owners: sg-platform }
+  sp-deploy: { kind: service-principal, label: app-shop-deploy, app: app-deploy }
+  fic-github: { kind: federated-credential, label: github-prod, app: app-deploy }
+```
+
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
 ```yaml
@@ -315,7 +332,7 @@ autonumber: true                  # number the messages
 boxes:
   shop: Web shop                  # participants drawn together in one box
 participants:
-  shopper: person                 # person, client, service, api, database, queue, topic, external, …
+  shopper: person                 # person, client, service, api, database, queue, topic, identity, key-vault, external, …
   orders: { kind: service, label: Orders, box: shop }
   psp: { kind: payments, label: Stripe }
 messages:
@@ -342,7 +359,9 @@ Activations follow the calls: a call opens one on the receiver and its reply clo
 
 Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which also carries git branching and roadmaps.
 
-Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`). See [steps.md](steps.md).
+Phases: a `divider:` at the top level of `messages:` starts a phase, and what comes before the first divider is the phase `Start`. The drawing is the whole sequence, as written; with two or more phases each one is also a view of its own, named after its divider (`phase-payment` for `divider: Payment`, titled *Payment*; `whole` is the whole sequence again). Pick one in the editor's view switcher or with `carto render checkout.yaml --view phase-payment` (`--all-views` for all of them). A phase view draws only that phase's messages, with the participants that take part in it; the numbers stay those of the whole sequence, so step 7 is 7 in its phase too, and an activation still open from an earlier phase runs from the top of the phase. A divider inside a frame (an `alt`, a `loop`) does not cut: a phase never starts or ends halfway a frame. About 12 messages fit a 16:9 slide; a longer sequence goes on slides per phase. `carto validate` then checks the phases for slides, and for the whole only says, as a hint, that it is presented per phase. A phase of a sequence without a `title:` takes the phase as its title, so a slide always says which phase it is (with a title, the phase is the subtitle). In the editor the page frame (⇧P) on the whole sequence says which phases put it on slides instead of flagging its text; PowerPoint and PDF give the whole first and then a slide or page per phase, and the message after the export offers *Leave it out* for a deck of only the phases.
+
+Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`); a phase view steps through its own messages. A sequence with phases is presented as the whole on one slide, as an overview, and then phase by phase, message by message: each message is told once. See [steps.md](steps.md).
 
 Examples: [examples/sequence](../examples/sequence)
 

@@ -45,6 +45,7 @@ await page.waitForSelector('.drawing [data-node="db"]');
 
 /** Picks a language in the theme menu: 'nl', 'en' or 'browser'. */
 const pick = async (lang) => {
+  await page.click('button[aria-label="More actions"], button[aria-label="Meer acties"]');
   await page.click('[data-brand]');
   await page.click(`[data-ui-lang="${lang}"]`);
   await wait();
@@ -59,7 +60,9 @@ await step('switching to Dutch, without a reload', async () => {
   await pick('nl');
   if ((await page.evaluate(() => document.documentElement.lang)) !== 'nl') fail('the page is not lang=nl');
   await has('.topbar', 'Exporteren', 'toolbar');
-  await has('.topbar', 'Nieuw', 'toolbar');
+  await has('.topbar', 'Sessie', 'toolbar');
+  await page.click('button[aria-label="Meer acties"]');
+  await has('[role="menu"]', 'Nieuw diagram', 'more menu');
   await page.click('[data-brand]');
   await has('[role="menu"]', 'Zoals de browser', 'theme menu');
   await has('[role="menu"]', 'Lijniconen', 'theme menu');
@@ -106,7 +109,9 @@ await step('screenshots in Dutch', async () => {
     await wait(400);
     await page.screenshot({ path: path.join(out, `dutch-editor-${width}.png`) });
   }
-  await page.click('.segmented.view-switch [role="radio"] >> nth=0');
+  // The builder: the Drawing tab folds the YAML to its rail, the rail's second button shows the shapes.
+  await page.click('.view-switch [role="radio"] >> nth=0');
+  await page.click('.yaml-strip .rail-icon');
   await wait(500);
   for (const width of [1280, 1512]) {
     await page.setViewportSize({ width, height: 860 });

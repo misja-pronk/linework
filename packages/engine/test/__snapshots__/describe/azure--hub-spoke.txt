@@ -1,40 +1,50 @@
 Hub and spoke
 
-Azure infrastructure diagram: Landing zone with shared connectivity. 11 elements in 7 groups, with 12 connections.
+Azure infrastructure diagram: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall. 7 elements in 12 groups, with 6 connections.
 
 Groups and elements
-- Head office (On-premises)
-  - Employees (Users)
-  - Office router (VPN Gateway)
-- Connectivity (Subscription)
-  - vnet-hub · 10.0.0.0/16 (Virtual network)
-    - vgw-hub (VPN Gateway)
-    - afw-hub (Firewall)
-    - privatelink zones (DNS zone)
-  - Central logs (Log Analytics)
-- Online shop (Subscription)
-  - vnet-shop · 10.1.0.0/16 (Virtual network)
-    - snet-web (Subnet)
-      - Shop (App Service)
-      - agw-shop (Application Gateway)
-    - snet-data (Subnet)
-      - pe-sql (Private endpoint)
-      - Shop DB (SQL Database)
+- Head office (10.10.0.0/16)
+  - Edge router (IPsec · BGP AS 65010)
+- sub-connectivity (Platform · Connectivity)
+  - vnet-hub-weu (10.0.0.0/22)
+    - GatewaySubnet (10.0.0.0/27)
+      - vpng-hub (VpnGw2AZ · AS 65515)
+    - AzureFirewallSubnet (10.0.0.64/26)
+      - afw-hub (Premium · 10.0.0.68)
+    - AzureBastionSubnet (10.0.0.128/26)
+      - bas-hub (Standard)
+- sub-erp-prd (Landing zone · Corp)
+  - vnet-erp-weu (10.1.0.0/22)
+    - snet-app (10.1.0.0/24)
+      - vmss-erp (VM scale set)
+- sub-intranet-prd (Landing zone · Corp)
+  - vnet-intranet-weu (10.1.4.0/22)
+    - snet-web (10.1.4.0/24)
+      - vmss-intranet (VM scale set)
 - Internet
 
 Connections
-- Employees connect to Office router.
-- Office router connects to vgw-hub (Private network: IPsec).
-- vgw-hub connects to afw-hub (Private network).
-- afw-hub connects to Shop (Private network: peering) and connects to Central logs (Management: diagnostics).
-- Shop connects to Central logs (Management: diagnostics), connects to pe-sql (Private network: SQL) and connects to privatelink zones (resolve).
-- pe-sql connects to Shop DB (Private network).
-- Internet sends traffic to agw-shop over HTTPS.
-- agw-shop sends traffic to Shop and connects to Central logs (Management: diagnostics).
+- Edge router connects to vpng-hub (Private network).
+- vpng-hub connects to afw-hub (Private network: UDR).
+- afw-hub connects to vmss-erp (Private network: peering), connects to vmss-intranet (Private network: peering) and sends traffic to Internet (SNAT).
+- bas-hub connects to vmss-erp (Management: RDP).
+
+Walkthrough
+1. The hub holds the shared network services; each workload gets its own spoke.
+2. From the office: The office reaches the spokes over the VPN; route table rt-gateway sends it to the firewall, not the peering.
+  - vpng-hub: rt-gateway: spokes → 10.0.0.68
+3. Out to the internet: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
+  - vmss-erp: rt-erp: 0.0.0.0/0 → 10.0.0.68
+4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
+5. Admin access: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from its subnet only.
+  - vmss-erp: nsg-app: RDP from Bastion only
+
+Layers
+Ways to look at this drawing by tag.
+- Routing: Route tables rt-erp and rt-intranet send 0.0.0.0/0 to the firewall; rt-gateway sends the spoke ranges there too. (tags routing; 6 elements).
+- Security: One way out to the internet, admin access only through Bastion. NSGs nsg-app and nsg-web guard the spoke subnets. (tags security; 4 elements).
 
 Key
-- Solid line with ticks: Connection
-- Dotted line: Connection (dotted)
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Badge: Management badge
+- Dotted line with ticks: Management

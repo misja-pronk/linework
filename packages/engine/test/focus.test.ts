@@ -151,12 +151,13 @@ describe('focus', () => {
   }, 60_000);
 
   it('cuts the examples down without problems', async () => {
-    const cases: [string, unknown, number][] = [
-      ['systems/saas-platform.yaml', { on: 'bookings', hops: 2, direction: 'downstream' }, 6],
+    const cases: [string, unknown, number, string?][] = [
+      // The bookings service is drawn in the cluster view (the overview shows the cluster closed).
+      ['systems/saas-platform.yaml', { on: 'cloud.k8s.core.bookings', hops: 2, direction: 'downstream' }, 6, 'cluster'],
       ['data-products/finance.yaml', { on: 'payments', direction: 'upstream' }, 3],
     ];
-    for (const [f, focus, count] of cases) {
-      const r = await render(example(f), { fonts: 'none', focus, load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
+    for (const [f, focus, count, view] of cases) {
+      const r = await render(example(f), { fonts: 'none', focus, view, load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
       expect(r.diagnostics, f).toEqual([]);
       expect(r.graph!.nodes, f).toHaveLength(count);
     }

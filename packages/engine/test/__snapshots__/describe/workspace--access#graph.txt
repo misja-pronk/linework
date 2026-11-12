@@ -11,9 +11,9 @@ Elements
 - Core ledger (Application)
 
 Connections
-- sg-team-digital connects to Harbour Online (Operator).
-- sg-team-payments connects to Payments hub (Operator).
-- sg-auditors connects to Payments hub (Reader) and connects to Core ledger (Reader).
+- sg-team-digital is Operator on Harbour Online.
+- sg-team-payments is Operator on Payments hub.
+- sg-auditors is Reader on Payments hub and is Reader on Core ledger.
 
 Key
 - Solid sky line: Role assignment

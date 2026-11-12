@@ -1,0 +1,22 @@
+Web shop data mesh
+
+Data products, revenue in detail: Revenue in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Exchange rates (Source-aligned · v1.0 · Treasury)
+- Finance (Domain)
+  - Revenue (Consumer-aligned · v1.2.0 · Finance data)
+  - Payments (Source-aligned · v3.2.0 · Finance data)
+- CFO dashboard (Dashboard)
+- Orders (Sales · Source-aligned)
+
+Connections
+- Exchange rates connects to Revenue.in:1.
+- Revenue.out:revenue-by-day connects to CFO dashboard.
+- Orders connects to Revenue.in:2.
+- Payments connects to Revenue.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

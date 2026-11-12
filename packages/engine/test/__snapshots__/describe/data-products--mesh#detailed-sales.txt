@@ -1,0 +1,24 @@
+Web shop data mesh
+
+Data products, sales in detail: Sales in detail. 5 elements in 1 group, with 5 connections.
+
+Groups and elements
+- Webshop order events (Outside the mesh)
+- Sales (Domain)
+  - Orders (Source-aligned · v2.1.0 · Sales engineering)
+  - orders (Data contract · v2.1.0)
+- Customer 360 (Customer · Aggregate)
+- Revenue (Finance · Consumer-aligned)
+
+Connections
+- Webshop order events connects to Orders.in:0.
+- Orders.out:orders connects to Customer 360, connects to Revenue and is linked with orders.
+- orders.field:1:order_id connects to orders.field:0:order_id.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract
+- Solid violet line with ticks: Foreign key

@@ -1,10 +1,11 @@
 /* The drawing's pane (drawing-pane.tsx): what floats over the canvas. */
 
 /*
- * Where things float, one rule for all: the canvas's tools and notes about the drawing at the top (the
- * notes on a row of their own under the tools); the hint docked bottom-left, the zoom bottom-right;
- * toasts at the bottom centre of the window, lifted clear of the hint while it shows; dialogs over
- * everything, and a toast from before a dialog opened goes (one from the dialog itself shows on top).
+ * Where things float, one rule for all: the focus and layers chips and notes about the drawing at the top
+ * left (the notes on a row of their own under the chips), the toolbar centred along the bottom with the
+ * zoom in the corner beside it, the hint docked bottom-left above them; toasts top left of the drawing,
+ * under the chips (in a session over the toolbar); dialogs over everything, and a toast from before a
+ * dialog opened goes (one from the dialog itself shows on top).
  */
 .canvas-note {
   flex-basis: 100%;
@@ -17,13 +18,12 @@
   max-width: 100%;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
-  border-radius: 99px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
   font-size: 0.75rem;
   color: var(--warning-ink);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  background: var(--paper);
+  border: 1px solid var(--rule);
   white-space: normal;
   pointer-events: auto;
 }
@@ -40,9 +40,9 @@
   gap: 12px;
   max-width: calc(100% - 32px);
   padding: 20px 24px;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-plate);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
   color: var(--text-muted);
   text-align: center;
   pointer-events: none;
@@ -62,14 +62,14 @@
   align-items: center;
   gap: 6px;
   font: inherit;
-  background: var(--surface);
+  background: var(--sheet);
 }
-/* The toolbar and, beside it (or under it when the pane is narrow), the focus chip. */
+/* The focus chip and the layers chip, and notes under them. */
 .canvas-top {
   position: absolute;
-  left: 16px;
+  left: 20px;
   right: 16px;
-  top: 16px;
+  top: 20px;
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -80,38 +80,66 @@
 .canvas-top > * {
   pointer-events: auto;
 }
+/* The toolbar along the bottom, centred: three cells, the middle one the bar's, the right one as wide as
+   the zoom control at least. When the pane is narrow the left cell gives way first, so the bar moves
+   left of the centre rather than under the zoom. */
+.canvas-bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 10px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
+  align-items: end;
+  pointer-events: none;
+}
+.canvas-bottom > * {
+  pointer-events: auto;
+}
+.canvas-bottom > .canvas-tools {
+  grid-column: 2;
+}
+.zoom-room {
+  grid-column: 3;
+  width: 200px;
+  pointer-events: none !important;
+}
+/* The shapes to add open over the toolbar's Add, not at the top. */
+.preview > .add-menu {
+  top: auto;
+  bottom: 64px;
+  left: max(16px, calc(50% - 160px));
+}
 /* The container the toolbar fits (canvas-tools.css), however narrow: first the key hints go, then the
-   labels (they stay in the tooltips and for screen readers), then the less used tools fold into ⋯. */
+   labels (they stay in the tooltips and for screen readers). */
 .canvas-pane {
   container: canvas / inline-size;
 }
-/* Docked bottom-left, away from the drawing's middle and the zoom controls. */
+/* Docked bottom-left, over the toolbar's row, away from the drawing's middle. */
 .hint {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  left: 20px;
+  bottom: 64px;
   z-index: 4;
   display: flex;
   align-items: center;
   gap: 10px;
-  /* Clear of the zoom bar on the right (it is about 280 px wide). */
-  max-width: min(420px, calc(100% - 340px));
-  padding: 9px 8px 9px 16px;
-  border-radius: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  max-width: min(440px, calc(100% - 360px));
+  padding: 8px 6px 8px 14px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  border: 1px solid var(--rule);
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.55;
+  animation: rise 120ms ease-out;
 }
 .hint kbd {
   color: var(--text);
 }
-/* A narrow drawing: the hint sits above the zoom bar, the full width of the pane, and the minimap
-   (which would have no room of its own) stays away. */
+/* A narrow drawing: the hint sits above the toolbar, the full width of the pane. */
 @container canvas (max-width: 760px) {
   .hint {
-    bottom: 64px;
     right: 16px;
     max-width: none;
   }
@@ -120,9 +148,8 @@
   .hint {
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: 60px;
     max-width: none;
-    border-radius: 14px;
     z-index: 7;
   }
 }

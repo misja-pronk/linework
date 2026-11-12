@@ -1,0 +1,20 @@
+Finance data products
+
+Data products, payments in detail: The payments contract is read from an Open Data Contract Standard file. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Finance (Domain · Finance data team)
+  - Payment provider (settlement events)
+  - Payments (Source-aligned · v3)
+  - Revenue (Consumer-aligned)
+  - settled payments (Data contract · v3.2.0 · restricted)
+
+Connections
+- Payment provider connects to Payments.in:0.
+- Payments.out:settlements connects to Revenue and is linked with settled payments.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract

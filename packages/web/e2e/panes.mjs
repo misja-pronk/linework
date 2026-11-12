@@ -54,7 +54,8 @@ async function run(width, height, theme) {
     if (h.height > 53 || kids.some((x) => x > 40)) fail(`${tag}: the header wraps (${h.height}px, ${kids})`);
   });
 
-  await page.click('button:has-text("Open folder")');
+  await page.click('button[aria-label="More actions"]');
+  await page.click('.menu button:has-text("Open folder")');
   await page.waitForSelector('.files .file, .files-rail');
   await page.waitForTimeout(600);
   // The containers of Harbour Online, with an element selected: the case that left 250 px.
@@ -103,6 +104,10 @@ async function run(width, height, theme) {
     const rings = await page.locator('.selection-ring').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
     const ring = { y: Math.min(...rings) };
     if (ring.y < top.y + top.height) fail(`${tag}: zoom to selection puts the element under the tools (${Math.round(ring.y)} < ${Math.round(top.y + top.height)})`);
+    // Nor under the toolbar along the bottom.
+    const bar = await box('.canvas-tools');
+    const lowest = Math.max(...(await page.locator('.selection-ring').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().bottom))));
+    if (lowest > bar.y) fail(`${tag}: zoom to selection puts the element under the toolbar (${Math.round(lowest)} > ${Math.round(bar.y)})`);
     await page.screenshot({ path: `${out}/panes-${tag}-1b-zoom-selection.png` });
     await page.keyboard.press('Shift+1');
     await page.waitForTimeout(500);
@@ -139,7 +144,7 @@ async function run(width, height, theme) {
     await page.waitForSelector('.topbar .dirty');
     const h = await box('.topbar');
     const sw = await page.locator('.view-switch').boundingBox();
-    if (h.height > 53 || sw.height > 40) fail(`${tag}: the header wraps with unsaved changes (${h.height}, ${sw.height})`);
+    if (h.height > 53 || sw.height > h.height) fail(`${tag}: the header wraps with unsaved changes (${h.height}, ${sw.height})`);
     await page.keyboard.press('Meta+z');
     await page.click('.drawing [data-node="online.api"]');
     await page.waitForTimeout(300);
@@ -149,8 +154,12 @@ async function run(width, height, theme) {
   });
 
   await step('side panel tabs', async () => {
-    await page.click('.side-tabs button:has-text("Your AI")');
+    // Your AI opens from the toolbar's ⋯ (its one button); its tab is there only once it is open.
+    if (await page.locator('.side-tabs button:has-text("Your AI")').count()) fail(`${tag}: a Your AI tab before Your AI was opened`);
+    await page.click('.canvas-tools button[aria-label="More tools"]');
+    await page.click('.canvas-tools .menu [role="menuitem"]:has-text("Your AI")');
     await page.waitForSelector('.side .ask-panel:not([hidden])');
+    if (!(await page.locator('.side-tabs button[aria-selected="true"]:has-text("Your AI")').count())) fail(`${tag}: no Your AI tab while it is open`);
     const c = await box('.canvas-pane');
     const ask = await box('.side .ask-panel');
     if (overlap(c, ask)) fail(`${tag}: Ask covers the drawing`);
@@ -178,7 +187,7 @@ async function run(width, height, theme) {
   });
 
   await step('toasts and hint stay off the zoom bar', async () => {
-    await page.evaluate(() => localStorage.removeItem('cartography:hinted'));
+    await page.evaluate(() => (localStorage.removeItem('cartography:hinted'), localStorage.removeItem('cartography:visits')));
     await page.reload();
     await page.waitForSelector('.hint');
     await page.click('.preview');

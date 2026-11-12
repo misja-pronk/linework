@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, type RenderResult } from '@cartography/engine';
+import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
-import { pages, pdfFamilies, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
+import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
 import { clean, fitConnector } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
@@ -37,6 +37,20 @@ function parts(zip: Uint8Array) {
 }
 
 describe('pptx', () => {
+  it('draws a table in two columns as the SVG does: each row a shape in its own column', async () => {
+    const r = await draw('data-products/finance.yaml');
+    const xml = parts(await toPptx(r)).text('ppt/slides/slide1.xml');
+    const frame = (name: string) => {
+      const m = new RegExp(`name="Row: ${name}"[\\s\\S]*?<a:off x="(\\d+)" y="(\\d+)"/><a:ext cx="(\\d+)"`).exec(xml);
+      return m ? { x: Number(m[1]), y: Number(m[2]), cx: Number(m[3]) } : undefined;
+    };
+    const [field, guarantee] = [frame('settlement_id'), frame('latency')];
+    expect(field && guarantee).toBeTruthy();
+    // The guarantee stands beside the first field, right of its column.
+    expect(guarantee!.y).toBe(field!.y);
+    expect(guarantee!.x).toBeGreaterThanOrEqual(field!.x + field!.cx);
+  });
+
   it('writes a valid package: content types, relationships, well-formed parts', async () => {
     const r = await draw('systems/web-shop.yaml');
     const { files, text } = parts(await toPptx(r, { rasterize: () => PNG }));
@@ -275,6 +289,41 @@ describe('steps', () => {
     expect(slideCount(await toPptx(seq, { steps: true }))).toBe(seq.steps!.length);
   });
 
+  it('pptx: a step says itself under the slide title, or beside a drawing too tall for that, and costs the drawing no more than it must', async () => {
+    /** Where the shape of that name sits, in EMU: x, y, width, height. */
+    const at = (slide: string, name: string) => {
+      const m = new RegExp(`name="${name}"[\\s\\S]*?<a:off x="(-?\\d+)" y="(-?\\d+)"/><a:ext cx="(\\d+)" cy="(\\d+)"/>`).exec(slide);
+      return m ? m.slice(1, 5).map(Number) : undefined;
+    };
+    const scales = async (r: RenderResult, steps?: boolean) => {
+      const seen: number[] = [];
+      await toPptx(r, { steps, onSlide: (s) => seen.push(s.scale) });
+      return seen;
+    };
+    // A wide drawing with a subtitle: the step takes the subtitle's place, one line, and the drawing is as large as without steps.
+    const wide = await draw('network/hybrid-cloud.yaml');
+    const slide = parts(await toPptx({ ...wide, step: 3 })).text('ppt/slides/slide1.xml');
+    const [, titleY, , titleH] = at(slide, 'Title')!;
+    const [captionX, captionY] = at(slide, 'Step caption')!;
+    expect(captionY).toBe(titleY! + titleH!);
+    expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
+    expect(slide).not.toContain('name="Subtitle"');
+    expect(at(slide, 'Step number')![1]).toBe(titleY);
+    const [flat] = await scales(wide, false);
+    for (const s of await scales(wide)) expect(s).toBeGreaterThanOrEqual(flat!);
+    // The subtitle is not lost: it is in the speaker notes.
+    expect(parts(await toPptx({ ...wide, step: 3 })).text('ppt/notesSlides/notesSlide1.xml')).toContain(wide.graph!.subtitle!.slice(0, 30));
+    // A tall drawing: the words go beside it, and it keeps the slide's full height.
+    const tall = await render(`type: systems\ntitle: Chain\ndirection: down\nnodes:\n${[1, 2, 3, 4, 5, 6].map((n) => `  n${n}: { kind: service, label: Service ${n} }\n`).join('')}edges:\n${[1, 2, 3, 4, 5].map((n) => `  - n${n} -> n${n + 1}\n`).join('')}steps:\n  - title: Start\n    caption: The request comes in at the top and goes down the chain, one service after the other.\n    focus: n1\n  - n1 -> n2 -> n3: Halfway.\n`, { fonts: 'none' });
+    const side = parts(await toPptx(tall)).text('ppt/slides/slide1.xml');
+    const [x, , w] = at(side, 'Step caption')!;
+    expect(x).toBeGreaterThan(captionX! + 12192000 / 3);
+    expect(x! + w!).toBeLessThanOrEqual(12192000);
+    expect(side).toContain('name="Step rule"');
+    const [tallFlat] = await scales(tall, false);
+    for (const s of await scales(tall)) expect(s).toBeGreaterThanOrEqual(tallFlat! * 0.999);
+  });
+
   it('pdf: a page per step with its place in the story, one page on request', async () => {
     const r = await draw('data-products/customer.yaml');
     const steps = r.steps!.length;
@@ -400,6 +449,28 @@ describe('on the page', () => {
     for (const t of seen) expect(t.smallestPt).toBeGreaterThan(3);
     // The bigger drawing is set smaller on its slide.
     expect(seen[1]!.smallestPt).toBeLessThan(seen[0]!.smallestPt);
+  });
+  it('measures a slide as the deck makes it, and makes it nearly as large as the drawing fitted whole', async () => {
+    for (const f of ['network/hybrid-cloud.yaml', 'azure/hub-spoke.yaml', 'access/engineering.yaml', 'journey/first-deploy.yaml']) {
+      const r = await draw(f);
+      const seen: SlideText[] = [];
+      await toPptx(r, { theme: r.theme, steps: false, onSlide: (t) => seen.push(t) });
+      // What validate and the editor's page frame ask (slideScale) is the scale the slide has, and the
+      // smallest text it reports is the drawing's smallest needed text at that scale: one measure.
+      expect(seen[0]!.scale, f).toBeCloseTo((await slideScale(r, r.theme!))!, 6);
+      expect(seen[0]!.smallestPt, f).toBe(textPtAt(r.svg!, seen[0]!.scale));
+      // The title row, margins and legend cost the drawing hardly more than the SVG's own title and padding.
+      expect(seen[0]!.smallestPt, f).toBeGreaterThanOrEqual(slideTextPt(r.svg!, r.width!, r.height!)! - 0.1);
+    }
+  });
+  it('a PDF on a slide page is as large as the slide', async () => {
+    const r = await draw('network/hybrid-cloud.yaml');
+    const k = (await slideScale(r, r.theme!))!;
+    const pdf = Buffer.from(await toPdf(r, { theme: r.theme, fonts: fonts(), compress: false, page: 'slide', steps: false })).toString('latin1');
+    // svg-to-pdfkit sets the SVG in px (0.75 pt each), then scales it to the size asked: together, pt per drawing px.
+    const cm = [...pdf.matchAll(/^([\d.-]+) 0 0 ([\d.-]+) [\d.-]+ [\d.-]+ cm$/gm)].map((m) => Number(m[1]));
+    const s = cm[cm.indexOf(0.75) + 1];
+    expect(0.75 * Number(s)).toBeCloseTo(k, 4);
   });
   it('puts a PDF on the page asked for, in points', async () => {
     const pdf = Buffer.from(await toPdf(await draw('systems/web-shop.yaml'), { fonts: fonts(), compress: false, page: 'slide' })).toString('latin1');

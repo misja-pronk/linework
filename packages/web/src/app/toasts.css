@@ -11,9 +11,9 @@
   align-items: center;
   gap: 14px;
   padding: 9px 10px 9px 16px;
-  background: var(--text);
-  color: var(--bg);
-  border-radius: 10px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius-plate);
   box-shadow: var(--shadow);
   animation: rise 160ms ease-out;
 }
@@ -32,11 +32,13 @@
 .toast button {
   border: none;
   background: none;
-  color: var(--accent-soft);
+  color: var(--paper);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   font-weight: 600;
   cursor: pointer;
   padding: 3px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .toast button:hover {
   background: color-mix(in srgb, var(--bg) 14%, transparent);

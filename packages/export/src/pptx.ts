@@ -4,12 +4,12 @@
 import { zipSync, strToU8 } from 'fflate';
 import type { Faded, Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
-import { wrap } from '@cartography/render';
 import { inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
 import { altOf } from './alt.ts';
-import { contentSize, drawDiagram, PX, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
+import { drawDiagram, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
+import { CAPTION, fitSlide, INCH, MARGIN, ownRoom, ROWS, words, type SlideRoom } from './fit.ts';
 import { pages } from './steps.ts';
 import { chooseLayout, readTemplate, type PptxTemplate } from './template/read.ts';
 import { filled, footer, planSlide } from './template/place.ts';
@@ -88,15 +88,11 @@ export interface SlideText {
   title?: string;
   /** The step shown, from 1. */
   step?: number;
+  /** The smallest text a reader needs (points): names on cards, lines and groups, not tags and badges under DETAIL_PX; carto validate says this number. */
   smallestPt: number;
+  /** Points per drawing pixel: how large the drawing is on this slide. */
+  scale: number;
 }
-
-const INCH = 914400;
-const MARGIN = Math.round(0.45 * INCH);
-/** Largest scale for small drawings: a 13.5 px label becomes ~16 pt and no bigger. */
-const MAX_K = 1.6 * PX;
-/** A step's caption on a slide: sizes in points, the row in inches, `px` the caption size for wrapping. */
-const CAPTION = { title: 15, text: 14, row: 0.3, px: (14 * 12700) / PX };
 
 /** The first name of a CSS font stack. */
 const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
@@ -134,7 +130,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
   const W = tpl ? tpl.width : opts.aspect === '4:3' ? 9144000 : 12192000;
   const H = tpl ? tpl.height : 6858000;
   // The room a diagram slide has: the template's (under its title, clear of its footers and logo), or ours.
-  const room = plan?.area ?? { x: MARGIN, y: MARGIN, w: W - 2 * MARGIN, h: H - 2 * MARGIN };
+  const slideRoom: SlideRoom = plan ? { W, H, room: plan.area, template: true, titlePlaceholder: !!plan.title, captionPlaceholder: !!plan.caption } : ownRoom(opts.aspect);
+  const room = slideRoom.room;
   const files: Record<string, Uint8Array> = {};
   const put = (path: string, xml: string) => (files[path] = strToU8(xml));
   // In a template, icons are named so they cannot meet the template's own media.
@@ -153,7 +150,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const big = titleLayout?.placeholders.find((p) => p.type === 'ctrTitle') ?? titleLayout?.placeholders.find((p) => p.type === 'title');
     const small = titleLayout?.placeholders.find((p) => p.type === 'subTitle') ?? titleLayout?.placeholders.find((p) => p.type === 'body');
     const text = (ph: string, name: string, s: string, run: Run) =>
-      shape({ id: ++id, name, ph, frame: { x: MARGIN, y: ph === 'ctrTitle' ? H * 0.36 : H * 0.36 + 1000000, w: W - 2 * MARGIN, h: ph === 'ctrTitle' ? 900000 : 600000 }, geom: { prst: 'rect' }, text: { anchor: ph === 'ctrTitle' ? 'b' : 't', paras: [{ runs: [{ ...run, text: s }] }] } }, font);
+      shape({ id: ++id, name, ph, frame: { x: MARGIN.side, y: ph === 'ctrTitle' ? H * 0.36 : H * 0.36 + 1000000, w: W - 2 * MARGIN.side, h: ph === 'ctrTitle' ? 900000 : 600000 }, geom: { prst: 'rect' }, text: { anchor: ph === 'ctrTitle' ? 'b' : 't', paras: [{ runs: [{ ...run, text: s }] }] } }, font);
     // In a template the title slide is its own layout's placeholders, filled; formatting is the template's.
     let tree = big ? filled(++id, big, [{ text: opts.title }]) : text('ctrTitle', 'Title 1', opts.title, { text: '', size: 36, bold: true, color: theme.text, ...(tpl ? { font: tpl.fonts.major } : {}) });
     if (opts.subtitle) tree += small ? filled(++id, small, [{ text: opts.subtitle }], small.type === 'body') : text('subTitle', 'Subtitle 2', opts.subtitle, { text: '', size: 18, color: theme.textMuted });
@@ -188,35 +185,20 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     let id = 1;
     const next = () => ++id;
     let tree = '';
-    let top = room.y;
-    const told = !!view && view.caption !== false;
     // A template's text placeholder besides the content takes the step's caption, or else the subtitle.
     const captionPh = plan?.caption;
+    // Where the title, the subtitle or the step's caption and the drawing go, and how large: fit.ts, which validate measures with too.
+    const told = !!view && view.caption !== false;
+    const { k, area, content: c, side, titled, subtitled, header, titleTop, capTop, bottom, below } = await fitSlide(graph, placed, theme, slideRoom, view);
     if (graph.title && plan?.title) tree += filled(next(), plan.title, [{ text: graph.title }]);
-    else if (graph.title) {
-      tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: top, w: room.w, h: 0.5 * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
-      top += 0.5 * INCH;
-    }
+    else if (graph.title) tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: room.y, w: room.w - (told && !captionPh ? INCH : 0), h: ROWS.title * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
     if (graph.subtitle && captionPh && !told) tree += filled(next(), captionPh, [{ text: graph.subtitle }], true);
-    else if (graph.subtitle && (graph.title || tpl)) {
-      tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: top, w: room.w, h: 0.32 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle, size: 13, color: theme.textMuted }] }] } }, font);
-      top += 0.32 * INCH;
-    }
-    if (top > room.y && !tpl) top += 0.18 * INCH;
-    else if (top > room.y) top += 0.1 * INCH;
-    // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
-    const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, room.w / PX - 80).map((text) => ({ text, title: false })) : [])];
-    // With a caption placeholder only the step number needs a row of its own.
-    const below = !told ? 0 : captionPh ? Math.round(CAPTION.row * INCH) : Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH);
+    else if (subtitled && !header) tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: titleTop, w: room.w, h: ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle!, size: 13, color: theme.textMuted }] }] } }, font);
     let smallest = Infinity;
-    // Scale the drawing into what is left, centred, never bigger than MAX_K.
-    const area = { x: room.x, y: top, w: room.w, h: room.y + room.h - top - below };
     // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
     // The drawing is one group with alt text: a screen reader hears what the diagram shows, then each shape's own.
     const whole = next();
     const drawing = await inThemeFonts(theme, () => {
-      const c = contentSize(graph, placed, theme, view);
-      const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
       // In a template the drawing starts under the title, as a slide's content does; on our own slides it is centred.
       const y = tpl ? area.y : area.y + (area.h - c.height * k) / 2;
       const onPicture = (kind: PictureKind) => {
@@ -228,19 +210,27 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
     tree += group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [drawing], altOf(d, 1500, view));
-    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
+    // Only what a reader needs counts (render's DETAIL_PX and smallestTextPx: the rule validate and the editor use too).
+    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10, scale: k / 12700 });
+    const title = (s: StepState): Run[] => (s.title ? [{ text: s.title, size: CAPTION.title, bold: true, color: theme.text }] : []);
+    const caption = (s: StepState): Run[] => (s.caption ? [{ text: s.caption, size: CAPTION.text, color: s.title ? theme.textMuted : theme.text }] : []);
+    const number = (frame: { x: number; y: number; w: number; h: number }, anchor: 't' | 'ctr') => shape({ id: next(), name: 'Step number', textBox: true, frame, geom: { prst: 'rect' }, text: { anchor, paras: [{ align: 'r', runs: [{ text: `${view!.index + 1} / ${view!.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
     if (told && state && captionPh) {
-      const lines = said(state).length ? [...(state.title ? [{ text: state.title, bold: true }] : []), ...(state.caption ? [{ text: state.caption }] : [])] : [];
+      const lines = words(state) ? [...(state.title ? [{ text: state.title, bold: true }] : []), ...(state.caption ? [{ text: state.caption }] : [])] : [];
       if (lines.length) tree += filled(next(), captionPh, lines, true);
+      tree += number({ x: room.x + room.w - INCH, y: bottom - below, w: INCH, h: ROWS.line * INCH }, 't');
+    } else if (told && state && side) {
+      // Beside the drawing, from its top down: a short accent rule, the title, the caption.
+      const y = side.y + 0.18 * INCH;
+      tree += shape({ id: next(), name: 'Step rule', frame: { x: side.x, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
+      const paras = [title(state), caption(state)].filter((r) => r.length).map((runs) => ({ runs }));
+      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
+      tree += number({ x: room.x + room.w - INCH, y: bottom - ROWS.line * INCH, w: INCH, h: ROWS.line * INCH }, 't');
     } else if (told && state) {
-      const y = room.y + room.h - below + 0.18 * INCH;
-      tree += shape({ id: next(), name: 'Step rule', frame: { x: room.x, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
-      const paras = said(state).map((l) => ({ runs: [{ text: l.text, size: l.title ? CAPTION.title : CAPTION.text, bold: l.title, color: l.title || !state.title ? theme.text : theme.textMuted }] }));
-      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y, w: room.w - INCH, h: below - 0.18 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
-    }
-    if (told && state) {
-      const y = room.y + room.h - below + (captionPh ? 0 : 0.18 * INCH);
-      tree += shape({ id: next(), name: 'Step number', textBox: true, frame: { x: room.x + room.w - INCH, y, w: INCH, h: CAPTION.row * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ align: 'r', runs: [{ text: `${view.index + 1} / ${view.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
+      // Under the title, where the subtitle would be: the title in bold, the caption after it.
+      const runs = [...title(state), ...(state.title && state.caption ? [{ text: '  ', size: CAPTION.text, color: theme.text }] : []), ...caption(state)];
+      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: titleTop, w: room.w - (titled ? 0 : INCH), h: capTop - titleTop }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs }] } }, font);
+      tree += number(titled ? { x: room.x + room.w - INCH, y: room.y, w: INCH, h: ROWS.title * INCH } : { x: room.x + room.w - INCH, y: titleTop, w: INCH, h: ROWS.line * INCH }, titled ? 'ctr' : 't');
     }
     // The template's footer and slide number, as its layout shows them.
     for (const f of plan?.footers ?? []) tree += footer(next(), f);
@@ -250,7 +240,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
-    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(header && graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 
@@ -281,10 +271,10 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
   put('ppt/tableStyles.xml', ox.tableStyles());
   put('ppt/theme/theme1.xml', ox.theme('Cartography', palette));
   put('ppt/theme/theme2.xml', ox.theme('Cartography Notes', { ...palette, canvas: '#FFFFFF', text: '#000000' }));
-  put('ppt/slideMasters/slideMaster1.xml', ox.master(W, H, MARGIN, palette));
+  put('ppt/slideMasters/slideMaster1.xml', ox.master(W, H, MARGIN.side, palette));
   put('ppt/slideMasters/_rels/slideMaster1.xml.rels', ox.masterRels());
-  put('ppt/slideLayouts/slideLayout1.xml', ox.layout('titleOnly', W, H, MARGIN));
-  put('ppt/slideLayouts/slideLayout2.xml', ox.layout('title', W, H, MARGIN));
+  put('ppt/slideLayouts/slideLayout1.xml', ox.layout('titleOnly', W, H, MARGIN.side));
+  put('ppt/slideLayouts/slideLayout2.xml', ox.layout('title', W, H, MARGIN.side));
   put('ppt/slideLayouts/_rels/slideLayout1.xml.rels', ox.layoutRels());
   put('ppt/slideLayouts/_rels/slideLayout2.xml.rels', ox.layoutRels());
   put('ppt/notesMasters/notesMaster1.xml', ox.notesMaster(palette));

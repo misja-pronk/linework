@@ -250,12 +250,12 @@ describe('steps: views and steps nobody wrote', () => {
     const text = example('c4/kestrel-bank.yaml');
     const r = await render(text, { fonts: 'none', view: 'payment', step: 3 });
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    expect(r.steps).toHaveLength(8);
+    expect(r.steps).toHaveLength(4);
     expect(r.stepsImplied).toBe(true);
     expect(r.steps![2]!.caption).toBe('Books it');
     // One line in focus per step, the rest of the story standing back.
     for (const s of r.steps!) expect(Object.values(s.edges).filter((e) => e === 'focus')).toHaveLength(1);
-    expect(r.svg).toContain('3 / 8');
+    expect(r.svg).toContain('3 / 4');
   });
 
   it('a sequence diagram steps through its messages', async () => {

@@ -12,7 +12,7 @@
 //       capabilities:                      …or as a map
 //         Accounting: { maturity: 4 }
 //     Payroll: { parent: Finance }         or anywhere, with parent:
-import { parseLink, parseLinks, tones, type BlockHeat, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphNode, type Link, type PaletteItem, type Path, type Placed, type Reference, type Sized, type Tone } from '@cartography/core';
+import { english, parseLink, parseLinks, tones, type BlockHeat, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphNode, type Link, type PaletteItem, type Path, type Placed, type Reference, type Sized, type Tone } from '@cartography/core';
 import { pack, type PackItem } from '@cartography/tree';
 import { heatScale, type HeatEntry, type HeatScale } from './heat.ts';
 
@@ -350,11 +350,11 @@ capabilities:
   unconnected: true,
   freeNames: true,
   refKeys: { parent: ['capabilities'] },
-  views(src) {
-    // The first heat is what the file draws by default.
-    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: 'Map' }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: `Heatmap: ${heatScale(h, []).title}`, ...(i ? {} : { default: true }) }))];
+  views(src, word = english) {
+    // The first heat is what the file draws by default. Its scale's title is a word of the type's (Maturity) or the key as written.
+    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: word('Map') }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: word('Heatmap: {scale}', { scale: word(heatScale(h, []).title) }), ...(i ? {} : { default: true }) }))];
     const any = (map: Record<string, Entry> | undefined): boolean => JSON.stringify(map ?? {}).includes('"systems"');
-    if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: 'Supporting systems' });
+    if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: word('Supporting systems') });
     return out.length > 1 ? out : [];
   },
   async layout(sized, _pins, previous) {

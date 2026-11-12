@@ -1,6 +1,6 @@
 // The drawing's pane: the canvas (select, drag, connect, label in place), what floats over it (the
-// toolbar, the focus and layers chips, notes, the hint, the empty state, the add popup), the
-// comparison over it, and the steps strip under it.
+// focus and layers chips and notes at the top, the toolbar at the bottom, the hint, the empty state, the
+// add popup), the comparison over it, and the steps strip under it.
 import './drawing-pane.css';
 import { useMemo } from 'react';
 import { t } from '../i18n/index.ts';
@@ -19,6 +19,8 @@ import type { Navigation } from './navigation.ts';
 import type { Pins } from './pins.ts';
 import type { Select } from './selection.ts';
 import type { Notify } from './toasts.tsx';
+import type { Sketching } from './sketching.ts';
+import { SelectionFloats, SessionHeader, SketchKeys } from '../session.tsx';
 
 interface Props {
   drawing: Drawing;
@@ -32,7 +34,7 @@ interface Props {
   onKeyDown(e: React.KeyboardEvent): void;
   /** What a screen reader hears for the focused element. */
   describe(s: Selection): string;
-  /** The toolbar (canvas-tools.tsx). */
+  /** The toolbar (canvas-tools.tsx), at the bottom in the editor and in a session alike. */
   tools: React.ReactNode;
   layersChip: React.ReactNode;
   /** A focus of the YAML switched off here. */
@@ -49,6 +51,16 @@ interface Props {
   naming: number | undefined;
   onNamed(): void;
   notify: Notify;
+  sketching: Sketching;
+  /** Only the sheet on screen (a session, or its end): no page frame, no minimap. */
+  sheetOnly: boolean;
+  /** In a session: only the sheet, the toolbar, and a menu over the selection. */
+  session?: {
+    title: string;
+    /** The sketch keys over the toolbar (the first few sessions). */
+    hint: boolean;
+    connect(): void;
+  };
 }
 
 export function DrawingPane(p: Props) {
@@ -74,6 +86,43 @@ export function DrawingPane(p: Props) {
         onSelectMany={p.select.selectMany}
         labelOf={edits.labelOf}
         onLabel={edits.onLabel}
+        onLabelDone={p.sketching.named}
+        kindsFor={p.sketching.kindsFor}
+        overlay={(rect, renaming) => {
+          const s = p.session;
+          const g = result?.graph;
+          if (!s || !g || !type) return null;
+          const nodes = p.selection.filter((x) => x.kind === 'node');
+          const one = p.selection.length === 1 ? p.selection[0] : undefined;
+          const node = one?.kind === 'node' ? g.nodes.find((n) => n.id === one.id) : undefined;
+          // Groups a selected box can go in (by what its type says), not the one it is in.
+          const collection = node ? String(node.path[0]) : nodes.length ? String(g.nodes.find((n) => n.id === nodes[0]!.id)?.path[0] ?? '') : '';
+          const groups = g.groups.filter((x) => x.path.length === 2 && x.id !== node?.parent && !!parentKey(type, collection, String(x.path[0])));
+          const showMenu = !!rect && !renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1);
+          return (
+            <>
+              {/* The keys, in one quiet line over the toolbar: the first few sessions only. */}
+              {s.hint && <SketchKeys naming={renaming} selected={!!p.selection.length} />}
+              {showMenu && rect && (
+                <SelectionFloats
+                  key={p.selection.map((x) => x.id).join(' ')}
+                  rect={rect}
+                  menu={{
+                    single: !!node,
+                    kinds: node ? (p.sketching.kindsFor(one!) ?? []) : [],
+                    kind: node?.kind,
+                    groups,
+                    canGroup: nodes.length > 0,
+                    onKind: (item) => p.sketching.kindTo(item),
+                    onGroup: (into) => p.sketching.group(into),
+                    onConnect: s.connect,
+                    onDelete: () => (p.selection.length > 1 ? edits.removeAll() : edits.remove()),
+                  }}
+                />
+              )}
+            </>
+          );
+        }}
         onMove={edits.move}
         onConnect={edits.connect}
         onMoveGroup={(id, at, done) => {
@@ -104,8 +153,9 @@ export function DrawingPane(p: Props) {
         locked={drawing.locked}
         bent={drawing.bent}
         grid={craft.grid}
-        minimap={craft.minimap}
-        page={craft.page}
+        minimap={craft.minimap && !p.sheetOnly}
+        page={craft.page && !p.sheetOnly}
+        clearBottom={p.session ? 88 : undefined}
         pinned={drawing.pinnedIds}
         onToggle={craft.toggle}
         control={p.control}
@@ -125,10 +175,9 @@ export function DrawingPane(p: Props) {
         }}
       >
         <div className="canvas-top">
-          {p.tools}
           {!adding && <FocusChip focus={drawn?.focus} off={p.focusOff} onHops={nav.focusHops} onDirection={nav.focusDirection} onLeave={nav.leaveFocus} />}
           {!adding && p.layersChip}
-          {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
+          {/* Notes about the drawing go on a row of their own under the chips. */}
           {!!rendered && !!drawn?.svg && drawn !== result && (
             <div className="canvas-note">
               <div className="stale-note" role="status">
@@ -136,6 +185,11 @@ export function DrawingPane(p: Props) {
               </div>
             </div>
           )}
+        </div>
+        {/* The toolbar, centred along the bottom; the zoom keeps its corner (the empty cell on the right is its room). */}
+        <div className="canvas-bottom">
+          {p.tools}
+          <span className="zoom-room" aria-hidden="true" />
         </div>
         {p.hint && !adding && !p.modalOpen && (
           <div className="hint" role="note">
@@ -173,6 +227,7 @@ export function DrawingPane(p: Props) {
         {adding && type && (
           <AddMenu
             items={type.palette}
+            into={p.selection.length === 1 && p.selection[0]!.kind === 'group' ? (result?.graph?.groups.find((g) => g.id === p.selection[0]!.id)?.label ?? p.selection[0]!.id) : undefined}
             onAdd={(item) => edits.add(item)}
             onClose={() => {
               p.closeAdding();
@@ -181,6 +236,7 @@ export function DrawingPane(p: Props) {
           />
         )}
       </Preview>
+      {p.session && <SessionHeader title={p.session.title} />}
       {p.compareView}
       {stepList.length > 0 && (
         <StepsStrip

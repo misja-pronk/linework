@@ -82,7 +82,7 @@ export function document(ctx: Ctx, o: DocumentOptions, format: 'pptx' | 'pdf', d
  * --template customer.potx [--layout "Title Only"] [--keep-look] [--keep-slides], or the template a
  * brand theme names (pptx: template.potx, relative to the theme file): the deck is made in it.
  */
-function templateFlags(ctx: Ctx, o: DocumentOptions, theme: RenderResult['theme'], diagram?: string): Pick<PptxOptions, 'template' | 'layout' | 'keepLook' | 'keepSlides' | 'onWarning'> {
+export function templateFlags(ctx: Ctx, o: Pick<DocumentOptions, 'template' | 'layout' | 'keep-look' | 'keep-slides'>, theme: RenderResult['theme'], diagram?: string): Pick<PptxOptions, 'template' | 'layout' | 'keepLook' | 'keepSlides' | 'onWarning'> {
   const fromTheme = !o.template && theme?.pptx;
   const file = o.template ?? (fromTheme && diagram ? path.join(path.dirname(diagram), fromTheme.template) : undefined);
   if (!file) {

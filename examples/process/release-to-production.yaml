@@ -1,0 +1,50 @@
+type: process
+title: Release to production
+subtitle: "Northwind Orders API, part 2 of 2: one build goes through dev and test, and a person opens the gate to production"
+
+# The same actors as part 1 (pull-request.yaml), from the merge on. The deploy
+# job signs in to Azure with OIDC (a federated credential): no secret in GitHub.
+lanes:
+  github: GitHub
+  actions: Actions
+  reviewer: Reviewer
+  azure: Azure
+
+nodes:
+  Merged to main: { kind: start, in: github }
+  Build once: { in: actions, kind: script, caption: one artifact for all stages }
+  Deploy to dev: { in: azure, kind: service, caption: rg-orders-dev }
+  Deploy to test: { in: azure, kind: service, caption: rg-orders-test }
+  Integration tests: { in: actions, kind: script }
+  # The production environment has required reviewers: the run waits here until one approves.
+  Waiting for approval: { kind: timer, in: github }
+  Release approved?: reviewer
+  Deploy to production: { in: azure, kind: service, caption: "staging slot, then swap" }
+  Healthy?: azure
+  # Rolling back is the same swap the other way: the previous version is still warm in the slot.
+  Swap back: { in: azure, kind: service }
+  Live in production: { kind: end, in: azure }
+  Rolled back: { kind: error, in: azure }
+  Release stopped: { kind: end, in: reviewer }
+
+flow:
+  - Merged to main -> Build once -> Deploy to dev -> Deploy to test -> Integration tests -> Waiting for approval -> Release approved? -yes-> Deploy to production -> Healthy? -yes-> Live in production
+  - Release approved? -no-> Release stopped
+  - Healthy? -no-> Swap back -> Rolled back
+
+steps:
+  - title: Build once
+    caption: The merge starts the release workflow. It builds one artifact, and that same artifact goes to every environment.
+    path: Merged to main -> Build once
+  - title: Dev and test
+    caption: The workflow signs in to Azure with OIDC, so GitHub holds no secret, and deploys to dev, then to test, where the integration tests run. A red test stops the run.
+    path: Build once -> Deploy to dev -> Deploy to test -> Integration tests
+  - title: The gate
+    caption: The production environment has required reviewers. The run waits here until one of them approves.
+    path: Integration tests -> Waiting for approval -> Release approved?
+  - title: Production
+    caption: The release goes to the staging slot, is warmed up and checked, and the slots are swapped.
+    path: Release approved? -> Deploy to production -> Healthy? -> Live in production
+  - title: Roll back
+    caption: Unhealthy after the swap? Swap back. The previous version is live again within a minute.
+    path: Healthy? -> Swap back -> Rolled back

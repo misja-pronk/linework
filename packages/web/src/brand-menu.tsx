@@ -1,4 +1,4 @@
-// Theme picker and icon folder, in one small top-bar menu. Choices apply to the canvas and every export.
+// Theme picker, icons and the editor's language, in one menu opened from the top bar's ⋯. Choices apply to the canvas and every export.
 import { Fragment, useState } from 'react';
 import { themeCatalog } from '@cartography/theme';
 import { Icon } from './icon.tsx';
@@ -9,6 +9,7 @@ import { setIconMode, useIconPacks, type IconPacks } from './icon-packs.ts';
 import { IconPacksDialog } from './icon-packs-dialog.tsx';
 import { LANG_NAMES, LANGS } from '@cartography/i18n';
 import { say, setUiLang, t, uiLangChoice, useUiLang } from './i18n/index.ts';
+import { setSessionLight, useSessionLight } from './app/session.ts';
 
 /** The built-in looks by name, as a person reads them: "survey-dark" is "Survey dark". */
 const BUILTIN = themeCatalog.map((t) => [t.name, t.name[0]!.toUpperCase() + t.name.slice(1).replace(/-/g, ' '), t.description] as const);
@@ -21,34 +22,48 @@ const ICON_MODES: [IconPacks['mode'], string, string][] = [
   ['lucide', 'Line icons', 'Our line icons everywhere, whatever the diagram says'],
 ];
 
-export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(message: string): void; onNotice?(message: string): void }) {
+interface Props {
+  ws?: Workspace;
+  onError?(message: string): void;
+  onNotice?(message: string): void;
+  /** Opened from the top bar's ⋯ (BrandMenuItem): no button of its own, the menu in that one's anchor. */
+  open: boolean;
+  setOpen(open: boolean): void;
+}
+
+/** The look chosen, as the menu names it: "Ocean", a theme file's name, or "Theme" for the diagram's own. */
+function brandLabel(choice: string | undefined): string {
+  return BUILTIN.find(([k]) => k === choice)?.[1] ?? (choice ? (choice.split('/').pop()!.replace(/\.theme\.(ya?ml|json)$/i, '') || choice) : t('Theme'));
+}
+
+/** The item that opens this menu from another (the top bar's ⋯), with the look chosen beside it. */
+export function BrandMenuItem({ onOpen }: { onOpen(): void }) {
   useUiLang();
-  const [open, setOpen] = useState(false);
+  const b = useBrand();
+  return (
+    <button role="menuitem" onClick={onOpen} data-brand={b.choice || 'diagram'} title={b.warnings.length ? b.warnings.map((w) => w.message).join('\n') : t('Diagram theme and icons')}>
+      <Icon name="layout-template" /> {t('Diagram theme, icons, language…')}
+      {b.warnings.length ? <Icon name="circle-exclamation-point" size={14} /> : null}
+      {b.choice ? <span className="menu-note brand-now">{brandLabel(b.choice)}</span> : null}
+    </button>
+  );
+}
+
+export function BrandMenu({ ws, onError, onNotice, open, setOpen }: Props) {
+  useUiLang();
   const [packs, setPacks] = useState(false);
   const b = useBrand();
   const ip = useIconPacks();
+  const sessionLight = useSessionLight();
   const imported = Object.keys(ip.packs).length;
   const files = themeFiles(ws);
   const run = (f: () => unknown) => () => {
     setOpen(false);
     Promise.resolve(f()).catch((e: unknown) => onError?.(e instanceof Error ? e.message : String(e)));
   };
-  const label = BUILTIN.find(([k]) => k === b.choice)?.[1] ?? (b.choice ? (b.choice.split('/').pop()!.replace(/\.theme\.(ya?ml|json)$/i, '') || b.choice) : t('Theme'));
   const mark = (on: boolean) => <span aria-hidden="true" style={{ display: 'inline-block', width: 14 }}>{on ? '✓' : ''}</span>;
   return (
-    <div className="menu-anchor">
-      <button
-        className="button ghost"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        title={b.warnings.length ? b.warnings.map((w) => w.message).join('\n') : t('Diagram theme and icons')}
-        data-brand={b.choice || 'diagram'}
-      >
-        <Icon name="layout-template" /> {label}
-        {b.warnings.length ? <Icon name="circle-exclamation-point" size={14} /> : null}
-        <Icon name="chevron-down" size={14} />
-      </button>
+    <>
       {open && (
         <Menu onClose={() => setOpen(false)}>
           <button role="menuitem" onClick={run(() => chooseBuiltin(''))}>
@@ -80,6 +95,10 @@ export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(
             <Icon name="boxes" /> {t('Official icons…')}{imported ? <span className="menu-note"> {t('{count} imported', { count: imported })}</span> : null}
           </button>
           <hr />
+          <button role="menuitem" onClick={run(() => setSessionLight(!sessionLight))} title={t('Light reads best through screen sharing and video compression')} data-session-light={sessionLight}>
+            {mark(sessionLight)} {t('Sessions on the light theme')}
+          </button>
+          <hr />
           <div className="menu-heading" title={t('Language of the editor; a drawing follows its own lang:')}>Language / Taal</div>
           <button role="menuitem" onClick={run(() => setUiLang(undefined))} data-ui-lang="browser">
             {mark(!uiLangChoice())} {t('Same as the browser')}
@@ -92,6 +111,6 @@ export function BrandMenu({ ws, onError, onNotice }: { ws?: Workspace; onError?(
         </Menu>
       )}
       {packs && <IconPacksDialog onClose={() => setPacks(false)} onDone={(m) => onNotice?.(m)} />}
-    </div>
+    </>
   );
 }

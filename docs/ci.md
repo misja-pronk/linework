@@ -22,6 +22,10 @@ carto validate docs/**/*.yaml
 
 Prints `file ok` or the problems with line numbers, and exits 1 when a file has errors. Included files (`include:`) are read too, so a diagram that breaks because its model file changed is caught.
 
+It also warns (without failing) when text would be too small to read on a slide: under 6 pt for the words a reader needs (names on cards, lines and groups; not tags, counts and badges), on the drawing's slide and on the slide of each of its views. The slide is measured as `carto render --format pptx` makes it (16:9, or 4:3 when `aspect:` says so): the title and subtitle rows at the top, the drawing scaled into the rest, so the number validate prints is the one PowerPoint shows, and the editor's page frame (⇧P) and its PowerPoint export say the same; its PDF on a slide page sets the drawing at that size too. A drawing meant for paper (`aspect: a4`) is measured fitted onto that sheet. A diagram with `steps:` is checked the way PowerPoint shows it too, a slide per step with the step's title and caption on it: one warning per drawing, naming the step whose caption takes the room (see [Steps](steps.md#problems)). A whole sequence diagram, which is read scrolling, only gets a hint to present it per phase.
+
+Decks made in a client's template have the template's room instead (its title bar, footers and logo leave less): `carto validate --template customer.potx` (with `--layout` as for `carto render`) measures on that template's slide, and a brand theme that names a template (`pptx:`) is measured in it without asking. See [PowerPoint templates](powerpoint-templates.md).
+
 ### Saved positions that no longer fit: `--drift`
 
 When you drag things in the editor, their positions are saved next to the diagram in `<name>.layout.json`. Rename or remove an element in the YAML and its saved position stays behind. Nothing breaks: the entry is ignored. But the file slowly fills with entries that mean nothing, and a pin you thought you had is silently gone.

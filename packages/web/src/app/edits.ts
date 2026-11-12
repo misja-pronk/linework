@@ -1,12 +1,12 @@
 // Builder actions: edits of the YAML text (with pins where they move too), each one undo step in the
 // editor's history. Add, delete, duplicate, copy and paste, rename, labels typed in place, drag (and
 // into a group), connect. What an edit adds is selected once it is drawn.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PaletteItem, Path, Point } from '@cartography/core';
 import { t } from '../i18n/index.ts';
 import { typeName } from '../library.ts';
 import type { EditorHandle } from '../editor.tsx';
-import type { LabelTarget, PreviewControl, Selection } from '../preview.tsx';
+import type { LabelTarget, Selection } from '../preview.tsx';
 import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, drawnAs, duplicateEntry, edgeFields, editChainLine, fieldsFor, isChainLine, isEntryPath, isScalarAt, parentKey, pasteEntries, renameEntry, setEdgeField, setField, type Clip } from '../builder.ts';
 import type { Drawing } from './drawing.ts';
 import type { Pins } from './pins.ts';
@@ -30,7 +30,6 @@ interface Props {
   select: Select;
   pins: Pins;
   editor: React.RefObject<EditorHandle | null>;
-  previewControl: React.RefObject<PreviewControl | null>;
   textNow(): string;
   notify: Notify;
   showInspector(): void;
@@ -38,12 +37,11 @@ interface Props {
   closeAdding(): void;
 }
 
-export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor, previewControl, textNow, notify, showInspector, closeAdding }: Props) {
-  const { result, current, type, vpins, entries, draft, setDraft } = drawing;
+export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor, textNow, notify, showInspector, closeAdding }: Props) {
+  const { result, current, type, vpins, entries, setDraft } = drawing;
   const { selection, selected, setSelection, setSelected } = sel;
   const { pathOf } = sx;
   const { apply, pinTo, withPins, withPin } = px;
-  const dragStartedInView = useRef(false);
 
   /** Builder actions use the drawing's paths, so they wait for a drawing of the current text. */
   const ready = () => {
@@ -268,10 +266,7 @@ export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor
 
   const move = (id: string, at: Point, done: boolean, group?: string | null) => {
     const moved = px.movedWith(id, at);
-    // A drawing wholly in view before a drag fits again when the drag took it past the edge.
-    if (!done && !draft) dragStartedInView.current = previewControl.current?.wholly() ?? false;
     if (!done) return setDraft({ nodes: moved });
-    previewControl.current?.keepInView(dragStartedInView.current);
     setDraft(undefined);
     const nextPins = withPins(moved);
     // Moving and changing group are one step: one undo puts both back.

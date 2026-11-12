@@ -88,7 +88,7 @@ const download = async (menuItem) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
-    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
   }, v1);
   await page.goto(url);
   await page.waitForSelector('.drawing [data-node="vm"]', { timeout: 15000 });
@@ -238,7 +238,8 @@ const download = async (menuItem) => {
   }, files);
   // The unsaved document is discarded (asked twice: before the folder, and before its first file).
   const stop = discarding();
-  await page.click('button:has-text("Open folder")');
+  await page.click('button[aria-label="More actions"]');
+  await page.click('.menu button:has-text("Open folder")');
   await page.waitForSelector('.files .file.active:has-text("shop.yaml")');
   stop();
   await page.waitForSelector('.drawing [data-node="admin"]');

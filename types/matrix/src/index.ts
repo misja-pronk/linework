@@ -10,7 +10,7 @@
 //     plan: { pm: A, arch: R }        # several values: "C R U", "CRU" or "A/R"
 //
 // Row and column ids that name model elements (with include:) take their names from the model.
-import { parseLinks, tones, type BuildContext, type DiagramType, type Graph, type LegendItem, type Link, type MatrixCell, type MatrixHeader, type Path, type Reference, type Tone } from '@cartography/core';
+import { english, parseLinks, tones, type BuildContext, type DiagramType, type Graph, type LegendItem, type Link, type MatrixCell, type MatrixHeader, type Path, type Reference, type Tone } from '@cartography/core';
 
 type Rule = 'exactly-one' | 'at-least-one' | 'at-most-one';
 interface Value {
@@ -226,7 +226,7 @@ function build(src: MatrixSource, ctx: BuildContext): Graph {
     direction: 'right',
     groups: [],
     nodes: rows.length && columns.length
-      ? [{ id: 'matrix', shape: { kind: 'matrix', corner: src.corner ?? corner, rows: rows.map(([, h]) => h), columns: columns.map(([, h]) => h), cells, table: true }, path: [] }]
+      ? [{ id: 'matrix', shape: { kind: 'matrix', corner: src.corner ?? (corner && (ctx.word ?? english)(corner)), rows: rows.map(([, h]) => h), columns: columns.map(([, h]) => h), cells, table: true }, path: [] }]
       : [{ id: 'matrix', shape: { kind: 'card', label: 'An empty matrix', caption: 'Add rows: and columns:, then cells:', icon: 'grid-3x3', tone: 'slate' }, path: [] }],
     edges: [],
     legend,

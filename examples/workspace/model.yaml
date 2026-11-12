@@ -59,4 +59,11 @@ relations:
   - ledger -> lake: Nightly extract
 
 views:
-  landscape: { kind: landscape, title: Harbour Bank — system landscape, enterprise: Harbour Bank }
+  # Left to right, and without the ledger's nightly extract (the data platform's other feed, beside
+  # the payment stream), so it fits a slide.
+  landscape:
+    kind: landscape
+    title: Harbour Bank — system landscape
+    enterprise: Harbour Bank
+    direction: right
+    exclude: ['ledger -> lake']

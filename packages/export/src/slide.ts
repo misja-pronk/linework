@@ -2,13 +2,11 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
+import { legendLayout, PX } from './fit.ts';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
-
-/** EMU per CSS pixel at 96 dpi. */
-export const PX = 9525;
 
 export interface IconRef {
   png?: string;
@@ -23,7 +21,7 @@ export interface Placement {
   k: number;
   x: number;
   y: number;
-  /** Told the size (points) of every text set, so the smallest on a slide can be checked. */
+  /** Told the size (points) of every text a reader needs (not detail under DETAIL_PX), so the smallest on a slide can be checked. */
   onText?(pt: number): void;
   /** Told of every part drawn as one picture, because it has no native slide drawing yet. */
   onPicture?(kind: PictureKind): void;
@@ -47,22 +45,6 @@ interface Style {
   mono?: boolean;
   /** Letter-spacing in layout px. */
   tracking?: number;
-}
-
-/** The legend under the drawing: one row of samples, or the KEY of a paper look, wrapped to the drawing's width. */
-function legendLayout(graph: Graph, placed: Placed, theme: Theme) {
-  const items = graph.legend ?? [];
-  if (!items.length) return { key: false, rows: [] as { item: LegendItem; x: number }[][], width: 0, height: 0 };
-  if (look(theme).legend !== 'key') return { key: false, rows: [legendItems(graph, theme).map(({ item, x }) => ({ item, x }))], width: legendWidth(graph, theme), height: 40 };
-  const lay = keyLayout(items, theme, placed.width);
-  return { key: true, rows: lay.rows, width: Math.max(...lay.ends), height: 54 + (lay.rows.length - 1) * LEGEND.ROW };
-}
-
-/** Content size in layout px: the drawing plus the legend under it, and the room callouts of any step need around it (left, top: where the drawing starts). */
-export function contentSize(graph: Graph, placed: Placed, theme: Theme, view?: StepView) {
-  const legend = legendLayout(graph, placed, theme);
-  const room = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
-  return { width: Math.max(placed.width + room.left + room.right, legend.width), height: placed.height + room.top + room.bottom + legend.height, left: room.left, top: room.top };
 }
 
 /** `view`: one step of the drawing. Shapes keep their place and name on every step's slide. */
@@ -119,7 +101,8 @@ class SlideDrawing {
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
-    if (text.trim()) this.at.onText?.(this.pt(size));
+    // Detail (a tag, a count, a badge) may get small: only what a reader needs is told, as smallestTextPx counts it.
+    if (text.trim() && size >= DETAIL_PX) this.at.onText?.(this.pt(size));
     return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
 
@@ -305,6 +288,9 @@ class SlideDrawing {
     const ref = this.icons(`picture:${n.id}`, '', w, 0, { svg, height: h });
     if (!ref) return undefined;
     this.at.onPicture?.(s.kind);
+    // Its words are in the picture, as large as the drawing around it.
+    const px = smallestTextPx(body);
+    if (px != null) this.at.onText?.(this.pt(px));
     const f = this.frame(x, y, w, h);
     const label = this.graph.title ?? tr(t.lang, 'Diagram');
     return { xml: picture({ id: this.idFor(`node:${n.id}`), name: `Picture: ${label}`, descr: label, frame: f, ...ref }), box: f };
@@ -476,29 +462,35 @@ class SlideDrawing {
     items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
     items.push(this.icon(s.icon, b.x + ts.padX, b.y + titleY - 8, 16, tone.fg, 1.75));
     if (s.caption) items.push(this.text(b.x + ts.padX, b.y + titleY + 17, fitText(s.caption, t.size.caption, 400, b.width - 2 * ts.padX), t.size.caption, 400, t.textMuted));
-    let y = b.y + head;
+    const grid = tableGrid(s, t);
+    // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
+    for (const c of grid.columns.slice(1)) items.push(this.vline(b.x + c.x, b.y + head, b.y + b.height, t.border));
     const marks = markWidth(s);
-    const rh = rowHeight(s, t);
     for (const [i, row] of s.rows.entries()) {
+      const at = grid.rows[i]!;
+      const col = grid.columns[at.column]!;
+      const cx = b.x + col.x;
+      const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;
+      const y = b.y + at.y;
       if (row.kind === 'section') {
-        const sh = sectionHeight(row, t);
+        const sh = at.height;
         // Without a label: the rule between a class's attributes and its operations.
-        items.push(row.label ? this.text(b.x + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(b.x, b.x + b.width, y + sh / 2, t.border));
-        y += sh;
+        items.push(row.label ? this.text(cx + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(cx, cx + cw, y + sh / 2, t.border));
         continue;
       }
+      const rh = at.height;
       const cy = y + rh / 2;
-      if (i > 0 && s.rows[i - 1]?.kind === 'row' && s.form !== 'class') items.push(this.hline(b.x + ts.padX, b.x + b.width - ts.padX, y, t.border, 0.6));
-      for (const [k, m] of rowMarks(row).entries()) items.push(this.icon(m.icon, b.x + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75));
-      if (row.sign) items.push(this.text(b.x + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, undefined, 'Visibility', { mono: true }));
+      if (i > 0 && s.rows[i - 1]?.kind === 'row' && grid.rows[i - 1]!.column === at.column && s.form !== 'class') items.push(this.hline(cx + ts.padX, cx + cw - ts.padX, y, t.border, 0.6));
+      for (const [k, m] of rowMarks(row).entries()) items.push(this.icon(m.icon, cx + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75));
+      if (row.sign) items.push(this.text(cx + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, undefined, 'Visibility', { mono: true }));
       const [name, type] = row.cells;
-      // The name sits in a box as wide as the table: its left and right sites are where row-bound
+      // The name sits in a box as wide as its column: its left and right sites are where row-bound
       // lines attach. The type is a box of its own, right-aligned (Keynote ignores tab stops).
       items.push(
         this.sp({
           id: this.idFor(`row:${n.id}:${row.id}`),
           name: `Row: ${name?.text ?? row.id}`,
-          frame: this.frame(b.x, y, b.width, rh),
+          frame: this.frame(cx, y, cw, rh),
           geom: { prst: 'rect' },
           fill: null,
           line: null,
@@ -506,8 +498,7 @@ class SlideDrawing {
         }),
       );
       // The type column is set in the monospace face where the theme asks, a step smaller.
-      if (type?.text) items.push(lk.mono.type ? this.text(b.x + b.width - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(b.x + b.width - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
-      y += rh;
+      if (type?.text) items.push(lk.mono.type ? this.text(cx + cw - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(cx + cw - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
     }
     return this.group(`Table: ${s.title}`, items);
   }
@@ -625,9 +616,10 @@ class SlideDrawing {
       items.push(this.vline(x, b.y + 10, b.y + b.height - 10, t.border, 0.5));
       x += w;
     }
-    let y = b.y + HEAD;
     for (const [i, row] of m.rows.entries()) {
-      const cy = y + g.rowHeight / 2;
+      // Rows as the drawing has them: taller where a cell's note takes more lines.
+      const y = b.y + g.rows[i]!.y;
+      const cy = y + g.rows[i]!.height / 2;
       // A row without a label continues the one above: the rule skips its header.
       if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
@@ -647,20 +639,19 @@ class SlideDrawing {
         const w = g.columns[j]!;
         const c = m.cells[i]?.[j];
         if (m.plain) items.push(this.text(cx + PAD, cy, fitText(c?.text ?? '–', t.size.cell, c?.strong ? 600 : 400, w - 2 * PAD), t.size.cell, c?.strong ? 600 : 400, c?.text ? t.text : t.textFaint));
-        else items.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD));
+        else items.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD, g.notes[i]?.[j]));
         cx += w;
       }
-      y += g.rowHeight;
     }
     return this.group(`Matrix: ${m.corner ?? n.id}`, items);
   }
 
-  private cell(c: MatrixCell | undefined, cx: number, cy: number, room: number): (Item | undefined)[] {
+  private cell(c: MatrixCell | undefined, cx: number, cy: number, room: number, note?: string[]): (Item | undefined)[] {
     const t = this.theme;
     const { PILL_H, PILL_X, NOTE, CHECK } = MATRIX;
     if (!c || (!c.text && !c.check)) return [this.text(cx, cy, '–', t.size.cell, 400, t.textFaint, 'middle')];
     const tone = t.tones[c.tone ?? 'blue'];
-    const py = c.note ? cy - 8 : cy;
+    const { py, notes } = cellMarks(cy, note);
     const out: (Item | undefined)[] = [];
     const outline: Line = { color: tone.fg, alpha: 0.7, width: this.L(1), dash: 'dashed' };
     if (c.check) {
@@ -682,7 +673,7 @@ class SlideDrawing {
         }),
       );
     }
-    if (c.note) out.push(this.text(cx, cy + 13, fitText(c.note, NOTE, 400, room), NOTE, 400, t.textMuted, 'middle'));
+    for (const [k, ny] of notes.entries()) out.push(this.text(cx, ny, fitText(note![k]!, NOTE, 400, room), NOTE, 400, t.textMuted, 'middle'));
     return out;
   }
 
@@ -708,9 +699,12 @@ class SlideDrawing {
     let box = this.placed.nodes.get(node);
     let key = `node:${node}`;
     if (row && shape?.kind === 'table') {
-      const y = shape.rows.reduce<{ at?: number; y: number }>((acc, r) => (r.kind === 'row' && r.id === row ? { at: acc.y, y: acc.y } : { ...acc, y: acc.y + (r.kind === 'row' ? rowHeight(shape, this.theme) : sectionHeight(r, this.theme)) }), { y: tableHeader(shape, this.theme) }).at;
-      if (box && y !== undefined) {
-        box = { ...box, y: box.y + y, height: rowHeight(shape, this.theme) };
+      const grid = tableGrid(shape, this.theme);
+      const i = shape.rows.findIndex((r) => r.kind === 'row' && r.id === row);
+      if (box && i >= 0) {
+        const at = grid.rows[i]!;
+        const col = grid.columns[at.column]!;
+        box = { x: box.x + col.x, y: box.y + at.y, width: at.column === grid.columns.length - 1 ? box.width - col.x : col.width, height: at.height };
         key = `row:${node}:${row}`;
       }
     }

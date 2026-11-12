@@ -1,0 +1,48 @@
+Application landing zone
+
+Azure infrastructure diagram: Northwind customer portal · one subscription, a resource group per concern, plugged into the platform. 10 elements in 10 groups, with 13 connections.
+
+Groups and elements
+- sub-portal-prd (Landing zone · Corp)
+  - rg-portal-app (Resource group)
+    - app-portal (Managed identity)
+    - func-portal-jobs (Managed identity)
+  - rg-portal-network (Resource group)
+    - vnet-portal-weu (10.1.12.0/22)
+      - snet-app (10.1.12.0/24 · VNet integration)
+        - rt-portal (0.0.0.0/0 → 10.0.0.68)
+      - snet-pe (10.1.13.0/24)
+        - pe-sql-portal (10.1.13.4)
+        - pe-kv-portal (10.1.13.5)
+  - rg-portal-monitor (Resource group)
+    - appi-portal (Application Insights)
+  - rg-portal-data (Resource group)
+    - sqldb-portal (SQL Database)
+    - kv-portal-prd (Key Vault)
+- sub-management (Platform)
+  - log-platform-weu (Central workspace)
+- sub-connectivity (Platform)
+  - afw-hub (Hub firewall · 10.0.0.68)
+
+Connections
+- app-portal connects to rt-portal (Private network: outbound), connects to pe-sql-portal (Private network), connects to pe-kv-portal (Private network), sends data to appi-portal and connects to log-platform-weu (Management).
+- rt-portal connects to afw-hub (Private network: peering).
+- pe-sql-portal connects to sqldb-portal (Private network: TDS).
+- pe-kv-portal signs in with kv-portal-prd (secrets).
+- appi-portal connects to log-platform-weu (Management: workspace).
+- sqldb-portal connects to log-platform-weu (Management).
+- kv-portal-prd connects to log-platform-weu (Management).
+- func-portal-jobs connects to pe-sql-portal (Private network) and connects to log-platform-weu (Management).
+
+Walkthrough
+1. One subscription for the customer portal, with a resource group per concern.
+2. Out through the hub: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
+3. Data stays private: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
+4. Monitored centrally: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
+
+Key
+- Dashed teal line: Private network
+- Solid violet line with ticks: Data flow
+- Dotted amber line: Identity
+- Dotted line with ticks: Management
+- Badge: Management badge

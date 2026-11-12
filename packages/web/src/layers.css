@@ -1,7 +1,11 @@
 /* Layers (layers-control.tsx) and tags in the properties panel (tag-chips.tsx). */
 
-.layers-panel {
+/* Opens from the drawing's tool bar on the left, so it hangs from its left edge (.menu.layers-panel,
+   to win over the menus' right-hand anchoring), wide enough for a layer's name and its tag. */
+.menu.layers-panel {
   left: 0;
+  right: auto;
+  min-width: 270px;
 }
 .menu .layer-toggle {
   gap: 10px;
@@ -12,8 +16,8 @@
   flex: none;
   width: 26px;
   height: 15px;
-  border-radius: 8px;
-  background: var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--rule);
   transition: background 120ms ease-out;
 }
 .layer-switch::after {
@@ -23,12 +27,12 @@
   top: 2px;
   width: 11px;
   height: 11px;
-  border-radius: 50%;
-  background: var(--surface);
+  border-radius: 1px;
+  background: var(--sheet);
   transition: transform 120ms ease-out;
 }
 .layer-toggle.on .layer-switch {
-  background: var(--accent);
+  background: var(--ink);
 }
 .layer-toggle.on .layer-switch::after {
   transform: translateX(11px);
@@ -40,7 +44,7 @@
 .layer-tag {
   padding: 0 5px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius);
   color: var(--text-muted);
   font-size: 11px;
   line-height: 15px;
@@ -51,7 +55,7 @@
   margin: 4px 2px;
   padding: 2px;
   background: var(--bg);
-  border-radius: 7px;
+  border-radius: var(--radius);
 }
 .menu .layers-mode button {
   justify-content: center;
@@ -62,13 +66,13 @@
 .menu .layers-mode button.on {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.12);
+  box-shadow: 0 1px 0 var(--rule2);
 }
 .menu .layers-all {
   color: var(--text-muted);
 }
 .menu [role^='menuitem']:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 
@@ -113,11 +117,11 @@
   padding: 3px 5px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius);
   cursor: text;
 }
 .tag-chips:focus-within {
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 .tag-chip {
   display: inline-flex;
@@ -125,7 +129,7 @@
   gap: 2px;
   padding: 1px 2px 1px 7px;
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius);
   color: var(--text);
   font-size: 12px;
 }
@@ -134,7 +138,7 @@
   padding: 2px;
   border: none;
   background: none;
-  border-radius: 3px;
+  border-radius: var(--radius);
   color: var(--text-faint);
   cursor: pointer;
 }
@@ -163,7 +167,7 @@
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 .tag-chips:focus-within .tag-suggestions {
@@ -174,14 +178,14 @@
   padding: 5px 8px;
   border: none;
   background: none;
-  border-radius: 5px;
+  border-radius: var(--radius);
   text-align: left;
   cursor: pointer;
   color: var(--text);
 }
 .tag-suggestions [aria-selected='true'] button,
 .tag-suggestions button:hover {
-  background: var(--accent-soft);
+  background: var(--hover);
 }
 .layer-count {
   color: var(--text-faint);

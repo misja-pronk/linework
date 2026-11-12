@@ -1,28 +1,81 @@
-/* The status bar (status-bar.tsx). */
+/* The status bar (status-bar.tsx), drawn as a map's title block: small-capital names, mono values, cells
+   divided by rules. */
 
 .statusbar {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 12px;
+  align-items: stretch;
+  min-width: 0;
   font-size: 0.75rem;
-  color: var(--text-faint);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  color: var(--text);
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  white-space: nowrap;
 }
-.statusbar .spacer {
-  flex: 1;
-}
-.status-problems {
-  display: inline-flex;
+.statusbar > * {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding: 0 14px;
+  border-right: 1px solid var(--rule2);
+}
+.statusbar > .spacer {
+  flex: 1;
   border: none;
+}
+.statusbar > :last-child {
+  border-right: none;
+}
+/* A block, not a flex box: the name and the value stay one line of text ("Lines 12") to read and copy. */
+.statusbar > .status-cell {
+  display: block;
+  line-height: 27px;
+}
+.status-cell {
+  font-family: var(--mono);
+  font-size: 0.71875rem;
+  min-width: 0;
+}
+.status-label {
+  margin-right: 3px;
+  font-family: var(--font);
+  font-size: 0.78125rem;
+  font-weight: 600;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+.status-sheet {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  line-height: 28px;
+}
+/* The dragged element's place and size, in the cells of the block. */
+.statusbar > .status-readout {
+  padding: 0;
+  gap: 0;
+}
+.status-readout .status-cell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  border-left: 1px solid var(--rule2);
+  color: var(--rust);
+  font-variant-numeric: tabular-nums;
+}
+.status-problems,
+.status-link {
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
   background: none;
   cursor: pointer;
-  padding: 2px 6px;
-  margin-left: -6px;
-  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+.status-problems {
   color: var(--success-ink);
 }
 .status-problems.has-errors {
@@ -31,29 +84,28 @@
 .status-problems.has-warnings {
   color: var(--warning-ink);
 }
-.status-problems:hover {
-  background: var(--bg);
+.status-problems:hover,
+.status-link:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.status-problems:focus-visible,
+.status-link:focus-visible {
+  outline-offset: -2px;
 }
 .status-selected {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.71875rem;
 }
-.status-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: none;
-  background: none;
+.status-theme {
   color: var(--text-faint);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 6px;
 }
-.status-link:hover {
-  background: var(--bg);
-  color: var(--text);
+@media (max-width: 1100px) {
+  .statusbar > .status-count,
+  .statusbar > .status-sheet {
+    display: none;
+  }
 }
 @media (max-width: 900px) {
   .statusbar > span:not(.spacer):not(:first-of-type) {

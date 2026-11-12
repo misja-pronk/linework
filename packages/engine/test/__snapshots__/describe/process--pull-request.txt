@@ -1,0 +1,52 @@
+Pull request to main
+
+Process diagram: Northwind Orders API, part 1 of 2: nothing reaches main without green checks and a reviewer's approval. 10 elements in 4 lanes, with 11 connections.
+
+Lanes and steps
+- Developer (lane)
+  - Push to a branch (feature/order-export)
+  - Fix what failed
+  - Address feedback
+- GitHub (lane)
+  - Open pull request (asks the code owners)
+  - Squash and merge (branch deleted)
+  - Merged to main (end event)
+- Actions (lane)
+  - Required checks (build, test, lint, CodeQL)
+  - Checks green? (decision decision)
+- Reviewer (lane)
+  - Waiting for review (timer intermediate event)
+  - Approved? (decision decision)
+
+Main path
+1. Push to a branch
+2. Open pull request
+3. Required checks
+4. Checks green?
+5. Waiting for review: Checks green? yes
+6. Approved?
+7. Squash and merge: Approved? yes
+8. Merged to main
+
+Connections
+- Push to a branch leads to Open pull request.
+- Open pull request leads to Required checks.
+- Required checks leads to Checks green?
+- Checks green? leads to Waiting for review (yes) and leads to Fix what failed (no).
+- Waiting for review leads to Approved?
+- Fix what failed leads to Push to a branch.
+- Approved? leads to Squash and merge (yes) and leads to Address feedback (changes requested).
+- Squash and merge leads to Merged to main.
+- Address feedback leads to Push to a branch.
+
+Walkthrough
+1. The change: A developer pushes a short-lived branch and opens a pull request; GitHub asks the code owners to review.
+2. Required checks: GitHub Actions builds, tests, lints and scans the change. Branch protection will not merge it while one is red.
+3. A failing check: A red check goes back to the developer; the next push runs every check again.
+4. Waiting for review: Here the change waits for a person. Often the longest stop on the way to production.
+5. Changes requested: The reviewer asks for changes; the fix is pushed to the same branch, and checks and review run again.
+6. Merge: Green checks and one approval: the pull request is squashed into one commit on main and the branch is deleted.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

@@ -5,6 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { render } from '@cartography/engine';
+import { toPptx, type SlideText } from '@cartography/export';
+import { corporateTemplate } from '../../export/test/fixtures/templates.ts';
 import { carto as inProcess, spawnCarto } from './support/carto.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -110,6 +113,69 @@ describe('carto validate --drift', () => {
     expect(fixed.code).toBe(0);
     expect(fixed.out).toContain('file removed');
     expect(exists('gone.layout.json')).toBe(false);
+  }, 60_000);
+});
+
+describe('carto validate on a slide', () => {
+  // 30 messages: far too tall for one 16:9 slide as a whole.
+  const msgs = (n: number, from = 0) => Array.from({ length: n }, (_, i) => `  - a -> b: Message ${from + i + 1}\n  - b --> a: ok\n`).join('');
+  const head = 'type: sequence\ntitle: Long\nparticipants:\n  a: person\n  b: service\nmessages:\n';
+
+  it('warns about a long sequence without phases', async () => {
+    write('long.yaml', head + msgs(15));
+    const r = await carto('validate', 'long.yaml');
+    expect(r.err).toMatch(/warning {2}On a 16:9 slide its smallest text is [\d.]+ pt, under 6 pt/);
+  }, 60_000);
+
+  it('says the smallest text the PowerPoint slide has, on our own slide or the template\'s', async () => {
+    const chain = Array.from({ length: 12 }, (_, i) => `s${i}`);
+    const text = `type: systems\ntitle: A long chain\nnodes:\n${chain.map((id, i) => `  ${id}: { kind: service, label: Service number ${i + 1} }`).join('\n')}\nedges:\n${chain.slice(1).map((id, i) => `  - ${chain[i]} -> ${id}: calls`).join('\n')}\n`;
+    write('chain.yaml', text);
+    const x = await render(text, { fonts: 'none' });
+    const slide = async (template?: Uint8Array) => {
+      const seen: SlideText[] = [];
+      await toPptx(x, { theme: x.theme, steps: false, ...(template ? { template } : {}), onSlide: (s) => seen.push(s) });
+      return seen[0]!.smallestPt;
+    };
+    const said = (err: string) => Number(/its smallest text is ([\d.]+) pt/.exec(err)?.[1]);
+    const ours = await carto('validate', 'chain.yaml');
+    expect(ours.err).toMatch(/On a 16:9 slide its smallest text is [\d.]+ pt/);
+    expect(said(ours.err)).toBe(await slide());
+    // In a template the room is the template's: smaller here, under its title bar and above its footers.
+    const corporate = corporateTemplate();
+    fs.writeFileSync(path.join(tmp, 'corporate.potx'), corporate);
+    const theirs = await carto('validate', 'chain.yaml', '--template', 'corporate.potx');
+    expect(theirs.err).toMatch(/On a slide of the template its smallest text is [\d.]+ pt/);
+    expect(said(theirs.err)).toBe(await slide(corporate));
+    expect(said(theirs.err)).toBeLessThan(said(ours.err));
+  }, 60_000);
+
+  it('checks the phases of a sequence for slides, and only hints at the whole', async () => {
+    write('phased.yaml', `${head}  - divider: One\n${msgs(5)}  - divider: Two\n${msgs(5, 5)}  - divider: Three\n${msgs(5, 10)}`);
+    const r = await carto('validate', 'phased.yaml');
+    expect(r.code).toBe(0);
+    expect(r.err).not.toContain('warning');
+    expect(r.err).toMatch(/hint {2}On a 16:9 slide the whole drawing is [\d.]+ pt: present it per view \(phase-one, phase-two, phase-three\)/);
+    // A phase too long for a slide is still said.
+    write('phased.yaml', `${head}  - divider: One\n${msgs(15)}  - divider: Two\n${msgs(1)}`);
+    expect((await carto('validate', 'phased.yaml')).err).toMatch(/warning {2}View "phase-one": on a 16:9 slide/);
+  }, 60_000);
+
+  it('checks the steps as their slides show them, once per drawing, naming the step that takes the room', async () => {
+    // Just readable on a slide as a whole, and so are its steps: each title and caption fits on one line.
+    const ok = fs.readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8');
+    write('ids.yaml', ok);
+    const clean = await carto('validate', 'ids.yaml');
+    expect(clean.code).toBe(0);
+    expect(clean.err).not.toContain('warning');
+    // One caption that runs to two lines makes every step smaller: said once, naming that step.
+    const caption = /caption: (Only northwind\/shop[^\n]*)/.exec(ok)![1]!;
+    write('ids.yaml', ok.replace(caption, `${caption} The workflow presents that token itself, and the federated credential checks its subject.`));
+    const r = await carto('validate', 'ids.yaml');
+    expect(r.code).toBe(0);
+    const warnings = r.err.split('\n').filter((l) => l.includes('warning'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/warning {2}All 5 steps: on a 16:9 slide their smallest text is [\d.]+ pt, under 6 pt \(the drawing alone: [\d.]+ pt\): the title and caption of step 2 "Deploying from GitHub" run to 2 lines/);
   }, 60_000);
 });
 

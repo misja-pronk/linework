@@ -3,11 +3,12 @@
 import { SLIDE_MIN_PT } from '@cartography/engine';
 import { SHARE_LIMIT, shareLink, type LayoutSidecar } from '@cartography/core';
 import { themes } from '@cartography/theme';
-import { t } from '../i18n/index.ts';
+import { t, uiLang } from '../i18n/index.ts';
+import { listWords } from '@cartography/i18n';
 import { brand } from '../brand.ts';
 import { copyRich, describeResult } from '../describe.ts';
 import { folderBytes, useTemplateChoice } from '../pptx-template.tsx';
-import { baseName, download, exportPageSvg, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName } from '../export.ts';
+import { baseName, download, exportPageSvg, presentedBy, exportPdf, exportPng, exportPptx, exportSafeSvg, exportSlide, exportSvg, yamlName } from '../export.ts';
 import type { LayersOptions } from '../layers-control.tsx';
 import type { Workspace } from '../files.ts';
 import type { Doc } from './document.ts';
@@ -44,18 +45,42 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
   const savePng = attempt(t('Export'), async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
   const saveSlide = attempt(t('Export'), async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
   const pptxTemplate = useTemplateChoice(ws, (m) => notify(m, { tone: 'error' }));
-  const savePptx = attempt(t('Export'), async () => {
-    // In the template chosen in the menu, or the one the theme names (read from the open folder, next to the diagram).
-    const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
-    const { blob, small, warnings } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read });
-    download(`${baseName(doc.name)}.pptx`, blob);
-    if (warnings.length && !small.length) notify(warnings.length > 1 ? t('In the template: {warning} (and {count} more)', { warning: warnings[0]!, count: warnings.length - 1 }) : t('In the template: {warning}', { warning: warnings[0]! }));
-    // Every slide is checked for text too small to read from the back of a room.
-    if (small.length) notify(t('{count} slide with text under {min} pt ({list}): split into views, or Tidy for the page|{count} slides with text under {min} pt ({list}): split into views, or Tidy for the page', { count: small.length, min: SLIDE_MIN_PT, list: small.map((x) => t('slide {n}: {pt} pt', { n: x.slide, pt: x.smallestPt })).join(', ') }), { tone: 'error' });
+  /** A drawing read scrolling (a whole sequence) goes first, then a slide per view that presents it (its phases): said so, with the offer to leave it out. */
+  const scrollSaid = (what: 'slide' | 'page', count: number, by: string[], again: () => void) => ({
+    message:
+      what === 'slide'
+        ? t('The first slide is the whole drawing, too long to read on a slide; the slides after it show it as {views}|The first {count} slides are the whole drawing, too long to read on a slide; the slides after them show it as {views}', { count, views: listWords(uiLang(), by) })
+        : t('The first page is the whole drawing, too long to read on a page; the pages after it show it as {views}', { views: listWords(uiLang(), by) }),
+    action: { label: t('Leave it out'), run: again },
   });
+  const pptxNow = (withoutScroll?: boolean) =>
+    attempt(t('Export'), async () => {
+      // In the template chosen in the menu, or the one the theme names (read from the open folder, next to the diagram).
+      const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
+      const { blob, small, warnings, scroll } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read, withoutScroll });
+      download(`${baseName(doc.name)}.pptx`, blob);
+      // Every slide is checked for text too small to read from the back of a room.
+      const smallSaid = small.length ? t('{count} slide with text under {min} pt ({list}): split into views, or Tidy for the page|{count} slides with text under {min} pt ({list}): split into views, or Tidy for the page', { count: small.length, min: SLIDE_MIN_PT, list: small.map((x) => t('slide {n}: {pt} pt', { n: x.slide, pt: x.smallestPt })).join(', ') }) : '';
+      if (scroll) {
+        const said = scrollSaid('slide', scroll.slides, scroll.by, pptxNow(true));
+        return notify(smallSaid ? `${said.message}. ${smallSaid}` : said.message, { action: said.action, ...(smallSaid ? { tone: 'error' as const } : {}) });
+      }
+      if (warnings.length && !small.length) notify(warnings.length > 1 ? t('In the template: {warning} (and {count} more)', { warning: warnings[0]!, count: warnings.length - 1 }) : t('In the template: {warning}', { warning: warnings[0]! }));
+      if (smallSaid) notify(smallSaid, { tone: 'error' });
+    });
+  const savePptx = pptxNow();
   const pageName = (result?.page ?? drawn?.page)?.name ?? t('16:9 slide');
   const savePageSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
-  const savePdf = attempt(t('Export'), async () => download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name))));
+  const pdfNow = (withoutScroll?: boolean) =>
+    attempt(t('Export'), async () => {
+      download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name), { withoutScroll }));
+      const by = withoutScroll ? [] : presentedBy(result ?? drawn ?? {});
+      if (by.length) {
+        const said = scrollSaid('page', 1, by.map((v) => v.title ?? v.name), pdfNow(true));
+        notify(said.message, { action: said.action });
+      }
+    });
+  const savePdf = pdfNow();
   const saveHtml = (folder?: boolean) =>
     attempt(t('Export'), async () => {
       const page = await (await import('../html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: textNow(), ws, load, pins, folder });

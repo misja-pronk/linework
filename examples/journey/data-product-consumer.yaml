@@ -22,18 +22,22 @@ metrics:
   Of which waiting: 4 days
   Products looked at: 5
 
+# The numbers of each step (metrics: below) are in the storyboard and the blueprint; the map leaves
+# that row out so nine steps still read on one slide.
+hide: [metrics]
+
 steps:
   search:
-    label: Searches the catalogue for customer data
+    label: Searches the catalogue
     in: find
     feel: 3 hopeful
     touchpoint: Data catalogue
-    thought: Five results called customer. Which one is the real one?
-    pains: Duplicates and old tables in the results
+    thought: Five results called customer. Which is real?
+    pains: Duplicate and stale tables
     ideas: Mark certified products in search
 
   shortlist:
-    label: Asks a colleague which product to use
+    label: Asks a colleague which to use
     in: find
     feel: 2 unsure
     touchpoint: [Teams chat]
@@ -43,15 +47,15 @@ steps:
     metrics: Half a day
 
   contract:
-    label: Reads the product page and the data contract
+    label: Reads the product page and contract
     in: understand
     feel: 4 reassured
     touchpoint:
-      - { label: Customer 360 product page, link: ../data-products/customer.yaml }
+      - { label: Product page, link: ../data-products/customer.yaml }
       - Data contract
-    says: Owner, refresh time and quality checks, all on one page.
+    says: Owner, refresh time and checks on one page.
     gains:
-      - Clear owner and service levels
+      - Clear owner and SLAs
       - Sample data without a request
 
   quality:
@@ -68,32 +72,32 @@ steps:
     in: access
     feel: 2 impatient
     touchpoint: [Access portal, Email]
-    with: Data product owner
-    thought: Why do I have to explain the purpose three times?
+    with: Product owner
+    thought: Why explain the purpose three times?
     pains:
-      - Purpose is asked in three forms
-      - No status after submitting
-    ideas: One request with the purpose attached to the contract
+      - Purpose asked in three forms
+      - No status once sent
+    ideas: One request, purpose on the contract
     metrics: 4 days waiting
 
   approved:
-    label: Gets approval and a connection string
+    label: Gets approval and credentials
     in: access
     feel: 3 relieved
     touchpoint: Email
-    with: Data product owner
+    with: Product owner
     says: Finally. Now where do I paste this?
     pains: Connection details arrive by email
 
   query:
-    label: Queries the product from a notebook
+    label: Queries it from a notebook
     in: use
     feel: 5 productive
     touchpoint: [Notebook, SQL endpoint]
     says: The join keys just work.
     gains:
-      - Stable schema with clear keys
-      - Examples in the product page
+      - Stable schema, clear keys
+      - Examples on the page
     metrics: First query in 20 min
 
   combine:
@@ -106,10 +110,10 @@ steps:
     ideas: Shared customer key in every contract
 
   share:
-    label: Shares the result and rates the product
+    label: Shares and rates the result
     in: feedback
     feel: 4 heard
     touchpoint: [Dashboard, Data catalogue]
     with: Marketing lead
-    says: I left a note about the missing key. The owner replied the same day.
+    says: I flagged a missing key. Fixed that day.
     gains: Feedback reaches the owning team

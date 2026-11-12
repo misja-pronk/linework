@@ -1,10 +1,9 @@
 Campus network
 
-Network diagram: Collapsed core, two buildings, distribution and access layers. 12 elements in 4 groups, with 11 connections.
+Network diagram: Collapsed core, two buildings, distribution and access layers. 12 elements in 3 groups, with 11 connections.
 
 Groups and elements
-- Internet and WAN
-  - Dual ISP
+- Dual ISP (Internet and WAN)
 - Head office campus (10.30.0.0/16)
   - fw-campus (FortiGate 400F · HA pair)
   - core-01/02 (Catalyst 9500 · 10.30.0.1 · HA SVL)

@@ -1,0 +1,22 @@
+Checkout
+
+Sequence, payment: Payment. 3 participants and 4 messages.
+
+Participants
+- Shop system
+  - Storefront (Web app)
+  - Orders API (Service)
+- Stripe (Payments)
+
+Message flow
+In order, top to bottom.
+- 6. Orders API calls Stripe: Create payment intent.
+- 7. Stripe replies to Orders API: client secret.
+- 8. Orders API replies to Storefront: 201 Created.
+- 9. Storefront sends to Stripe: Confirm card (3-D Secure in the browser).
+- Note over Orders API and Stripe: The order stays pending until the webhook arrives, never on the browser's word
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

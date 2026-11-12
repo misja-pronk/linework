@@ -1,0 +1,79 @@
+# One data product taken apart: Orders, owned by the order management team at Northwind.
+#   detail       the products drawn in full: input ports, output ports and the contract beside each port
+#   inputs       where the data comes from; label: how it arrives (CDC, a stream, a nightly batch)
+#   outputs      the output ports; contract: the promise on that port
+#   contracts    schema (fields: name: type, with pk, pii, null), guarantees (sla) and quality checks
+# The products and consumers after Orders show its lineage onwards: who breaks when the contract changes.
+type: data-products
+title: Orders data product
+subtitle: Sources, ports, contract and consumers of one data product
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
+detail: [orders]
+direction: right
+
+domains:
+  sales: { label: Sales, owner: Order management team }
+
+sources:
+  erp: { kind: erp, label: ERP, caption: Orders and order lines }
+  webshop: { kind: stream, label: Webshop events, caption: Event Hubs }
+
+products:
+  orders:
+    label: Orders
+    class: source-aligned
+    domain: sales
+    version: 2.3.0   # the owner is the domain's: the order management team
+    inputs:
+      - { from: erp, label: CDC every 5 min, name: erp-orders }
+      - { from: webshop, label: stream, name: web-events }
+    outputs:
+      orders: { kind: table, label: orders, contract: orders }
+      order-placed: { kind: topic, label: order placed }
+  revenue:
+    label: Revenue
+    caption: Finance
+    class: aggregate
+    inputs: [orders.orders]
+    outputs:
+      revenue: { kind: view, label: revenue by month }
+  forecast:
+    label: Demand forecast
+    caption: Supply chain
+    class: consumer-aligned
+    inputs: [orders.orders]
+    outputs:
+      forecast: { kind: api, label: forecast API }
+
+consumers:
+  sales-bi: { kind: dashboard, label: Sales dashboard, uses: [orders.orders] }
+  loyalty: { kind: application, label: Loyalty app, uses: [orders.order-placed] }
+
+contracts:
+  orders:
+    label: orders
+    version: 2.3.0
+    classification: internal
+    fields:
+      order_id: uuid pk
+      customer_id: uuid
+      ordered_at: timestamp
+      status: string
+      total_eur: decimal(12,2)
+      delivered_at: timestamp null
+    sla: { freshness: 15 min, availability: 99.9%, retention: 7 years }
+    quality: [order_id is unique, total_eur >= 0, every order has a customer]
+
+steps:
+  - title: One product, one team
+    caption: Orders belongs to the order management team. They run it, version it and answer for it.
+  - title: Input ports
+    caption: Changes come from the ERP through change data capture, web orders as a stream. Nobody else reads these systems.
+    path: [erp -> orders, webshop -> orders]
+    note: { orders: "Deduplicated, joined, amounts in euros" }
+  - title: The contract
+    caption: The orders table promises a schema, freshness within 15 minutes and checks that run on every load. A breaking change is a new major version.
+    focus: [orders]
+  - title: Lineage onwards
+    caption: Revenue, the demand forecast, the sales dashboard and the loyalty app depend on it. They are told before the contract changes.
+    path: [orders -> revenue, orders -> forecast, orders -> sales-bi, orders -> loyalty]

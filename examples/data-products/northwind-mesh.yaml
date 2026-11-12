@@ -1,0 +1,127 @@
+# A data mesh at Northwind, a food wholesaler: three domains that each own their data products.
+#   domains     who owns what (owner: the domain team)
+#   sources     operational systems, outside the mesh
+#   products    class: source-aligned (close to one system), aggregate (joins several), consumer-aligned (fit for one use)
+#               inputs:  input ports, from a source, a product, or product.port
+#               outputs: output ports; contract: the data contract that port promises
+#   contracts   schema, guarantees (sla) and quality checks: written inline here, or file: an ODCS file next to this one
+#   consumers   who reads the products
+# The self-serve platform and federated governance are told in the steps: the diagram shows what they produce.
+type: data-products
+title: Northwind data mesh
+subtitle: Data products owned by the domains, from operational systems to the people who use them
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
+# detail: [revenue]   # these products drawn with their ports and contract (detailed-orders: one product, its neighbours as cards)
+
+domains:
+  finance: { label: Finance, owner: Finance data }
+  sales: { label: Sales, owner: Sales analytics }
+  supply: { label: Supply chain, owner: Supply chain data }
+
+sources:
+  erp: { kind: erp, label: ERP, caption: Orders and invoices, domain: sales }
+  crm: { kind: saas, label: CRM, domain: sales }
+  wms: { kind: database, label: Warehouse management, domain: supply }
+  ledger: { kind: erp, label: General ledger, domain: finance }
+
+products:
+  orders:
+    label: Orders
+    class: source-aligned
+    domain: sales
+    owner: Order management team
+    version: 2.3.0
+    inputs: [{ from: erp, label: CDC }]
+    outputs:
+      orders: { kind: table, contract: orders }
+  customers:
+    label: Customers
+    class: source-aligned
+    domain: sales
+    owner: CRM team
+    version: 1.6.0
+    inputs: [{ from: crm, label: daily }]
+    outputs:
+      customers: { kind: table, contract: customers }
+  stock:
+    label: Stock levels
+    class: source-aligned
+    domain: supply
+    owner: Warehouse team
+    version: 1.1.0
+    inputs: [{ from: wms, label: hourly }]
+    outputs:
+      stock: { kind: table, label: stock levels }
+  forecast:
+    label: Demand forecast
+    class: consumer-aligned
+    domain: supply
+    owner: Planning analytics
+    version: 0.4.0
+    status: beta
+    inputs: [orders, stock]
+    outputs:
+      forecast: { kind: api, label: forecast API }
+  revenue:
+    label: Revenue
+    class: aggregate
+    domain: finance
+    owner: Finance data team
+    version: 3.0.0
+    inputs: [{ from: ledger, label: nightly }, orders, customers]
+    outputs:
+      revenue: { kind: view, label: revenue by month, contract: revenue }
+
+consumers:
+  sales-bi: { kind: dashboard, label: Sales dashboard, uses: [orders, customers] }
+  replenish: { kind: application, label: Replenishment, uses: [forecast] }
+  cfo: { kind: dashboard, label: CFO dashboard, uses: [revenue] }
+
+contracts:
+  orders:
+    label: orders
+    version: 2.3.0
+    classification: internal
+    fields:
+      order_id: uuid pk
+      customer_id: uuid
+      ordered_at: timestamp
+      total_eur: decimal(12,2)
+    sla: { freshness: 15 min, availability: 99.9% }
+    quality: [order_id is unique, total_eur >= 0]
+  customers:
+    label: customers
+    version: 1.6.0
+    classification: confidential
+    fields:
+      customer_id: uuid pk
+      name: string
+      email: string pii
+      country: string
+    sla: { freshness: 24 hours }
+    quality: [email is valid]
+  revenue:
+    label: revenue
+    version: 3.0.0
+    classification: internal
+    fields:
+      month: date pk
+      country: string pk
+      revenue_eur: decimal(14,2)
+    sla: { freshness: daily by 07:00 }
+    quality: [reconciles with the ledger]
+
+steps:
+  - title: Domains own their data
+    caption: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
+  - title: Source-aligned products
+    caption: Each operational system is read once, by the team that knows it, and published under a contract.
+    path: [erp -> orders, crm -> customers, wms -> stock]
+  - title: Products built on products
+    caption: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
+    path: [orders -> forecast, stock -> forecast, orders -> revenue, customers -> revenue]
+  - title: Self-serve platform
+    caption: One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+  - title: Federated governance
+    caption: The domains agree on the rules that every contract follows, such as classification, PII and freshness. The platform checks them automatically.
+    focus: [orders, customers, revenue]
