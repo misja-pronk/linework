@@ -208,6 +208,7 @@ export function parseField(spec: string | null): { type: string; marks: RowMark[
 }
 
 function build(src: DataProductSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   const products = Object.entries(src.products ?? {}).map(([id, p]) => [id, p ?? {}] as const);
   const sources = Object.entries(src.sources ?? {}).map(([id, s]) => [id, entry<Placed>(s)] as const);
   const consumers = Object.entries(src.consumers ?? {}).map(([id, c]) => [id, entry<Consumer>(c)] as const);
@@ -283,7 +284,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       continue;
     }
     const rows: TableRow[] = [];
-    if (p.inputs?.length) rows.push({ kind: 'section', label: 'Input ports' });
+    if (p.inputs?.length) rows.push({ kind: 'section', label: word('Input ports') });
     for (const [i, r] of (p.inputs ?? []).entries()) {
       const ref = refOf(r);
       const name = ref.name ?? refLabel(ref.from);
@@ -298,7 +299,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       });
     }
     const outs = outputsOf(p);
-    if (outs.length) rows.push({ kind: 'section', label: 'Output ports' });
+    if (outs.length) rows.push({ kind: 'section', label: word('Output ports') });
     for (const [pid, o] of outs) {
       const pk = portKinds[o.kind ?? ''];
       rows.push({
@@ -402,7 +403,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       if (!showContracts || !detailed.has(id) || !model) continue;
       if (!shown.has(o.contract)) {
         shown.add(o.contract);
-        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12), path: ['contracts', o.contract] });
+        nodes.push({ id: `contract:${o.contract}`, parent: domainOf(p.domain, []), shape: contractShape(o.contract, c, model, src['contract-fields'] ?? 12, word), path: ['contracts', o.contract] });
       }
       edge({ node: id, row: `out:${pid}` }, { node: `contract:${o.contract}` }, 'contract', undefined, path);
       edges.at(-1)!.annex = true;
@@ -446,7 +447,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     const node = nodes.find((n) => n.id === `contract:${id}`)!;
     if (node.shape.kind !== 'table' || edges.some((e) => (e.from.node === node.id && e.from.row) || (e.to.node === node.id && e.to.row))) continue;
     const rows = node.shape.rows;
-    const at = rows.findIndex((r, i) => i > 0 && r.kind === 'section' && (r.label === 'Guarantees' || r.label === 'Quality checks'));
+    const at = rows.findIndex((r, i) => i > 0 && r.kind === 'section' && (r.label === word('Guarantees') || r.label === word('Quality checks')));
     if (rows.length >= SPLIT_ROWS && at > 0) node.shape = { ...node.shape, split: at };
   }
 
@@ -543,14 +544,14 @@ function contractAt(contracts: Map<string, Contract>, from: string, ref: string)
   return named.length === 1 ? named[0]![0] : undefined;
 }
 
-function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number): GraphNode['shape'] {
+function contractShape(id: string, c: Contract, m: ContractModel, maxFields: number, word: Word): GraphNode['shape'] {
   const rows: TableRow[] = [];
   let room = maxFields;
   let hidden = 0;
   for (const [i, schema] of m.schemas.entries()) {
     if (!schema.fields.length) continue;
     // Several schema objects (tables, topics) each get their own section.
-    if (room > 0) rows.push({ kind: 'section', label: m.schemas.length > 1 ? (schema.name ?? 'Schema') : 'Schema' });
+    if (room > 0) rows.push({ kind: 'section', label: m.schemas.length > 1 ? (schema.name ?? word('Schema')) : word('Schema') });
     for (const f of schema.fields) {
       if (room-- <= 0) {
         hidden++;
@@ -559,10 +560,10 @@ function contractShape(id: string, c: Contract, m: ContractModel, maxFields: num
       rows.push({ kind: 'row', id: `field:${i}:${f.name}`, marks: f.marks, cells: [{ text: f.name, strong: f.marks.includes('pk') }, { text: f.type, muted: true, mono: true }] });
     }
   }
-  if (hidden && maxFields > 0) rows.push({ kind: 'row', id: 'field:more', cells: [{ text: `+ ${hidden} more field${hidden === 1 ? '' : 's'}`, muted: true }] });
-  if (m.sla.length) rows.push({ kind: 'section', label: 'Guarantees' });
+  if (hidden && maxFields > 0) rows.push({ kind: 'row', id: 'field:more', cells: [{ text: word('+ {count} more field|+ {count} more fields', { count: String(hidden) }), muted: true }] });
+  if (m.sla.length) rows.push({ kind: 'section', label: word('Guarantees') });
   for (const [k, v] of m.sla) rows.push({ kind: 'row', id: `sla:${k}`, icon: 'gauge', tone: CONTRACT_TONE, cells: [{ text: k }, { text: v, muted: true }] });
-  if (m.quality.length) rows.push({ kind: 'section', label: 'Quality checks' });
+  if (m.quality.length) rows.push({ kind: 'section', label: word('Quality checks') });
   for (const [i, q] of m.quality.entries()) rows.push({ kind: 'row', id: `quality:${i}`, icon: 'check', tone: 'green', cells: [{ text: q }] });
   const caption = c.caption ?? ['Data contract', m.version != null && `v${m.version}`, m.classification].filter(Boolean).join(' · ');
   return { kind: 'table', title: m.label ?? id, caption, icon: 'file-check', tone: CONTRACT_TONE, rows };

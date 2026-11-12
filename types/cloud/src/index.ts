@@ -16,6 +16,7 @@
 // same tiers read as a grid. Address ranges are checked the way the network type checks an IP plan.
 import {
   buildGraph,
+  english,
   graphReferences,
   graphSchema,
   parseEdge,
@@ -341,6 +342,7 @@ function check(src: CloudSource, ctx: BuildContext) {
 // ---------------------------------------------------------------- build
 
 function build(src: CloudSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   check(src, ctx);
   const info = read(src);
   // Labels that follow from the details; the details themselves end up in the caption after the build.
@@ -402,7 +404,8 @@ function build(src: CloudSource, ctx: BuildContext): Graph {
     const tier = tiers.includes(e.tier as Tier) ? e.tier : info.tierOf(e.in)?.tier;
     if (tier) n.rank = tiers.indexOf(tier) + 1;
     if (e.caption !== undefined) continue;
-    n.shape.caption = join([n.shape.caption, e.size, e.exposure, e.zone]);
+    const exposure = e.exposure === 'public' ? word('public@exposure') : e.exposure === 'internal' ? word('internal@exposure') : undefined;
+    n.shape.caption = join([n.shape.caption, e.size, exposure, e.zone]);
   }
   return graph;
 }

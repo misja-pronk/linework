@@ -183,6 +183,13 @@ export const terms: Record<string, string> = {
   'Source-aligned': 'Brongericht',
   'Consumer-aligned': 'Afnemergericht',
   Source: 'Bron',
+  // The sections of a data product and its contract. Input and output port are the data mesh terms
+  // Dutch data teams use as they are, written as one word.
+  'Input ports': 'Inputports',
+  'Output ports': 'Outputports',
+  Guarantees: 'Garanties',
+  'Quality checks': 'Kwaliteitscontroles',
+  '+ {count} more field|+ {count} more fields': '+ nog {count} veld|+ nog {count} velden',
   // Teams
   'Stream-aligned team': 'Stroomgericht team',
   'Platform team': 'Platformteam',
@@ -266,6 +273,20 @@ export const terms: Record<string, string> = {
   Read: 'Lezen',
   Update: 'Wijzigen',
   Delete: 'Verwijderen',
+  // What an access diagram writes on its policies and in its matrices. A word that means something
+  // else elsewhere carries a context mark (from Production@scope), which is never drawn.
+  'Assigned automatically': 'Automatisch toegewezen',
+  'Approval: {names}': 'Goedkeuring: {names}',
+  'No approval': 'Geen goedkeuring',
+  Policy: 'Beleid',
+  Member: 'Lid',
+  'from {name}@scope': 'vanuit {name}',
+  'eligible for {roles}': 'in aanmerking voor {roles}',
+  'includes {names}': 'omvat {names}',
+  'Who \\ where': 'Wie \\ waar',
+  'Package \\ grants': 'Pakket \\ toekenningen',
+  'Role \\ permission': 'Rol \\ recht',
+  'Activity \\ role': 'Activiteit \\ rol',
   'Responsible: does the work': 'Responsible: doet het werk',
   'Accountable: signs off, one per activity': 'Accountable: keurt goed, één per activiteit',
   'Consulted: asked before': 'Consulted: vooraf gevraagd',
@@ -288,6 +309,10 @@ export const terms: Record<string, string> = {
   'At risk': 'Risico',
   Late: 'Te laat',
   'Done so far': 'Al gedaan',
+  // The months on a roadmap's axis: only those Dutch writes otherwise.
+  'Mar@month': 'Mrt',
+  'May@month': 'Mei',
+  'Oct@month': 'Okt',
   // Journey rows and blueprint lines
   Doing: 'Doen',
   Touchpoints: 'Contactmomenten',
@@ -325,4 +350,12 @@ export const terms: Record<string, string> = {
   Systems: 'Systemen',
   'Supporting systems': 'Ondersteunende systemen',
   'Org chart': 'Organigram',
+  'Who gets what, as a graph': 'Wie krijgt wat, als tekening',
+  'Who × where': 'Wie × waar',
+  'Packages × grants': 'Pakketten × toekenningen',
+  'Roles × permissions': 'Rollen × rechten',
+  // Counts and states a type writes beside a name.
+  '{count} person|{count} people': '{count} persoon|{count} mensen',
+  'public@exposure': 'publiek',
+  'internal@exposure': 'intern',
 };

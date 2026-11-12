@@ -54,7 +54,8 @@ describe('the drawing catalog', () => {
   });
   it('has terms that some type or example still writes', () => {
     const src = sourceText(['types', 'packages/core/src', 'packages/render/src', 'packages/engine/src']);
-    const unused = Object.keys(terms).filter((k) => !src.includes(`'${k}'`) && !src.includes(`"${k}"`) && !src.includes(`${k}`));
+    // A backslash is written twice in a string literal ('Who \\ where').
+    const unused = Object.keys(terms).filter((k) => !src.includes(k) && !src.includes(k.replace(/\\/g, '\\\\')));
     expect(unused).toEqual([]);
   });
 });

@@ -5,6 +5,7 @@
 //   packages  access packages × what they grant
 //   roles     roles × permissions, including inherited ones
 import {
+  english,
   idPattern,
   tones,
   type BuildContext,
@@ -20,6 +21,7 @@ import {
   type PaletteItem,
   type Reference,
   type Tone,
+  type Word,
 } from '@cartography/core';
 
 export const principalKinds: KindTable = {
@@ -217,10 +219,14 @@ class Model {
   controls: [string, Control][];
   assignments: (Assignment & { eligible: boolean; path: (string | number)[] })[] = [];
 
+  /** The words the drawing adds itself, in its language. */
+  word: Word;
+
   constructor(
     public src: AccessSource,
     private ctx: BuildContext,
   ) {
+    this.word = ctx.word ?? english;
     const norm = <T>(o: Record<string, string | T | null> | undefined, key: string) =>
       Object.entries(o ?? {}).map(([id, v]) => [id, (typeof v === 'string' ? { [key]: v } : (v ?? {})) as T] as [string, T]);
     this.principals = norm<Principal>(src.principals, 'kind');
@@ -451,18 +457,18 @@ export interface Reach {
   activation?: string;
 }
 
-const reachNote = (r: Reach) => [r.via && `via ${r.via}`, r.from && `from ${r.from}`, r.activation].filter(Boolean).join(', ') || undefined;
+const reachNote = (r: Reach, word: Word = english) => [r.via && word('via {name}', { name: r.via }), r.from && word('from {name}@scope', { name: r.from }), r.activation].filter(Boolean).join(', ') || undefined;
 
 function principalHeader(m: Model, id: string): MatrixHeader {
   const p = m.principal(id)!;
   const k = principalKinds[p.kind ?? ''];
-  return { label: p.label ?? id, caption: p.caption ?? k?.label, icon: k?.icon, tone: k?.tone };
+  return { label: p.label ?? id, caption: p.caption ?? (k && m.word(k.label)), icon: k?.icon, tone: k?.tone };
 }
 
 function resourceHeader(m: Model, id: string): MatrixHeader {
   const r = m.resource(id)!;
   const k = resourceKinds[r.kind ?? ''];
-  return { label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone };
+  return { label: r.label ?? id, caption: r.caption ?? (k && m.word(k.label)), icon: k?.icon, tone: k?.tone };
 }
 
 // ---------------------------------------------------------------- graph view
@@ -549,8 +555,8 @@ function graphView(m: Model): Graph {
   for (const [id, p] of m.packages) {
     // Each policy is its own card between requestors and package: who approves, for how long.
     for (const [i, pol] of m.policies(p).entries()) {
-      const label = pol.auto ? 'Assigned automatically' : list(pol.approval).length ? `Approval: ${m.approvers(pol.approval)}` : 'No approval';
-      const caption = [pol.duration, pol.review && `review ${pol.review}`].filter(Boolean).join(' · ') || 'Policy';
+      const label = pol.auto ? m.word('Assigned automatically') : list(pol.approval).length ? m.word('Approval: {names}', { names: m.approvers(pol.approval) }) : m.word('No approval');
+      const caption = [pol.duration, pol.review && m.word('review {when}', { when: pol.review })].filter(Boolean).join(' · ') || m.word('Policy');
       const policyId = pol.id ?? `${id}:policy:${i}`;
       const path = at(['packages', id, 'policy'], p.policy, i);
       nodes.push({
@@ -632,7 +638,7 @@ function scopesInOrder(m: Model): string[] {
   return columns;
 }
 
-const cellOf = (r: Reach): MatrixCell => ({ text: r.text, inherited: !r.direct, note: reachNote(r), tone: r.tone });
+const cellOf = (r: Reach, word: Word = english): MatrixCell => ({ text: r.text, inherited: !r.direct, note: reachNote(r, word), tone: r.tone });
 
 /** Who × where: the strongest effective role per cell, and where it comes from. With an earlier state: what was gained and lost since. */
 function accessView(m: Model, was?: Model): Graph {
@@ -647,13 +653,13 @@ function accessView(m: Model, was?: Model): Graph {
       if (!best) return undefined;
       // Held now, and more on activation: the cell says both.
       const more = best.eligible ? [] : all.filter((r) => r.eligible && r.role && !(best.role && m.includes(best.role, r.role)));
-      const cell = cellOf(best);
-      return more.length ? { ...cell, note: [cell.note, `eligible for ${more.map((r) => m.label(r.role!)).join(', ')}`].filter(Boolean).join('; ') } : cell;
+      const cell = cellOf(best, m.word);
+      return more.length ? { ...cell, note: [cell.note, m.word('eligible for {roles}', { roles: more.map((r) => m.label(r.role!)).join(', ') })].filter(Boolean).join('; ') } : cell;
     });
   });
   return matrixGraph(
     m,
-    { kind: 'matrix', corner: 'Who \\ where', rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => resourceHeader(m, id)), cells },
+    { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => resourceHeader(m, id)), cells },
     pillLegend('Assigned directly', 'Through a group, access package or parent scope'),
   );
 }
@@ -860,10 +866,10 @@ function packagesView(m: Model): Graph {
   const rows = m.packages.map(([id, p]): MatrixHeader => {
     const pol = m.policies(p)[0];
     const caption = [p.catalog && m.catalogs.find(([c]) => c === p.catalog)?.[1].label, pol?.duration].filter(Boolean).join(' · ');
-    return { label: p.label ?? id, caption: caption || 'Access package', icon: 'package', tone: 'violet' };
+    return { label: p.label ?? id, caption: caption || m.word('Access package'), icon: 'package', tone: 'violet' };
   });
-  const cells = m.packages.map(([, p]) => targets.map((t) => m.grants(p).find((g) => g.target === t)).map((g) => (g ? { text: g.role, tone: 'violet' as Tone } : undefined)));
-  return matrixGraph(m, { kind: 'matrix', corner: 'Package \\ grants', rows, columns: targets.map(header), cells }, []);
+  const cells = m.packages.map(([, p]) => targets.map((t) => m.grants(p).find((g) => g.target === t)).map((g) => (g ? { text: g.role === 'Member' ? m.word('Member') : g.role, tone: 'violet' as Tone } : undefined)));
+  return matrixGraph(m, { kind: 'matrix', corner: m.word('Package \\ grants'), rows, columns: targets.map(header), cells }, []);
 }
 
 /** Roles × permissions, with inherited permissions outlined. */
@@ -872,7 +878,7 @@ function rolesView(m: Model): Graph {
   for (const [id] of m.roles) for (const p of m.permissions(id).keys()) if (!perms.includes(p)) perms.push(p);
   const rows = m.roles.map(([id, r]): MatrixHeader => ({
     label: r.label ?? id,
-    caption: list(r.inherits).length ? `includes ${list(r.inherits).map(m.label).join(', ')}` : undefined,
+    caption: list(r.inherits).length ? m.word('includes {names}', { names: list(r.inherits).map(m.label).join(', ') }) : undefined,
     icon: 'shield-check',
     tone: r.tone ?? 'indigo',
   }));
@@ -882,7 +888,7 @@ function rolesView(m: Model): Graph {
   });
   return matrixGraph(
     m,
-    { kind: 'matrix', corner: 'Role \\ permission', rows, columns: perms.map((p) => ({ label: p })), cells },
+    { kind: 'matrix', corner: m.word('Role \\ permission'), rows, columns: perms.map((p) => ({ label: p })), cells },
     pillLegend('Granted by the role', 'Included from another role', true),
   );
 }
@@ -1080,13 +1086,13 @@ export const access: DiagramType<AccessSource> = {
   palette,
   build,
   // A view with nothing to show is not offered: no packages, no packages table.
-  views: (src) => {
+  views: (src, word = english) => {
     const any = (c: 'packages' | 'roles') => Object.keys(src[c] ?? {}).length > 0;
     return [
-      { name: 'graph', title: 'Who gets what, as a graph' },
-      { name: 'access', title: 'Who × where', table: true },
-      ...(any('packages') ? [{ name: 'packages', title: 'Packages × grants', table: true }] : []),
-      ...(any('roles') ? [{ name: 'roles', title: 'Roles × permissions', table: true }] : []),
+      { name: 'graph', title: word('Who gets what, as a graph') },
+      { name: 'access', title: word('Who × where'), table: true },
+      ...(any('packages') ? [{ name: 'packages', title: word('Packages × grants'), table: true }] : []),
+      ...(any('roles') ? [{ name: 'roles', title: word('Roles × permissions'), table: true }] : []),
     ];
   },
   references(src) {

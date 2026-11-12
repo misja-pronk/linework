@@ -251,7 +251,7 @@ function buildTopology(src: TeamsSource, ctx: BuildContext): Graph {
     const size = e.size ?? (e.members?.length || undefined);
     const lead = e.lead ? personShorthand(src.people?.[e.lead]).name ?? e.lead : undefined;
     const caption = [e.caption, lead ? `Lead: ${lead}` : undefined].filter(Boolean).join(' · ');
-    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: `${size} ${size === 1 ? 'person' : 'people'}` } : {}) };
+    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: (ctx.word ?? english)('{count} person|{count} people', { count: String(size) }) } : {}) };
     const links = linksOf(e, path, ctx);
     nodes.push({ id, shape, path, kind: k, ...(links?.length ? { links } : {}), description: [KIND_NAME[k], e.description].filter(Boolean).join('. ') });
   }

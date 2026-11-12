@@ -2,6 +2,8 @@
 // zone. A written date is a range: "2026" a year, "2026-03" a month, "2026-Q2" a quarter, "2026-W14"
 // an ISO week, "2026-03-15" a day.
 
+import { english, type Word } from '@cartography/core';
+
 export type Unit = 'week' | 'month' | 'quarter';
 
 const DAY = 86_400_000;
@@ -79,24 +81,30 @@ export function nextUnit(n: number, unit: Unit): number {
   return day(d.y, d.m + (unit === 'month' ? 1 : 3), 1);
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Each with a context mark: May the month, not the verb (the mark is never drawn).
+const MONTHS = ['Jan@month', 'Feb@month', 'Mar@month', 'Apr@month', 'May@month', 'Jun@month', 'Jul@month', 'Aug@month', 'Sep@month', 'Oct@month', 'Nov@month', 'Dec@month'];
+
+/** The names of the months in the drawing's language: `word` as the type gets it, the English when there is none. */
+const monthNames = (word: Word) => MONTHS.map((m) => word(m));
 
 /** Ticks of the axis from start to end, each with the label of the group above it. */
-export function ticks(start: number, end: number, unit: Unit): { start: number; end: number; label: string; group: string }[] {
+export function ticks(start: number, end: number, unit: Unit, word: Word = english): { start: number; end: number; label: string; group: string }[] {
+  const month = monthNames(word);
   const out: { start: number; end: number; label: string; group: string }[] = [];
   const long = end - start > 560;
   for (let t = floorUnit(start, unit); t < end; t = nextUnit(t, unit)) {
     const d = ymd(t);
     const q = Math.floor(d.m / 3) + 1;
     const next = nextUnit(t, unit);
-    if (unit === 'week') out.push({ start: t, end: next, label: `W${isoWeek(t).week}`, group: `${MONTHS[d.m]} ${d.y}` });
-    else if (unit === 'month') out.push({ start: t, end: next, label: MONTHS[d.m]!, group: long ? String(d.y) : `Q${q} ${d.y}` });
+    if (unit === 'week') out.push({ start: t, end: next, label: `W${isoWeek(t).week}`, group: `${month[d.m]} ${d.y}` });
+    else if (unit === 'month') out.push({ start: t, end: next, label: month[d.m]!, group: long ? String(d.y) : `Q${q} ${d.y}` });
     else out.push({ start: t, end: next, label: `Q${q}`, group: String(d.y) });
   }
   return out;
 }
 
-export function formatDay(n: number): string {
+export function formatDay(n: number, word: Word = english): string {
+  const month = monthNames(word);
   const d = ymd(n);
-  return `${d.d} ${MONTHS[d.m]} ${d.y}`;
+  return `${d.d} ${month[d.m]} ${d.y}`;
 }
