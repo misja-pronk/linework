@@ -276,5 +276,36 @@ await page.screenshot({ path: `${out}/c0-start.png` });
   await page.keyboard.press('Escape');
 }
 
+// Hover: a quiet outline on what a click would select, a box's lines in ink; none while dragging.
+{
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Escape');
+  await wait(200);
+  const lit = () => page.evaluate(() => [...document.querySelectorAll('.drawing [data-edge]')].filter((g) => g.querySelector('.lit-stroke')).length);
+  const ring = () => page.evaluate(() => {
+    const r = document.querySelector('.hover-ring')?.getBoundingClientRect();
+    return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
+  });
+  const a = await rect('a');
+  await page.mouse.move(centre(a).x, centre(a).y);
+  await wait(200);
+  const r = await ring();
+  if (!r || r.x > a.x || r.y > a.y || r.right < a.x + a.width || r.bottom < a.y + a.height) fail(`hovering a does not outline it: ${JSON.stringify(r)} round ${JSON.stringify(a)}`);
+  // a -> b and a -> c; c -> d stays as drawn.
+  if ((await lit()) !== 2) fail(`hovering a lights ${await lit()} lines, not its 2`);
+  await page.screenshot({ path: `${out}/c10-hover.png` });
+  await page.mouse.down();
+  await page.mouse.move(centre(a).x + 30, centre(a).y + 20, { steps: 4 });
+  if ((await ring()) || (await lit())) fail('the hover outline or lit lines show while dragging');
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await wait(300);
+  // Over the empty table: nothing outlined.
+  const f = await page.locator('.preview').boundingBox();
+  await page.mouse.move(f.x + 20, f.y + f.height - 20);
+  await wait(200);
+  if ((await ring()) || (await lit())) fail('the hover outline stays after the pointer left the box');
+}
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'craft ok');
 await browser.close();

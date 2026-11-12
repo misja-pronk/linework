@@ -192,6 +192,8 @@ export function Preview(p: Props) {
   const [spacePan, setSpacePan] = useState(false);
   /** The node under the pointer, for its connect handle. */
   const [hover, setHover] = useState<string>();
+  /** What a click would select where the pointer is (the hover outline, and a box's lines). */
+  const [pointed, setPointed] = useState<Selection>();
   /** While connecting: where the pointer is (SVG coordinates) and the node it is over. */
   const [link, setLink] = useState<{ x: number; y: number; target?: string }>();
   const [dropTarget, setDropTarget] = useState<string | null>();
@@ -676,6 +678,10 @@ export function Preview(p: Props) {
       const over = ((e.target as Element).closest('[data-node],[data-handle]') as HTMLElement | null);
       const id = over?.dataset.node ?? over?.dataset.handle;
       if (id !== hover) setHover(id);
+      // What a click here would select, outlined (not on touch: a finger has no hover). The connect
+      // handle belongs to the box it sits on.
+      const under = e.pointerType === 'touch' ? undefined : over?.dataset.handle ? { kind: 'node' as const, id: over.dataset.handle } : hitOf(e.target as Element);
+      if (under?.kind !== pointed?.kind || under?.id !== pointed?.id) setPointed(under);
       return;
     }
     if (d.pointer !== e.pointerId) return;
@@ -800,13 +806,12 @@ export function Preview(p: Props) {
     }
     if (e.button !== 0) return;
     // A click: the innermost element with an id under the pointer.
-    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-node],[data-edge],[data-group]') as HTMLElement | null;
+    const hit = hitOf(document.elementFromPoint(e.clientX, e.clientY));
     lastClick.current = null;
     if (!hit) return e.shiftKey ? undefined : p.onSelect(undefined);
-    const kind = hit.dataset.node != null ? 'node' : hit.dataset.edge != null ? 'edge' : 'group';
-    if (follow({ kind, id: hit.dataset[kind]! })) return;
-    lastClick.current = { s: { kind, id: hit.dataset[kind]! }, at: Date.now(), x: e.clientX, y: e.clientY };
-    p.onSelect({ kind, id: hit.dataset[kind]! }, e.shiftKey);
+    if (follow(hit)) return;
+    lastClick.current = { s: hit, at: Date.now(), x: e.clientX, y: e.clientY };
+    p.onSelect(hit, e.shiftKey);
   };
   /** The first click of a double-click: the inspector it opens can move the drawing before the second. */
   const lastClick = useRef<{ s: Selection; at: number; x: number; y: number }>(null);
@@ -972,6 +977,36 @@ export function Preview(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.kind, selected?.id, result]);
   const hoverBox = !dragging && hover && !stale && p.canConnect(hover) ? result?.placed?.nodes.get(hover) : undefined;
+  // The hover outline: on what a click would select, never while something is dragged, connected,
+  // dropped or named, and not over what is selected already (its rust ring says it).
+  const still = !dragging && !editing && !ghost && !stale && !spacePan;
+  const outlined = still && pointed && pointed.kind !== 'edge' && !selection.some((s) => s.kind === pointed.kind && s.id === pointed.id) ? selectedBox(result, pointed) : undefined;
+  // A line under the pointer, and the lines of a box under it, are drawn in ink: "this talks to that".
+  // Only the live drawing is marked; exports draw from the text.
+  useLayoutEffect(() => {
+    const root = drawingEl.current;
+    if (!root) return;
+    for (const el of root.querySelectorAll<SVGElement>('.lit-stroke, .lit-fill')) {
+      el.classList.remove('lit-stroke', 'lit-fill');
+      el.style.removeProperty('--lit-width');
+    }
+    if (!still || !pointed || pointed.kind === 'group') return;
+    const ids = pointed.kind === 'edge' ? [pointed.id] : (result?.graph?.edges ?? []).filter((e) => e.from.node === pointed.id || e.to.node === pointed.id).map((e) => e.id);
+    for (const id of ids)
+      for (const g of root.querySelectorAll(`[data-edge="${CSS.escape(id)}"]`)) {
+        // What is drawn in the line's own colour (the line, its ends): not a double line's light core, nor a focus halo.
+        const color = g.querySelector(':scope > path[fill="none"]:not([stroke="transparent"]):not([stroke-opacity="0.22"])')?.getAttribute('stroke');
+        if (!color) continue;
+        for (const el of g.children) {
+          // A little heavier too: on a shared screen a change of colour alone is easily missed.
+          if (el.getAttribute('stroke') === color) {
+            el.classList.add('lit-stroke');
+            (el as SVGElement).style.setProperty('--lit-width', String(Number(el.getAttribute('stroke-width') ?? 1) * 1.6));
+          }
+          if (el.getAttribute('fill') === color) el.classList.add('lit-fill');
+        }
+      }
+  }, [pointed?.kind, pointed?.id, still, result?.svg]); // eslint-disable-line react-hooks/exhaustive-deps -- the graph comes with the svg
   const from = dragging === 'connect' && drag.current?.node ? result?.placed?.nodes.get(drag.current.node) : undefined;
   const linkTarget = link?.target ? result?.placed?.nodes.get(link.target) : undefined;
   const target = dropTarget && result?.placed?.groups.get(dropTarget);
@@ -1015,7 +1050,10 @@ export function Preview(p: Props) {
       onPointerUp={(e) => end(e, false)}
       onPointerCancel={(e) => end(e, true)}
       onPointerEnter={() => (hovered.current = true)}
-      onPointerLeave={() => (hovered.current = false)}
+      onPointerLeave={() => {
+        hovered.current = false;
+        setPointed(undefined);
+      }}
       onDragOver={onDragOver}
       onDragLeave={(e) => {
         if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
@@ -1077,7 +1115,7 @@ export function Preview(p: Props) {
           <p>{t('Nothing to draw yet. Fix the problems in the editor, or start from a template.')}</p>
         </div>
       ) : (
-        <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, ['--inv' as string]: 1 / view.scale }}>
+        <div className={`stage${stale ? ' stale' : ''}${easing ? ' easing' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`, ['--inv' as string]: 1 / view.scale, ['--drawn-ink' as string]: result?.theme?.text }}>
           <div className="drawing" ref={drawingEl} dangerouslySetInnerHTML={{ __html: result!.svg! }} />
           {target && (
             <div className="drop-ring" style={{ left: target.x + o.x, top: target.y + o.y, width: target.width, height: target.height, borderWidth: 2 / view.scale }}>
@@ -1115,6 +1153,7 @@ export function Preview(p: Props) {
               style={{ left: hoverBox.x + hoverBox.width + o.x, top: hoverBox.y + hoverBox.height / 2 + o.y, transform: `translate(-50%, -50%) scale(${1 / view.scale})` }}
             />
           )}
+          {outlined && <div className="hover-ring" style={{ left: outlined.x - 3, top: outlined.y - 3, width: outlined.width + 6, height: outlined.height + 6 }} />}
           {selection.map((s) => {
             const b = selectedBox(result, s);
             return (
@@ -1369,6 +1408,14 @@ function labelSpot(drawing: Element | null, id: string, b: Box): (Box & { size: 
 function floatingTop(f: HTMLElement): number {
   const tools = f.querySelector('.canvas-top');
   return tools ? tools.getBoundingClientRect().bottom - f.getBoundingClientRect().top + 16 : 0;
+}
+
+/** What a click on this element selects: the innermost element with an id (a box over its group, a line). */
+function hitOf(el: Element | null | undefined): Selection | undefined {
+  const hit = el?.closest?.('[data-node],[data-edge],[data-group]') as HTMLElement | null | undefined;
+  if (!hit) return undefined;
+  const kind = hit.dataset.node != null ? 'node' : hit.dataset.edge != null ? 'edge' : 'group';
+  return { kind, id: hit.dataset[kind]! };
 }
 
 function selectedBox(result: RenderResult | undefined, s: Selection | undefined): Box | undefined {

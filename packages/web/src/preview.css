@@ -48,8 +48,28 @@
 .drawing [data-group] {
   cursor: pointer;
 }
-.drawing [data-node]:hover > rect:first-child {
-  stroke: var(--ink);
+/* Hover: a quiet ink outline on what a click would select, and the lines of a box (or the line itself)
+   in ink, so "this talks to that" can be shown by pointing. Rust stays the selection's. Only the live
+   drawing: exports are drawn from the text. The ink is the drawing's own (--drawn-ink, its theme's text):
+   a diagram can name a theme other than the editor's. */
+.hover-ring {
+  position: absolute;
+  border: calc(1.5px * var(--inv, 1)) solid color-mix(in srgb, var(--drawn-ink, var(--ink)) 45%, transparent);
+  border-radius: calc(5px * var(--inv, 1));
+  pointer-events: none;
+}
+.drawing .lit-stroke {
+  stroke: var(--drawn-ink, var(--ink));
+  stroke-opacity: 1;
+  stroke-width: var(--lit-width);
+}
+.drawing .lit-fill {
+  fill: var(--drawn-ink, var(--ink));
+}
+@media (forced-colors: active) {
+  .hover-ring {
+    border-color: CanvasText;
+  }
 }
 .stage.stale {
   opacity: 0.6;
