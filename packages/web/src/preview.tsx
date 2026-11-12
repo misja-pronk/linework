@@ -1053,6 +1053,7 @@ export function Preview(p: Props) {
       onPointerLeave={() => {
         hovered.current = false;
         setPointed(undefined);
+        setHover(undefined);
       }}
       onDragOver={onDragOver}
       onDragLeave={(e) => {

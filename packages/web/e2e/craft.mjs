@@ -305,6 +305,14 @@ await page.screenshot({ path: `${out}/c0-start.png` });
   await page.mouse.move(f.x + 20, f.y + f.height - 20);
   await wait(200);
   if ((await ring()) || (await lit())) fail('the hover outline stays after the pointer left the box');
+  // Out of the pane altogether, straight from a box: its connect handle goes too.
+  await page.mouse.move(centre(a).x, centre(a).y);
+  await wait(200);
+  if (!(await page.locator('.connect-handle').count())) fail('no connect handle on the hovered box');
+  await page.mouse.move(f.x + f.width / 2, 5);
+  await wait(200);
+  if (await page.locator('.connect-handle').count()) fail('the connect handle stays after the pointer left the drawing');
+  if (await ring()) fail('the hover outline stays after the pointer left the drawing');
 }
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'craft ok');
