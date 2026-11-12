@@ -2,6 +2,7 @@ type: cloud
 provider: aws
 title: Multi-cloud and hybrid
 subtitle: Shop on AWS, analytics on Google Cloud, identity in Azure, ERP on-premises
+direction: right
 
 groups:
   dc: { kind: on-premises, label: Data centre, cidr: 172.16.0.0/16 }
@@ -10,8 +11,8 @@ groups:
   aws-vpc: { kind: vpc, label: vpc-shop, region: eu-west-1, cidr: 10.10.0.0/16, in: aws }
 
   gcp: { kind: gcp }
-  gcp-project: { kind: project, label: Analytics, project: acme-analytics, in: gcp }
-  gcp-vpc: { kind: vpc, label: analytics-net, cidr: 10.30.0.0/16, in: gcp-project }
+  # Its VPC network (analytics-net) is said by its range on the project: one box less, for a slide.
+  gcp-project: { kind: project, label: Analytics, project: acme-analytics, cidr: 10.30.0.0/16, in: gcp }
 
   azure: { kind: tenant, label: acme.example }
 
@@ -28,23 +29,26 @@ nodes:
   dx: { kind: direct-connect, label: Direct Connect, in: aws }
 
   interconnect: { kind: interconnect, label: Partner Interconnect, in: gcp-project }
-  cdc: { kind: datastream, label: Change data capture, in: gcp-vpc }
+  cdc: { kind: datastream, label: Change data capture, in: gcp-project }
   warehouse: { kind: bigquery, label: Warehouse, in: gcp-project }
   dashboards: { kind: looker, label: Dashboards, in: gcp-project }
 
   entra: { kind: entra-id, label: Sign-in, in: azure }
 
+# The lines say what they are by their style (see the key), so the drawing fits a slide: customers
+# use HTTPS, the shop sends orders over a 1 Gbps Direct Connect to the data centre, Datastream
+# captures changes (CDC) from the orders database, and Looker signs staff in with Entra ID (SSO).
 edges:
-  - customers -> cdn: { label: HTTPS, style: public }
+  - customers -> cdn: { style: public }
   - cdn -> shop: { style: public }
-  - shop -> orders: { label: SQL, style: private }
-  - shop -> dx: { label: orders, style: private }
-  - dx -> edge: { label: 1 Gbps, style: vpn }
+  - shop -> orders: { style: private }
+  - shop -> dx: { style: private }
+  - dx -> edge: { style: vpn }
   - edge -> erp: { style: private }
   - edge -> interconnect: { style: vpn }
   - interconnect -> cdc: { style: private }
-  - orders -> cdc: { label: CDC, style: data }
+  - orders -> cdc: { style: data }
   - cdc -> warehouse: { style: data }
   - warehouse -> dashboards: { style: data }
-  - dashboards -> entra: { label: SSO, style: identity }
+  - dashboards -> entra: { style: identity }
   - staff -> dashboards

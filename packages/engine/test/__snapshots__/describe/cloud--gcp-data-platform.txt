@@ -1,42 +1,39 @@
 Data platform on Google Cloud
 
-AWS and Google Cloud diagram: BigQuery at the centre, one project per stage. 15 elements in 5 groups, with 15 connections.
+AWS and Google Cloud diagram: BigQuery at the centre, one project per stage. 14 elements in 4 groups, with 14 connections.
 
 Groups and elements
 - Sources
   - SaaS apps (CRM and billing)
   - Orders database (Cloud SQL)
   - Web and app events (Client app)
-- data (Folder)
-  - Ingest (acme-data-ingest)
-    - Landing bucket (Cloud Storage bucket)
-    - Load and orchestrate (Cloud Composer)
-    - Change data capture (Datastream)
-    - Events (Pub/Sub topic)
-    - Streaming pipeline (Dataflow)
-  - Warehouse (acme-data-warehouse)
-    - Raw datasets (BigQuery)
-    - Transformations (Dataform)
-    - Data marts (BigQuery)
-    - Catalog and quality (Dataplex)
-  - Serve (acme-data-serve)
-    - Dashboards (Looker)
-    - Forecast models (Vertex AI)
-- Analysts (Users)
+- Ingest (acme-data-ingest)
+  - Landing bucket (Cloud Storage bucket)
+  - Change data capture (Datastream)
+  - Events (Pub/Sub topic)
+  - Streaming pipeline (Dataflow)
+  - Load and orchestrate (Cloud Composer)
+- Warehouse (acme-data-warehouse)
+  - Raw datasets (BigQuery)
+  - Data marts (BigQuery)
+  - Transformations (Dataform)
+  - Catalog and quality (Dataplex)
+- Serve (acme-data-serve)
+  - Dashboards (Looker)
+  - Forecast models (Vertex AI)
 
 Connections
-- SaaS apps sends data to Landing bucket (daily files).
-- Landing bucket sends data to Load and orchestrate.
-- Load and orchestrate sends data to Raw datasets (load) and connects to Transformations (Management: runs).
-- Raw datasets sends data to Transformations.
-- Transformations sends data to Data marts and is linked with Catalog and quality (lineage).
+- SaaS apps sends data to Landing bucket.
+- Landing bucket sends data to Raw datasets.
+- Raw datasets sends data to Data marts.
 - Data marts sends data to Dashboards and sends data to Forecast models.
-- Dashboards connects to Analysts.
-- Orders database sends data to Change data capture (CDC).
+- Orders database sends data to Change data capture.
 - Change data capture sends data to Raw datasets.
-- Web and app events sends data to Events (events).
+- Web and app events sends data to Events.
 - Events sends data to Streaming pipeline.
 - Streaming pipeline sends data to Raw datasets.
+- Load and orchestrate connects to Raw datasets (Management) and connects to Transformations (Management).
+- Transformations connects to Data marts (Management) and is linked with Catalog and quality.
 
 Key
 - Solid line: Connection

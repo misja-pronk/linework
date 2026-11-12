@@ -1,0 +1,32 @@
+Telling the customer
+
+C4 model: From the booked transfer back to the phone. 5 elements in 2 groups, with 4 connections.
+
+Groups and elements
+- Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
+  - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
+    - Payments controller (Component: Spring MVC): Checks and submits transfers
+    - Event publisher (Component: Spring Cloud Stream): Announces what happened to an account
+  - Account events (Container: Kafka): Payments and sign-ins as they happen
+  - Notifier (Container: Go): Turns account events into emails and push messages
+- Push gateway (Software System, external): Delivers notifications to iOS and Android
+
+Connections
+- Payments controller connects to Event publisher (Reports it).
+- Event publisher connects to Account events (Publishes PaymentMade [Kafka]).
+- Account events connects to Notifier (Delivers the event).
+- Notifier connects to Push gateway (Sends a push [HTTPS]).
+
+Steps
+1. Payments controller → Event publisher: Reports it.
+2. Event publisher → Account events: Publishes PaymentMade [Kafka].
+3. Account events → Notifier: Delivers the event.
+4. Notifier → Push gateway: Sends a push [HTTPS].
+
+Key
+- Icon, greyed: External system
+- Sky icon: Container
+- Violet icon: Queue
+- Teal icon: Component
+- Boundary box: Boundary
+- Solid line: Relationship

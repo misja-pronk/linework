@@ -3,10 +3,10 @@ Kestrel Bank — system landscape
 C4 model: Who uses what, at a glance. 7 elements in 1 group, with 6 connections.
 
 Groups and elements
-- Personal customer (Person): Holds current and savings accounts at Kestrel Bank
+- Personal customer (Person): Holds accounts at Kestrel Bank
 - Kestrel Bank (Enterprise)
   - Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
-  - Core ledger (Software System): Holds every account and books every transaction
+  - Core ledger (Software System): Holds every account and booking
   - Branch advisor (Person): Helps customers in the branch and on the phone
   - Advisor desk (Software System): Customer records and cases for branch staff
 - Postbird (Software System, external): Sends transactional email

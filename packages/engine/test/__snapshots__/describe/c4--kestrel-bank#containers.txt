@@ -1,32 +1,26 @@
 Kestrel Online — containers
 
-C4 model: What runs, and how the parts talk. 10 elements in 1 group, with 10 connections.
+C4 model: What runs, and how the parts talk. 7 elements in 1 group, with 7 connections.
 
 Groups and elements
-- Personal customer (Person): Holds current and savings accounts at Kestrel Bank
+- Personal customer (Person): Holds accounts at Kestrel Bank
 - Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
-  - Web banking (Container: Next.js): Serves online banking to the customer's browser
-  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards on the phone
-  - Banking API (Container: Spring Boot): Signs customers in and serves accounts and payments as JSON
-  - Customer store (Container: PostgreSQL 16): Logins, devices, preferences and sessions
+  - Web banking (Container: Next.js): Online banking in the browser
+  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards
+  - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
+  - Customer store (Container: PostgreSQL 16): Logins, devices and sessions
   - Account events (Container: Kafka): Payments and sign-ins as they happen
-  - Notifier (Container: Go): Turns account events into emails and push messages
-- Core ledger (Software System): Holds every account and books every transaction
-- Postbird (Software System, external): Sends transactional email
-- Push gateway (Software System, external): Delivers notifications to iOS and Android
+- Core ledger (Software System): Holds every account and booking
 
 Connections
 - Personal customer connects to Web banking (Banks online [HTTPS]) and connects to Mobile app (Banks on the phone).
 - Web banking connects to Banking API (Calls [JSON/HTTPS]).
 - Mobile app connects to Banking API (Calls [JSON/HTTPS]).
 - Banking API connects to Customer store (Reads logins [JDBC]), connects to Core ledger (Reads and books [ISO 20022 over MQ]) and sends messages to Account events (Publishes [Kafka]).
-- Account events sends messages to Notifier (Delivers).
-- Notifier connects to Postbird (Sends email [SMTP]) and connects to Push gateway (Sends pushes [HTTPS]).
 
 Key
 - Indigo icon: Person
 - Blue icon: Software system
-- Icon, greyed: External system
 - Sky icon: Container
 - Sky icon: Web app
 - Sky icon: Mobile app

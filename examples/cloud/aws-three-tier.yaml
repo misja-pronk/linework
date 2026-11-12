@@ -5,9 +5,9 @@ subtitle: Production, three availability zones
 direction: down
 
 groups:
-  account: { kind: account, label: shop-prod, account: "123456789012" }
-  region: { kind: region, region: eu-west-1, in: account }
-  vpc: { kind: vpc, label: vpc-shop, cidr: 10.0.0.0/16, in: region }
+  # The region is in the account's header (eu-west-1): one box less around the VPC.
+  account: { kind: account, label: shop-prod, account: "123456789012", region: eu-west-1 }
+  vpc: { kind: vpc, label: vpc-shop, cidr: 10.0.0.0/16, in: account }
   az-a: { kind: zone, zone: eu-west-1a, in: vpc }
   az-b: { kind: zone, zone: eu-west-1b, in: vpc }
   az-c: { kind: zone, zone: eu-west-1c, in: vpc }
@@ -31,13 +31,15 @@ nodes:
   db-c: { kind: aurora, label: Orders (reader), in: data-c }
 
 edges:
-  - users -> cdn: { label: HTTPS, style: public }
+  # Unlabelled to fit a slide; the key says what each style is. Users reach the CDN over HTTPS,
+  # the web shop talks SQL to the writer, and the writer replicates to the readers in the other zones.
+  - users -> cdn: { style: public }
   - cdn -> alb: { style: public }
   - alb -> web-a: { style: private }
   - alb -> web-b: { style: private }
   - alb -> web-c: { style: private }
   - web-a -> db-b: { style: private }
-  - web-b -> db-b: { label: SQL, style: private }
+  - web-b -> db-b: { style: private }
   - web-c -> db-b: { style: private }
   - db-b -> db-a: { style: data }
-  - db-b -> db-c: { label: replication, style: data }
+  - db-b -> db-c: { style: data }

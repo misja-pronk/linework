@@ -4,26 +4,26 @@ C4 model: Inside the Spring Boot service. 11 elements in 2 groups, with 11 conne
 
 Groups and elements
 - Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
-  - Web banking (Container: Next.js): Serves online banking to the customer's browser
-  - Banking API (Container: Spring Boot): Signs customers in and serves accounts and payments as JSON
-    - Sign-in controller (Component: Spring MVC): Starts a session once the credentials check out
-    - Accounts controller (Component: Spring MVC): Lists accounts, balances and recent transactions
-    - Session service (Component: Spring Security): Verifies passwords and one-time codes
+  - Web banking (Container: Next.js): Online banking in the browser
+  - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
+    - Sign-in controller (Component: Spring MVC): Starts a signed-in session
+    - Accounts controller (Component: Spring MVC): Lists accounts and balances
+    - Session service (Component: Spring Security): Checks passwords and one-time codes
     - Ledger client (Component: Spring bean): Reads and books on the core ledger
     - Payments controller (Component: Spring MVC): Checks and submits transfers
     - Event publisher (Component: Spring Cloud Stream): Announces what happened to an account
-  - Customer store (Container: PostgreSQL 16): Logins, devices, preferences and sessions
-  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards on the phone
+  - Customer store (Container: PostgreSQL 16): Logins, devices and sessions
+  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards
   - Account events (Container: Kafka): Payments and sign-ins as they happen
-- Core ledger (Software System): Holds every account and books every transaction
+- Core ledger (Software System): Holds every account and booking
 
 Connections
-- Web banking connects to Sign-in controller (Signs in [JSON/HTTPS]) and connects to Accounts controller (Gets accounts [JSON/HTTPS]).
+- Web banking connects to Sign-in controller (Signs in) and connects to Accounts controller (Gets accounts).
 - Sign-in controller connects to Session service (Checks credentials).
 - Accounts controller connects to Ledger client (Gets balances).
 - Session service connects to Customer store (Reads logins [JDBC]).
 - Ledger client connects to Core ledger (Reads and books [ISO 20022 over MQ]).
-- Mobile app connects to Sign-in controller (Signs in [JSON/HTTPS]) and connects to Payments controller (Submits transfers [JSON/HTTPS]).
+- Mobile app connects to Sign-in controller (Signs in) and connects to Payments controller (Submits transfers).
 - Payments controller connects to Ledger client (Books transfers) and connects to Event publisher (Reports payments).
 - Event publisher sends messages to Account events (Publishes [Kafka]).
 

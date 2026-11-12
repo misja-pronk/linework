@@ -1,0 +1,24 @@
+Kestrel Online — notifications
+
+C4 model: How account events reach the customer. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Kestrel Online (Software System): Lets customers check balances, move money and manage their cards
+  - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
+  - Account events (Container: Kafka): Payments and sign-ins as they happen
+  - Notifier (Container: Go): Turns account events into emails and push messages
+- Postbird (Software System, external): Sends transactional email
+- Push gateway (Software System, external): Delivers notifications to iOS and Android
+
+Connections
+- Banking API sends messages to Account events (Publishes [Kafka]).
+- Account events sends messages to Notifier (Delivers).
+- Notifier connects to Postbird (Sends email [SMTP]) and connects to Push gateway (Sends pushes [HTTPS]).
+
+Key
+- Icon, greyed: External system
+- Sky icon: Container
+- Violet icon: Queue
+- Boundary box: Boundary
+- Solid line: Relationship
+- Dashed line: Asynchronous
