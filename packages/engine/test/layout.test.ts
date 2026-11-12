@@ -20,7 +20,7 @@ const crossingBudget: Record<string, number> = {
   'class/strategy.yaml': 0,
   'mindmap/capability-brainstorm.yaml': 0,
   'mindmap/workshop-agenda.yaml': 0,
-  'access/engineering.yaml': 2, // wrapped into columns for a slide (0.71:1 at 4 pt -> 1.73:1 at 5.1 pt): the grants to production pass the package lines
+  'access/engineering.yaml': 0,
   'access/engineering-access.yaml': 0,
   'access/engineering-packages.yaml': 0,
   'access/engineering-roles.yaml': 0,
@@ -159,7 +159,6 @@ const jogBudget: Record<string, number> = {
   'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
-  'access/engineering.yaml': 2, // wrapped for a slide: the package lines into the security group step aside
   'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
@@ -247,7 +246,6 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#payment': 2,
   'deployment/model.yaml#containers': 2,
   'systems/saas-platform.yaml': 2,
-  'access/engineering.yaml': 3,
   'data-products/customer.yaml': 3,
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
