@@ -132,7 +132,7 @@ edges:
     const p = payloadOf((await exportHtml({ entries: ['first-deploy.yaml'], read: reader('examples/journey') })).html);
     const shapes = p.drawings[0]!.shapes;
     const step = p.elements[shapes['n:hear']!]!;
-    expect(step).toMatchObject({ label: 'Hears about the platform in a guild demo', kind: 'step', description: 'Looks good in a demo. Will it fit our service?' });
+    expect(step).toMatchObject({ label: 'Sees the platform in a guild demo', kind: 'step', description: 'Looks good in a demo. Will it fit our service?' });
     expect(step.props).toEqual([['phase', 'Discover'], ['about', 'feeling 3 on 1 to 5 (curious), uses Guild meeting, with Platform team']]);
     expect(p.elements[shapes['n:persona']!]).toMatchObject({ label: 'Ravi Menon', kind: 'persona' });
     expect(p.elements[shapes['n:phase:discover']!]).toMatchObject({ label: 'Discover', kind: 'phase' });

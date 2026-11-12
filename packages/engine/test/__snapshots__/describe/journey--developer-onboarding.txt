@@ -14,7 +14,7 @@ By phase
     - Through Laptop and Slack
     - With People lead
     - Works well: A buddy is assigned on day one
-  - Requests access to the repositories and the cloud (feels waiting, 2 of 5)
+  - Requests access to code and cloud (feels waiting, 2 of 5)
     - Thinks: “Seven forms, and I do not know half of these names.”
     - Through Service desk portal and Email
     - With Service desk

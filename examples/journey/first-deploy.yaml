@@ -23,7 +23,7 @@ metrics:
 
 steps:
   hear:
-    label: Hears about the platform in a guild demo
+    label: Sees the platform in a guild demo
     in: discover
     feel: 3 curious
     touchpoint: Guild meeting
@@ -69,7 +69,7 @@ steps:
     thought: Which of the three vaults is ours?
     pains:
       - Secret names differ per environment
-      - Database request is still a ticket
+      - Database needs a ticket
     ideas: Database as a self-service resource
     metrics: 1 ticket, 1 day
     frontstage: Support channel answers
@@ -104,7 +104,7 @@ steps:
     support: [Policy engine, Change register]
 
   observe:
-    label: Watches the service on the standard dashboard
+    label: Watches the standard dashboard
     in: run
     feel: 5 in control
     touchpoint: [Grafana, Alerts]

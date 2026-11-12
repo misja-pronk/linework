@@ -10,7 +10,7 @@ lanes:
 
 nodes:
   Alert fires: { kind: signal, in: monitoring }
-  Acknowledge page: { in: oncall, kind: user }
+  Triage: { in: oncall, kind: user, caption: "acknowledge, assess impact" }
   Mitigate: { in: oncall, caption: roll back or fail over }
   Declare incident: { in: lead, kind: user }
   Post status update: { in: comms, kind: user, caption: status page and customers }
@@ -20,6 +20,8 @@ nodes:
   Incident closed: end
 
 flow:
-  - Alert fires -> Acknowledge page -> Assess impact -> Major incident? -no-> Mitigate -> Service restored? -yes-> Close incident -> Write review -> Incident closed
-  - Major incident? -yes-> Declare incident -> Post status update -> Mitigate
+  - Alert fires -> Triage -> Major incident? -no-> Mitigate -> Service restored? -yes-> Close incident -> Write review -> Incident closed
+  - Major incident? -yes-> Declare incident -> Mitigate
+  # Communications runs alongside the fix: the lead hands it over and goes on to mitigate.
+  - Declare incident --> Post status update
   - Service restored? -no-> Escalate to owning team -> Mitigate
