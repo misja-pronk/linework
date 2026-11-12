@@ -44,7 +44,7 @@ diagram, git branching and a roadmap are the exception: they are one picture on 
 | Diagram title | the layout's title placeholder: position, face, size and colour are the template's |
 | The drawing | the layout's content or picture placeholder when it has one; otherwise the room under the title, between the master's text margins, down to the footers. It keeps clear of what the master and the layout draw there (a logo, a rule, a stripe). In a template it starts under the title rather than in the middle. |
 | Subtitle | a text box under the title, in the template's body face |
-| Step title and caption | the layout's caption placeholder (*Picture with Caption*) when it has one, otherwise under the drawing |
+| Step title and caption | the layout's caption placeholder (*Picture with Caption*) when it has one, otherwise under the title, in the subtitle's row; beside the drawing when the drawing is too tall for what is left under it |
 | Footer, slide number, date | copied from the layout onto each diagram slide, where the master shows them (a master that hides the date keeps it hidden) |
 | Speaker notes | as without a template, on the template's notes master; one is added when it has none |
 | Title slide (`--title`) | the template's **Title Slide** layout, its title and subtitle placeholders |

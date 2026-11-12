@@ -625,6 +625,7 @@ export const classDiagram: DiagramType<ClassSource> = {
   template: `type: class
 title: Order aggregate
 subtitle: Ordering context, domain layer
+direction: right
 
 classes:
   Order:

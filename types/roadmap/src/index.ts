@@ -14,7 +14,7 @@
 //     landing-zone: { lane: platform, label: Landing zone, from: 2026-01, to: 2026-02, status: done }
 //     aks: { lane: platform, after: landing-zone, duration: 8w, status: active, progress: 40% }
 //     go-live: { at: 2026-09-01, label: Go-live }      a milestone (on the axis when it has no lane)
-import { type BuildContext, type DiagramType, type Graph, type PaletteItem, type Path, type Reference, type RoadmapItem, type RoadmapShape, type RoadmapStatus, type Tone, tones } from '@cartography/core';
+import { english, type BuildContext, type DiagramType, type Graph, type PaletteItem, type Path, type Reference, type RoadmapItem, type RoadmapShape, type RoadmapStatus, type Tone, tones } from '@cartography/core';
 import { addDuration, day, floorUnit, formatDay, nextUnit, parseDate, ticks, type Unit } from './dates.ts';
 
 export { addDuration, parseDate, ticks, type Unit };
@@ -65,6 +65,7 @@ function percent(v: unknown): number | undefined {
 }
 
 export function buildRoadmap(src: RoadmapSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   const periods = src.periods?.map(String);
   // The axis speaks days, or period indexes when the roadmap names its periods.
   const when = (v: unknown, path: Path): { start: number; end: number } | undefined => {
@@ -191,7 +192,7 @@ export function buildRoadmap(src: RoadmapSource, ctx: BuildContext): Graph {
     let e = start;
     while (e < end) e = nextUnit(e, unit);
     end = Math.max(e, nextUnit(start, unit));
-    axis = ticks(start, end, unit);
+    axis = ticks(start, end, unit, ctx.word);
   }
   for (const it of all)
     if (it.end <= start || it.start >= end || (it.milestone && (it.start < start || it.start > end))) ctx.warn(it.path, 'It falls outside from: … to:, so it is cut off');
@@ -199,7 +200,7 @@ export function buildRoadmap(src: RoadmapSource, ctx: BuildContext): Graph {
   let today: RoadmapShape['today'];
   if (src.today != null && src.today !== false) {
     const t = src.today === true ? Math.floor(Date.now() / 86_400_000) : when(src.today, ['today'])?.start;
-    if (t !== undefined && !periods) today = { at: t, label: src.today === true ? 'Today' : `Today · ${formatDay(t)}` };
+    if (t !== undefined && !periods) today = { at: t, label: src.today === true ? word('Today') : `${word('Today')} · ${formatDay(t, ctx.word)}` };
     if (t !== undefined && periods) today = { at: t + 0.5, label: 'Now' };
   }
 

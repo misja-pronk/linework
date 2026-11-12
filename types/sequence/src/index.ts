@@ -39,6 +39,7 @@ import {
   type SequenceEvent,
   type SequenceParticipant,
   type Tone,
+  type Word,
   tones,
 } from '@cartography/core';
 
@@ -174,16 +175,17 @@ function kindFromName(name: string): KindTable[string] | undefined {
   return Object.entries(kinds).find(([id, k]) => has(id) || has(k.label) || k.keywords?.some(has))?.[1];
 }
 
-function participantsOf(src: SequenceSource): SequenceParticipant[] {
+/** `word`: a kind's name in the drawing's language, where it stands for a label or caption not written. */
+function participantsOf(src: SequenceSource, word: Word = english): SequenceParticipant[] {
   const out: SequenceParticipant[] = [];
   for (const [id, raw] of Object.entries(src.participants ?? {})) {
     const e: ParticipantEntry = typeof raw === 'string' ? { kind: raw } : (raw ?? {});
     // Without a kind, the name may say it (Orders API, Payments DB); otherwise a plain card, never a guessed service cube.
     const kind = e.kind ? kinds[e.kind] : kindFromName(`${id} ${e.label ?? ''}`);
-    const label = e.label ?? (e.kind ? kind?.label : undefined) ?? id;
+    const label = e.label ?? (e.kind && kind ? word(kind.label) : undefined) ?? id;
     // The kind as caption, unless the label says it already or the kind is plain (a person).
     const said = !e.kind || !e.label || kind?.quiet || label.toLowerCase().endsWith(kind?.label.toLowerCase() ?? '\0');
-    out.push({ id, label, caption: e.caption ?? (said || src.captions === 'written' ? undefined : kind?.label), icon: e.icon ?? kind?.icon, tone: e.tone ?? kind?.tone ?? 'slate', box: e.box, path: ['participants', id] });
+    out.push({ id, label, caption: e.caption ?? (said || src.captions === 'written' || !kind ? undefined : word(kind.label)), icon: e.icon ?? kind?.icon, tone: e.tone ?? kind?.tone ?? 'slate', box: e.box, path: ['participants', id] });
   }
   // A box holds participants side by side: keep its members together where the first one stands.
   const order: SequenceParticipant[] = [];
@@ -195,7 +197,7 @@ function participantsOf(src: SequenceSource): SequenceParticipant[] {
 }
 
 export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
-  const participants = participantsOf(src);
+  const participants = participantsOf(src, ctx.word);
   const ids = new Set(participants.map((p) => p.id));
   const boxes = Object.entries(src.boxes ?? {}).map(([id, b]) => {
     const e = typeof b === 'string' ? { label: b } : (b ?? {});

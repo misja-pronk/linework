@@ -47,6 +47,7 @@ import {
   type Placed,
   type Source,
   type StepState,
+  type Word,
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
 import { drawSvg, size, smallestTextPx, type SvgOptions } from '@cartography/render';
@@ -349,7 +350,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let onlyViews = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
   // The titles the type gives its views, in the drawing's language (the picker shows them, a view's title is its subtitle).
-  const allViews = type.views?.(rest, (text, params) => format(term(lang, text), lang, params));
+  // A context mark (public@exposure) only tells two meanings of one English word apart: never drawn.
+  const word: Word = (text, params) => format(term(lang, text).replace(/@[\w-]+$/, ''), lang, params);
+  const allViews = type.views?.(rest, word);
   const ownView = opts.view && allViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
   // A hidden view is drawn when asked for by name, and offered nowhere.
   const ownViews = allViews?.filter((v) => !v.hidden);
@@ -384,6 +387,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     load: opts.load,
     model,
     lang,
+    word,
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
   graph = translateGraph(graph, lang, built);

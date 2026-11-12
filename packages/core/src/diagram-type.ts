@@ -118,12 +118,18 @@ export interface Reference {
 /**
  * A text the type writes itself, in the drawing's language: word('Overview'), or a pattern with
  * placeholders, word('{name} in detail', { name }). What fills a placeholder (a name the author
- * wrote) stays as written. The Dutch is in the terms of @cartography/i18n.
+ * wrote) stays as written. 'one|many' picks a form by {count}; a word that means something else
+ * elsewhere carries a context mark, word('public@exposure'), left out of the English. The Dutch is in
+ * the terms of @cartography/i18n.
  */
 export type Word = (english: string, params?: Record<string, string>) => string;
 
-/** A Word that keeps the English: the placeholders filled, nothing translated. */
-export const english: Word = (text, params) => text.replace(/\{(\w+)\}/g, (m, k: string) => params?.[k] ?? m);
+/** A Word that keeps the English: the placeholders filled, nothing translated; 'one|many' picks by {count}. */
+export const english: Word = (text, params) => {
+  const forms = text.replace(/@[\w-]+$/, '').split('|');
+  const one = forms.length > 1 && Number(params?.count) === 1;
+  return forms[one ? 0 : forms.length - 1]!.replace(/\{(\w+)\}/g, (m, k: string) => params?.[k] ?? m);
+};
 
 export interface BuildContext {
   error(path: Path, message: string): void;
@@ -138,6 +144,8 @@ export interface BuildContext {
   model?: ModelContext;
   /** The diagram's `lang:`: the words the type adds itself (a key label it puts together) in that language. */
   lang?: Lang;
+  /** The words the type writes itself (a section heading, a count), in the drawing's language: as views() gets them. Absent: English. */
+  word?: Word;
 }
 
 export interface PaletteItem {
