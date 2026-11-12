@@ -85,6 +85,9 @@ interface CanvasKeys {
   sketch(e: React.KeyboardEvent): boolean;
 }
 
+/** The drawing's keys that act on the selection from the outline too, as in Figma's layers. */
+export const OUTLINE_KEYS = ['delete', 'duplicate', 'copy', 'paste'] as const;
+
 /** The drawing's keys, when it has the focus itself. */
 export function canvasKeys(c: CanvasKeys) {
   const { drawing, selection, selected, edits, pinning, nav } = c;
@@ -116,10 +119,13 @@ export function canvasKeys(c: CanvasKeys) {
     if (id) c.select({ kind: 'node', id });
   };
 
-  return (e: React.KeyboardEvent) => {
-    if (e.target !== e.currentTarget) return;
-    if (c.sketch(e)) return;
-    const arrange = arrangeKey(e);
+  /** `only`: from another list of the elements (the outline), the drawing's keys it leaves to the drawing; handled ones are prevented. */
+  return (e: React.KeyboardEvent, only?: readonly string[]) => {
+    if (only) {
+      const id = shortcutFor(e, ['drawing']);
+      if (!id || !only.includes(id)) return;
+    } else if (e.target !== e.currentTarget || c.sketch(e)) return;
+    const arrange = only ? undefined : arrangeKey(e);
     if (arrange) {
       pinning.arrangeSelection(arrange);
       return e.preventDefault();

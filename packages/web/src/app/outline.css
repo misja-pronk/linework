@@ -30,6 +30,10 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+/* Groups in medium: the structure reads at a glance. */
+.outline-row.group {
+  font-weight: 500;
+}
 /* The lines' heading reads as one, not as an element. */
 .outline-row.heading {
   margin-top: 6px;

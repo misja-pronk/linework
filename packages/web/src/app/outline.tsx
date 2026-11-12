@@ -63,6 +63,8 @@ interface OutlineProps {
   /** Opens the name editor over it in the drawing. */
   rename(s: Selection): void;
   focusDrawing(): void;
+  /** The drawing's keys for what is selected (delete, duplicate, copy, paste): prevented when they acted. */
+  onKey(e: React.KeyboardEvent): void;
 }
 
 /** The drawing as a tree: click or arrow to select, Enter (or Esc) back to the drawing, F2 or a double-click names it. */
@@ -80,6 +82,9 @@ export function Outline(p: OutlineProps) {
   const shown = rows.filter((r) => !hiddenBy(r));
   const chosen = new Set(p.selection.map(keyOf));
   const focusKey = active && shown.some((r) => r.key === active) ? active : shown[0]?.key;
+  /** A key handed to the drawing changed it from here: the keyboard stays in the tree, on what is selected next. */
+  const keep = useRef(false);
+  const inTree = () => !!tree.current?.contains(document.activeElement);
 
   // Selected elsewhere (the drawing, the YAML): its row is unfolded to and brought into view.
   const one = p.selection.length === 1 ? keyOf(p.selection[0]!) : undefined;
@@ -90,8 +95,22 @@ export function Outline(p: OutlineProps) {
     const ups: string[] = [];
     for (let u = r.up; u; u = byKey.get(u)?.up) ups.push(u);
     setFolded((f) => (ups.some((u) => f.has(u)) ? new Set([...f].filter((k) => !ups.includes(k))) : f));
-    requestAnimationFrame(() => tree.current?.querySelector(`[data-key="${CSS.escape(r.key)}"]`)?.scrollIntoView({ block: 'nearest' }));
+    requestAnimationFrame(() => {
+      const el = tree.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(r.key)}"]`);
+      el?.scrollIntoView({ block: 'nearest' });
+      if (keep.current || inTree()) el?.focus({ preventScroll: true });
+      keep.current = false;
+    });
   }, [one]); // eslint-disable-line react-hooks/exhaustive-deps -- on the selection changing only, not on every new drawing
+
+  // Deleted from here: its row has gone, the focus goes to the row in its place.
+  useEffect(() => {
+    if (!keep.current) return;
+    requestAnimationFrame(() => {
+      if (!inTree()) tree.current?.querySelector<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true });
+      keep.current = false;
+    });
+  }, [rows]);
 
   const fold = (key: string, on: boolean) => setFolded((f) => (f.has(key) === on ? f : on ? new Set([...f, key]) : new Set([...f].filter((k) => k !== key))));
   const go = (key: string | undefined, choose = true) => {
@@ -121,7 +140,12 @@ export function Outline(p: OutlineProps) {
       if (e.key === 'Enter' && r.sel) p.focusDrawing();
     } else if (e.key === 'F2' && r.sel && r.sel.kind !== 'edge') p.rename(r.sel);
     else if (e.key === 'Escape') p.focusDrawing();
-    else return;
+    else {
+      p.onKey(e);
+      if (!e.defaultPrevented) return;
+      keep.current = true;
+      return e.stopPropagation();
+    }
     e.preventDefault();
     e.stopPropagation();
   };
@@ -138,7 +162,7 @@ export function Outline(p: OutlineProps) {
           aria-expanded={r.parent ? !folded.has(r.key) : undefined}
           aria-selected={chosen.has(r.key)}
           tabIndex={r.key === focusKey ? 0 : -1}
-          className={r.sel ? 'outline-row' : 'outline-row heading'}
+          className={!r.sel ? 'outline-row heading' : r.sel.kind === 'group' ? 'outline-row group' : 'outline-row'}
           style={{ ['--depth' as string]: r.depth }}
           onClick={(e) => {
             setActive(r.key);
@@ -175,6 +199,8 @@ export function Outline(p: OutlineProps) {
 }
 
 type Tab = 'outline' | 'shapes';
+/** The left panel opens on the shapes next time (the YAML rail's Shapes button). */
+export const openOnShapes = () => store.set('left-tab', 'shapes' satisfies Tab);
 
 /** The left panel of the builder: the outline by default, the shapes on their tab (remembered). */
 export function LeftPanel(p: OutlineProps & { items: PaletteItem[]; onAdd(item: PaletteItem): void }) {

@@ -27,14 +27,14 @@ import { pinActions } from './app/pins.ts';
 import { useEdits } from './app/edits.ts';
 import { useExports } from './app/exports.ts';
 import { buildCommands } from './app/commands.ts';
-import { canvasKeys, useGlobalKeys } from './app/key-handlers.ts';
+import { canvasKeys, OUTLINE_KEYS, useGlobalKeys } from './app/key-handlers.ts';
 import { kindLabel } from './app/names.ts';
 import { Topbar } from './app/topbar.tsx';
 import { FilesPane } from './app/files-pane.tsx';
 import { EditorPane } from './app/editor-pane.tsx';
 import { CanvasTools } from './app/canvas-tools.tsx';
 import { DrawingPane } from './app/drawing-pane.tsx';
-import { LeftPanel } from './app/outline.tsx';
+import { LeftPanel, openOnShapes } from './app/outline.tsx';
 import { inspected, SidePanel, useSidePanel } from './app/side-panel.tsx';
 import { StatusBar } from './app/status-bar.tsx';
 import { Dialogs } from './app/dialogs.tsx';
@@ -231,6 +231,7 @@ export function App() {
             nodeName={edits.nodeName}
             rename={(s) => previewControl.current?.rename(s)}
             focusDrawing={focusDrawing}
+            onKey={(e) => onCanvasKey(e, OUTLINE_KEYS)}
             items={type.palette}
             onAdd={(item) => edits.add(item)}
           />
@@ -251,7 +252,7 @@ export function App() {
           setSplit={prefs.setSplit}
           setYamlFolded={prefs.setYamlFolded}
           setForceYaml={prefs.setForceYaml}
-          onShapes={() => prefs.setView('visual')}
+          onShapes={() => (openOnShapes(), prefs.setView('visual'))}
         />
         <DrawingPane
           drawing={drawing}

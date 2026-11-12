@@ -64,7 +64,29 @@ await page.keyboard.press('Enter');
 await wait(200);
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.preview')))) fail('Enter in the outline did not go back to the drawing');
 
-// 5. The quick add: A, "sql", Enter adds a SQL database (into the selected group, as it says).
+// 5. The drawing's keys for the selection work from the outline: ⌘D, Delete, ⌘C ⌘V; the keyboard stays there.
+const nodes = () => page.locator('.drawing [data-node]').count();
+const n0 = await nodes();
+await row('node:bastion').click();
+await page.keyboard.press('Meta+d');
+await wait(800);
+if ((await nodes()) !== n0 + 1) fail('⌘D in the outline did not duplicate');
+const copy = (await selectedRows())[0];
+if (!copy || copy === 'node:bastion') fail(`the duplicate is not selected in the outline: ${copy}`);
+if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after ⌘D');
+await page.keyboard.press('Delete');
+await wait(800);
+if ((await nodes()) !== n0) fail('Delete in the outline did not delete');
+if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after Delete');
+await row('node:bastion').click();
+await page.keyboard.press('Meta+c');
+await page.keyboard.press('Meta+v');
+await wait(800);
+if ((await nodes()) !== n0 + 1) fail('⌘C ⌘V in the outline did not paste');
+await page.keyboard.press('Delete');
+await wait(800);
+
+// 6. The quick add: A, "sql", Enter adds a SQL database (into the selected group, as it says).
 await row('group:erp-app').click();
 await page.locator('.preview').focus();
 await page.keyboard.press('a');
@@ -84,7 +106,7 @@ const y = await yaml();
 if (!/sql[\w-]*: \{ kind: sql[\w-]*,.*in: erp-app/.test(y)) fail(`Enter did not add a SQL shape in the subnet:\n${y.split('\n').filter((l) => /sql/.test(l)).join('\n')}`);
 if (!(await page.locator('.outline [data-key^="node:sql"]').count())) fail('the added shape is not in the outline');
 
-// 6. The shapes tab: the whole palette, to browse and drag.
+// 7. The shapes tab: the whole palette, to browse and drag.
 await page.keyboard.press('Escape');
 await page.locator('.left-tabs [role="tab"]', { hasText: 'Shapes' }).click();
 await wait(300);

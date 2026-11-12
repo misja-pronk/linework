@@ -21,8 +21,8 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="app"]');
 // The trackpad way: the shapes listed beside the drawing in the builder.
 await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
-await page.locator('.left-tabs [role="tab"]', { hasText: 'Shapes' }).click();
 await wait(600);
+if ((await page.locator('.left-tabs [role="tab"][aria-selected="true"]').innerText()).trim().toLowerCase() !== 'shapes') fail('the rail\'s Shapes button did not open the Shapes tab');
 await page.locator('.preview').focus();
 await page.keyboard.press('Meta+0');
 await wait(400);
