@@ -54,8 +54,8 @@ import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type Fo
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
 import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import { format, type Lang } from '@cartography/i18n';
+import { term, tr } from '@cartography/i18n/drawing';
 import { diagramLang, translateGraph } from './lang.ts';
 
 const typesOfVendor = (vendor: string) => (iconVendors as Record<string, { types: string[] }>)[vendor]?.types ?? [];
@@ -348,7 +348,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let includes: string[] | undefined;
   let onlyViews = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
-  const allViews = type.views?.(rest);
+  // The titles the type gives its views, in the drawing's language (the picker shows them, a view's title is its subtitle).
+  const allViews = type.views?.(rest, (text, params) => format(term(lang, text), lang, params));
   const ownView = opts.view && allViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
   // A hidden view is drawn when asked for by name, and offered nowhere.
   const ownViews = allViews?.filter((v) => !v.hidden);

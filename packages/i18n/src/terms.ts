@@ -310,4 +310,19 @@ export const terms: Record<string, string> = {
   'Line of interaction': 'Interactielijn',
   'Line of visibility': 'Zichtbaarheidslijn',
   'Line of internal interaction': 'Lijn van interne interactie',
+  // The titles types give their views (the view picker, a view's subtitle). A pattern keeps the
+  // author's name as written: '{name} in detail' with the domain or product filled in (Dutch says
+  // "in detail" too). Team Topologies is the name of a method and stays.
+  Overview: 'Overzicht',
+  Detailed: 'Gedetailleerd',
+  '{name} in detail': '{name} in detail',
+  'Other products in detail': 'Overige producten in detail',
+  'Every product in detail': 'Alle producten in detail',
+  'Whole sequence': 'Hele sequence',
+  'Phase {n}': 'Fase {n}',
+  Map: 'Kaart',
+  'Heatmap: {scale}': 'Heatmap: {scale}',
+  Systems: 'Systemen',
+  'Supporting systems': 'Ondersteunende systemen',
+  'Org chart': 'Organigram',
 };
