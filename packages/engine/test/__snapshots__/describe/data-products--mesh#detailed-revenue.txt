@@ -8,13 +8,13 @@ Groups and elements
   - Revenue (Consumer-aligned · v1.2.0 · Finance data)
   - Payments (Source-aligned · v3.2.0 · Finance data)
 - CFO dashboard (Dashboard)
-- Orders (Sales · Source-aligned · v2.1.0 · Sales engineering)
+- Orders (Sales · Source-aligned)
 
 Connections
-- Exchange rates connects to Revenue.in:2.
+- Exchange rates connects to Revenue.in:1.
 - Revenue.out:revenue-by-day connects to CFO dashboard.
-- Orders connects to Revenue.in:0.
-- Payments connects to Revenue.in:1.
+- Orders connects to Revenue.in:2.
+- Payments connects to Revenue.in:0.
 
 Key
 - Teal filled pill: Source-aligned

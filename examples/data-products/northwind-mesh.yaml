@@ -68,7 +68,7 @@ products:
     domain: finance
     owner: Finance data team
     version: 3.0.0
-    inputs: [orders, customers, { from: ledger, label: nightly }]
+    inputs: [{ from: ledger, label: nightly }, orders, customers]
     outputs:
       revenue: { kind: view, label: revenue by month, contract: revenue }
 

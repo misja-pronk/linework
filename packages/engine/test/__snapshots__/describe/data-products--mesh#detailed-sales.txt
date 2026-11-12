@@ -7,8 +7,8 @@ Groups and elements
 - Sales (Domain)
   - Orders (Source-aligned · v2.1.0 · Sales engineering)
   - orders (Data contract · v2.1.0)
-- Customer 360 (Customer · Aggregate · draft · v0.9.0 · CRM team)
-- Revenue (Finance · Consumer-aligned · v1.2.0 · Finance data)
+- Customer 360 (Customer · Aggregate)
+- Revenue (Finance · Consumer-aligned)
 
 Connections
 - Webshop order events connects to Orders.in:0.

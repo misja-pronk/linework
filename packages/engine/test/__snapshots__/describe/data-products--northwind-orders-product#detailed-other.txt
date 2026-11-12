@@ -3,7 +3,7 @@ Orders data product
 Data products, other products in detail: Other products in detail. 3 elements, with 2 connections.
 
 Elements
-- Orders (Sales · Source-aligned · v2.3.0)
+- Orders (Sales · Source-aligned)
 - Revenue (Finance)
 - Demand forecast (Supply chain)
 

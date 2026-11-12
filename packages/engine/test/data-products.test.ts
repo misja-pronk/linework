@@ -153,6 +153,9 @@ steps:
     expect(nodes.get('shop')!.parent).toBe('domain:sales');
     expect(nodes.get('revenue')!.shape).toMatchObject({ kind: 'card', caption: 'Finance · Source-aligned' });
     expect(r.graph!.groups.map((g) => g.id)).toEqual(['domain:sales']);
+    // A neighbour from elsewhere says its domain and class only: its version and team are for its own view.
+    const versioned = await render(mesh.replace('    domain: finance\n', '    domain: finance\n    version: 3.0.0\n    owner: Finance data team\n'), { fonts: 'none', view: 'detailed-orders' });
+    expect(versioned.graph!.nodes.find((n) => n.id === 'revenue')!.shape).toMatchObject({ caption: 'Finance · Source-aligned' });
     // Forecast, the other product of Sales, is a card in its own view's neighbours only.
     const forecast = await render(mesh, { fonts: 'none', view: 'detailed-forecast' });
     expect(forecast.graph!.nodes.map((n) => [n.id, n.shape.kind])).toEqual([

@@ -4,7 +4,7 @@ Data products, other products in detail: Other products in detail. 2 elements, w
 
 Elements
 - Exchange rates (Source-aligned · v1.0 · Treasury)
-- Revenue (Finance · Consumer-aligned · v1.2.0 · Finance data)
+- Revenue (Finance · Consumer-aligned)
 
 Connections
 - Exchange rates.out:rates-api connects to Revenue.

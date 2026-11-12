@@ -17,7 +17,7 @@ The detailed views open the products up: input and output ports, and the contrac
 | View | What it draws |
 | --- | --- |
 | `overview` | Every product as a card, with the lineage between them |
-| `detailed-<domain>` (`detailed-finance`) | That domain's products with their ports and contracts, in the domain's box. What they read from and who reads them stand beside it as plain cards, their domain named first in the caption (*Sales · Source-aligned*); what is further away is left out |
+| `detailed-<domain>` (`detailed-finance`) | That domain's products with their ports and contracts, in the domain's box. What they read from and who reads them stand beside it as plain cards, captioned with their domain and class (*Sales · Source-aligned*); what is further away is left out |
 | `detailed-<product>` (`detailed-orders`, *Orders in detail*) | One product the same way: the product with its ports and contract, in its domain's box; the other products of its domain it reads or feeds as cards in that box, the rest as cards beside it. Drawn from left to right: what it reads, the product and its contract, who reads it |
 | `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
 | `detailed` | Every product in detail at once |

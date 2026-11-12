@@ -8,14 +8,14 @@ Groups and elements
   - Revenue (Aggregate · v3.0.0 · Finance data team)
   - revenue (Data contract · v3.0.0 · internal)
 - CFO dashboard (Dashboard)
-- Orders (Sales · Source-aligned · v2.3.0 · Order management team)
-- Customers (Sales · Source-aligned · v1.6.0 · CRM team)
+- Orders (Sales · Source-aligned)
+- Customers (Sales · Source-aligned)
 
 Connections
-- General ledger connects to Revenue.in:2.
+- General ledger connects to Revenue.in:0.
 - Revenue.out:revenue connects to CFO dashboard and is linked with revenue.
-- Orders connects to Revenue.in:0.
-- Customers connects to Revenue.in:1.
+- Orders connects to Revenue.in:1.
+- Customers connects to Revenue.in:2.
 
 Key
 - Teal filled pill: Source-aligned

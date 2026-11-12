@@ -8,7 +8,7 @@ Groups and elements
   - Stock levels (Source-aligned · v1.1.0 · Warehouse team)
   - Demand forecast (Consumer-aligned · beta · v0.4.0 · Planning analytics)
 - Replenishment (Application)
-- Orders (Sales · Source-aligned · v2.3.0 · Order management team)
+- Orders (Sales · Source-aligned)
 
 Connections
 - Warehouse management connects to Stock levels.in:0.

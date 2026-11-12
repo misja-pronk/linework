@@ -64,7 +64,7 @@ products:
     domain: finance
     owner: Finance data
     version: 1.2.0
-    inputs: [orders.orders, payments, exchange-rates]
+    inputs: [payments, exchange-rates, orders.orders]
     outputs:
       revenue-by-day: { kind: api, label: revenue by day }
 
