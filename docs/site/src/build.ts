@@ -22,7 +22,7 @@ const out = path.resolve(values.out ?? path.join(here, 'dist'));
 const started = Date.now();
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { repository?: { url?: string } | string };
-const repoUrl = (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url ?? 'https://github.com/OWNER/cartography').replace(/^git\+/, '').replace(/\.git$/, '');
+const repoUrl = (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url ?? 'https://github.com/misja-pronk/cartography').replace(/^git\+/, '').replace(/\.git$/, '');
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'assets/fonts'), { recursive: true });

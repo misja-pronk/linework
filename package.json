@@ -6,9 +6,9 @@
   "description": "Architecture diagrams as text: YAML in, a clean and consistent drawing out",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/cartography.git"
+    "url": "git+https://github.com/misja-pronk/cartography.git"
   },
-  "homepage": "https://github.com/OWNER/cartography#readme",
+  "homepage": "https://github.com/misja-pronk/cartography#readme",
   "packageManager": "pnpm@10.34.7",
   "scripts": {
     "build": "pnpm web:build && node scripts/bundle.mjs",
