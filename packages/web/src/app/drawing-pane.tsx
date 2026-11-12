@@ -225,6 +225,7 @@ export function DrawingPane(p: Props) {
         {adding && type && (
           <AddMenu
             items={type.palette}
+            into={p.selection.length === 1 && p.selection[0]!.kind === 'group' ? (result?.graph?.groups.find((g) => g.id === p.selection[0]!.id)?.label ?? p.selection[0]!.id) : undefined}
             onAdd={(item) => edits.add(item)}
             onClose={() => {
               p.closeAdding();

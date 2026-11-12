@@ -6,7 +6,6 @@ import './app.css';
 import { useEffect, useRef, useState } from 'react';
 import type { PreviewControl, Selection } from './preview.tsx';
 import { useCraftPrefs } from './craft-actions.tsx';
-import { AddMenu } from './add-menu.tsx';
 import { forYourAi } from './ai/copy.ts';
 import { useConfirm } from './confirm.tsx';
 import { useLayers } from './layers-control.tsx';
@@ -35,6 +34,7 @@ import { FilesPane } from './app/files-pane.tsx';
 import { EditorPane } from './app/editor-pane.tsx';
 import { CanvasTools } from './app/canvas-tools.tsx';
 import { DrawingPane } from './app/drawing-pane.tsx';
+import { LeftPanel } from './app/outline.tsx';
 import { inspected, SidePanel, useSidePanel } from './app/side-panel.tsx';
 import { StatusBar } from './app/status-bar.tsx';
 import { Dialogs } from './app/dialogs.tsx';
@@ -169,12 +169,8 @@ export function App() {
     wasComparing.current = comparing.active;
   }, [comparing.active]); // eslint-disable-line react-hooks/exhaustive-deps -- on the comparison closing only
 
-  /** A: the popup over the drawing, or in the builder view the shapes panel that is already open. */
-  const addShape = () => {
-    const search = view === 'visual' ? (document.querySelector('.shapes input') as HTMLInputElement | null) : null;
-    if (search) search.focus();
-    else setAdding((a) => !a);
-  };
+  /** A: the quick add over the drawing, in both views (the builder's shapes tab is for browsing). */
+  const addShape = () => setAdding((a) => !a);
   useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView, session: session.on, toggleSession });
   const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect'), sketch: sketching.onKey });
   const title = (result?.graph as { title?: string } | undefined)?.title || doc.name.replace(/\.ya?ml$/i, '');
@@ -227,9 +223,17 @@ export function App() {
           open={(p) => void files.openInFolder(ws!, p)}
         />
         {view === 'visual' && type && (
-          <aside className="shapes" aria-label={t('Shapes')}>
-            <AddMenu inline items={type.palette} onAdd={(item) => edits.add(item)} onClose={focusDrawing} />
-          </aside>
+          <LeftPanel
+            graph={drawn?.graph ?? result?.graph}
+            selection={selection}
+            select={(s) => sel.select(s)}
+            toggle={sel.toggle}
+            nodeName={edits.nodeName}
+            rename={(s) => previewControl.current?.rename(s)}
+            focusDrawing={focusDrawing}
+            items={type.palette}
+            onAdd={(item) => edits.add(item)}
+          />
         )}
         <EditorPane
           editor={editor}
@@ -385,7 +389,8 @@ export function App() {
           }}
         />
       )}
-      {toasts.toast && <Toast key={toasts.toast.message} toast={toasts.toast} onDone={toasts.clear} />}
+      {/* Keyed on the quick add too: it opening docks the toast again, under it. */}
+      {toasts.toast && <Toast key={`${toasts.toast.message}${adding ? ' +add' : ''}`} toast={toasts.toast} onDone={toasts.clear} />}
     </div>
   );
 }

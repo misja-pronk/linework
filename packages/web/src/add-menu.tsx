@@ -10,8 +10,9 @@ export const PALETTE_MIME = 'application/x-cartography-palette';
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ');
 
-/** `inline`: the always-open shapes panel of the builder view, instead of the popup over the drawing. */
-export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[]; onAdd(item: PaletteItem): void; onClose(): void; inline?: boolean }) {
+/** `inline`: the shapes tab of the builder's left panel, instead of the quick add over the drawing.
+ * `into`: the group the quick add puts a shape in (the selected one), said under the search. */
+export function AddMenu({ items, onAdd, onClose, inline, into }: { items: PaletteItem[]; onAdd(item: PaletteItem): void; onClose(): void; inline?: boolean; into?: string | undefined }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const list = useRef<HTMLDivElement>(null);
@@ -48,6 +49,7 @@ export function AddMenu({ items, onAdd, onClose, inline }: { items: PaletteItem[
           aria-activedescendant={shown[index] ? `add-${shown[index].i}` : undefined}
         />
       </div>
+      {into && <div className="add-into">{t('Adds into {name}', { name: into })}</div>}
       <div className="add-list" id="add-list" role="listbox" ref={list}>
         {shown.length === 0 && <div className="palette-empty">{t('Nothing matches “{query}”', { query })}</div>}
         {shown.map(({ item, i }, n) => (

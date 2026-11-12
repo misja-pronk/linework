@@ -304,6 +304,7 @@ await page.waitForSelector('.drawing [data-node="app"]');
 // The Drawing tab folds the YAML to its rail; the rail shows the shapes.
 await page.locator('.view-switch button', { hasText: 'Drawing' }).click();
 await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
+await page.locator('.left-tabs [role="tab"]', { hasText: 'Shapes' }).click();
 await wait(600);
 await page.locator('.preview').focus();
 await page.keyboard.press('Meta+0');
