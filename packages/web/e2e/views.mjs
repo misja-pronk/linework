@@ -1,4 +1,4 @@
-// Views of a type that draws its source in several ways: a long sequence is presented phase by
+// Views of a type that draws its source in several ways: a long sequence is presented as one overview and then phase by
 // phase, a data mesh domain by domain. The page frame does not nag about the whole sequence, which
 // is read scrolling; exporting it says the phases follow on their own slides rather than "text too
 // small"; a phase of an untitled sequence says which phase it is; and a hidden view written in the
@@ -100,6 +100,38 @@ await open(sequence, 'long.yaml');
   if (!/pages after it show it as Order, Payment and Confirmation/.test(await toast())) fail('the PDF notice does not say the phases follow');
 }
 
+// 2b. Presenting the whole: one overview slide, then each phase message by message. Every message is
+// told once (42 messages, 43 slides), not the whole step by step and then every phase again.
+const count = () => page.locator('.present-count').innerText().catch(() => '');
+const words = () => page.locator('.present-words').innerText().catch(() => '');
+{
+  await page.locator('.preview').focus();
+  await page.keyboard.press('p');
+  await page.waitForSelector('.present .present-frame svg');
+  await wait(800);
+  check('presenting the whole sequence starts on its overview', await count(), '1 / 43');
+  if (/step \d+ of/.test(await words())) fail(`the overview slide is told as a message: ${await words()}`);
+  await page.screenshot({ path: `${out}/views-present-overview.png` });
+  const told = [];
+  for (let i = 2; i <= 43; i++) {
+    await page.keyboard.press('ArrowRight');
+    await page.waitForFunction((n) => document.querySelector('.present-count')?.textContent?.startsWith(`${n} /`), i, { timeout: 5000 }).catch(() => fail(`slide ${i} did not come`));
+    await wait(120);
+    told.push((await words()).replace(/\s+/g, ' ').trim());
+    if (i === 2) await page.screenshot({ path: `${out}/views-present-first-message.png` });
+  }
+  // A caption says who sends to whom: each message once means 42 different captions.
+  check('messages told after the overview', told.length, 42);
+  check('different messages told', new Set(told).size, 42);
+  check('the first phase is told from its first message', told[0], 'Browser → Orders API step 1 of a long story told here');
+  check('the last slide is the last message', told[41], 'Orders DB → Orders API step 14 of a long story told here');
+  await page.keyboard.press('ArrowRight');
+  await wait(300);
+  check('the deck stops at its last slide', await count(), '43 / 43');
+  await page.keyboard.press('Escape');
+  await wait(400);
+}
+
 // 3. A phase of an untitled sequence says which phase it is, on the canvas.
 {
   await page.selectOption('.view-picker select', 'phase-payment');
@@ -108,6 +140,15 @@ await open(sequence, 'long.yaml');
   // The Title field edits the file, which has none: the phase's name is the drawing's, not the file's.
   check('title field on a phase of an untitled sequence', await page.locator('.inspector .field[data-key="title"] input').inputValue(), '');
   await page.screenshot({ path: `${out}/views-phase.png` });
+  // Presenting from a phase starts at its first message, in the same deck: after the overview and Order's 14.
+  await page.locator('.preview').focus();
+  await page.keyboard.press('p');
+  await page.waitForSelector('.present .present-frame svg');
+  await wait(800);
+  check('presenting from the phase Payment', await count(), '16 / 43');
+  await page.screenshot({ path: `${out}/views-present-phase.png` });
+  await page.keyboard.press('Escape');
+  await wait(400);
 }
 
 // 4. A mesh written with its hidden whole-mesh view: the picker shows that view, not the overview.

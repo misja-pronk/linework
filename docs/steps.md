@@ -130,7 +130,7 @@ Autocomplete knows `steps:` and its keys in every diagram type and inside views.
 | `F` | Full screen on / off |
 | `Esc` | Stop |
 
-A file with views is presented view by view, in the order written, and step by step inside a view that has steps. Steps fade into each other (not with *reduce motion* on), and the pointer hides when it has been still for a moment. A clicker works: it sends `PageDown` and `PageUp`.
+A file with views is presented view by view, in the order written, and step by step inside a view that has steps. A sequence with phases tells each message once: the whole sequence first, as one slide to show the shape of it, then each phase message by message, in bigger text (so `13` messages make `14` slides, not the whole and the phases both step by step); the same goes for any view that is too long for one slide and presented by the others, unless steps were written for it. Steps fade into each other (not with *reduce motion* on), and the pointer hides when it has been still for a moment. A clicker works: it sends `PageDown` and `PageUp`.
 
 ## Command line and export
 

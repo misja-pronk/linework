@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { icon } from '@cartography/icons';
 import { render } from '@cartography/engine';
-import { themes } from '@cartography/theme';
+import { groupFill, measureText, themes } from '@cartography/theme';
 import { sequenceGeometry, type SequenceGeometry } from '@cartography/render';
 import type { Box, SequenceShape } from '@cartography/core';
 import { kinds, sequence } from '../src/index.ts';
@@ -285,6 +285,47 @@ messages:
     expect(last.r.steps).toHaveLength(1);
     // One divider (or none) is one phase: no views, the whole is the drawing.
     expect(sequence.views!(parse('type: sequence\nmessages:\n  - divider: All\n  - a -> b: x\n'))).toEqual([]);
+  });
+
+  it('keeps a label off an activation bar it passes: the gap beside the bar widens to hold it', async () => {
+    const yaml = `type: sequence
+autonumber: true
+participants:
+  user: { kind: person, label: Employee }
+  spa: { kind: client, label: Orders portal, caption: SPA in the browser }
+  entra: { kind: identity, label: Microsoft Entra ID }
+messages:
+  - user -> spa: Open the portal
+  - spa -> entra: Sign in
+  - entra -> user: { label: Approve in Authenticator (number match), activate: false }
+  - entra --> spa: Redirect with code
+`;
+    const { g } = await geometry(yaml);
+    const m = g.messages.find((x) => x.lines.join(' ').startsWith('Approve'))!;
+    expect(m.lines).toHaveLength(1);
+    const half = measureText(m.lines[0]!, 12, 500) / 2;
+    const label = { x: m.mid - half, y: m.y - 6 - 16, width: 2 * half, height: 16 };
+    for (const b of g.bars) expect(overlap(label, b.box), `label over the bar at ${b.box.x}`).toBe(false);
+  });
+
+  it('lays every message label on a patch of what lies behind it, cut at the side of a box', async () => {
+    const yaml = `type: sequence
+participants:
+  a: { label: Browser }
+  b: { label: Orders API, box: shop }
+  c: { label: Orders DB, box: shop }
+boxes:
+  shop: { label: Shop }
+messages:
+  - a -> c: Read the order and its lines
+`;
+    const r = await render(yaml, { fonts: 'none' });
+    expect(r.svg).not.toMatch(/paint-order/);
+    // The label passes the box's side: two patches, page then box, right before its words.
+    const at = r.svg!.match(/((?:<rect [^>]*height="16" fill="[^"]+"\/>)+)<text [^>]*>Read the order and its lines</);
+    expect(at, 'no patch under the label').toBeTruthy();
+    const fills = [...at![1]!.matchAll(/fill="([^"]+)"/g)].map((x) => x[1]);
+    expect(fills).toEqual([themes.light.canvas, groupFill(themes.light, 0, themes.light.tones.slate)]);
   });
 
   it('renders the examples cleanly in both themes', async () => {
