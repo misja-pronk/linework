@@ -37,7 +37,7 @@ steps:
     caption: The merge starts the release workflow. It builds one artifact, and that same artifact goes to every environment.
     path: Merged to main -> Build once
   - title: Dev and test
-    caption: The workflow deploys to dev, then to test, where the integration tests run. A red test stops the run.
+    caption: The workflow signs in to Azure with OIDC, so GitHub holds no secret, and deploys to dev, then to test, where the integration tests run. A red test stops the run.
     path: Build once -> Deploy to dev -> Deploy to test -> Integration tests
   - title: The gate
     caption: The production environment has required reviewers. The run waits here until one of them approves.

@@ -1,0 +1,16 @@
+Sign in with Entra ID
+
+Sequence, tokens and the API: Tokens and the API. 3 participants and 5 messages.
+
+Participants
+- Orders portal (SPA in the browser)
+- Microsoft Entra ID (Identity provider)
+- Orders API
+
+Message flow
+In order, top to bottom.
+- 9. Orders portal calls Microsoft Entra ID: /token: code, code_verifier.
+- 10. Microsoft Entra ID replies to Orders portal: ID token, access token, refresh token.
+- 11. Orders portal calls Orders API: GET /orders with the access token.
+- 12. Orders API does: Validate signature, iss, aud, exp, scp.
+- 13. Orders API replies to Orders portal: 200 OK, orders.

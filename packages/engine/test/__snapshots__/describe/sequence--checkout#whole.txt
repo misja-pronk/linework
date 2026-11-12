@@ -1,6 +1,6 @@
 Checkout
 
-Sequence, whole sequence: Card payment with a payment provider, confirmed by webhook. 6 participants and 17 messages.
+Sequence, whole sequence: Card payment with a payment provider, confirmed by webhook. 6 participants and 19 messages.
 
 Participants
 - Shopper
@@ -32,10 +32,12 @@ In order, top to bottom.
   - 12. Orders DB replies to Orders API: ok.
   - 13. Orders API sends to order-events: OrderPaid.
 - Else: Card declined
-  - 14. Stripe sends to Orders API: webhook payment_failed.
+  - 14. Stripe sends to Orders API: webhook payment_intent.payment_failed.
   - 15. Orders API calls Orders DB: UPDATE order SET status = failed.
   - 16. Orders DB replies to Orders API: ok.
-- 17. Storefront replies to Shopper: Order confirmation.
+- 17. Storefront calls Orders API: Poll GET /orders/{id}.
+- 18. Orders API replies to Storefront: status: paid or failed.
+- 19. Storefront replies to Shopper: Confirmation, or try another card.
 
 Key
 - Arrow with a filled head: Call
