@@ -209,6 +209,11 @@ export interface RenderResult {
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
+  /**
+   * The type's own view the diagram as written is (its `view:`, else the type's default), a hidden
+   * one too (a mesh written `view: detailed`): what the drawing is while no view is asked for.
+   */
+  asWritten?: { name: string; title?: string };
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
   /**
@@ -385,7 +390,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
   const written = typeof rest.view === 'string' ? rest.view : (ownViews?.find((v) => v.default) ?? ownViews?.[0])?.name;
   const viewTitle = ownView && ownView !== written ? allViews!.find((v) => v.name === ownView)?.title : undefined;
-  if (viewTitle && graph.title) graph = { ...graph, subtitle: viewTitle };
+  // Without a title of its own the view's name is the drawing's title: a phase says which one it is.
+  if (viewTitle) graph = graph.title ? { ...graph, subtitle: viewTitle } : { ...graph, title: viewTitle };
   // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
   const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
   const focusOwn = model?.view ? model.view.focus : focusRef;
@@ -503,6 +509,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}`, lang });
   }
   // A model's views, and the views the type draws besides: its first own view is the drawing itself.
+  // The type's own view this file is written for: model views and includes come first, so not with those.
+  const writtenView = !model?.views.size && ownViews?.length ? allViews!.find((v) => v.name === written) : undefined;
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
   const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
   return {
@@ -521,6 +529,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
+    ...(!model?.view && writtenView ? { asWritten: { name: writtenView.name, ...(writtenView.title ? { title: writtenView.title } : {}) } } : {}),
     ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),
     ...(includes?.length ? { includes } : {}),
     ...(steps.length ? { steps } : {}),

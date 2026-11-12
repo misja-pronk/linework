@@ -30,7 +30,7 @@ Which ones the view picker (and `carto render --all-views`, `carto validate`) of
 - With `show-contracts: false` there is nothing tall, and nothing is split.
 - When a product's id is also a view's name (a domain called `orders` next to a product `orders`), the product's view is `detailed-product-<id>`.
 
-When this leaves one detailed view (one domain drawn whole, or none), that view is `detailed`. So a mesh of one domain, Payments with its contract and Revenue beside it ([finance.yaml](../examples/data-products/finance.yaml)), offers `detailed-payments` and `detailed-revenue`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's or a product's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
+When this leaves one detailed view (one domain drawn whole, or none), that view is `detailed`. So a mesh of one domain, Payments with its contract and Revenue beside it ([finance.yaml](../examples/data-products/finance.yaml)), offers `detailed-payments` and `detailed-revenue`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` (the editor's view picker then lists it, as *Every product in detail*, while the file is written so) or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's or a product's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
 
 ![Customer 360 with its ports and the contracts it reads](data-products/customer-360.png)
 

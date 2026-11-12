@@ -2,6 +2,7 @@
 // arrange), or Your AI (proposals from the user's own agent, files changed on disk).
 import './side-panel.css';
 import { useMemo, useState } from 'react';
+import { parse } from 'yaml';
 import { renamePins, type Link, type Path } from '@cartography/core';
 import { t, say, type Message } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
@@ -106,7 +107,18 @@ export function SidePanel(p: Props) {
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, p.text, selNode, selGroup],
   );
   const { textNow } = p;
-  const graphText = ((result ?? drawing.drawn)?.graph ?? {}) as { title?: string; subtitle?: string };
+  // The title and subtitle as drawn, unless a view is: a view's own (or its name) stands there, and the fields edit the file's.
+  const shown = result ?? drawing.drawn;
+  const written = useMemo(() => {
+    if (!shown?.view) return undefined;
+    try {
+      const doc = parse(p.text) as { title?: unknown; subtitle?: unknown } | null;
+      return { title: typeof doc?.title === 'string' ? doc.title : undefined, subtitle: typeof doc?.subtitle === 'string' ? doc.subtitle : undefined };
+    } catch {
+      return undefined;
+    }
+  }, [shown?.view, p.text]);
+  const graphText = (written ?? shown?.graph ?? {}) as { title?: string; subtitle?: string };
   const { nodeName } = edits;
   return (
     <div className="side" role="region" aria-label={t('Side panel')}>
@@ -212,7 +224,7 @@ export function SidePanel(p: Props) {
               <Icon name={type.icon ?? 'file'} />
             </span>
             <div className="inspector-title">
-              <strong>{graphText.title || t('Drawing')}</strong>
+              <strong>{shown?.graph?.title || t('Drawing')}</strong>
               <span>{say(type.name as Message)}</span>
             </div>
           </header>

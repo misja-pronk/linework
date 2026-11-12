@@ -10,6 +10,7 @@ import { setReadout } from './readout.ts';
 import { t } from './i18n/index.ts';
 import { PALETTE_MIME } from './add-menu.tsx';
 import { describeResult } from './describe.ts';
+import { presentedBy } from './export.ts';
 import { bendAt, bendsOf, dragSegment, isHorizontal, nearestSegment, removeBend, snapBox, union, viewFor, type Snap } from './craft.ts';
 import { BendHandles, Guides, LockBadges, Minimap, PageFrame, PinBadges } from './craft-overlays.tsx';
 import { matchKinds } from './sketch.ts';
@@ -1016,7 +1017,7 @@ export function Preview(p: Props) {
   const lockedBoxes = [...(p.locked ?? [])].map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
   const pinnedBoxes = [...(p.pinned ?? [])].filter((id) => !p.locked?.has(id)).map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
   // The page: how small the smallest text comes out on it, and the part where it would still be readable.
-  const pageInfo = p.page && result?.page && result.svg && result.width && result.height ? { pt: slideTextPt(result.svg, result.width, result.height, result.page), readable: readableArea(result.svg, result.page) } : undefined;
+  const pageInfo = p.page && result?.page && result.svg && result.width && result.height ? { pt: slideTextPt(result.svg, result.width, result.height, result.page), readable: readableArea(result.svg, result.page), presentedBy: presentedBy(result).map((v) => v.title ?? v.name) } : undefined;
   // The overview only earns its place when the drawing does not fit the pane.
   const f = frame.current;
   const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);
@@ -1182,6 +1183,7 @@ export function Preview(p: Props) {
               pt={pageInfo.pt}
               minPt={SLIDE_MIN_PT}
               readable={pageInfo.readable}
+              presentedBy={pageInfo.presentedBy}
               boxes={[...(result!.placed?.nodes.values() ?? [])].map((b) => ({ ...b, x: b.x + o.x, y: b.y + o.y }))}
               scale={view.scale}
             />
