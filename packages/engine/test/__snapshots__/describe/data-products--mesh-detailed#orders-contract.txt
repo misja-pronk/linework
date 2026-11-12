@@ -1,0 +1,21 @@
+The orders contract and the keys inside it
+
+Data products diagram. 3 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Webshop order events (Outside the mesh)
+- Sales (Domain)
+  - Orders (Source-aligned · v2.1.0 · Sales engineering)
+  - orders (Data contract · v2.1.0)
+
+Connections
+- Webshop order events connects to Orders.in:0.
+- Orders.out:orders is linked with orders.
+- orders.field:1:order_id connects to orders.field:0:order_id.
+
+Key
+- Teal filled pill: Source-aligned
+- Solid line: Data flow
+- Dashed violet line: Data contract
+- Solid violet line with ticks: Foreign key
+- Ring: In focus
