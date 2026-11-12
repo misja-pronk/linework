@@ -514,6 +514,19 @@ export function Preview(p: Props) {
     const o = result?.origin ?? { x: 0, y: 0 };
     return { x: (clientX - r.left - view.x) / view.scale - o.x, y: (clientY - r.top - view.y) / view.scale - o.y };
   };
+  /** What a click at this point selects: the element under it, or else the smallest box whose bounds hold the
+   *  point, so the gap between a small event's circle and its name below still picks the event. */
+  const hitAt = (el: Element | null | undefined, clientX: number, clientY: number): Selection | undefined => {
+    const h = hitOf(el);
+    if (h?.kind === 'node' || h?.kind === 'edge' || !result?.placed) return h;
+    const q = toLayout(clientX, clientY);
+    let best: { id: string; area: number } | undefined;
+    for (const [id, b] of result.placed.nodes) {
+      const area = b.width * b.height;
+      if (q.x >= b.x && q.x <= b.x + b.width && q.y >= b.y && q.y <= b.y + b.height && (!best || area < best.area)) best = { id, area };
+    }
+    return best ? { kind: 'node', id: best.id } : h;
+  };
   const toPin = (q: Point): Point => {
     const s = result?.placed?.shift ?? { x: 0, y: 0 };
     return { x: Math.round(q.x + s.x), y: Math.round(q.y + s.y) };
@@ -659,11 +672,11 @@ export function Preview(p: Props) {
     const d = drag.current;
     if (!d) {
       const over = ((e.target as Element).closest('[data-node],[data-handle]') as HTMLElement | null);
-      const id = over?.dataset.node ?? over?.dataset.handle;
-      if (id !== hover) setHover(id);
       // What a click here would select, outlined (not on touch: a finger has no hover). The connect
       // handle belongs to the box it sits on.
-      const under = e.pointerType === 'touch' ? undefined : over?.dataset.handle ? { kind: 'node' as const, id: over.dataset.handle } : hitOf(e.target as Element);
+      const under = e.pointerType === 'touch' ? undefined : over?.dataset.handle ? { kind: 'node' as const, id: over.dataset.handle } : hitAt(e.target as Element, e.clientX, e.clientY);
+      const id = over?.dataset.node ?? over?.dataset.handle ?? (under?.kind === 'node' ? under.id : undefined);
+      if (id !== hover) setHover(id);
       if (under?.kind !== pointed?.kind || under?.id !== pointed?.id) setPointed(under);
       return;
     }
@@ -789,7 +802,7 @@ export function Preview(p: Props) {
     }
     if (e.button !== 0) return;
     // A click: the innermost element with an id under the pointer.
-    const hit = hitOf(document.elementFromPoint(e.clientX, e.clientY));
+    const hit = hitAt(document.elementFromPoint(e.clientX, e.clientY), e.clientX, e.clientY);
     lastClick.current = null;
     if (!hit) return e.shiftKey ? undefined : p.onSelect(undefined);
     if (follow(hit)) return;
