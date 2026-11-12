@@ -275,6 +275,41 @@ describe('steps', () => {
     expect(slideCount(await toPptx(seq, { steps: true }))).toBe(seq.steps!.length);
   });
 
+  it('pptx: a step says itself under the slide title, or beside a drawing too tall for that, and costs the drawing no more than it must', async () => {
+    /** Where the shape of that name sits, in EMU: x, y, width, height. */
+    const at = (slide: string, name: string) => {
+      const m = new RegExp(`name="${name}"[\\s\\S]*?<a:off x="(-?\\d+)" y="(-?\\d+)"/><a:ext cx="(\\d+)" cy="(\\d+)"/>`).exec(slide);
+      return m ? m.slice(1, 5).map(Number) : undefined;
+    };
+    const scales = async (r: RenderResult, steps?: boolean) => {
+      const seen: number[] = [];
+      await toPptx(r, { steps, onSlide: (s) => seen.push(s.scale) });
+      return seen;
+    };
+    // A wide drawing with a subtitle: the step takes the subtitle's place, one line, and the drawing is as large as without steps.
+    const wide = await draw('network/hybrid-cloud.yaml');
+    const slide = parts(await toPptx({ ...wide, step: 3 })).text('ppt/slides/slide1.xml');
+    const [, titleY, , titleH] = at(slide, 'Title')!;
+    const [captionX, captionY] = at(slide, 'Step caption')!;
+    expect(captionY).toBe(titleY! + titleH!);
+    expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
+    expect(slide).not.toContain('name="Subtitle"');
+    expect(at(slide, 'Step number')![1]).toBe(titleY);
+    const [flat] = await scales(wide, false);
+    for (const s of await scales(wide)) expect(s).toBeGreaterThanOrEqual(flat!);
+    // The subtitle is not lost: it is in the speaker notes.
+    expect(parts(await toPptx({ ...wide, step: 3 })).text('ppt/notesSlides/notesSlide1.xml')).toContain(wide.graph!.subtitle!.slice(0, 30));
+    // A tall drawing: the words go beside it, and it keeps the slide's full height.
+    const tall = await render(`type: systems\ntitle: Chain\ndirection: down\nnodes:\n${[1, 2, 3, 4, 5, 6].map((n) => `  n${n}: { kind: service, label: Service ${n} }\n`).join('')}edges:\n${[1, 2, 3, 4, 5].map((n) => `  - n${n} -> n${n + 1}\n`).join('')}steps:\n  - title: Start\n    caption: The request comes in at the top and goes down the chain, one service after the other.\n    focus: n1\n  - n1 -> n2 -> n3: Halfway.\n`, { fonts: 'none' });
+    const side = parts(await toPptx(tall)).text('ppt/slides/slide1.xml');
+    const [x, , w] = at(side, 'Step caption')!;
+    expect(x).toBeGreaterThan(captionX! + 12192000 / 3);
+    expect(x! + w!).toBeLessThanOrEqual(12192000);
+    expect(side).toContain('name="Step rule"');
+    const [tallFlat] = await scales(tall, false);
+    for (const s of await scales(tall)) expect(s).toBeGreaterThanOrEqual(tallFlat! * 0.999);
+  });
+
   it('pdf: a page per step with its place in the story, one page on request', async () => {
     const r = await draw('data-products/customer.yaml');
     const steps = r.steps!.length;

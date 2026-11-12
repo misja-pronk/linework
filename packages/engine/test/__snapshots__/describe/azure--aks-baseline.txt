@@ -31,9 +31,9 @@ Connections
 
 Walkthrough
 1. A private AKS cluster in its own spoke, with a subnet per role.
-2. In from the internet: Customers reach the WAF on Application Gateway's public IP; it forwards to the ingress controller on an internal load balancer.
+2. In from the internet: Customers reach the WAF's public IP; it forwards to the ingress controller on an internal load balancer.
   - agw-orders: The only public entry
-3. Secrets without passwords: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
+3. Secrets without passwords: The pod is federated to id-orders, which reads Key Vault over its private endpoint.
 4. Images: Nodes pull images from the registry over a private endpoint; the registry has public access off.
 5. Out: The node subnet's route table sends all egress to the hub firewall, which allows only what is needed.
 

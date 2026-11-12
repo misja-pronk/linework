@@ -36,9 +36,9 @@ Connections
 
 Walkthrough
 1. One subscription for the customer portal, with a resource group per concern.
-2. Out through the hub: The app's outbound traffic leaves through its integration subnet, whose route table sends it to the hub firewall.
-3. Data stays private: SQL and Key Vault have public access off. The app reaches them through private endpoints, with its managed identity.
-4. Monitored centrally: Every resource sends its diagnostics to the platform workspace (the badge on each card); App Insights stores its data there too.
+2. Out through the hub: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
+3. Data stays private: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
+4. Monitored centrally: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
 
 Key
 - Dashed teal line: Private network

@@ -66,17 +66,17 @@ layers:
 steps:
   - The hub holds the shared network services; each workload gets its own spoke.
   - title: From the office
-    caption: The office reaches the spokes over the VPN. Route table rt-gateway hands the traffic to the firewall, not straight to the peering.
+    caption: The office reaches the spokes over the VPN; route table rt-gateway sends it to the firewall, not the peering.
     path: router -> vpngw -> afw -> erp-vm
     note: { vpngw: "rt-gateway: spokes → 10.0.0.68" }
   - title: Out to the internet
-    caption: Each spoke subnet has a route table (rt-erp, rt-intranet) that sends 0.0.0.0/0 to the firewall's private IP, 10.0.0.68.
+    caption: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
     path: afw -> internet
     note: { erp-vm: "rt-erp: 0.0.0.0/0 → 10.0.0.68" }
   - title: Spoke to spoke
     caption: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
     path: [afw -> erp-vm, afw -> web-vm]
   - title: Admin access
-    caption: No public IPs on VMs. Admins come in through Bastion, over the peering; NSG nsg-app lets RDP in from the Bastion subnet only.
+    caption: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from its subnet only.
     path: bastion -> erp-vm
     note: { erp-vm: "nsg-app: RDP from Bastion only" }

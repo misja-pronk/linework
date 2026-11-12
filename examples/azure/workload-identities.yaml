@@ -45,9 +45,9 @@ edges:
 
 steps:
   - title: Three kinds
-    caption: An app registration with its service principal for code outside Azure, and managed identities for code inside it. None of them has a secret to leak.
+    caption: An app registration for code outside Azure, managed identities for code inside it. None has a secret to leak.
   - title: Deploying from GitHub
-    caption: The workflow presents GitHub's OIDC token. The federated credential trusts only northwind/shop in environment prod, and Entra issues a token for the service principal.
+    caption: Only northwind/shop in environment prod can swap GitHub's OIDC token for a service principal token.
     path: workflow -> fic -> app-reg -> sp
     note: { fic: "repo:northwind/shop:environment:prod" }
   - title: Pipeline, least privilege
@@ -57,6 +57,6 @@ steps:
     caption: The web app's identity lives and dies with the app, and may only read secrets from its own vault.
     path: web -> vault
   - title: User-assigned
-    caption: The jobs run as an identity of their own, which can be shared and survives a redeploy. It writes exports and reads users through an application permission on Microsoft Graph.
+    caption: The jobs' own identity can be shared and outlives a redeploy; it writes exports and reads users in Graph.
     path: [jobs -> uami -> blob, uami -> graph]
     note: { graph: Needs admin consent }
