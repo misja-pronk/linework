@@ -1,6 +1,6 @@
 // The drawing's pane: the canvas (select, drag, connect, label in place), what floats over it (the
-// toolbar, the focus and layers chips, notes, the hint, the empty state, the add popup), the
-// comparison over it, and the steps strip under it.
+// focus and layers chips and notes at the top, the toolbar at the bottom, the hint, the empty state, the
+// add popup), the comparison over it, and the steps strip under it.
 import './drawing-pane.css';
 import { useMemo } from 'react';
 import { t } from '../i18n/index.ts';
@@ -20,7 +20,7 @@ import type { Pins } from './pins.ts';
 import type { Select } from './selection.ts';
 import type { Notify } from './toasts.tsx';
 import type { Sketching } from './sketching.ts';
-import { SelectionFloats, SessionHeader, SessionStrip, SketchKeys } from '../session.tsx';
+import { SelectionFloats, SessionHeader, SketchKeys } from '../session.tsx';
 
 interface Props {
   drawing: Drawing;
@@ -34,7 +34,7 @@ interface Props {
   onKeyDown(e: React.KeyboardEvent): void;
   /** What a screen reader hears for the focused element. */
   describe(s: Selection): string;
-  /** The toolbar (canvas-tools.tsx). */
+  /** The toolbar (canvas-tools.tsx), at the bottom in the editor and in a session alike. */
   tools: React.ReactNode;
   layersChip: React.ReactNode;
   /** A focus of the YAML switched off here. */
@@ -54,13 +54,11 @@ interface Props {
   sketching: Sketching;
   /** Only the sheet on screen (a session, or its end): no page frame, no minimap. */
   sheetOnly: boolean;
-  /** In a session: only the sheet, a strip, and a menu over the selection. */
+  /** In a session: only the sheet, the toolbar, and a menu over the selection. */
   session?: {
     title: string;
-    /** The sketch keys over the strip (the first few sessions). */
+    /** The sketch keys over the toolbar (the first few sessions). */
     hint: boolean;
-    end(): void;
-    undo(): void;
     connect(): void;
   };
 }
@@ -103,7 +101,7 @@ export function DrawingPane(p: Props) {
           const showMenu = !!rect && !renaming && !drawing.draft && (one?.kind === 'node' || nodes.length > 1);
           return (
             <>
-              {/* The keys, in one quiet line over the strip: the first few sessions only. */}
+              {/* The keys, in one quiet line over the toolbar: the first few sessions only. */}
               {s.hint && <SketchKeys naming={renaming} selected={!!p.selection.length} />}
               {showMenu && rect && (
                 <SelectionFloats
@@ -177,10 +175,9 @@ export function DrawingPane(p: Props) {
         }}
       >
         <div className="canvas-top">
-          {p.tools}
           {!adding && <FocusChip focus={drawn?.focus} off={p.focusOff} onHops={nav.focusHops} onDirection={nav.focusDirection} onLeave={nav.leaveFocus} />}
           {!adding && p.layersChip}
-          {/* Notes about the drawing go on a row of their own under the tools, never under them. */}
+          {/* Notes about the drawing go on a row of their own under the chips. */}
           {!!rendered && !!drawn?.svg && drawn !== result && (
             <div className="canvas-note">
               <div className="stale-note" role="status">
@@ -188,6 +185,11 @@ export function DrawingPane(p: Props) {
               </div>
             </div>
           )}
+        </div>
+        {/* The toolbar, centred along the bottom; the zoom keeps its corner (the empty cell on the right is its room). */}
+        <div className="canvas-bottom">
+          {p.tools}
+          <span className="zoom-room" aria-hidden="true" />
         </div>
         {p.hint && !adding && !p.modalOpen && (
           <div className="hint" role="note">
@@ -235,23 +237,6 @@ export function DrawingPane(p: Props) {
         )}
       </Preview>
       {p.session && <SessionHeader title={p.session.title} />}
-      {p.session && (
-        <SessionStrip
-          onAdd={() => {
-            const one = p.selection.length === 1 ? p.selection[0] : undefined;
-            if (one?.kind === 'node') p.sketching.tab(one.id);
-            else p.sketching.first();
-            (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
-          }}
-          canGroup={p.selection.some((x) => x.kind === 'node')}
-          onGroup={() => p.sketching.group()}
-          steps={stepList.length}
-          step={drawn?.step}
-          onStep={nav.stepBy}
-          onUndo={p.session.undo}
-          onEnd={p.session.end}
-        />
-      )}
       {p.compareView}
       {stepList.length > 0 && (
         <StepsStrip

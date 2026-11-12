@@ -190,12 +190,12 @@ const namedInBox = async (what) => {
     if (m.x < 0 || m.y < 0 || m.x + m.width > 1440 || m.y + m.height > 900) fail('the selection menu runs out of the window');
     // The line into the firewall comes from above: the menu goes below rather than sit on it.
     if (m.y < b.y) fail('the selection menu sits on the line coming into the selection');
-    // One thing at the selection: the keys are over the strip, not next to the menu.
+    // One thing at the selection: the keys are over the toolbar, not next to the menu.
     if (await page.locator('.sketch-hint').count()) fail('a second hint floats at the selection');
     const hint = await page.locator('.session-keys').boundingBox();
-    const strip = await page.locator('.session-strip').boundingBox();
+    const strip = await page.locator('.canvas-tools').boundingBox(); // the toolbar, at the bottom as in the editor
     if (hint && (hint.x < 0 || hint.x + hint.width > 1440 || hint.y + hint.height > 900)) fail('the sketch keys run out of the window');
-    if (hint && strip && (hint.y + hint.height > strip.y || strip.y - hint.y > 60)) fail('the sketch keys are not just over the strip');
+    if (hint && strip && (hint.y + hint.height > strip.y || strip.y - hint.y > 60)) fail('the sketch keys are not just over the toolbar');
     await snap('selection-menu');
   }
 
@@ -221,10 +221,10 @@ const namedInBox = async (what) => {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  if (!(await page.locator('.session-strip').count()) || (await page.locator('.session-end-dialog').count())) fail('Esc left the session');
-  await page.locator('.session-strip .session-end').click();
+  if (!(await page.locator('.canvas-tools .session-end').count()) || (await page.locator('.session-end-dialog').count())) fail('Esc left the session');
+  await page.locator('.canvas-tools .session-end').click();
   await until('no "What changed" after the session', () => !!document.querySelector('.session-end-dialog .session-changes li'));
-  if (await page.locator('.session-strip').count()) fail('End session did not leave the session');
+  if (await page.locator('.canvas-tools .session-end').count()) fail('End session did not leave the session');
   const told = await page.locator('.session-changes').innerText();
   for (const want of ['Checkout', 'Payments', 'Ledger', 'Edge firewall', 'Core banking']) if (!told.includes(want)) fail(`"What changed" does not mention ${want}:\n${told}`);
   if (!(await page.evaluate(() => !!document.activeElement?.closest('.session-end-dialog')))) fail('the focus is not in the "What changed" dialog');
@@ -299,7 +299,7 @@ edges:
   console.log(`stability: ${worst.join('; ')}`);
   // What does move glides there: after the session, Tidy all draws it from scratch and the boxes go
   // to their new places with a transition on them (not in one jump).
-  await page.locator('.session-strip .session-end').click();
+  await page.locator('.canvas-tools .session-end').click();
   await until('no "What changed" after the prepared session', () => !!document.querySelector('.session-end-dialog'));
   await page.keyboard.press('Escape');
   await until('the editor did not come back', () => getComputedStyle(document.querySelector('.topbar')).display !== 'none');

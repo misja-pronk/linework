@@ -5,6 +5,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { PaletteItem } from '@cartography/core';
 import { nearestToward, type Direction } from '../craft.ts';
+import { is } from '../keys.ts';
 import { isEntryPath, parentKey } from '../builder.ts';
 import type { LabelExit, PreviewControl, Selection } from '../preview.tsx';
 import { addConnected, addFirst, addSibling, graphOf, groupInto, groupKinds, nameEntry, plainGroup, plainItem, readTyped, setKind, shapeKinds, type Sketched } from '../sketch.ts';
@@ -228,7 +229,7 @@ export function useSketching({ drawing, selection: sel, pins: px, edits, preview
    * way are kept for its name (in the editor too: after Tab in a name, "a" is the next name's first
    * letter, not Add).
    */
-  const onKey = (e: Pick<React.KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey'> & { preventDefault?(): void }): boolean => {
+  const onKey = (e: Pick<React.KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey'> & { code?: string; preventDefault?(): void }): boolean => {
     const mod = e.metaKey || e.ctrlKey;
     const p = pending.current;
     if (p?.name && !mod) {
@@ -245,7 +246,7 @@ export function useSketching({ drawing, selection: sel, pins: px, edits, preview
       e.preventDefault?.();
       return true;
     }
-    if (!session) return false;
+    // ⌘G groups the selected boxes, in the editor as in a session (the toolbar's Group).
     if (mod) {
       if (e.key.toLowerCase() === 'g' && !e.shiftKey && !e.altKey) {
         group();
@@ -254,6 +255,10 @@ export function useSketching({ drawing, selection: sel, pins: px, edits, preview
       }
       return false;
     }
+    if (!session) return false;
+    // ⇧1 and ⇧2 zoom (to fit, to the selection) rather than start a name with "!" or "@": only a name
+    // already on its way (above) takes them.
+    if (is({ ...e, code: e.code ?? '' }, 'fit') || is({ ...e, code: e.code ?? '' }, 'zoom-selection')) return false;
     const node = selected?.kind === 'node' ? selected.id : undefined;
     const take = () => (e.preventDefault?.(), true);
     switch (e.key) {

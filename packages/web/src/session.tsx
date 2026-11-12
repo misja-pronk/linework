@@ -1,6 +1,6 @@
-// What a session shows besides the sheet: a line top left (what this is), one strip at the
-// bottom (with the keys over it in the first few sessions), a small menu at the selection, and at the end
-// "What changed".
+// What a session shows besides the sheet and the drawing's toolbar (app/canvas-tools.tsx, with End
+// session): a line top left (what this is), the keys over the toolbar in the first few sessions, a small
+// menu at the selection, and at the end "What changed".
 import './session.css';
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { GraphGroup, PaletteItem } from '@cartography/core';
@@ -11,10 +11,9 @@ import { BrandMark } from './brand-mark.tsx';
 import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';
 import { matchKinds } from './sketch.ts';
-import { comboLabel } from './keys.ts';
 import type { ScreenRect } from './preview.tsx';
 
-/** "Session · Web shop" along the top. The way out is End session in the strip: Esc never leaves, it only lets go. */
+/** "Session · Web shop" along the top. The way out is End session in the toolbar: Esc never leaves, it only lets go. */
 export function SessionHeader({ title }: { title: string }) {
   return (
     <div className="session-head" aria-live="polite">
@@ -26,62 +25,6 @@ export function SessionHeader({ title }: { title: string }) {
         </span>
         <span className="session-name">{title}</span>
       </span>
-    </div>
-  );
-}
-
-interface StripProps {
-  onAdd(): void;
-  canGroup: boolean;
-  onGroup(): void;
-  steps: number;
-  step: number | undefined;
-  onStep(dir: 1 | -1): void;
-  onUndo(): void;
-  onEnd(): void;
-}
-
-/** The one strip at the bottom: add, group, the steps, undo, end; ruled apart like a plate's legend. */
-export function SessionStrip(p: StripProps) {
-  const keep = (e: React.PointerEvent) => e.stopPropagation();
-  return (
-    <div className="session-strip" role="toolbar" aria-label={t('Session')} onPointerDown={keep} onPointerUp={keep}>
-      <button onClick={p.onAdd} title={t('Add a box (Tab adds one connected to the selection)')}>
-        <Icon name="plus" size={15} /> {t('Add')} <kbd>Tab</kbd>
-      </button>
-      <i className="session-rule" />
-      <button onClick={p.onGroup} disabled={!p.canGroup} title={t('Put the selected boxes in a group (⌘G)')}>
-        <Icon name="square-dashed" size={15} /> {t('Group')} <kbd>{comboLabel('mod+g')}</kbd>
-      </button>
-      {p.steps > 0 && (
-        <>
-          <i className="session-rule" />
-          <span className="session-steps">
-            <button onClick={() => p.onStep(-1)} aria-label={t('Previous step')}>
-              <Icon name="arrow-left" size={15} />
-            </button>
-            <span className="session-step-no" aria-live="polite">
-              {p.step ? t('Step {n}/{m}', { n: p.step, m: p.steps }) : t('All steps')}
-            </span>
-            <button onClick={() => p.onStep(1)} aria-label={t('Next step')}>
-              <Icon name="arrow-right" size={15} />
-            </button>
-          </span>
-        </>
-      )}
-      <i className="session-rule" />
-      <button onClick={p.onUndo} aria-label={t('Undo')} title={t('Undo (⌘Z)')}>
-        <Icon name="undo-2" size={15} />
-      </button>
-      <i className="session-rule" />
-      <button
-        className="session-end"
-        onClick={p.onEnd}
-        title={t('Back to the editor, with what changed')}
-        onKeyDown={(e) => e.key === 'Escape' && (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true })}
-      >
-        {t('End session')}
-      </button>
     </div>
   );
 }
@@ -185,7 +128,7 @@ function KindPicker({ kinds, onPick, onClose }: { kinds: readonly PaletteItem[];
   );
 }
 
-/** Over the strip while sketching, the first few sessions only: the keys, each with what it does. */
+/** Over the toolbar while sketching, the first few sessions only: the keys, each with what it does. */
 export function SketchKeys({ naming, selected }: { naming: boolean; selected: boolean }) {
   return (
     <p className="session-keys" role="note">
@@ -257,7 +200,7 @@ function obstacles(own: Element[]): Obstacles {
   for (const el of document.querySelectorAll('.drawing [data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 4 });
   // Every word on the sheet: line labels, group headers, the title, the key.
   for (const el of document.querySelectorAll('.drawing svg text')) if (!el.closest('[data-node]')) boxes.push({ b: box(el.getBoundingClientRect()), w: 3 });
-  for (const el of document.querySelectorAll('.session-strip, .session-keys, .session-head > *, .label-editor, .kind-list')) if (!own.some((o) => o.contains(el))) boxes.push({ b: box(el.getBoundingClientRect()), w: 8 });
+  for (const el of document.querySelectorAll('.canvas-tools, .session-keys, .session-head > *, .label-editor, .kind-list')) if (!own.some((o) => o.contains(el))) boxes.push({ b: box(el.getBoundingClientRect()), w: 8 });
   const points: Obstacles['points'] = [];
   for (const g of document.querySelectorAll('.drawing [data-edge]')) {
     const path = g.querySelector('path');
