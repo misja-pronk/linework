@@ -21,7 +21,7 @@ The detailed views open the products up: input and output ports, and the contrac
 | `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
 | `detailed` | Every product in detail at once |
 
-The view picker (and `carto render --all-views`, `carto validate`) offers the overview and one detailed view per domain. With products in only one domain (or none) there is nothing to split, and the one detailed view is `detailed`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
+The view picker (and `carto render --all-views`, `carto validate`) offers the overview and one detailed view per domain. With products in only one domain (or none) there is nothing to split, and the one detailed view is `detailed`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` (the editor's view picker then lists it, as *Every product in detail*, while the file is written so) or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
 
 ![Customer 360 with its ports and the contracts it reads](data-products/customer-360.png)
 

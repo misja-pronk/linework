@@ -9,15 +9,23 @@ export interface ViewPickerProps {
   value?: string;
   /** Whether the diagram has something drawn as written, next to its views. */
   asWritten: boolean;
+  /**
+   * The type's own view the diagram as written is (data products: the one in `view:`): shown by its
+   * name rather than as "As written", and listed even when the type does not offer it (a hidden one).
+   */
+  written?: { name: string; title?: string };
   onChange(view: string | undefined): void;
 }
 
-export function ViewPicker({ views, value, asWritten, onChange }: ViewPickerProps) {
-  if (!views?.length) return null;
+export function ViewPicker({ views: offered, value, asWritten, written, onChange }: ViewPickerProps) {
+  if (!offered?.length) return null;
+  const views = written && !offered.some((v) => v.name === written.name) ? [...offered, written] : offered;
+  if (written) value ??= written.name;
+  asWritten &&= !written;
   return (
     <label className="tool view-picker" title={t('Views of this diagram (V: next view; pins are kept per view)')}>
       <Icon name="layers" />
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} aria-label={t('View')}>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value === written?.name ? undefined : e.target.value || undefined)} aria-label={t('View')}>
         {asWritten && <option value="">{t('As written')}</option>}
         {views.map((v) => (
           <option key={v.name} value={v.name}>

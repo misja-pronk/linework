@@ -24,6 +24,10 @@ export const nlApp = {
   'Copy': 'Kopiëren',
   'In the template: {warning} (and {count} more)': 'In het sjabloon: {warning} (en nog {count})',
   'In the template: {warning}': 'In het sjabloon: {warning}',
+  'The first slide is the whole drawing, too long to read on a slide; the slides after it show it as {views}|The first {count} slides are the whole drawing, too long to read on a slide; the slides after them show it as {views}':
+    "De eerste dia is de hele tekening, te lang om op een dia te lezen; de dia's erna tonen hem als {views}|De eerste {count} dia's zijn de hele tekening, te lang om op een dia te lezen; de dia's erna tonen hem als {views}",
+  'The first page is the whole drawing, too long to read on a page; the pages after it show it as {views}': "De eerste pagina is de hele tekening, te lang om op een pagina te lezen; de pagina's erna tonen hem als {views}",
+  'Leave it out': 'Laat weg',
   '{count} slide with text under {min} pt ({list}): split into views, or Tidy for the page|{count} slides with text under {min} pt ({list}): split into views, or Tidy for the page': "{count} dia met tekst onder {min} pt ({list}): splits in weergaven, of ruim op voor de pagina|{count} dia's met tekst onder {min} pt ({list}): splits in weergaven, of ruim op voor de pagina",
   'slide {n}: {pt} pt': 'dia {n}: {pt} pt',
   '16:9 slide': '16:9-dia',
@@ -323,6 +327,7 @@ export const nlApp = {
   'Align and distribute': 'Uitlijnen en verdelen',
   'Drag to move this part of the line (⌥ for no snapping)': 'Sleep om dit deel van de lijn te verplaatsen (⌥ zonder uitlijnen)',
   'under {min} pt': 'onder {min} pt',
+  'too long for one slide: on slides as {views}': "te lang voor één dia: op dia's als {views}",
   'outlined: past the readable part': 'omlijnd: buiten het leesbare deel',
   'Page: {name} · {pt} pt': 'Pagina: {name} · {pt} pt',
   'Overview of the drawing: click to look there': 'Overzicht van de tekening: klik om daar te kijken',
