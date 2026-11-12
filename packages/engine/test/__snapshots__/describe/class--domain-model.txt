@@ -1,6 +1,6 @@
 Library lending
 
-Class diagram: Domain model, catalogue and lending packages. 7 classes, with 6 relations.
+Class diagram: Domain model, catalogue and lending packages. 7 classes, with 5 relations.
 
 Classes
 - Catalogue (Package)
@@ -38,7 +38,6 @@ Relations
 - Item (1) is made of Copy (copies 1..*).
 - Member (1) borrows Loan (0..5).
 - Loan (0..*) of Copy.
-- Copy is associated with Condition.
 - Book extends Item.
 - Dvd extends Item.
 

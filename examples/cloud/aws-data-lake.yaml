@@ -27,23 +27,25 @@ nodes:
   athena: { kind: athena, label: Ad-hoc SQL, in: serve }
   warehouse: { kind: redshift, label: Warehouse, in: serve }
   features: { kind: sagemaker, label: Churn model, in: serve }
+  # Analysts read the dashboards.
   dashboards: { kind: quicksight, label: Dashboards, in: serve }
 
-  analysts: { kind: users, label: Analysts }
-
+# The lines say what they are by their style (see the key), so the drawing stays slide-sized:
+# the ERP is copied nightly and the orders database by change data capture (CDC), web and app
+# events stream in through Kinesis, Glue registers its tables in the Lake Formation catalog, and
+# Redshift reads the curated zone through Spectrum.
 edges:
-  - erp -> dms: { label: nightly, style: data }
-  - orders -> dms: { label: CDC, style: data }
-  - clicks -> stream: { label: events, style: data }
+  - erp -> dms: { style: data }
+  - orders -> dms: { style: data }
+  - clicks -> stream: { style: data }
   - stream -> firehose: { style: data }
   - dms -> raw: { style: data }
   - firehose -> raw: { style: data }
   - raw -> glue: { style: data }
   - glue -> curated: { style: data }
-  - glue -- governance: { label: catalog }
+  - glue -- governance
   - curated -> athena: { style: data }
-  - curated -> warehouse: { label: Spectrum, style: data }
+  - curated -> warehouse: { style: data }
   - curated -> features: { style: data }
   - athena -> dashboards: { style: data }
   - warehouse -> dashboards: { style: data }
-  - dashboards -> analysts

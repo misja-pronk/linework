@@ -16,15 +16,15 @@ Groups and elements
     - Orders DB (Database)
     - Session cache
   - Back office (Service)
-- Payment provider (Trust boundary)
-  - Stripe (Payments)
+- Stripe (Trust boundary)
+  - Card payments
 
 Connections
 - Shopper connects to CDN + WAF over HTTPS.
 - CDN + WAF connects to Storefront over HTTPS.
 - Storefront connects to API gateway (REST over TLS).
 - API gateway connects to Orders service over gRPC.
-- Orders service connects to Orders DB (SQL over TLS), connects to Session cache (RESP) and connects to Stripe over HTTPS.
+- Orders service connects to Orders DB (SQL over TLS), connects to Session cache (RESP) and connects to Card payments over HTTPS.
 - Shop admin connects to Back office over HTTPS.
 - Back office connects to Orders DB (SQL over TLS).
 
@@ -33,7 +33,7 @@ Trust boundaries
 - Edge (DMZ)
 - Application zone
 - Data zone
-- Payment provider
+- Stripe
 
 Key
 - Rose heavy dashed boundary: Trust boundary

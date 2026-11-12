@@ -42,14 +42,17 @@ const crossingBudget: Record<string, number> = {
   'c4/kestrel-bank.yaml#landscape': 0,
   'c4/kestrel-bank.yaml#context': 0,
   'c4/kestrel-bank.yaml#containers': 0,
+  'c4/kestrel-bank.yaml#notifications': 0,
   'c4/kestrel-bank.yaml#components': 1,
   'c4/kestrel-bank.yaml#payment': 0,
+  'c4/kestrel-bank.yaml#payment-notice': 0,
   'c4/kestrel-bank.yaml#production': 0,
-  'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 2.32:1 at 4.8 pt): the stream's line down to the raw zone passes the change data capture's
+  'c4/kestrel-bank.yaml#production-data': 0,
+  'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 1.84:1 at 6.3 pt): the stream's line down to the raw zone passes the change data capture's
   'cloud/aws-landing-zone.yaml': 0,
   'cloud/aws-three-tier.yaml': 0,
   'cloud/gcp-data-platform.yaml': 0,
-  'cloud/multi-cloud.yaml': 0,
+  'cloud/multi-cloud.yaml': 2, // left to right for a slide: the interconnect and CDC lines to Google Cloud pass the shop's lines down to the data centre
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 1, // lines keep clear of the cards they pass: the dashboard's line crosses the one from orders
   'data-products/customer-focus.yaml': 0,
@@ -149,6 +152,9 @@ const jogBudget: Record<string, number> = {
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
   'cloud/aws-landing-zone.yaml': 1,
+  'cloud/aws-three-tier.yaml': 1, // the web shops' lines into the writer: one steps a lane aside past the other
+  'cloud/gcp-data-platform.yaml': 1, // the change data capture's line into the raw datasets steps around the streaming pipeline
+  'cloud/multi-cloud.yaml': 2, // left to right for a slide: the lines out of the shop step aside on their way down
   'context-map/e-commerce.yaml': 1, // Ordering's line steps into Billing a lane apart from Payment provider's: lines that meet end to end read as one
   'c4/kestrel-bank.yaml#components': 2, // two labelled lines into one side each keep their own path now, and one end steps aside
   'data-products/customer.yaml': 1, // drawn left to right (a slide's shape): Customer 360's line steps into the dashboard beside the one from orders
@@ -181,6 +187,7 @@ const bendBudget: Record<string, number> = {
   'states/device-connection.yaml': 1, // update verified, between two returns
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
+  'c4/kestrel-bank.yaml#production-data': 1, // Reads logins, on the line down from the banking API past Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
   'workspace/containers.yaml': 1,
   'c4/kestrel-bank.yaml#containers': 1,
@@ -254,6 +261,11 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
   'workspace/containers.yaml#payments': 3,
+  // Lines that run back where a view is drawn to fit a slide.
+  'cloud/aws-three-tier.yaml': 1, // the writer replicates to the reader in the zone to its left
+  'c4/kestrel-bank.yaml#notifications': 2, // the notifier sends to Postbird and the push gateway, drawn under the boundary on the left
+  'c4/kestrel-bank.yaml#payment-notice': 1,
+  'c4/kestrel-bank.yaml#production': 1, // wrapped for a slide: the line down to the core ledger runs back to its start
 };
 
 describe('layout quality', () => {
@@ -284,7 +296,8 @@ describe('layout quality', () => {
 
   const c4 = fs.readFileSync(path.join(examples, 'c4/kestrel-bank.yaml'), 'utf8');
   it('keeps groups apart in a deployment view drawn top-down', async () => {
-    const down = c4.replace('    kind: deployment\n', '    kind: deployment\n    direction: down\n');
+    // The production view is written left to right (to fit a slide); turned top-down here.
+    const down = c4.replace('    direction: right\n', '').replace('    kind: deployment\n', '    kind: deployment\n    direction: down\n');
     expect(down).not.toBe(c4);
     const r = await render(down, { fonts: 'none', view: 'production' });
     expect(r.placed!.memory!.variant).toMatch(/^down\//);
@@ -398,7 +411,8 @@ describe('drawn again', () => {
     const memory = first.placed!.memory!;
     // A drawing that was turned and wrapped for the page: the search is long, its answer is kept.
     expect(memory.variant).toMatch(/w\d/);
-    const edited = text.replace('label: Web shop CDN', 'label: Web shop content delivery network');
+    // An edit that keeps the card's width: drawn left to right, a wider card would rightly push what follows it.
+    const edited = text.replace('label: Web shop CDN', 'label: Shop CDN');
     const [fresh, again] = await race(
       () => render(edited, { fonts: 'none', load }),
       () => render(edited, { fonts: 'none', load, previous: memory }),

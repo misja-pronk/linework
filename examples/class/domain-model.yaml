@@ -30,6 +30,7 @@ classes:
     package: catalogue
     members:
       - -barcode: Barcode
+      # Its type is the Condition enumeration: no line drawn to it, which keeps the drawing slide-high.
       - -condition: Condition
   Member:
     package: lending
@@ -54,4 +55,3 @@ relations:
   - Item "1" *-- "1..*" Copy: { role: copies }
   - Member "1" -- "0..5" Loan: borrows
   - Loan "0..*" --> Copy: of
-  - Copy --> Condition
