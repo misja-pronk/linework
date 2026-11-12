@@ -6,7 +6,7 @@ import { renamePins, type Link, type Path } from '@cartography/core';
 import { t, say, type Message } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { keyHint } from '../keys.ts';
-import { Inspector } from '../inspector.tsx';
+import { Inspector, TextInput } from '../inspector.tsx';
 import { AskPanel } from '../ai/ask-panel.tsx';
 import { ArrangeBar } from '../craft-actions.tsx';
 import { canMove, editChainLine, edgeFields, fieldsFor, isChainLine, isEntryPath, moveEntry, setEdgeField, setField } from '../builder.ts';
@@ -87,6 +87,8 @@ export function SidePanel(p: Props) {
   const { type, vpins, locked, bent, result, entries } = drawing;
   const sideTab: 'properties' | 'ask' = state.asking ? 'ask' : 'properties';
   const showInspector = sideTab === 'properties' && state.inspector && p.hasProperties;
+  /** Nothing selected: the panel stays and shows the drawing, so the drawing never shifts when a click selects something. */
+  const showDrawing = sideTab === 'properties' && !p.hasProperties && !!type;
   const { selectedPath, selNode, selGroup, selEdge, isEntry, isEdgeItem } = inspected(drawing, selected, p.pathOf);
   /** One arrow of a chain ("a -> b -> c" in a process): its label is the one thing to set. */
   const isChain = !!type && selected?.kind === 'edge' && isChainLine(p.text, type, selected.id);
@@ -104,11 +106,12 @@ export function SidePanel(p: Props) {
     [type, isEntry, isEdgeItem, isChain, selEdge?.label, selectedPath, p.text, selNode, selGroup],
   );
   const { textNow } = p;
+  const graphText = ((result ?? drawing.drawn)?.graph ?? {}) as { title?: string; subtitle?: string };
   const { nodeName } = edits;
   return (
     <div className="side" role="region" aria-label={t('Side panel')}>
       <div className="side-tabs" role="tablist" aria-label={t('Side panel')}>
-        <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => state.showSide('properties')} disabled={!p.hasProperties} title={p.hasProperties ? t('What is selected') : t('Select something to see its properties')}>
+        <button role="tab" aria-selected={sideTab === 'properties'} onClick={() => state.showSide('properties')} title={p.hasProperties ? t('What is selected') : t('The drawing, until something is selected')}>
           <Icon name="file-sliders" size={14} /> <span className="tab-label">{t('Properties')}</span>
         </button>
         {/* Your AI is opened from the drawing's ⋯ (or ⌘J, ⌘K); once open, its tab switches back and forth until it is closed. */}
@@ -196,8 +199,33 @@ export function SidePanel(p: Props) {
           onSelectEdge={(id) => p.select({ kind: 'edge', id })}
           onDeleteEdge={(id) => edits.remove({ kind: 'edge', id })}
           onUnpin={() => pinning.unpinOne(selected)}
-          onClose={() => state.setInspector(false)}
+          onClose={() => {
+            p.setSelection([]);
+            p.focusDrawing();
+          }}
         />
+      )}
+      {showDrawing && type && (
+        <aside className="inspector" aria-label={t('Drawing')}>
+          <header>
+            <span className="inspector-icon">
+              <Icon name={type.icon ?? 'file'} />
+            </span>
+            <div className="inspector-title">
+              <strong>{graphText.title || t('Drawing')}</strong>
+              <span>{say(type.name as Message)}</span>
+            </div>
+          </header>
+          <div className="inspector-body">
+            {(['title', 'subtitle'] as const).map((key) => (
+              <label key={key} className="field" data-key={key}>
+                <span>{key === 'title' ? t('Title') : t('Subtitle')}</span>
+                <TextInput value={graphText[key] ?? ''} onCommit={(v) => pinning.apply(setField(textNow(), type, [], key, v.trim() || undefined))} />
+              </label>
+            ))}
+            <p className="fine">{t('Click a shape, group or line to see its properties here.')}</p>
+          </div>
+        </aside>
       )}
       {showInspector && selection.length > 1 && (
         <aside className="inspector" aria-label={t('Selection')}>

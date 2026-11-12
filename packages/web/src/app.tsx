@@ -128,8 +128,8 @@ export function App() {
   const { selNode, selGroup, selEdge } = inspected(drawing, selected, sel.pathOf);
   /** The selection has properties to show (one element, or several to arrange). */
   const hasProperties = !!(selected && type && (selNode || selGroup || selEdge)) || selection.length > 1;
-  /** One panel on the right, with tabs: the selection's properties, or Your AI. */
-  const sideOpen = side.asking || (side.inspector && hasProperties);
+  /** One panel on the right, with tabs: the selection's properties (the drawing's when nothing is selected), or Your AI. It stays open, so selecting never resizes the drawing. */
+  const sideOpen = side.asking || side.inspector;
   const paneWants = { width: prefs.windowWidth, folder: !!ws, view, editor: { width: prefs.split * prefs.windowWidth, folded: prefs.yamlFolded }, forceEditor: prefs.forceYaml, side: side.inspector || sideOpen };
   const panes = paneLayout({ ...paneWants, files: prefs.filesPref });
   /** The focused element as a screen reader says it: name, kind, and whether it is pinned or locked. */

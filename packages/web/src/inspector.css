@@ -60,6 +60,12 @@
   align-content: start;
 }
 
+/* A line of help under the fields (the drawing's panel, several selected). */
+.inspector-body > .fine {
+  margin: 0;
+  padding: 12px 16px 0 20px;
+}
+
 /* A field anywhere: its name over it. */
 .field {
   display: grid;

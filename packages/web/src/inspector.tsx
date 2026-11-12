@@ -56,7 +56,7 @@ const optionText = (id: string, name?: string) => (!name || name === id ? id : s
 /** Back to the drawing, so the next drawing shortcut (A, C, Tab…) works right away. */
 const toDrawing = () => (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
 
-function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: string): void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'>) {
+export function TextInput({ value, onCommit, ...rest }: { value: string; onCommit(v: string): void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value'>) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   const commit = () => draft !== value && onCommit(draft);

@@ -194,12 +194,16 @@ await page.keyboard.press('Escape');
 await page.keyboard.press('Meta+0');
 await wait(300);
 const nodeCount = await page.locator('.drawing [data-node]').count();
-// Unselected: the first click opens the inspector, which narrows the canvas; the second click still
-// lands on the node, not on the inspector that now covers where the node was.
-if (await page.locator('.inspector').count()) fail('inspector open before the double-click');
+// Unselected: the side panel shows the drawing and stays where it is, so the first click selects
+// without moving the drawing and the second click lands on the same node.
+if (await page.locator('.inspector[data-selection]').count()) fail('something still inspected before the double-click');
+if (!(await page.locator('.inspector[aria-label="Drawing"]').count())) fail('the side panel does not show the drawing when nothing is selected');
+const sheetBefore = await page.locator('.preview svg').first().boundingBox();
 const vb = await page.locator('.drawing [data-node="vault"]').boundingBox();
 await page.mouse.dblclick(vb.x + vb.width / 2, vb.y + vb.height / 2);
 await wait(300);
+const sheetAfter = await page.locator('.preview svg').first().boundingBox();
+if (Math.abs(sheetAfter.x - sheetBefore.x) > 0.5 || Math.abs(sheetAfter.width - sheetBefore.width) > 0.5) fail(`selecting moved the drawing: ${JSON.stringify(sheetBefore)} → ${JSON.stringify(sheetAfter)}`);
 if (!(await page.locator('.label-editor').isVisible())) fail('double-click did not open the label editor');
 // "a" would add a shape and "c" connect: typed here they are just letters.
 await page.keyboard.type('Vault a c');
