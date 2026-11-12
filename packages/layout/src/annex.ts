@@ -51,6 +51,64 @@ export function liftAnnexes(p: Placement, sized: Sized, pad: number, gap: number
   return cur;
 }
 
+/** Room between a table and the annex stacked under it (px): close enough to read as one. */
+const STACK = 32;
+
+/**
+ * Each annex under its table, in the table's column (dot was asked to rank them together), joined to
+ * it by its short line: the table's other lines then leave its rows and run straight on to the right,
+ * past nothing, and what they lead to stands level with those rows. Annexes of one table stack in the
+ * order of their lines. Undefined where something stands in the way: then this is no way to draw it
+ * (above the table the annex's line would have to run all the way round it).
+ */
+export function stackAnnexes(p: Placement, sized: Sized, pad: number, gap: number): Placement | undefined {
+  const { graph } = sized;
+  if (graph.direction !== 'right') return undefined;
+  let cur = p;
+  const tables = [...new Set(graph.edges.filter((e) => e.annex && e.from.row && !e.to.row).map((e) => e.from.node))];
+  for (const t of tables) {
+    const a = cur.nodes.get(t);
+    if (!a) continue;
+    const annexes = [...new Set(graph.edges.filter((e) => e.annex && e.from.node === t && !e.to.row).map((e) => e.to.node))];
+    // Only an annex alone: every line it has is an annex line from this table (or a loose one).
+    const alone = annexes.filter((id) => cur.nodes.has(id) && !graph.edges.some((o) => !o.loose && (o.from.node === id || o.to.node === id) && !(o.annex && o.from.node === t)));
+    if (!alone.length) continue;
+    const mine = new Set([t, ...alone]);
+    const nodes = new Map(cur.nodes);
+    let y = a.y + a.height + STACK;
+    for (const id of alone) {
+      const b = nodes.get(id)!;
+      nodes.set(id, { ...b, x: a.x, y });
+      y += b.height + STACK;
+    }
+    if (alone.some((id) => [...nodes].some(([other, o]) => !mine.has(other) && hit(nodes.get(id)!, o, Math.min(pad, gap))))) return undefined;
+    // What the table's other rows lead to, on the right, stacked level with those rows: the lines run straight.
+    const rows = sized.nodes.get(t)?.rowY ?? {};
+    const lines = graph.edges.filter((o) => !o.annex && o.from.node === t && o.from.row && rows[o.from.row] != null && (cur.nodes.get(o.to.node)?.x ?? -Infinity) >= a.x + a.width);
+    const busy = lines.map((o) => a.y + rows[o.from.row!]!);
+    const first = alone[0]!;
+    const q = busy.length ? place({ ...cur, nodes }, first, nodes.get(first)!, [...new Set(lines.map((o) => o.to.node))], (Math.min(...busy) + Math.max(...busy)) / 2, a.y + a.height, pad, gap) : undefined;
+    if (q) for (const [id, box] of q.nodes) nodes.set(id, box);
+    const groups = fitGroups(graph, nodes, cur.groups, sized.groupHeader, pad, sized.groupMinWidth);
+    // A group grown over something else: not this way.
+    if (boxOverlaps(graph, { nodes, groups }).length > boxOverlaps(graph, cur).length) return undefined;
+    cur = { ...cur, nodes, groups };
+  }
+  return cur === p ? undefined : snug(cur);
+}
+
+/** The placement moved to start at 0, 0 and sized to what it holds. */
+function snug(p: Placement): Placement {
+  const all = [...p.nodes.values(), ...p.groups.values()];
+  const dx = Math.min(...all.map((b) => b.x));
+  const dy = Math.min(...all.map((b) => b.y));
+  const shift = (b: Box): Box => ({ ...b, x: b.x - dx, y: b.y - dy });
+  const nodes = new Map([...p.nodes].map(([k, b]) => [k, shift(b)]));
+  const groups = new Map([...p.groups].map(([k, b]) => [k, shift(b)]));
+  const boxes = [...nodes.values(), ...groups.values()];
+  return { nodes, groups, width: Math.max(...boxes.map((b) => b.x + b.width)), height: Math.max(...boxes.map((b) => b.y + b.height)) };
+}
+
 /**
  * Annex lines whose annex stands clear of its table's other lines (above or below them): those lines
  * run straight on, and the annex's own line is drawn after them, around them.

@@ -24,6 +24,7 @@
 // Activations follow the calls by default: a call opens one on the callee, its reply closes it.
 // `activations: explicit` draws only the ones asked for (`a -> +b`, `b --> -a`, activate:/deactivate:).
 import {
+  english,
   idPattern,
   type BuildContext,
   type DiagramType,
@@ -104,6 +105,8 @@ export interface Phase {
   title: string;
   /** Index in the top-level messages: of its divider, or -1 for the messages before the first divider. */
   divider: number;
+  /** The title is the type's own word, not a divider's text: "Start", or "Phase 2" for a divider without text. */
+  own?: { text: string; params?: Record<string, string> };
 }
 
 const slug = (s: string) =>
@@ -128,17 +131,23 @@ export function sequencePhases(src: SequenceSource): Phase[] {
   if (!Array.isArray(items)) return [];
   const out: Phase[] = [];
   const taken = new Set<string>();
-  const add = (title: string, divider: number) => {
+  const add = (title: string, divider: number, own?: Phase['own']) => {
     const base = `phase-${slug(title) || out.length + 1}`;
     let name = base;
     for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
     taken.add(name);
-    out.push({ name, title, divider });
+    out.push({ name, title, divider, ...(own ? { own } : {}) });
   };
   const first = items.findIndex((it) => stepKind(it) === 'divider');
-  if (first !== 0) add('Start', -1);
+  if (first !== 0) add('Start', -1, { text: 'Start' });
   if (first < 0) return [];
-  for (const [i, it] of items.entries()) if (stepKind(it) === 'divider') add(String((it as Item).divider ?? '').trim() || `Phase ${out.length + 1}`, i);
+  for (const [i, it] of items.entries()) {
+    if (stepKind(it) !== 'divider') continue;
+    const text = String((it as Item).divider ?? '').trim();
+    // The names stay English whatever the language (phase-start, phase-phase-2): a view is asked for by them.
+    if (text) add(text, i);
+    else add(`Phase ${out.length + 1}`, i, { text: 'Phase {n}', params: { n: String(out.length + 1) } });
+  }
   return out.length > 1 ? out : [];
 }
 
@@ -530,9 +539,10 @@ messages:
   references: sequenceReferences,
   // The whole sequence is the drawing; with dividers each phase is a view of its own, for a slide.
   // A long whole is read scrolling, not on one slide: it is presented by its phases.
-  views(src) {
+  views(src, word = english) {
     const phases = sequencePhases(src);
-    return phases.length ? [{ name: 'whole', title: 'Whole sequence', scroll: true }, ...phases.map(({ name, title }) => ({ name, title }))] : [];
+    // A phase's title is its divider's text, the author's: only the whole, "Start" and "Phase 2" are the type's own words.
+    return phases.length ? [{ name: 'whole', title: word('Whole sequence'), scroll: true }, ...phases.map(({ name, title, own }) => ({ name, title: own ? word(own.text, own.params) : title }))] : [];
   },
   connect(src, from, to) {
     const known = (id: string) => !!src.participants && Object.hasOwn(src.participants, id);

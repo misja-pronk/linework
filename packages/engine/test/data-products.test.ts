@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TableShape } from '@cartography/core';
+import { tableGrid } from '@cartography/render';
+import { themes } from '@cartography/theme';
 import { render } from '../src/index.ts';
 
 const source = (extra = '') => `type: data-products
@@ -193,5 +195,51 @@ steps:
     expect(r.graph!.nodes.find((n) => n.id === 'revenue')!.shape.kind).toBe('table');
     const wrong = await render(mesh.replace('domains:', 'view: detailed-hr\ndomains:'), { fonts: 'none' });
     expect(wrong.diagnostics.map((d) => d.message)).toContain('There is no view "detailed-hr": the detailed views are detailed-orders, detailed-forecast, detailed-finance, detailed-other');
+  });
+
+  it('sets a tall contract in two columns, unless keys are drawn to its fields', async () => {
+    const tall = source('view: detailed').replace("fields: { id: uuid pk, email: string pii }", "fields: { id: uuid pk, email: string pii, name: string, country: string }\n    quality: [id is unique, email is valid]");
+    const r = await render(tall, { fonts: 'none' });
+    const shape = r.graph!.nodes.find((n) => n.id === 'contract:orders')!.shape as TableShape;
+    // Schema in the first column, guarantees and checks in the second.
+    expect(shape.split).toBe(shape.rows.findIndex((row) => row.kind === 'section' && row.label === 'Guarantees'));
+    // The second column starts at the top, beside the first.
+    const grid = tableGrid(shape, themes.light);
+    const [first, second] = [grid.rows[1]!, grid.rows[shape.split!]!];
+    expect([first.column, second.column, second.y]).toEqual([0, 1, grid.rows[0]!.y]);
+    expect(grid.columns[1]!.x).toBe(grid.columns[0]!.width);
+    const short = await render(source('view: detailed'), { fonts: 'none' });
+    expect((short.graph!.nodes.find((n) => n.id === 'contract:orders')!.shape as TableShape).split).toBeUndefined();
+  });
+
+  it("stands one product's contract under it, and the lines from its port run straight on to who reads it", async () => {
+    const one = `type: data-products
+sources:
+  crm: saas
+products:
+  customers:
+    inputs: [crm]
+    outputs:
+      customers: { kind: table, contract: customers }
+consumers:
+  bi: { kind: dashboard, uses: [customers] }
+  app: { kind: application, uses: [customers] }
+contracts:
+  customers:
+    fields: { id: uuid pk, name: string, email: string pii, country: string }
+    sla: { freshness: 24 hours }
+    quality: [email is valid]
+`;
+    const r = await render(one, { fonts: 'none', view: 'detailed' });
+    const box = (id: string) => r.placed!.nodes.get(id)!;
+    const [product, contract] = [box('customers'), box('contract:customers')];
+    expect(contract.x).toBe(product.x);
+    expect(contract.y).toBeGreaterThan(product.y + product.height);
+    // The port's lines leave to the right and never pass under the contract.
+    const lines = r.graph!.edges.filter((x) => x.from.row === 'out:customers' && !x.annex);
+    const port = r.placed!.edges.get(lines[0]!.id)!.points[0]!.y;
+    for (const e of lines) for (const p of r.placed!.edges.get(e.id)!.points) expect(p.y).toBeLessThan(contract.y);
+    // One of them level with the port (to the 8 px grid).
+    expect(Math.min(...['bi', 'app'].map((id) => Math.abs(box(id).y + box(id).height / 2 - port)))).toBeLessThan(5);
   });
 });

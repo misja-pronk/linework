@@ -75,4 +75,40 @@ describe('lang: nl', () => {
     const focused = await render(nl(shop), { fonts: 'none', focus: 'winkel' });
     expect(focused.graph!.subtitle).toMatch(/^Focus op Webwinkel, 1 stap ver$/);
   });
+
+  it("names the type's own views in Dutch, in the picker's list and as the drawing's subtitle, and keeps the author's names", async () => {
+    const mesh = `type: data-products
+title: Mesh
+domains:
+  sales: Verkoop
+products:
+  orders: { domain: sales, outputs: { orders: { kind: table, contract: orders } } }
+  returns: { label: Retouren, domain: sales, inputs: [orders] }
+  loose: { label: Support, inputs: [orders] }
+contracts:
+  orders: { fields: { id: uuid pk } }
+`;
+    const r = await render(nl(mesh), { fonts: 'none' });
+    expect(r.views!.map((v) => v.title)).toEqual(['Overzicht', 'orders in detail', 'Retouren in detail', 'Overige producten in detail']);
+    const one = await render(nl(mesh), { fonts: 'none', view: 'detailed-returns' });
+    expect(one.graph!.subtitle).toBe('Retouren in detail');
+    // In English as before.
+    expect((await render(mesh, { fonts: 'none' })).views![0]!.title).toBe('Overview');
+    // The phases of a sequence are its author's dividers: only the whole is named in Dutch.
+    const seq = `type: sequence
+participants: { a: {}, b: {} }
+messages:
+  - a -> b: hi
+  - divider: Support
+  - a -> b: hi
+  - divider: Overview
+  - b -> a: ok
+  - divider: ''
+  - b -> a: bye
+`;
+    const phases = (await render(nl(seq), { fonts: 'none' })).views!;
+    expect(phases.map((v) => v.title)).toEqual(['Hele sequence', 'Start', 'Support', 'Overview', 'Fase 4']);
+    expect(phases.map((v) => v.name)).toEqual(['whole', 'phase-start', 'phase-support', 'phase-overview', 'phase-phase-4']);
+  });
 });
+

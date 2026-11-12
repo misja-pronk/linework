@@ -22,6 +22,8 @@ The detailed views open the products up: input and output ports, and the contrac
 | `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
 | `detailed` | Every product in detail at once |
 
+In a product's view the story runs in one band from left to right: what it reads, the product, who reads it. Its contract hangs under the product (or beside it, above the port's lines), joined to its port by the dashed line, so the lines from the port run straight on to their readers. A contract of eight rows or more sets its guarantees and quality checks in a second column beside its schema, about as tall as the product; not one with keys drawn to its fields.
+
 Which ones the view picker (and `carto render --all-views`, `carto validate`) offers follows one rule that does not depend on the drawing. A contract is the tall part of a detailed drawing, and two of them stacked, or one next to another product, no longer fit a slide. So:
 
 - A domain with **one product**, or with **no contract** on any of its products' ports, gets one view: `detailed-<domain>`.

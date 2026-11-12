@@ -25,7 +25,8 @@ nodes:
 - **In de tekening en exports** (SVG, PNG, PDF, PowerPoint, HTML): het woord LEGENDA en de labels van
   ingebouwde lijnstijlen, de namen van algemene soorten (Gebruikers, Wachtrij, Opslag; productnamen
   als App Service, S3 of BigQuery blijven), "stap 3 van 7", vertrouwensgrenzen,
-  rij- en kolomkoppen van journeys en roadmaps, de tekstbeschrijving
+  rij- en kolomkoppen van journeys en roadmaps, de namen die een type zelf aan zijn weergaven geeft
+  (Overzicht, Hele sequence, *Orders in detail*; ook in de weergavekiezer), de tekstbeschrijving
   (`carto describe`, alt-tekst) en de knoppen van de interactieve HTML-viewer.
 - **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
   van sneltoetsen en de inspector.

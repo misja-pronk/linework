@@ -85,6 +85,16 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const blocks: Block[] = [];
   for (const g of graph.groups) if (g.parent === scope && p.groups.has(g.id)) blocks.push({ ids: [g.id, ...[...p.nodes.keys(), ...p.groups.keys()].filter((id) => inside(id, g.id))], box: p.groups.get(g.id)! });
   for (const n of graph.nodes) if (n.parent === scope && p.nodes.has(n.id)) blocks.push({ ids: [n.id], box: p.nodes.get(n.id)! });
+  // An annex (a contract on its table's row) moves with its table: cut apart, it would stand far from what it governs.
+  for (const e of graph.edges) {
+    if (!e.annex) continue;
+    const table = blocks.find((b) => b.ids[0] === e.from.node);
+    const annex = blocks.find((b) => b.ids[0] === e.to.node);
+    if (!table || !annex || table === annex) continue;
+    table.ids.push(...annex.ids);
+    table.box = union([table.box, annex.box]);
+    blocks.splice(blocks.indexOf(annex), 1);
+  }
   if (blocks.length < 2) return undefined;
   // Only cards, one after the other (a path): cut, it snakes back at every cut, and reads best drawn as it came.
   if ((opts.chains || opts.loose) && blocks.every((b) => b.ids.length === 1 && p.nodes.has(b.ids[0]!))) {

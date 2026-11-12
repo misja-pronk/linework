@@ -51,8 +51,9 @@ export interface DiagramType<Source = any> {
    * view by view. `part`: the view draws only a part of the source (one domain), so the steps written
    * for the whole are not told in it. `steady`: the view is drawn in the source's direction (the type's
    * default when it has none), never turned for its shape: one data product reads from left to right.
+   * A title is put in the drawing's language with `word` (see Word); without it, in English.
    */
-  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean; hidden?: boolean; part?: boolean; steady?: boolean }[];
+  views?(source: Source, word?: Word): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean; hidden?: boolean; part?: boolean; steady?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */
@@ -113,6 +114,16 @@ export interface Reference {
   /** With `cut`: how many ids the string holds ("a -> b -> c": 3). Cut down to fewer than two, the whole list item goes. */
   among?: number;
 }
+
+/**
+ * A text the type writes itself, in the drawing's language: word('Overview'), or a pattern with
+ * placeholders, word('{name} in detail', { name }). What fills a placeholder (a name the author
+ * wrote) stays as written. The Dutch is in the terms of @cartography/i18n.
+ */
+export type Word = (english: string, params?: Record<string, string>) => string;
+
+/** A Word that keeps the English: the placeholders filled, nothing translated. */
+export const english: Word = (text, params) => text.replace(/\{(\w+)\}/g, (m, k: string) => params?.[k] ?? m);
 
 export interface BuildContext {
   error(path: Path, message: string): void;

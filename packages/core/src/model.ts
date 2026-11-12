@@ -171,6 +171,12 @@ export interface TableShape {
   icon?: string;
   tone: Tone;
   rows: TableRow[];
+  /**
+   * The rows from this index on stand in a second column beside the first, under the one header: a
+   * tall data contract with its guarantees and checks beside its schema. Lines attach to the first
+   * column's rows only.
+   */
+  split?: number;
 }
 
 /** A grid with row and column headers: access matrices, role × permission tables. */
