@@ -37,6 +37,20 @@ function parts(zip: Uint8Array) {
 }
 
 describe('pptx', () => {
+  it('draws a table in two columns as the SVG does: each row a shape in its own column', async () => {
+    const r = await draw('data-products/finance.yaml');
+    const xml = parts(await toPptx(r)).text('ppt/slides/slide1.xml');
+    const frame = (name: string) => {
+      const m = new RegExp(`name="Row: ${name}"[\\s\\S]*?<a:off x="(\\d+)" y="(\\d+)"/><a:ext cx="(\\d+)"`).exec(xml);
+      return m ? { x: Number(m[1]), y: Number(m[2]), cx: Number(m[3]) } : undefined;
+    };
+    const [field, guarantee] = [frame('settlement_id'), frame('latency')];
+    expect(field && guarantee).toBeTruthy();
+    // The guarantee stands beside the first field, right of its column.
+    expect(guarantee!.y).toBe(field!.y);
+    expect(guarantee!.x).toBeGreaterThanOrEqual(field!.x + field!.cx);
+  });
+
   it('writes a valid package: content types, relationships, well-formed parts', async () => {
     const r = await draw('systems/web-shop.yaml');
     const { files, text } = parts(await toPptx(r, { rasterize: () => PNG }));

@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
@@ -476,29 +476,35 @@ class SlideDrawing {
     items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
     items.push(this.icon(s.icon, b.x + ts.padX, b.y + titleY - 8, 16, tone.fg, 1.75));
     if (s.caption) items.push(this.text(b.x + ts.padX, b.y + titleY + 17, fitText(s.caption, t.size.caption, 400, b.width - 2 * ts.padX), t.size.caption, 400, t.textMuted));
-    let y = b.y + head;
+    const grid = tableGrid(s, t);
+    // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
+    for (const c of grid.columns.slice(1)) items.push(this.vline(b.x + c.x, b.y + head, b.y + b.height, t.border));
     const marks = markWidth(s);
-    const rh = rowHeight(s, t);
     for (const [i, row] of s.rows.entries()) {
+      const at = grid.rows[i]!;
+      const col = grid.columns[at.column]!;
+      const cx = b.x + col.x;
+      const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;
+      const y = b.y + at.y;
       if (row.kind === 'section') {
-        const sh = sectionHeight(row, t);
+        const sh = at.height;
         // Without a label: the rule between a class's attributes and its operations.
-        items.push(row.label ? this.text(b.x + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(b.x, b.x + b.width, y + sh / 2, t.border));
-        y += sh;
+        items.push(row.label ? this.text(cx + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(cx, cx + cw, y + sh / 2, t.border));
         continue;
       }
+      const rh = at.height;
       const cy = y + rh / 2;
-      if (i > 0 && s.rows[i - 1]?.kind === 'row' && s.form !== 'class') items.push(this.hline(b.x + ts.padX, b.x + b.width - ts.padX, y, t.border, 0.6));
-      for (const [k, m] of rowMarks(row).entries()) items.push(this.icon(m.icon, b.x + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75));
-      if (row.sign) items.push(this.text(b.x + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, undefined, 'Visibility', { mono: true }));
+      if (i > 0 && s.rows[i - 1]?.kind === 'row' && grid.rows[i - 1]!.column === at.column && s.form !== 'class') items.push(this.hline(cx + ts.padX, cx + cw - ts.padX, y, t.border, 0.6));
+      for (const [k, m] of rowMarks(row).entries()) items.push(this.icon(m.icon, cx + ts.padX + k * 15, cy - 6.5, 13, t.tones[m.tone].fg, 1.75));
+      if (row.sign) items.push(this.text(cx + ts.padX, cy, row.sign, monoCell(t), 500, t.textMuted, undefined, 'Visibility', { mono: true }));
       const [name, type] = row.cells;
-      // The name sits in a box as wide as the table: its left and right sites are where row-bound
+      // The name sits in a box as wide as its column: its left and right sites are where row-bound
       // lines attach. The type is a box of its own, right-aligned (Keynote ignores tab stops).
       items.push(
         this.sp({
           id: this.idFor(`row:${n.id}:${row.id}`),
           name: `Row: ${name?.text ?? row.id}`,
-          frame: this.frame(b.x, y, b.width, rh),
+          frame: this.frame(cx, y, cw, rh),
           geom: { prst: 'rect' },
           fill: null,
           line: null,
@@ -506,8 +512,7 @@ class SlideDrawing {
         }),
       );
       // The type column is set in the monospace face where the theme asks, a step smaller.
-      if (type?.text) items.push(lk.mono.type ? this.text(b.x + b.width - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(b.x + b.width - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
-      y += rh;
+      if (type?.text) items.push(lk.mono.type ? this.text(cx + cw - ts.padX, cy, type.text, monoCell(t), 400, t.textMuted, 'end', 'Type', { mono: true }) : this.text(cx + cw - ts.padX, cy, type.text, t.size.cell, 400, t.textMuted, 'end'));
     }
     return this.group(`Table: ${s.title}`, items);
   }
@@ -708,9 +713,12 @@ class SlideDrawing {
     let box = this.placed.nodes.get(node);
     let key = `node:${node}`;
     if (row && shape?.kind === 'table') {
-      const y = shape.rows.reduce<{ at?: number; y: number }>((acc, r) => (r.kind === 'row' && r.id === row ? { at: acc.y, y: acc.y } : { ...acc, y: acc.y + (r.kind === 'row' ? rowHeight(shape, this.theme) : sectionHeight(r, this.theme)) }), { y: tableHeader(shape, this.theme) }).at;
-      if (box && y !== undefined) {
-        box = { ...box, y: box.y + y, height: rowHeight(shape, this.theme) };
+      const grid = tableGrid(shape, this.theme);
+      const i = shape.rows.findIndex((r) => r.kind === 'row' && r.id === row);
+      if (box && i >= 0) {
+        const at = grid.rows[i]!;
+        const col = grid.columns[at.column]!;
+        box = { x: box.x + col.x, y: box.y + at.y, width: at.column === grid.columns.length - 1 ? box.width - col.x : col.width, height: at.height };
         key = `row:${node}:${row}`;
       }
     }

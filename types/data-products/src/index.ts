@@ -83,6 +83,8 @@ const styles = {
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone?: Tone }>;
 
 const CONTRACT_TONE: Tone = 'violet';
+/** A contract with this many rows (sections counted) or more stands in two columns. */
+const SPLIT_ROWS = 8;
 
 interface Named {
   label?: string;
@@ -433,6 +435,17 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       // A contract stands by its product; a key to another contract does not move it.
       if (from.node !== to.node) edges.at(-1)!.loose = true;
     }
+  }
+
+  // A tall contract stands in two columns, its guarantees and checks beside its schema: about as tall
+  // as its product, so it sits by it without lifting the drawing. Not one with keys drawn to its fields:
+  // a line to a field would cross the second column.
+  for (const id of shown) {
+    const node = nodes.find((n) => n.id === `contract:${id}`)!;
+    if (node.shape.kind !== 'table' || edges.some((e) => (e.from.node === node.id && e.from.row) || (e.to.node === node.id && e.to.row))) continue;
+    const rows = node.shape.rows;
+    const at = rows.findIndex((r, i) => i > 0 && r.kind === 'section' && (r.label === 'Guarantees' || r.label === 'Quality checks'));
+    if (rows.length >= SPLIT_ROWS && at > 0) node.shape = { ...node.shape, split: at };
   }
 
   let drawn = nodes;

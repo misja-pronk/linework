@@ -438,7 +438,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
-  // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape.
+  // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape, nor cut into rows.
   const steady = !!allViews?.find((v) => v.name === (built as { view?: unknown }).view)?.steady;
   const autoDirection = !steady && (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
@@ -468,7 +468,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // (the editor's memory, or its own note in the sidecar), never from the whole drawing's note or a view's.
   const only = lens.info?.mode === 'only' && !!lens.info.active.length;
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
-  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
   if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus && !only) {
     if (seeds.size > 64) seeds.clear();
     seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });

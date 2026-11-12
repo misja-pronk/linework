@@ -6,7 +6,7 @@ import { compact } from './compact.ts';
 import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
-import { clearAnnexLines, liftAnnexes } from './annex.ts';
+import { clearAnnexLines, liftAnnexes, stackAnnexes } from './annex.ts';
 import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
@@ -57,6 +57,8 @@ const VARIANTS: [string, DotVariant][] = [
   // Asked only of a drawing with annexes (annex.ts): each set beside its table, clear of the table's other lines.
   ['annex', { annex: true }],
   ['same-annex', { sameRank: true, annex: true }],
+  ['stack', { stack: true }],
+  ['same-stack', { sameRank: true, stack: true }],
 ];
 
 /**
@@ -514,8 +516,11 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   // dot ranks and orders differently when asked differently, and no one way suits every diagram.
   // Small diagrams try a few ways, each drawn in full, and the best one is kept. Big diagrams ask once.
   const big = graph.nodes.length > VARIANT_LIMIT;
-  const annexes = graph.edges.some((e) => e.annex);
-  const offered = VARIANTS.filter(([, v]) => annexes || !v.annex);
+  // One table with annexes (one data product and its contracts): its annexes are set by annex.ts, under or
+  // beside it, so its other lines run straight on; dot's own placement would put them in those lines' way.
+  // With annexes on several tables that costs more than it wins, and dot's own placement is weighed too.
+  const annexed = new Set(graph.edges.filter((e) => e.annex).map((e) => e.from.node)).size;
+  const offered = VARIANTS.filter(([, v]) => (annexed === 1 ? !!(v.annex || v.stack) : annexed > 1 || !(v.annex || v.stack)));
   const ways: [string, DotVariant][] = tuning.dot ? [[VARIANTS.find(([, v]) => v === tuning.dot)?.[0] ?? 'custom', tuning.dot]] : big ? offered.slice(0, 1) : offered;
   // A big diagram with a drawing before it is drawn the way that one was (packed or not, straightened
   // or not) and no other: every candidate is routed in full, which is most of the time a layout takes,
@@ -523,10 +528,18 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   const was = big ? parseKey(prev?.variant) : undefined;
   if (was && was.direction === graph.direction) tuning = { ...tuning, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror };
   let best: Choice | undefined;
+  // A contract stacked under its product makes a tall column: where that leaves the text too small for
+  // a slide and another way does not, the other way wins whatever its score.
+  const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
+  const fits = (c: Choice) => annexed !== 1 || target == null || pageScale(c.placed, c.sized.graph, target) >= SLIDE_SCALE;
   for (const [name, variant] of ways) {
     const c = await candidates(sized, spacing, tuning, name, variant, prev);
-    if (!best || c.cost < best.cost - 1e-9) best = c;
+    // A way that cannot be drawn so (an annex with no room under its table) is no candidate.
+    if (!c) continue;
+    if (!best || (fits(c) !== fits(best) ? fits(c) : c.cost < best.cost - 1e-9)) best = c;
   }
+  // Asked one way only (a drawing before it was stacked) and that way cannot be drawn now: dot's own placement.
+  best ??= (await candidates(sized, spacing, { ...tuning, dot: undefined }, 'plain', {}, prev))!;
   if (stay && prev?.nodes?.size) {
     const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
     if (kept) {
@@ -576,7 +589,7 @@ function moveCost(p: Placement, prev: LayoutMemory | undefined): number {
 }
 
 /** The best drawing from one way of asking dot: as placed or in a mirror, compacted or not, straightened or not. */
-async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice> {
+async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, variant: DotVariant, prev: LayoutMemory | undefined): Promise<Choice | undefined> {
   const { graph } = sized;
   // Room for labels between columns; lines between table rows end in crow's feet on both sides.
   const rows = graph.edges.some((e) => e.from.row || e.to.row);
@@ -584,7 +597,9 @@ async function candidates(sized: Sized, spacing: Spacing, tuning: Tuning, name: 
   const room = tuning.labelRoom === 'fit' && graph.direction === 'right' ? Math.max(24, Math.min(240, widest + 48 - spacing.layerGap)) : 24;
   const fit = tuning.labelRoom === 'fit' && graph.direction === 'right' && sized.edgeLabels.size > 0;
   const placed = await placeWithDot(sized, spacing, (sized.edgeLabels.size ? room : 0) + (rows ? 48 : 0), variant);
-  const dot = variant.annex ? liftAnnexes(placed, sized, spacing.groupPad, spacing.nodeGap) : placed;
+  const stacked = variant.stack ? stackAnnexes(placed, sized, spacing.groupPad, spacing.nodeGap) : undefined;
+  if (variant.stack && !stacked) return undefined;
+  const dot = variant.annex ? liftAnnexes(placed, sized, spacing.groupPad, spacing.nodeGap) : (stacked ?? placed);
   // Seen in a mirror a placement can have its groups in the order they are written. Which of the two
   // draws better only shows when drawn, so a small diagram draws both; a big one takes the mirror.
   const turned = tuning.mirror === false ? undefined : inOrder(dot, graph, sized.groupHeader - spacing.groupPad);
