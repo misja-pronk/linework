@@ -1,0 +1,37 @@
+Inside the cluster
+
+Architecture diagram: Multi-tenant SaaS on Kubernetes, its teams and their data. 10 elements in 4 groups, with 9 connections.
+
+Groups and elements
+- ALB (Load balancer)
+- EKS cluster
+  - Core team
+    - Bookings (Service)
+    - Availability search
+  - Growth team
+    - Billing (Service)
+    - Notifier (Worker)
+- Data tier (Zone)
+  - Postgres (RDS)
+  - Sessions (ElastiCache)
+  - booking-events (Kafka)
+- Stripe (Payments)
+- SendGrid (Email)
+
+Connections
+- ALB calls Bookings and calls Availability search.
+- Bookings sends data to Postgres, sends data to Sessions and sends BookingConfirmed to booking-events.
+- booking-events sends messages to Billing and sends messages to Notifier.
+- Billing calls Stripe (charge).
+- Notifier calls SendGrid.
+
+Layers
+Ways to look at this drawing by tag.
+- Phase 1: Guests book through the app; one service, one database. (tags phase-1; 4 elements).
+- Phase 2: Search, billing and notifications join, around an event stream. (tags phase-2; 8 elements).
+- Data stores (tags data; 3 elements).
+
+Key
+- Solid blue line: Request
+- Dashed violet line: Async message
+- Solid teal line with ticks: Data flow

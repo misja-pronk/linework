@@ -50,6 +50,7 @@ const crossingBudget: Record<string, number> = {
   'c4/kestrel-bank.yaml#production-data': 0,
   'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 1.84:1 at 6.3 pt): the stream's line down to the raw zone passes the change data capture's
   'cloud/aws-landing-zone.yaml': 0,
+  'cloud/aws-landing-zone-network.yaml': 0,
   'cloud/aws-three-tier.yaml': 0,
   'cloud/gcp-data-platform.yaml': 0,
   'cloud/multi-cloud.yaml': 2, // left to right for a slide: the interconnect and CDC lines to Google Cloud pass the shop's lines down to the data centre
@@ -124,14 +125,14 @@ const crossingBudget: Record<string, number> = {
   'states/pull-request.yaml': 0,
   'systems/data-pipeline.yaml': 0,
   'systems/invoice-walkthrough.yaml': 1, // Orders' confirmation line passes its own OrderPlaced line
-  'systems/saas-platform.yaml': 1, // wrapped into two columns for a slide (text 3.5 → 4.5 pt): the two ways in pass each other above the edge zone
+  'systems/saas-platform.yaml': 2, // the overview: the host dashboard's way in passes the guests' line to their app, and the app's OIDC line over to Auth0
+  'systems/saas-platform.yaml#cluster': 0,
   'systems/trust-zones.yaml': 1,
   'systems/web-shop.yaml': 0,
 };
 
 // Lines over the header strip of a group: none, but for the ones named here.
 const headerBudget: Record<string, number> = {
-  'systems/saas-platform.yaml': 1, // the guest app's way in comes down beside CloudFront, under the Public edge title
   'deployment/aws.yaml#prod': 1, // one load balancer now (main): the OrderPlaced line from zone 1a, labelled and so on its own, runs over the top of zone 1b on its way to the queue
 };
 
@@ -151,7 +152,6 @@ const jogBudget: Record<string, number> = {
   'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
-  'cloud/aws-landing-zone.yaml': 1,
   'cloud/aws-three-tier.yaml': 1, // the web shops' lines into the writer: one steps a lane aside past the other
   'cloud/gcp-data-platform.yaml': 1, // the change data capture's line into the raw datasets steps around the streaming pipeline
   'cloud/multi-cloud.yaml': 2, // left to right for a slide: the lines out of the shop step aside on their way down
@@ -177,7 +177,7 @@ const jogBudget: Record<string, number> = {
   'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
   'states/pull-request.yaml': 4, // the returns into In review and Closed; a line out steps aside from the line in beside it
   'systems/data-pipeline.yaml': 1, // two lines into one side
-  'systems/saas-platform.yaml': 1, // wrapped for a slide: the host dashboard's way in steps aside past the guest app's
+  'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -198,7 +198,6 @@ const bendBudget: Record<string, number> = {
 const orderBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1,
   'c4/kestrel-bank.yaml#production': 3,
-  'cloud/aws-landing-zone.yaml': 1,
   'context-map/e-commerce.yaml': 1, // Fulfilment sits above Sales: Shipping lines up with Billing that way
   'cloud/multi-cloud.yaml': 1,
   // One load balancer across both zones (as AWS runs it) no longer pins zone a to the left: zone b lands first.
@@ -258,7 +257,7 @@ const returns: Record<string, number> = {
   'systems/trust-zones.yaml': 2,
   'c4/kestrel-bank.yaml#payment': 2,
   'deployment/model.yaml#containers': 2,
-  'systems/saas-platform.yaml': 2,
+  'systems/saas-platform.yaml': 4, // the overview: the ways in from the apps left of the cloud, OIDC up over it to Auth0, and the events back up to the cluster
   'data-products/customer.yaml': 3,
   'c4/kestrel-bank.yaml#containers': 3,
   'cloud/aws-data-lake.yaml': 1,
@@ -272,8 +271,9 @@ const returns: Record<string, number> = {
 
 describe('layout quality', () => {
   const files = fs.readdirSync(examples).flatMap((d) => fs.readdirSync(path.join(examples, d)).filter((f) => f.endsWith('.yaml')).map((f) => `${d}/${f}`));
-  // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a deployment.
-  const views = files.filter((f) => f.startsWith('c4/') || f.startsWith('deployment/') || f.startsWith('workspace/')).flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
+  // C4 examples are one model with many views: each view is a drawing of its own. So is each environment of a
+  // deployment, and each view of any other example that has a budget of its own.
+  const views = files.flatMap((f) => Object.keys(crossingBudget).filter((k) => k.startsWith(`${f}#`)));
   it('has a budget for every example', () => expect(files.sort()).toEqual(Object.keys(crossingBudget).filter((k) => !k.includes('#')).sort()));
 
   for (const key of [...files, ...views])
@@ -585,10 +585,12 @@ describe('group titles', () => {
     expect(crosses(out.get('e')!.points)).toBe(false);
   });
   it('take the lane under them: a fan-out into the next row comes in from the top', async () => {
-    // Drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
-    const r = await render(fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { wrap: false } });
-    for (const id of ['lb', 'events']) {
+    // The cluster view turned top-down and drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
+    const text = fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8').replace('    direction: right\n', '    direction: down\n');
+    const r = await render(text, { fonts: 'none', view: 'cluster', tuning: { wrap: false } });
+    for (const id of ['cloud.edge.lb', 'cloud.data.events']) {
       const lines = r.graph!.edges.filter((e) => e.from.node === id);
+      expect(lines, id).toHaveLength(2);
       for (const e of lines) {
         const pts = r.placed!.edges.get(e.id)!.points;
         const [a, b] = [pts[pts.length - 2]!, pts[pts.length - 1]!];

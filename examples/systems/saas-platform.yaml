@@ -1,50 +1,87 @@
+# The platform described once, drawn twice so each fits a slide: the overview (the first view, what
+# the file opens on) shows who uses it and the way in, with the cluster and the data tier closed;
+# "Inside the cluster" opens them up: the teams, their services and the data stores.
+#   carto render examples/systems/saas-platform.yaml --view cluster
 type: systems
 title: Booking platform
 subtitle: Multi-tenant SaaS on Kubernetes
 direction: down
 
-groups:
-  cloud: { kind: cloud, label: AWS eu-west-1 }
-  edge: { kind: zone, label: Public edge, in: cloud }
-  k8s: { kind: cluster, label: EKS cluster, in: cloud }
-  core: { kind: team, label: Core team, in: k8s }
-  growth: { kind: team, label: Growth team, in: k8s }
-  data: { kind: zone, label: Data tier, in: cloud }
-
-nodes:
+elements:
   guests: { kind: users, label: Guests, tags: [phase-1] }
   app: { kind: mobile, label: Guest app, tags: [phase-1] }
   admin: { kind: client, label: Host dashboard, tags: [phase-2] }
-  cdn: { kind: cdn, label: CloudFront, in: edge, tags: [phase-1] }
-  lb: { kind: load-balancer, label: ALB, in: edge, tags: [phase-1] }
-  bookings: { kind: service, label: Bookings, in: core, tags: [phase-1] }
-  search: { kind: search, label: Availability search, in: core, tags: [phase-2] }
-  billing: { kind: service, label: Billing, in: growth, tags: [phase-2] }
-  notify: { kind: worker, label: Notifier, in: growth, tags: [phase-2] }
-  pg: { kind: database, label: Postgres, caption: RDS, in: data, tags: [phase-1, data] }
-  redis: { kind: cache, label: Sessions, caption: ElastiCache, in: data, tags: [phase-1, data] }
-  events: { kind: topic, label: booking-events, caption: Kafka, in: data, tags: [phase-2, data] }
+  cloud:
+    kind: cloud
+    label: AWS eu-west-1
+    elements:
+      edge:
+        kind: zone
+        label: Public edge
+        elements:
+          cdn: { kind: cdn, label: CloudFront, tags: [phase-1] }
+          lb: { kind: load-balancer, label: ALB, tags: [phase-1] }
+      k8s:
+        kind: cluster
+        label: EKS cluster
+        elements:
+          core:
+            kind: team
+            label: Core team
+            elements:
+              bookings: { kind: service, label: Bookings, tags: [phase-1] }
+              search: { kind: search, label: Availability search, tags: [phase-2] }
+          growth:
+            kind: team
+            label: Growth team
+            elements:
+              billing: { kind: service, label: Billing, tags: [phase-2] }
+              notify: { kind: worker, label: Notifier, tags: [phase-2] }
+      data:
+        kind: zone
+        label: Data tier
+        tags: [data]
+        elements:
+          pg: { kind: database, label: Postgres, technology: RDS, tags: [phase-1, data] }
+          redis: { kind: cache, label: Sessions, technology: ElastiCache, tags: [phase-1, data] }
+          events: { kind: topic, label: booking-events, technology: Kafka, tags: [phase-2, data] }
   auth: { kind: identity, label: Auth0, tags: [phase-1] }
   stripe: { kind: payments, label: Stripe, tags: [phase-2] }
   mail: { kind: email, label: SendGrid, tags: [phase-2] }
 
-edges:
-  - guests -> app
-  - app -> cdn: { label: HTTPS, style: sync }
-  - admin -> cdn: { label: HTTPS, style: sync }
-  - cdn -> lb: { style: sync }
-  - lb -> bookings: { style: sync }
-  - lb -> search: { style: sync }
-  - bookings -> pg: { style: data }
-  - bookings -> redis: { style: data }
-  - bookings -> events: { label: BookingConfirmed, style: async }
-  - events -> billing: { style: async }
-  - events -> notify: { style: async }
-  - billing -> stripe: { label: charge, style: sync }
-  - notify -> mail: { style: sync }
-  - app -> auth: { label: OIDC, style: dotted }
+# The lines carry their phase too, so a layer brings what they connect: in the overview, Phase 1
+# reaches the closed cluster and the data tier through them.
+relations:
+  - guests -> app: { tags: [phase-1] }
+  - app -> cloud.edge.cdn: { label: HTTPS, style: sync, tags: [phase-1] }
+  - admin -> cloud.edge.cdn: { label: HTTPS, style: sync, tags: [phase-2] }
+  - cloud.edge.cdn -> cloud.edge.lb: { style: sync, tags: [phase-1] }
+  - cloud.edge.lb -> cloud.k8s.core.bookings: { style: sync, tags: [phase-1] }
+  - cloud.edge.lb -> cloud.k8s.core.search: { style: sync, tags: [phase-2] }
+  - cloud.k8s.core.bookings -> cloud.data.pg: { style: data, tags: [phase-1] }
+  - cloud.k8s.core.bookings -> cloud.data.redis: { style: data, tags: [phase-1] }
+  - cloud.k8s.core.bookings -> cloud.data.events: { label: BookingConfirmed, style: async, tags: [phase-2] }
+  - cloud.data.events -> cloud.k8s.growth.billing: { style: async, tags: [phase-2] }
+  - cloud.data.events -> cloud.k8s.growth.notify: { style: async, tags: [phase-2] }
+  - cloud.k8s.growth.billing -> stripe: { label: charge, style: sync, tags: [phase-2] }
+  - cloud.k8s.growth.notify -> mail: { style: sync, tags: [phase-2] }
+  - app -> auth: { label: OIDC, style: dotted, tags: [phase-1] }
 
-# The plan in layers: what launches first on its own, then phase 2 on top of it with the rest faded.
+views:
+  overview:
+    # Its title alone (the cluster view says the rest): one line less keeps it readable on a slide.
+    title: Booking platform
+    expand: [cloud, cloud.edge]
+    # Closed, the cluster's line to the data tier says it stores data; the event it publishes is told inside.
+    exclude: ['cloud.k8s.core.bookings -> cloud.data.events']
+  cluster:
+    title: Inside the cluster
+    subtitle: Multi-tenant SaaS on Kubernetes, its teams and their data
+    direction: right
+    include: [cloud.edge.lb, cloud.k8s, cloud.data, stripe, mail]
+    expand: [cloud.k8s, cloud.k8s.core, cloud.k8s.growth, cloud.data]
+
+# The plan in layers, in either view: what launches first on its own, then phase 2 on top of it with the rest faded.
 layers:
   launch:
     tags: [phase-1]

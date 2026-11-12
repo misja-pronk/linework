@@ -1,0 +1,40 @@
+# The shared network of aws-landing-zone.yaml in depth: the network account (Infrastructure OU) and
+# the VPCs of the workload accounts (Workloads OU) attached to its transit gateway. The accounts link
+# back to the organization.
+type: cloud
+provider: aws
+title: AWS landing zone network
+subtitle: How the workload accounts reach the internet and the data centre
+direction: right
+
+groups:
+  shop-prod: { kind: account, label: shop-prod, account: "555555555555", links: [aws-landing-zone.yaml] }
+  shop-dev: { kind: account, label: shop-dev, account: "666666666666", links: [aws-landing-zone.yaml] }
+  network: { kind: account, label: Network, account: "444444444444", links: [aws-landing-zone.yaml] }
+
+  prod-vpc: { kind: vpc, label: vpc-prod, cidr: 10.10.0.0/16, in: shop-prod }
+  dev-vpc: { kind: vpc, label: vpc-dev, cidr: 10.20.0.0/16, in: shop-dev }
+  egress: { kind: vpc, label: Egress, cidr: 10.0.0.0/22, in: network }
+  dc: { kind: on-premises, label: Data centre, cidr: 172.16.0.0/16 }
+
+nodes:
+  prod-app: { kind: eks, label: Web shop, in: prod-vpc }
+  dev-app: { kind: eks, label: Web shop (dev), in: dev-vpc }
+
+  tgw: { kind: transit-gateway, label: Transit gateway, in: network }
+  dx: { kind: direct-connect, label: Direct Connect, caption: 1 Gbps, in: network }
+  inspect: { kind: network-firewall, label: Inspection, in: egress }
+  nat: { kind: nat-gateway, label: Central egress, in: egress }
+  internet: internet
+
+  core: { kind: router, label: Core router, in: dc }
+
+edges:
+  - prod-vpc -> tgw: { label: attachment, style: private }
+  - dev-vpc -> tgw: { style: private }
+  - tgw -> inspect: { label: 0.0.0.0/0, style: private }
+  - inspect -> nat: { style: private }
+  - nat -> internet: { style: public }
+  - tgw -> dx: { style: vpn }
+  # A BGP session goes both ways; written from the data centre, it stands beside the workload accounts.
+  - core -- dx: { label: BGP, style: vpn }
