@@ -3,8 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
-import { toPptx } from '../src/index.ts';
+import { render, SLIDE_MIN_PT, types, type RenderResult } from '@cartography/engine';
+import { toPptx, type SlideText } from '../src/index.ts';
 
 // Every example as a deck: no slide may come out empty, whatever the type (docs/capabilities.md).
 const examples = fileURLToPath(new URL('../../../examples', import.meta.url));
@@ -33,5 +33,28 @@ describe('pptx of every example', () => {
       // What has no native drawing is a picture, and the export says so.
       const pictured = r.graph.nodes.some((n) => ['sequence', 'gitflow', 'roadmap'].includes(n.shape.kind));
       expect(warnings.some((w) => w.includes('drawn as a picture, not native shapes'))).toBe(pictured);
+    });
+});
+
+// What `carto new` writes and the editor opens for a new diagram is the first thing a reader sees:
+// it reads on a 16:9 slide, as carto validate measures it (the whole drawing, every view, every step).
+describe('every type template on a slide', () => {
+  /** The smallest needed text (pt) of each slide the deck makes of a drawing. */
+  const slides = async (r: RenderResult, steps: boolean) => {
+    const seen: SlideText[] = [];
+    await toPptx(r, { theme: r.theme, steps, rasterize: () => PNG, onSlide: (s) => seen.push(s), onWarning: () => {} });
+    return seen;
+  };
+  for (const t of types)
+    it(t.id, async () => {
+      const whole = await render(t.template, { fonts: 'none' });
+      const views = await Promise.all((whole.views ?? []).map((v) => render(t.template, { fonts: 'none', view: v.name })));
+      for (const r of [whole, ...views.filter((v) => v.view !== whole.view && v.svg !== whole.svg)]) {
+        // A drawing read scrolling (a whole sequence) goes on slides as its other views.
+        if (!r.graph || !r.placed || r.scroll) continue;
+        const at = r.view ?? 'the drawing';
+        expect((await slides(r, false))[0]!.smallestPt, at).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+        if (r.steps?.length && !r.stepsImplied) for (const s of await slides(r, true)) expect(s.smallestPt, `${at}, step ${s.step}`).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+      }
     });
 });

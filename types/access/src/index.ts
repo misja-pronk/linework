@@ -1211,7 +1211,7 @@ packages:
     catalog: eng
     label: Platform admin
     grants: [sg-ops]
-    policy: { requestors: [sg-dev], approval: [manager, sg-ops], duration: 30 days }
+    policy: { requestors: [engineers], approval: [manager, sg-ops], duration: 30 days }
 
 resources:
   prod: { kind: subscription, label: Production }
