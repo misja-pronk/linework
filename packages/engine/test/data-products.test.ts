@@ -83,3 +83,71 @@ describe('schema messages', () => {
     expect(f.graph!.nodes.some((n) => n.id.startsWith('contract:'))).toBe(true);
   });
 });
+
+describe('detailed views per domain', () => {
+  const mesh = `type: data-products
+domains:
+  sales: Sales
+  finance: Finance
+sources:
+  shop: { kind: database, domain: sales }
+products:
+  orders:
+    domain: sales
+    inputs: [shop]
+    outputs:
+      orders: { kind: table, contract: orders }
+  revenue:
+    domain: finance
+    inputs: [orders]
+  rates: {}
+  forecast:
+    domain: sales
+    inputs: [rates]
+consumers:
+  cfo: { kind: dashboard, uses: [revenue] }
+contracts:
+  orders:
+    fields: { id: uuid pk }
+steps:
+  - title: From the shop to the CFO
+    path: [shop -> orders, orders -> revenue, revenue -> cfo]
+`;
+
+  it('offers one detailed view per domain, and one for products without a domain; the whole mesh in detail only by name', async () => {
+    const r = await render(mesh, { fonts: 'none' });
+    expect(r.views).toEqual([
+      { name: 'overview', title: 'Overview' },
+      { name: 'detailed-sales', title: 'Sales in detail' },
+      { name: 'detailed-finance', title: 'Finance in detail' },
+      { name: 'detailed-other', title: 'Other products in detail' },
+    ]);
+    const whole = await render(mesh, { fonts: 'none', view: 'detailed' });
+    expect(whole.diagnostics).toEqual([]);
+    expect(whole.graph!.nodes.filter((n) => n.shape.kind === 'table').map((n) => n.id)).toEqual(['orders', 'revenue', 'rates', 'forecast', 'contract:orders']);
+  });
+
+  it("draws a domain's products in detail with their contracts, and what they connect to as cards outside the domain box", async () => {
+    const r = await render(mesh, { fonts: 'none', view: 'detailed-sales' });
+    // The steps tell the whole mesh: in one domain's view they are not told, and not wrong either.
+    expect(r.diagnostics).toEqual([]);
+    expect(r.steps).toBeUndefined();
+    const nodes = new Map(r.graph!.nodes.map((n) => [n.id, n]));
+    expect([...nodes.keys()].sort()).toEqual(['contract:orders', 'forecast', 'orders', 'rates', 'revenue', 'shop']);
+    expect(nodes.get('orders')!.shape.kind).toBe('table');
+    expect(nodes.get('revenue')!.shape).toMatchObject({ kind: 'card', caption: 'Finance · Source-aligned' });
+    expect(nodes.get('revenue')!.parent).toBeUndefined();
+    expect(r.graph!.groups.map((g) => g.id)).toEqual(['domain:sales']);
+    // The CFO reads revenue, not anything of Sales: it is left out.
+    expect(nodes.has('cfo')).toBe(false);
+    const other = await render(mesh, { fonts: 'none', view: 'detailed-other' });
+    expect(other.graph!.nodes.map((n) => n.id).sort()).toEqual(['forecast', 'rates']);
+  });
+
+  it('takes a domain view written in the file, and says which there are when the name is wrong', async () => {
+    const r = await render(mesh.replace('domains:', 'view: detailed-finance\ndomains:'), { fonts: 'none' });
+    expect(r.graph!.nodes.find((n) => n.id === 'revenue')!.shape.kind).toBe('table');
+    const wrong = await render(mesh.replace('domains:', 'view: detailed-hr\ndomains:'), { fonts: 'none' });
+    expect(wrong.diagnostics.map((d) => d.message)).toContain('There is no view "detailed-hr": the detailed views are detailed-sales, detailed-finance, detailed-other');
+  });
+});

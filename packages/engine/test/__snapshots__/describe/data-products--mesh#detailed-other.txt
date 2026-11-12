@@ -1,0 +1,15 @@
+Web shop data mesh
+
+Data products, other products in detail: Other products in detail. 2 elements, with 1 connection.
+
+Elements
+- Exchange rates (Source-aligned · v1.0 · Treasury)
+- Revenue (Finance · Consumer-aligned · v1.2.0 · Finance data)
+
+Connections
+- Exchange rates.out:rates-api connects to Revenue.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

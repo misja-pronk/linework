@@ -1,0 +1,24 @@
+Northwind data mesh
+
+Data products, finance in detail: Finance in detail. 6 elements in 1 group, with 5 connections.
+
+Groups and elements
+- Finance (Domain · Finance data)
+  - General ledger (Source · ERP)
+  - Revenue (Aggregate · v3.0.0 · Finance data team)
+  - revenue (Data contract · v3.0.0 · internal)
+- CFO dashboard (Dashboard)
+- Orders (Sales · Source-aligned · v2.3.0 · Order management team)
+- Customers (Sales · Source-aligned · v1.6.0 · CRM team)
+
+Connections
+- General ledger connects to Revenue.in:2.
+- Revenue.out:revenue connects to CFO dashboard and is linked with revenue.
+- Orders connects to Revenue.in:0.
+- Customers connects to Revenue.in:1.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract

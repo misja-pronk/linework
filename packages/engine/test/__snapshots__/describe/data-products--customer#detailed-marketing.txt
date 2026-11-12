@@ -1,0 +1,18 @@
+Customer data products
+
+Data products, marketing in detail: Marketing in detail. 3 elements in 1 group, with 2 connections.
+
+Groups and elements
+- Customer 360 (Customer · Aggregate)
+- Marketing (Domain)
+  - Churn risk (Consumer-aligned)
+- Campaign tool (Application)
+
+Connections
+- Customer 360 connects to Churn risk.in:0.
+- Churn risk.out:scores connects to Campaign tool.
+
+Key
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

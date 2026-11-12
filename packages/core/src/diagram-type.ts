@@ -44,9 +44,11 @@ export interface DiagramType<Source = any> {
    * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
    * and the editor's view picker choose one; build gets it as the source's `view`. `table`: the view is
    * not elements and lines, so a focus asked for is drawn in the first view instead. `default`: the one
-   * drawn when none is asked for (else the first); the file's subtitle is about that one.
+   * drawn when none is asked for (else the first); the file's subtitle is about that one. `hidden`: drawn
+   * when asked for by name (`view:` or `--view`), not offered in the picker or checked view by view.
+   * `part`: the view draws only a part of the source (one domain), so the steps written for the whole are not told in it.
    */
-  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean }[];
+  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean; hidden?: boolean; part?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */

@@ -1,0 +1,21 @@
+Customer data products and their contracts
+
+Data products, sales in detail: Sales in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Sales (Domain · Sales engineering)
+  - Webshop (Source · Application)
+  - orders (Source-aligned)
+  - orders (Data contract · v2.1.0 · internal)
+- Customer 360 (Customer · Aggregate)
+- Sales dashboard (Dashboard)
+
+Connections
+- Webshop connects to orders.in:0.
+- orders.out:orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract

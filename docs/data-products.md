@@ -12,7 +12,16 @@ The diagram is [examples/data-products/mesh.yaml](../examples/data-products/mesh
 
 ## Ports, contracts and keys
 
-`view: detailed` opens the products up: input and output ports, and the contract behind a port with its schema, guarantees and quality checks.
+The detailed views open the products up: input and output ports, and the contract behind a port with its schema, guarantees and quality checks. A whole mesh in detail is far too much for one slide, so it is drawn one domain at a time:
+
+| View | What it draws |
+| --- | --- |
+| `overview` | Every product as a card, with the lineage between them |
+| `detailed-<domain>` (`detailed-sales`) | That domain's products with their ports and contracts, in the domain's box. What they read from and who reads them stand beside it as plain cards, their domain named first in the caption (*Finance · Aggregate*); what is further away is left out |
+| `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
+| `detailed` | Every product in detail at once |
+
+The view picker (and `carto render --all-views`, `carto validate`) offers the overview and one detailed view per domain. With products in only one domain (or none) there is nothing to split, and the one detailed view is `detailed`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.
 
 ![Customer 360 with its ports and the contracts it reads](data-products/customer-360.png)
 

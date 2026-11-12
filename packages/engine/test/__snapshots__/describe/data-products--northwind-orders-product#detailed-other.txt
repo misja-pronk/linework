@@ -1,0 +1,17 @@
+Orders data product
+
+Data products, other products in detail: Other products in detail. 3 elements, with 2 connections.
+
+Elements
+- Orders (Sales · Source-aligned · v2.3.0)
+- Revenue (Finance)
+- Demand forecast (Supply chain)
+
+Connections
+- Orders connects to Revenue.in:0 and connects to Demand forecast.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
