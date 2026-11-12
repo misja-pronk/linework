@@ -1,6 +1,6 @@
 Managed identity, service to service
 
-Sequence, start: Start. 4 participants and 7 messages.
+Sequence, key Vault: Key Vault. 4 participants and 7 messages.
 
 Participants
 - App Service app-orders-prod

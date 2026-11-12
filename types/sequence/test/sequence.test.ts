@@ -141,6 +141,36 @@ messages: [ a -> x, x -> b ]
     expect(box.x + box.width).toBeLessThan(g.headers[2]!.x - g.headers[2]!.width / 2);
   });
 
+  it('widens a box of one participant to its whole name, and keeps its neighbour clear', async () => {
+    const { r, g } = await geometry(`type: sequence
+boxes: { app: App Service app-orders-prod with a long name }
+participants:
+  a: { kind: service, label: API, box: app }
+  b: database
+messages: [ a -> b: x ]
+`);
+    expect(r.svg).not.toContain('…');
+    const box = g.boxes[0]!.box;
+    expect(box.width).toBeGreaterThan(g.headers[0]!.width + 28);
+    expect(box.x + box.width).toBeLessThan(g.headers[1]!.x - g.headers[1]!.width / 2);
+  });
+
+  it('draws a divider over an activation that runs on through it, so its name stays whole', async () => {
+    const { r } = await geometry(`type: sequence
+participants: { a: service, b: service }
+messages:
+  - activate: a
+  - a -> b: x
+  - divider: Check and confirm
+  - a -> b: y
+  - deactivate: a
+`);
+    const svg = r.svg!;
+    const bar = svg.indexOf('stroke-opacity="0.55"');
+    expect(bar).toBeGreaterThan(0);
+    expect(svg.indexOf('CHECK AND CONFIRM')).toBeGreaterThan(bar);
+  });
+
   it('reports unknown participants and boxes on the step', async () => {
     const r = await render(`type: sequence
 participants: { a: { kind: service, box: nope } }

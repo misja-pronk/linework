@@ -37,7 +37,10 @@ messages:
       - orders ->> bus: OrderPaid
     else:
       Card declined:
-        - psp ->> orders: webhook payment_failed
+        - psp ->> orders: webhook payment_intent.payment_failed
         - orders -> db: UPDATE order SET status = failed
         - db --> orders: ok
-  - web --> shopper: Order confirmation
+  # The browser's return page asks the Orders API, which only knows what the webhook said.
+  - web -> orders: "Poll GET /orders/{id}"
+  - orders --> web: "status: paid or failed"
+  - web --> shopper: Confirmation, or try another card

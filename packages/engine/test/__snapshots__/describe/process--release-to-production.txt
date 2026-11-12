@@ -47,7 +47,7 @@ Connections
 
 Walkthrough
 1. Build once: The merge starts the release workflow. It builds one artifact, and that same artifact goes to every environment.
-2. Dev and test: The workflow deploys to dev, then to test, where the integration tests run. A red test stops the run.
+2. Dev and test: The workflow signs in to Azure with OIDC, so GitHub holds no secret, and deploys to dev, then to test, where the integration tests run. A red test stops the run.
 3. The gate: The production environment has required reviewers. The run waits here until one of them approves.
 4. Production: The release goes to the staging slot, is warmed up and checked, and the slots are swapped.
 5. Roll back: Unhealthy after the swap? Swap back. The previous version is live again within a minute.

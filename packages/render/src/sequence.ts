@@ -109,6 +109,14 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const lanes = shape.participants;
   const lane = new Map(lanes.map((p, i) => [p.id, i]));
   const widths = lanes.map((p) => headerWidth(p, theme));
+  // The room a lane takes across: its header, or more where it is a box of its own whose name is wider.
+  const room = widths.map((w, i) => {
+    const b = lanes[i]!.box;
+    const box = b !== undefined && lanes.filter((p) => p.box === b).length === 1 ? shape.boxes.find((x) => x.id === b) : undefined;
+    if (!box) return w;
+    const lab = groupLabel(theme, box.label);
+    return Math.max(w, Math.ceil(measureText(lab.text, lab.size, 600, 'sans', lab.tracking)) + 28 - 2 * K.box.pad);
+  });
   const headerHeight = lanes.some((p) => p.caption) ? K.head.captioned : K.head.plain;
   const L = K.label;
 
@@ -207,7 +215,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const want = (m: Map<number, number>, l: number, v: number) => m.set(l, Math.max(m.get(l) ?? 0, v));
   for (let k = 0; k + 1 < lanes.length; k++)
     if ((lanes[k]!.box || lanes[k + 1]!.box) && lanes[k]!.box !== lanes[k + 1]!.box)
-      aparts.push({ a: k, b: k + 1, min: (widths[k]! + widths[k + 1]!) / 2 + K.gap + 2 * K.box.pad });
+      aparts.push({ a: k, b: k + 1, min: (room[k]! + room[k + 1]!) / 2 + K.gap + 2 * K.box.pad });
   const numberRoom = (ev: Ev<'message'>) => (ev.number !== undefined ? 2 * K.number + 6 : 0);
   for (const [r, row] of rows.entries()) {
     const ev = row.ev;
@@ -230,7 +238,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       if (ev.side === 'left' && a > 0) aparts.push({ a: a - 1, b: a, min: need });
     }
   }
-  const { centres } = spread(widths, K.gap, aparts);
+  const { centres } = spread(room, K.gap, aparts);
   const cx = (l: number) => centres[l]!;
 
   // Labels were wrapped narrow to ask for room; where a gap turned out wider (another label asked
@@ -380,14 +388,14 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const boxes = shape.boxes.flatMap((b) => {
     const members = lanes.map((p, i) => (p.box === b.id ? i : -1)).filter((i) => i >= 0);
     if (!members.length) return [];
-    const x = Math.min(...members.map((i) => cx(i) - widths[i]! / 2)) - K.box.pad;
-    const x2 = Math.max(...members.map((i) => cx(i) + widths[i]! / 2)) + K.box.pad;
+    const x = Math.min(...members.map((i) => cx(i) - room[i]! / 2)) - K.box.pad;
+    const x2 = Math.max(...members.map((i) => cx(i) + room[i]! / 2)) + K.box.pad;
     return [{ box: { x, y: 0, width: x2 - x, height: height0 }, label: b.label, tone: b.tone }];
   });
 
   // Shift so the leftmost thing drawn sits at 0.
   const xs: [number, number][] = [
-    ...lanes.map((_, i) => [cx(i) - widths[i]! / 2, cx(i) + widths[i]! / 2] as [number, number]),
+    ...lanes.map((_, i) => [cx(i) - room[i]! / 2, cx(i) + room[i]! / 2] as [number, number]),
     ...boxes.map((b) => [b.box.x, b.box.x + b.box.width] as [number, number]),
     ...frames.map((f) => [f.box.x, f.box.x + f.box.width] as [number, number]),
     ...(extent.filter(Boolean) as [number, number][]),
@@ -490,8 +498,6 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   for (const h of g.headers)
     out.push(`<path d="M${r1(h.x)} ${r1(y1)}V${r1(y2)}" stroke="${theme.edge}" stroke-opacity="0.75" stroke-width="1.2" stroke-dasharray="1.5 4" stroke-linecap="round"/>`);
 
-  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
-
   for (const b of g.bars) {
     if (b.box.y > limit) continue;
     const t = tone(b.tone);
@@ -499,8 +505,11 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     out.push(rect({ ...b.box, height: Math.min(b.box.height, limit - b.box.y + 6) }, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
   }
 
-  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
+  // A divider's name stays readable where an activation runs on through it; a box's side redrawn over a
+  // frame goes under the frame's tab and branch words.
+  for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
   out.push(...sides);
+  for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
   for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, ground));
   for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme, ground(n.box.x + n.box.width / 2, n.box.y + n.box.height / 2)));
   for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));

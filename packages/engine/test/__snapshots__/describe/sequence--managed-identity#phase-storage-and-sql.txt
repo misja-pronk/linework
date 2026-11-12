@@ -1,11 +1,10 @@
 Managed identity, service to service
 
-Sequence diagram: The same for every resource, with a token for its audience. 4 participants and 4 messages.
+Sequence, storage and SQL: Storage and SQL. 3 participants and 4 messages.
 
 Participants
 - App Service app-orders-prod
   - Orders API (system-assigned identity)
-- Key Vault (kv-orders-prod)
 - Storage account (stordersexport)
 - Azure SQL (sqldb-orders)
 
@@ -15,4 +14,4 @@ In order, top to bottom.
 - 9. Storage account replies to Orders API: 201 Created (role: Storage Blob Data Contributor).
 - 10. Orders API calls Azure SQL: Connect, token for database.windows.net.
 - 11. Azure SQL replies to Orders API: Rows (database user app-orders-prod, db_datareader).
-- Note over Key Vault and Azure SQL: No connection string, password or key in the app: nothing to leak, nothing to rotate
+- Note over Storage account and Azure SQL: No password, key or connection string in the app: nothing to leak or rotate
