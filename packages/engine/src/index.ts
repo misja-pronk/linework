@@ -432,7 +432,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
-  const autoDirection = (model?.view?.direction ?? data.direction) == null;
+  // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape.
+  const steady = !!allViews?.find((v) => v.name === (built as { view?: unknown }).view)?.steady;
+  const autoDirection = !steady && (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
   // before it, nothing pinned) that shows mostly what the first view shows is drawn the way that one

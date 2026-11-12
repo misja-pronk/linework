@@ -10,8 +10,8 @@
 type: data-products
 title: Northwind data mesh
 subtitle: Data products owned by the domains, from operational systems to the people who use them
-view: overview   # overview, or detailed-<domain> (detailed-sales): a domain's products with ports and contracts
-# detail: [revenue]   # these products drawn with their ports and contract (detailed-<domain>: a domain's products)
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
+# detail: [revenue]   # these products drawn with their ports and contract (detailed-orders: one product, its neighbours as cards)
 
 domains:
   finance: { label: Finance, owner: Finance data }

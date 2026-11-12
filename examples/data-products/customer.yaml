@@ -1,7 +1,7 @@
 type: data-products
 title: Customer data products
 subtitle: From operational systems to fit-for-purpose products
-view: overview   # overview, or detailed-<domain> (detailed-sales): a domain's products with ports and contracts
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 # detail: [customer-360]   # only these products in detail
 
 domains:

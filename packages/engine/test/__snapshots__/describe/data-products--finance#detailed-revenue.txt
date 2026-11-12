@@ -1,0 +1,20 @@
+Finance data products
+
+Data products, revenue in detail: Revenue in detail. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Finance (Domain · Finance data team)
+  - General ledger (Source · ERP)
+  - Revenue (Consumer-aligned)
+  - Payments (Source-aligned · v3)
+- CFO dashboard (Dashboard)
+
+Connections
+- General ledger connects to Revenue.in:1.
+- Revenue.out:daily connects to CFO dashboard.
+- Payments connects to Revenue.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

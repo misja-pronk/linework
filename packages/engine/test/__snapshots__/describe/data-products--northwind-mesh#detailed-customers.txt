@@ -1,28 +1,21 @@
 Northwind data mesh
 
-Data products, sales in detail: Sales in detail. 9 elements in 1 group, with 9 connections.
+Data products, customers in detail: Customers in detail. 5 elements in 1 group, with 4 connections.
 
 Groups and elements
 - Sales (Domain · Sales analytics)
-  - ERP (Orders and invoices)
-  - Orders (Source-aligned · v2.3.0 · Order management team)
-  - orders (Data contract · v2.3.0 · internal)
   - CRM (Source · SaaS)
   - Customers (Source-aligned · v1.6.0 · CRM team)
   - customers (Data contract · v1.6.0 · confidential)
-- Demand forecast (Supply chain · Consumer-aligned · beta · v0.4.0 · Planning analytics)
 - Revenue (Finance · Aggregate · v3.0.0 · Finance data team)
 - Sales dashboard (Dashboard)
 
 Connections
-- ERP connects to Orders.in:0.
-- Orders.out:orders connects to Demand forecast, connects to Revenue, connects to Sales dashboard and is linked with orders.
 - CRM connects to Customers.in:0.
 - Customers.out:customers connects to Revenue, connects to Sales dashboard and is linked with customers.
 
 Key
 - Teal filled pill: Source-aligned
 - Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
 - Solid line: Data flow
 - Dashed violet line: Data contract

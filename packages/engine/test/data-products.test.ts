@@ -69,10 +69,18 @@ describe('schema messages', () => {
   });
 
   it('offers overview and detailed as views: asked for, a view wins over the one written, focus included', async () => {
+    // Without a contract nothing is tall: one detailed drawing of every product.
+    const plain = await render(source('view: overview').replace('{ kind: table, contract: orders }', 'table'), { fonts: 'none' });
+    expect(plain.views).toEqual([
+      { name: 'overview', title: 'Overview' },
+      { name: 'detailed', title: 'Detailed' },
+    ]);
+    // Two products and a contract among them: one product at a time, every one only by name.
     const r = await render(source('view: overview'), { fonts: 'none' });
     expect(r.views).toEqual([
       { name: 'overview', title: 'Overview' },
-      { name: 'detailed', title: 'Detailed' },
+      { name: 'detailed-orders', title: 'orders in detail' },
+      { name: 'detailed-revenue', title: 'revenue in detail' },
     ]);
     const d = await render(source('view: overview'), { fonts: 'none', view: 'detailed' });
     expect(d.diagnostics).toEqual([]);
@@ -114,17 +122,50 @@ steps:
     path: [shop -> orders, orders -> revenue, revenue -> cfo]
 `;
 
-  it('offers one detailed view per domain, and one for products without a domain; the whole mesh in detail only by name', async () => {
+  it('offers one detailed view per domain, and one per product where a domain holds several and a contract; the rest only by name', async () => {
     const r = await render(mesh, { fonts: 'none' });
     expect(r.views).toEqual([
       { name: 'overview', title: 'Overview' },
-      { name: 'detailed-sales', title: 'Sales in detail' },
+      { name: 'detailed-orders', title: 'orders in detail' },
+      { name: 'detailed-forecast', title: 'forecast in detail' },
       { name: 'detailed-finance', title: 'Finance in detail' },
       { name: 'detailed-other', title: 'Other products in detail' },
     ]);
     const whole = await render(mesh, { fonts: 'none', view: 'detailed' });
     expect(whole.diagnostics).toEqual([]);
     expect(whole.graph!.nodes.filter((n) => n.shape.kind === 'table').map((n) => n.id)).toEqual(['orders', 'revenue', 'rates', 'forecast', 'contract:orders']);
+    // The domain drawn whole is still there by name.
+    const sales = await render(mesh, { fonts: 'none', view: 'detailed-sales' });
+    expect(sales.diagnostics).toEqual([]);
+    expect(sales.graph!.nodes.filter((n) => n.shape.kind === 'table').map((n) => n.id)).toEqual(['orders', 'forecast', 'contract:orders']);
+    // Without contracts drawn nothing is split.
+    const bare = await render(mesh.replace('domains:', 'show-contracts: false\ndomains:'), { fonts: 'none' });
+    expect(bare.views!.map((v) => v.name)).toEqual(['overview', 'detailed-sales', 'detailed-finance', 'detailed-other']);
+  });
+
+  it('draws one product in detail with its contract, the rest of its domain and what it connects to as cards', async () => {
+    const r = await render(mesh, { fonts: 'none', view: 'detailed-orders' });
+    expect(r.diagnostics).toEqual([]);
+    expect(r.steps).toBeUndefined();
+    const nodes = new Map(r.graph!.nodes.map((n) => [n.id, n]));
+    expect([...nodes.keys()].sort()).toEqual(['contract:orders', 'orders', 'revenue', 'shop']);
+    expect(nodes.get('orders')!.shape.kind).toBe('table');
+    expect(nodes.get('shop')!.parent).toBe('domain:sales');
+    expect(nodes.get('revenue')!.shape).toMatchObject({ kind: 'card', caption: 'Finance · Source-aligned' });
+    expect(r.graph!.groups.map((g) => g.id)).toEqual(['domain:sales']);
+    // Forecast, the other product of Sales, is a card in its own view's neighbours only.
+    const forecast = await render(mesh, { fonts: 'none', view: 'detailed-forecast' });
+    expect(forecast.graph!.nodes.map((n) => [n.id, n.shape.kind])).toEqual([
+      ['rates', 'card'],
+      ['forecast', 'table'],
+    ]);
+  });
+
+  it('names a product view apart from a domain view of the same name', async () => {
+    const r = await render(mesh.replace('  finance: Finance', '  finance: Finance\n  orders: Orders desk').replace('rates: {}', 'rates: { domain: orders }'), { fonts: 'none' });
+    expect(r.views!.map((v) => v.name)).toEqual(['overview', 'detailed-product-orders', 'detailed-forecast', 'detailed-finance', 'detailed-orders']);
+    const one = await render(mesh.replace('  finance: Finance', '  finance: Finance\n  orders: Orders desk').replace('rates: {}', 'rates: { domain: orders }'), { fonts: 'none', view: 'detailed-product-orders' });
+    expect(one.graph!.nodes.find((n) => n.id === 'orders')!.shape.kind).toBe('table');
   });
 
   it("draws a domain's products in detail with their contracts, and what they connect to as cards outside the domain box", async () => {
@@ -148,6 +189,6 @@ steps:
     const r = await render(mesh.replace('domains:', 'view: detailed-finance\ndomains:'), { fonts: 'none' });
     expect(r.graph!.nodes.find((n) => n.id === 'revenue')!.shape.kind).toBe('table');
     const wrong = await render(mesh.replace('domains:', 'view: detailed-hr\ndomains:'), { fonts: 'none' });
-    expect(wrong.diagnostics.map((d) => d.message)).toContain('There is no view "detailed-hr": the detailed views are detailed-sales, detailed-finance, detailed-other');
+    expect(wrong.diagnostics.map((d) => d.message)).toContain('There is no view "detailed-hr": the detailed views are detailed-orders, detailed-forecast, detailed-finance, detailed-other');
   });
 });

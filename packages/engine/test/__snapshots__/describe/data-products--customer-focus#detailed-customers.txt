@@ -1,0 +1,20 @@
+Customer 360 in focus
+
+Data products, customers in detail: customers in detail. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Customer (Domain · CRM team)
+  - Salesforce (Source · SaaS)
+  - customers (Source-aligned)
+  - Customer 360 (Aggregate)
+  - customers (Data contract · v1.4.0 · confidential)
+
+Connections
+- Salesforce connects to customers.in:0.
+- customers.out:customers connects to Customer 360 and is linked with customers.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract

@@ -1,0 +1,22 @@
+Customer 360 in focus
+
+Data products, customer 360 in detail: Customer 360 in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- orders (Sales · Source-aligned)
+- Customer (Domain · CRM team)
+  - Customer 360 (Aggregate)
+  - customers (Source-aligned)
+- Churn risk (Marketing · Consumer-aligned)
+- Sales dashboard (Dashboard)
+
+Connections
+- orders connects to Customer 360.in:0.
+- Customer 360.out:profile connects to Churn risk and connects to Sales dashboard.
+- customers connects to Customer 360.in:1.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow
