@@ -86,7 +86,7 @@ interface CanvasKeys {
 }
 
 /** The drawing's keys that act on the selection from the outline too, as in Figma's layers. */
-export const OUTLINE_KEYS = ['delete', 'duplicate', 'copy', 'paste'] as const;
+export const OUTLINE_KEYS = ['add', 'delete', 'duplicate', 'copy', 'paste'] as const;
 
 /** The drawing's keys, when it has the focus itself. */
 export function canvasKeys(c: CanvasKeys) {

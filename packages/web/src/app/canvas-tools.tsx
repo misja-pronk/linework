@@ -1,5 +1,6 @@
 // The drawing's toolbar, centred at the bottom of the canvas: the same bar in the editor and in a session,
-// so what is practised in one is what is used in the other. Add, group, undo and redo, the steps; then in
+// so what is practised in one is what is used in the other. Add, group, undo and redo, the steps (in a
+// session; the editor has the steps strip under the drawing); then in
 // the editor the view, layers, present and ⋯ for the rest (tidy, focus, a step, Your AI, compare, the
 // grid and the minimap), and in a session End session. Every tooltip says its key.
 import './canvas-tools.css';
@@ -7,7 +8,7 @@ import { useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Menu } from '../menu.tsx';
-import { comboLabel, keyHint } from '../keys.ts';
+import { keyHint } from '../keys.ts';
 import { ViewPicker } from '../view-picker.tsx';
 import type { useCraftPrefs } from '../craft-actions.tsx';
 import type { RenderResult } from '@cartography/engine';
@@ -80,18 +81,18 @@ export function CanvasTools(p: Props) {
       <button className="tool" onClick={p.redo} title={tip(t('Redo'), keyHint('redo'))} aria-label={t('Redo')}>
         <Icon name="redo-2" />
       </button>
-      {p.steps > 0 && (
+      {session && p.steps > 0 && (
         <>
           <span className="tool-sep" aria-hidden="true" />
-          {/* [ and ] step in the editor; in a session they would start a name, so there the arrows are clicked. */}
+          {/* In a session [ and ] would start a name, so the arrows are clicked. */}
           <span className="tool-steps">
-            <button className="tool" onClick={() => p.stepBy(-1)} title={tip(t('Previous step'), session ? '' : comboLabel('['))} aria-label={t('Previous step')}>
+            <button className="tool" onClick={() => p.stepBy(-1)} title={t('Previous step')} aria-label={t('Previous step')}>
               <Icon name="arrow-left" />
             </button>
             <span className="tool-step-no" aria-live="polite">
               {p.step ? t('Step {n}/{m}', { n: p.step, m: p.steps }) : t('All steps')}
             </span>
-            <button className="tool" onClick={() => p.stepBy(1)} title={tip(t('Next step'), session ? '' : comboLabel(']'))} aria-label={t('Next step')}>
+            <button className="tool" onClick={() => p.stepBy(1)} title={t('Next step')} aria-label={t('Next step')}>
               <Icon name="arrow-right" />
             </button>
           </span>
