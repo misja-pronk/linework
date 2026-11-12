@@ -1,0 +1,20 @@
+Managed identity, service to service
+
+Sequence, start: Start. 4 participants and 7 messages.
+
+Participants
+- App Service app-orders-prod
+  - Orders API (system-assigned identity)
+  - Identity endpoint (IDENTITY_ENDPOINT)
+- Microsoft Entra ID (Identity provider)
+- Key Vault (kv-orders-prod)
+
+Message flow
+In order, top to bottom.
+- 1. Orders API calls Identity endpoint: Token for vault.azure.net.
+- 2. Identity endpoint calls Microsoft Entra ID: Token request as the managed identity.
+- 3. Microsoft Entra ID replies to Identity endpoint: Access token, aud vault.azure.net.
+- 4. Identity endpoint replies to Orders API: Access token, cached until it expires.
+- 5. Orders API calls Key Vault: Get secret orders-signing-key.
+- 6. Key Vault does: RBAC: Key Vault Secrets User?
+- 7. Key Vault replies to Orders API: Secret value.

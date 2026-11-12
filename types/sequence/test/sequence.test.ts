@@ -198,6 +198,65 @@ messages:
     expect(typeof sequence.connect!(src, 'a', 'nope')).toBe('string');
   });
 
+  it('offers a view per phase: its messages and participants, numbers and open activations carried on', async () => {
+    const yaml = `type: sequence
+title: Checkout
+autonumber: true
+participants:
+  a: person
+  b: service
+  c: database
+  d: queue
+messages:
+  - a -> b: Order
+  - b -> c: Insert
+  - c --> b: id
+  - divider: Payment
+  - alt: Paid
+    messages:
+      - b ->> d: Paid
+      - divider: not a phase
+    else: [b ->> d: Failed]
+  - divider: Payment
+  - ref: Shipping
+  - b --> a: Done
+`;
+    expect(sequence.views!(parse(yaml))).toEqual([
+      { name: 'whole', title: 'Whole sequence', scroll: true },
+      { name: 'phase-start', title: 'Start' },
+      { name: 'phase-payment', title: 'Payment' },
+      { name: 'phase-payment-2', title: 'Payment' },
+    ]);
+    const whole = await render(yaml, { fonts: 'none' });
+    expect(whole.scroll).toBe(true);
+    expect(whole.views?.map((v) => v.name)).toEqual(['whole', 'phase-start', 'phase-payment', 'phase-payment-2']);
+    const phase = async (view: string) => {
+      const r = await render(yaml, { fonts: 'none', view });
+      expect(r.diagnostics).toEqual([]);
+      expect(r.scroll).toBeUndefined();
+      expect(r.svg).not.toMatch(/NaN|undefined|Infinity/);
+      return { r, shape: r.graph!.nodes[0]!.shape as SequenceShape };
+    };
+    const pay = await phase('phase-payment');
+    expect(pay.r.graph!.subtitle).toBe('Payment');
+    // Only who takes part; the divider inside the alt stays, the phase's own divider is the subtitle.
+    expect(pay.shape.participants.map((p) => p.id)).toEqual(['b', 'd']);
+    expect(pay.shape.events.map((e) => e.kind)).toEqual(['activate', 'frame', 'message', 'divider', 'branch', 'message', 'end']);
+    expect(pay.shape.events.flatMap((e) => (e.kind === 'message' ? [e.number] : []))).toEqual([4, 5]);
+    // b was called by a in the first phase and answers in the last: its bar runs from the top there.
+    const last = await phase('phase-payment-2');
+    expect(last.shape.participants.map((p) => p.id)).toEqual(['a', 'b']);
+    expect(last.shape.events[0]).toMatchObject({ kind: 'activate', lane: 'b' });
+    expect(last.shape.events.find((e) => e.kind === 'ref')).toMatchObject({ over: ['a', 'b'] });
+    const g = sequenceGeometry(last.shape, themes.light);
+    expect(g.bars).toHaveLength(1);
+    expect(g.bars[0]!.box.y).toBeLessThan(g.messages[0]!.y);
+    // Steps are the phase's own messages.
+    expect(last.r.steps).toHaveLength(1);
+    // One divider (or none) is one phase: no views, the whole is the drawing.
+    expect(sequence.views!(parse('type: sequence\nmessages:\n  - divider: All\n  - a -> b: x\n'))).toEqual([]);
+  });
+
   it('renders the examples cleanly in both themes', async () => {
     const dir = path.resolve(import.meta.dirname, '../../../examples/sequence');
     for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.yaml')))

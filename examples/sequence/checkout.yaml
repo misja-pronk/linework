@@ -15,6 +15,7 @@ participants:
   psp: { kind: payments, label: Stripe }
 
 messages:
+  - divider: Order
   - shopper -> web: Place order
   - web -> orders: POST /orders
   - orders -> orders: Validate cart and prices
@@ -27,6 +28,7 @@ messages:
   - web ->> psp: Confirm card (3-D Secure in the browser)
   - note: The order stays pending until the webhook arrives, never on the browser's word
     over: [orders, psp]
+  - divider: Confirmation
   - alt: Payment succeeded
     messages:
       - psp ->> orders: webhook payment_intent.succeeded

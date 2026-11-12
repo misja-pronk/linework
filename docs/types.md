@@ -359,7 +359,9 @@ Activations follow the calls: a call opens one on the receiver and its reply clo
 
 Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which also carries git branching and roadmaps.
 
-Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`). See [steps.md](steps.md).
+Phases: a `divider:` at the top level of `messages:` starts a phase, and what comes before the first divider is the phase `Start`. The drawing is the whole sequence, as written; with two or more phases each one is also a view of its own, named after its divider (`phase-payment` for `divider: Payment`, titled *Payment*; `whole` is the whole sequence again). Pick one in the editor's view switcher or with `carto render checkout.yaml --view phase-payment` (`--all-views` for all of them). A phase view draws only that phase's messages, with the participants that take part in it; the numbers stay those of the whole sequence, so step 7 is 7 in its phase too, and an activation still open from an earlier phase runs from the top of the phase. A divider inside a frame (an `alt`, a `loop`) does not cut: a phase never starts or ends halfway a frame. About 12 messages fit a 16:9 slide; a longer sequence goes on slides per phase. `carto validate` then checks the phases for slides, and for the whole only says, as a hint, that it is presented per phase.
+
+Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`); a phase view steps through its own messages. See [steps.md](steps.md).
 
 Examples: [examples/sequence](../examples/sequence)
 

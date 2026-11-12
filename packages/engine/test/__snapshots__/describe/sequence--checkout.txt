@@ -13,6 +13,7 @@ Participants
 
 Message flow
 In order, top to bottom.
+- Order:
 - 1. Shopper calls Storefront: Place order.
 - 2. Storefront calls Orders API: POST /orders.
 - 3. Orders API does: Validate cart and prices.
@@ -24,6 +25,7 @@ In order, top to bottom.
 - 8. Orders API replies to Storefront: 201 Created.
 - 9. Storefront sends to Stripe: Confirm card (3-D Secure in the browser).
 - Note over Orders API and Stripe: The order stays pending until the webhook arrives, never on the browser's word
+- Confirmation:
 - Alternative: Payment succeeded
   - 10. Stripe sends to Orders API: webhook payment_intent.succeeded.
   - 11. Orders API calls Orders DB: UPDATE order SET status = paid.

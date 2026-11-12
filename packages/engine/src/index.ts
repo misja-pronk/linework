@@ -211,6 +211,11 @@ export interface RenderResult {
   view?: string;
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
+  /**
+   * This drawing is read scrolling, not shown on one slide (a long sequence as a whole): it is
+   * presented by the type's other views (its phases), so the slide check is theirs.
+   */
+  scroll?: boolean;
   /** Files read through `include:`, relative to the diagram. */
   includes?: string[];
   /** The steps the drawing can be told in (written, or the numbered lines of a dynamic view, or a sequence's messages), and the one drawn. */
@@ -510,6 +515,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
+    ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),
     ...(includes?.length ? { includes } : {}),
     ...(steps.length ? { steps } : {}),
     ...(steps.length && !told ? { stepsImplied: true } : {}),

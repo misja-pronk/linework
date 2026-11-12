@@ -54,6 +54,7 @@ export const nl = {
   // Files
   error: 'fout',
   warning: 'waarschuwing',
+  hint: 'tip',
   file: 'bestand',
   that: 'dat',
   '{file}: no such file or folder': '{file}: bestand of map bestaat niet',
