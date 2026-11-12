@@ -4,35 +4,35 @@ Azure infrastructure diagram: Northwind · from sources to reports through a bro
 
 Groups and elements
 - Sources (Boundary)
-  - ERP (On-premises · SQL Server)
-  - CRM (SaaS · REST API)
+  - ERP (SQL Server · nightly)
+  - CRM (REST API · hourly)
   - Web shop (Clickstream events)
 - sub-data-prd (Landing zone · Corp)
   - rg-data-ingest (Resource group)
-    - adf-nw-data (Managed VNet · self-hosted IR)
+    - adf-nw-data (Managed VNet)
     - evh-clickstream (Event Hubs)
   - rg-data-lake (Resource group)
-    - stnwlakeprd (ADLS Gen2 · private endpoints)
-      - bronze (Raw · as delivered)
-      - silver (Cleaned · conformed)
-      - gold (Business-ready · Delta)
+    - stnwlakeprd (ADLS Gen2)
+      - bronze (Raw)
+      - silver (Cleaned)
+      - gold (Business-ready)
   - rg-data-serve (Resource group)
     - Serverless SQL warehouse (Databricks SQL)
+  - Power BI (Reports · DirectQuery)
   - rg-data-process (Resource group)
-    - dbw-nw-data (Databricks · Unity Catalog · VNet-injected)
-- Power BI (Reports · DirectQuery)
+    - dbw-nw-data (Unity Catalog · VNet-injected)
 
 Connections
-- ERP sends data to adf-nw-data (nightly).
+- ERP sends data to adf-nw-data.
 - adf-nw-data sends data to bronze.
 - bronze sends data to silver (clean).
 - silver sends data to gold (model).
 - gold sends data to Serverless SQL warehouse.
 - Serverless SQL warehouse sends data to Power BI.
-- CRM sends data to adf-nw-data (hourly).
-- Web shop sends data to evh-clickstream (events).
+- CRM sends data to adf-nw-data.
+- Web shop sends data to evh-clickstream.
 - evh-clickstream sends data to bronze.
-- dbw-nw-data connects to stnwlakeprd (Management: jobs · Unity Catalog).
+- dbw-nw-data connects to stnwlakeprd (Management: jobs).
 
 Walkthrough
 1. One subscription with a resource group per stage, and the lake in the middle.

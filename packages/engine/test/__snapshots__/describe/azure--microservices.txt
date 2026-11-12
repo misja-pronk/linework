@@ -1,27 +1,23 @@
 Order platform
 
-Azure infrastructure diagram: Event-driven microservices on Container Apps. 12 elements in 4 groups, with 15 connections.
+Azure infrastructure diagram: Event-driven microservices on Container Apps. 11 elements in 2 groups, with 14 connections.
 
 Groups and elements
-- Customers (Users)
 - Production (Subscription)
   - rg-orders (Resource group)
     - Public API (API Management)
-    - Container Apps environment (Boundary)
-      - Orders (Container App)
-      - Inventory (Container App)
-      - Payments (Container App)
-      - Notifications (Function App)
+    - Orders (Container App)
+    - Inventory (Container App)
     - order-events (Service Bus)
     - Orders store (Cosmos DB)
-    - Inventory DB (SQL Database)
-  - rg-shared (Resource group)
     - Secrets (Key Vault)
     - Telemetry (Application Insights)
+    - Inventory DB (SQL Database)
+    - Payments (Container App)
+    - Notifications (Function App)
 - Payment provider (External system)
 
 Connections
-- Customers send traffic to Public API over HTTPS.
 - Public API connects to Orders (Private network) and connects to Inventory (Private network).
 - Orders sends data to order-events (OrderPlaced), connects to Orders store (Private network), signs in with Secrets and connects to Telemetry (Management).
 - Inventory connects to Telemetry (Management) and connects to Inventory DB (Private network).

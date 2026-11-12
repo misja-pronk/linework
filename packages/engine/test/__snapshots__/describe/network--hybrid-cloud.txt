@@ -4,15 +4,15 @@ Network diagram: Northwind · ExpressRoute to the Azure hub, a site-to-site VPN 
 
 Groups and elements
 - Amsterdam DC (10.10.0.0/16)
-  - rtr-ams (BGP AS 65010 · HA pair)
   - Servers (VLAN 100 · 10.10.100.0/24)
     - dc01 (AD DS + DNS · 10.10.100.10)
-- ExpressRoute circuit (1 Gbps · private peering · Equinix AM)
+  - rtr-ams (BGP AS 65010 · HA pair)
+- ExpressRoute circuit (1 Gbps · Equinix AM)
   - MSEE (Microsoft edge · AS 12076 · HA pair)
 - Azure West Europe (Cloud region)
   - vnet-hub-weu (10.0.0.0/22)
     - GatewaySubnet (10.0.0.0/27)
-      - vpng-hub (VpnGw2AZ · active-active · AS 65515)
+      - vpng-hub (VpnGw2AZ · AS 65515)
       - ergw-hub (ErGw1AZ)
     - AzureFirewallSubnet (10.0.0.64/26)
       - afw-hub (Azure Firewall Premium · 10.0.0.68)
@@ -22,7 +22,8 @@ Groups and elements
     - vmss-intranet (rt-intranet · propagation off)
 
 Connections
-- rtr-ams is linked with dc01 (2×10G), connects to MSEE (Private circuit: eBGP · primary + secondary) and connects to vpng-hub (VPN tunnel: over the internet · BGP · prepend ×3).
+- dc01 is linked with rtr-ams (2×10G).
+- rtr-ams connects to MSEE (Private circuit: eBGP ×2) and connects to vpng-hub (VPN tunnel: IPsec · BGP).
 - MSEE connects to ergw-hub (Private circuit: private peering).
 - vpng-hub is linked with afw-hub.
 - ergw-hub is linked with afw-hub.

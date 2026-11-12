@@ -6,6 +6,8 @@ subtitle: Northwind web shop · Front Door with WAF in front, no secrets in code
 # Resource groups by lifecycle: the edge is global, app and data are regional (West Europe).
 # Identity: one user-assigned managed identity (id-shop) used by the storefront and the API;
 # it holds the roles on Key Vault and SQL, so there are no passwords or connection strings in config.
+# cae-shop is an internal Container Apps environment (no public ingress); kv-shop-prd uses RBAC and
+# has public network access off, reached over a private endpoint.
 # Adding a service: a card in rg-shop-app, a line from whoever calls it, and an identity line from
 # id-shop for each role it needs.
 
@@ -13,7 +15,7 @@ groups:
   sub: { kind: subscription, label: sub-webshop-prd, caption: Landing zone · Online }
   rg-edge: { kind: resource-group, label: rg-shop-edge, caption: Global, in: sub }
   rg-app: { kind: resource-group, label: rg-shop-app, caption: West Europe, in: sub }
-  cae: { kind: boundary, label: cae-shop, caption: Container Apps · internal, in: rg-app }
+  cae: { kind: boundary, label: cae-shop, caption: Internal, in: rg-app }
   rg-data: { kind: resource-group, label: rg-shop-data, caption: West Europe, in: sub }
 
 nodes:
@@ -26,7 +28,7 @@ nodes:
   id: { kind: managed-identity, label: id-shop, caption: User-assigned, in: rg-app, tags: [security] }
 
   sql: { kind: sql-database, label: sqldb-shop, caption: Entra-only auth, in: rg-data }
-  kv: { kind: key-vault, label: kv-shop-prd, caption: RBAC · public access off, in: rg-data, tags: [security] }
+  kv: { kind: key-vault, label: kv-shop-prd, caption: RBAC · private, in: rg-data, tags: [security] }
   st: { kind: storage, label: stshopmedia, caption: Product images, in: rg-data }
 
 edges:
