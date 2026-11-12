@@ -136,9 +136,10 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
     const before = document.activeElement as HTMLElement | null;
     panel.current?.querySelector<HTMLElement>('[role="menuitemcheckbox"]')?.focus();
     const outside = (e: PointerEvent) => !el.current?.contains(e.target as Node) && setOpen(false);
-    window.addEventListener('pointerdown', outside);
+    // In the capture phase: the toolbar keeps its pointer events from the drawing, not from this.
+    window.addEventListener('pointerdown', outside, true);
     return () => {
-      window.removeEventListener('pointerdown', outside);
+      window.removeEventListener('pointerdown', outside, true);
       if (before?.isConnected) before.focus?.();
     };
   }, [open, setOpen]);

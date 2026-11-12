@@ -1,22 +1,31 @@
-/* The drawing's toolbar (canvas-tools.tsx), and how it folds in a narrow pane. */
+/* The drawing's toolbar (canvas-tools.tsx): centred along the bottom of the canvas in the editor and in a
+   session, and how it folds in a narrow pane. */
 
 /* A strip of paper, ruled: the tools in it are bare icons in muted ink, the one that is on in ink. */
 .canvas-tools {
   display: flex;
   align-items: center;
   gap: 2px;
-  height: 36px;
-  padding: 0 3px;
+  height: 40px;
+  min-width: 0;
+  padding: 0 4px;
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  z-index: 5;
+  box-shadow: 0 1px 0 var(--rule2);
+  white-space: nowrap;
   animation: rise 120ms ease-out;
+}
+.canvas-tools .tool {
+  height: 30px;
 }
 .canvas-tools .tool-label {
   color: var(--text);
 }
 .canvas-tools .tool.active .tool-label {
+  color: inherit;
+}
+.canvas-tools .tool:disabled .tool-label {
   color: inherit;
 }
 .tool-sep {
@@ -25,6 +34,26 @@
   height: 20px;
   margin: 0 4px;
   background: var(--rule2);
+}
+/* ← All steps →: the step shown, in figures that do not jump as it changes. */
+.tool-steps {
+  display: inline-flex;
+  align-items: center;
+}
+.tool-step-no {
+  min-width: 64px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+/* Its menus (⋯, Layers) open upwards, from the bar at the bottom. */
+.canvas-tools .menu {
+  top: auto;
+  bottom: calc(100% + 8px);
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
 }
 .canvas-tools .menu button {
   white-space: nowrap;
@@ -37,6 +66,12 @@
   position: absolute;
   top: 2px;
   right: 0;
+}
+/* Ending is the session's one way out, and says so in the accent. */
+.canvas-tools .session-end {
+  color: var(--rust);
+  font-weight: 600;
+  padding: 0 12px;
 }
 @container canvas (max-width: 1080px) {
   .canvas-tools .tool kbd {

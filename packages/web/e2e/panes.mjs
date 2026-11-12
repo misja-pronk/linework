@@ -104,6 +104,10 @@ async function run(width, height, theme) {
     const rings = await page.locator('.selection-ring').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().top));
     const ring = { y: Math.min(...rings) };
     if (ring.y < top.y + top.height) fail(`${tag}: zoom to selection puts the element under the tools (${Math.round(ring.y)} < ${Math.round(top.y + top.height)})`);
+    // Nor under the toolbar along the bottom.
+    const bar = await box('.canvas-tools');
+    const lowest = Math.max(...(await page.locator('.selection-ring').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().bottom))));
+    if (lowest > bar.y) fail(`${tag}: zoom to selection puts the element under the toolbar (${Math.round(lowest)} > ${Math.round(bar.y)})`);
     await page.screenshot({ path: `${out}/panes-${tag}-1b-zoom-selection.png` });
     await page.keyboard.press('Shift+1');
     await page.waitForTimeout(500);

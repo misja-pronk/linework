@@ -61,6 +61,7 @@ export const SHORTCUTS: Shortcut[] = [
 
   // ------------------------------------------------------------ the drawing
   { id: 'add', keys: ['a'], what: 'Add a shape', context: 'drawing', group: 'Drawing' },
+  { id: 'group', keys: ['mod+g'], what: 'Put the selected boxes in a new group', context: 'drawing', group: 'Drawing' }, // in a session too (sketching.ts)
   { id: 'connect', keys: ['c'], what: 'Connect the selected element to…', context: 'drawing', group: 'Drawing' },
   { id: 'cycle', keys: ['tab', 'shift+tab'], what: 'Next / previous element', context: 'drawing', group: 'Drawing' },
   { id: 'nearest', keys: ['alt+arrowleft', 'alt+arrowup', 'alt+arrowright', 'alt+arrowdown'], show: '⌥ ← ↑ → ↓', what: 'Nearest element in that direction', context: 'drawing', group: 'Drawing' },
@@ -142,7 +143,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'session-back', keys: ['shift+tab'], what: 'Back to the box this one is connected from', context: 'session', group: 'Session' },
   { id: 'session-nearest', keys: ['arrowleft', 'arrowup', 'arrowright', 'arrowdown'], show: '← ↑ → ↓', what: 'Nearest box in that direction', context: 'session', group: 'Session' },
   { id: 'session-rename', keys: ['f2'], show: 'F2 / double-click', what: 'Rename', context: 'session', group: 'Session' },
-  { id: 'session-group', keys: ['mod+g'], what: 'Put the selected boxes in a new group', context: 'session', group: 'Session' },
+  { id: 'session-zoom', keys: [], show: '⇧1 / ⇧2', what: 'Zoom to fit / to the selection (while naming a box, they are typed)', context: 'session', group: 'Session' },
   { id: 'session-delete', keys: ['backspace', 'delete'], what: 'Delete the selected boxes', context: 'session', group: 'Session' },
   { id: 'session-undo', keys: ['mod+z'], what: 'Undo; Esc while naming a new box takes it away', context: 'session', group: 'Session' },
   { id: 'session-escape', keys: ['escape'], what: 'Close a menu, deselect, or cancel a name; with nothing selected, to End session (↵ ends it)', context: 'session', group: 'Session' },

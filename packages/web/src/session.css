@@ -23,6 +23,10 @@
 .app.in-session .workspace > .canvas-pane {
   display: block !important;
 }
+/* The steps strip is not there: the sheet goes down to the window's edge, the toolbar with it. */
+.app.in-session .canvas-pane.with-steps .preview {
+  bottom: 0;
+}
 /* The sheet lies on a second sheet, offset a little further than in the editor. */
 .app.in-session .drawing {
   box-shadow:
@@ -76,31 +80,44 @@
   white-space: nowrap;
 }
 
-/* ------------------------------------------------------------ the one strip at the bottom */
-.session-strip {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  z-index: 7;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
+/* ------------------------------------------------------------ the toolbar (canvas-tools.css), a size up for a shared screen */
+.app.in-session .zoom-room {
+  display: none;
+}
+.app.in-session .canvas-tools {
   height: 44px;
   padding: 0 6px;
+}
+.app.in-session .canvas-tools .tool {
+  height: 34px;
+  padding: 0 10px;
+  gap: 8px;
+  font-size: 0.84375rem;
+}
+.app.in-session .canvas-tools .tool:not(:disabled) .icon {
+  color: var(--text-muted);
+}
+.app.in-session .canvas-tools .tool:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+.app.in-session .canvas-tools kbd,
+.session-keys kbd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.65625rem;
+  font-weight: 500;
+  padding: 1px 5px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  background: var(--paper);
-  box-shadow: 0 1px 0 var(--rule2);
-  max-width: calc(100% - 32px);
-  white-space: nowrap;
+  background: var(--sheet);
+  color: var(--ink);
+  line-height: 1.3;
 }
-.session-rule {
-  flex: none;
-  width: 1px;
-  height: 22px;
-  background: var(--rule2);
+.session-gap {
+  flex: 1;
+  min-width: 12px;
 }
-.session-strip button,
 .sel-menu > button {
   display: inline-flex;
   align-items: center;
@@ -117,60 +134,16 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.session-strip button .icon,
 .sel-menu > button .icon {
   color: var(--text-muted);
 }
-.session-strip button:hover:not(:disabled),
 .sel-menu > button:hover,
 .sel-menu > button[aria-expanded='true'] {
   background: var(--hover);
 }
-.session-strip button:disabled {
-  color: var(--text-faint);
-  cursor: default;
-}
-.session-strip button:focus-visible,
 .sel-menu button:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: -2px;
-}
-.session-strip kbd,
-.session-keys kbd {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.65625rem;
-  font-weight: 500;
-  padding: 1px 5px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--sheet);
-  color: var(--ink);
-  line-height: 1.3;
-}
-.session-steps {
-  display: inline-flex;
-  align-items: center;
-}
-.session-steps button {
-  padding: 0 8px;
-}
-.session-step-no {
-  min-width: 64px;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.session-gap {
-  flex: 1;
-  min-width: 12px;
-}
-/* Ending is the strip's one way out, and says so in the accent. */
-.session-strip .session-end {
-  color: var(--rust);
-  font-weight: 600;
 }
 
 /* ------------------------------------------------------------ the menu at the selection (placed by SelectionFloats) */
@@ -347,11 +320,11 @@
   background: transparent;
 }
 
-/* ------------------------------------------------------------ the keys, one quiet line over the strip (first sessions) */
+/* ------------------------------------------------------------ the keys, one quiet line over the toolbar (first sessions) */
 .session-keys {
   position: fixed;
   left: 50%;
-  bottom: 76px;
+  bottom: 68px;
   z-index: 6;
   transform: translateX(-50%);
   display: flex;

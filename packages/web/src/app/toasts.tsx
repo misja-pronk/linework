@@ -31,19 +31,26 @@ export function useToasts() {
 }
 
 /**
- * Puts a toast just under the drawing's tools, at their left: where the eyes are after an action, and
- * never over the zoom bar, the hint, a panel or an open popover. Without a drawing on screen (a phone on the YAML tab)
- * it stays at the bottom of the window.
+ * Puts a toast at the top left of the drawing, under its chips and notes: clear of the toolbar, the
+ * zoom and the hint along the bottom, a panel or an open popover. In a session (nothing at the top but
+ * the title) it sits over the toolbar and its keys, centred. Without a drawing on screen (a phone on the
+ * YAML tab) it stays at the bottom of the window.
  */
 function dockToast(el: HTMLDivElement | null) {
   if (!el) return;
-  const top = [...document.querySelectorAll('.canvas-top > *')].filter((x) => (x as HTMLElement).offsetParent);
   const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
-  if (!top.length || !pane?.width) return el.classList.remove('docked');
+  if (!pane?.width) return el.classList.remove('docked');
+  if (document.querySelector('.app.in-session')) {
+    el.classList.remove('docked');
+    el.style.top = el.style.left = '';
+    const tops = [...document.querySelectorAll('.canvas-tools, .session-keys')].map((x) => x.getBoundingClientRect()).filter((r) => r.height).map((r) => r.top);
+    el.style.bottom = `${window.innerHeight - Math.min(window.innerHeight - 44, ...tops) + 8}px`;
+    return;
+  }
+  const top = [...document.querySelectorAll('.canvas-top > *')].filter((x) => (x as HTMLElement).offsetParent);
   el.classList.add('docked');
-  // Under an open popover too (the Layers panel, ⋯): a toast never covers what is being used.
-  const open = [...document.querySelectorAll('.canvas-top [role="menu"]')];
-  el.style.top = `${Math.max(...[...top, ...open].map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
+  el.style.bottom = '';
+  el.style.top = `${Math.max(pane.top + 16, ...top.map((x) => x.getBoundingClientRect().bottom + 8))}px`;
   el.style.left = `${pane.left + 16}px`;
   el.style.maxWidth = `${pane.width - 32}px`;
 }

@@ -109,7 +109,7 @@ export function App() {
   const pinning = pinActions({ drawing, pins, editor, previewControl, selection, notify, acted: prefs.acted });
   const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.openView, focusDrawing, pinsToSave: pinning.pinsToSave });
   const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify });
-  const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, previewControl, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
+  const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
   const endSession = () => {
     session.end();
     if (textNow() === session.start?.text) notify(t('Session ended: nothing changed'));
@@ -124,6 +124,17 @@ export function App() {
     requestAnimationFrame(() => requestAnimationFrame(() => previewControl.current?.fit()));
   };
   const nav = useNavigation({ state: navState, drawing, text, textNow, ws, doc, here, selection, notify, apply: pinning.apply, ready: edits.ready, undo, nodeName: edits.nodeName, openInFolder: files.openInFolder, pick: files.pick, dropModal });
+  /** The toolbar's tools in the editor and in a session alike (canvas-tools.tsx). */
+  const barCommon = {
+    hasType: !!type,
+    canGroup: selection.some((x) => x.kind === 'node'),
+    group: () => sketching.group(),
+    undo,
+    redo,
+    steps: nav.stepList.length,
+    step: drawn?.step,
+    stepBy: nav.stepBy,
+  };
 
   const { selNode, selGroup, selEdge } = inspected(drawing, selected, sel.pathOf);
   /** The selection has properties to show (one element, or several to arrange). */
@@ -261,32 +272,44 @@ export function App() {
           onKeyDown={onCanvasKey}
           describe={describe}
           tools={
-            <CanvasTools
-              drawn={drawn}
-              hasType={!!type}
-              adding={adding}
-              addShape={addShape}
-              undo={undo}
-              redo={redo}
-              tidyLayout={pinning.tidyLayout}
-              canTidyAll={!!(vpins || drawing.drawnLayout?.held)}
-              tidyAll={pinning.tidyAll}
-              pickView={(name) => navState.setPicked({ doc: docId, name })}
-              layersButton={layers.button}
-              hasSelection={!!selection.length}
-              focusOn={nav.focusOn}
-              focusOnSelection={nav.focusOnSelection}
-              hasSteps={!!nav.stepList.length}
-              addStep={nav.addStepFromSelection}
-              present={nav.present}
-              asking={side.asking}
-              toggleAsk={side.toggleAsk}
-              proposal={!!live.proposal}
-              comparing={comparing.active}
-              toggleCompare={comparing.toggle}
-              zoomToSelection={() => previewControl.current?.zoomToSelection()}
-              craft={craft}
-            />
+            // After a session, while what changed is shown on the sheet alone: no tools.
+            session.sheetOnly && !session.on ? null : session.on ? (
+              <CanvasTools
+                {...barCommon}
+                addShape={() => {
+                  // Tab's add: a box connected from the selected one, else a first one; the keys stay on the drawing.
+                  const one = selection.length === 1 ? selection[0] : undefined;
+                  if (one?.kind === 'node') sketching.tab(one.id);
+                  else sketching.first();
+                  focusDrawing();
+                }}
+                session={{ end: endSession }}
+              />
+            ) : (
+              <CanvasTools
+                {...barCommon}
+                addShape={addShape}
+                drawn={drawn}
+                adding={adding}
+                tidyLayout={pinning.tidyLayout}
+                canTidyAll={!!(vpins || drawing.drawnLayout?.held)}
+                tidyAll={pinning.tidyAll}
+                pickView={(name) => navState.setPicked({ doc: docId, name })}
+                layersButton={layers.button}
+                hasSelection={!!selection.length}
+                focusOn={nav.focusOn}
+                focusOnSelection={nav.focusOnSelection}
+                addStep={nav.addStepFromSelection}
+                present={nav.present}
+                asking={side.asking}
+                toggleAsk={side.toggleAsk}
+                proposal={!!live.proposal}
+                comparing={comparing.active}
+                toggleCompare={comparing.toggle}
+                zoomToSelection={() => previewControl.current?.zoomToSelection()}
+                craft={craft}
+              />
+            )
           }
           layersChip={layers.chip}
           focusOff={focusAsked === null && !!drawn?.focusWritten}
@@ -303,7 +326,7 @@ export function App() {
           notify={notify}
           sketching={sketching}
           sheetOnly={session.sheetOnly}
-          session={session.on ? { title, hint: session.hint, end: endSession, undo, connect: () => setModal('connect') } : undefined}
+          session={session.on ? { title, hint: session.hint, connect: () => setModal('connect') } : undefined}
         />
         {sideOpen && (
           <SidePanel

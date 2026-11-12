@@ -25,10 +25,6 @@ export interface PreviewControl {
   zoomToSelection(): void;
   /** Fit once the next drawing is in (after a tidy: it may land anywhere). */
   fitNext(): void;
-  /** Whether the whole drawing is in view now. */
-  wholly(): boolean;
-  /** After the next drawing: one that was wholly in view (`was`) and no longer is (a long drag) fits again. */
-  keepInView(was: boolean): void;
   /** Opens the name editor over an element, starting with `initial` when given (typed over it), else
    * its name selected; `fresh`: just made by a sketch key. False when it cannot be named in place. */
   rename(s: Selection, opts?: { initial?: string; fresh?: boolean }): boolean;
@@ -111,7 +107,7 @@ interface Props {
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
   children?: React.ReactNode;
-  /** Pixels at the bottom the drawing keeps clear of (a strip floats there); outgrowing the rest fits it again. */
+  /** Pixels at the bottom a fit keeps clear (a session: the toolbar and the keys over it); outgrowing the rest fits it again. */
   clearBottom?: number;
 }
 
@@ -387,9 +383,11 @@ export function Preview(p: Props) {
   }, [result, docKey, fit]);
 
   // A drawing that was fitted and that nobody has panned or zoomed since fits again when the pane
-  // changed size (the inspector, the YAML pane), or when it grew past the pane's edges. Not under a
-  // click in progress: a first click that opens the inspector must leave the second of a double-click
-  // on the same element, so it waits until the pointer has been still for a moment.
+  // changed size (the YAML pane, the window). In the editor not when the drawing grows past the edges:
+  // the zoom only changes when asked (a new box is brought into view by panning, below). With a band to
+  // keep clear (a session, `clearBottom`) it does: the sheet never runs under the toolbar there. Not
+  // under a click in progress: a first click must leave the second of a double-click on the same
+  // element, so it waits until the pointer has been still for a moment.
   const lastDown = useRef(0);
   const settle = useRef(0);
   const settleState = useRef({ view, editing: !!editing, fit });
@@ -398,8 +396,8 @@ export function Preview(p: Props) {
     const f = frame.current;
     if (!f || !result?.width || !result.height || view !== fittedView.current) return;
     const paneMoved = f.clientWidth !== fittedPane.current.w || f.clientHeight !== fittedPane.current.h;
-    const fits = view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - (p.clearBottom ?? BAR / 2);
-    if (!paneMoved && fits) return;
+    const outgrown = p.clearBottom != null && !(view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - p.clearBottom);
+    if (!paneMoved && !outgrown) return;
     const run = () => {
       const st = settleState.current;
       if (st.view !== fittedView.current) return;
@@ -436,33 +434,18 @@ export function Preview(p: Props) {
     // Clear of the tools as fit() is: viewFor keeps its own 48 px on top of `top`.
     setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { top: Math.max(0, floatingTop(f) - 48), bottom: BAR, max: 2, min: MIN }));
   };
-  const wholly = () => {
-    const f = frame.current;
-    if (!f || !result?.width || !result.height) return false;
-    return view.x >= -1 && view.y >= -1 && view.x + result.width * view.scale <= f.clientWidth + 1 && view.y + result.height * view.scale <= f.clientHeight - BAR / 2 + 1;
-  };
-  /** How far (px) the drawing runs past the pane's edges, at the most. */
-  const outOfView = () => {
-    const f = frame.current;
-    if (!f || !result?.width || !result.height) return 0;
-    return Math.max(0, -view.x, -view.y, view.x + result.width * view.scale - f.clientWidth, view.y + result.height * view.scale - (f.clientHeight - BAR / 2));
-  };
-  const refit = useRef<{ always: boolean; was: boolean } | null>(null);
+  /** A tidy asked for a fit once its drawing is in. */
+  const refit = useRef(false);
   useEffect(() => {
-    const r = refit.current;
-    if (!r || !result?.svg) return;
-    refit.current = null;
-    // A drag that took a real part of it out of sight (not a few pixels past the edge: that would
-    // make the drawing jump under a careful placement).
-    if (r.always || (r.was && outOfView() > 48)) requestAnimationFrame(() => fit(true));
+    if (!refit.current || !result?.svg) return;
+    refit.current = false;
+    requestAnimationFrame(() => fit(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per drawing: the refit asked for before it
   }, [result]);
   useImperativeHandle(p.control, () => ({
     fit,
     zoomToSelection,
-    fitNext: () => void (refit.current = { always: true, was: true }),
-    wholly,
-    keepInView: (was: boolean) => void (refit.current = { always: false, was }),
+    fitNext: () => void (refit.current = true),
     rename: (s, opts) => editLabel(s, undefined, opts),
     renaming: () => editingNow.current,
   }));
@@ -1063,12 +1046,13 @@ export function Preview(p: Props) {
           return cancel();
         }
         if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
+        p.onKeyDown(e);
         // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
-        if (e.target === e.currentTarget && (is(e, 'fit') || is(e, 'zoom-selection'))) {
+        // After the app's keys: a name being typed (in a session) keeps its "!" and "@".
+        if (!e.defaultPrevented && e.target === e.currentTarget && (is(e, 'fit') || is(e, 'zoom-selection'))) {
           e.preventDefault();
           return is(e, 'fit') ? fit() : zoomToSelection();
         }
-        p.onKeyDown(e);
       }}
     >
       {empty ? (

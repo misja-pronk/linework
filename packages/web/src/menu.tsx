@@ -13,9 +13,10 @@ export function Menu({ onClose, children }: { onClose(): void; children: React.R
     const outside = (e: PointerEvent) => {
       if (!el.current?.parentElement?.contains(e.target as Node)) onClose();
     };
-    window.addEventListener('pointerdown', outside);
+    // In the capture phase: the toolbar keeps its pointer events from the drawing, not from this.
+    window.addEventListener('pointerdown', outside, true);
     return () => {
-      window.removeEventListener('pointerdown', outside);
+      window.removeEventListener('pointerdown', outside, true);
       before?.focus?.();
     };
   }, [onClose]);
