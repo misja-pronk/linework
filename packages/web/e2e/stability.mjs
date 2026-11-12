@@ -161,6 +161,61 @@ if (!down(start)) fail('the chain was not drawn top-down: ' + JSON.stringify(sta
   }
 }
 
+// 5. Edits in the editor's drawing keep the picture as a session's do: adding a box (the add menu), a
+//    rename, a delete, Undo and Redo each leave the boxes that were there within a few pixels.
+{
+  const text = `type: azure
+groups:
+  rg: { kind: resource-group, label: rg-shop }
+nodes:
+  gw: { kind: front-door, label: Front Door }
+  web: { kind: app-service, label: Web, in: rg }
+  api: { kind: function-app, label: API, in: rg }
+  auth: { kind: entra-id, label: Entra ID }
+  db: { kind: sql-database, label: Orders DB, in: rg }
+  cache: { kind: redis, label: Cache, in: rg }
+  bus: { kind: service-bus, label: Bus, in: rg }
+  worker: { kind: container-app, label: Worker, in: rg }
+edges:
+  - gw -> web
+  - web -> api
+  - api -> db
+  - api -> cache
+  - api -> bus
+  - bus -> worker
+  - web -> auth
+`;
+  await openDoc(text, 'editor.yaml', 'worker');
+  const select = async (id) => {
+    await page.locator(`.drawing [data-node="${id}"]`).click();
+    await wait(300);
+  };
+  const steps = [
+    ['add a Key Vault', async () => (await select('api'), await page.keyboard.press('Escape'), await page.keyboard.press('a'), await page.keyboard.type('key vault'), await page.keyboard.press('Enter'))],
+    ['rename Bus', async () => (await select('bus'), await page.keyboard.press('F2'), await page.keyboard.type('Orders bus'), await page.keyboard.press('Enter')), ['bus']],
+    ['delete Cache', async () => (await select('cache'), await page.keyboard.press('Delete'))],
+    ['undo', async () => (await page.locator('.preview').focus(), await page.keyboard.press('Meta+z'))],
+    ['redo', async () => (await page.locator('.preview').focus(), await page.keyboard.press('Meta+Shift+z'))],
+  ];
+  const worst = [];
+  for (const [what, act, skip = []] of steps) {
+    const before = await corners();
+    await act();
+    await wait(700);
+    const after = await corners();
+    const jumped = moved(before, after, skip, 4);
+    worst.push(`${what}: ${jumped.length ? jumped.join(', ') : 'nothing moved'}`);
+    if (jumped.length) fail(`${what} in the editor moved ${jumped.join(', ')} over 4px`);
+    if (what === 'delete Cache' && after.cache) fail('Delete did not remove Cache');
+    if (what === 'undo' && !after.cache) fail('Undo did not bring Cache back');
+    if (what === 'add a Key Vault') {
+      if (!after['key-vault']) fail('the add menu did not add a Key Vault');
+      await page.screenshot({ path: `${out}/s5-added.png` });
+    }
+  }
+  console.log(`editor edits: ${worst.join('; ')}`);
+}
+
 await browser.close();
 if (problems.length) {
   console.error(problems.map((p) => `FAIL ${p}`).join('\n'));
