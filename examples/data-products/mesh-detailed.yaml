@@ -1,8 +1,14 @@
-# The mesh of mesh.yaml, cut down to one product and what it reads, with ports and contracts written out.
-# The lines between fields are the relationships of the contracts (ODCS 3.1).
+# The mesh of mesh.yaml, cut down to Customer 360 and the Customers product it reads, with ports and contracts written out.
+# The line between the two contracts is a relationship of the contracts (ODCS 3.1): a profile's customer_id is a customer's key.
+# The orders contract, with the keys inside it (order_lines to orders), is its own view: the whole cut is too tall for one slide.
 type: data-products
 title: Customer 360 and what it reads
 subtitle: Ports, contracts and the keys between them
 view: detailed
-focus: { on: customer-360, hops: 2, direction: upstream }
+focus: { on: [customer-360, customers], hops: 1, direction: upstream }
 include: [mesh.yaml]
+
+views:
+  orders-contract:
+    title: The orders contract and the keys inside it
+    focus: { on: orders, hops: 1, direction: upstream }

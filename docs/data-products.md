@@ -16,7 +16,7 @@ The diagram is [examples/data-products/mesh.yaml](../examples/data-products/mesh
 
 ![Customer 360 with its ports and the contracts it reads](data-products/customer-360.png)
 
-This is [examples/data-products/mesh-detailed.yaml](../examples/data-products/mesh-detailed.yaml): the same mesh (`include: [mesh.yaml]`), cut down to one product and what it reads. The violet lines between fields are the `relationships` of the contracts, new in ODCS 3.1, drawn with crow's feet like in a database design:
+This is [examples/data-products/mesh-detailed.yaml](../examples/data-products/mesh-detailed.yaml): the same mesh (`include: [mesh.yaml]`), cut down to Customer 360 and the Customers product it reads, each with its contract. Its view `orders-contract` takes the orders contract on its own, with the keys inside it: the whole cut is too tall for one slide. The violet lines between fields are the `relationships` of the contracts, new in ODCS 3.1, drawn with crow's feet like in a database design:
 
 ```yaml
 schema:

@@ -1,6 +1,6 @@
 Customer 360 and what it reads
 
-Data products diagram: Ports, contracts and the keys between them. 8 elements in 2 groups, with 10 connections.
+Data products diagram: Ports, contracts and the keys between them. 6 elements in 2 groups, with 6 connections.
 
 Groups and elements
 - CRM accounts (Outside the mesh)
@@ -9,19 +9,15 @@ Groups and elements
   - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
   - customers (Data contract · v1.4.0 · confidential)
   - customer profiles (Data contract · v0.9.0)
-- Webshop order events (Outside the mesh)
 - Sales (Domain)
   - Orders (Source-aligned · v2.1.0 · Sales engineering)
-  - orders (Data contract · v2.1.0)
 
 Connections
 - CRM accounts connects to Customers.in:0.
 - Customers.out:customers connects to Customer 360.in:1 and is linked with customers.
 - Customer 360.out:profiles is linked with customer profiles.
 - customer profiles.field:0:customer_id connects to customers.field:0:customer_id.
-- Webshop order events connects to Orders.in:0.
-- Orders.out:orders connects to Customer 360.in:0 and is linked with orders.
-- orders connects to customers.field:0:customer_id and connects to orders.field:0:order_id.
+- Orders.out:orders connects to Customer 360.in:0.
 
 Key
 - Teal filled pill: Source-aligned
