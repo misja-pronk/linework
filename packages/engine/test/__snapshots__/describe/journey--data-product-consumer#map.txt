@@ -9,22 +9,22 @@ Persona: Mei Tanaka
 
 By phase
 - Find
-  - Searches the catalogue for customer data (feels hopeful, 3 of 5)
-    - Thinks: “Five results called customer. Which one is the real one?”
+  - Searches the catalogue (feels hopeful, 3 of 5)
+    - Thinks: “Five results called customer. Which is real?”
     - Through Data catalogue
-    - Pain: Duplicates and old tables in the results
+    - Pain: Duplicate and stale tables
     - Idea: Mark certified products in search
-  - Asks a colleague which product to use (feels unsure, 2 of 5)
+  - Asks a colleague which to use (feels unsure, 2 of 5)
     - Says: “Use Customer 360, the others are leftovers.”
     - Through Teams chat
     - With Senior analyst
     - Pain: The right product is tribal knowledge
     - Measured: Half a day
 - Understand
-  - Reads the product page and the data contract (feels reassured, 4 of 5)
-    - Says: “Owner, refresh time and quality checks, all on one page.”
-    - Through Customer 360 product page and Data contract
-    - Works well: Clear owner and service levels
+  - Reads the product page and contract (feels reassured, 4 of 5)
+    - Says: “Owner, refresh time and checks on one page.”
+    - Through Product page and Data contract
+    - Works well: Clear owner and SLAs
     - Works well: Sample data without a request
   - Checks freshness and quality scores (feels confident, 4 of 5)
     - Thinks: “Refreshed at six this morning. Good enough.”
@@ -33,24 +33,24 @@ By phase
     - Measured: 99.2% complete
 - Get access
   - Requests access to the output port (feels impatient, 2 of 5)
-    - Thinks: “Why do I have to explain the purpose three times?”
+    - Thinks: “Why explain the purpose three times?”
     - Through Access portal and Email
-    - With Data product owner
-    - Pain: Purpose is asked in three forms
-    - Pain: No status after submitting
-    - Idea: One request with the purpose attached to the contract
+    - With Product owner
+    - Pain: Purpose asked in three forms
+    - Pain: No status once sent
+    - Idea: One request, purpose on the contract
     - Measured: 4 days waiting
-  - Gets approval and a connection string (feels relieved, 3 of 5)
+  - Gets approval and credentials (feels relieved, 3 of 5)
     - Says: “Finally. Now where do I paste this?”
     - Through Email
-    - With Data product owner
+    - With Product owner
     - Pain: Connection details arrive by email
 - Use
-  - Queries the product from a notebook (feels productive, 5 of 5)
+  - Queries it from a notebook (feels productive, 5 of 5)
     - Says: “The join keys just work.”
     - Through Notebook and SQL endpoint
-    - Works well: Stable schema with clear keys
-    - Works well: Examples in the product page
+    - Works well: Stable schema, clear keys
+    - Works well: Examples on the page
     - Measured: First query in 20 min
   - Combines it with campaign data (feels puzzled, 3 of 5)
     - Thinks: “Customer id here, account id there.”
@@ -58,14 +58,14 @@ By phase
     - Pain: Identifiers differ across domains
     - Idea: Shared customer key in every contract
 - Give feedback
-  - Shares the result and rates the product (feels heard, 4 of 5)
-    - Says: “I left a note about the missing key. The owner replied the same day.”
+  - Shares and rates the result (feels heard, 4 of 5)
+    - Says: “I flagged a missing key. Fixed that day.”
     - Through Dashboard and Data catalogue
     - With Marketing lead
     - Works well: Feedback reaches the owning team
 
 Feeling
-Lowest at “Asks a colleague which product to use” (2 of 5); highest at “Queries the product from a notebook” (5 of 5).
+Lowest at “Asks a colleague which to use” (2 of 5); highest at “Queries it from a notebook” (5 of 5).
 
 Metrics
 - Question to first query: 6 days

@@ -1,13 +1,12 @@
 Incident handling
 
-Process diagram: From the first alert to the review, and who steps in when it is a major one. 12 elements in 4 lanes, with 13 connections.
+Process diagram: From the first alert to the review, and who steps in when it is a major one. 11 elements in 4 lanes, with 12 connections.
 
 Lanes and steps
 - Monitoring (lane)
   - Alert fires (signal start event)
 - On-call engineer (lane)
-  - Acknowledge page
-  - Assess impact
+  - Triage (acknowledge, assess impact)
   - Major incident? (decision decision)
   - Mitigate (roll back or fail over)
   - Service restored? (decision decision)
@@ -22,24 +21,21 @@ Lanes and steps
 
 Main path
 1. Alert fires
-2. Acknowledge page
-3. Assess impact
-4. Major incident?
-5. Mitigate: Major incident? no
-6. Service restored?
-7. Close incident: Service restored? yes
-8. Write review
-9. Incident closed
+2. Triage
+3. Major incident?
+4. Mitigate: Major incident? no
+5. Service restored?
+6. Close incident: Service restored? yes
+7. Write review
+8. Incident closed
 
 Connections
-- Alert fires leads to Acknowledge page.
-- Acknowledge page leads to Assess impact.
-- Assess impact leads to Major incident?
+- Alert fires leads to Triage.
+- Triage leads to Major incident?
 - Major incident? leads to Mitigate (no) and leads to Declare incident (yes).
 - Mitigate leads to Service restored?
-- Declare incident leads to Post status update.
+- Declare incident leads to Mitigate and leads to Post status update.
 - Service restored? leads to Close incident (yes) and leads to Escalate to owning team (no).
-- Post status update leads to Mitigate.
 - Close incident leads to Write review.
 - Escalate to owning team leads to Mitigate.
 - Write review leads to Incident closed.
@@ -47,3 +43,4 @@ Connections
 Key
 - Solid line, thick: Happy path
 - Solid line: Other paths
+- Dashed line: Message

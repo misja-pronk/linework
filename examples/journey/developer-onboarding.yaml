@@ -31,7 +31,7 @@ steps:
     gains: A buddy is assigned on day one
 
   access:
-    label: Requests access to the repositories and the cloud
+    label: Requests access to code and cloud
     in: day-one
     feel: 2 waiting
     touchpoint: [Service desk portal, Email]

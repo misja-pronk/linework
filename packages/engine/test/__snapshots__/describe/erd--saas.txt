@@ -7,52 +7,52 @@ Tables
   - id (uuid, primary key)
   - name (text)
   - plan (text)
-- users
+- invoices
   - id (uuid, primary key)
-  - email (text, unique, personal data)
-  - name (text, personal data)
-- memberships
-  - tenant_id (uuid, primary key, foreign key to tenants.id)
-  - user_id (uuid, primary key, foreign key to users.id)
-  - role_id (uuid, foreign key to roles.id)
+  - tenant_id (uuid, foreign key to tenants.id)
+  - amount (numeric(10,2))
+  - paid_at (timestamptz?, optional)
 - roles
   - id (uuid, primary key)
   - tenant_id (uuid, foreign key to tenants.id)
   - name (text)
-- projects
-  - id (uuid, primary key)
-  - tenant_id (uuid, foreign key to tenants.id)
-  - owner_id (uuid, foreign key to users.id)
-  - name (text)
+- memberships
+  - tenant_id (uuid, primary key, foreign key to tenants.id)
+  - user_id (uuid, primary key, foreign key to users.id)
+  - role_id (uuid, foreign key to roles.id)
 - tasks
   - id (uuid, primary key)
   - project_id (uuid, foreign key to projects.id)
   - assignee_id (uuid?, foreign key to users.id, optional)
   - title (text)
   - done (boolean)
+- users
+  - id (uuid, primary key)
+  - email (text, unique, personal data)
+  - name (text, personal data)
 - comments
   - id (uuid, primary key)
   - task_id (uuid, foreign key to tasks.id)
   - author_id (uuid, foreign key to users.id)
   - body (text)
-- invoices
+- projects
   - id (uuid, primary key)
   - tenant_id (uuid, foreign key to tenants.id)
-  - amount (numeric(10,2))
-  - paid_at (timestamptz?, optional)
+  - owner_id (uuid, foreign key to users.id)
+  - name (text)
 
 Relations
+- invoices.tenant_id → tenants.id: each invoices row has exactly one tenants row; each tenants row has zero or many invoices rows.
+- roles.tenant_id → tenants.id: each roles row has exactly one tenants row; each tenants row has zero or many roles rows.
 - memberships.tenant_id → tenants.id: each memberships row has exactly one tenants row; each tenants row has zero or many memberships rows.
 - memberships.user_id → users.id: each memberships row has exactly one users row; each users row has zero or many memberships rows.
 - memberships.role_id → roles.id: each memberships row has exactly one roles row; each roles row has zero or many memberships rows.
-- roles.tenant_id → tenants.id: each roles row has exactly one tenants row; each tenants row has zero or many roles rows.
-- projects.tenant_id → tenants.id: each projects row has exactly one tenants row; each tenants row has zero or many projects rows.
-- projects.owner_id → users.id: each projects row has exactly one users row; each users row has zero or many projects rows.
 - tasks.project_id → projects.id: each tasks row has exactly one projects row; each projects row has zero or many tasks rows.
 - tasks.assignee_id → users.id: each tasks row has zero or one users row; each users row has zero or many tasks rows.
 - comments.task_id → tasks.id: each comments row has exactly one tasks row; each tasks row has zero or many comments rows.
 - comments.author_id → users.id: each comments row has exactly one users row; each users row has zero or many comments rows.
-- invoices.tenant_id → tenants.id: each invoices row has exactly one tenants row; each tenants row has zero or many invoices rows.
+- projects.tenant_id → tenants.id: each projects row has exactly one tenants row; each tenants row has zero or many projects rows.
+- projects.owner_id → users.id: each projects row has exactly one users row; each users row has zero or many projects rows.
 
 Key
 - Amber key symbol: Primary key

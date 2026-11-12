@@ -2,33 +2,30 @@ type: erd
 title: Multi-tenant SaaS
 subtitle: Every row belongs to a tenant
 
+# The order of the tables steers where they stand: in this order the drawing fits one slide,
+# with tenants on top and users at the bottom.
 tables:
   tenants:
     columns:
       id: uuid pk
       name: text
       plan: text
-  users:
+  invoices:
     columns:
       id: uuid pk
-      email: text unique pii
-      name: text pii
-  memberships:
-    columns:
-      tenant_id: uuid pk fk tenants
-      user_id: uuid pk fk users
-      role_id: uuid fk roles
+      tenant_id: uuid fk tenants
+      amount: numeric(10,2)
+      paid_at: timestamptz null
   roles:
     columns:
       id: uuid pk
       tenant_id: uuid fk tenants
       name: text
-  projects:
+  memberships:
     columns:
-      id: uuid pk
-      tenant_id: uuid fk tenants
-      owner_id: uuid fk users
-      name: text
+      tenant_id: uuid pk fk tenants
+      user_id: uuid pk fk users
+      role_id: uuid fk roles
   tasks:
     columns:
       id: uuid pk
@@ -36,15 +33,20 @@ tables:
       assignee_id: uuid fk users null
       title: text
       done: boolean
+  users:
+    columns:
+      id: uuid pk
+      email: text unique pii
+      name: text pii
   comments:
     columns:
       id: uuid pk
       task_id: uuid fk tasks
       author_id: uuid fk users
       body: text
-  invoices:
+  projects:
     columns:
       id: uuid pk
       tenant_id: uuid fk tenants
-      amount: numeric(10,2)
-      paid_at: timestamptz null
+      owner_id: uuid fk users
+      name: text
