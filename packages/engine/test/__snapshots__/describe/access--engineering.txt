@@ -6,27 +6,27 @@ Groups and elements
 - Engineering (department = Engineering)
 - Engineering (Catalog)
   - Approval: manager (180 days · review quarterly)
-  - Developer access (Access package)
   - Approval: manager → sg-platform-admins (30 days)
+  - Developer access (Access package)
   - Platform admin (Access package)
 - sg-developers (Security group)
 - GitHub Enterprise (Application)
+- sg-platform-admins (Role-assignable group)
 - Test (Subscription)
 - Production (Subscription)
   - rg-shop (Resource group)
-- sg-platform-admins (Role-assignable group)
 - Contoso partners (Connected organisation)
 - Alice (User)
 - Bob (Contoso) (Guest)
 - GitHub deploy (Service principal)
 
 Connections
-- Engineering (department = Engineering) connects to Approval: manager.
+- Engineering (department = Engineering) connects to Approval: manager and connects to Approval: manager → sg-platform-admins.
 - Approval: manager connects to Developer access.
-- Developer access grants sg-developers and grants GitHub Enterprise (User).
-- sg-developers connects to Approval: manager → sg-platform-admins, is Contributor on Test and is Reader on Production.
 - Approval: manager → sg-platform-admins connects to Platform admin.
+- Developer access grants sg-developers and grants GitHub Enterprise (User).
 - Platform admin grants sg-platform-admins.
+- sg-developers is Contributor on Test and is Reader on Production.
 - sg-platform-admins is Owner on Production.
 - Contoso partners connects to Approval: manager.
 - Alice holds Developer access.
