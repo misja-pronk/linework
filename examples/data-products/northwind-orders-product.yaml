@@ -7,7 +7,7 @@
 type: data-products
 title: Orders data product
 subtitle: Sources, ports, contract and consumers of one data product
-view: overview   # overview or detailed
+view: overview   # overview, or detailed-<domain> (detailed-sales): a domain's products with ports and contracts
 detail: [orders]
 direction: right
 

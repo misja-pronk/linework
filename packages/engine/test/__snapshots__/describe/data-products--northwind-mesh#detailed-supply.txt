@@ -1,0 +1,22 @@
+Northwind data mesh
+
+Data products, supply chain in detail: Supply chain in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Supply chain (Domain · Supply chain data)
+  - Warehouse management (Source · Database)
+  - Stock levels (Source-aligned · v1.1.0 · Warehouse team)
+  - Demand forecast (Consumer-aligned · beta · v0.4.0 · Planning analytics)
+- Replenishment (Application)
+- Orders (Sales · Source-aligned · v2.3.0 · Order management team)
+
+Connections
+- Warehouse management connects to Stock levels.in:0.
+- Stock levels.out:stock connects to Demand forecast.in:1.
+- Demand forecast.out:forecast connects to Replenishment.
+- Orders connects to Demand forecast.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Amber filled pill: Consumer-aligned
+- Solid line: Data flow

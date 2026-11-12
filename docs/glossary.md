@@ -7,7 +7,7 @@ One name for each thing, the same in the editor, these docs and the `carto` comm
 | **Diagram** | One YAML file, of one type. | chart, document |
 | **Type** | What kind of diagram it is. The editor shows its name (*Architecture*); the YAML writes its id (`type: systems`). Both are listed below. | template |
 | **Template** | A ready diagram of a type to start from, in the start dialog (*New*). | example (the examples are the files in `examples/`) |
-| **View** | One drawing of a diagram, picked from its `views:` (or from what the type draws itself: overview, detailed, a sequence's phases). *As written* is the diagram without a view. | page, tab |
+| **View** | One drawing of a diagram, picked from its `views:` (or from what the type draws itself: a data mesh's overview and one detailed view per domain, a sequence's phases). *As written* is the diagram without a view. | page, tab |
 | **Drawing** | What the YAML is drawn as, in the editor and in exports. | canvas (only the area it sits on) |
 | **Builder** | The way of working by dragging shapes onto the drawing and filling in the side panel, without YAML. `⌘\` switches between it and YAML. | Build visually (only as its description), visual mode |
 | **YAML** | The way of working by writing the YAML, with the drawing beside it. | code view, Write YAML |

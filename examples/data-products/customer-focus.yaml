@@ -1,7 +1,7 @@
 type: data-products
 title: Customer 360 in focus
 subtitle: From operational systems to fit-for-purpose products
-view: overview   # overview or detailed
+view: overview   # overview, or detailed-<domain> (detailed-sales): a domain's products with ports and contracts
 detail: [customer-360]
 
 domains:

@@ -343,8 +343,10 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let includes: string[] | undefined;
   let onlyViews = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
-  const ownViews = type.views?.(rest);
-  const ownView = opts.view && ownViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
+  const allViews = type.views?.(rest);
+  const ownView = opts.view && allViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
+  // A hidden view is drawn when asked for by name, and offered nowhere.
+  const ownViews = allViews?.filter((v) => !v.hidden);
   if (ownView) opts = { ...opts, view: undefined };
   if (Object.keys(rest).some(isModelKey)) {
     const composed = compose(rest, { keys, load: opts.load, schemaOf: (t) => (t === 'model' ? modelSchema : included), report, self: opts.file, text });
@@ -363,7 +365,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
   // A focus asked for is about elements and lines: a diagram that opens as one of its tables (view: access) is focused in the type's first view, its graph.
-  else if (opts.focus != null && ownViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews[0]!.name };
+  else if (opts.focus != null && allViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews![0]!.name };
 
   // Problems in entries that came from another file point at its include entry.
   const where = (path: Path, message: string): [Path, string] => {
@@ -382,7 +384,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Another of the type's own views than the one the file is written for: its subtitle is about that
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
   const written = typeof rest.view === 'string' ? rest.view : (ownViews?.find((v) => v.default) ?? ownViews?.[0])?.name;
-  const viewTitle = ownView && ownView !== written ? ownViews!.find((v) => v.name === ownView)?.title : undefined;
+  const viewTitle = ownView && ownView !== written ? allViews!.find((v) => v.name === ownView)?.title : undefined;
   if (viewTitle && graph.title) graph = { ...graph, subtitle: viewTitle };
   // A focus cuts what is left down to a neighbourhood: asked for from outside, else the view's own, else the diagram's.
   const focusAt: Path = model?.view ? ['views', model.view.name, 'focus'] : ['focus'];
@@ -440,7 +442,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
   let seed: LayoutMemory | undefined;
   // A table (an access matrix) is not laid out: nothing to share.
-  const table = (name: string | undefined) => !!ownViews?.find((v) => v.name === name)?.table;
+  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === name)?.table;
   // Views of different kinds (a C4 context and a component view) are different pictures.
   const kindOf = (name: string) => model?.views.get(name)?.kind;
   if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
@@ -472,7 +474,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // A table of the type's own (who × where) names none of the elements the steps are about: it is not told in them.
   const drawnView = (built as { view?: unknown }).view;
   const asTable = typeof drawnView === 'string' && table(drawnView);
-  const told = model?.view ? model.view.present : asTable ? undefined : (stepsRef as unknown[] | undefined);
+  // A view of only a part (one domain of a mesh) is not the whole story the steps tell.
+  const asPart = typeof drawnView === 'string' && !!allViews?.find((v) => v.name === drawnView)?.part;
+  const told = model?.view ? model.view.present : asTable || asPart ? undefined : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.

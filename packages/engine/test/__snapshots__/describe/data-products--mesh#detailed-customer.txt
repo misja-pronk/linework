@@ -1,0 +1,27 @@
+Web shop data mesh
+
+Data products, customer in detail: Customer in detail. 7 elements in 1 group, with 7 connections.
+
+Groups and elements
+- CRM accounts (Outside the mesh)
+- Customer (Domain)
+  - Customers (Source-aligned · v1.4.0 · CRM team)
+  - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
+  - customers (Data contract · v1.4.0 · confidential)
+  - customer profiles (Data contract · v0.9.0)
+- Campaign tool (Application)
+- Orders (Sales · Source-aligned · v2.1.0 · Sales engineering)
+
+Connections
+- CRM accounts connects to Customers.in:0.
+- Customers.out:customers connects to Customer 360.in:1 and is linked with customers.
+- Customer 360.out:profiles connects to Campaign tool and is linked with customer profiles.
+- customer profiles.field:0:customer_id connects to customers.field:0:customer_id.
+- Orders connects to Customer 360.in:0.
+
+Key
+- Teal filled pill: Source-aligned
+- Indigo filled pill: Aggregate
+- Solid line: Data flow
+- Dashed violet line: Data contract
+- Solid violet line with ticks: Foreign key
