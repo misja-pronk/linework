@@ -134,6 +134,23 @@ describe('carto validate on a slide', () => {
     write('phased.yaml', `${head}  - divider: One\n${msgs(15)}  - divider: Two\n${msgs(1)}`);
     expect((await carto('validate', 'phased.yaml')).err).toMatch(/warning {2}View "phase-one": on a 16:9 slide/);
   }, 60_000);
+
+  it('checks the steps as their slides show them, once per drawing, naming the step that takes the room', async () => {
+    // Just readable on a slide as a whole, and so are its steps: each title and caption fits on one line.
+    const ok = fs.readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8');
+    write('ids.yaml', ok);
+    const clean = await carto('validate', 'ids.yaml');
+    expect(clean.code).toBe(0);
+    expect(clean.err).not.toContain('warning');
+    // One caption that runs to two lines makes every step smaller: said once, naming that step.
+    const caption = /caption: (Only northwind\/shop[^\n]*)/.exec(ok)![1]!;
+    write('ids.yaml', ok.replace(caption, `${caption} The workflow presents that token itself, and the federated credential checks its subject.`));
+    const r = await carto('validate', 'ids.yaml');
+    expect(r.code).toBe(0);
+    const warnings = r.err.split('\n').filter((l) => l.includes('warning'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/warning {2}All 5 steps: on a 16:9 slide their smallest text is [\d.]+ pt, under 6 pt \(the drawing alone: [\d.]+ pt\): the title and caption of step 2 "Deploying from GitHub" run to 2 lines/);
+  }, 60_000);
 });
 
 describe('carto diff', () => {

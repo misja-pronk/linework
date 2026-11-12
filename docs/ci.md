@@ -22,6 +22,8 @@ carto validate docs/**/*.yaml
 
 Prints `file ok` or the problems with line numbers, and exits 1 when a file has errors. Included files (`include:`) are read too, so a diagram that breaks because its model file changed is caught.
 
+It also warns (without failing) when text would be too small to read on a slide: under 6 pt with the drawing, and each of its views, fitted on a 16:9 slide (or the page `aspect:` names). A diagram with `steps:` is checked the way PowerPoint shows it too, a slide per step with the step's title and caption on it: one warning per drawing, naming the step whose caption takes the room (see [Steps](steps.md#problems)). A whole sequence diagram, which is read scrolling, only gets a hint to present it per phase.
+
 ### Saved positions that no longer fit: `--drift`
 
 When you drag things in the editor, their positions are saved next to the diagram in `<name>.layout.json`. Rename or remove an element in the YAML and its saved position stays behind. Nothing breaks: the entry is ignored. But the file slowly fills with entries that mean nothing, and a pin you thought you had is silently gone.

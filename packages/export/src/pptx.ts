@@ -89,6 +89,8 @@ export interface SlideText {
   /** The step shown, from 1. */
   step?: number;
   smallestPt: number;
+  /** Points per drawing pixel: how large the drawing is on this slide. */
+  scale: number;
 }
 
 const INCH = 914400;
@@ -97,6 +99,21 @@ const MARGIN = Math.round(0.45 * INCH);
 const MAX_K = 1.6 * PX;
 /** A step's caption on a slide: sizes in points, the row in inches, `px` the caption size for wrapping. */
 const CAPTION = { title: 15, text: 14, row: 0.3, px: (14 * 12700) / PX };
+/**
+ * A step's caption beside the drawing instead (inches): where a drawing is too tall for what the
+ * slide leaves under its title, the width it leaves free holds the words and the drawing keeps the full height.
+ */
+const COLUMN = { min: 2.6, max: 3.6, gap: 0.35 };
+
+/** A step's title and caption as one paragraph, the title in bold. */
+const words = (s: StepState) => [s.title, s.caption].filter(Boolean).join('  ');
+/** Lines a step's paragraph takes at this width (in drawing px); the bold title is a little wider than measured. */
+const lines = (s: StepState, width: number) => (words(s) ? wrap(words(s), CAPTION.px, 400, width * 0.95).length : 0);
+
+/** Lines a step's title and caption take under the title of one of our own slides (16:9 unless said). */
+export function stepCaptionLines(s: StepState, aspect: '16:9' | '4:3' = '16:9'): number {
+  return lines(s, ((aspect === '4:3' ? 9144000 : 12192000) - 2 * MARGIN) / PX);
+}
 
 /** The first name of a CSS font stack. */
 const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
@@ -188,35 +205,56 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     let id = 1;
     const next = () => ++id;
     let tree = '';
-    let top = room.y;
     const told = !!view && view.caption !== false;
     // A template's text placeholder besides the content takes the step's caption, or else the subtitle.
     const captionPh = plan?.caption;
-    if (graph.title && plan?.title) tree += filled(next(), plan.title, [{ text: graph.title }]);
-    else if (graph.title) {
-      tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: top, w: room.w, h: 0.5 * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
-      top += 0.5 * INCH;
-    }
-    if (graph.subtitle && captionPh && !told) tree += filled(next(), captionPh, [{ text: graph.subtitle }], true);
-    else if (graph.subtitle && (graph.title || tpl)) {
-      tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: top, w: room.w, h: 0.32 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle, size: 13, color: theme.textMuted }] }] } }, font);
-      top += 0.32 * INCH;
-    }
-    if (top > room.y && !tpl) top += 0.18 * INCH;
-    else if (top > room.y) top += 0.1 * INCH;
-    // A step's title and caption sit under the drawing, as high as the longest of all steps, so the drawing never moves.
-    const said = (s: StepState) => [...(s.title ? [{ text: s.title, title: true }] : []), ...(s.caption ? wrap(s.caption, CAPTION.px, 400, room.w / PX - 80).map((text) => ({ text, title: false })) : [])];
-    // With a caption placeholder only the step number needs a row of its own.
-    const below = !told ? 0 : captionPh ? Math.round(CAPTION.row * INCH) : Math.round((0.18 + CAPTION.row * Math.max(1, ...view.states.map((s) => said(s).length))) * INCH);
-    let smallest = Infinity;
+    const bottom = room.y + room.h;
+    const titled = !!graph.title && !plan?.title;
+    const subtitled = !!graph.subtitle && !(captionPh && !told) && (!!graph.title || !!tpl);
+    /** The room under the title rows starts this far down. */
+    const under = (top: number) => (top > room.y ? top + (tpl ? 0.1 : 0.18) * INCH : top);
+    const titleTop = room.y + (titled ? 0.5 * INCH : 0);
+    // A step's title and caption are one paragraph, the title in bold. On our own slides (and a template's
+    // without a caption placeholder) it stands under the slide's title where the subtitle would, as high as
+    // the longest of all steps so the drawing never moves; or beside the drawing, where the drawing is too
+    // tall for the slide and that keeps it larger. The subtitle then goes to the speaker notes.
+    const rows = (width: number) => Math.max(1, ...(view?.states ?? []).map((s) => lines(s, width)));
+    const capTop = under(titleTop + CAPTION.row * INCH * rows(room.w / PX - (titled ? 0 : 80)));
+    const subTop = under(titleTop + (subtitled ? 0.32 * INCH : 0));
+    // With a caption placeholder only the step number needs a row of its own, under the drawing.
+    const below = told && captionPh ? Math.round(CAPTION.row * INCH) : 0;
+    const c = await inThemeFonts(theme, () => contentSize(graph, placed, theme, view));
+    const fit = (w: number, h: number) => Math.min(w / Math.max(1, c.width), h / Math.max(1, c.height), MAX_K);
     // Scale the drawing into what is left, centred, never bigger than MAX_K.
-    const area = { x: room.x, y: top, w: room.w, h: room.y + room.h - top - below };
+    let area = { x: room.x, y: told && !captionPh ? capTop : subTop, w: room.w, h: 0 };
+    area.h = bottom - area.y - below;
+    let k = fit(area.w, area.h);
+    /** The caption's column beside the drawing: its left edge, top and width. */
+    let side: { x: number; y: number; w: number } | undefined;
+    if (told && !captionPh) {
+      const h = bottom - subTop;
+      const gap = COLUMN.gap * INCH;
+      // As wide as the drawing at full height leaves free, within bounds that keep the lines readable.
+      const w = Math.min(COLUMN.max * INCH, Math.max(COLUMN.min * INCH, room.w - c.width * fit(room.w, h) - gap));
+      const besideK = fit(room.w - w - gap, h);
+      // The column holds the longest caption of all steps, its title on a line of its own, with the step number under it.
+      const fits = (0.18 + CAPTION.row * (rows(w / PX) + 2)) * INCH <= h;
+      if (fits && besideK > k * 1.01) {
+        k = besideK;
+        const used = c.width * k + gap + w;
+        area = { x: room.x + (room.w - used) / 2, y: subTop, w: c.width * k, h };
+        side = { x: area.x + area.w + gap, y: tpl ? area.y : area.y + (area.h - c.height * k) / 2, w };
+      }
+    }
+    const header = told && !captionPh && !side;    if (graph.title && plan?.title) tree += filled(next(), plan.title, [{ text: graph.title }]);
+    else if (graph.title) tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: room.y, w: room.w - (told && !captionPh ? INCH : 0), h: 0.5 * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
+    if (graph.subtitle && captionPh && !told) tree += filled(next(), captionPh, [{ text: graph.subtitle }], true);
+    else if (subtitled && !header) tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: titleTop, w: room.w, h: 0.32 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle!, size: 13, color: theme.textMuted }] }] } }, font);
+    let smallest = Infinity;
     // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
     // The drawing is one group with alt text: a screen reader hears what the diagram shows, then each shape's own.
     const whole = next();
     const drawing = await inThemeFonts(theme, () => {
-      const c = contentSize(graph, placed, theme, view);
-      const k = Math.min(area.w / Math.max(1, c.width), area.h / Math.max(1, c.height), MAX_K);
       // In a template the drawing starts under the title, as a slide's content does; on our own slides it is centred.
       const y = tpl ? area.y : area.y + (area.h - c.height * k) / 2;
       const onPicture = (kind: PictureKind) => {
@@ -228,19 +266,26 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
     tree += group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [drawing], altOf(d, 1500, view));
-    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10 });
+    if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10, scale: k / 12700 });
+    const title = (s: StepState): Run[] => (s.title ? [{ text: s.title, size: CAPTION.title, bold: true, color: theme.text }] : []);
+    const caption = (s: StepState): Run[] => (s.caption ? [{ text: s.caption, size: CAPTION.text, color: s.title ? theme.textMuted : theme.text }] : []);
+    const number = (frame: { x: number; y: number; w: number; h: number }, anchor: 't' | 'ctr') => shape({ id: next(), name: 'Step number', textBox: true, frame, geom: { prst: 'rect' }, text: { anchor, paras: [{ align: 'r', runs: [{ text: `${view!.index + 1} / ${view!.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
     if (told && state && captionPh) {
-      const lines = said(state).length ? [...(state.title ? [{ text: state.title, bold: true }] : []), ...(state.caption ? [{ text: state.caption }] : [])] : [];
+      const lines = words(state) ? [...(state.title ? [{ text: state.title, bold: true }] : []), ...(state.caption ? [{ text: state.caption }] : [])] : [];
       if (lines.length) tree += filled(next(), captionPh, lines, true);
+      tree += number({ x: room.x + room.w - INCH, y: bottom - below, w: INCH, h: CAPTION.row * INCH }, 't');
+    } else if (told && state && side) {
+      // Beside the drawing, from its top down: a short accent rule, the title, the caption.
+      const y = side.y + 0.18 * INCH;
+      tree += shape({ id: next(), name: 'Step rule', frame: { x: side.x, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
+      const paras = [title(state), caption(state)].filter((r) => r.length).map((runs) => ({ runs }));
+      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - CAPTION.row * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
+      tree += number({ x: room.x + room.w - INCH, y: bottom - CAPTION.row * INCH, w: INCH, h: CAPTION.row * INCH }, 't');
     } else if (told && state) {
-      const y = room.y + room.h - below + 0.18 * INCH;
-      tree += shape({ id: next(), name: 'Step rule', frame: { x: room.x, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
-      const paras = said(state).map((l) => ({ runs: [{ text: l.text, size: l.title ? CAPTION.title : CAPTION.text, bold: l.title, color: l.title || !state.title ? theme.text : theme.textMuted }] }));
-      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y, w: room.w - INCH, h: below - 0.18 * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
-    }
-    if (told && state) {
-      const y = room.y + room.h - below + (captionPh ? 0 : 0.18 * INCH);
-      tree += shape({ id: next(), name: 'Step number', textBox: true, frame: { x: room.x + room.w - INCH, y, w: INCH, h: CAPTION.row * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ align: 'r', runs: [{ text: `${view.index + 1} / ${view.states.length}`, size: 11, color: theme.textFaint }] }] } }, font);
+      // Under the title, where the subtitle would be: the title in bold, the caption after it.
+      const runs = [...title(state), ...(state.title && state.caption ? [{ text: '  ', size: CAPTION.text, color: theme.text }] : []), ...caption(state)];
+      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: titleTop, w: room.w - (titled ? 0 : INCH), h: capTop - titleTop }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs }] } }, font);
+      tree += number(titled ? { x: room.x + room.w - INCH, y: room.y, w: INCH, h: 0.5 * INCH } : { x: room.x + room.w - INCH, y: titleTop, w: INCH, h: CAPTION.row * INCH }, titled ? 'ctr' : 't');
     }
     // The template's footer and slide number, as its layout shows them.
     for (const f of plan?.footers ?? []) tree += footer(next(), f);
@@ -250,7 +295,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
-    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(header && graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 

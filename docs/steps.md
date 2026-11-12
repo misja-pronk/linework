@@ -97,6 +97,7 @@ A selector that names nothing is reported on its own line and column, like any o
 - `Nothing drawn here is called "apii"`: an id, group, tag or kind that is not in this drawing (or not in this view).
 - `"web ->" misses an end`: a route with an empty end.
 - `There is no line between "web" and "db"`: a warning; the step is drawn without that part of the route.
+- `All 5 steps: on a 16:9 slide their smallest text is 5.7 pt, under 6 pt …`: a warning from `carto validate`, which checks each step's slide as PowerPoint makes it. The steps of a drawing share one layout, so the longest title and caption decide how much room all of them leave the drawing; the warning names the steps whose words run to more than one line. Keep each to one line (about 110 characters, title included), and notes short.
 
 ## In the editor
 
@@ -146,7 +147,7 @@ carto deck *.yaml -o deck.pptx               # every diagram; one slide per step
 | Format | With steps |
 | --- | --- |
 | SVG, PNG | One drawing: where the steps end, or one step with `--step n`. `--all-steps` writes a numbered file per step. The caption and `3 / 7` are part of the picture |
-| PowerPoint | One slide per step. Shapes are native and stand in the same place on every slide, so the slides build up cleanly and stay editable. Title and caption are text on the slide and in the speaker notes; the steps of one drawing fade into each other |
+| PowerPoint | One slide per step. Shapes are native and stand in the same place on every slide, so the slides build up cleanly and stay editable. The step's title (in bold) and caption are text on the slide, under the slide title where the subtitle would be (the subtitle moves to the speaker notes); beside the drawing instead when the drawing is too tall for the room under the title. They are in the speaker notes too; the steps of one drawing fade into each other |
 | PDF | One page per step, all the same size |
 
 - Without `--step` (and in the editor and the docs gallery) the drawing is where the story ends: what a step showed and a later one hid (`hide:`) is not drawn, so today's lines and the proposal's are never shown at once; the rest is at full strength, without a caption. In the editor what was hidden stays, quiet, so it can still be picked and edited.

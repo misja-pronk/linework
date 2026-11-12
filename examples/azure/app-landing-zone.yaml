@@ -63,11 +63,11 @@ edges:
 steps:
   - One subscription for the customer portal, with a resource group per concern.
   - title: Out through the hub
-    caption: The app's outbound traffic leaves through its integration subnet, whose route table sends it to the hub firewall.
+    caption: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
     path: app -> rt -> afw
   - title: Data stays private
-    caption: SQL and Key Vault have public access off. The app reaches them through private endpoints, with its managed identity.
+    caption: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
     path: [app -> pe-sql -> sql, app -> pe-kv -> kv]
   - title: Monitored centrally
-    caption: Every resource sends its diagnostics to the platform workspace (the badge on each card); App Insights stores its data there too.
+    caption: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
     focus: [law, appi, app, func, sql, kv]

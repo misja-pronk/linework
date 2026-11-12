@@ -34,10 +34,10 @@ Connections
 
 Walkthrough
 1. Two PaaS services show the pattern, each reachable only through a private endpoint in the spoke.
-2. The app asks for a name: sql-claims-prd.database.windows.net is a CNAME to the privatelink name; the resolver answers from the private zone with 10.1.9.4.
+2. The app asks for a name: The SQL name is a CNAME to its privatelink name; the resolver answers 10.1.9.4 from the private zone.
 3. And connects privately: The connection goes to the endpoint's private IP in snet-pe, never over the internet.
-4. From the office: The office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
-5. Every service the same way: Key Vault, Service Bus, Cosmos DB… each gets its own endpoint in snet-pe and its own privatelink zone, linked to the hub once.
+4. From the office: Office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
+5. Every service the same way: Key Vault, Service Bus… each gets an endpoint in snet-pe and a zone, linked to the hub once.
   - pe-sql-claims: Next: pe-kv-claims · 10.1.9.6
   - privatelink.database.windows.net: Next: privatelink.vaultcore.azure.net
 

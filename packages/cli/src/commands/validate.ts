@@ -2,7 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isDiagramFile, type LayoutSidecar } from '@cartography/core';
-import { drift, render, SLIDE_MIN_PT, slideTextPt } from '@cartography/engine';
+import { drift, render, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
+import { stepCaptionLines, toPptx, type SlideText } from '@cartography/export';
 import type { ValidateOptions } from '../args.ts';
 import { langOption } from '../draw.ts';
 import { t } from '../i18n.ts';
@@ -34,6 +35,45 @@ async function checkDrift(ctx: Ctx, o: ValidateOptions, file: string): Promise<b
   return true;
 }
 
+/** "2, 3 and 5": numbers said as a list. */
+const listed = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+
+/**
+ * The written steps of a drawing whose slide (the PowerPoint export: the step's title and caption are
+ * text on the slide, notes beside what they are about) has its smallest text under SLIDE_MIN_PT, as one
+ * warning; nothing when they all read. Measured against the drawing on its own slide, as the drawing
+ * itself is checked. A drawing that is already too small for a slide, read scrolling, or meant for a
+ * sheet of paper is not checked again.
+ */
+async function smallSteps(x: RenderResult, name: string): Promise<string | undefined> {
+  if (!x.steps || x.stepsImplied || x.scroll || !x.svg || !x.width || !x.height || x.diagnostics.some((d) => d.severity === 'error')) return undefined;
+  if (x.page && !x.page.name.endsWith('slide')) return undefined;
+  const whole = slideTextPt(x.svg, x.width, x.height, x.page);
+  if (whole == null || whole < SLIDE_MIN_PT) return undefined;
+  const aspect = x.page?.name.startsWith('4:3') ? ('4:3' as const) : ('16:9' as const);
+  const scales = async (steps: boolean) => {
+    const seen: SlideText[] = [];
+    await toPptx({ ...x, name }, { aspect, steps, onSlide: (s) => seen.push(s) });
+    return seen;
+  };
+  const [flat] = await scales(false);
+  if (!flat?.scale) return undefined;
+  const small = (await scales(true)).map((s) => ({ step: s.step ?? 0, pt: Math.round(whole * (s.scale / flat.scale) * 10) / 10 })).filter((s) => s.step && s.pt < SLIDE_MIN_PT);
+  if (!small.length) return undefined;
+  const steps = x.steps;
+  const named = (n: number) => `${n}${steps[n - 1]?.title ? ` "${steps[n - 1]!.title}"` : ''}`;
+  const pts = [...new Set(small.map((s) => s.pt))].sort((a, b) => a - b);
+  const range = pts.length > 1 ? `${pts[0]!.toFixed(1)}–${pts.at(-1)!.toFixed(1)}` : pts[0]!.toFixed(1);
+  // The steps of a drawing share one layout, so the drawing stays put: a step is as small as the longest caption makes all of them.
+  const which = small.length === steps.length ? (steps.length === 1 ? 'Its step' : `All ${steps.length} steps`) : small.length === 1 ? `Step ${named(small[0]!.step)}` : `Steps ${listed(small.map((s) => named(s.step)))}`;
+  const long = steps.map((s, i) => ({ n: i + 1, lines: stepCaptionLines(s, aspect) })).filter((s) => s.lines > 1);
+  const why = long.length
+    ? `the title and caption of ${long.length === 1 ? 'step' : 'steps'} ${listed(long.map((s) => named(s.n)))} ${long.length === 1 ? 'run' : 'each run'} to ${Math.max(...long.map((s) => s.lines))} lines, and every step keeps room for the longest: shorten ${long.length === 1 ? 'it' : 'them'} to one line`
+    : 'the step title and caption under the slide title, and notes beside the drawing, take that room: shorten the notes, or split the drawing into views';
+  const page = x.page?.name ?? '16:9 slide';
+  return `${x.view ? `View "${x.view}", ${which[0]!.toLowerCase()}${which.slice(1)}` : which}: on a ${page} ${small.length === 1 ? 'its' : 'their'} smallest text is ${range} pt, under ${SLIDE_MIN_PT} pt (the drawing alone: ${whole.toFixed(1)} pt): ${why}`;
+}
+
 export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOptions): Promise<number> {
   let ok = true;
   // A folder: each diagram in it.
@@ -58,6 +98,12 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
         const hint = `On a ${x.page?.name ?? '16:9 slide'} the whole drawing is ${pt.toFixed(1)} pt: present it per view (${by.join(', ')})`;
         if (!hints.includes(hint)) hints.push(hint);
       } else diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${x.page?.name ?? '16:9 slide'} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
+    }
+    // Each step is a slide of its own, its title and caption on it: those that come out smaller than the drawing allows, said once per drawing.
+    // The type's own view the file is written for draws the same: told once.
+    for (const x of [r, ...rest.filter((v) => v.view !== r.view && v.svg !== r.svg)]) {
+      const small = await smallSteps(x, path.basename(f));
+      if (small) diagnostics.push({ severity: 'warning', message: small });
     }
     ctx.report(f, diagnostics);
     for (const h of hints) ctx.error(`${f}  ${ctx.dim(t('hint'))}  ${h}`);

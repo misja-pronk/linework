@@ -69,11 +69,11 @@ layers:
 steps:
   - A private AKS cluster in its own spoke, with a subnet per role.
   - title: In from the internet
-    caption: Customers reach the WAF on Application Gateway's public IP; it forwards to the ingress controller on an internal load balancer.
+    caption: Customers reach the WAF's public IP; it forwards to the ingress controller on an internal load balancer.
     path: agw -> ingress -> orders
     note: { agw: "The only public entry" }
   - title: Secrets without passwords
-    caption: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
+    caption: The pod is federated to id-orders, which reads Key Vault over its private endpoint.
     path: [orders -> pe-kv -> kv, id -> kv]
   - title: Images
     caption: Nodes pull images from the registry over a private endpoint; the registry has public access off.

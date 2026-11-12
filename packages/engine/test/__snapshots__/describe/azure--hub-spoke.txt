@@ -31,12 +31,12 @@ Connections
 
 Walkthrough
 1. The hub holds the shared network services; each workload gets its own spoke.
-2. From the office: The office reaches the spokes over the VPN. Route table rt-gateway hands the traffic to the firewall, not straight to the peering.
+2. From the office: The office reaches the spokes over the VPN; route table rt-gateway sends it to the firewall, not the peering.
   - vpng-hub: rt-gateway: spokes → 10.0.0.68
-3. Out to the internet: Each spoke subnet has a route table (rt-erp, rt-intranet) that sends 0.0.0.0/0 to the firewall's private IP, 10.0.0.68.
+3. Out to the internet: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
   - vmss-erp: rt-erp: 0.0.0.0/0 → 10.0.0.68
 4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
-5. Admin access: No public IPs on VMs. Admins come in through Bastion, over the peering; NSG nsg-app lets RDP in from the Bastion subnet only.
+5. Admin access: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from its subnet only.
   - vmss-erp: nsg-app: RDP from Bastion only
 
 Layers
