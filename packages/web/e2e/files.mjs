@@ -47,7 +47,7 @@ if ((await page.locator('.status-problems').innerText()) !== 'No problems') fail
 await page.screenshot({ path: `${out}/files-1.png` });
 
 // Drag a node, then save: YAML and sidecar land in the folder.
-const box = await page.locator('.drawing [data-node="cfo"]').boundingBox();
+const box = await page.locator('.drawing [data-node="psp"]').boundingBox();
 await page.mouse.move(box.x + 30, box.y + 20);
 await page.mouse.down();
 for (let i = 1; i <= 5; i++) await page.mouse.move(box.x + 30, box.y + 20 + i * 10);
@@ -61,7 +61,7 @@ const sidecar = await page.evaluate(async () => {
   const d = await (await navigator.storage.getDirectory()).getDirectoryHandle('shop-data');
   return (await (await d.getFileHandle('finance.layout.json')).getFile()).text();
 });
-if (!sidecar.includes('"cfo"')) fail('sidecar not written: ' + sidecar);
+if (!sidecar.includes('"psp"')) fail('sidecar not written: ' + sidecar);
 
 // Switching files saves edits first.
 // Next to the side panel in a folder the YAML may be folded for room: its rail opens it.

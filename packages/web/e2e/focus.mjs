@@ -299,23 +299,29 @@ await wait(400);
   await page.screenshot({ path: `${out}/f6-lineage.png` });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
-  // V shows the detailed view without touching the YAML.
+  // V shows the first detailed view (a mesh has one per domain or product) without touching the YAML.
   const before = await yaml();
+  const picked = () => page.locator('.view-picker select').inputValue().catch(() => '');
+  const detailed = () => page.locator('.drawing [data-node^="contract:"]').count();
   await page.locator('.preview').focus();
   await page.keyboard.press('v');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show the detailed view with the contracts'));
-  if ((await page.locator('.view-picker select').inputValue().catch(() => '')) !== 'detailed') fail('the view picker should say Detailed');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('V did not show a detailed view with its contract'));
+  if (!(await picked()).startsWith('detailed-')) fail('the view picker should say which detailed view: ' + (await picked()));
   check('V leaves the YAML as it is', await yaml(), before);
-  await page.keyboard.press('v');
-  await page.waitForFunction(() => !document.querySelector('.drawing [data-node^="contract:"]'), null, { timeout: 5000 }).catch(() => fail('V again should go back to the overview'));
+  // V goes on through the detailed views and comes back to the overview.
+  for (let i = 0; i < 8 && (await picked()).startsWith('detailed-'); i++) {
+    await page.keyboard.press('v');
+    await wait(500);
+  }
+  if ((await picked()).startsWith('detailed-') || (await detailed())) fail('V should come back to the overview: ' + (await picked()));
   // From the palette, then kept in the YAML on request.
-  await palette('show the detailed view');
-  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show the detailed view'));
+  await palette('next view');
+  await page.waitForSelector('.drawing [data-node^="contract:"]', { timeout: 10000 }).catch(() => fail('the palette did not show a detailed view'));
   check('the palette leaves the YAML as it is', await yaml(), before);
   await palette('write view: detailed');
   await wait(600);
-  if (!/^view: detailed/m.test(await yaml())) fail('writing the view should put view: detailed in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
-  if (!(await page.locator('.drawing [data-node^="contract:"]').count())) fail('the drawing should stay detailed once the view is written');
+  if (!/^view: detailed-/m.test(await yaml())) fail('writing the view should put view: detailed-… in the YAML: ' + (await yaml()).split('\n').slice(0, 4).join(' | '));
+  if (!(await detailed())) fail('the drawing should stay detailed once the view is written');
   await page.keyboard.press('Meta+Backslash');
   await page.screenshot({ path: `${out}/f7-detailed.png` });
 }
