@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import { strFromU8, unzipSync, zipSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, type RenderResult } from '@cartography/engine';
+import { render, textPtAt, type RenderResult } from '@cartography/engine';
 import { contrast } from '@cartography/theme';
-import { chooseLayout, readTemplate, templateTheme, toPptx } from '../src/index.ts';
+import { chooseLayout, fitSlide, readTemplate, templateTheme, toPptx, type SlideText } from '../src/index.ts';
 import { planSlide } from '../src/template/place.ts';
 import { relsOf } from '../src/template/read.ts';
 import { child, children, find, findAll, parseXml, type XmlNode } from '../src/template/xml.ts';
@@ -280,6 +280,24 @@ describe('writing into a template', () => {
     expect(svg).toContain('>Web shop</tspan>');
     expect(svg).toContain('Exemplar Group · Internal');
     expect(svg).toContain('data:image/png;base64,');
+  });
+
+  it('tells the smallest text as the template\'s room makes it: the drawing fills that room', async () => {
+    const r = await draw('network/hybrid-cloud.yaml');
+    const inTemplate: SlideText[] = [];
+    const ours: SlideText[] = [];
+    await toPptx(r, { template: corporate, steps: false, onSlide: (s) => inTemplate.push(s) });
+    await toPptx(r, { steps: false, onSlide: (s) => ours.push(s) });
+    // The title bar and the footers leave the drawing less room than our own slide: said so, by the same measure.
+    expect(inTemplate[0]!.scale).toBeLessThan(ours[0]!.scale);
+    expect(inTemplate[0]!.smallestPt).toBe(textPtAt(r.svg!, inTemplate[0]!.scale));
+    // Fitted into the room the plan gives (under the subtitle), as high or as wide as it is.
+    const t = readTemplate(corporate);
+    const plan = planSlide(t, chooseLayout(t, 'diagram'));
+    const fit = await fitSlide(r.graph!, r.placed!, templateTheme(t, chooseLayout(t, 'diagram')).theme, { W: t.width, H: t.height, room: plan.area, template: true, titlePlaceholder: !!plan.title, captionPlaceholder: !!plan.caption });
+    expect(fit.k / 12700).toBeCloseTo(inTemplate[0]!.scale, 6);
+    const used = Math.max((fit.content.width * fit.k) / fit.area.w, (fit.content.height * fit.k) / fit.area.h);
+    expect(used).toBeCloseTo(1, 3);
   });
 
   it('leaves the deck without a template as it was', async () => {

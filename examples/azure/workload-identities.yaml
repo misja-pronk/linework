@@ -49,7 +49,7 @@ steps:
   - title: Deploying from GitHub
     caption: Only northwind/shop in environment prod can swap GitHub's OIDC token for a service principal token.
     path: workflow -> fic -> app-reg -> sp
-    note: { fic: "repo:northwind/shop:environment:prod" }
+    note: { fic: "subject: northwind/shop, environment prod" }
   - title: Pipeline, least privilege
     caption: The service principal is Contributor on one resource group, not on the subscription.
     path: sp -> rg

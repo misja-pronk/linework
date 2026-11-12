@@ -4,7 +4,7 @@ import './preview.css';
 import { is } from './keys.ts';
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Box, PaletteItem, Point } from '@cartography/core';
-import { readableArea, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
+import { readableArea, SLIDE_MIN_PT, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
 import { setReadout } from './readout.ts';
 import { t } from './i18n/index.ts';
@@ -178,6 +178,21 @@ export function Preview(p: Props) {
   const flowed = !!result?.type?.layout && !!result.graph?.nodes.some((n) => n.shape.kind === 'flow' || n.shape.kind === 'block');
   const frame = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
+  // With the page shown and the page a slide: how large the drawing comes out on the slide the
+  // PowerPoint export makes (points per drawing px), for the drawing it was measured on. Loaded on first use.
+  const [slideK, setSlideK] = useState<{ svg: string; k: number }>();
+  useEffect(() => {
+    const r = result;
+    if (!p.page || !r?.svg || !r.theme || !r.page?.name.endsWith('slide')) return;
+    let live = true;
+    void import('@cartography/export/fit')
+      .then(({ slideScale }) => slideScale(r, r.theme!, r.page!.name.startsWith('4:3') ? '4:3' : '16:9'))
+      .then((k) => live && k && setSlideK({ svg: r.svg!, k }))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [p.page, result]);
   const [dragging, setDragging] = useState<Drag['mode']>();
   /** The marquee while it is dragged, in pixels relative to the frame. */
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number }>();
@@ -1017,7 +1032,18 @@ export function Preview(p: Props) {
   const lockedBoxes = [...(p.locked ?? [])].map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
   const pinnedBoxes = [...(p.pinned ?? [])].filter((id) => !p.locked?.has(id)).map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
   // The page: how small the smallest text comes out on it, and the part where it would still be readable.
-  const pageInfo = p.page && result?.page && result.svg && result.width && result.height ? { pt: slideTextPt(result.svg, result.width, result.height, result.page), readable: readableArea(result.svg, result.page), presentedBy: presentedBy(result).map((v) => v.title ?? v.name) } : undefined;
+  // On a slide that is the slide the PowerPoint export makes (its margins and title row: slideScale),
+  // as carto validate measures it; on a sheet of paper the drawing fitted onto it. Until the slide's
+  // scale is known (a moment, the first time), the drawing fitted onto the page.
+  const onSlide = slideK && slideK.svg === result?.svg ? slideK.k : undefined;
+  const pageInfo =
+    p.page && result?.page && result.svg && result.width && result.height
+      ? {
+          pt: onSlide ? textPtAt(result.svg, onSlide) : slideTextPt(result.svg, result.width, result.height, result.page),
+          readable: readableArea(result.svg, result.page, onSlide ? { width: result.width, height: result.height, ptPerPx: onSlide } : undefined),
+          presentedBy: presentedBy(result).map((v) => v.title ?? v.name),
+        }
+      : undefined;
   // The overview only earns its place when the drawing does not fit the pane.
   const f = frame.current;
   const overflows = !!f && !!result?.width && (result.width * view.scale > f.clientWidth + 1 || result.height! * view.scale > f.clientHeight - BAR + 1);

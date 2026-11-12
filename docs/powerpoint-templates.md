@@ -53,6 +53,17 @@ The template's own sample slides are left out, with their pictures, notes, secti
 thumbnail is dropped, as it showed the template's first slide. The template's masters, layouts, theme, embedded
 fonts and media stay byte for byte as they were.
 
+### How small the text gets
+
+A template usually leaves the drawing less room than Cartography's own slide: a title bar, a footer, a logo, wider
+margins. The drawing is scaled into the room the table above describes, and that is the room it is measured in.
+The editor's PowerPoint export names the slides whose smallest text a reader needs (names on cards, lines and
+groups) comes out under 6 pt, as made in the template. On the command line, `carto validate --template
+customer.potx` (with `--layout` as for `carto render`) says the same per diagram before you make the deck; a
+diagram whose brand theme names a template (`pptx:`) is measured in it without asking. Without a template,
+validate and the editor's page frame (⇧P) measure Cartography's own slide: the title top left, the drawing in
+the rest with modest margins, nearly as large as the drawing fitted whole.
+
 ## Colours and fonts
 
 By default the diagram takes on the template, through the same derivation a [brand theme](themes.md) goes
