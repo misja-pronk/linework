@@ -452,7 +452,10 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       .map((n) => {
         if (!n.parent || n.parent === own) return n;
         const g = groups.find((x) => x.id === n.parent)!;
-        const shape = n.shape.kind === 'card' ? { ...n.shape, caption: [g.label, n.shape.caption].filter(Boolean).join(' · ') } : n.shape;
+        // A product from elsewhere is a neighbour here: its domain and class say enough (its version and team are in its own view).
+        const product = productMap.get(n.id);
+        const caption = product && !product.caption ? [g.label, (classes[product.class ?? ''] ?? classes['source-aligned']!).label] : [g.label, n.shape.kind === 'card' ? n.shape.caption : undefined];
+        const shape = n.shape.kind === 'card' ? { ...n.shape, caption: caption.filter(Boolean).join(' · ') } : n.shape;
         return { ...n, parent: undefined, shape };
       });
     edges = edges.filter((e) => keep.has(e.from.node) && keep.has(e.to.node) && (core.has(e.from.node) || core.has(e.to.node)));

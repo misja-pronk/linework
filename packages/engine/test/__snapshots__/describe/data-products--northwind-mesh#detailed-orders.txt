@@ -7,8 +7,8 @@ Groups and elements
   - ERP (Orders and invoices)
   - Orders (Source-aligned · v2.3.0 · Order management team)
   - orders (Data contract · v2.3.0 · internal)
-- Demand forecast (Supply chain · Consumer-aligned · beta · v0.4.0 · Planning analytics)
-- Revenue (Finance · Aggregate · v3.0.0 · Finance data team)
+- Demand forecast (Supply chain · Consumer-aligned)
+- Revenue (Finance · Aggregate)
 - Sales dashboard (Dashboard)
 
 Connections

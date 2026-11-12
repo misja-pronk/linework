@@ -35,11 +35,15 @@ products:
     caption: Finance
     class: aggregate
     inputs: [orders.orders]
+    outputs:
+      revenue: { kind: view, label: revenue by month }
   forecast:
     label: Demand forecast
     caption: Supply chain
     class: consumer-aligned
     inputs: [orders.orders]
+    outputs:
+      forecast: { kind: api, label: forecast API }
 
 consumers:
   sales-bi: { kind: dashboard, label: Sales dashboard, uses: [orders.orders] }

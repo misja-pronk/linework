@@ -7,7 +7,7 @@ Groups and elements
   - CRM (Source · SaaS)
   - Customers (Source-aligned · v1.6.0 · CRM team)
   - customers (Data contract · v1.6.0 · confidential)
-- Revenue (Finance · Aggregate · v3.0.0 · Finance data team)
+- Revenue (Finance · Aggregate)
 - Sales dashboard (Dashboard)
 
 Connections

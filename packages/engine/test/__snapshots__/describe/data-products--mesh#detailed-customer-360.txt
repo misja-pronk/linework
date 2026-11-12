@@ -8,7 +8,7 @@ Groups and elements
   - Customer 360 (Aggregate · draft · v0.9.0 · CRM team)
   - customer profiles (Data contract · v0.9.0)
 - Campaign tool (Application)
-- Orders (Sales · Source-aligned · v2.1.0 · Sales engineering)
+- Orders (Sales · Source-aligned)
 
 Connections
 - Customers connects to Customer 360.in:1.
