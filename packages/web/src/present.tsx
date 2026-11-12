@@ -11,6 +11,7 @@ import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';
 import { Icon } from './icon.tsx';
 import { linkTarget } from './links.ts';
+import { presentedBy } from './export.ts';
 import { useRestoreFocus } from './menu.tsx';
 import type { LayersOptions } from './layers-control.tsx';
 import { t } from './i18n/index.ts';
@@ -137,7 +138,10 @@ export function Present(p: PresentProps) {
     [p.theme, themeOverride, icons, whole],
   );
 
-  /** The slides of a diagram: its views in order (as written first), a slide per step where a view has steps. */
+  /**
+   * The slides of a diagram: its views in order (as written first), a slide per step where a view has
+   * steps. A view read scrolling (a whole sequence) is one slide before the views that present it.
+   */
   const outline = useCallback(
     async (doc: PresentDoc, layered = false): Promise<Deck | undefined> => {
       const d: Deck = { id: ++decks, doc, slides: [] };
@@ -158,7 +162,10 @@ export function Present(p: PresentProps) {
         if (!r.svg) continue;
         // A view the type draws itself can be the drawing as written (data products: the one in `view:`): one slide for both.
         if (view !== undefined && r.svg === first.svg && d.slides[0]?.view === undefined) d.slides = d.slides.filter((s) => s.view !== undefined);
-        const n = r.steps?.length ?? 0;
+        // A drawing read scrolling (a whole sequence) is presented by its other views (its phases), which
+        // tell its steps: it is one slide, the overview, unless someone wrote steps for it.
+        const overview = r.stepsImplied && presentedBy(r).length > 0;
+        const n = overview ? 0 : (r.steps?.length ?? 0);
         for (let step = 1; step <= Math.max(1, n); step++) d.slides.push({ view, ...(n ? { step } : {}) });
         if (layered) for (const l of (r.layers?.list ?? []).filter((x) => x.count > 0)) d.slides.push({ view, layers: { layers: [l.name] }, layer: true });
       }
