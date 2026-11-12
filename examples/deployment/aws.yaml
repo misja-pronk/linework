@@ -10,8 +10,8 @@ direction: down
 include: [model.yaml]
 
 groups:
-  account: { kind: account, label: shop }
-  region: { kind: region, region: eu-west-1, in: account }
+  # All of it sits in the one AWS account `shop`, left out so the drawing fits a slide.
+  region: { kind: region, region: eu-west-1 }
   vpc: { kind: vpc, label: vpc-shop, cidr: 10.20.0.0/16, in: region }
   az-a: { kind: zone, zone: eu-west-1a, in: vpc }
   az-b: { kind: zone, zone: eu-west-1b, in: vpc, env: prod }

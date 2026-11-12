@@ -1,6 +1,12 @@
 type: kubernetes
 title: Model serving
 subtitle: Gateway API in front of GPU and CPU node pools
+direction: right
+
+# Sized for a slide, so some detail lives here instead of on the drawing:
+# - the gateway's HTTPRoute sends /v1 to the router's Service (:8000);
+# - llm runs vllm/vllm-openai:v0.6.3 (router acme/router:0.9, embed acme/embed:1.2);
+# - at start llm pulls its weights from Hugging Face with hf-token, into model-cache.
 
 groups:
   cluster: { kind: cluster, label: ml-prod }
@@ -10,26 +16,23 @@ groups:
 nodes:
   clients: { kind: users, label: API clients }
   gw: { kind: gateway, label: public, in: system, host: api.acme.ai }
-  router-svc: { kind: service, label: router, in: system, ports: [8000] }
-  router: { kind: deployment, in: system, replicas: 3, image: acme/router:0.9 }
+  router: { kind: deployment, in: system, replicas: 3 }
   redis: { kind: statefulset, label: rate-limits, in: system, image: redis:7.4 }
   llm-svc: { kind: service, label: llm, in: gpu, ports: [8080] }
-  llm: { kind: deployment, in: gpu, image: vllm/vllm-openai:v0.6.3 }
+  llm: { kind: deployment, in: gpu, caption: Deployment · vLLM }
   llm-hpa: { kind: hpa, in: gpu, replicas: 1-8 }
   embed-svc: { kind: service, label: embed, in: gpu, ports: [8080] }
-  embed: { kind: deployment, in: gpu, replicas: 2, image: acme/embed:1.2 }
+  embed: { kind: deployment, in: gpu, replicas: 2 }
   models: { kind: pvc, label: model-cache, in: gpu, size: 200Gi }
   hf-token: { kind: secret, in: gpu }
   gpu-only: { kind: networkpolicy, label: from-router-only, in: gpu }
-  hub: { kind: external, label: Hugging Face }
 
 # Policies too: shown on the workloads they guard.
 badges: [mounts, identity, scales, policy]
 
 edges:
   - clients -> gw: HTTPS
-  - gw -> router-svc: /v1
-  - router-svc -> router
+  - gw -> router: /v1
   - router -> redis
   - router -> llm-svc: chat
   - router -> embed-svc: embeddings
@@ -41,4 +44,3 @@ edges:
   - llm-hpa -> llm
   - gpu-only -> llm
   - gpu-only -> embed
-  - llm -> hub: weights

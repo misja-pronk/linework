@@ -1,22 +1,21 @@
 Web shop on AWS, per environment
 
-AWS and Google Cloud diagram: Test. 8 elements in 6 groups, with 7 connections.
+AWS and Google Cloud diagram: Test. 8 elements in 5 groups, with 7 connections.
 
 Groups and elements
 - Users
 - Storefront (CloudFront · React): Runs Storefront (shop.web): Shows the catalogue and takes orders
-- shop (Account)
-  - eu-west-1 (Region)
-    - Site files (S3 bucket)
-    - vpc-shop (VPC · 10.20.0.0/16)
-      - Load balancer (Application Load Balancer · public)
-      - eu-west-1a (Availability zone)
-        - Private subnet
-          - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
-        - Isolated subnet
-          - Orders DB (RDS database · PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
-    - order-events (SQS queue): Runs order-events (shop.bus): One message for every placed order
-    - Mailer (Lambda function · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
+- eu-west-1 (Region)
+  - Site files (S3 bucket)
+  - vpc-shop (VPC · 10.20.0.0/16)
+    - Load balancer (Application Load Balancer · public)
+    - eu-west-1a (Availability zone)
+      - Private subnet
+        - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
+      - Isolated subnet
+        - Orders DB (RDS database · PostgreSQL 16): Runs Orders DB (shop.db): Orders and customers
+  - order-events (SQS queue): Runs order-events (shop.bus): One message for every placed order
+  - Mailer (Lambda function · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
 
 Connections
 - Users send traffic to Storefront over HTTPS.
