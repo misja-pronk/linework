@@ -1,7 +1,7 @@
 type: data-products
 title: Finance data products
 subtitle: The payments contract is read from an Open Data Contract Standard file
-view: detailed
+view: detailed-payments   # detailed-revenue: the other product; detailed: both at once
 
 domains:
   finance: { label: Finance, owner: Finance data team }

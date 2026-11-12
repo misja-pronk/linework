@@ -4,6 +4,8 @@
 //   detailed-<domain> one domain's products as tables with their ports and contracts, and what they
 //                     read from and are read by as cards (offered when products sit in several domains;
 //                     products without a domain get detailed-other)
+//   detailed-<product> one product the same way: offered instead of its domain's view when that domain
+//                     holds more than one product and a contract among them (a contract is tall)
 //   detailed          every product as a table: offered when there is no split, else only when asked by name
 // `detail: [id]` (or `detail: true` on a product) shows only some products in detail.
 //
@@ -123,7 +125,7 @@ export interface DataProductSource {
   title?: string;
   subtitle?: string;
   direction?: 'right' | 'down';
-  /** overview, detailed (every product), or detailed-<domain> (one domain's products, detailed-other: those without one). */
+  /** overview, detailed (every product), detailed-<domain> (one domain's products, detailed-other: those without one) or detailed-<product>. */
   view?: string;
   /** Products shown in detail in the overview. */
   detail?: string[];
@@ -138,15 +140,49 @@ export interface DataProductSource {
   contracts?: Record<string, Contract | null>;
 }
 
-/** One detailed view per domain that has products, and detailed-other for products without one (a domain called other: detailed-no-domain). */
-function detailParts(src: DataProductSource): { view: string; title: string; domain?: string }[] {
+interface Part {
+  view: string;
+  title: string;
+  /** The domain drawn (with product: the domain that product is in); none: the products without a domain. */
+  domain?: string;
+  /** One product drawn, not its whole domain. */
+  product?: string;
+  /** Drawn when asked for by name, not offered: the domain view of a domain that is offered product by product. */
+  hidden?: boolean;
+}
+
+/**
+ * The detailed views: one per domain that has products, and detailed-other for products without one (a
+ * domain called other: detailed-no-domain). A contract is the tall part of a detailed drawing, so a domain
+ * that holds more than one product, a contract among them, is offered product by product instead
+ * (detailed-<product>, or detailed-product-<product> where that name is taken); its domain view is still
+ * drawn when asked for by name.
+ */
+function detailParts(src: DataProductSource): Part[] {
   const domains = src.domains ?? {};
-  const products = Object.values(src.products ?? {});
+  const products = Object.entries(src.products ?? {}).map(([id, p]) => [id, p ?? {}] as const);
   const has = (d: string) => Object.hasOwn(domains, d);
-  const parts: { view: string; title: string; domain?: string }[] = Object.entries(domains)
-    .filter(([id]) => products.some((p) => p?.domain === id))
-    .map(([id, d]) => ({ view: `detailed-${id}`, title: `${(typeof d === 'string' ? d : d?.label) ?? id} in detail`, domain: id }));
-  if (products.some((p) => !p?.domain || !has(p.domain))) parts.push({ view: has('other') ? 'detailed-no-domain' : 'detailed-other', title: 'Other products in detail' });
+  const groups: { domain?: string; view: string; title: string; members: (readonly [string, Product])[] }[] = Object.entries(domains)
+    .map(([id, d]) => ({ domain: id, view: `detailed-${id}`, title: `${(typeof d === 'string' ? d : d?.label) ?? id} in detail`, members: products.filter(([, p]) => p.domain === id) }))
+    .filter((g) => g.members.length);
+  const loose = products.filter(([, p]) => !p.domain || !has(p.domain));
+  if (loose.length) groups.push({ view: has('other') ? 'detailed-no-domain' : 'detailed-other', title: 'Other products in detail', members: loose });
+  const contracted = ([, p]: readonly [string, Product]) => Object.values(p.outputs ?? {}).some((o) => !!o && typeof o === 'object' && !!o.contract);
+  const split = (g: (typeof groups)[number]) => src['show-contracts'] !== false && g.members.length > 1 && g.members.some(contracted);
+  const taken = new Set(groups.map((g) => g.view));
+  const parts: Part[] = [];
+  for (const g of groups) {
+    if (!split(g)) {
+      parts.push({ view: g.view, title: g.title, domain: g.domain });
+      continue;
+    }
+    for (const [id, p] of g.members) {
+      const view = taken.has(`detailed-${id}`) ? `detailed-product-${id}` : `detailed-${id}`;
+      parts.push({ view, title: `${p.label ?? id} in detail`, domain: g.domain, product: id });
+    }
+  }
+  // The domain views that were split stay drawable by name, after the ones offered.
+  for (const g of groups) if (split(g)) parts.push({ view: g.view, title: g.title, domain: g.domain, hidden: true });
   return parts;
 }
 
@@ -189,13 +225,13 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
       else seen.set(id, collection);
     }
 
-  // detailed-<domain>: that domain's products in detail, and only what they connect to besides.
+  // detailed-<domain> or detailed-<product>: those products in detail, and only what they connect to besides.
   const parts = typeof src.view === 'string' && src.view.startsWith('detailed-') ? detailParts(src) : [];
   const part = parts.find((p) => p.view === src.view);
-  if (parts.length && !part) ctx.error(['view'], `There is no view "${src.view}": the detailed views are ${parts.map((p) => p.view).join(', ')}`);
-  const inPart = (p: Product) => (part?.domain ? p.domain === part.domain : !p.domain || !domains.has(p.domain));
+  if (parts.length && !part) ctx.error(['view'], `There is no view "${src.view}": the detailed views are ${parts.filter((p) => !p.hidden).map((p) => p.view).join(', ')}`);
+  const inPart = (id: string, p: Product) => (part?.product ? id === part.product : part?.domain ? p.domain === part.domain : !p.domain || !domains.has(p.domain));
   const detailed = new Set(
-    part ? products.filter(([, p]) => inPart(p)).map(([id]) => id) : src.view === 'detailed' ? products.map(([id]) => id) : products.filter(([, p]) => p.detail).map(([id]) => id),
+    part ? products.filter(([id, p]) => inPart(id, p)).map(([id]) => id) : src.view === 'detailed' ? products.map(([id]) => id) : products.filter(([, p]) => p.detail).map(([id]) => id),
   );
   for (const [i, id] of (src.detail ?? []).entries()) {
     if (!productMap.has(id)) ctx.error(['detail', i], `There is no product "${id}"`);
@@ -402,7 +438,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
   let drawn = nodes;
   let drawnGroups = groups;
   if (part) {
-    // The domain's products and their contracts, and the cards one line away from them: nothing further.
+    // The products in view and their contracts, and the cards one line away from them: nothing further.
     const core = new Set([...detailed, ...nodes.filter((n) => n.id.startsWith('contract:')).map((n) => n.id)]);
     const keep = new Set(core);
     for (const e of edges) {
@@ -553,7 +589,8 @@ const schema = {
     direction: { enum: ['right', 'down'] },
     view: {
       anyOf: [{ enum: ['overview', 'detailed'] }, { type: 'string', pattern: '^detailed-.+$' }],
-      description: 'overview: products as cards; detailed-<domain>: one domain\'s products with ports, contracts and fields (detailed-other: those without a domain); detailed: every product',
+      description:
+        "overview: products as cards; detailed-<domain>: one domain's products with ports, contracts and fields (detailed-other: those without a domain); detailed-<product>: one product so, for a domain with several products and a contract among them; detailed: every product",
     },
     detail: { type: 'array', items: { type: 'string' }, description: 'Products shown in detail in the overview' },
     'show-contracts': { type: 'boolean', description: 'Show data contracts next to detailed products (default true)' },
@@ -669,9 +706,15 @@ export const dataProducts: DiagramType<DataProductSource> = {
     if (!src.products || !Object.keys(src.products).length) return [];
     const overview = { name: 'overview', title: 'Overview' };
     const parts = detailParts(src);
-    // One domain (or none): one detailed drawing. Several: one per domain, the whole mesh in detail only when asked for.
+    // One domain (or none) drawn whole: one detailed drawing. Else one per domain or product, the whole mesh in detail only when asked for.
     if (parts.length < 2) return [overview, { name: 'detailed', title: 'Detailed' }];
-    return [overview, ...parts.map((p) => ({ name: p.view, title: p.title, part: true })), { name: 'detailed', title: 'Every product in detail', hidden: true }];
+    return [
+      overview,
+      // One product reads from left to right: what it reads, the product and its contract, who reads it.
+      ...parts.filter((p) => !p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, ...(p.product ? { steady: true } : {}) })),
+      { name: 'detailed', title: 'Every product in detail', hidden: true },
+      ...parts.filter((p) => p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, hidden: true })),
+    ];
   },
   connect(src, from, to) {
     if (from === to) return 'Pick another element to connect to';
@@ -687,7 +730,7 @@ export const dataProducts: DiagramType<DataProductSource> = {
   template: `type: data-products
 title: Customer data products
 subtitle: From operational systems to fit-for-purpose products
-view: overview   # overview, or detailed-<domain> (detailed-sales): a domain's products with ports and contracts
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 # detail: [customer-360]   # only these products in detail
 
 domains:

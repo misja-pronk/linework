@@ -91,7 +91,7 @@ export function useNavigation(p: Props) {
   };
   /**
    * V: the next view of the diagram; the YAML stays as it is. Views the type draws itself (data products
-   * overview and detailed per domain) go round without "as written", which is one of them: the one in `view:`.
+   * overview and detailed per domain or product) go round without "as written", which is one of them: the one in `view:`.
    */
   /** Only views the type draws itself (no model `views:`, nothing included): as written is one of them. */
   const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews && !/^(views|include):/m.test(textNow());

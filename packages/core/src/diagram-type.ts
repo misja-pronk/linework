@@ -49,9 +49,10 @@ export interface DiagramType<Source = any> {
    * other views (its phases): `carto validate` checks those for slides, and only hints at this one.
    * `hidden`: drawn when asked for by name (`view:` or `--view`), not offered in the picker or checked
    * view by view. `part`: the view draws only a part of the source (one domain), so the steps written
-   * for the whole are not told in it.
+   * for the whole are not told in it. `steady`: the view is drawn in the source's direction (the type's
+   * default when it has none), never turned for its shape: one data product reads from left to right.
    */
-  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean; hidden?: boolean; part?: boolean }[];
+  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean; hidden?: boolean; part?: boolean; steady?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */
