@@ -14,6 +14,10 @@
 //       over: api
 //     - divider: Payment
 //
+// Dividers at the top level of messages: cut the sequence into phases. The drawing is the whole
+// sequence; each phase is also a view of its own (phase-payment), a drawing that fits a slide: only
+// that phase's messages and the participants that take part, numbered as in the whole.
+//
 // `steps:` is the old name of `messages:` (everywhere else steps: are presentation steps): still read,
 // with a warning.
 //
@@ -90,6 +94,52 @@ export interface SequenceSource {
   messages?: unknown[];
   /** The old name of messages. */
   steps?: unknown[];
+  /** The view drawn (set by the engine): `whole`, or one phase (`phase-payment`). */
+  view?: string;
+}
+
+/** A phase: the messages between two top-level dividers (or before the first), a view of its own. */
+export interface Phase {
+  name: string;
+  title: string;
+  /** Index in the top-level messages: of its divider, or -1 for the messages before the first divider. */
+  divider: number;
+}
+
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    // A long divider ("The same for every resource, with a token…") names its view by its first words.
+    .split('-')
+    .slice(0, 4)
+    .join('-');
+
+/**
+ * The phases of a sequence: one per top-level divider, and one for what comes before the first
+ * (called Start), when there is something. A divider inside a frame does not cut: a phase never
+ * starts or ends halfway an alt or a loop. Fewer than two phases: none, the whole is the one drawing.
+ */
+export function sequencePhases(src: SequenceSource): Phase[] {
+  const items = src[messagesKey(src)];
+  if (!Array.isArray(items)) return [];
+  const out: Phase[] = [];
+  const taken = new Set<string>();
+  const add = (title: string, divider: number) => {
+    const base = `phase-${slug(title) || out.length + 1}`;
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
+    taken.add(name);
+    out.push({ name, title, divider });
+  };
+  const first = items.findIndex((it) => stepKind(it) === 'divider');
+  if (first !== 0) add('Start', -1);
+  if (first < 0) return [];
+  for (const [i, it] of items.entries()) if (stepKind(it) === 'divider') add(String((it as Item).divider ?? '').trim() || `Phase ${out.length + 1}`, i);
+  return out.length > 1 ? out : [];
 }
 
 /** Where the messages of a sequence or a frame are: `messages:`, or the old `steps:`. */
@@ -158,6 +208,8 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
   const open = new Map<string, number>();
   const bump = (lane: string, by: number) => open.set(lane, Math.max(0, (open.get(lane) ?? 0) + by));
   let number = 0;
+  // A ref written without over: spans every participant drawn (in a phase: those taking part).
+  const wide = new WeakSet<SequenceEvent>();
 
   const walk = (steps: unknown, base: Path) => {
     if (!Array.isArray(steps)) return;
@@ -195,7 +247,9 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
       else if (kind === 'ref') {
         const over = o.over == null ? participants.map((p) => p.id) : list(o.over);
         if (!over.every((id) => known(id, [...path, 'over']))) continue;
-        events.push({ kind: 'ref', label: String(o.ref ?? ''), over, ...(typeof o.link === 'string' ? { link: o.link } : {}), path });
+        const ev: SequenceEvent = { kind: 'ref', label: String(o.ref ?? ''), over, ...(typeof o.link === 'string' ? { link: o.link } : {}), path };
+        if (o.over == null) wide.add(ev);
+        events.push(ev);
       } else if (kind === 'activate' || kind === 'deactivate') {
         const lane = String(o[kind]);
         if (!known(lane, [...path, kind])) continue;
@@ -226,17 +280,53 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
   if (top === 'steps') ctx.warn(['steps'], 'In a sequence this is now called messages: (steps: are for presenting elsewhere); rename it');
   if (src.messages !== undefined && src.steps !== undefined) ctx.error(['steps'], 'Both messages: and steps: here: steps: is the old name of messages:, keep one');
   walk(src[top], [top]);
-  const key = arrowKey(events);
+  const phases = typeof src.view === 'string' && src.view.startsWith('phase-') ? sequencePhases(src) : [];
+  const phase = phases.find((p) => p.name === src.view);
+  const drawn = phase ? phaseOf(events, participants, phase, phases, top, wide) : { events, participants };
+  const key = arrowKey(drawn.events);
 
   return {
     title: src.title,
     subtitle: src.subtitle,
     direction: 'down',
     groups: [],
-    nodes: [{ id: 'sequence', shape: { kind: 'sequence', participants, boxes, events, ...(src.footers ? { footers: true } : {}) }, path: [] }],
+    nodes: [{ id: 'sequence', shape: { kind: 'sequence', participants: drawn.participants, boxes, events: drawn.events, ...(src.footers ? { footers: true } : {}) }, path: [] }],
     edges: [],
     ...(key.length ? { legend: key } : {}),
   };
+}
+
+/**
+ * One phase of the whole: its events (without its own divider: the view's title says it), the
+ * participants that take part in it, and the activations still open from the phases before, opened
+ * again at its top so their bars run on. Numbers stay those of the whole sequence.
+ */
+function phaseOf(events: SequenceEvent[], participants: SequenceParticipant[], phase: Phase, phases: Phase[], top: string, wide: WeakSet<SequenceEvent>): { events: SequenceEvent[]; participants: SequenceParticipant[] } {
+  const atTop = (e: SequenceEvent, i: number) => e.kind === 'divider' && e.path.length === 2 && e.path[0] === top && e.path[1] === i;
+  const start = phase.divider < 0 ? 0 : events.findIndex((e) => atTop(e, phase.divider)) + 1;
+  const next = phases[phases.indexOf(phase) + 1];
+  const end = next ? events.findIndex((e) => atTop(e, next.divider)) : events.length;
+  const part = events.slice(start, end);
+  // Who takes part: the ends of its messages, what its notes, explicit refs and activations name.
+  const used = new Set<string>();
+  for (const e of part)
+    if (e.kind === 'message') used.add(e.from).add(e.to);
+    else if (e.kind === 'note' || (e.kind === 'ref' && !wide.has(e))) for (const id of e.over) used.add(id);
+    else if (e.kind === 'activate' || e.kind === 'deactivate') used.add(e.lane);
+  const kept = participants.filter((p) => used.has(p.id));
+  const all = (kept.length ? kept : participants).map((p) => p.id);
+  // Activations open when the phase starts, replayed as the renderer reads them.
+  const open = new Map<string, number>();
+  const bump = (lane: string, by: number) => open.set(lane, Math.max(0, (open.get(lane) ?? 0) + by));
+  for (const e of events.slice(0, start))
+    if (e.kind === 'message') {
+      if (e.closes) bump(e.from, -1);
+      if (e.opens && e.from !== e.to) bump(e.to, 1);
+    } else if (e.kind === 'activate' || e.kind === 'deactivate') bump(e.lane, e.kind === 'activate' ? 1 : -1);
+  const carried: SequenceEvent[] = [];
+  for (const id of all) for (let n = open.get(id) ?? 0; n > 0; n--) carried.push({ kind: 'activate', lane: id, path: [top, Math.max(0, phase.divider)] });
+  const out = part.map((e) => (e.kind === 'ref' && wide.has(e) ? { ...e, over: all } : e));
+  return { events: [...carried, ...out], participants: kept.length ? kept : participants };
 }
 
 /** The key: what each kind of arrow means, once a signal or a lost message is drawn; calls and replies alone are read without one. */
@@ -438,6 +528,12 @@ messages:
 `,
   build: buildSequence,
   references: sequenceReferences,
+  // The whole sequence is the drawing; with dividers each phase is a view of its own, for a slide.
+  // A long whole is read scrolling, not on one slide: it is presented by its phases.
+  views(src) {
+    const phases = sequencePhases(src);
+    return phases.length ? [{ name: 'whole', title: 'Whole sequence', scroll: true }, ...phases.map(({ name, title }) => ({ name, title }))] : [];
+  },
   connect(src, from, to) {
     const known = (id: string) => !!src.participants && Object.hasOwn(src.participants, id);
     if (!known(from) || !known(to)) return 'Connect one participant to another';

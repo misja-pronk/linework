@@ -44,9 +44,11 @@ export interface DiagramType<Source = any> {
    * Ways the type itself draws the same source (a journey as map, storyboard or blueprint). `--view`
    * and the editor's view picker choose one; build gets it as the source's `view`. `table`: the view is
    * not elements and lines, so a focus asked for is drawn in the first view instead. `default`: the one
-   * drawn when none is asked for (else the first); the file's subtitle is about that one.
+   * drawn when none is asked for (else the first); the file's subtitle is about that one. `scroll`:
+   * the view is read scrolling, too long for one slide (a whole sequence), and is presented by the
+   * other views (its phases): `carto validate` checks those for slides, and only hints at this one.
    */
-  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean }[];
+  views?(source: Source): { name: string; title?: string; table?: boolean; default?: boolean; scroll?: boolean }[];
   /** An entry written short, as the map the builder edits: a journey step `4` is `{ feel: 4 }`. Default: the kind or the label. */
   shorthand?(collection: string, value: unknown): Record<string, unknown> | undefined;
   /** Fields that name an entry of another collection, for the builder's pickers, where the usual ones do not fit: { in: ['phases'] }. */

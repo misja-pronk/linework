@@ -113,6 +113,29 @@ describe('carto validate --drift', () => {
   }, 60_000);
 });
 
+describe('carto validate on a slide', () => {
+  // 30 messages: far too tall for one 16:9 slide as a whole.
+  const msgs = (n: number, from = 0) => Array.from({ length: n }, (_, i) => `  - a -> b: Message ${from + i + 1}\n  - b --> a: ok\n`).join('');
+  const head = 'type: sequence\ntitle: Long\nparticipants:\n  a: person\n  b: service\nmessages:\n';
+
+  it('warns about a long sequence without phases', async () => {
+    write('long.yaml', head + msgs(15));
+    const r = await carto('validate', 'long.yaml');
+    expect(r.err).toMatch(/warning {2}On a 16:9 slide its smallest text is [\d.]+ pt, under 6 pt/);
+  }, 60_000);
+
+  it('checks the phases of a sequence for slides, and only hints at the whole', async () => {
+    write('phased.yaml', `${head}  - divider: One\n${msgs(5)}  - divider: Two\n${msgs(5, 5)}  - divider: Three\n${msgs(5, 10)}`);
+    const r = await carto('validate', 'phased.yaml');
+    expect(r.code).toBe(0);
+    expect(r.err).not.toContain('warning');
+    expect(r.err).toMatch(/hint {2}On a 16:9 slide the whole drawing is [\d.]+ pt: present it per view \(phase-one, phase-two, phase-three\)/);
+    // A phase too long for a slide is still said.
+    write('phased.yaml', `${head}  - divider: One\n${msgs(15)}  - divider: Two\n${msgs(1)}`);
+    expect((await carto('validate', 'phased.yaml')).err).toMatch(/warning {2}View "phase-one": on a 16:9 slide/);
+  }, 60_000);
+});
+
 describe('carto diff', () => {
   const grown = shop.replace('  kv: key-vault\n', '  kv: { kind: key-vault, label: Secrets }\n  cache: { kind: redis, in: rg }\n').replace('  - web -> kv\n', '  - web -> cache\n');
 

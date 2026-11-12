@@ -14,10 +14,12 @@ participants:
   wh: { kind: database, label: Warehouse, box: platform }
 
 messages:
+  - divider: Arrival
   - partner ->> ingest: orders_2026-11-09.csv + .done marker
   - ingest -> lake: Copy file and checksum
   - lake --> ingest: stored
   - ingest ->> orch: BatchArrived(batch 8812)
+  - divider: Load
   - activate: orch
   - orch -> lake: Read manifest
   - lake --> orch: 3 files, 1.2 GB
@@ -29,6 +31,7 @@ messages:
       order_lines:
         - orch -> wh: COPY order_lines
         - wh --> orch: 4,881,020 rows
+  - divider: Check and confirm
   - orch -> wh: Run quality checks
   - wh --> orch: Results
   - alt: All checks pass

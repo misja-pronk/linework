@@ -1,0 +1,22 @@
+Nightly export handshake
+
+Sequence, arrival: Arrival. 4 participants and 4 messages.
+
+Participants
+- Partner SFTP (External system)
+- Data platform
+  - Ingest trigger (Function)
+  - Orchestrator (Worker)
+  - Raw zone (Storage)
+
+Message flow
+In order, top to bottom.
+- 1. Partner SFTP sends to Ingest trigger: orders_2026-11-09.csv + .done marker.
+- 2. Ingest trigger calls Raw zone: Copy file and checksum.
+- 3. Raw zone replies to Ingest trigger: stored.
+- 4. Ingest trigger sends to Orchestrator: BatchArrived(batch 8812).
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message
