@@ -31,15 +31,18 @@ Connections
 
 Walkthrough
 1. The hub holds the shared network services; each workload gets its own spoke.
-2. From the office: The office reaches the spokes over the VPN. The gateway hands the traffic to the firewall, not straight to the peering.
-3. Out to the internet: The route table on each spoke subnet points 0.0.0.0/0 at the firewall's private IP, 10.0.0.68.
+2. From the office: The office reaches the spokes over the VPN. Route table rt-gateway hands the traffic to the firewall, not straight to the peering.
+  - vpng-hub: rt-gateway: spokes → 10.0.0.68
+3. Out to the internet: Each spoke subnet has a route table (rt-erp, rt-intranet) that sends 0.0.0.0/0 to the firewall's private IP, 10.0.0.68.
+  - vmss-erp: rt-erp: 0.0.0.0/0 → 10.0.0.68
 4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
-5. Admin access: No public IPs on VMs. Admins come in through Bastion, over the peering.
+5. Admin access: No public IPs on VMs. Admins come in through Bastion, over the peering; NSG nsg-app lets RDP in from the Bastion subnet only.
+  - vmss-erp: nsg-app: RDP from Bastion only
 
 Layers
 Ways to look at this drawing by tag.
-- Routing: Spoke subnets send 0.0.0.0/0 to the firewall; the gateway sends the spoke ranges there too. (tags routing; 6 elements).
-- Security: One way out to the internet, admin access only through Bastion. (tags security; 4 elements).
+- Routing: Route tables rt-erp and rt-intranet send 0.0.0.0/0 to the firewall; rt-gateway sends the spoke ranges there too. (tags routing; 6 elements).
+- Security: One way out to the internet, admin access only through Bastion. NSGs nsg-app and nsg-web guard the spoke subnets. (tags security; 4 elements).
 
 Key
 - Solid sky line: Public traffic

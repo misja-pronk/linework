@@ -1,13 +1,13 @@
 type: azure
 title: Private endpoints and DNS
-subtitle: Northwind · PaaS without public access, resolved the same way from Azure and from the office
+subtitle: Northwind · every PaaS service behind a private endpoint of its own, resolved the same way from Azure and from the office
 
 # Left to right: head office → hub (DNS resolver, private DNS zones) → spoke (app, private endpoints) → PaaS.
 # The PaaS services have public network access disabled: the only way in is the private endpoint.
 # Name resolution: spoke VNets use the resolver's inbound IP (10.0.1.4) as their DNS server; the
 # office DNS forwards the privatelink.* names there too. The privatelink zones live once, centrally,
 # linked to the hub VNet.
-# Two services show the pattern, so the drawing fits one slide. Key Vault works the same way:
+# Two services show the pattern, so the drawing fits one slide; the subtitle and the last step say it repeats. Key Vault:
 # zone privatelink.vaultcore.azure.net, an endpoint pe-kv-claims (10.1.9.6) in snet-pe.
 # Captions stay short so it reads on a slide: the office is Amsterdam, the spoke VNet uses
 # 10.0.1.4 as its DNS server, and snet-pe holds only private endpoints.
@@ -65,7 +65,7 @@ layers:
     caption: One resolver, one set of privatelink zones, used by the spokes and the office alike.
 
 steps:
-  - Two PaaS services, each reachable only through a private endpoint in the spoke.
+  - Two PaaS services show the pattern, each reachable only through a private endpoint in the spoke.
   - title: The app asks for a name
     caption: sql-claims-prd.database.windows.net is a CNAME to the privatelink name; the resolver answers from the private zone with 10.1.9.4.
     path: app -> resolver -> zone-sql
@@ -75,3 +75,7 @@ steps:
   - title: From the office
     caption: The office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
     path: office-dns -> resolver
+  - title: Every service the same way
+    caption: Key Vault, Service Bus, Cosmos DB… each gets its own endpoint in snet-pe and its own privatelink zone, linked to the hub once.
+    focus: [snet-pe, rg-dns, rg-data]
+    note: { pe-sql: "Next: pe-kv-claims · 10.1.9.6", zone-sql: "Next: privatelink.vaultcore.azure.net" }

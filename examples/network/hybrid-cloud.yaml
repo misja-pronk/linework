@@ -59,7 +59,7 @@ layers:
   vpn:
     tags: [vpn]
     title: VPN failover
-    caption: Only used when ExpressRoute is down. Same prefixes, longer AS path.
+    caption: Only used when ExpressRoute is down. Same prefixes, but Azure prefers ExpressRoute and the DC prepends its AS on the VPN.
 
 steps:
   - Two ways from the data centre into the Azure hub, both through the hub firewall.

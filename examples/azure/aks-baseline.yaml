@@ -1,6 +1,6 @@
 type: azure
 title: AKS baseline
-subtitle: Northwind orders platform · private cluster, WAF in front, egress through the hub firewall, no secrets in pods
+subtitle: Northwind orders platform · private cluster, WAF in front, egress through the hub firewall, no credentials in the cluster
 
 # Left to right: Application Gateway (WAF, the only public IP; customers come in over HTTPS) → ingress
 # → workload → what it uses. Below: the hub firewall in sub-connectivity (Platform).
@@ -29,7 +29,7 @@ groups:
 nodes:
   agw: { kind: app-gateway, label: agw-orders, caption: WAF v2 · public IP, in: snet-agw, tags: [ingress] }
   ingress: { kind: load-balancer, label: ingress-nginx, caption: Internal LB, in: aks, tags: [ingress] }
-  orders: { kind: container-app, label: orders-api, caption: 3 replicas, in: aks, tags: [ingress, identity] }
+  orders: { kind: container-app, label: orders-api, caption: 3 pods, in: aks, tags: [ingress, identity] }
   # The node pools (system and user) run in snet-nodes; the cluster group stands for them
 
   pe-acr: { kind: private-endpoint, label: pe-acr, in: snet-pe }
@@ -64,14 +64,15 @@ layers:
   identity:
     tags: [identity]
     title: Identity
-    caption: Pods sign in as id-orders through workload identity; no secrets in the cluster.
+    caption: Pods sign in as id-orders through workload identity; no credentials are stored in the cluster.
 
 steps:
   - A private AKS cluster in its own spoke, with a subnet per role.
-  - title: In
+  - title: In from the internet
     caption: Customers reach the WAF on Application Gateway's public IP; it forwards to the ingress controller on an internal load balancer.
     path: agw -> ingress -> orders
-  - title: Secrets without secrets
+    note: { agw: "The only public entry" }
+  - title: Secrets without passwords
     caption: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
     path: [orders -> pe-kv -> kv, id -> kv]
   - title: Images

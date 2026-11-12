@@ -17,11 +17,14 @@ groups:
   connectivity: { kind: management-group, label: Connectivity, caption: DDoS protection on VNets, in: platform }
   identity: { kind: management-group, label: Identity, caption: No public IPs · VM backup, in: platform }
 
+  # Written in this order, the groups stand in two rows: Platform and Sandbox, then the landing zones
+  # and Decommissioned.
+  sandbox: { kind: management-group, label: Sandbox, caption: No peering · no VPN or ExpressRoute, in: org }
+
   landing-zones: { kind: management-group, label: Landing zones, caption: Subnets need an NSG · no RDP/SSH from the internet · TLS 1.2, in: org }
   corp: { kind: management-group, label: Corp, caption: No public IPs · PaaS only through private endpoints, in: landing-zones }
   online: { kind: management-group, label: Online, caption: WAF in front of web apps, in: landing-zones }
 
-  sandbox: { kind: management-group, label: Sandbox, caption: No peering · no VPN or ExpressRoute, in: org }
   decommissioned: { kind: management-group, label: Decommissioned, caption: No new resources, in: org }
 
 nodes:

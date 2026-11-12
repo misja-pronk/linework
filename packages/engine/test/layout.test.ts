@@ -148,7 +148,7 @@ const jogBudget: Record<string, number> = {
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'model/deployment.yaml': 1,
-  'azure/hub-spoke.yaml': 1, // the second peering line steps out of the firewall's side beside the first
+  'azure/hub-spoke.yaml': 2, // the second peering line steps out of the firewall's side beside the first, and the way out to the internet above them
   'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
