@@ -1,0 +1,72 @@
+/* The builder's left panel (outline.tsx): the outline of the drawing, or the shapes, on tabs. */
+.left-tabs {
+  padding: 0 16px;
+}
+.outline {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 6px 12px;
+}
+.outline-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px 0 calc(var(--depth) * 14px + 2px);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--text);
+  cursor: default;
+  user-select: none;
+}
+.outline-row:hover {
+  background: var(--hover);
+}
+.outline-row[aria-selected='true'] {
+  background: var(--selection);
+}
+.outline-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* The lines' heading reads as one, not as an element. */
+.outline-row.heading {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+.outline-fold {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: transform 120ms var(--ease);
+}
+.outline-row[aria-expanded='false'] > .outline-fold {
+  transform: rotate(-90deg);
+}
+.outline-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--tone-fg, var(--text-muted));
+}
+.outline-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outline-empty {
+  margin: 16px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}

@@ -46,7 +46,7 @@ for (const jargon of [/PL\. \d/, /type: \w/, /\bHow\b/, /Your AI/]) if (jargon.t
 
 // 2. A card opens its example in the editor at once, on the drawing: no step in between, no undo offer.
 await page.locator('.scenario-main', { hasText: 'Azure network' }).click();
-await page.waitForSelector('.shapes .add-item');
+await page.waitForSelector('.shapes .outline-row');
 await wait(800);
 if (await page.locator('.start').count()) fail('the start dialog stayed open after a card');
 if (!(await yaml()).includes('title: Hub and spoke')) fail('the Azure network card did not open hub-spoke');
@@ -55,7 +55,8 @@ const toast = await page.locator('.toast').innerText().catch(() => '');
 if (!toast.includes('Opened Hub and spoke')) fail(`no plain "Opened" message: ${toast}`);
 if (await page.locator('.toast button', { hasText: 'Undo' }).count()) fail('opening a card offered an undo');
 await page.screenshot({ path: `${out}/2-opened.png` });
-// A shape clicked in the panel lands in the YAML.
+// A shape clicked in the panel's Shapes tab lands in the YAML.
+await page.locator('.left-tabs [role="tab"]', { hasText: 'Shapes' }).click();
 const before = await page.locator('.drawing [data-node]').count();
 await page.locator('.shapes .add-item', { hasText: /^App Service$/ }).click();
 await wait(600);

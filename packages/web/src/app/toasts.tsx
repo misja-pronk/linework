@@ -41,8 +41,8 @@ function dockToast(el: HTMLDivElement | null) {
   const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
   if (!top.length || !pane?.width) return el.classList.remove('docked');
   el.classList.add('docked');
-  // Under an open popover too (the Layers panel, ⋯): a toast never covers what is being used.
-  const open = [...document.querySelectorAll('.canvas-top [role="menu"]')];
+  // Under an open popover too (the Layers panel, ⋯, the quick add): a toast never covers what is being used.
+  const open = [...document.querySelectorAll('.canvas-top [role="menu"], .canvas-pane .add-menu[role="dialog"]')];
   el.style.top = `${Math.max(...[...top, ...open].map((x) => x.getBoundingClientRect().bottom)) + 8}px`;
   el.style.left = `${pane.left + 16}px`;
   el.style.maxWidth = `${pane.width - 32}px`;

@@ -1,4 +1,4 @@
-/* The shapes to add (add-menu.tsx): as a popup over the drawing, or the shapes panel of the builder. */
+/* The shapes to add (add-menu.tsx): as the quick add over the drawing, or the shapes tab of the builder. */
 
 .add-menu {
   position: absolute;
@@ -67,4 +67,11 @@
 }
 .add-menu.inline .add-item:hover > .icon:last-child {
   opacity: 1;
+}
+/* Where the quick add puts a shape when a group is selected. */
+.add-into {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
