@@ -3,10 +3,11 @@
 import PDFDocument from 'pdfkit';
 import SVGtoPDF from 'svg-to-pdfkit';
 import { drawSvg, esc } from '@cartography/render';
-import { bundledFamily, inThemeFonts, themes, type Theme } from '@cartography/theme';
+import { bundledFamily, inThemeFonts, look, themes, type Theme } from '@cartography/theme';
 import type { Drawing } from './pptx.ts';
 import { pages } from './steps.ts';
 import { altOf } from './alt.ts';
+import { slideScale } from './fit.ts';
 
 /** Inter as TTF bytes per weight. WOFF2 will not do: fontkit cannot subset it. */
 export type FontBytes = Record<400 | 500 | 600, Uint8Array>;
@@ -111,15 +112,28 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     const { graph, placed } = d;
     const out = await inThemeFonts(theme, () => drawSvg(graph, placed, theme, { fonts: 'none', stepView: view, images: d.images }));
     const svg = inlineImages(nameFaces(out.svg, monoFamily));
-    const foot = footer ? FOOTER : 0;
-    const sheet = !!opts.page && opts.page !== 'fit';
+    const asked: [number, number] | undefined = opts.page && opts.page !== 'fit' ? (typeof opts.page === 'object' ? [opts.page.width, opts.page.height] : [...SHEETS[opts.page]]) : undefined;
+    // A page of a slide's shape is a slide: the drawing as large as on the deck's slide (fit.ts), no
+    // margin or footer of the PDF's own (the SVG has its padding), so the PDF says what PowerPoint does.
+    const slide = asked && ([16 / 9, 4 / 3] as const).find((a) => Math.abs(asked[0] / asked[1] / a - 1) < 0.01);
+    const foot = footer && !(slide && opts.footer == null) ? FOOTER : 0;
+    const sheet = !!asked && !slide;
     // The SVG has its own padding: a fitted page adds nothing around it, a sheet keeps a margin.
     const m = sheet ? MARGIN : 0;
     let size: [number, number];
     let scale: number;
-    if (opts.page && opts.page !== 'fit') {
-      size = typeof opts.page === 'object' ? [opts.page.width, opts.page.height] : [...SHEETS[opts.page]];
+    if (asked) {
+      size = asked;
       scale = Math.min((size[0] - 2 * m) / out.width, (size[1] - 2 * m - foot) / out.height, 1);
+      if (slide && !foot) {
+        // Points per px on the deck's slide, that slide being 13.33 (or 10) inches wide: 960 (720) pt.
+        const k = await slideScale(d, theme, slide === 4 / 3 ? '4:3' : '16:9');
+        // The SVG's own padding is empty: it may run off the page where that keeps the drawing as large
+        // as the deck sets it, up to a paper look's sheet marks (its corners or frame) drawn in it.
+        const sheetLook = look(theme).sheet;
+        const spill = sheetLook.marks === 'none' ? theme.space.pad : Math.max(0, sheetLook.inset - 2);
+        if (k) scale = Math.min((k * size[0]) / (slide === 4 / 3 ? 720 : 960), size[0] / Math.max(1, out.width - 2 * spill), size[1] / Math.max(1, out.height - 2 * spill));
+      }
     } else {
       // 1 px = 0.75 pt: the drawing at its natural 96 dpi size.
       scale = 0.75;

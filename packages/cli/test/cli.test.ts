@@ -5,6 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { render } from '@cartography/engine';
+import { toPptx, type SlideText } from '@cartography/export';
+import { corporateTemplate } from '../../export/test/fixtures/templates.ts';
 import { carto as inProcess, spawnCarto } from './support/carto.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -122,6 +125,29 @@ describe('carto validate on a slide', () => {
     write('long.yaml', head + msgs(15));
     const r = await carto('validate', 'long.yaml');
     expect(r.err).toMatch(/warning {2}On a 16:9 slide its smallest text is [\d.]+ pt, under 6 pt/);
+  }, 60_000);
+
+  it('says the smallest text the PowerPoint slide has, on our own slide or the template\'s', async () => {
+    const chain = Array.from({ length: 12 }, (_, i) => `s${i}`);
+    const text = `type: systems\ntitle: A long chain\nnodes:\n${chain.map((id, i) => `  ${id}: { kind: service, label: Service number ${i + 1} }`).join('\n')}\nedges:\n${chain.slice(1).map((id, i) => `  - ${chain[i]} -> ${id}: calls`).join('\n')}\n`;
+    write('chain.yaml', text);
+    const x = await render(text, { fonts: 'none' });
+    const slide = async (template?: Uint8Array) => {
+      const seen: SlideText[] = [];
+      await toPptx(x, { theme: x.theme, steps: false, ...(template ? { template } : {}), onSlide: (s) => seen.push(s) });
+      return seen[0]!.smallestPt;
+    };
+    const said = (err: string) => Number(/its smallest text is ([\d.]+) pt/.exec(err)?.[1]);
+    const ours = await carto('validate', 'chain.yaml');
+    expect(ours.err).toMatch(/On a 16:9 slide its smallest text is [\d.]+ pt/);
+    expect(said(ours.err)).toBe(await slide());
+    // In a template the room is the template's: smaller here, under its title bar and above its footers.
+    const corporate = corporateTemplate();
+    fs.writeFileSync(path.join(tmp, 'corporate.potx'), corporate);
+    const theirs = await carto('validate', 'chain.yaml', '--template', 'corporate.potx');
+    expect(theirs.err).toMatch(/On a slide of the template its smallest text is [\d.]+ pt/);
+    expect(said(theirs.err)).toBe(await slide(corporate));
+    expect(said(theirs.err)).toBeLessThan(said(ours.err));
   }, 60_000);
 
   it('checks the phases of a sequence for slides, and only hints at the whole', async () => {

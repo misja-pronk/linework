@@ -97,7 +97,9 @@ export function help(): Help {
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
   carto validate <file.yaml…|folder>            check files (each diagram of a folder) and each of their views,
-                                                print problems
+                                                print problems; warns when the smallest text on its PowerPoint
+                                                slide (as carto render --format pptx makes it) is under 6 pt
+               [--template x.potx] [--layout name]  measure that on a slide of a PowerPoint template
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json

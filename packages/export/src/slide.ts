@@ -2,13 +2,11 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
+import { legendLayout, PX } from './fit.ts';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
-
-/** EMU per CSS pixel at 96 dpi. */
-export const PX = 9525;
 
 export interface IconRef {
   png?: string;
@@ -23,7 +21,7 @@ export interface Placement {
   k: number;
   x: number;
   y: number;
-  /** Told the size (points) of every text set, so the smallest on a slide can be checked. */
+  /** Told the size (points) of every text a reader needs (not detail under DETAIL_PX), so the smallest on a slide can be checked. */
   onText?(pt: number): void;
   /** Told of every part drawn as one picture, because it has no native slide drawing yet. */
   onPicture?(kind: PictureKind): void;
@@ -47,22 +45,6 @@ interface Style {
   mono?: boolean;
   /** Letter-spacing in layout px. */
   tracking?: number;
-}
-
-/** The legend under the drawing: one row of samples, or the KEY of a paper look, wrapped to the drawing's width. */
-function legendLayout(graph: Graph, placed: Placed, theme: Theme) {
-  const items = graph.legend ?? [];
-  if (!items.length) return { key: false, rows: [] as { item: LegendItem; x: number }[][], width: 0, height: 0 };
-  if (look(theme).legend !== 'key') return { key: false, rows: [legendItems(graph, theme).map(({ item, x }) => ({ item, x }))], width: legendWidth(graph, theme), height: 40 };
-  const lay = keyLayout(items, theme, placed.width);
-  return { key: true, rows: lay.rows, width: Math.max(...lay.ends), height: 54 + (lay.rows.length - 1) * LEGEND.ROW };
-}
-
-/** Content size in layout px: the drawing plus the legend under it, and the room callouts of any step need around it (left, top: where the drawing starts). */
-export function contentSize(graph: Graph, placed: Placed, theme: Theme, view?: StepView) {
-  const legend = legendLayout(graph, placed, theme);
-  const room = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
-  return { width: Math.max(placed.width + room.left + room.right, legend.width), height: placed.height + room.top + room.bottom + legend.height, left: room.left, top: room.top };
 }
 
 /** `view`: one step of the drawing. Shapes keep their place and name on every step's slide. */
@@ -119,7 +101,8 @@ class SlideDrawing {
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
-    if (text.trim()) this.at.onText?.(this.pt(size));
+    // Detail (a tag, a count, a badge) may get small: only what a reader needs is told, as smallestTextPx counts it.
+    if (text.trim() && size >= DETAIL_PX) this.at.onText?.(this.pt(size));
     return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
 
@@ -305,6 +288,9 @@ class SlideDrawing {
     const ref = this.icons(`picture:${n.id}`, '', w, 0, { svg, height: h });
     if (!ref) return undefined;
     this.at.onPicture?.(s.kind);
+    // Its words are in the picture, as large as the drawing around it.
+    const px = smallestTextPx(body);
+    if (px != null) this.at.onText?.(this.pt(px));
     const f = this.frame(x, y, w, h);
     const label = this.graph.title ?? tr(t.lang, 'Diagram');
     return { xml: picture({ id: this.idFor(`node:${n.id}`), name: `Picture: ${label}`, descr: label, frame: f, ...ref }), box: f };

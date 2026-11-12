@@ -65,7 +65,7 @@ export type OutputOptions = Pick<Values, 'out' | 'all-views' | 'all-layers'>;
 
 export type RenderOptions = DrawOptions & DocumentOptions & OutputOptions & Pick<Values, 'format' | 'scale' | 'no-fonts' | 'svg-safe' | 'outline-text' | 'stable'>;
 export type DeckOptions = DrawOptions & DocumentOptions & Pick<Values, 'out'>;
-export type ValidateOptions = Pick<Values, 'view' | 'drift' | 'fix' | 'pack'>;
+export type ValidateOptions = Pick<Values, 'view' | 'drift' | 'fix' | 'pack' | 'template' | 'layout' | 'keep-look' | 'keep-slides'>;
 export type DiffOptions = DrawOptions & Pick<Values, 'out' | 'format' | 'scale' | 'no-fonts' | 'json' | 'side-by-side' | 'fresh' | 'exit-code' | 'git' | 'since' | 'snapshot'>;
 export type IconsOptions = Pick<Values, 'out' | 'pack'>;
 export type ExportHtmlOptions = Pick<Values, 'out' | 'title' | 'all-steps' | 'theme' | 'pack' | 'icons'>;

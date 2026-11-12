@@ -80,6 +80,12 @@ await open(tooBig, 'long-chain.yaml');
   const svg = fs.readFileSync(await dl.path(), 'utf8');
   const [, w, h] = /<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/.exec(svg) ?? [];
   if (!w || Math.abs(Number(w) / Number(h) - 16 / 9) > 0.01) fail(`the page SVG is not 16:9: ${w}×${h}`);
+  // The frame says what the PowerPoint slide has: the export's notice names the same size for slide 1.
+  await page.click('button:has-text("Export")');
+  await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[role="menuitem"]:has-text("PowerPoint")')]);
+  await wait(600);
+  const said = /slide 1: ([\d.]+) pt/.exec(await page.locator('body').innerText())?.[1];
+  if (!said || Number(said) !== f?.pt) fail(`the frame says ${f?.pt} pt, the PowerPoint export ${said} pt for its slide`);
 }
 
 // 3. aspect: 4:3 and A4 portrait give those pages; aspect: auto none.

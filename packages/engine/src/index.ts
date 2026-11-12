@@ -49,7 +49,7 @@ import {
   type StepState,
 } from '@cartography/core';
 import { layout, type Tuning } from '@cartography/layout';
-import { drawSvg, size, type SvgOptions } from '@cartography/render';
+import { drawSvg, size, smallestTextPx, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
 import { accessibleSvg, describe, toText } from '@cartography/describe';
@@ -646,8 +646,6 @@ const SLIDE = { width: 1280, height: 720 };
  * 7.5 pt at full size: under 6 pt the drawing is shrunk to less than four fifths, too much for one page.
  */
 export const SLIDE_MIN_PT = 6;
-/** Text smaller than this (px) is detail (a tag, a count, a badge): it may get small before the drawing is too big for a page. */
-const DETAIL_PX = 10;
 
 /** A page a drawing is meant for, in CSS pixels (96 to the inch). */
 export interface Page {
@@ -674,44 +672,46 @@ export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
   return { name: `${Math.round(a * 100) / 100}:1 page`, width: Math.round(720 * a), height: 720 };
 }
 
+// Which text counts: render's smallestTextPx (and DETAIL_PX), the rule the deck reports its slides by too.
+export { DETAIL_PX, smallestTextPx } from '@cartography/render';
+
 /**
- * The smallest size (px) of the text a reader needs in a drawing's SVG: the words on cards, lines and
- * groups, not the asides (the word KEY, the imprint, a map sheet's grid letters, marked data-aside)
- * nor the details under DETAIL_PX (tags, counts, badges).
- * Undefined when it has no such text.
+ * The smallest text a reader needs in a drawing (smallestTextPx), in points, at `ptPerPx` points per
+ * drawing px: on a slide, the scale the PowerPoint export gives it (export's slideScale, or the
+ * `scale` its onSlide reports). Said to a tenth, and compared as said. Undefined when it has no text.
  */
-export function smallestTextPx(svg: string): number | undefined {
-  const sizes = [...svg.matchAll(/<text\b[^>]*>/g)]
-    .filter((m) => !m[0].includes('data-aside'))
-    .map((m) => Number(/font-size="([\d.]+)"/.exec(m[0])?.[1]))
-    .filter((n) => n >= DETAIL_PX);
-  return sizes.length ? Math.min(...sizes) : undefined;
+export function textPtAt(svg: string, ptPerPx: number): number | undefined {
+  const px = smallestTextPx(svg);
+  return px == null ? undefined : Math.round(px * ptPerPx * 10) / 10;
 }
 
 /**
- * The smallest text of a drawing, in points, when it is fitted onto a page (a 16:9 slide, 13.33
- * inches wide, unless another is given): what `carto validate` warns about below SLIDE_MIN_PT.
+ * The smallest text of a drawing, in points, when the whole SVG (its own title and margins with it)
+ * is fitted onto a page (a 16:9 slide, 13.33 inches wide, unless another is given): what an SVG or PNG
+ * placed on that page shows, and what `carto validate` measures a sheet of paper (aspect: a4) by. A
+ * slide is measured on the slide the PowerPoint export makes instead (textPtAt with its scale).
  * Undefined when it has no text.
  */
 export function slideTextPt(svg: string, width: number, height: number, page: { width: number; height: number } = SLIDE): number | undefined {
-  const px = smallestTextPx(svg);
-  if (px == null || !width || !height) return undefined;
-  const scale = Math.min(page.width / width, page.height / height);
-  // A pixel is three quarters of a point; said to a tenth, and compared as said.
-  return Math.round(px * scale * 0.75 * 10) / 10;
+  if (!width || !height) return undefined;
+  // A pixel is three quarters of a point.
+  return textPtAt(svg, Math.min(page.width / width, page.height / height) * 0.75);
 }
 
 /**
  * The part of the page the drawing can fill with its smallest text still SLIDE_MIN_PT: the page
  * shrunk (in drawing px) to where the text would be just readable. What lies outside it is too much
- * for one page: on the canvas it is marked.
+ * for one page: on the canvas it is marked. `ptPerPx`: the scale the drawing really gets there (on a
+ * slide, the PowerPoint export's), when that is not the whole SVG fitted onto the page.
  */
-export function readableArea(svg: string, page: { width: number; height: number }): { width: number; height: number } | undefined {
+export function readableArea(svg: string, page: { width: number; height: number }, fit?: { width: number; height: number; ptPerPx: number }): { width: number; height: number } | undefined {
   const px = smallestTextPx(svg);
   if (px == null) return undefined;
   // At scale s text is px * s * 0.75 pt: readable while s >= SLIDE_MIN_PT / (px * 0.75).
   const s = SLIDE_MIN_PT / (px * 0.75);
-  return { width: page.width / s, height: page.height / s };
+  // Where the drawing gets less than the whole page (a slide's margins and title row), the page is that much smaller for it.
+  const room = fit ? fit.ptPerPx / (0.75 * Math.min(page.width / fit.width, page.height / fit.height)) : 1;
+  return { width: (page.width * room) / s, height: (page.height * room) / s };
 }
 
 /** `aspect:` as written: "16:9", "4:3", a4, a4-portrait (and the like), a number (width / height) or "auto". */

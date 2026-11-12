@@ -97,7 +97,7 @@ A selector that names nothing is reported on its own line and column, like any o
 - `Nothing drawn here is called "apii"`: an id, group, tag or kind that is not in this drawing (or not in this view).
 - `"web ->" misses an end`: a route with an empty end.
 - `There is no line between "web" and "db"`: a warning; the step is drawn without that part of the route.
-- `All 5 steps: on a 16:9 slide their smallest text is 5.7 pt, under 6 pt …`: a warning from `carto validate`, which checks each step's slide as PowerPoint makes it. The steps of a drawing share one layout, so the longest title and caption decide how much room all of them leave the drawing; the warning names the steps whose words run to more than one line. Keep each to one line (about 110 characters, title included), and notes short.
+- `All 5 steps: on a 16:9 slide their smallest text is 5.7 pt, under 6 pt …`: a warning from `carto validate`, which checks each step's slide as PowerPoint makes it (the same slide `carto render --format pptx` writes, so the number is the one PowerPoint shows). The steps of a drawing share one layout, so the longest title and caption decide how much room all of them leave the drawing; the warning names the steps whose words run to more than one line. Keep each to one line (about 110 characters, title included), and notes short.
 
 ## In the editor
 

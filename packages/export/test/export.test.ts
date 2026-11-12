@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, type RenderResult } from '@cartography/engine';
+import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
-import { pages, pdfFamilies, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes } from '../src/index.ts';
+import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
 import { clean, fitConnector } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
@@ -449,6 +449,28 @@ describe('on the page', () => {
     for (const t of seen) expect(t.smallestPt).toBeGreaterThan(3);
     // The bigger drawing is set smaller on its slide.
     expect(seen[1]!.smallestPt).toBeLessThan(seen[0]!.smallestPt);
+  });
+  it('measures a slide as the deck makes it, and makes it nearly as large as the drawing fitted whole', async () => {
+    for (const f of ['network/hybrid-cloud.yaml', 'azure/hub-spoke.yaml', 'access/engineering.yaml', 'journey/first-deploy.yaml']) {
+      const r = await draw(f);
+      const seen: SlideText[] = [];
+      await toPptx(r, { theme: r.theme, steps: false, onSlide: (t) => seen.push(t) });
+      // What validate and the editor's page frame ask (slideScale) is the scale the slide has, and the
+      // smallest text it reports is the drawing's smallest needed text at that scale: one measure.
+      expect(seen[0]!.scale, f).toBeCloseTo((await slideScale(r, r.theme!))!, 6);
+      expect(seen[0]!.smallestPt, f).toBe(textPtAt(r.svg!, seen[0]!.scale));
+      // The title row, margins and legend cost the drawing hardly more than the SVG's own title and padding.
+      expect(seen[0]!.smallestPt, f).toBeGreaterThanOrEqual(slideTextPt(r.svg!, r.width!, r.height!)! - 0.1);
+    }
+  });
+  it('a PDF on a slide page is as large as the slide', async () => {
+    const r = await draw('network/hybrid-cloud.yaml');
+    const k = (await slideScale(r, r.theme!))!;
+    const pdf = Buffer.from(await toPdf(r, { theme: r.theme, fonts: fonts(), compress: false, page: 'slide', steps: false })).toString('latin1');
+    // svg-to-pdfkit sets the SVG in px (0.75 pt each), then scales it to the size asked: together, pt per drawing px.
+    const cm = [...pdf.matchAll(/^([\d.-]+) 0 0 ([\d.-]+) [\d.-]+ [\d.-]+ cm$/gm)].map((m) => Number(m[1]));
+    const s = cm[cm.indexOf(0.75) + 1];
+    expect(0.75 * Number(s)).toBeCloseTo(k, 4);
   });
   it('puts a PDF on the page asked for, in points', async () => {
     const pdf = Buffer.from(await toPdf(await draw('systems/web-shop.yaml'), { fonts: fonts(), compress: false, page: 'slide' })).toString('latin1');
