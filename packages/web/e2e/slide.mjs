@@ -64,7 +64,10 @@ await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label
 
 // 2. A big drawing: the frame says its text is under 6 pt (SLIDE_MIN_PT), shows the readable part and flags what lies outside it.
 await page.context().close();
-await open(example('cloud/aws-data-lake.yaml'), 'aws-data-lake.yaml');
+// Written here, not an example: the examples are kept small enough for a slide.
+const chain = Array.from({ length: 16 }, (_, i) => `s${i}`);
+const tooBig = `type: systems\ntitle: A long chain\nnodes:\n${chain.map((id, i) => `  ${id}: { kind: service, label: Service number ${i + 1} }`).join('\n')}\nedges:\n${chain.slice(1).map((id, i) => `  - ${chain[i]} -> ${id}: calls`).join('\n')}\n`;
+await open(tooBig, 'long-chain.yaml');
 {
   const f = await frame();
   if (!f?.small) fail(`a drawing far too big for a slide is not flagged: ${JSON.stringify(f)}`);
