@@ -4,8 +4,6 @@
 import fs from 'node:fs';
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
-const examples = new URL('../../../examples/', import.meta.url);
-const example = (f) => fs.readFileSync(new URL(f, examples), 'utf8');
 const browser = await chromium.launch();
 const problems = [];
 const fail = (m) => problems.push(m);
