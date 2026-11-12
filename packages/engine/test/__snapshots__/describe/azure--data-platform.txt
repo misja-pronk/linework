@@ -18,7 +18,7 @@ Groups and elements
       - gold (Business-ready)
   - rg-data-serve (Resource group)
     - Serverless SQL warehouse (Databricks SQL)
-  - Power BI (Reports · DirectQuery)
+    - Power BI (Fabric capacity · F64)
   - rg-data-process (Resource group)
     - dbw-nw-data (Unity Catalog · VNet-injected)
 
@@ -28,7 +28,7 @@ Connections
 - bronze sends data to silver (clean).
 - silver sends data to gold (model).
 - gold sends data to Serverless SQL warehouse.
-- Serverless SQL warehouse sends data to Power BI.
+- Serverless SQL warehouse sends data to Power BI (DirectQuery).
 - CRM sends data to adf-nw-data.
 - Web shop sends data to evh-clickstream.
 - evh-clickstream sends data to bronze.
@@ -38,7 +38,7 @@ Walkthrough
 1. One subscription with a resource group per stage, and the lake in the middle.
 2. Ingest: Data Factory copies batch sources into bronze; web shop events stream in through Event Hubs.
 3. Refine: Databricks jobs clean bronze into silver and model silver into gold, governed by Unity Catalog.
-4. Serve: Analysts query gold through a serverless SQL warehouse from Power BI.
+4. Serve: Power BI reports, running on the Fabric capacity, query gold through a serverless SQL warehouse (DirectQuery).
 
 Key
 - Solid violet line with ticks: Data flow

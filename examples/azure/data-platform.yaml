@@ -10,8 +10,10 @@ direction: right
 # endpoints, Databricks is VNet-injected without public IPs, Data Factory runs in a managed VNet.
 # Captions stay short so the drawing reads on a slide: ERP is on-premises SQL Server (through a
 # self-hosted integration runtime), CRM a SaaS REST API; bronze holds data as delivered, silver
-# cleaned and conformed, gold business-ready Delta tables. Power BI is SaaS, outside Azure: it is
-# drawn in the subscription only to stand beside the warehouse it queries (DirectQuery).
+# cleaned and conformed, gold business-ready Delta tables.
+# Power BI is SaaS; what stands in the subscription is the Fabric capacity (an Azure resource,
+# Microsoft.Fabric/capacities) its workspaces run on. Its reports query the warehouse (DirectQuery);
+# with private networking that goes through a VNet data gateway.
 # Adding a source: a card in sources and a line to Data Factory (batch) or Event Hubs (streaming).
 
 groups:
@@ -38,7 +40,7 @@ nodes:
   dbw: { kind: databricks, label: dbw-nw-data, caption: Unity Catalog · VNet-injected, in: rg-process }
 
   sqlwh: { kind: sql-warehouse, label: Serverless SQL warehouse, caption: Databricks SQL, in: rg-serve }
-  bi: { kind: users, label: Power BI, caption: Reports · DirectQuery, in: sub }
+  bi: { kind: service, icon: chart-column-big, tone: amber, label: Power BI, caption: Fabric capacity · F64, in: rg-serve }
 
 edges:
   - erp -> adf: { style: data }
@@ -51,7 +53,7 @@ edges:
   - silver -> gold: { label: model, style: data }
   - dbw ..> lake: { label: jobs, style: management }
   - gold -> sqlwh: { style: data }
-  - sqlwh -> bi: { style: data }
+  - sqlwh -> bi: { label: DirectQuery, style: data }
 
 steps:
   - One subscription with a resource group per stage, and the lake in the middle.
@@ -62,5 +64,5 @@ steps:
     caption: Databricks jobs clean bronze into silver and model silver into gold, governed by Unity Catalog.
     path: [dbw -> lake, bronze -> silver -> gold]
   - title: Serve
-    caption: Analysts query gold through a serverless SQL warehouse from Power BI.
+    caption: Power BI reports, running on the Fabric capacity, query gold through a serverless SQL warehouse (DirectQuery).
     path: gold -> sqlwh -> bi

@@ -39,7 +39,7 @@ Walkthrough
 Layers
 Ways to look at this drawing by tag.
 - ExpressRoute: The normal path. Private, 1 Gbps, BGP over two links to the Microsoft edge. (tags expressroute; 7 elements).
-- VPN failover: Only used when ExpressRoute is down. Same prefixes, longer AS path. (tags vpn; 6 elements).
+- VPN failover: Only used when ExpressRoute is down. Same prefixes, but Azure prefers ExpressRoute and the DC prepends its AS on the VPN. (tags vpn; 6 elements).
 
 Key
 - Solid line: Ethernet
