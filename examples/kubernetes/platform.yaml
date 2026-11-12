@@ -2,6 +2,12 @@ type: kubernetes
 title: Platform cluster
 subtitle: Shared ingress, certificates and observability for the app teams
 
+# Sized for a slide: images and versions are left off the app workloads (storefront 5.2, orders 3.0,
+# billing 1.9, postgres 16, prometheus 2.54, grafana 11.2, loki and promtail 3.1). The controller
+# stands for ingress-nginx's Deployment and its LoadBalancer Service; cert-manager gets certificates
+# from Let's Encrypt over ACME. Not drawn: storefront calls orders through /api like the browser
+# does, and orders charges through billing-api.
+
 groups:
   cluster: { kind: cluster, label: platform-prod }
   ingress-nginx: { kind: namespace, in: cluster }
@@ -12,45 +18,39 @@ groups:
 
 nodes:
   internet: internet
-  letsencrypt: { kind: external, label: "Let's Encrypt" }
 
-  lb: { kind: service, label: ingress-nginx, in: ingress-nginx, serviceType: LoadBalancer, ports: [80, 443] }
-  controller: { kind: deployment, label: controller, in: ingress-nginx, replicas: 3, image: ingress-nginx/controller:v1.11 }
+  controller: { kind: deployment, label: ingress-nginx, in: ingress-nginx, serviceType: LoadBalancer, replicas: 3 }
 
-  cm: { kind: deployment, label: cert-manager, in: cert-manager, replicas: 2 }
+  cm: { kind: deployment, label: cert-manager, in: cert-manager, replicas: 2, caption: "Deployment · ×2 · ACME" }
   issuer-key: { kind: secret, label: letsencrypt-account, in: cert-manager }
 
   shop-ing: { kind: ingress, label: shop, in: shop, host: shop.acme.io }
   shop-tls: { kind: secret, in: shop }
-  storefront: { kind: deployment, in: shop, replicas: 3, image: acme/storefront:5.2 }
-  orders: { kind: deployment, in: shop, replicas: 2, image: acme/orders:3.0 }
-  orders-db: { kind: statefulset, in: shop, image: postgres:16 }
+  storefront: { kind: deployment, in: shop, replicas: 3 }
+  orders: { kind: deployment, in: shop, replicas: 2 }
+  orders-db: { kind: statefulset, in: shop }
 
   billing-ing: { kind: ingress, label: billing, in: billing, host: pay.acme.io }
-  billing-api: { kind: deployment, in: billing, replicas: 2, image: acme/billing:1.9 }
+  billing-api: { kind: deployment, in: billing, replicas: 2 }
   invoices: { kind: cronjob, in: billing, schedule: "0 2 * * *" }
-  billing-db: { kind: statefulset, in: billing, image: postgres:16 }
+  billing-db: { kind: statefulset, in: billing }
 
-  prometheus: { kind: statefulset, in: observability, replicas: 2, image: prometheus:v2.54 }
-  grafana: { kind: deployment, in: observability, image: grafana:11.2 }
-  loki: { kind: statefulset, in: observability, image: loki:3.1 }
-  promtail: { kind: daemonset, in: observability, image: promtail:3.1 }
+  prometheus: { kind: statefulset, in: observability, replicas: 2 }
+  grafana: { kind: deployment, in: observability }
+  loki: { kind: statefulset, in: observability }
+  promtail: { kind: daemonset, in: observability }
 
 edges:
-  - internet -> lb: HTTPS
-  - lb -> controller
+  - internet -> controller: HTTPS
   - controller -> shop-ing
   - controller -> billing-ing
   - shop-ing -> storefront: /
   - shop-ing -> orders: /api
   - shop-ing -> shop-tls
-  - storefront -> orders
   - orders -> orders-db
   - billing-ing -> billing-api
   - billing-api -> billing-db
   - invoices -> billing-db
-  - orders -> billing-api: charge
-  - cm -> letsencrypt: ACME
   - cm -> issuer-key
   - grafana -> prometheus
   - grafana -> loki

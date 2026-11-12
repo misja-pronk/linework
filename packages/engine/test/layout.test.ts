@@ -83,7 +83,7 @@ const crossingBudget: Record<string, number> = {
   'workspace/context.yaml': 0,
   'workspace/data-products.yaml': 0,
   'workspace/deployment.yaml': 0,
-  'workspace/model.yaml': 0,
+  'workspace/model.yaml': 1, // the landscape drawn left to right for a slide (5.1 → 7.0 pt): the retail customer's line down into Harbour Online passes the advisor's line to the desk
   'network/campus.yaml': 0,
   'network/hybrid-cloud.yaml': 0,
   'network/office-ip-plan.yaml': 0,
@@ -107,7 +107,7 @@ const crossingBudget: Record<string, number> = {
   'journey/first-deploy.yaml': 0,
   'matrix/crud-services.yaml': 0,
   'matrix/raci-migration.yaml': 0,
-  'kubernetes/inference.yaml': 0,
+  'kubernetes/inference.yaml': 1, // the router's chat and embeddings lines leave its side one over the other
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,
   'sequence/checkout.yaml': 0,
@@ -137,6 +137,7 @@ const jogBudget: Record<string, number> = {
   // The Harbour Bank workspace example (examples/workspace), as drawn when it was added.
   'workspace/containers.yaml#api': 2,
   'workspace/context.yaml': 1,
+  'workspace/model.yaml': 2, // the landscape left to right: the lines into the ledger step aside into its side
   'workspace/data-products.yaml': 2,
   'systems/invoice-walkthrough.yaml': 1, // three lines out of Orders' side: confirmation steps a lane down past the SQL line
   // A lane aside: lines keep clear of the cards they pass and do not start where another ends on its track.
@@ -176,6 +177,7 @@ const jogBudget: Record<string, number> = {
 // Labels sitting on a corner of their line: none, but for the ones named here.
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
+  'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
   'states/device-connection.yaml': 1, // update verified, between two returns
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
@@ -239,7 +241,9 @@ const returns: Record<string, number> = {
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
   'deployment/azure.yaml#prod': 1,
-  'deployment/aws.yaml#prod': 1, // wrapped the way the first environment is
+  'deployment/aws.yaml': 2, // users and the storefront stand to the left for a slide: their lines into the region run back
+  'deployment/aws.yaml#prod': 2, // wrapped the way the first environment is
+  'deployment/aws.yaml#test': 2, // the same
   'model/containers.yaml': 2,
   'network/campus.yaml': 2,
   'systems/trust-zones.yaml': 2,
@@ -292,8 +296,12 @@ describe('layout quality', () => {
   });
   it('runs straight between two cards in line, past the titles of the groups in between', async () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
-    // Drawn on its own (not the way the first environment was), as it would be without the others.
-    const r = await render(fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8'), { fonts: 'none', load, view: 'dev', previous: null });
+    // Drawn on its own (not the way the first environment was), as it would be without the others,
+    // and with the account around the region that the example leaves out to fit a slide: one more group title to pass.
+    const aws = fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8');
+    const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
+    expect(inAccount).not.toBe(aws);
+    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });

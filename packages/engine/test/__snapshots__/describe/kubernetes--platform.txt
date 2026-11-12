@@ -1,45 +1,41 @@
 Platform cluster
 
-Kubernetes diagram: Shared ingress, certificates and observability for the app teams. 17 elements in 6 groups, with 18 connections.
+Kubernetes diagram: Shared ingress, certificates and observability for the app teams. 15 elements in 6 groups, with 14 connections.
 
 Groups and elements
 - Internet
 - platform-prod (Cluster)
   - ingress-nginx (Namespace)
-    - ingress-nginx (LoadBalancer · :80 :443)
-    - controller (Deployment · ×3 · controller:v1.11)
+    - ingress-nginx (LoadBalancer · ×3)
   - shop (Namespace)
     - shop (Ingress · shop.acme.io)
-    - storefront (Deployment · ×3 · storefront:5.2)
-    - orders (Deployment · ×2 · orders:3.0)
-    - orders-db (StatefulSet · postgres:16)
+    - storefront (Deployment · ×3)
+    - orders (Deployment · ×2)
+    - orders-db (StatefulSet)
   - billing (Namespace)
     - billing (Ingress · pay.acme.io)
-    - billing-api (Deployment · ×2 · billing:1.9)
-    - billing-db (StatefulSet · postgres:16)
+    - billing-api (Deployment · ×2)
+    - billing-db (StatefulSet)
     - invoices (CronJob · 0 2 * * *)
-  - cert-manager (Namespace)
-    - cert-manager (Deployment · ×2)
   - observability (Namespace)
-    - grafana (Deployment · grafana:11.2)
-    - prometheus (StatefulSet · ×2 · prometheus:v2.54)
-    - loki (StatefulSet · loki:3.1)
-    - promtail (DaemonSet · promtail:3.1)
-- Let's Encrypt (External)
+    - grafana (Deployment)
+    - prometheus (StatefulSet · ×2)
+    - loki (StatefulSet)
+    - promtail (DaemonSet)
+  - cert-manager (Namespace)
+    - cert-manager (Deployment · ×2 · ACME)
 
 Connections
 - Internet sends traffic to ingress-nginx (LoadBalancer) over HTTPS.
-- ingress-nginx (LoadBalancer) sends traffic to controller.
-- controller sends traffic to shop (Ingress) and sends traffic to billing (Ingress).
+- ingress-nginx (LoadBalancer) sends traffic to shop (Ingress) and sends traffic to billing (Ingress).
 - shop (Ingress) sends traffic to storefront (/), sends traffic to orders (/api) and mounts shop-tls.
 - billing (Ingress) sends traffic to billing-api.
-- storefront sends traffic to orders.
-- orders sends traffic to billing-api (charge) and sends traffic to orders-db.
+- orders sends traffic to orders-db.
 - billing-api sends traffic to billing-db.
-- cert-manager (Deployment) sends traffic to Let's Encrypt (ACME) and mounts letsencrypt-account.
 - invoices sends traffic to billing-db.
 - grafana sends traffic to prometheus and sends traffic to loki.
 - promtail sends traffic to loki (logs).
+- cert-manager (Deployment) mounts letsencrypt-account.
 
 Key
 - Solid blue line: Traffic

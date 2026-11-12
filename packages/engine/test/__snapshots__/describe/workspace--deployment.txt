@@ -1,23 +1,22 @@
 Harbour Bank
 
-Azure infrastructure diagram: Production. 7 elements in 5 groups, with 7 connections.
+Azure infrastructure diagram: Production. 7 elements in 4 groups, with 7 connections.
 
 Groups and elements
-- Production (Subscription)
-  - rg-harbour-prod (Resource group)
-    - Web banking (Static Web App · React): Runs Web banking (online.web)
-    - vnet-harbour (Virtual network)
-      - snet-apps (Subnet)
-        - Banking API (Container App · Spring Boot): Runs Banking API (online.api): Serves accounts and payments as JSON
-        - Payment gateway (Container App · Go): Runs Payment gateway (payments.gateway)
-        - Settlement engine (AKS · Java 21): Runs Settlement engine (payments.engine)
-      - snet-data (Subnet)
-        - Customer store (PostgreSQL 16): Runs Customer store (online.db)
-    - Payment events (Event Hubs · Kafka): Runs Payment events (payments.events)
+- rg-harbour-prod (Resource group)
+  - Web banking (Static Web App · React): Runs Web banking (online.web)
+  - vnet-harbour (Virtual network)
+    - snet-apps (Subnet)
+      - Banking API (Container App · Spring Boot): Runs Banking API (online.api): Serves accounts and payments as JSON
+      - Payment gateway (Container App · Go): Runs Payment gateway (payments.gateway)
+      - Settlement engine (AKS · Java 21): Runs Settlement engine (payments.engine)
+    - snet-data (Subnet)
+      - Customer store (PostgreSQL 16): Runs Customer store (online.db)
+  - Payment events (Event Hubs · Kafka): Runs Payment events (payments.events)
 - Core ledger (External system): Holds every account and books every transaction
 
 Connections
-- Web banking connects to Banking API (Calls [JSON/HTTPS]).
-- Banking API connects to Customer store (Reads logins [JDBC]), connects to Core ledger (Reads balances) and connects to Payment gateway (Submits payments [gRPC]).
+- Web banking connects to Banking API over HTTPS.
+- Banking API connects to Payment gateway over gRPC, connects to Customer store (Reads logins [JDBC]) and connects to Core ledger (Reads balances).
 - Payment gateway connects to Settlement engine (Routes).
-- Settlement engine connects to Core ledger (Books) and connects to Payment events (Publishes).
+- Settlement engine connects to Core ledger (Books) and connects to Payment events (Kafka).

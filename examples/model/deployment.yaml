@@ -24,3 +24,5 @@ nodes:
 edges:
   - web -> api: { label: HTTPS, style: public }
   - api -> db: { label: SQL, style: private }
+  # The model's "Sends receipts", said shorter so the drawing fits a slide.
+  - worker -> mail: Receipts

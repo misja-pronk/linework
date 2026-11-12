@@ -20,7 +20,7 @@ Connections
 - Storefront sends traffic to Orders API over HTTPS.
 - Orders API connects to Orders DB (Private network: SQL), connects to order-events (OrderPlaced) and connects to Stripe (Charges cards).
 - order-events connects to Mailer.
-- Mailer connects to SendGrid (Sends receipts).
+- Mailer connects to SendGrid (Receipts).
 
 Key
 - Solid line: Connection
