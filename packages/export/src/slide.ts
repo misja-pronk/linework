@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, keyLayout, labelInk, labelString, laneHeader, laneMarks, LEGEND, legendItems, legendWidth, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, rowHeight, sectionHeight, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
@@ -625,9 +625,10 @@ class SlideDrawing {
       items.push(this.vline(x, b.y + 10, b.y + b.height - 10, t.border, 0.5));
       x += w;
     }
-    let y = b.y + HEAD;
     for (const [i, row] of m.rows.entries()) {
-      const cy = y + g.rowHeight / 2;
+      // Rows as the drawing has them: taller where a cell's note takes more lines.
+      const y = b.y + g.rows[i]!.y;
+      const cy = y + g.rows[i]!.height / 2;
       // A row without a label continues the one above: the rule skips its header.
       if (i > 0) items.push(this.hline(m.plain && !row.label ? b.x + g.rowHeader : b.x, b.x + b.width, y, t.border, 0.6));
       const rt = tone(row.tone);
@@ -647,20 +648,19 @@ class SlideDrawing {
         const w = g.columns[j]!;
         const c = m.cells[i]?.[j];
         if (m.plain) items.push(this.text(cx + PAD, cy, fitText(c?.text ?? '–', t.size.cell, c?.strong ? 600 : 400, w - 2 * PAD), t.size.cell, c?.strong ? 600 : 400, c?.text ? t.text : t.textFaint));
-        else items.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD));
+        else items.push(...this.cell(c, cx + w / 2, cy, w - 2 * PAD, g.notes[i]?.[j]));
         cx += w;
       }
-      y += g.rowHeight;
     }
     return this.group(`Matrix: ${m.corner ?? n.id}`, items);
   }
 
-  private cell(c: MatrixCell | undefined, cx: number, cy: number, room: number): (Item | undefined)[] {
+  private cell(c: MatrixCell | undefined, cx: number, cy: number, room: number, note?: string[]): (Item | undefined)[] {
     const t = this.theme;
     const { PILL_H, PILL_X, NOTE, CHECK } = MATRIX;
     if (!c || (!c.text && !c.check)) return [this.text(cx, cy, '–', t.size.cell, 400, t.textFaint, 'middle')];
     const tone = t.tones[c.tone ?? 'blue'];
-    const py = c.note ? cy - 8 : cy;
+    const { py, notes } = cellMarks(cy, note);
     const out: (Item | undefined)[] = [];
     const outline: Line = { color: tone.fg, alpha: 0.7, width: this.L(1), dash: 'dashed' };
     if (c.check) {
@@ -682,7 +682,7 @@ class SlideDrawing {
         }),
       );
     }
-    if (c.note) out.push(this.text(cx, cy + 13, fitText(c.note, NOTE, 400, room), NOTE, 400, t.textMuted, 'middle'));
+    for (const [k, ny] of notes.entries()) out.push(this.text(cx, ny, fitText(note![k]!, NOTE, 400, room), NOTE, 400, t.textMuted, 'middle'));
     return out;
   }
 

@@ -11,8 +11,8 @@ import { wrapText } from './size.ts';
  * label (a tile in rows, a bare icon in columns). BAND: a name over grouped columns; SECTION: a name
  * between grouped rows; LINE: a line of wrapped text; PART_GAP: between the pills of one cell.
  */
-export const MATRIX = { PAD: 16, HEAD: 56, PILL_H: 22, PILL_X: 10, NOTE: 10.5, CHECK: 18, ROW_ICON: 30, COL_ICON: 22, BAND: 26, SECTION: 28, LINE: 17, PART_GAP: 4, PART_X: 6 } as const;
-const { PAD, HEAD, PILL_H, PILL_X, NOTE, CHECK, ROW_ICON, COL_ICON, BAND, SECTION, LINE, PART_GAP, PART_X } = MATRIX;
+export const MATRIX = { PAD: 16, HEAD: 56, PILL_H: 22, PILL_X: 10, NOTE: 10.5, NOTE_WRAP: 200, NOTE_LINE: 13, CHECK: 18, ROW_ICON: 30, COL_ICON: 22, BAND: 26, SECTION: 28, LINE: 17, PART_GAP: 4, PART_X: 6 } as const;
+const { PAD, HEAD, PILL_H, PILL_X, NOTE, NOTE_WRAP, NOTE_LINE, CHECK, ROW_ICON, COL_ICON, BAND, SECTION, LINE, PART_GAP, PART_X } = MATRIX;
 
 export interface MatrixGeometry {
   rowHeader: number;
@@ -32,6 +32,8 @@ export interface MatrixGeometry {
   bands: { label: string; x: number; width: number }[];
   /** Wrapped text per cell of a plain table that wraps. */
   lines: (string[] | undefined)[][];
+  /** Each cell's note, on as many lines (up to three) as it needs to stay under NOTE_WRAP wide. */
+  notes: (string[] | undefined)[][];
 }
 
 /** Runs of the same group in a list of headers: [label, first, count]. */
@@ -53,13 +55,19 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
   const label = (h: { label: string; caption?: string; icon?: string }, iconWidth: number) =>
     (h.icon ? iconWidth : 0) + Math.max(measureText(h.label, theme.size.cell, 600), h.caption ? measureText(h.caption, theme.size.caption, 400) : 0);
   const pill = (c: MatrixCell) => (c.parts?.length ? partsWidth(c.parts, theme) : c.check ? CHECK : c.text ? measureText(c.text, chipText(theme), 500) + 2 * PILL_X : 0);
-  const cellWidth = (c: MatrixCell | undefined) => {
+  // A long note (where an access comes from, with its conditions) goes on the next line rather than widening its column.
+  const notes = m.cells.map((r) => m.columns.map((_, j) => {
+    const c = r[j];
+    if (!c?.note || (m.plain && !c.tone)) return undefined;
+    return measureText(c.note, NOTE, 400) > NOTE_WRAP ? wrapText(c.note, NOTE, 400, NOTE_WRAP, 3) : [c.note];
+  }));
+  const cellWidth = (c: MatrixCell | undefined, i: number, j: number) => {
     if (!c) return 0;
     if (m.plain && !c.tone) return measureText(c.text ?? '–', theme.size.cell, c.strong ? 600 : 400);
-    return Math.max(pill(c), c.note ? measureText(c.note, NOTE, 400) : 0);
+    return Math.max(pill(c), ...(notes[i]![j] ?? []).map((l) => measureText(l, NOTE, 400)));
   };
   const rowHeader = Math.max(m.corner ? (m.plain ? measureText(m.corner, theme.size.cell, 600) : measureText(m.corner, theme.size.caption, 500)) : 0, ...m.rows.map((r) => label(r, ROW_ICON))) + 2 * PAD;
-  const natural = m.columns.map((col, j) => Math.max(72, label(col, COL_ICON), ...m.cells.map((r) => cellWidth(r[j]))));
+  const natural = m.columns.map((col, j) => Math.max(72, label(col, COL_ICON), ...m.cells.map((r, i) => cellWidth(r[j], i, j))));
   // A plain table that wraps keeps long text in its column: the words go on the next line.
   const wraps = (j: number) => !!m.plain && !!m.wrap && natural[j]! > m.wrap;
   const lines = m.cells.map((r) => m.columns.map((_, j) => {
@@ -67,8 +75,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
     return wraps(j) && c?.text && !c.tone ? wrapText(c.text, theme.size.cell, c.strong ? 600 : 400, m.wrap!, 12) : undefined;
   }));
   const columns = natural.map((w, j) => (wraps(j) ? Math.max(m.wrap!, ...lines.map((r) => Math.max(0, ...(r[j] ?? []).map((l) => measureText(l, theme.size.cell, 600))))) : w) + 2 * PAD);
-  const notes = m.cells.some((r) => r.some((c) => c?.note));
-  const rowHeight = notes ? 50 : 38;
+  const rowHeight = notes.some((r) => r.some(Boolean)) ? 50 : 38;
   const bands = headerGroups(m.columns).map(([label, first, count]) => ({
     label,
     x: rowHeader + columns.slice(0, first).reduce((a, b) => a + b, 0),
@@ -85,12 +92,13 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
       y += SECTION;
     }
     const most = Math.max(1, ...(lines[i] ?? []).map((l) => l?.length ?? 1));
-    const height = most > 1 ? Math.max(rowHeight, most * LINE + 20) : rowHeight;
+    const noteLines = Math.max(1, ...(notes[i] ?? []).map((l) => l?.length ?? 1));
+    const height = Math.max(most > 1 ? most * LINE + 20 : rowHeight, rowHeight + (noteLines - 1) * NOTE_LINE);
     rows.push({ y, height });
     y += height;
   }
   const width = rowHeader + columns.reduce((a, b) => a + b, 0);
-  return { rowHeader, columns, rowHeight, width, height: y + 4, band, head, rows, sections, bands, lines };
+  return { rowHeader, columns, rowHeight, width, height: y + 4, band, head, rows, sections, bands, lines, notes };
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -155,7 +163,7 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
     const y = b.y + g.rows[i]!.y;
     const rh = g.rows[i]!.height;
     // A row that wraps reads from its top, as a table in a document does.
-    const cy = rh > g.rowHeight ? y + 10 + LINE / 2 : y + rh / 2;
+    const cy = m.plain && rh > g.rowHeight ? y + 10 + LINE / 2 : y + rh / 2;
     // A row without a label continues the one above (more interfaces of one device): the rule skips its header.
     const more = m.plain && !row.label;
     if (i > 0 && g.rows[i - 1]!.y + g.rows[i - 1]!.height === g.rows[i]!.y)
@@ -183,12 +191,12 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
       s += wrapped
         ? wrapped.map((l, k) => text(cx + PAD, y + 10 + LINE * (k + 0.5), l, theme.size.cell, cell?.strong ? 600 : 400, theme.text)).join('')
         : m.plain && cell?.tone
-          ? drawCell(cell, cx + PAD + cellPill(cell, theme) / 2, cy, w - 2 * PAD, theme)
+          ? drawCell(cell, cx + PAD + cellPill(cell, theme) / 2, cy, w - 2 * PAD, theme, g.notes[i]?.[j])
           : m.plain
             ? text(cx + PAD, cy, fitText(cell?.text ?? '–', theme.size.cell, cell?.strong ? 600 : 400, w - 2 * PAD), theme.size.cell, cell?.strong ? 600 : 400, cell?.text ? theme.text : theme.textFaint)
             : m.compare && cell && !cell.change
-              ? `<g opacity="0.42">${drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme)}</g>`
-              : drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme);
+              ? `<g opacity="0.42">${drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme, g.notes[i]?.[j])}</g>`
+              : drawCell(cell, cx + w / 2, cy, w - 2 * PAD, theme, g.notes[i]?.[j]);
       cx += w;
     }
   }
@@ -197,7 +205,14 @@ export function drawMatrix(m: MatrixShape, b: Box, theme: Theme, shadowId: strin
 
 const cellPill = (c: MatrixCell, theme: Theme) => measureText(c.text ?? '', chipText(theme), 500) + 2 * PILL_X;
 
-function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: number, theme: Theme): string {
+/** Where a cell's pill and each line of its note stand: the whole block centred on cy. */
+export function cellMarks(cy: number, note: string[] | undefined): { py: number; notes: number[] } {
+  if (!note?.length) return { py: cy, notes: [] };
+  const py = cy - 8 - ((note.length - 1) * NOTE_LINE) / 2;
+  return { py, notes: note.map((_, k) => py + 21 + k * NOTE_LINE) };
+}
+
+function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: number, theme: Theme, note?: string[]): string {
   if (c?.parts?.length) {
     // Several values: a small pill each, side by side, each in its own tone; the letters say which.
     let x = cx - partsWidth(c.parts, theme) / 2;
@@ -214,7 +229,7 @@ function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: numbe
   }
   if (!c || (!c.text && !c.check)) return text(cx, cy, '–', theme.size.cell, 400, theme.textFaint, 'middle');
   const t = theme.tones[c.tone ?? 'blue'];
-  const py = c.note ? cy - 8 : cy;
+  const { py, notes } = cellMarks(cy, note);
   let s = '';
   if (c.check) {
     const r = CHECK / 2;
@@ -237,6 +252,6 @@ function drawCell(c: MatrixCell | undefined, cx: number, cy: number, room: numbe
       s += `<rect x="${r1(x - 2.5)}" y="${r1(py - PILL_H / 2 - 2.5)}" width="${r1(w + 5)}" height="${PILL_H + 5}" rx="${rx + 2.5}" fill="none" stroke="${t.fg}" stroke-width="1.4"${c.change === 'added' ? '' : ` stroke-dasharray="${c.change === 'changed' ? '5 3' : '1.5 3'}" stroke-linecap="round"`}/>`;
     s += text(cx, py, label, size, 500, t.fg, 'middle', c.change === 'removed');
   }
-  if (c.note) s += text(cx, cy + 13, fitText(c.note, NOTE, 400, room), NOTE, 400, theme.textMuted, 'middle');
+  for (const [k, ny] of notes.entries()) s += text(cx, ny, fitText(note![k]!, NOTE, 400, room), NOTE, 400, theme.textMuted, 'middle');
   return s;
 }
