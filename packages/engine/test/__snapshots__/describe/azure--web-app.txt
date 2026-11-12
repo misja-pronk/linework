@@ -9,13 +9,13 @@ Groups and elements
     - afd-shop (Premium · WAF)
   - rg-shop-app (West Europe)
     - app-shop-web (Storefront)
-    - cae-shop (Container Apps · internal)
+    - cae-shop (Internal)
       - ca-shop-orders (Orders API)
     - id-shop (User-assigned)
   - rg-shop-data (West Europe)
     - stshopmedia (Product images)
     - sqldb-shop (Entra-only auth)
-    - kv-shop-prd (RBAC · public access off)
+    - kv-shop-prd (RBAC · private)
 
 Connections
 - Customers send traffic to afd-shop over HTTPS.

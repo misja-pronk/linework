@@ -2,17 +2,18 @@ type: azure
 title: Hub and spoke
 subtitle: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall
 
-# Left to right: head office → hub (Connectivity subscription) → spokes, one subscription each.
+# Left to right: head office (Amsterdam) → hub (Connectivity subscription) → spokes, one subscription each.
 # Address plan: hub 10.0.0.0/22, a /22 per spoke from 10.1.0.0, head office 10.10.0.0/16.
 # Every spoke subnet has an NSG (nsg-app, nsg-web) and its spoke's route table (rt-erp, rt-intranet):
 # 0.0.0.0/0 → 10.0.0.68, the firewall's private IP. The GatewaySubnet has rt-gateway, which sends
 # the spoke ranges to the firewall too. Captions hold the address plan only, so the drawing stays
-# readable on a slide; the routing layer and the steps tell the route tables' story.
+# readable on a slide; the routing layer and the steps tell the route tables' story. The VPN is a
+# site-to-site IPsec tunnel with BGP: the edge router's card says so, its line carries no label.
 # Adding a spoke: copy sub-erp with its vnet and subnet, take the next /22 and add a
 # peering line from the firewall to what runs in it.
 
 groups:
-  onprem: { kind: on-premises, label: Head office, caption: Amsterdam · 10.10.0.0/16 }
+  onprem: { kind: on-premises, label: Head office, caption: 10.10.0.0/16 }
 
   # Platform: the hub, owned by the network team
   conn: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
@@ -31,7 +32,7 @@ groups:
   intranet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24, in: vnet-intranet }
 
 nodes:
-  router: { kind: vpn-gateway, label: Edge router, caption: BGP AS 65010, in: onprem }
+  router: { kind: vpn-gateway, label: Edge router, caption: IPsec · BGP AS 65010, in: onprem }
 
   vpngw: { kind: vpn-gateway, label: vpng-hub, caption: VpnGw2AZ · AS 65515, in: gw-snet, tags: [routing] }
   afw: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, in: fw-snet, tags: [routing, security] }
@@ -43,7 +44,7 @@ nodes:
   internet: internet
 
 edges:
-  - router -> vpngw: { label: IPsec, style: private, tags: [routing] }
+  - router -> vpngw: { style: private, tags: [routing] }
   # rt-gateway on the GatewaySubnet sends the spoke ranges to the firewall, not straight to the peering
   - vpngw -> afw: { label: UDR, style: private, tags: [routing] }
   - afw -> erp-vm: { label: peering, style: private, tags: [routing] }

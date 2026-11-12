@@ -3,8 +3,8 @@ Hub and spoke
 Azure infrastructure diagram: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall. 7 elements in 12 groups, with 6 connections.
 
 Groups and elements
-- Head office (Amsterdam · 10.10.0.0/16)
-  - Edge router (BGP AS 65010)
+- Head office (10.10.0.0/16)
+  - Edge router (IPsec · BGP AS 65010)
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - GatewaySubnet (10.0.0.0/27)
@@ -24,7 +24,7 @@ Groups and elements
 - Internet
 
 Connections
-- Edge router connects to vpng-hub (Private network: IPsec).
+- Edge router connects to vpng-hub (Private network).
 - vpng-hub connects to afw-hub (Private network: UDR).
 - afw-hub connects to vmss-erp (Private network: peering), connects to vmss-intranet (Private network: peering) and sends traffic to Internet (SNAT).
 - bas-hub connects to vmss-erp (Management: RDP).

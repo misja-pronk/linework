@@ -221,6 +221,7 @@ const touchBudget: Record<string, number> = {
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
   'workspace/deployment.yaml': 1,
+  'azure/web-app.yaml': 1, // db_datawriter, on its role line down to SQL, sits against the TDS line running down beside it
 };
 
 // Lines that go back on purpose: the rework loop of a process, a state a machine returns to.
@@ -236,6 +237,7 @@ const returns: Record<string, number> = {
   'states/pull-request.yaml': 4,
   'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
+  'azure/data-platform.yaml': 1, // wrapped for a slide: serving stands under the ingest, so gold's line down to the warehouse runs back
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,

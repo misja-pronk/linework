@@ -2,31 +2,31 @@ type: azure
 title: Order platform
 subtitle: Event-driven microservices on Container Apps
 
+# Customers call the Public API (API Management) over HTTPS. Orders, Payments, Inventory and
+# Notifications run in one Container Apps environment; Key Vault and Application Insights are
+# shared by every app, so they stand at the side and show as badges on the apps.
+
 groups:
   sub: { kind: subscription, label: Production }
   rg: { kind: resource-group, label: rg-orders, in: sub }
-  env: { kind: boundary, label: Container Apps environment, in: rg }
-  shared: { kind: resource-group, label: rg-shared, in: sub }
 
 nodes:
-  client: { kind: users, label: Customers }
   apim: { kind: api-management, label: Public API, in: rg }
-  orders: { kind: container-app, label: Orders, in: env }
-  payments: { kind: container-app, label: Payments, in: env }
-  stock: { kind: container-app, label: Inventory, in: env }
-  mail: { kind: function-app, label: Notifications, in: env }
+  orders: { kind: container-app, label: Orders, in: rg }
+  payments: { kind: container-app, label: Payments, in: rg }
+  stock: { kind: container-app, label: Inventory, in: rg }
+  mail: { kind: function-app, label: Notifications, in: rg }
   bus: { kind: service-bus, label: order-events, in: rg }
   ordersdb: { kind: cosmos-db, label: Orders store, in: rg }
   stockdb: { kind: sql-database, label: Inventory DB, in: rg }
   psp: { kind: external, label: Payment provider }
-  kv: { kind: key-vault, label: Secrets, in: shared }
-  logs: { kind: app-insights, label: Telemetry, in: shared }
+  kv: { kind: key-vault, label: Secrets, in: rg }
+  logs: { kind: app-insights, label: Telemetry, in: rg }
 
 # Shared services every app uses: shown as badges on the app instead of lines across the drawing.
 badges: [identity, management]
 
 edges:
-  - client -> apim: { label: HTTPS, style: public }
   - apim -> orders: { style: private }
   - apim -> stock: { style: private }
   - orders -> bus: { label: OrderPlaced, style: data }

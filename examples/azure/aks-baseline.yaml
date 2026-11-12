@@ -2,7 +2,14 @@ type: azure
 title: AKS baseline
 subtitle: Northwind orders platform · private cluster, WAF in front, egress through the hub firewall, no secrets in pods
 
-# Left to right: customers → Application Gateway (WAF) → ingress → workload → what it uses.
+# Left to right: Application Gateway (WAF, the only public IP; customers come in over HTTPS) → ingress
+# → workload → what it uses. Below: the hub firewall in sub-connectivity (Platform).
+# Captions stay short so the drawing reads on a slide; the detail is here:
+# - vnet-aks-weu 10.2.0.0/16 is peered to the hub.
+# - aks-orders-prd uses Azure CNI Overlay; ingress-nginx is the app routing add-on on an internal LB.
+# - crordersprd and kv-orders-prd have public network access off; Key Vault secrets reach pods
+#   through the CSI secrets store driver; id-orders is federated with sa/orders-api.
+# - afw-hub allows FQDN rules and the AzureKubernetesService service tag.
 # The spoke (vnet-aks-weu) has a subnet per role; snet-nodes sends 0.0.0.0/0 to the hub firewall
 # (outboundType: userDefinedRouting), so the cluster has no public egress of its own.
 # Private cluster: the API server is only reachable inside the network (caption on the cluster).
@@ -13,33 +20,28 @@ subtitle: Northwind orders platform · private cluster, WAF in front, egress thr
 groups:
   sub: { kind: subscription, label: sub-orders-prd, caption: Landing zone · Corp }
   rg-shared: { kind: resource-group, label: rg-orders-shared, in: sub }
-  vnet: { kind: vnet, label: vnet-aks-weu, caption: 10.2.0.0/16 · peered to the hub, in: sub }
+  vnet: { kind: vnet, label: vnet-aks-weu, caption: 10.2.0.0/16, in: sub }
   snet-agw: { kind: subnet, label: snet-appgw, caption: 10.2.0.0/24, in: vnet }
-  snet-nodes: { kind: subnet, label: snet-nodes, caption: 10.2.16.0/20 · rt 0.0.0.0/0 → firewall, in: vnet }
-  aks: { kind: aks-cluster, label: aks-orders-prd, caption: Private cluster · Azure CNI Overlay, in: snet-nodes }
+  snet-nodes: { kind: subnet, label: snet-nodes, caption: 10.2.16.0/20, in: vnet }
+  aks: { kind: aks-cluster, label: aks-orders-prd, caption: Private cluster, in: snet-nodes }
   snet-pe: { kind: subnet, label: snet-pe, caption: 10.2.1.0/24, in: vnet }
 
-  conn: { kind: subscription, label: sub-connectivity, caption: Platform }
-
 nodes:
-  customers: { kind: users, label: Customers }
-
   agw: { kind: app-gateway, label: agw-orders, caption: WAF v2 · public IP, in: snet-agw, tags: [ingress] }
-  ingress: { kind: load-balancer, label: ingress-nginx, caption: App routing · internal LB, in: aks, tags: [ingress] }
-  orders: { kind: container-app, label: orders-api, caption: Deployment · 3 replicas, in: aks, tags: [ingress, identity] }
+  ingress: { kind: load-balancer, label: ingress-nginx, caption: Internal LB, in: aks, tags: [ingress] }
+  orders: { kind: container-app, label: orders-api, caption: 3 replicas, in: aks, tags: [ingress, identity] }
   # The node pools (system and user) run in snet-nodes; the cluster group stands for them
 
   pe-acr: { kind: private-endpoint, label: pe-acr, in: snet-pe }
   pe-kv: { kind: private-endpoint, label: pe-kv, in: snet-pe, tags: [identity] }
 
-  acr: { kind: container-registry, label: crordersprd, caption: Premium · public access off, in: rg-shared }
-  kv: { kind: key-vault, label: kv-orders-prd, caption: RBAC · CSI secrets driver, in: rg-shared, tags: [identity] }
-  id: { kind: managed-identity, label: id-orders, caption: Federated with sa/orders-api, in: rg-shared, tags: [identity] }
+  acr: { kind: container-registry, label: crordersprd, caption: Premium · private, in: rg-shared }
+  kv: { kind: key-vault, label: kv-orders-prd, caption: RBAC · CSI driver, in: rg-shared, tags: [identity] }
+  id: { kind: managed-identity, label: id-orders, caption: Workload identity, in: rg-shared, tags: [identity] }
 
-  afw: { kind: firewall, label: afw-hub, caption: FQDN rules · AKS service tag, in: conn, tags: [egress] }
+  afw: { kind: firewall, label: afw-hub, caption: Hub · FQDN rules, tags: [egress] }
 
 edges:
-  - customers -> agw: { label: HTTPS, style: public, tags: [ingress] }
   - agw -> ingress: { label: HTTPS, style: private, tags: [ingress] }
   - ingress -> orders: { style: private, tags: [ingress] }
   - orders -> id: { style: identity, badge: true, tags: [identity] }
@@ -67,8 +69,8 @@ layers:
 steps:
   - A private AKS cluster in its own spoke, with a subnet per role.
   - title: In
-    caption: Customers reach the WAF on Application Gateway; it forwards to the ingress controller on an internal load balancer.
-    path: customers -> agw -> ingress -> orders
+    caption: Customers reach the WAF on Application Gateway's public IP; it forwards to the ingress controller on an internal load balancer.
+    path: agw -> ingress -> orders
   - title: Secrets without secrets
     caption: The pod's service account is federated to id-orders. That identity reads Key Vault over its private endpoint.
     path: [orders -> pe-kv -> kv, id -> kv]
