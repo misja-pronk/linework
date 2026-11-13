@@ -28,18 +28,29 @@ export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
   }
   // A dotted line leaves a card's side or the far end of its bottom, and arrives at a side or the far end of a top: the middles carry the solid lines.
   const boxes = [...t.boxes.values()];
-  // A dotted line keeps its own lane: running right beside another line (a trunk, or a dotted line
-  // routed before it) costs as running on it, so two lines never read as one and the eye can follow each.
-  const drawn: Point[][] = [];
-  const keepOff = (pts: Point[]) => {
-    for (let d = -8; d <= 8; d++)
-      for (let i = 1; i < pts.length; i++) {
-        const [a, b] = [pts[i - 1]!, pts[i]!];
-        const level = Math.abs(a.y - b.y) < 0.5;
-        drawn.push(level ? [{ x: a.x, y: a.y + d }, { x: b.x, y: b.y + d }] : [{ x: a.x + d, y: a.y }, { x: b.x + d, y: b.y }]);
-      }
+  // A dotted line keeps its own lane: one that runs right beside another line (a trunk, or a dotted
+  // line routed before it) is routed again with running beside that line costing as running on it,
+  // so two lines never read as one and the eye can follow each.
+  const drawn: Point[][] = [...edges.values()].map((e) => e.points);
+  const pieces = (pts: Point[]) => pts.slice(1).map((b, i) => [pts[i]!, b] as const);
+  const level = ([a, b]: readonly [Point, Point]) => Math.abs(a.y - b.y) < 0.5;
+  /** The pieces of drawn lines this route runs along within 8 px (not on them: that costs already). */
+  const hugged = (pts: Point[]) =>
+    drawn.flatMap(pieces).filter((q) =>
+      pieces(pts).some((p) => {
+        if (level(p) !== level(q)) return false;
+        const [at, lo, hi, qat, qlo, qhi] = level(p) ? [p[0].y, Math.min(p[0].x, p[1].x), Math.max(p[0].x, p[1].x), q[0].y, Math.min(q[0].x, q[1].x), Math.max(q[0].x, q[1].x)] : [p[0].x, Math.min(p[0].y, p[1].y), Math.max(p[0].y, p[1].y), q[0].x, Math.min(q[0].y, q[1].y), Math.max(q[0].y, q[1].y)];
+        const gap = Math.abs(at - qat);
+        return gap >= 1 && gap <= 8 && Math.min(hi, qhi) - Math.max(lo, qlo) > 12;
+      }),
+    );
+  const go = (from: Parameters<typeof route>[1], to: Parameters<typeof route>[2]) => {
+    const r = route(boxes, from, to, { margin: 10, bend: 60, lines: drawn });
+    const near = r ? hugged(r) : [];
+    if (!near.length) return r;
+    const wide = near.flatMap((q) => Array.from({ length: 17 }, (_, k) => k - 8).map((d) => (level(q) ? [{ x: q[0].x, y: q[0].y + d }, { x: q[1].x, y: q[1].y + d }] : [{ x: q[0].x + d, y: q[0].y }, { x: q[1].x + d, y: q[1].y }])));
+    return route(boxes, from, to, { margin: 10, bend: 60, lines: [...drawn, ...wide] }) ?? r;
   };
-  for (const e of edges.values()) keepOff(e.points);
   // The side each card's solid line comes in by.
   const arrives = new Map<string, Side>();
   for (const e of solid) {
@@ -55,7 +66,7 @@ export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
     let best: { pts: Point[]; cost: number } | undefined;
     for (const f of ways)
       for (const to of ways) {
-        const r = route(boxes, { box: a, sides: f, at: 0.78 }, { box: b, sides: to, at: 0.78 }, { margin: 10, bend: 60, lines: drawn });
+        const r = go({ box: a, sides: f, at: 0.78 }, { box: b, sides: to, at: 0.78 });
         if (!r || avoid.some((d) => crossings(d, r))) continue;
         const cost = r.slice(1).reduce((n, p, i) => n + Math.abs(p.x - r[i]!.x) + Math.abs(p.y - r[i]!.y), 0) + 60 * (r.length - 2);
         if (!best || cost < best.cost) best = { pts: r, cost };
@@ -72,7 +83,7 @@ export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
     // Not into the side of a card in a list its own reporting line comes in by: the two would arrive as one.
     // (On top, the reporting line takes the middle and this one the far end.)
     const into = (['E', 'W', 'N'] as Side[]).filter((x) => x === 'N' || x !== arrives.get(e.to.node));
-    let pts = route(boxes, { box: a, sides: ['E', 'W', 'S'], at: 0.78 }, { box: b, sides: into, at: 0.78 }, { margin: 10, bend: 60, lines: drawn }) ?? route(boxes, { box: a, at: 0.78 }, { box: b, at: 0.78 }, { margin: 10, bend: 60, lines: drawn });
+    let pts = go({ box: a, sides: ['E', 'W', 'S'], at: 0.78 }, { box: b, sides: into, at: 0.78 }) ?? go({ box: a, at: 0.78 }, { box: b, at: 0.78 });
     if (!pts) continue;
     // Two dotted lines that cross cannot be told apart. Where this one crosses one drawn before, that
     // one or this one goes another way (the top of the card it leaves too): whichever costs less.
@@ -87,7 +98,7 @@ export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
     }
     dots.push({ id: e.id, a, b, pts });
     edges.set(e.id, { points: pts });
-    keepOff(pts);
+    drawn.push(pts);
   }
   for (const d of dots) for (const p of d.pts) (width2 = Math.max(width2, p.x)), (height2 = Math.max(height2, p.y));
   return finish(t.boxes, edges, width2, height2, t.variant);
