@@ -49,7 +49,7 @@ export function StatusBar({ errors, warnings, ms, graph, typeId, pinCount, selec
             {n}
           </Cell>
         ))}
-      <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={onProblems} title={ms !== undefined ? `Drawn in ${ms} ms` : undefined}>
+      <button className={`status-problems${errors ? ' has-errors' : warnings ? ' has-warnings' : ''}`} onClick={onProblems} title={ms !== undefined ? t('Drawn in {ms} ms', { ms }) : undefined}>
         <Icon name={errors || warnings ? 'circle-exclamation-point' : 'check'} size={14} />
         {errors || warnings ? `${t('{count} error|{count} errors', { count: errors })}${warnings ? `, ${t('{count} warning|{count} warnings', { count: warnings })}` : ''}` : t('No problems')}
       </button>

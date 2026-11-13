@@ -300,7 +300,7 @@ export function App() {
                 tidyLayout={pinning.tidyLayout}
                 canTidyAll={!!(vpins || drawing.drawnLayout?.held)}
                 tidyAll={pinning.tidyAll}
-                pickView={(name) => navState.setPicked({ doc: docId, name })}
+                pickView={nav.showView}
                 layersButton={layers.button}
                 hasSelection={!!selection.length}
                 focusOn={nav.focusOn}

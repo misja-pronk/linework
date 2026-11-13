@@ -18,6 +18,7 @@
 }
 .canvas-tools .tool {
   height: 30px;
+  flex: none;
 }
 .canvas-tools .tool-label {
   color: var(--text);

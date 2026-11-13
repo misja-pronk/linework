@@ -53,7 +53,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'open', keys: ['mod+o'], what: 'Open a file', context: 'anywhere', group: 'Anywhere' },
   { id: 'export-svg', keys: ['mod+e'], what: 'Export SVG', context: 'anywhere', group: 'Anywhere' },
   { id: 'export-png', keys: ['mod+shift+e'], what: 'Export PNG', context: 'anywhere', group: 'Anywhere' },
-  { id: 'switch-view', keys: ['mod+\\'], what: 'Builder ↔ YAML (the YAML and the drawing side by side)', context: 'anywhere', group: 'Anywhere' },
+  { id: 'switch-view', keys: ['mod+\\'], what: 'Drawing ↔ YAML (the YAML and the drawing side by side)', context: 'anywhere', group: 'Anywhere' },
   { id: 'next-pane', keys: ['f6', 'shift+f6'], what: 'Next / previous pane: YAML, drawing, properties', context: 'anywhere', group: 'Anywhere' },
   { id: 'sheet', keys: ['?'], what: 'This sheet', context: 'not-typing', group: 'Anywhere' },
   { id: 'present', keys: ['p', 'mod+enter'], what: 'Present full screen (not while typing)', context: 'not-typing', group: 'Anywhere' },

@@ -60,7 +60,7 @@ export function buildCommands(c: CommandsContext): Command[] {
     { id: 'new', group: t('File'), label: t('New diagram…'), hint: t('a ready drawing or a blank sheet'), icon: 'file-plus', run: () => modals.setModal('templates') },
     c.view === 'visual'
       ? { id: 'view-code', group: t('View'), label: t('Show the YAML'), icon: 'code', shortcut: keyHint('switch-view'), run: () => c.setView('code') }
-      : { id: 'view-visual', group: t('View'), label: t('Builder (hide the YAML)'), icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => c.setView('visual') },
+      : { id: 'view-visual', group: t('View'), label: t('Drawing (hide the YAML)'), icon: 'mouse-pointer-2', shortcut: keyHint('switch-view'), run: () => c.setView('visual') },
     { id: 'open', group: t('File'), label: t('Open file…'), icon: 'folder-open', shortcut: keyHint('open'), run: files.openFile },
     { id: 'save', group: t('File'), label: ws && doc.path ? t('Save {path}', { path: doc.path }) : t('Save'), icon: 'save', shortcut: keyHint('save'), run: files.saveYaml },
     { id: 'download', group: t('File'), label: t('Download YAML'), icon: 'download', run: files.downloadYaml },

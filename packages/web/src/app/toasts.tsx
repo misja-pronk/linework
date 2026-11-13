@@ -1,6 +1,6 @@
 // Messages after an action: one at a time, gone after a few seconds, with an action to take (Undo).
 import './toasts.css';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 
 export interface ToastAction {
@@ -56,8 +56,18 @@ function dockToast(el: HTMLDivElement | null) {
 }
 
 export function Toast({ toast, onDone }: { toast: ToastMessage; onDone(): void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Docked again when what it docks to moves: a chip coming above it, the YAML opening beside the drawing, the window.
+  useLayoutEffect(() => {
+    const dock = () => dockToast(ref.current);
+    dock();
+    const watch = new ResizeObserver(dock);
+    for (const el of document.querySelectorAll('.canvas-pane, .canvas-top')) watch.observe(el);
+    window.addEventListener('resize', dock);
+    return () => (watch.disconnect(), window.removeEventListener('resize', dock));
+  }, [toast]);
   return (
-    <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'} ref={dockToast}>
+    <div className={toast.tone === 'error' ? 'toast error' : 'toast'} role={toast.tone === 'error' ? 'alert' : 'status'} ref={ref}>
       {toast.message}
       {toast.action && (
         <button
