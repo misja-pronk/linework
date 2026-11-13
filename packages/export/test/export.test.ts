@@ -156,6 +156,12 @@ describe('pptx', () => {
     expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Arial' })).text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
   });
 
+  it("the speaker notes say how big the drawing is in its own terms: a sequence's participants and messages", async () => {
+    const notes = parts(await toPptx(await draw('sequence/checkout.yaml'), { steps: false, rasterize: () => PNG })).text('ppt/notesSlides/notesSlide1.xml');
+    expect(notes).toMatch(/\d+ participants and \d+ messages/);
+    expect(notes).not.toContain('1 element');
+  });
+
   it('one slide per diagram, a title slide on request, notes, 4:3', async () => {
     const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map((f) => draw(f)));
     const { files, text } = parts(await toPptx(list, { title: 'Architecture', subtitle: 'Q4', aspect: '4:3' }));
