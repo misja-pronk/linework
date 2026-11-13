@@ -70,6 +70,9 @@ export function DrawingPane(p: Props) {
   const { drawing, edits, pinning, nav, craft, adding } = p;
   const { rendered, result, drawn, type, current } = drawing;
   const { stepList } = nav;
+  // A diagram with views keeps the strip in every view, steps or none: switching views never moves
+  // the toolbar up and down under the pointer.
+  const strip = stepList.length > 0 || !!drawn?.views?.length;
   const { pathOf, select, toggle } = p.select;
   /** A diagram with nothing in it yet: the canvas says how to start. */
   // Counted as the status bar counts it: a sequence with no participants is empty too, though drawn as one shape.
@@ -80,14 +83,15 @@ export function DrawingPane(p: Props) {
     return [...items.filter((i) => i.collection !== 'groups'), ...items.filter((i) => i.collection === 'groups')].slice(0, 4);
   }, [type]);
   return (
-    <section className={`pane canvas-pane${stepList.length ? ' with-steps' : ''}`} aria-label={t('Drawing')}>
+    <section className={`pane canvas-pane${strip ? ' with-steps' : ''}`} aria-label={t('Drawing')}>
       <Preview
         result={drawn}
         stale={!!rendered && drawn !== result}
         catchingUp={!current}
         onHint={(m) => p.notify(m)}
         selection={p.selection}
-        docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}:${drawn?.focus ? `${drawn.focus.on.join(' ')} ${drawn.focus.hops} ${drawn.focus.direction}` : ''}`}
+        // Another document, view, focus or set of layers drawn alone is another drawing: the view fits it.
+        docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}:${drawn?.focus ? `${drawn.focus.on.join(' ')} ${drawn.focus.hops} ${drawn.focus.direction}` : ''}:${drawn?.layers?.mode === 'only' ? drawn.layers.active.join('+') : ''}`}
         onSelect={(s, add) => (add && s ? toggle(s) : select(s))}
         onSelectMany={p.select.selectMany}
         labelOf={edits.labelOf}
@@ -245,7 +249,7 @@ export function DrawingPane(p: Props) {
       </Preview>
       {p.session && <SessionHeader title={p.session.title} />}
       {p.compareView}
-      {stepList.length > 0 && (
+      {strip && (
         <StepsStrip
           steps={stepList}
           implied={drawn?.stepsImplied}

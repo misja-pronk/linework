@@ -252,7 +252,6 @@ export const nlDialogs = {
   'Open the editor': 'Editor openen',
   'Export failed: {error}': 'Exporteren mislukt: {error}',
   'Read-only': 'Alleen lezen',
-  'As written': 'Zoals geschreven',
   'Present, step by step (P)': 'Presenteren, stap voor stap (P)',
   Present: 'Presenteren',
   'Copy it into a new document in this browser, to change it': 'Kopieer het naar een nieuw document in deze browser om het te wijzigen',

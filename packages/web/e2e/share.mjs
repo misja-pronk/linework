@@ -140,7 +140,7 @@ viewer.on('pageerror', (e) => fail(`viewer: ${e.message}`));
 }
 
 // 7b. A Dutch data mesh, shared: the viewer lists its views as the editor's picker does, the view as
-// written by its name (in the reader's editor language) instead of "As written", and can go back to it.
+// written by its name (in the reader's editor language) instead of "Whole diagram", and can go back to it.
 {
   const mesh = `type: data-products
 lang: nl
@@ -166,7 +166,7 @@ products:
   const options = () => reader.evaluate(() => [...document.querySelectorAll('.viewer-views option')].map((o) => o.textContent));
   const chosen = () => reader.evaluate(() => document.querySelector('.viewer-views')?.selectedOptions[0]?.textContent);
   const list = await options();
-  if (list.includes('As written')) fail(`the viewer lists "As written" for a type's own view: ${JSON.stringify(list)}`);
+  if (list.includes('Whole diagram')) fail(`the viewer lists "Whole diagram" for a type's own view: ${JSON.stringify(list)}`);
   if (list[0] !== 'Overview' || (await chosen()) !== 'Overview') fail(`the viewer should name the view as written "Overview", like the picker: ${JSON.stringify(list)}`);
   if (!(await reader.locator('.viewer-drawing svg').innerHTML()).includes('Mesh')) fail('the viewer does not draw the mesh');
   // The list speaks the reader's language; the drawing keeps the diagram's.
@@ -177,7 +177,7 @@ products:
   if (!drawn.includes('Overige producten in detail')) fail(`the drawing of the picked view should be subtitled in Dutch: ${drawn.slice(0, 120)}`);
   await reader.selectOption('.viewer-views', 'overview');
   await wait(800);
-  if ((await chosen()) !== 'Overview' || (await options()).includes('As written')) fail('the viewer did not go back to the view as written');
+  if ((await chosen()) !== 'Overview' || (await options()).includes('Whole diagram')) fail('the viewer did not go back to the view as written');
   if (out) await reader.screenshot({ path: path.join(out, 'share-viewer-views.png') });
   await reader.close();
 }

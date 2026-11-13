@@ -550,15 +550,15 @@ export function Preview(p: Props) {
   //   fits it, or when it would come out clearly larger or smaller (an undo after a far drop);
   // - a drawing that was wholly in view and now runs past an edge fits again, unless people zoomed in.
   // Checked on every drawing and on every drop, never during a drag (nothing jumps under the pointer)
-  // nor while a name is typed, and not right after a press: a double-click's second click stays on
-  // what the first one hit. "Was wholly in view" is as last checked, and only while people have not
+  // and not right after a press: a double-click's second click stays on what the first one hit (a
+  // name being typed follows the view). "Was wholly in view" is as last checked, and only while people have not
   // panned or zoomed since: the app's own moves (a selection brought into view) do not count.
   const lastSeen = useRef<{ doc: number | string; whole: boolean; touched: number } | null>(null);
   const followT = useRef(0);
   const keepInView = () => {
     window.clearTimeout(followT.current);
     const wait = lastDown.current + 550 - performance.now();
-    if (wait > 0 || drag.current || editingNow.current) return void (followT.current = window.setTimeout(keepInView, Math.max(wait, 120)));
+    if (wait > 0 || drag.current) return void (followT.current = window.setTimeout(keepInView, Math.max(wait, 120)));
     const f = frame.current;
     const { view: v, result: r, fit: refit, fitView: fitted } = latest.current;
     if (!f || !r?.origin || !r.width || !r.height) return;
@@ -1064,11 +1064,14 @@ export function Preview(p: Props) {
       const s = view.scale;
       return { left: view.x + spot.x * s, top: view.y + spot.y * s, width: spot.width * s, height: spot.height * s, size: spot.size * s, inShape: true, align: spot.align, font: spot.font };
     }
-    const width = Math.max(b.width * view.scale, 180);
     const height = 36;
+    // A group: its name is typed where it is written, at the left of its header, in a field the size
+    // of a name, not one as wide as the group over the boxes in it.
+    if (t.kind === 'group') return { left: view.x + b.x * view.scale + 4, top: view.y + (b.y + 22) * view.scale - height / 2, width: Math.min(Math.max(b.width * view.scale - 8, 180), 280), height, size: 14 };
+    const width = Math.max(b.width * view.scale, 180);
     const cx = view.x + (b.x + b.width / 2) * view.scale;
-    // Nodes and lines: over their middle; groups: over the header strip where the label sits.
-    const cy = t.kind === 'group' ? view.y + (b.y + 22) * view.scale : view.y + (b.y + b.height / 2) * view.scale;
+    // Nodes and lines: over their middle.
+    const cy = view.y + (b.y + b.height / 2) * view.scale;
     return { left: cx - width / 2, top: cy - height / 2, width, height, size: 14 };
   };
 

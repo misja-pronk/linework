@@ -145,6 +145,60 @@ try {
     await wait(300);
     if (!/Space/.test(await page.locator('.toast').innerText().catch(() => ''))) fail('a drag over empty canvas does not say how to move the view');
   }
+
+  // 5. Views and layers: the toolbar stays put when the view changes; a layer drawn alone is fitted;
+  //    a new group's name is typed in a field the size of a name.
+  await open('Entra access');
+  {
+    const toolsTop = () => page.locator('.canvas-tools').evaluate((e) => Math.round(e.getBoundingClientRect().top));
+    const tops = [await toolsTop()];
+    const views = await page.locator('.view-picker option').count();
+    for (let i = 1; i < views; i++) {
+      await page.locator('.preview').focus();
+      await page.keyboard.press('v');
+      await wait(700);
+      tops.push(await toolsTop());
+    }
+    if (new Set(tops).size > 1) fail(`the toolbar moves as the view changes: ${tops.join(', ')}`);
+  }
+  await open('Azure network');
+  {
+    const outOfPane = () =>
+      page.evaluate(() => {
+        const p = document.querySelector('.preview').getBoundingClientRect();
+        const s = document.querySelector('.drawing svg').getBoundingClientRect();
+        return Math.round(Math.max(0, p.left - s.left, p.top - s.top, s.right - p.right, s.bottom - p.bottom));
+      });
+    await page.locator('.preview').focus();
+    await page.keyboard.press('l');
+    await wait(300);
+    const first = page.locator('.layers-panel [role="menuitemcheckbox"]').first();
+    if (await first.count()) {
+      await first.click();
+      await page.locator('[role="menuitemradio"]', { hasText: 'Only' }).click();
+      await wait(1200);
+      if (await outOfPane()) fail(`a layer drawn alone runs ${await outOfPane()} px out of view`);
+      const chip = await page.locator('.layers-chip').innerText().catch(() => '');
+      if (/\d+ of \d+(?! shown)/.test(chip)) fail(`the layers chip says "${chip}"`);
+      await page.screenshot({ path: `${out}/ux-layer-only.png` });
+      await page.keyboard.press('Escape');
+      await page.locator('.layers-chip button[aria-label="The whole drawing"]').click().catch(() => {});
+      await wait(800);
+    } else fail('no layer to switch on in Azure network');
+    const a = await box('erp-vm');
+    const b = await box('web-vm');
+    await page.mouse.click(a.x + 10, a.y + 10);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(b.x + 10, b.y + 10);
+    await page.keyboard.up('Shift');
+    await page.keyboard.press('ControlOrMeta+g');
+    await wait(1200);
+    const field = await page.locator('.label-editor').boundingBox();
+    if (!field) fail('⌘G did not open the new group\'s name');
+    else if (field.width > 300) fail(`the new group's name field is ${Math.round(field.width)} px wide`);
+    await page.screenshot({ path: `${out}/ux-group-name.png` });
+    await page.keyboard.press('Escape');
+  }
 } catch (e) {
   fail(String(e?.stack ?? e));
 }
