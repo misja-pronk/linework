@@ -362,6 +362,44 @@ messages:
     expect(svg).not.toContain(`<path d="M${Math.round(side * 10) / 10} `);
   });
 
+  it('lets a frame that starts inside a box and reaches out of it take in the whole box across', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  api: { label: Orders API }
+  topic: { label: order-events, box: bus }
+  dlq: { label: Dead-letter queue, box: bus }
+  inv: { label: Invoicing }
+boxes:
+  bus: { label: Service Bus sb-northwind-prod }
+messages:
+  - api ->> topic: OrderPlaced
+  - par: Subscription invoicing
+    messages:
+      - topic ->> inv: OrderPlaced (peek-lock)
+    and:
+      Dead letters:
+        - topic ->> dlq: dead-lettered
+`);
+    const box = g.boxes[0]!.box;
+    const f = g.frames[0]!.box;
+    // Not one edge inside the box and the other out past its side.
+    expect(f.x).toBeLessThan(box.x);
+    expect(f.x + f.width).toBeGreaterThan(box.x + box.width);
+  });
+
+  it('writes a box name in the theme capitals but keeps the name of a resource as it is', async () => {
+    const { r } = await geometry(`type: sequence
+participants:
+  app: { label: Orders API, box: appservice }
+  kv: { label: Key Vault }
+boxes:
+  appservice: { label: App Service app-orders-prod }
+messages: [ app -> kv: Get secret ]
+`);
+    expect(r.svg).toContain('APP SERVICE <tspan letter-spacing="0">app-orders-prod</tspan>');
+    expect(r.svg).not.toContain('APP-ORDERS-PROD');
+  });
+
   it('gives a participant that acts on a message it does not answer an activation for as long as it does', async () => {
     const yaml = `type: sequence
 participants:
