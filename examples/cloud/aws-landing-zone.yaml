@@ -4,16 +4,15 @@
 type: cloud
 provider: aws
 title: AWS landing zone
-subtitle: Organization and accounts
-direction: down
+subtitle: Acme on Control Tower · an account per job, grouped in OUs, logs kept apart from the workloads
 
 groups:
   org: { kind: organization, label: Acme }
+  management: { kind: account, label: Management, account: "111111111111", in: org }
   security: { kind: ou, label: Security, in: org }
   infra: { kind: ou, label: Infrastructure, in: org }
   workloads: { kind: ou, label: Workloads, in: org }
 
-  management: { kind: account, label: Management, account: "111111111111", in: org }
   log-archive: { kind: account, label: Log archive, account: "222222222222", in: security }
   audit: { kind: account, label: Audit, account: "333333333333", in: security }
   network: { kind: account, label: Network, account: "444444444444", in: infra, links: [aws-landing-zone-network.yaml] }
@@ -24,7 +23,8 @@ nodes:
   tower: { kind: control-tower, label: Guardrails, in: management }
   sso: { kind: identity-center, label: Single sign-on, in: management }
 
-  trail: { kind: cloudtrail, label: Organization trail, in: log-archive }
+  # Control Tower creates the organization trail in the management account; only its bucket is in Log archive.
+  trail: { kind: cloudtrail, label: Organization trail, in: management }
   logs: { kind: s3, label: Log bucket, in: log-archive }
   findings: { kind: security-hub, label: Findings, in: audit }
   threats: { kind: guardduty, label: Threat detection, in: audit }

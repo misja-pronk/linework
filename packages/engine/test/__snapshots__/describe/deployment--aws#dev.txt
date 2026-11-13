@@ -1,12 +1,13 @@
 Web shop on AWS, per environment
 
-AWS and Google Cloud diagram: Development, without the storefront. 6 elements in 5 groups, with 5 connections.
+AWS and Google Cloud diagram: Development, without the storefront. 7 elements in 5 groups, with 6 connections.
 
 Groups and elements
 - Users
 - eu-west-1 (Region)
   - vpc-shop (VPC · 10.20.0.0/16)
-    - Load balancer (Application Load Balancer · public)
+    - Internet gateway
+    - Load balancer (ALB · public subnets)
     - eu-west-1a (Availability zone)
       - Private subnet
         - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
@@ -16,7 +17,8 @@ Groups and elements
   - Mailer (Lambda function · .NET 9): Runs Mailer (shop.worker): Sends receipts for placed orders
 
 Connections
-- Users send traffic to Load balancer over HTTPS.
+- Users send traffic to Internet gateway over HTTPS.
+- Internet gateway sends traffic to Load balancer.
 - Load balancer connects to Orders API (Private network).
 - Orders API connects to Orders DB (Reads and writes [SQL]) and connects to order-events (OrderPlaced).
 - order-events connects to Mailer (OrderPlaced).

@@ -28,9 +28,9 @@ Connections
 - Web shop CDN sends traffic to Web shop.
 - Web shop connects to Orders (Private network) and connects to Direct Connect (Private network).
 - Orders sends data to Change data capture.
-- Direct Connect connects to Edge router (VPN / interconnect).
+- Direct Connect connects to Edge router (Private network).
 - Change data capture sends data to Warehouse.
-- Edge router connects to ERP (Private network) and connects to Partner Interconnect (VPN / interconnect).
+- Edge router connects to ERP (Private network) and connects to Partner Interconnect (Private network).
 - Warehouse sends data to Dashboards.
 - Partner Interconnect connects to Change data capture (Private network).
 - Dashboards signs in with Sign-in.
@@ -42,4 +42,3 @@ Key
 - Dashed teal line: Private network
 - Solid violet line with ticks: Data flow
 - Dotted amber line: Identity
-- Dashed orange line with beads: VPN / interconnect

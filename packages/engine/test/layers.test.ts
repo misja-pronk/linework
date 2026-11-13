@@ -147,7 +147,7 @@ views:
       expect(r.steps?.length).toBe(5);
     }
     const ops = await render(text, { fonts: 'none', interactive: true, layers: 'ops', step: 2 });
-    expect(ops.faded?.nodes.sort()).toEqual(['db', 'users', 'vault']);
+    expect(ops.faded?.nodes.sort()).toEqual(['db', 'pe-kv', 'pe-sql', 'users', 'vault']);
     expect(ops.svg).toMatch(/data-node="db" data-dim/);
   });
 

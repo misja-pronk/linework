@@ -1,6 +1,6 @@
 type: erd
 title: Shop database
-subtitle: Two schemas, explicit relation labels
+subtitle: Two schemas, sales and catalog, and the relations between them
 
 schemas:
   sales: { label: sales, tone: blue }

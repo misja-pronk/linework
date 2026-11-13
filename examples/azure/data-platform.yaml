@@ -1,13 +1,16 @@
 type: azure
 title: Data platform
-subtitle: Northwind · from sources to reports through a bronze, silver and gold lake, all on private networking
+subtitle: Northwind · from sources to reports through a bronze, silver and gold lake
 direction: right
 
 # Left to right: sources → ingestion → lake (bronze) → Databricks → lake (silver, gold) → serving.
 # Processing is Azure Databricks with Unity Catalog: the most common choice for a lakehouse on
 # Azure today. Microsoft Fabric would replace Databricks and the SQL warehouse with one workspace.
-# Private networking: the storage account and Key Vault have public access off and private
-# endpoints, Databricks is VNet-injected without public IPs, Data Factory runs in a managed VNet.
+# Private networking is said on the cards, not drawn as lines: the lake (and Key Vault, not drawn)
+# has public access off and private endpoints, Databricks is VNet-injected without public IPs,
+# Data Factory runs in a managed VNet. The serverless SQL warehouse runs in Databricks' serverless
+# plane and reaches the lake through private endpoints of a network connectivity config; Power BI
+# is SaaS. So the subtitle does not claim "all private".
 # Captions stay short so the drawing reads on a slide: ERP is on-premises SQL Server (through a
 # self-hosted integration runtime), CRM a SaaS REST API; bronze holds data as delivered, silver
 # cleaned and conformed, gold business-ready Delta tables.
@@ -17,12 +20,12 @@ direction: right
 # Adding a source: a card in sources and a line to Data Factory (batch) or Event Hubs (streaming).
 
 groups:
-  sources: { kind: boundary, label: Sources }
+  sources: { kind: boundary, label: Sources, caption: Upstream }
   sub: { kind: subscription, label: sub-data-prd, caption: Landing zone · Corp }
   rg-process: { kind: resource-group, label: rg-data-process, in: sub }
   rg-ingest: { kind: resource-group, label: rg-data-ingest, in: sub }
   rg-lake: { kind: resource-group, label: rg-data-lake, in: sub }
-  lake: { kind: boundary, label: stnwlakeprd, caption: ADLS Gen2, in: rg-lake }
+  lake: { kind: boundary, label: stnwlakeprd, caption: ADLS Gen2 · private, in: rg-lake }
   rg-serve: { kind: resource-group, label: rg-data-serve, in: sub }
 
 nodes:

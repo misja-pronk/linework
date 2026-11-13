@@ -6,7 +6,9 @@ subtitle: Northwind orders platform · private cluster, WAF in front, egress thr
 # → workload → what it uses. Below: the hub firewall in sub-connectivity (Platform).
 # Captions stay short so the drawing reads on a slide; the detail is here:
 # - vnet-aks-weu 10.2.0.0/16 is peered to the hub.
-# - aks-orders-prd uses Azure CNI Overlay; ingress-nginx is the app routing add-on on an internal LB.
+# - aks-orders-prd uses Azure CNI Overlay. The ingress controller is Traefik on an internal load
+#   balancer, as in the AKS baseline reference implementation (mspnp/aks-baseline). Not ingress-nginx:
+#   upstream retired it in March 2026. Application Gateway for Containers is the managed alternative.
 # - crordersprd and kv-orders-prd have public network access off; Key Vault secrets reach pods
 #   through the CSI secrets store driver; id-orders is federated with sa/orders-api.
 # - afw-hub allows FQDN rules and the AzureKubernetesService service tag.
@@ -28,7 +30,7 @@ groups:
 
 nodes:
   agw: { kind: app-gateway, label: agw-orders, caption: WAF v2 · public IP, in: snet-agw, tags: [ingress] }
-  ingress: { kind: load-balancer, label: ingress-nginx, caption: Internal LB, in: aks, tags: [ingress] }
+  ingress: { kind: load-balancer, label: traefik, caption: Internal LB, in: aks, tags: [ingress] }
   orders: { kind: container-app, label: orders-api, caption: 3 pods, in: aks, tags: [ingress, identity] }
   # The node pools (system and user) run in snet-nodes; the cluster group stands for them
 

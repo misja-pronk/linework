@@ -1,6 +1,6 @@
 type: kubernetes
 title: Model serving
-subtitle: Gateway API in front of GPU and CPU node pools
+subtitle: Gateway API in front of a system pool and an L4 GPU pool
 direction: right
 
 # Sized for a slide, so some detail lives here instead of on the drawing:

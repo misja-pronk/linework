@@ -13,7 +13,7 @@ groups:
   org: { kind: management-group, label: Northwind, caption: Allowed regions · Defender for Cloud · diagnostics to Log Analytics, in: tenant }
 
   platform: { kind: management-group, label: Platform, caption: Run by the platform team, in: org }
-  management: { kind: management-group, label: Management, caption: Nothing added here, in: platform }
+  management: { kind: management-group, label: Management, caption: Inherited policy only, in: platform }
   connectivity: { kind: management-group, label: Connectivity, caption: DDoS protection on VNets, in: platform }
   identity: { kind: management-group, label: Identity, caption: No public IPs · VM backup, in: platform }
 
@@ -41,8 +41,8 @@ nodes:
 steps:
   - The management group hierarchy of the Northwind landing zone, with a subscription per workload.
   - title: Policy is inherited
-    caption: The baseline at Northwind applies to every subscription; each level below only adds to it.
-    focus: org
+    caption: sub-erp-prd gets the policy of Northwind, Landing zones and Corp; each level below only adds to it.
+    focus: sub-erp
   - title: Platform
     caption: Shared services in their own subscriptions, run by the platform team.
     focus: platform

@@ -1,6 +1,6 @@
 Web shop on AWS, per environment
 
-AWS and Google Cloud diagram: Test. 8 elements in 5 groups, with 7 connections.
+AWS and Google Cloud diagram: Test. 9 elements in 5 groups, with 8 connections.
 
 Groups and elements
 - Users
@@ -8,7 +8,8 @@ Groups and elements
 - eu-west-1 (Region)
   - Site files (S3 bucket)
   - vpc-shop (VPC · 10.20.0.0/16)
-    - Load balancer (Application Load Balancer · public)
+    - Internet gateway
+    - Load balancer (ALB · public subnets)
     - eu-west-1a (Availability zone)
       - Private subnet
         - Orders API (ECS service · .NET 9): Runs Orders API (shop.api): Places orders and charges cards
@@ -19,7 +20,8 @@ Groups and elements
 
 Connections
 - Users send traffic to Storefront over HTTPS.
-- Storefront connects to Site files (Private network) and sends traffic to Load balancer (/api).
+- Storefront connects to Site files (Private network) and sends traffic to Internet gateway (/api).
+- Internet gateway sends traffic to Load balancer.
 - Load balancer connects to Orders API (Private network).
 - Orders API connects to Orders DB (Reads and writes [SQL]) and connects to order-events (OrderPlaced).
 - order-events connects to Mailer (OrderPlaced).

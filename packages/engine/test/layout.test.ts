@@ -28,7 +28,7 @@ const crossingBudget: Record<string, number> = {
   'access/azure-rbac-pim.yaml': 0,
   'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
   'azure/aks-baseline.yaml': 0,
-  'azure/app-landing-zone.yaml': 0,
+  'azure/app-landing-zone.yaml': 3, // the route table's dotted lines (configuration, not traffic) cross the app's lines to the private endpoints and the hub
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
   'azure/landing-zone.yaml': 0,
@@ -318,7 +318,7 @@ describe('layout quality', () => {
     const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
     expect(inAccount).not.toBe(aws);
     const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
-    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
+    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'igw')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
   it('writes each label on its own line where lines that say the same run into one target', async () => {
@@ -351,7 +351,32 @@ describe('layout quality', () => {
     expect(measure(r.graph!, r.placed!).siblingSpread).toBe(0);
   });
   it('keeps what one card names in a badge by that card', async () => {
-    const r = await render(fs.readFileSync(path.join(examples, 'azure/web-shop.yaml'), 'utf8'), { fonts: 'none' });
+    // The web shop as it was drawn with its Key Vault as a badge (the example now draws its private endpoints).
+    const shop = [
+      'type: azure',
+      'title: Web shop',
+      'groups:',
+      '  prod: { kind: subscription, label: Production }',
+      '  rg: { kind: resource-group, label: rg-shop-prod, in: prod }',
+      '  vnet: { kind: vnet, label: vnet-shop, in: rg }',
+      '  apps: { kind: subnet, label: snet-apps, in: vnet }',
+      '  data: { kind: subnet, label: snet-data, in: vnet }',
+      'nodes:',
+      '  users: users',
+      '  edge: { kind: front-door, label: Front Door }',
+      '  web: { kind: app-service, label: Web shop, in: apps }',
+      '  api: { kind: container-app, label: Orders API, in: apps }',
+      '  db: { kind: sql-database, label: Orders, in: data }',
+      '  vault: { kind: key-vault, label: Secrets, in: rg }',
+      'badges: [identity]',
+      'edges:',
+      '  - users -> edge: { label: HTTPS, style: public }',
+      '  - edge -> web: { style: public }',
+      '  - web -> api: { label: REST, style: private }',
+      '  - api -> db: { label: SQL, style: private }',
+      '  - api -> vault: { label: secrets, style: identity }',
+    ].join('\n');
+    const r = await render(shop, { fonts: 'none' });
     const at = (id: string) => r.placed!.nodes.get(id)!;
     // The key vault has no line of its own: it stands past the API that names it, not at the far end of the resource group.
     expect(at('vault').x).toBeGreaterThan(at('api').x);

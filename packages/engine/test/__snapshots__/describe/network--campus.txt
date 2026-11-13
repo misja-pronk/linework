@@ -21,7 +21,7 @@ Groups and elements
 
 Connections
 - Dual ISP connects to fw-campus (WAN: 2×10G).
-- fw-campus connects to core-01/02 (Trunk: 2×40G).
+- fw-campus connects to core-01/02 (Trunk: 2×25G).
 - core-01/02 connects to dist-north (Fibre: 2×40G) and connects to dist-south (Fibre: 2×40G).
 - dist-north connects to acc-n1 (Fibre: 2×10G) and connects to acc-n2 (Fibre: 2×10G).
 - dist-south connects to acc-s1 (Fibre: 2×10G).
