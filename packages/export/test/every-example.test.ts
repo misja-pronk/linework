@@ -23,12 +23,13 @@ describe('pptx of every example', () => {
       const slides = Object.keys(zip).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p));
       expect(slides.length).toBeGreaterThan(0);
       for (const s of slides) {
-        // Inside the diagram's group, before its legend: shapes, pictures, connectors or tables.
+        // Inside the diagram's group, before its legend: shapes, pictures or connectors; or a table, which goes under the group.
         const xml = strFromU8(zip[s]!);
         const from = xml.indexOf('name="Diagram: ');
         const legend = xml.indexOf('name="Legend', from);
         const drawing = xml.slice(from, legend < 0 ? undefined : legend);
-        expect((drawing.match(/<p:(sp|pic|cxnSp|graphicFrame)>/g) ?? []).length, s).toBeGreaterThan(0);
+        const tables = (xml.match(/<p:graphicFrame>/g) ?? []).length;
+        expect((drawing.match(/<p:(sp|pic|cxnSp)>/g) ?? []).length + tables, s).toBeGreaterThan(0);
       }
       // What has no native drawing is a picture, and the export says so.
       const pictured = r.graph.nodes.some((n) => ['sequence', 'gitflow', 'roadmap'].includes(n.shape.kind));

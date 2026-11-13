@@ -227,7 +227,7 @@ assignments:
     expect(erd).not.toMatch(/symbool key/);
     // A data product's ports are rows: a line to one is told by what the row says, not by its id.
     const mesh = await said(example('data-products/customer-detailed.yaml'));
-    expect(mesh).toContain('Salesforce is verbonden met customers.');
+    expect(mesh).toContain('Salesforce is verbonden met Customers.');
     expect(mesh).not.toMatch(/\.(in|out):/);
     // A capability map counts its systems in Dutch.
     const systems = await said(example('capabilities/enterprise.yaml'), 'systems');

@@ -4,6 +4,9 @@ subtitle: One site, four VLANs behind an active/passive firewall pair
 
 # The ISP (on the internet side) and the firewall share the edge tier, so the ISP stands beside
 # the office instead of above it and the drawing fits a slide. nas-01 is a Synology DS923+.
+# Speeds are what the named hardware has: the FortiGate 60F has only 1 GbE ports (two aggregated
+# to the switch), the U6 Pro uplinks at 1 GbE, and the DS923+ has 1 GbE on board (10 GbE only with
+# its optional E10G22-T1-Mini card). The USW Pro 24 PoE's two SFP+ ports stay free for growth.
 
 groups:
   office: { kind: site, label: Utrecht office, cidr: 10.20.0.0/16 }
@@ -26,10 +29,10 @@ nodes:
 
 edges:
   - isp -- fw: { style: wan, speed: 1G, label: PPPoE }
-  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20, 30] }
-  - core -- ap1: { speed: 2.5G }
-  - core -- ap2: { speed: 2.5G }
-  - core -- nas: { speed: 10G }
+  - fw -- core: { style: trunk, speed: 1G, count: 2, vlans: [1, 10, 20, 30] }
+  - core -- ap1: { speed: 1G }
+  - core -- ap2: { speed: 1G }
+  - core -- nas: { speed: 1G }
   - core -- printer
   - core -- phones
   - ap1 -- laptops: { style: wireless, label: Staff SSID }

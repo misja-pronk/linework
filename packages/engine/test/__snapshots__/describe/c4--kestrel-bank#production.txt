@@ -19,7 +19,7 @@ Connections
 - Load balancer connects to Web banking (Forwards [HTTPS]) and connects to Banking API (Forwards [HTTPS]).
 - Web banking connects to Banking API (Calls [JSON/HTTPS]).
 - Banking API connects to Core ledger (Reads and books [ISO 20022 over MQ]).
-- Mobile app connects to Banking API (Calls [JSON/HTTPS]).
+- Mobile app connects to Banking API (Calls via the ALB [JSON/HTTPS]).
 
 Key
 - Blue icon: Software system

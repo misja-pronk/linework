@@ -5,18 +5,18 @@ Process diagram: Northwind Orders API, part 1 of 2: nothing reaches main without
 Lanes and steps
 - Developer (lane)
   - Push to a branch (feature/order-export)
+  - Open pull request (code owners requested)
   - Fix what failed
   - Address feedback
-- GitHub (lane)
-  - Open pull request (asks the code owners)
-  - Squash and merge (branch deleted)
-  - Merged to main (end event)
 - Actions (lane)
   - Required checks (build, test, lint, CodeQL)
   - Checks green? (decision decision)
 - Reviewer (lane)
   - Waiting for review (timer intermediate event)
   - Approved? (decision decision)
+- GitHub (lane)
+  - Squash and merge (branch deleted)
+  - Merged to main (end event)
 
 Main path
 1. Push to a branch
@@ -34,10 +34,10 @@ Connections
 - Required checks leads to Checks green?
 - Checks green? leads to Waiting for review (yes) and leads to Fix what failed (no).
 - Waiting for review leads to Approved?
-- Fix what failed leads to Push to a branch.
+- Fix what failed leads to Required checks.
 - Approved? leads to Squash and merge (yes) and leads to Address feedback (changes requested).
 - Squash and merge leads to Merged to main.
-- Address feedback leads to Push to a branch.
+- Address feedback leads to Required checks.
 
 Walkthrough
 1. The change: A developer pushes a short-lived branch and opens a pull request; GitHub asks the code owners to review.

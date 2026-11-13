@@ -45,13 +45,17 @@ nodes:
 badges: [management]
 
 edges:
-  - app -> rt: { label: outbound, style: private }
-  - rt -> afw: { label: peering, style: private }
+  # The route table is not a hop: it sits on snet-app and names the firewall as next hop for
+  # 0.0.0.0/0 (the dotted lines: configuration, not traffic); the traffic itself runs
+  # app → firewall over the spoke-to-hub peering (the dashed line).
+  - app ..> rt
+  - app -> afw: { label: outbound, style: private }
+  - rt ..> afw: { label: next hop }
   - app -> pe-sql: { style: private }
   - app -> pe-kv: { style: private }
   - func -> pe-sql: { style: private }
   - pe-sql -> sql: { label: TDS, style: private }
-  - pe-kv -> kv: { label: secrets, style: identity }
+  - pe-kv -> kv: { label: HTTPS, style: private }
   - app -> appi: { style: data }
   # App Insights is workspace-based: its data lives in the central workspace
   - appi -> law: { label: workspace, style: management, badge: false }
@@ -64,7 +68,8 @@ steps:
   - One subscription for the customer portal, with a resource group per concern.
   - title: Out through the hub
     caption: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
-    path: app -> rt -> afw
+    path: app -> afw
+    focus: [app -> rt, rt -> afw]
   - title: Data stays private
     caption: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
     path: [app -> pe-sql -> sql, app -> pe-kv -> kv]

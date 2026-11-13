@@ -91,5 +91,12 @@ export function filled(id: number, ph: TemplatePlaceholder, lines: { text: strin
   );
 }
 
-/** A footer, date or slide number placeholder as the layout has it (its text, its slide number field), with an id of this slide. */
-export const footer = (id: number, ph: TemplatePlaceholder) => ph.xml.replace(/(<p:cNvPr\b[^>]*?\bid=")\d+"/, `$1${id}"`);
+/**
+ * A footer, date or slide number placeholder as the layout has it (its text, its slide number field), with an id of this slide.
+ * A slide number field says `number`, as PowerPoint writes it: the layout's ‹#› is what an app that does not count
+ * the slides itself shows (Quick Look, Mail, a phone's preview).
+ */
+export const footer = (id: number, ph: TemplatePlaceholder, number?: number) => {
+  const xml = ph.xml.replace(/(<p:cNvPr\b[^>]*?\bid=")\d+"/, `$1${id}"`);
+  return number === undefined ? xml : xml.replace(/(<a:fld\b[^>]*\btype="slidenum"[^>]*>[\s\S]*?<a:t>)[^<]*(<\/a:t>)/g, `$1${number}$2`);
+};

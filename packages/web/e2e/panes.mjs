@@ -189,16 +189,19 @@ async function run(width, height, theme) {
   await step('toasts and hint stay off the zoom bar', async () => {
     await page.evaluate(() => (localStorage.removeItem('cartography:hinted'), localStorage.removeItem('cartography:visits')));
     await page.reload();
-    await page.waitForSelector('.hint');
+    await page.waitForSelector('.hint', { state: 'attached' });
+    // Where the hint stands (shown only where it is clear of the drawing); V, the next view, takes it
+    // away for this visit, so the toast V raises is held against where it stood.
+    const hint = (await page.locator('.hint').evaluate((h) => getComputedStyle(h).visibility)) === 'visible' ? await box('.hint') : null;
     await page.click('.preview');
     await page.keyboard.press('v');
     await page.waitForSelector('.toast');
+    if (await page.locator('.hint').count()) fail(`${tag}: the hint stays after V`);
     const zoom = await box('.zoom');
-    const hint = await box('.hint');
     const toast = await box('.toast');
-    if (overlap(zoom, hint)) fail(`${tag}: the hint covers the zoom bar`);
+    if (hint && overlap(zoom, hint)) fail(`${tag}: the hint covers the zoom bar`);
     if (overlap(zoom, toast)) fail(`${tag}: the toast covers the zoom bar`);
-    if (overlap(hint, toast)) fail(`${tag}: the toast covers the hint`);
+    if (hint && overlap(hint, toast)) fail(`${tag}: the toast covers the hint`);
     const tools = await box('.canvas-tools');
     if (overlap(tools, toast)) fail(`${tag}: the toast covers the toolbar`);
     await page.screenshot({ path: `${out}/panes-${tag}-3-hint-toast.png` });

@@ -24,8 +24,11 @@ nodes:
   users: users
   cdn: { of: shop.web, kind: cloudfront, env: [test, prod] }
   site: { kind: s3, label: Site files, in: region, env: [test, prod] }
-  # One load balancer across the zones, as AWS runs it (its public subnets are left out).
-  alb: { kind: alb, label: Load balancer, in: vpc, exposure: public }
+  # The public tier: the internet gateway and one load balancer across the zones, as AWS runs it,
+  # with a node in a public subnet of each zone (an ALB needs public subnets in at least two zones,
+  # in test and dev too). The public subnets are named in its caption, not drawn, to keep it on a slide.
+  igw: { kind: internet-gateway, label: Internet gateway, in: vpc, tier: public }
+  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public, caption: ALB · public subnets }
   api-a: { of: shop.api, kind: ecs, in: app-a }
   api-b: { of: shop.api, kind: ecs, in: app-b }
   db: { of: shop.db, kind: rds, in: data-a }
@@ -36,8 +39,9 @@ nodes:
 edges:
   - users -> cdn: { label: HTTPS, style: public }
   - cdn -> site: { style: private }
-  - cdn -> alb: { label: /api, style: public }
-  - users -> alb: { label: HTTPS, style: public, env: dev }
+  - cdn -> igw: { label: /api, style: public }
+  - users -> igw: { label: HTTPS, style: public, env: dev }
+  - igw -> alb: { style: public }
   - alb -> api-a: { style: private }
   - alb -> api-b: { style: private }
   - db -> standby: { label: replication, style: data }

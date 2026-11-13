@@ -479,13 +479,18 @@ function place(sized: Sized, parts: number): { placed: Placed; crossings: number
   const nRows = rowLine.length;
   const up = Array.from({ length: nRows }, () => 0);
   const down = Array.from({ length: nRows }, () => 0);
+  // What each node takes of its row above and below its middle (itself, its name, a loop of its own).
+  const ownUp = new Map<string, number>();
+  const ownDown = new Map<string, number>();
   for (const n of g.nodes) {
     const r = rowOf(n.id);
     const l = beside(n.id);
     const at = nameAt.get(n.id);
     const self = loops.some((e) => e.from.node === n.id) ? 26 : 0;
-    up[r] = Math.max(up[r]!, sv(n.id) / 2 + Math.max(self, l && at === 'N' ? l.v + 6 : l && at === 'NW' ? Math.max(0, l.v + 16 - sv(n.id) / 2) : 0));
-    down[r] = Math.max(down[r]!, sv(n.id) / 2 + (l && at === 'S' ? l.v + 6 : 0));
+    ownUp.set(n.id, sv(n.id) / 2 + Math.max(self, l && at === 'N' ? l.v + 6 : l && at === 'NW' ? Math.max(0, l.v + 16 - sv(n.id) / 2) : 0));
+    ownDown.set(n.id, sv(n.id) / 2 + (l && at === 'S' ? l.v + 6 : 0));
+    up[r] = Math.max(up[r]!, ownUp.get(n.id)!);
+    down[r] = Math.max(down[r]!, ownDown.get(n.id)!);
   }
   // A label right where its line leaves a gateway's point needs room before the line may turn.
   const bandTop = new Map<number, number>();
@@ -495,8 +500,16 @@ function place(sized: Sized, parts: number): { placed: Placed; crossings: number
     const l = labelOf(e);
     if (!l || list[0]!.hor || !exitLabel(e)) continue;
     const y = yOf(e.from.node);
-    if (list[0]!.b > list[0]!.a) bandTop.set(y + 1, Math.max(bandTop.get(y + 1) ?? 0, l.v + 8));
-    else bandBottom.set(y - 1, Math.max(bandBottom.get(y - 1) ?? 0, l.v + 8));
+    // A line that runs on out of the lane (it turns nowhere near) needs less where the row already
+    // leaves room past the gateway's point: a taller card beside it (a three-line task) makes room enough.
+    // Within the lane the line is short, and its label needs the length.
+    const r = rowOf(e.from.node);
+    const downwards = list[0]!.b > list[0]!.a;
+    const next = downwards ? y + 2 : y - 2;
+    const leaves = Math.abs(list[0]!.b - list[0]!.a) > 1 && hlines[next]?.lane !== hlines[y]!.lane;
+    const slack = leaves ? (downwards ? down[r]! - ownDown.get(e.from.node)! : up[r]! - ownUp.get(e.from.node)!) : 0;
+    if (downwards) bandTop.set(y + 1, Math.max(bandTop.get(y + 1) ?? 0, l.v + 8 - slack));
+    else bandBottom.set(y - 1, Math.max(bandBottom.get(y - 1) ?? 0, l.v + 8 - slack));
   }
   const chanV = new Map<number, { top: number; height: number }>();
   const rowV: number[] = [];

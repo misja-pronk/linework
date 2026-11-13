@@ -10,4 +10,3 @@ Columns: Harbour Online, Payments hub and Core ledger.
 
 Key
 - Indigo filled pill: Assigned directly
-- Indigo outlined pill: Through a group, access package or parent scope

@@ -1,7 +1,7 @@
 type: data-products
-title: Customer data products and their contracts
+title: The customers product and its contract
 subtitle: From operational systems to fit-for-purpose products
-view: detailed-customer
+view: detailed-customers   # the other views: overview, detailed-sales, detailed-customer-360, detailed-marketing (the view picker lists them)
 # detail: [customer-360]   # only these products in detail
 
 domains:
@@ -15,12 +15,14 @@ sources:
 
 products:
   orders:
+    label: Orders
     class: source-aligned
     domain: sales
     inputs: [{ from: shop, label: CDC }]
     outputs:
       orders: { kind: table, contract: orders }
   customers:
+    label: Customers
     class: source-aligned
     domain: customer
     inputs: [{ from: crm, label: daily }]

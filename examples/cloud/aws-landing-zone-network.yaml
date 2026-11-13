@@ -35,6 +35,7 @@ edges:
   - tgw -> inspect: { label: 0.0.0.0/0, style: private }
   - inspect -> nat: { style: private }
   - nat -> internet: { style: public }
-  - tgw -> dx: { style: vpn }
+  # Direct Connect is a private circuit (through a Direct Connect gateway to the transit gateway), not a VPN.
+  - tgw -> dx: { style: private }
   # A BGP session goes both ways; written from the data centre, it stands beside the workload accounts.
-  - core -- dx: { label: BGP, style: vpn }
+  - core -- dx: { label: BGP, style: private }

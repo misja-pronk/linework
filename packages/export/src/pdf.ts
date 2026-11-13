@@ -92,7 +92,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   const date = opts.date ?? new Date();
   const title = opts.title ?? drawings.find((d) => d.graph?.title)?.graph?.title ?? 'Diagram';
   // No default font: the browser build has no standard fonts unless registered, and Inter is all we use.
-  // Tagged: each drawing is a Figure with alt text, so a screen reader says what the page shows.
+  // Tagged: each drawing has alt text, so a screen reader says what the page shows.
   const doc = new PDFDocument({ autoFirstPage: false, margin: 0, compress: opts.compress !== false, font: opts.fonts[400] as unknown as string, tagged: true, lang: 'en', displayTitle: true, info: { Title: title, Creator: 'Cartography', Producer: 'Cartography', CreationDate: date } });
   const chunks: Uint8Array[] = [];
   doc.on('data', (c: Uint8Array) => chunks.push(c));
@@ -148,7 +148,9 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
     doc.rect(0, 0, size[0], size[1]).fill(theme.canvas);
     doc.endMarkedContent();
     doc.addStructure(
-      doc.struct('Figure', { alt: altOf(d, 2000, view) }, () =>
+      // A Div, not a Figure: Preview and every app on Apple's PDFKit take a Figure for a picture, and its
+      // words could then not be searched, selected or copied. The alternate text is the same.
+      doc.struct('Div', { alt: altOf(d, 2000, view) }, () =>
         SVGtoPDF(doc, svg, x, y, {
           width: w,
           height: h,

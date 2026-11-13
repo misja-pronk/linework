@@ -45,7 +45,7 @@ await page.click('.files .file:has-text("containers.yaml")');
 await page.waitForTimeout(700);
 if ((await page.locator('.status-problems').innerText()) !== 'No problems') fail('problems: ' + (await page.locator('.status-problems').innerText()));
 const options = await page.locator('.view-picker option').allInnerTexts();
-if (options.join('|') !== 'Web shop — containers (containers)|Placing an order (ordering)') fail(`view options: ${options}`);
+if (options.join('|') !== 'Web shop — containers|Placing an order') fail(`view options: ${options}`);
 if (!(await page.locator('.drawing').innerText()).includes('Mailer')) fail('containers view misses the mailer');
 await page.screenshot({ path: `${out}/model-1.png` });
 

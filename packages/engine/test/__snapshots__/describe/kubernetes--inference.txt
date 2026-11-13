@@ -1,6 +1,6 @@
 Model serving
 
-Kubernetes diagram: Gateway API in front of GPU and CPU node pools. 8 elements in 3 groups, with 13 connections.
+Kubernetes diagram: Gateway API in front of a system pool and an L4 GPU pool. 8 elements in 3 groups, with 13 connections.
 
 Groups and elements
 - API clients (Users)

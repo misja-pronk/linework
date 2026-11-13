@@ -22,7 +22,9 @@ The detailed views open the products up: input and output ports, and the contrac
 | `detailed-other` | The same for the products without a domain (`detailed-no-domain` when a domain is called `other`) |
 | `detailed` | Every product in detail at once |
 
-In a product's view the story runs in one band from left to right: what it reads, the product, who reads it. Its contract hangs under the product (or beside it, above the port's lines), joined to its port by the dashed line, so the lines from the port run straight on to their readers. A contract of eight rows or more sets its guarantees and quality checks in a second column beside its schema, about as tall as the product; not one with keys drawn to its fields.
+In a product's or a domain's view the story runs in one band from left to right: what it reads, the product, who reads it. Its contract hangs under the product (or beside it, above the port's lines), joined to its port by the dashed line, so the lines from the port run straight on to their readers. A contract of eight rows or more sets its guarantees and quality checks in a second column beside its schema, about as tall as the product; not one with keys drawn to its fields.
+
+An input port reads the same everywhere: what it reads from (the source or the product), then how it arrives (its `label`, else its `name`), the port it reads of a product that has several, or the kind of system. The input ports stand in the order of what feeds them, top to bottom, so their lines never cross on the way in; where that makes no difference they keep the order they are written in. A step whose `focus:` names a product lights its contract with it.
 
 Which ones the view picker (and `carto render --all-views`, `carto validate`) offers follows one rule that does not depend on the drawing. A contract is the tall part of a detailed drawing, and two of them stacked, or one next to another product, no longer fit a slide. So:
 
@@ -30,6 +32,7 @@ Which ones the view picker (and `carto render --all-views`, `carto validate`) of
 - A domain with **more than one product and a contract among them** gets one view per product: `detailed-<product>`, in the order the products are written. Its `detailed-<domain>` is still drawn when written as `view:` or asked for with `--view`, but not offered.
 - The products without a domain count as one domain (`detailed-other`).
 - With `show-contracts: false` there is nothing tall, and nothing is split.
+- A view that draws just what the overview as written draws (`detail:` names exactly its products, everything else is one line from them, nothing stands in another domain) is the same picture twice: only the overview is offered, the other is still drawn when asked for by name.
 - When a product's id is also a view's name (a domain called `orders` next to a product `orders`), the product's view is `detailed-product-<id>`.
 
 When this leaves one detailed view (one domain drawn whole, or none), that view is `detailed`. So a mesh of one domain, Payments with its contract and Revenue beside it ([finance.yaml](../examples/data-products/finance.yaml)), offers `detailed-payments` and `detailed-revenue`. `detailed` stays what it always was, every product in detail: write it as `view: detailed` (the editor's view picker then lists it, as *Every product in detail*, while the file is written so) or ask for it with `--view detailed`, for instance with a `focus:` that cuts it down (as below). The steps of a diagram tell the whole mesh, so a domain's or a product's view is drawn without them. `detail: [id]` in the overview still opens up only the products named.

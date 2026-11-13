@@ -163,7 +163,14 @@ describe('carto validate on a slide', () => {
 
   it('checks the steps as their slides show them, once per drawing, naming the step that takes the room', async () => {
     // Just readable on a slide as a whole, and so are its steps: each title and caption fits on one line.
-    const ok = fs.readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8');
+    // The example has room to spare, so here it has none: group names at 10 px, one more account written
+    // to, and no notes beside the drawing.
+    const ok = fs
+      .readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8')
+      .replace(/^(subtitle: .*)$/m, '$1\ntheme: { extends: survey, group: { labelSize: 10 } }')
+      .replace(/^( {2}blob: .*)$/m, '$1\n  logs: { kind: storage, label: stshoplogs, in: rg }')
+      .replace(/^( {2}- uami -> graph:)/m, '  - uami -> logs: { label: Storage Blob Data Reader, style: role }\n$1')
+      .replace(/^ {4}note: .*\n/gm, '');
     write('ids.yaml', ok);
     const clean = await carto('validate', 'ids.yaml');
     expect(clean.code).toBe(0);
@@ -335,7 +342,7 @@ layers:
     expect(read('one.svg')).not.toContain('Key Vault');
     const all = await carto('render', 'layered.yaml', '--all-layers', '-o', 'layers/');
     expect(all.code).toBe(0);
-    expect(['layered.svg', 'layered-data.svg', 'layered-security.svg'].every((f) => exists(`layers/${f}`))).toBe(true);
+    expect(['layered.svg', 'layered--data.svg', 'layered--security.svg'].every((f) => exists(`layers/${f}`))).toBe(true);
     expect(all.out).toContain('layered.yaml@security →');
     expect((await carto('render', 'layered.yaml', '--all-layers', '-o', 'x.png')).err).toContain('--all-layers writes one per layer');
     const deck = await carto('render', 'layered.yaml', '--all-layers', '-o', 'layers.pptx');
@@ -447,9 +454,17 @@ describe('carto errors and help', () => {
     expect(r.err).toMatch(/^carto: -o x\.png names one file, but --all-views writes one per view: give a folder, e\.g\. -o x\//);
     expect(exists('x.png')).toBe(false);
     expect((await carto('render', 'views.yaml', '--all-views', '-o', 'pics/')).code).toBe(0);
-    expect(exists('pics/views-data.svg')).toBe(true);
+    expect(exists('pics/views--data.svg')).toBe(true);
     expect((await carto('render', 'views.yaml', '-o', 'one.svg')).code).toBe(0);
     expect(fs.statSync(path.join(tmp, 'one.svg')).isFile()).toBe(true);
+  }, 120_000);
+
+  it('names a view so that it is never another file’s view', async () => {
+    // views.yaml#data-x and views-data.yaml#x were both views-data-x.svg.
+    write('views.yaml', shop.replace('  data: {', '  data-x: {'));
+    write('views-data.yaml', shop.replace('  data: {', '  x: {'));
+    expect((await carto('render', 'views.yaml', 'views-data.yaml', '--all-views', '-o', 'apart/')).code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'apart')).sort()).toEqual(['views--data-x.svg', 'views-data--x.svg', 'views-data.svg', 'views.svg']);
   }, 120_000);
 
   it('writes nothing when the drawing has errors', async () => {
@@ -478,11 +493,27 @@ describe('carto errors and help', () => {
     expect((await carto('render', 'views.yaml', '--all-views', '-o', '-')).err).toContain('-o - writes one picture');
   }, 120_000);
 
+  it('puts every view in one deck with --all-views: a slide (page) each after the drawing as written, each drawing once', async () => {
+    write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
+    // As SVG: the drawing as written and a file per view (access.svg and access-access.svg are the same drawing).
+    // In a deck the drawing as written is the access view: not a second time.
+    const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc.pptx');
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('3 drawings: the whole and 2 views');
+    // The part names stand uncompressed in the zip.
+    expect(new Set(fs.readFileSync(path.join(tmp, 'acc.pptx'), 'latin1').match(/ppt\/slides\/slide\d+\.xml/g)).size).toBe(3);
+    expect((await carto('render', 'access.yaml', '--all-views', '-o', 'acc.pdf')).code).toBe(0);
+    expect(fs.readFileSync(path.join(tmp, 'acc.pdf'), 'latin1').match(/\/Type \/Page\b/g)).toHaveLength(3);
+    // A sequence's whole is the drawing as written: the whole, then a slide per phase.
+    const seq = await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pptx');
+    expect(seq.out).toContain('3 drawings: the whole and 2 views');
+  }, 120_000);
+
   it('leaves empty views out of --all-views', async () => {
     write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
     const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc/');
     expect(r.code).toBe(0);
-    expect(fs.readdirSync(path.join(tmp, 'acc')).sort()).toEqual(['access-access.svg', 'access-graph.svg', 'access-roles.svg', 'access.svg']);
+    expect(fs.readdirSync(path.join(tmp, 'acc')).sort()).toEqual(['access--access.svg', 'access--graph.svg', 'access--roles.svg', 'access.svg']);
   }, 120_000);
 });
 

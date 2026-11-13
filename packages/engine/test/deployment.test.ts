@@ -338,7 +338,7 @@ describe('examples/deployment', () => {
         expect(r.diagnostics, `${f}#${view}`).toEqual([]);
         (counts[f] ??= []).push(r.graph!.nodes.length);
       }
-    expect(counts).toEqual({ 'azure.yaml': [9, 7, 6], 'aws.yaml': [10, 8, 6] });
+    expect(counts).toEqual({ 'azure.yaml': [9, 7, 6], 'aws.yaml': [11, 9, 7] });
   }, 30_000);
 
   it('production on AWS runs the Orders API in both zones, behind one load balancer across them', async () => {
@@ -361,7 +361,7 @@ describe('examples/deployment', () => {
     expect(g.groups.find((x) => x.id === 'az-b')!.marks).toEqual(['prod']);
     // What sits inside a marked zone is marked by it, not again.
     expect(g.nodes.find((n) => n.id === 'api-b')!.marks).toBeUndefined();
-    expect(g.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!.marks).toEqual(['dev']);
+    expect(g.edges.find((e) => e.from.node === 'users' && e.to.node === 'igw')!.marks).toEqual(['dev']);
     expect(g.legend!.find((l) => l.swatch === 'mark')).toMatchObject({ tag: 'prod', label: 'Only in the environments named; unmarked: in all (prod, test, dev)' });
     // One environment's view needs none of it.
     const prod = (await show('aws.yaml', 'prod')).graph!;

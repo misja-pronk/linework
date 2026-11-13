@@ -23,7 +23,8 @@ nodes:
 
 edges:
   - isp -- fw: { style: wan, speed: 10G, count: 2 }
-  - fw -- core: { style: trunk, speed: 40G, count: 2 }
+  # The FortiGate 400F tops out at 25 GbE (SFP28); the Catalyst 9500 has 25G ports to match.
+  - fw -- core: { style: trunk, speed: 25G, count: 2 }
   - core -- dist-n: { style: fiber, speed: 40G, count: 2 }
   - core -- dist-s: { style: fiber, speed: 40G, count: 2 }
   - dist-n -- acc-n1: { style: fiber, speed: 10G, count: 2 }

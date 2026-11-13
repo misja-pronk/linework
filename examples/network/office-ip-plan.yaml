@@ -31,7 +31,8 @@ nodes:
   printer: { kind: printer, label: print-01, in: staff, ip: 10.20.10.9 }
 
 edges:
-  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20, 30] }
+  # The FortiGate 60F has 1 GbE ports only: two of them aggregated to the switch.
+  - fw -- core: { style: trunk, speed: 1G, count: 2, vlans: [1, 10, 20, 30] }
   - core -- ap1
   - core -- ap2
   - core -- nas

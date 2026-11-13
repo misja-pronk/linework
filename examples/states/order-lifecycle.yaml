@@ -10,12 +10,13 @@ states:
       Packed: { entry: print the label }
   Cancelled: { entry: release stock }
 
+# Only a packed order can ship: handed to carrier leaves from Packed, not from the whole of Fulfilment.
 transitions:
   - start -> Awaiting payment: order placed
   - Awaiting payment -> Fulfilment: payment received
   - start -> Picking
   - Picking -> Packed: all items scanned
-  - Fulfilment -> Shipped: handed to carrier
+  - Packed -> Shipped: handed to carrier
   - Shipped -> Delivered: signed for
   - Delivered -> end
   - Awaiting payment -> Cancelled: 30 min without payment

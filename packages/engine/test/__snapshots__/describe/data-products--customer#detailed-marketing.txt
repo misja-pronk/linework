@@ -9,7 +9,7 @@ Groups and elements
 - Campaign tool (Application)
 
 Connections
-- Customer 360 connects to Churn risk.profiles.
+- Customer 360 connects to Churn risk.
 - Churn risk.churn scores connects to Campaign tool.
 
 Key

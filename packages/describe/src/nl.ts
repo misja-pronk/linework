@@ -71,7 +71,7 @@ export const nl = {
   Walkthrough: 'Rondleiding',
   'Ways to look at this drawing by tag.': 'Manieren om naar deze tekening te kijken, per tag.',
   'Who reports to whom': 'Wie rapporteert aan wie',
-  'With {names}': 'Met {names}',
+  'With: {names}': 'Met: {names}',
   'Works well': 'Gaat goed',
   'a redundant pair': 'een redundant paar',
   abstract: 'abstract',

@@ -31,6 +31,9 @@ export interface ComposeOptions {
 
 // What a file says about itself: an included file's title, direction, focus or steps stay its own.
 const SCALARS = new Set(['type', 'title', 'subtitle', 'direction', 'focus', 'steps']);
+// How a file looks and the language of its own words: the diagram that includes it decides those for
+// the whole drawing, so an included file may say them (the Dutch editor writes lang: nl) and they are passed over.
+const LOOK = ['lang', 'theme', 'icons', 'aspect'];
 
 const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -89,7 +92,7 @@ export function compose(main: Record<string, unknown>, o: ComposeOptions): Compo
       return o.report(at, `${where(d?.line)}: ${d?.message ?? 'cannot be read'}`);
     }
     if (!isMap(src.data)) return o.report(at, `${file} is not a diagram or model`);
-    const part = src.data;
+    const part = Object.fromEntries(Object.entries(src.data).filter(([k]) => !LOOK.includes(k)));
     const type = part.type == null ? mainType : String(part.type);
     if (type !== 'model' && type !== mainType)
       return o.report(at, `${file} is a ${type} diagram: include a type: model file or another ${mainType} diagram`);

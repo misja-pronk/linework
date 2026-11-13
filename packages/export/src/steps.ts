@@ -33,7 +33,7 @@ function stepPages(d: Drawing, all?: boolean): Page[] {
     if (!(all ?? !drawing.stepsImplied)) {
       // One page for the story: where it ends, not every step's lines at once.
       const end = drawing.stepsImplied ? undefined : finalState(states);
-      return [{ drawing, ...(end ? { view: { index: 0, states: [end], caption: false } } : {}) }];
+      return [{ drawing, ...(end ? { view: { index: 0, states: [end], caption: false, room: states } } : {}) }];
     }
     return states.map((_, index) => ({ drawing, view: { index, states } }));
   });

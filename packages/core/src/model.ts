@@ -177,6 +177,11 @@ export interface TableShape {
    * column's rows only.
    */
   split?: number;
+  /**
+   * Its rows have no order of their own (a data product's ports): within a section, the rows fed by
+   * one line each stand in the order those lines come in (layout ports.ts), so they do not cross.
+   */
+  ports?: boolean;
 }
 
 /** A grid with row and column headers: access matrices, role × permission tables. */
@@ -366,13 +371,22 @@ export interface PlacedEdge {
 export interface Sized {
   graph: Graph;
   nodes: Map<string, NodeSize>;
-  edgeLabels: Map<string, { width: number; height: number }>;
+  /**
+   * Each line's label box. `aside`: of its width, the room kept for the tags at the line's ends (U, D,
+   * ACL), half each side of the words, which are drawn in the middle: beside a line only the words count.
+   */
+  edgeLabels: Map<string, { width: number; height: number; aside?: number }>;
   /** Space above a group's children for its label. */
   groupHeader: number;
   /** Width a group needs at least to show its label. */
   groupMinWidth: Map<string, number>;
   /** Pairs that belong together without a line between them (a relation shown as a badge). */
   near?: [string, string][];
+  /**
+   * The size (px) of the smallest words a reader needs that the drawing has: labels on lines, group
+   * names, a table's section names. How large the drawing may be on a slide goes by it (10 when not said).
+   */
+  smallText?: number;
 }
 
 export interface NodeSize {

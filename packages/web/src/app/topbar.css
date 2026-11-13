@@ -203,9 +203,12 @@ button.type-pill[aria-expanded='true'] {
   }
 }
 
-/* ⋯ and the theme menu opened from it: one line per item. */
+/* ⋯ and the theme menu opened from it: one line per item. On a low screen (a projector at 720) a menu
+   scrolls rather than run off the bottom of the window. */
 .topbar .actions .menu {
   min-width: 250px;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
 }
 .topbar .actions .menu button {
   white-space: nowrap;

@@ -1,13 +1,13 @@
 Engineering access
 
-Roles, groups and access packages diagram: Who reaches where, through Entra ID access packages and Azure roles. A table of 5 rows by 4 columns.
+Roles, groups and access packages diagram: Who reaches where, through Entra ID access packages and Azure roles. A table of 5 rows by 5 columns.
 
 By row (Who by where)
-Columns: Production, rg-shop, Test and GitHub Enterprise.
+Columns: sg-developers, Production, rg-shop, Test and GitHub Enterprise.
 - sg-developers (Security group): Production: Reader; rg-shop: Reader, inherited (from Production); Test: Contributor
 - sg-platform-admins (Role-assignable group): Production: Owner; rg-shop: Owner, inherited (from Production)
-- Alice (User): Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
-- Bob (Contoso) (Guest): Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
+- Alice (User): sg-developers: Member, inherited (via Developer access); Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
+- Bob (Contoso) (Guest): sg-developers: Member, inherited (via Developer access); Production: Reader, inherited (via Developer access); rg-shop: Reader, inherited (via Developer access, from Production); Test: Contributor, inherited (via Developer access); GitHub Enterprise: User, inherited (via Developer access)
 - GitHub deploy (Service principal): rg-shop: Contributor
 
 Key

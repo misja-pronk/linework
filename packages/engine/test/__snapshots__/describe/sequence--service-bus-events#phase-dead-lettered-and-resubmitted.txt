@@ -1,0 +1,19 @@
+Events through Service Bus
+
+Sequence, dead-lettered and resubmitted: Dead-lettered and resubmitted. 3 participants and 2 messages.
+
+Participants
+- Service Bus sb-northwind-prod
+  - order-events (topic)
+- Azure Monitor (alert rule)
+- Operations
+
+Message flow
+In order, top to bottom.
+- 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
+- 10. Operations sends to order-events: Fix the cause, resubmit.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

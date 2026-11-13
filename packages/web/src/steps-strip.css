@@ -97,13 +97,18 @@
   background: none;
 }
 .steps-keys {
+  display: none;
   flex: none;
   font-size: 0.75rem;
   color: var(--text-faint);
   white-space: nowrap;
 }
-@media (max-width: 1280px) {
-  .steps-keys {
+/* The keys only while a step has the keyboard: otherwise the steps have the room. */
+.steps-strip:has(.step-chip:focus-visible) .steps-keys {
+  display: inline;
+}
+@media (max-width: 900px) {
+  .steps-strip .steps-keys {
     display: none;
   }
 }

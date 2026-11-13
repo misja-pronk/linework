@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { findType, render, schemaOf } from '../src/index.ts';
+import type { Placed, StepNote, StepState } from '@cartography/core';
+import { drawNote, noteStem, placeNotes } from '@cartography/render';
+import { light } from '@cartography/theme';
 
 /** The drawing without its text alternative (title and description, see describe.ts), which tells every step. */
 const drawn = (svg: string | undefined) => svg?.replace(/ role="img" aria-labelledby="[^"]*"( aria-describedby="[^"]*")?/, '').replace(/<title id="[^"]*-title">[^<]*<\/title>(<desc id="[^"]*-desc">[^<]*<\/desc>)?/, '');
@@ -105,6 +108,47 @@ describe('steps: what a step shows', () => {
       { kind: 'group', id: 'data', text: 'No way in from outside' },
       { kind: 'edge', id: edge('api', 'stripe'), text: 'Card data leaves here' },
     ]);
+  });
+});
+
+describe('steps: where a note goes', () => {
+  type B = { x: number; y: number; width: number; height: number };
+  const hit = (a: B, b: B) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const within = (a: B, b: B) => a.x >= b.x && a.y >= b.y && a.x + a.width <= b.x + b.width && a.y + a.height <= b.y + b.height;
+  const state = (notes: StepNote[]): StepState => ({ nodes: {}, groups: {}, edges: {}, notes });
+
+  it('does not lie across the frames its card sits in: it goes past them, with a line back', () => {
+    // A card snug in two nested frames (as a VM in a subnet in a network), another card left of it.
+    const card = { x: 300, y: 120, width: 180, height: 58 };
+    const placed: Placed = {
+      nodes: new Map([['vm', card], ['other', { x: 40, y: 120, width: 180, height: 58 }]]),
+      groups: new Map([['vnet', { x: 260, y: 40, width: 260, height: 180 }], ['subnet', { x: 280, y: 80, width: 220, height: 120 }]]),
+      edges: new Map([['e', { points: [{ x: 220, y: 149 }, { x: 300, y: 149 }] }]]),
+      width: 560,
+      height: 240,
+    };
+    const [n] = placeNotes(state([{ kind: 'node', id: 'vm', text: 'nsg-app: RDP from Bastion only' }]), placed);
+    for (const g of placed.groups.values()) expect(!hit(n!.box, g) || within(n!.box, g)).toBe(true);
+    expect(hit(n!.box, placed.nodes.get('other')!)).toBe(false);
+    // Out past the frames, a line reaches back to the card's edge.
+    expect(noteStem(n!)).toBeDefined();
+    expect(n!.tip.y === card.y || n!.tip.y === card.y + card.height || n!.tip.x === card.x || n!.tip.x === card.x + card.width).toBe(true);
+    expect(drawNote(n!, light)).toContain('<circle');
+  });
+
+  it('leaves a line label readable, coming closer to its card where the gap is narrow', () => {
+    // Cards in a column 40 px apart; the gap above is taken by a line's label.
+    const placed: Placed = {
+      nodes: new Map([['a', { x: 300, y: 0, width: 200, height: 58 }], ['b', { x: 300, y: 98, width: 200, height: 58 }], ['c', { x: 300, y: 196, width: 200, height: 58 }], ['left', { x: 40, y: 98, width: 200, height: 58 }]]),
+      groups: new Map(),
+      edges: new Map([['r', { points: [{ x: 500, y: 75 }, { x: 760, y: 75 }], label: { x: 330, y: 66, width: 60, height: 18 } }], ['s', { points: [{ x: 500, y: 127 }, { x: 760, y: 127 }], label: { x: 600, y: 118, width: 60, height: 18 } }]]),
+      width: 760,
+      height: 254,
+    };
+    const [n] = placeNotes(state([{ kind: 'node', id: 'b', text: 'MFA and a reason' }]), placed);
+    for (const [, e] of placed.edges) expect(hit(n!.box, e.label!)).toBe(false);
+    for (const [id, b] of placed.nodes) if (id !== 'b') expect(hit(n!.box, b)).toBe(false);
+    expect(noteStem(n!)).toBeUndefined();
   });
 });
 
@@ -214,6 +258,26 @@ describe('steps: drawing', () => {
     expect(whole).toContain('>Stripe<');
     expect(whole).not.toContain('Card data leaves here');
     expect(whole).not.toContain('Everything that is there.');
+  });
+
+  it('keeps the room a note needs outside the drawing in the whole drawing too, so it does not jump to the first step', async () => {
+    const hub = example('azure/hub-spoke.yaml');
+    const whole = await render(hub, { fonts: 'none' });
+    const placed = whole.placed!;
+    // A step whose note stands past the drawing's edge.
+    const out = whole.steps!.findIndex((s) => placeNotes(s, placed).some((n) => n.box.y + n.box.height > placed.height || n.box.x + n.box.width > placed.width || n.box.x < 0 || n.box.y < 0));
+    expect(out).toBeGreaterThanOrEqual(0);
+    for (let i = 1; i <= whole.steps!.length; i++) {
+      const s = await render(hub, { fonts: 'none', step: i, stepCaption: false });
+      expect([s.width, s.height, s.origin], `step ${i}`).toEqual([whole.width, whole.height, whole.origin]);
+    }
+  });
+
+  it('ties the caption to the drawing with a hairline only: no bar that would read as progress', async () => {
+    const at = (await render(text, { fonts: 'none', step: 1 })).svg!;
+    const after = (await render(text, { fonts: 'none', step: 3 })).svg!;
+    expect(at).toContain('1 / 3');
+    for (const svg of [at, after]) expect(svg).not.toMatch(/<rect [^>]*width="40" height="3"/);
   });
 
   it('is legible in the dark theme too: what stands back keeps its distance from the canvas', async () => {

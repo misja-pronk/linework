@@ -1,13 +1,11 @@
 Northwind finance access packages
 
-Roles, groups and access packages, who × where: Who × where. A table of 3 rows by 3 columns.
+Roles, groups and access packages, who × where: Who × where. A table of 2 rows by 4 columns.
 
 By row (Who by where)
-Columns: Finance team site, Northwind ERP and Finance reports.
-- Finance team (Microsoft 365 group · Teams): nothing
-- Emma de Wit (Accountant): Finance team site: Member, inherited (via Finance basics); Northwind ERP: Finance user, inherited (via Finance basics)
+Columns: Finance team, Finance team site, Northwind ERP and Finance reports.
+- Emma de Wit (Accountant): Finance team: Member, inherited (via Finance basics); Finance team site: Member, inherited (via Finance basics); Northwind ERP: Finance user, inherited (via Finance basics)
 - Sam Okafor (Guest · Fabrikam): Finance team site: Visitor, inherited (via Year-end audit); Finance reports: Viewer, inherited (via Year-end audit)
 
 Key
-- Indigo filled pill: Assigned directly
 - Indigo outlined pill: Through a group, access package or parent scope

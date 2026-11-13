@@ -1,0 +1,29 @@
+Events through Service Bus
+
+Sequence, publish and deliver: Publish and deliver. 5 participants and 8 messages.
+
+Participants
+- Orders API (App Service)
+- Service Bus sb-northwind-prod
+  - order-events (topic)
+  - Dead-letter queue (per subscription)
+- Invoicing (Azure Function)
+- Warehouse (Container App)
+
+Message flow
+In order, top to bottom.
+- 1. Orders API sends to order-events: OrderPlaced, MessageId = order id.
+- In parallel: Subscription invoicing
+  - 2. order-events sends to Invoicing: OrderPlaced (peek-lock).
+  - 3. Invoicing does: Invoice, unless MessageId seen.
+  - 4. Invoicing replies to order-events: Complete.
+- And: Subscription warehouse
+  - 5. order-events sends to Warehouse: OrderPlaced (peek-lock).
+  - 6. Warehouse replies to order-events: Abandon, stock service down.
+  - 7. order-events sends to Warehouse: Redelivered, DeliveryCount 2 to 10.
+  - 8. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

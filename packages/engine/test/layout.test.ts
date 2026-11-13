@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, touchedLabels, type RouteRequest } from '@cartography/layout';
+import { endsRoom } from '@cartography/render';
 import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, budget, race, timed } from './perf.ts';
 
@@ -28,7 +29,7 @@ const crossingBudget: Record<string, number> = {
   'access/azure-rbac-pim.yaml': 0,
   'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
   'azure/aks-baseline.yaml': 0,
-  'azure/app-landing-zone.yaml': 0,
+  'azure/app-landing-zone.yaml': 3, // the route table's dotted lines (configuration, not traffic) cross the app's lines to the private endpoints and the hub
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
   'azure/landing-zone.yaml': 0,
@@ -74,7 +75,7 @@ const crossingBudget: Record<string, number> = {
   'deployment/model.yaml#context': 0,
   'deployment/model.yaml#containers': 0,
   'erd/orders.yaml': 0,
-  'erd/saas.yaml': 2,
+  'erd/saas.yaml': 3, // the nullable assignee comes into users.id from the far side, so its ring and bar are not drawn over the others' bars
   'erd/shop-schemas.yaml': 0,
   'model/containers.yaml': 0,
   'model/context.yaml': 0,
@@ -163,7 +164,7 @@ const jogBudget: Record<string, number> = {
   'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
   'data-products/northwind-orders-product.yaml': 2, // the sources' lines step into their input ports
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
-  'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
+  'deployment/aws.yaml#prod': 2, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title; the site files stand by the storefront, a step up
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
   'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
@@ -184,13 +185,17 @@ const jogBudget: Record<string, number> = {
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
   'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
-  'states/device-connection.yaml': 1, // update verified, between two returns
+  'states/device-connection.yaml': 2, // update verified, between two returns; buffer full, on the short hop up into Sending
+  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its turn down to pe-kv
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
   'c4/kestrel-bank.yaml#production-data': 1, // Reads logins, on the line down from the banking API past Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
   'workspace/containers.yaml': 1,
   'c4/kestrel-bank.yaml#containers': 1,
+  // Given room (no other line through it), the label sits at its line's turn: create invoice; db_datawriter.
+  'systems/invoice-walkthrough.yaml': 1,
+  'azure/web-app.yaml': 1,
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -317,7 +322,7 @@ describe('layout quality', () => {
     const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
     expect(inAccount).not.toBe(aws);
     const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
-    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'alb')!;
+    const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'igw')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
   it('writes each label on its own line where lines that say the same run into one target', async () => {
@@ -327,6 +332,48 @@ describe('layout quality', () => {
     expect(said.length).toBeGreaterThan(1);
     // On a shared trunk one label would leave the reader to guess which line it names.
     expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(said.length);
+  });
+  it('opens room for a label that has no clear spot, so no other line runs through it', async () => {
+    // Invoicing's "create invoice" lay across Notifier's line to the mail provider: the gap between the
+    // system and the outside services was too narrow for the words and both lines.
+    for (const file of ['systems/invoice-walkthrough.yaml', 'azure/web-app.yaml']) {
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+      expect(touchedLabels(r.graph!, r.placed!)).toEqual([]);
+      expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+    }
+  });
+  it('puts the words of a label beside a line next to it, whatever room the line keeps for its end tags', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'context-map/e-commerce.yaml'), 'utf8'), { fonts: 'none' });
+    for (const e of r.graph!.edges) {
+      const pe = r.placed!.edges.get(e.id)!;
+      const aside = 2 * endsRoom(e.ends);
+      if (!pe.label || !e.label) continue;
+      // The words, as drawn: the box less the room for the end tags, half each side.
+      const w = { x: pe.label.x + aside / 2, y: pe.label.y, width: pe.label.width - aside, height: pe.label.height };
+      const gap = Math.min(...pe.points.slice(1).map((q, i) => {
+        const p = pe.points[i]!;
+        const dx = Math.max(w.x - Math.max(p.x, q.x), Math.min(p.x, q.x) - (w.x + w.width), 0);
+        const dy = Math.max(w.y - Math.max(p.y, q.y), Math.min(p.y, q.y) - (w.y + w.height), 0);
+        return Math.hypot(dx, dy);
+      }));
+      expect(gap).toBeLessThanOrEqual(6);
+    }
+  });
+  it('keeps a label on the middle of its piece of line rather than over the bend at its end', () => {
+    const box = (x: number, y: number) => ({ x, y, width: 120, height: 50 });
+    const r = routeEdges({
+      obstacles: new Map([['a', box(0, 0)], ['b', box(400, 300)]]),
+      soft: [],
+      direction: 'right',
+      edges: [{ id: 'e', from: { node: 'a', box: box(0, 0), stub: 16 }, to: { node: 'b', box: box(400, 300), stub: 18 }, label: { width: 90, height: 16 } }],
+    });
+    const { points, label } = r.get('e')!;
+    // The label lies wholly on one straight piece, clear of both its ends.
+    const on = points.slice(1).some((q, i) => {
+      const p = points[i]!;
+      return p.y === q.y ? label!.x >= Math.min(p.x, q.x) && label!.x + label!.width <= Math.max(p.x, q.x) : label!.y >= Math.min(p.y, q.y) && label!.y + label!.height <= Math.max(p.y, q.y);
+    });
+    expect(on).toBe(true);
   });
   it('draws groups that stand side by side in the order they are written', async () => {
     const text = fs.readFileSync(path.join(examples, 'cloud/aws-three-tier.yaml'), 'utf8');
@@ -350,7 +397,32 @@ describe('layout quality', () => {
     expect(measure(r.graph!, r.placed!).siblingSpread).toBe(0);
   });
   it('keeps what one card names in a badge by that card', async () => {
-    const r = await render(fs.readFileSync(path.join(examples, 'azure/web-shop.yaml'), 'utf8'), { fonts: 'none' });
+    // The web shop as it was drawn with its Key Vault as a badge (the example now draws its private endpoints).
+    const shop = [
+      'type: azure',
+      'title: Web shop',
+      'groups:',
+      '  prod: { kind: subscription, label: Production }',
+      '  rg: { kind: resource-group, label: rg-shop-prod, in: prod }',
+      '  vnet: { kind: vnet, label: vnet-shop, in: rg }',
+      '  apps: { kind: subnet, label: snet-apps, in: vnet }',
+      '  data: { kind: subnet, label: snet-data, in: vnet }',
+      'nodes:',
+      '  users: users',
+      '  edge: { kind: front-door, label: Front Door }',
+      '  web: { kind: app-service, label: Web shop, in: apps }',
+      '  api: { kind: container-app, label: Orders API, in: apps }',
+      '  db: { kind: sql-database, label: Orders, in: data }',
+      '  vault: { kind: key-vault, label: Secrets, in: rg }',
+      'badges: [identity]',
+      'edges:',
+      '  - users -> edge: { label: HTTPS, style: public }',
+      '  - edge -> web: { style: public }',
+      '  - web -> api: { label: REST, style: private }',
+      '  - api -> db: { label: SQL, style: private }',
+      '  - api -> vault: { label: secrets, style: identity }',
+    ].join('\n');
+    const r = await render(shop, { fonts: 'none' });
     const at = (id: string) => r.placed!.nodes.get(id)!;
     // The key vault has no line of its own: it stands past the API that names it, not at the far end of the resource group.
     expect(at('vault').x).toBeGreaterThan(at('api').x);
@@ -624,6 +696,29 @@ describe('shared trunks', () => {
       expect(start(r, 'x')).not.toBe(start(r, 'y'));
     }
   });
+  it('join only lines to cards that stand together: a branch beside a card of another group reads as running on through it', () => {
+    const to = (node: string, x: number, y: number, within: string) => ({ ...end(node, x, y), within });
+    const together = fan({ to: to('a', 300, 0, 'g') }, { to: to('b', 300, 200, 'g') });
+    expect(start(together, 'x')).toBe(start(together, 'y'));
+    const apart = fan({ to: to('a', 300, 0, 'g') }, { to: to('b', 300, 200, 'h') });
+    expect(start(apart, 'x')).not.toBe(start(apart, 'y'));
+  });
+  it('never draw two different marks on one table row: the second line comes in on the other side', () => {
+    // Two tables left, one right; both point at the right table's key row, one ending in a bar, one in a ring and bar.
+    const row = (node: string, x: number, y: number, mark: string) => ({ node, box: { x, y, width: 160, height: 120 }, rowY: 50, stub: 30, mark });
+    const key = (mark: string) => row('k', 400, 100, mark);
+    const r = routeEdges({
+      obstacles: new Map([['p', row('p', 0, 0, '').box], ['q', row('q', 0, 260, '').box], ['k', key('').box]]),
+      soft: [],
+      direction: 'right',
+      edges: [
+        { id: 'one', from: row('p', 0, 0, 'many'), to: key('one'), style: 'solid||many|one|1' },
+        { id: 'maybe', from: row('q', 0, 260, 'many'), to: key('zeroOrOne'), style: 'solid||many|zeroOrOne|1' },
+      ],
+    });
+    const last = (id: string) => r.get(id)!.points.at(-1)!.x;
+    expect(new Set([last('one'), last('maybe')]).size).toBe(2);
+  });
   it('never draw a link the source does not have: a context map keeps every relation on its own line', async () => {
     const r = await render(fs.readFileSync(path.join(examples, 'context-map/e-commerce.yaml'), 'utf8'), { fonts: 'none' });
     expect(falseJoins(r.graph!, r.placed!)).toEqual([]);
@@ -718,5 +813,11 @@ describe('slide shape', () => {
     expect(slideTextPt(small.svg!, small.width!, small.height!)).toBeGreaterThan(SLIDE_MIN_PT);
     const wide = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
     expect(slideTextPt(wide.svg!, wide.width!, wide.height!)).toBeLessThan(SLIDE_MIN_PT);
+  });
+  it('takes a crossing or two for a slide at 6 pt rather than a staircase under it', async () => {
+    // A group name a word longer: two rows reach 6 pt with three crossings; three rows stayed at 5.1 pt with one.
+    const text = fs.readFileSync(path.join(examples, 'cloud/multi-cloud.yaml'), 'utf8').replace('label: Analytics,', 'label: Analytics extra +,');
+    const r = await render(text, { fonts: 'none' });
+    expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
   });
 });

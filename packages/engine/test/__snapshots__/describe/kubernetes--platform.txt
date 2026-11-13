@@ -5,8 +5,8 @@ Kubernetes diagram: Shared ingress, certificates and observability for the app t
 Groups and elements
 - Internet
 - platform-prod (Cluster)
-  - ingress-nginx (Namespace)
-    - ingress-nginx (LoadBalancer · ×3)
+  - traefik (Namespace)
+    - traefik (LoadBalancer · ×3)
   - shop (Namespace)
     - shop (Ingress · shop.acme.io)
     - storefront (Deployment · ×3)
@@ -21,20 +21,20 @@ Groups and elements
     - grafana (Deployment)
     - prometheus (StatefulSet · ×2)
     - loki (StatefulSet)
-    - promtail (DaemonSet)
+    - alloy (DaemonSet)
   - cert-manager (Namespace)
     - cert-manager (Deployment · ×2 · ACME)
 
 Connections
-- Internet sends traffic to ingress-nginx (LoadBalancer) over HTTPS.
-- ingress-nginx (LoadBalancer) sends traffic to shop (Ingress) and sends traffic to billing (Ingress).
+- Internet sends traffic to traefik (LoadBalancer) over HTTPS.
+- traefik (LoadBalancer) sends traffic to shop (Ingress) and sends traffic to billing (Ingress).
 - shop (Ingress) sends traffic to storefront (/), sends traffic to orders (/api) and mounts shop-tls.
 - billing (Ingress) sends traffic to billing-api.
 - orders sends traffic to orders-db.
 - billing-api sends traffic to billing-db.
 - invoices sends traffic to billing-db.
 - grafana sends traffic to prometheus and sends traffic to loki.
-- promtail sends traffic to loki (logs).
+- alloy sends traffic to loki (logs).
 - cert-manager (Deployment) mounts letsencrypt-account.
 
 Key

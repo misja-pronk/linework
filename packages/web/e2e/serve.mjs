@@ -50,7 +50,7 @@ try {
   if (!ctx.includes('selected: api')) fail(`get_context: no selection in ${ctx}`);
 
   // A proposal: marked in the panel, accepted with ⏎, one undo step.
-  const proposing = agent.callTool({ name: 'propose', arguments: { file, summary: 'Add a cache', edits: [{ op: 'set', path: ['nodes', 'cache'], value: { kind: 'redis', label: 'Cache', in: 'data' } }, { op: 'append', path: ['edges'], value: 'api -> cache: reads' }] } });
+  const proposing = agent.callTool({ name: 'propose', arguments: { file, summary: 'Add a cache', edits: [{ op: 'set', path: ['nodes', 'cache'], value: { kind: 'redis', label: 'Cache', in: 'rg' } }, { op: 'append', path: ['edges'], value: 'api -> cache: reads' }] } });
   await page.waitForSelector('.ask-panel .proposal');
   if (!(await page.locator('.ask-panel .proposal-summary').first().innerText()).includes('Add a cache')) fail('proposal summary');
   if (!(await page.locator('.ask-panel .proposal-count').innerText().catch(() => '')).length) fail('no diff count');
@@ -59,7 +59,7 @@ try {
   await page.keyboard.press('Enter');
   const verdict = text(await proposing);
   if (!/Accepted/.test(verdict)) fail(`propose: ${verdict}`);
-  if (!(await yaml()).includes('cache: { kind: redis, label: Cache, in: data }')) fail('accepted change not in the editor');
+  if (!(await yaml()).includes('cache: { kind: redis, label: Cache, in: rg }')) fail('accepted change not in the editor');
   await page.click('.drawing', { position: { x: 8, y: 8 } });
   await page.keyboard.press('ControlOrMeta+z');
   // The editor draws only the lines in view, so look for what the proposal added.

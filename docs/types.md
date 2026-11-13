@@ -248,6 +248,8 @@ Use it to show which group or access package grants which role on which resource
 
 An assignment reads `sg-ops is owner on prod`; `sg-ops is eligible owner on prod` is one that is activated through Privileged Identity Management (PIM): drawn dashed, and in the matrix after what is held now. The long form adds PIM's settings, shown on the line and in the matrix: `{ principal: sg-ops, role: owner, scope: prod, eligible: true, activation: 4 h, approval: sg-security }`. Entra roles take the tenant or an `administrative-unit` as their scope.
 
+In the who × where matrix a cell shows the strongest role on its pill and names every other role there in the note under it (`also …`, `eligible for …`), before where the pill's role comes from; describe gives the whole note. A group that an access package hands out is a column too, once someone is in it, so a membership shows where it is held.
+
 Principals are people and groups, and also workload identities and devices: `service-principal`, `managed-identity`, `app-registration` (a service principal or a `federated-credential` names its app with `app:`), `device` and `paw` (a privileged access workstation). `owners:` draws who owns a group or an app. `policies:` holds Conditional Access: a `conditional-access` policy `targets` people, groups or directory roles, `excludes` some (the break-glass accounts), covers `apps`, checks `locations` (a `named-location`) and `requires` an `authentication-strength`, a `compliance-policy`, a device or PAW, or words such as MFA; `block: true` and `state: report-only` say the rest. A package policy can have its own `id:` for steps and focus. Principals, resources, packages, policies and assignments take `tags:`, so `layers:` work (a layer per admin tier, say).
 
 ```yaml

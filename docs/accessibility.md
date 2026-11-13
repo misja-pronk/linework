@@ -9,7 +9,7 @@ Every drawing says in words what it shows, made from its model (see [describe](d
 
 - **SVG**: a `<title>` and `<desc>` the root names, with `role="img"` and the language of the words (`lang`).
 - **PNG**: `Title` and `Description` text chunks. A web page still needs its own `alt`.
-- **PDF**: a tagged PDF; each drawing is a figure with the description as its alternate text.
+- **PDF**: a tagged PDF; each drawing has the description as its alternate text, and its words stay searchable.
 - **PowerPoint**: the drawing's group has the description as its alt text.
 - **Interactive HTML**: the description is read with the drawing, and a text version lists the elements and
   connections.

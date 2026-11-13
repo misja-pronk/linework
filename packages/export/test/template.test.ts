@@ -215,7 +215,10 @@ describe('writing into a template', () => {
     expect(child(title, 'p:spPr')!.children).toHaveLength(0);
     expect(find(title, 'a:rPr')!.attrs.sz).toBeUndefined();
     expect(find(title, 'a:t')!.text).toBe('Web shop');
-    expect(find(findAll(slide, 'p:sp').find((s) => find(s, 'p:ph')?.attrs.type === 'sldNum')!, 'a:fld')!.attrs.type).toBe('slidenum');
+    const field = find(findAll(slide, 'p:sp').find((s) => find(s, 'p:ph')?.attrs.type === 'sldNum')!, 'a:fld')!;
+    expect(field.attrs.type).toBe('slidenum');
+    // The field says the slide's number, as PowerPoint writes it: Quick Look and Mail show what it says, not ‹#›.
+    expect(find(field, 'a:t')!.text).toBe('2');
     // The diagram is in the template's body face, and inside the room the plan gave it.
     const t = readTemplate(corporate);
     const plan = planSlide(t, chooseLayout(t, 'diagram'));
@@ -226,6 +229,17 @@ describe('writing into a template', () => {
       expect(p.x).toBeLessThanOrEqual(plan.area.x + plan.area.w + 1);
       expect(p.y).toBeLessThanOrEqual(plan.area.y + plan.area.h + 1);
     }
+  });
+
+  it('does not cut a card\'s caption that the template\'s face makes a little wider: it takes the card\'s padding', async () => {
+    // Laid out in Instrument Sans, set in the template's Arial (measured as Inter): a few pixels wider.
+    const r = await draw('azure/hub-spoke.yaml');
+    const inTemplate = parts(await toPptx(r, { template: corporate, steps: false })).text('ppt/slides/slide1.xml');
+    expect(inTemplate).toContain('<a:t>IPsec · BGP AS 65010</a:t>');
+    expect(inTemplate).toContain('<a:t>Premium · 10.0.0.68</a:t>');
+    expect(inTemplate).not.toMatch(/<a:t>[^<]*…<\/a:t>/);
+    // Without a template the text is measured in the faces it was laid out in: nothing changes there.
+    expect(parts(await toPptx(r, { steps: false })).text('ppt/slides/slide1.xml')).toContain('<a:t>IPsec · BGP AS 65010</a:t>');
   });
 
   it('keeps our look when asked: our faces, our tones, the template\'s title', async () => {
@@ -267,6 +281,8 @@ describe('writing into a template', () => {
     expect(findAll(pres, 'p:sldId')).toHaveLength(3);
     expect(text('ppt/slides/slide1.xml')).toContain('Quarterly review');
     expect(text('ppt/slides/slide3.xml')).toContain('Web shop');
+    // Numbered after the template's own slides.
+    expect(text('ppt/slides/slide3.xml')).toMatch(/type="slidenum"><a:rPr[^>]*\/><a:t>3<\/a:t>/);
     // The new slide joins the last section: every slide is in one.
     const ids = findAll(pres, 'p:sldId').map((s) => s.attrs.id);
     const inSections = findAll(pres, 'p14:sldId').map((s) => s.attrs.id);

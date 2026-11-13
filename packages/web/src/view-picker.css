@@ -1,15 +1,16 @@
 /* The view picker in the canvas tools (view-picker.tsx). */
 
-@container canvas (max-width: 860px) {
-  .view-picker select {
-    max-width: 150px;
-  }
-}
-/* View picker in the canvas tools: a plain select dressed as a tool. */
+/* View picker in the canvas tools: a plain select dressed as a tool. In a narrow bar it is the one tool
+   that gives up room (its name ellipsed), so the buttons beside it never slide under it. */
 .view-picker {
   padding-right: 4px;
 }
+.canvas-tools .tool.view-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .view-picker select {
+  min-width: 0;
   max-width: 220px;
   border: none;
   background: none;
@@ -22,4 +23,10 @@
   outline: 2px solid var(--ink);
   outline-offset: 2px;
   border-radius: var(--radius);
+}
+/* After the rule above, so that it wins in a narrow canvas. */
+@container canvas (max-width: 860px) {
+  .view-picker select {
+    max-width: 150px;
+  }
 }

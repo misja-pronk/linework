@@ -38,7 +38,7 @@ Key
 | --- | --- |
 | Every SVG that leaves the editor (`carto render`, Export → SVG) | `<title>` and `<desc>` right after the root, which says `role="img"`, `aria-labelledby` (the title) and `aria-describedby` (the description). A step's SVG says which step in its title. |
 | PNG (`carto render -o x.png`, Export → PNG, Copy as PNG) | `Title` and `Description` text chunks (iTXt, UTF-8). Image viewers and asset tools show them; a web page still needs its own `alt`. |
-| PDF (`carto render -o x.pdf`, `carto deck`, Export → PDF) | A tagged PDF: each drawing is a `Figure` with the description as its alternate text, frame and footer marked as artifacts, language set. A page per step says that step. |
+| PDF (`carto render -o x.pdf`, `carto deck`, Export → PDF) | A tagged PDF: each drawing is a `Div` with the description as its alternate text (not a `Figure`: Preview and other apps on Apple's PDFKit treat a figure as a picture, so its words could not be found, selected or copied), frame and footer marked as artifacts, language set. A page per step says that step. |
 | PowerPoint (`.pptx`) | The drawing is one group on the slide whose alt text (`descr`) is the description; each shape keeps its own. A slide per step says that step. |
 | The editor | **Export → Describe in words…** or ⌘K *Describe in words*: the description of what is on screen (its view, step and focus), with **Copy text** (`T`), **Copy Markdown** (`M`) and **Copy for Confluence / Notion** (`C`, below). |
 | Interactive HTML (`carto export-html`) | Each drawing is described to a screen reader by its description. |

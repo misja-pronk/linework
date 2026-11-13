@@ -10,24 +10,24 @@ Groups and elements
   - Picking: do / collect the items
   - Packed: entry / print the label
 - Cancelled: entry / release stock
-- Shipped
 - End
+- Shipped
 - Delivered
 
 Main path
 1. Start
 2. Awaiting payment: order placed
 3. Picking: payment received
-4. Shipped: handed to carrier
-5. Delivered: signed for
-6. End
+4. Cancelled: customer cancels
+5. End
 
 Transitions
 - Start moves to Awaiting payment on order placed.
 - Awaiting payment moves to Fulfilment on payment received and moves to Cancelled on 30 min without payment.
-- Fulfilment moves to Cancelled on customer cancels and moves to Shipped on handed to carrier.
+- Fulfilment moves to Cancelled on customer cancels.
 - Cancelled moves to End.
-- Shipped moves to Delivered on signed for.
-- Delivered moves to End.
 - Start of Fulfilment moves to Picking.
 - Picking moves to Packed on all items scanned.
+- Packed moves to Shipped on handed to carrier.
+- Shipped moves to Delivered on signed for.
+- Delivered moves to End.

@@ -24,8 +24,8 @@ export function liftAnnexes(p: Placement, sized: Sized, pad: number, gap: number
     const b = cur.nodes.get(e.to.node);
     const rows = sized.nodes.get(e.from.node)?.rowY;
     if (!a || !b || !rows) continue;
-    // Only an annex alone: every line it has is an annex line from this table (or a loose one).
-    if (graph.edges.some((o) => !o.loose && (o.from.node === e.to.node || o.to.node === e.to.node) && !(o.annex && o.from.node === e.from.node))) continue;
+    // Only an annex alone: every line it has is an annex line from this table (or a loose one, or one inside it).
+    if (graph.edges.some((o) => !o.loose && o.from.node !== o.to.node && (o.from.node === e.to.node || o.to.node === e.to.node) && !(o.annex && o.from.node === e.from.node))) continue;
     // The rows whose lines run on past the annex, to the right.
     const lines = graph.edges
       .filter((o) => !o.annex && o.from.node === e.from.node && o.from.row && rows[o.from.row] != null)
@@ -70,29 +70,57 @@ export function stackAnnexes(p: Placement, sized: Sized, pad: number, gap: numbe
     const a = cur.nodes.get(t);
     if (!a) continue;
     const annexes = [...new Set(graph.edges.filter((e) => e.annex && e.from.node === t && !e.to.row).map((e) => e.to.node))];
-    // Only an annex alone: every line it has is an annex line from this table (or a loose one).
-    const alone = annexes.filter((id) => cur.nodes.has(id) && !graph.edges.some((o) => !o.loose && (o.from.node === id || o.to.node === id) && !(o.annex && o.from.node === t)));
+    // Only an annex alone: every line it has is an annex line from this table (or a loose one, or one inside it).
+    const alone = annexes.filter((id) => cur.nodes.has(id) && !graph.edges.some((o) => !o.loose && o.from.node !== o.to.node && (o.from.node === id || o.to.node === id) && !(o.annex && o.from.node === t)));
     if (!alone.length) continue;
     const mine = new Set([t, ...alone]);
-    const nodes = new Map(cur.nodes);
-    let y = a.y + a.height + STACK;
-    for (const id of alone) {
-      const b = nodes.get(id)!;
-      nodes.set(id, { ...b, x: a.x, y });
-      y += b.height + STACK;
-    }
-    if (alone.some((id) => [...nodes].some(([other, o]) => !mine.has(other) && hit(nodes.get(id)!, o, Math.min(pad, gap))))) return undefined;
-    // What the table's other rows lead to, on the right, stacked level with those rows: the lines run straight.
-    const rows = sized.nodes.get(t)?.rowY ?? {};
-    const lines = graph.edges.filter((o) => !o.annex && o.from.node === t && o.from.row && rows[o.from.row] != null && (cur.nodes.get(o.to.node)?.x ?? -Infinity) >= a.x + a.width);
-    const busy = lines.map((o) => a.y + rows[o.from.row!]!);
-    const first = alone[0]!;
-    const q = busy.length ? place({ ...cur, nodes }, first, nodes.get(first)!, [...new Set(lines.map((o) => o.to.node))], (Math.min(...busy) + Math.max(...busy)) / 2, a.y + a.height, pad, gap) : undefined;
-    if (q) for (const [id, box] of q.nodes) nodes.set(id, box);
-    const groups = fitGroups(graph, nodes, cur.groups, sized.groupHeader, pad, sized.groupMinWidth);
-    // A group grown over something else: not this way.
-    if (boxOverlaps(graph, { nodes, groups }).length > boxOverlaps(graph, cur).length) return undefined;
-    cur = { ...cur, nodes, groups };
+    // dot ranked the table with its annexes, so it stands in the middle of a column as wide as the
+    // widest of them, with that column's slack on both sides. Under the table's left edge the annexes
+    // would leave the slack empty: the table and its annexes move left into the slack before it, and
+    // what follows moves up to them, so every gap is again the one dot gave. Where that brings
+    // something into a group it is not in, the slack stays.
+    const stacked = (close: boolean): Placement | undefined => {
+      const nodes = new Map(cur.nodes);
+      const widest = Math.max(...alone.map((id) => nodes.get(id)!.width));
+      const slack = close ? Math.max(0, (widest - a.width) / 2) : 0;
+      const [lo, hi] = [a.x + a.width / 2 - widest / 2, a.x + a.width / 2 + widest / 2];
+      const before = [...nodes].filter(([id, o]) => !mine.has(id) && o.x + o.width <= a.x);
+      const after = [...nodes].filter(([id, o]) => !mine.has(id) && o.x >= a.x + a.width);
+      const gapBefore = Math.min(...before.map(([, o]) => lo - o.x - o.width));
+      const left = Math.max(0, Math.min(slack, before.length ? a.x - Math.max(...before.map(([, o]) => o.x + o.width)) - gapBefore : slack));
+      const table = { ...a, x: a.x - left };
+      nodes.set(t, table);
+      let y = a.y + a.height + STACK;
+      let bottom = y;
+      for (const id of alone) {
+        const b = nodes.get(id)!;
+        nodes.set(id, { ...b, x: table.x, y });
+        bottom = y + b.height;
+        y += b.height + STACK;
+      }
+      if (after.length && slack > 0) {
+        // Beside the annexes nothing comes closer than dot had it to the column's edge; beside the table only, it can.
+        const gapAfter = Math.min(...after.map(([, o]) => o.x - hi));
+        const edge = (o: Box) => (o.y < bottom && o.y + o.height > a.y + a.height ? table.x + widest : table.x + table.width);
+        const shift = Math.max(0, Math.min(2 * slack, ...after.map(([, o]) => o.x - edge(o) - gapAfter)));
+        if (shift > 0) for (const [id, o] of after) nodes.set(id, { ...o, x: o.x - shift });
+      }
+      if (alone.some((id) => [...nodes].some(([other, o]) => !mine.has(other) && hit(nodes.get(id)!, o, Math.min(pad, gap))))) return undefined;
+      // What the table's other rows lead to, on the right, stacked level with those rows: the lines run straight.
+      const rows = sized.nodes.get(t)?.rowY ?? {};
+      const lines = graph.edges.filter((o) => !o.annex && o.from.node === t && o.from.row && rows[o.from.row] != null && (cur.nodes.get(o.to.node)?.x ?? -Infinity) >= a.x + a.width);
+      const busy = lines.map((o) => a.y + rows[o.from.row!]!);
+      const first = alone[0]!;
+      const q = busy.length ? place({ ...cur, nodes }, first, nodes.get(first)!, [...new Set(lines.map((o) => o.to.node))], (Math.min(...busy) + Math.max(...busy)) / 2, a.y + a.height, pad, gap) : undefined;
+      if (q) for (const [id, box] of q.nodes) nodes.set(id, box);
+      const groups = fitGroups(graph, nodes, cur.groups, sized.groupHeader, pad, sized.groupMinWidth);
+      // A group grown over something else: not this way.
+      if (boxOverlaps(graph, { nodes, groups }).length > boxOverlaps(graph, cur).length) return undefined;
+      return { ...cur, nodes, groups };
+    };
+    const next = stacked(true) ?? stacked(false);
+    if (!next) return undefined;
+    cur = next;
   }
   return cur === p ? undefined : snug(cur);
 }

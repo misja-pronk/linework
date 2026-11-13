@@ -123,7 +123,7 @@ steps:
 
 ## Export
 
-SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, event, gateway and lane is a shape you can move and restyle, every line a connector, every label a text box.
+SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every task, event, gateway and lane is a shape you can move and restyle, every line a connector (one with more than three bends, such as a loop back round the lanes, is a freeform with the same bends, not bound to its shapes), every label a text box.
 
 ## From Mermaid
 

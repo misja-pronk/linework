@@ -5,7 +5,7 @@ import { parse } from 'yaml';
 import { icon } from '@cartography/icons';
 import { render } from '@cartography/engine';
 import { groupFill, measureText, themes } from '@cartography/theme';
-import { sequenceGeometry, type SequenceGeometry } from '@cartography/render';
+import { drawSequence, sequenceGeometry, type SequenceGeometry } from '@cartography/render';
 import type { Box, SequenceShape } from '@cartography/core';
 import { kinds, sequence } from '../src/index.ts';
 
@@ -308,7 +308,7 @@ messages:
     for (const b of g.bars) expect(overlap(label, b.box), `label over the bar at ${b.box.x}`).toBe(false);
   });
 
-  it('lays every message label on a patch of what lies behind it, cut at the side of a box', async () => {
+  it('keeps a label off the side of a box: beside it, on a patch of what lies behind it', async () => {
     const yaml = `type: sequence
 participants:
   a: { label: Browser }
@@ -318,14 +318,101 @@ boxes:
   shop: { label: Shop }
 messages:
   - a -> c: Read the order and its lines
+  - a -> b: orders_2026-11-09.csv + .done marker
+  - c --> a: The order, its lines and their prices
 `;
-    const r = await render(yaml, { fonts: 'none' });
+    const { r, g } = await geometry(yaml);
     expect(r.svg).not.toMatch(/paint-order/);
-    // The label passes the box's side: two patches, page then box, right before its words.
+    const side = g.boxes[0]!.box.x;
+    for (const m of g.messages) {
+      const half = Math.max(...m.lines.map((l) => measureText(l, 12, 500))) / 2;
+      expect(m.mid + half < side - 4 || m.mid - half > side + 4, `"${m.lines.join(' ')}" across the box's side`).toBe(true);
+    }
+    // One patch, of the page or of the box, right before its words.
     const at = r.svg!.match(/((?:<rect [^>]*height="16" fill="[^"]+"\/>)+)<text [^>]*>Read the order and its lines</);
     expect(at, 'no patch under the label').toBeTruthy();
     const fills = [...at![1]!.matchAll(/fill="([^"]+)"/g)].map((x) => x[1]);
-    expect(fills).toEqual([themes.light.canvas, groupFill(themes.light, 0, themes.light.tones.slate)]);
+    expect(fills).toHaveLength(1);
+    expect([themes.light.canvas, groupFill(themes.light, 0, themes.light.tones.slate)]).toContain(fills[0]);
+  });
+
+  it('lays a frame that reaches past a box over its side: the side does not run through the frame', async () => {
+    const yaml = `type: sequence
+participants:
+  a: { label: Partner SFTP }
+  b: { label: Orchestrator, box: dp }
+  c: { label: Warehouse, box: dp }
+boxes:
+  dp: { label: Data platform }
+messages:
+  - b -> c: Run quality checks
+  - alt: All checks pass
+    messages:
+      - b ->> a: ACK batch 8812
+    else:
+      Row counts differ from the manifest:
+        - b ->> a: NACK batch 8812, reason
+`;
+    const { shape, g } = await geometry(yaml);
+    const side = g.boxes[0]!.box.x;
+    const f = g.frames[0]!.box;
+    expect(f.x).toBeLessThan(side);
+    // No upright stroke at the box's side (the box is a rect; nothing is drawn over the frame there).
+    const svg = drawSequence(shape, { x: 0, y: 0, width: g.width, height: g.height }, themes.light, 'id');
+    expect(svg).not.toContain(`<path d="M${Math.round(side * 10) / 10} `);
+  });
+
+  it('gives a participant that acts on a message it does not answer an activation for as long as it does', async () => {
+    const yaml = `type: sequence
+participants:
+  stripe: { label: Stripe }
+  api: { label: Orders API }
+  db: { label: Orders DB }
+  bus: { label: order-events }
+messages:
+  - alt: Paid
+    messages:
+      - stripe ->> api: webhook succeeded
+      - api -> db: UPDATE paid
+      - db --> api: ok
+      - api ->> bus: OrderPaid
+    else:
+      Declined:
+        - stripe ->> api: webhook failed
+        - api -> db: UPDATE failed
+        - db --> api: ok
+`;
+    const { shape, g } = await geometry(yaml);
+    const msgs = shape.events.filter((e) => e.kind === 'message');
+    // The webhooks open one on the API; OrderPaid is only received: nothing on the bus.
+    expect(msgs.map((e) => !!e.opens)).toEqual([true, true, false, false, true, true, false]);
+    const api = g.headers.find((h) => h.p.id === 'api')!.x;
+    const bars = g.bars.filter((b) => Math.abs(b.box.x + b.box.width / 2 - api) < 8);
+    expect(bars).toHaveLength(2);
+    // Each runs from its webhook to the last word of that turn, the answer to its own call included, and stops at the branch.
+    const y = (label: string) => g.messages.find((m) => m.lines.join(' ') === label)!.y;
+    expect(bars[0]!.box.y).toBe(y('webhook succeeded'));
+    expect(bars[0]!.box.y + bars[0]!.box.height).toBe(y('OrderPaid'));
+    expect(bars[1]!.box.y + bars[1]!.box.height).toBe(g.messages.filter((m) => m.lines.join(' ') === 'ok').at(-1)!.y);
+    expect(g.bars.some((b) => Math.abs(b.box.x + b.box.width / 2 - g.headers.find((h) => h.p.id === 'bus')!.x) < 8)).toBe(false);
+  });
+
+  it('shows the same key in every phase of a file', async () => {
+    const yaml = `type: sequence
+participants:
+  a: { label: Shop }
+  b: { label: Bus }
+messages:
+  - divider: Order
+  - a -> b: Place
+  - b --> a: Placed
+  - divider: Publish
+  - a ->> b: OrderPlaced
+`;
+    for (const view of ['phase-order', 'phase-publish']) {
+      const r = await render(yaml, { fonts: 'none', view });
+      expect(r.graph!.legend?.map((l) => l.label), view).toEqual(['Call', 'Reply', 'Async message']);
+    }
   });
 
   it('renders the examples cleanly in both themes', async () => {

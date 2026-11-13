@@ -122,7 +122,7 @@ steps:
 
 ## Export
 
-SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, pseudo-state and frame is a shape you can move and restyle, every transition a connector, every label a text box.
+SVG, PNG and PDF are the drawing. PowerPoint gets native shapes: every state, pseudo-state and frame is a shape you can move and restyle, every transition a connector (one with more than three bends is a freeform with the same bends, not bound to its states), every label a text box.
 
 ## From Mermaid
 

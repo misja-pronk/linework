@@ -33,7 +33,7 @@ export function useNavigationState(docId: string) {
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
   /** A step just made from the selection: the strip asks for its name. */
   const [naming, setNaming] = useState<number>();
-  return { docId, picked, setPicked, viewName, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming };
+  return { docId, picked, setPicked, viewName, stepAt, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming };
 }
 export type NavigationState = ReturnType<typeof useNavigationState>;
 
@@ -87,8 +87,9 @@ export function useNavigation(p: Props) {
   const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
   /** A view by the name the picker gives it: a type's own title in the editor's language. */
   const viewTitle = (name?: string) => {
-    if (name === undefined) return t('as written');
     const { views, written } = viewsOf(drawn);
+    // The diagram as written, named as the picker names it when it is one of the type's own views.
+    if (name === undefined) return written?.title ?? written?.name ?? t('as written');
     return [...(views ?? []), ...(written ? [written] : [])].find((v) => v.name === name)?.title ?? name;
   };
   const showView = (name: string | undefined) => {

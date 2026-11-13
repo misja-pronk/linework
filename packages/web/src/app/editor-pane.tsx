@@ -60,7 +60,7 @@ export function EditorPane(p: Props) {
             <Icon name="code" size={16} />
             <span className="rail-label">YAML</span>
           </button>
-          <button className="rail-icon" onClick={p.onShapes} title={`${t('Builder: the drawing and the shapes to drag onto it')} (⌘\\)`} aria-label={t('Shapes')}>
+          <button className="rail-icon" onClick={p.onShapes} title={`${t('The drawing and the shapes to drag onto it')} (⌘\\)`} aria-label={t('Shapes')}>
             <Icon name="square-plus" size={16} />
           </button>
         </div>

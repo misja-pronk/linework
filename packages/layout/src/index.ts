@@ -7,7 +7,7 @@ import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
 import { clearAnnexLines, liftAnnexes, stackAnnexes } from './annex.ts';
-import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
+import { disorder, labelMetrics, lineFaults, measure, plainLine, score, touchedLabels, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
@@ -17,6 +17,7 @@ export * from './pins.ts';
 export * from './router.ts';
 export * from './metrics.ts';
 export * from './stay.ts';
+export * from './ports.ts';
 
 export interface Tuning {
   /** Override the diagram's direction. */
@@ -70,6 +71,11 @@ const MOVE_BASE = 16;
 const MOVE_EACH = 60;
 /** Up to this many nodes, a drawing that cannot stay as it was tries staying put with one node free (see choose). */
 const REPAIR_LIMIT = 24;
+/**
+ * From this many nodes (one of them under a tenth), a drawing that stays as it was but crosses lines it need not also tries that:
+ * one card of so many moving still reads as the same drawing; in a smaller one it does not.
+ */
+const MEND_FROM = 10;
 /** With only the way it was made remembered (no positions), another way has to be this much better. */
 const SWITCH = 12;
 
@@ -141,7 +147,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   } else {
-    best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
+    best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn, undefined, true);
     const asked = best;
     // A long chain drawn left to right can end up many times wider than tall, and a deep tree drawn
     // top-down many times taller than wide: neither fits a slide or a page. When the source did not
@@ -155,7 +161,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     const reshape = !was && graph.nodes.length <= VARIANT_LIMIT && ((target != null && off(best.placed, graph, target) > OFF) || errors(best) > 0);
     let turnedAlt: Choice | undefined;
     if (open && (stayIn === other || wide || reshape)) {
-      const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other);
+      const alt = await choose(turned(other), spacing, tuning, prev, stayIn === other, undefined, true);
       turnedAlt = alt;
       const [a, b] = target == null ? [0, 0] : [off(alt.placed, graph, target), off(best.placed, graph, target)];
       // Without a drawing before, the one that fits the target shape (within OFF) and is clearly
@@ -170,8 +176,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       else if (errors(best) > errors(alt) && alt.cost < best.cost) best = alt;
       // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins;
       // nor, on a first drawing of a few cards (too few to wrap), a worse shape that comes out clearly smaller on the page;
-      // nor, on a first drawing, one whose text a slide shows smaller than 6 pt, or without the margin, where the other's it does not (slideTier).
-      else if (!(target != null && !was && slideTier(alt, target) < slideTier(best, target)) && !(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
+      // nor, on a first drawing, one whose text a slide shows smaller than 6 pt, or without the margin, where the other's it does not (slideTier);
+      // nor, where the other's text a slide shows without that margin, one whose text comes out smaller still (AS_LARGE).
+      else if (!(target != null && !was && (slideTier(alt, target) < slideTier(best, target) || (slideTier(best, target) < 2 && pageScale(alt.placed, graph, target) < AS_LARGE * pageScale(best.placed, graph, target)))) && !(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
     if (!was && tuning.wrap !== false && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > WRAP_OFF) {
@@ -187,6 +194,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   }
 
+  // A label with another line through it gets room, when the drawing comes out no worse for it.
+  if (!best.held && !pinned) best = clearLines(best, target);
   const s = best.sized;
   const memory: LayoutMemory = {
     variant: best.key,
@@ -298,10 +307,10 @@ export function slideReadability(scale: number, crossings: number, backward: num
 
 /** A wrapped drawing comes out at least this much larger on the page (its text a fifth larger). */
 const LARGER = 1.2;
-/** Or, for a drawing whose text is under 6 pt on the slide (SLIDE_SCALE), at least this much larger (its text 15% larger). */
+/** Or, for a drawing whose text is under 6 pt on the slide (slideScale), at least this much larger (its text 15% larger). */
 const LARGER_SMALL = 1.15;
-/** How much larger a wrapped drawing must come out than one at page scale `sb` to be worth it. */
-const largerThan = (sb: number) => (sb < SLIDE_SCALE ? LARGER_SMALL : LARGER) * sb;
+/** How much larger a wrapped drawing (of these sizes) must come out than one at page scale `sb` to be worth it. */
+const largerThan = (sb: number, s: Sized) => (sb < slideScale(s) ? LARGER_SMALL : LARGER) * sb;
 /** Or comes out about as large (text at most 3% smaller) and nearer a slide's shape. */
 const AS_LARGE = 0.97;
 /** Up to this many nodes every way of wrapping is tried (inside groups, chains, loose cuts, four parts). */
@@ -373,28 +382,38 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
   const crossed = metricsOf(b).crossings;
   const tiny = pageScale(b.placed, b.sized.graph, target) < READABLE_SCALE / 2;
-  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0)) return false;
+  // And twice as many for text that a slide shows at 6 pt where the other's it does not: a crossing or
+  // two is no reason to show a slide under 6 pt (multi-cloud with a longer group name: 3.9 pt unwrapped).
+  const lifts = slideTier(a, target) > 0 && slideTier(b, target) === 0;
+  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0, lifts ? 2 * SMALL_CROSSINGS : 0)) return false;
+  // A drawing whose text a slide already shows with the margin (slideTier 2) takes on no crossing for larger text.
+  if (slideTier(b, target) === 2 && metricsOf(a).crossings > crossed) return false;
   // Weighed with small text double, for text too small to read: only for text clearly larger, or for a
   // slide's shape at text as large.
   const [sa, sb] = [pageScale(a.placed, a.sized.graph, target), pageScale(b.placed, b.sized.graph, target)];
   const shaped = outOfBand(a.placed, a.sized.graph, target) < outOfBand(b.placed, b.sized.graph, target) - NEARER && sa >= AS_LARGE * sb;
-  if (sb < READABLE_SCALE && (sa >= largerThan(sb) || shaped) && beats(readability(a, b, target), readsAs(b, target))) return true;
-  // Or when it brings text that is too small for a slide up to readable (SLIDE_SCALE), or up to the
+  if (sb < READABLE_SCALE && (sa >= largerThan(sb, b.sized) || shaped) && beats(readability(a, b, target), readsAs(b, target))) return true;
+  // Or when it brings text that is too small for a slide up to readable (slideScale), or up to the
   // margin above it (SLIDE_AIM), at no cost: no more crossings, no new flaw, and reading better however weighed.
   const r = readability(a, b, target);
   return slideTier(a, target) > slideTier(b, target) && metricsOf(a).crossings <= crossed && r != null && r > readsAs(b, target) + 1e-9 && (readability(a, b, target, 0) ?? -Infinity) > readsAs(b, target, 0) + 1e-9;
 }
-/** The page scale at which the small labels on lines (10 px) come out at 6 pt on the page, the least a slide should have. */
-const SLIDE_SCALE = 0.8;
+/** The least size (pt) for text on a slide. */
+const SLIDE_PT = 6;
 /**
- * And the scale aimed for (6.3 pt): a drawing just at 6 pt goes under it as soon as a label gets a
+ * And the size aimed for (6.3 pt): a drawing just at 6 pt goes under it as soon as a label gets a
  * word longer, so of two drawings a slide reads, the one with this margin is the one kept.
  */
-const SLIDE_AIM = 0.84;
-/** How a drawing's text comes out on a slide: 2 with the margin (SLIDE_AIM), 1 at 6 pt or more (SLIDE_SCALE), 0 under. */
+const SLIDE_AIM = 6.3;
+/**
+ * The page scale at which a drawing's smallest words (Sized.smallText: labels on lines, group names;
+ * 10 px when not said) come out at `pt` on the page. A pixel is three quarters of a point.
+ */
+const slideScale = (s: Sized, pt = SLIDE_PT) => pt / (0.75 * (s.smallText ?? 10));
+/** How a drawing's text comes out on a slide: 2 with the margin (SLIDE_AIM), 1 at 6 pt or more, 0 under. */
 function slideTier(c: { placed: Pick<Placed, 'width' | 'height'>; sized: Sized }, target: number): number {
   const sc = pageScale(c.placed, c.sized.graph, target);
-  return sc >= SLIDE_AIM ? 2 : sc >= SLIDE_SCALE ? 1 : 0;
+  return sc >= slideScale(c.sized, SLIDE_AIM) ? 2 : sc >= slideScale(c.sized) ? 1 : 0;
 }
 /** For larger text a drawing may take on this many more crossings (half as many again as it has when its text is tiny), no more: past that it is a tangle, however large. */
 const SMALL_CROSSINGS = 2;
@@ -470,7 +489,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
         // Weighed with small text double only where readsBetter would (text too small, and clearly larger or nearer a slide's shape).
         const weighed = beat.some((b) => {
           const sb = pageScale(b.placed, s.graph, target);
-          return sb < READABLE_SCALE && (sq >= largerThan(sb) || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
+          return sb < READABLE_SCALE && (sq >= largerThan(sb, s) || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
         });
         cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, tier: slideTier({ placed: q, sized: s }, target), i: cuts.length });
       }
@@ -505,10 +524,114 @@ function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions
 function rewrapped(best: Choice, spacing: Spacing, wrappedQ: Placement, parts: number, opts: WrapOptions): Choice {
   const s = best.sized;
   // What stood outside everything, joined to one card, follows that card to its row.
-  const q = alignLoners(wrappedQ, s.graph, spacing.layerGap);
-  const placed = normalise({ ...q, edges: route(s, q) });
+  const aligned = alignLoners(wrappedQ, s.graph, spacing.layerGap);
+  // Rows meet at new borders: a label lying on one gets room there too.
+  const { p: q, edges } = clearBorders(s, { p: aligned, edges: route(s, aligned) });
+  const placed = normalise({ ...q, edges });
   const sc = score(metricsOf({ placed, sized: s }));
   return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+}
+
+/** A placement and its lines. */
+type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
+
+/**
+ * A label that cannot sit clear of a group border gets room: space is opened just before that border
+ * and the lines are drawn again, at most `left` times.
+ */
+function clearBorders(sized: Sized, d: Drawn, left = 4, branch = true): Drawn {
+  const { graph } = sized;
+  const cuts = left ? labelOnBorder(d.p, d.edges, sized.groupHeader) : [];
+  if (!cuts.length) return d;
+  // A label at a group's corner can be cleared across or down. Which is better only shows in
+  // the finished drawing, so (once) both are drawn to the end: fewer crossings wins, then the better drawing.
+  // A cut after which the label still lies on that border (it moved on with its line, beside it)
+  // opens room for nothing: it is not taken, or room would be opened again and again to no end.
+  const ends: Drawn[] = [];
+  for (const cut of cuts) {
+    if (ends.length && !branch) break;
+    const q = openSpace(d.p, cut, graph);
+    const edges = route(sized, q);
+    const l = cut.edge != null ? edges.get(cut.edge)?.label : undefined;
+    if (l && borderCuts(q, l, sized.groupHeader).some((c) => c.group === cut.group && c.axis === cut.axis)) continue;
+    ends.push(clearBorders(sized, { p: q, edges }, left - 1, branch && cuts.length < 2));
+  }
+  if (!ends.length) return d;
+  if (ends.length < 2) return ends[0]!;
+  const worth = (e: Drawn) => {
+    const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader, sized.groupMinWidth);
+    return m.crossings * 1000 + score(m);
+  };
+  return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
+}
+
+/**
+ * A line that belongs inside one group: a key from a table's row back to another row of the same
+ * table (inside one data contract), or the line from a table's row to its annex (a contract under its
+ * product). Where it leaves the group both ends are in, it runs along the group's border, its marks
+ * on it, or outside and back in: the group grows on that side to hold it.
+ */
+function loopRoom(sized: Sized, d: Drawn, pad: number): Drawn {
+  const { graph } = sized;
+  const parent = new Map([...graph.nodes, ...graph.groups].map((x) => [x.id, x.parent]));
+  let cut: Cut | undefined;
+  for (const e of graph.edges) {
+    const own = e.from.row && (e.from.node === e.to.node || e.annex) ? d.edges.get(e.id)?.points : undefined;
+    const g = parent.get(e.from.node);
+    const n = d.p.nodes.get(e.from.node);
+    const b = g && parent.get(e.to.node) === g ? d.p.groups.get(g) : undefined;
+    if (!own || !g || !b || !n) continue;
+    const xs = own.map((q) => q.x);
+    const right = Math.max(...xs) + pad - (b.x + b.width);
+    const left = b.x + pad - Math.min(...xs);
+    // On the right the room opens past the table, on the left before it (the group's border stays, what it holds moves on).
+    const c: Cut | undefined =
+      right > 0 && Math.max(...xs) > n.x + n.width ? { axis: 'x', at: n.x + n.width + 1, by: Math.ceil(right / 8) * 8, group: g } : left > 0 && Math.min(...xs) < n.x ? { axis: 'x', at: b.x + 1, by: Math.ceil(left / 8) * 8, group: g } : undefined;
+    if (c && (!cut || c.by > cut.by)) cut = c;
+  }
+  if (!cut) return d;
+  const p = openSpace(d.p, cut, graph);
+  return { p, edges: route(sized, p) };
+}
+
+/**
+ * A label with another line through it or right along it: no spot on its own line was clear, the
+ * channel it lies in is too narrow for its words and a neighbour's line (web-app: db_datawriter
+ * across the TDS line; the walkthrough's "create invoice" across Notifier's line). Room is opened
+ * where the label lies, across the line that touches it, and the lines are drawn again; kept when
+ * that label (and no other) is now clear, with no more crossings or errors, and the text on a slide
+ * comes out no smaller in tier (slideTier). At most `left` times.
+ */
+function clearLines(best: Choice, target: number | undefined, left = 3): Choice {
+  const { sized } = best;
+  const before = touchedLabels(sized.graph, best.placed);
+  if (!left || !before.length) return best;
+  const m0 = metricsOf(best);
+  const shift = best.placed.shift ?? { x: 0, y: 0 };
+  for (const t of before) {
+    const [a, b] = t.by;
+    // Across a vertical piece: room left to right; across a horizontal one: room top to bottom.
+    const axis = a.x === b.x ? 'x' : 'y';
+    const l = { ...t.label, x: t.label.x + shift.x, y: t.label.y + shift.y };
+    const line = (axis === 'x' ? a.x : a.y) + (axis === 'x' ? shift.x : shift.y);
+    const size = axis === 'x' ? l.width : l.height;
+    // Before the label and the line (what lies past them moves on), or between them.
+    const by = Math.ceil((size + 16) / 8) * 8;
+    for (const at of [Math.min(l[axis], line) - 4, (Math.min(l[axis] + size, line) + Math.max(l[axis], line)) / 2]) {
+      const q = openSpace(best.p, { axis, at, by, group: '' }, sized.graph);
+      const drawn = clearBorders(sized, { p: q, edges: route(sized, q) });
+      const placed = normalise({ ...drawn.p, edges: drawn.edges });
+      const next: Choice = { ...best, p: drawn.p, placed, score: 0, cost: 0 };
+      const m = metricsOf(next);
+      const after = touchedLabels(sized.graph, placed);
+      if (after.length >= before.length || after.some((x) => x.edge === t.edge)) continue;
+      if (m.crossings > m0.crossings || errors(next) > errors(best) || faultsOf(next) > faultsOf(best)) continue;
+      if (target != null && slideTier(next, target) < slideTier(best, target)) continue;
+      const sc = score(m);
+      return clearLines({ ...next, score: sc, cost: best.cost - best.score + sc }, target, left - 1);
+    }
+  }
+  return best;
 }
 
 /** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */
@@ -526,8 +649,8 @@ function noWorse(a: Choice, b: Choice): boolean {
 /** How much better (in score) the wide drawing must be to be kept over the top-down one. */
 const TIE = 1;
 
-/** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was. */
-async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean, hold?: Map<string, Point>): Promise<Choice> {
+/** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was (`changed`: the diagram is not the one drawn before). */
+async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean, hold?: Map<string, Point>, changed = false): Promise<Choice> {
   // Top-down, lines come into a group's first row from above, and its header title sits right where
   // the leftmost of them would come in. A slightly taller header leaves a lane under the title: such
   // a line comes down beside the title, runs under it and drops into its node.
@@ -551,7 +674,7 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   // A contract stacked under its product makes a tall column: where that leaves the text too small for
   // a slide and another way does not, the other way wins whatever its score.
   const target = tuning.aspect === 'auto' ? undefined : (tuning.aspect ?? SLIDE);
-  const fits = (c: Choice) => annexed !== 1 || target == null || pageScale(c.placed, c.sized.graph, target) >= SLIDE_SCALE;
+  const fits = (c: Choice) => annexed !== 1 || target == null || pageScale(c.placed, c.sized.graph, target) >= slideScale(c.sized);
   for (const [name, variant] of ways) {
     const c = await candidates(sized, spacing, tuning, name, variant, prev);
     // A way that cannot be drawn so (an annex with no room under its table) is no candidate.
@@ -587,11 +710,14 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     // Everything held costs more than drawing afresh (a new line finds no clean way between the boxes
     // where they stood): held but for one node, which looks for room again, may still read as well
     // and moves one node instead of most. Each node in turn, in a small drawing: each try is routed in full.
-    else if (!hold && graph.nodes.length <= REPAIR_LIMIT)
+    // So too, the diagram changed, where held it crosses lines that drawn afresh it does not; then only
+    // a node that looks for room again and takes those crossings away moves.
+    const mending = graph.nodes.length >= MEND_FROM && best === kept && changed && metricsOf(kept).crossings > metricsOf(fresh).crossings;
+    if (!hold && graph.nodes.length <= REPAIR_LIMIT && (best !== kept || mending))
       for (const id of prev.nodes.keys()) {
         if (!fresh.p.nodes.has(id)) continue;
         const c = keep({ ...prev, nodes: new Map([...prev.nodes].filter(([k]) => k !== id)) });
-        if (c && forward(c) && c.cost < best!.cost - 1e-9) best = c;
+        if (c && forward(c) && c.cost < best!.cost - 1e-9 && (!mending || metricsOf(c).crossings < metricsOf(kept!).crossings)) best = c;
       }
   }
   return best!;
@@ -674,31 +800,12 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     const opened = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
     const start = tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap);
-    // A label that cannot sit clear of a group border gets room: space is opened just before that
-    // border and the lines are drawn again.
-    type Drawn = { p: Placement; edges: Map<string, PlacedEdge> };
-    const clear = (d: Drawn, left: number, branch: boolean): Drawn => {
-      const cuts = left ? labelOnBorder(d.p, d.edges, sized.groupHeader) : [];
-      if (!cuts.length) return d;
-      // A label at a group's corner can be cleared across or down. Which is better only shows in
-      // the finished drawing, so (once) both are drawn to the end: fewer crossings wins, then the better drawing.
-      const ends = (branch ? cuts : cuts.slice(0, 1)).map((cut) => {
-        const q = openSpace(d.p, cut, graph);
-        return clear({ p: q, edges: route(sized, q) }, left - 1, branch && cuts.length < 2);
-      });
-      if (ends.length < 2) return ends[0]!;
-      const worth = (e: Drawn) => {
-        const m = measure(graph, normalise({ ...e.p, edges: e.edges }), sized.groupHeader, sized.groupMinWidth);
-        return m.crossings * 1000 + score(m);
-      };
-      return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
-    };
     // Ways of asking dot, mirrors, packing and straightening often come to the very same boxes:
     // those are routed once (routing is most of what a layout costs).
     const sig = boxesKey(start);
     const done = finished.get(sized)?.get(sig);
     if (done) return done;
-    const { p, edges } = clear({ p: start, edges: route(sized, start) }, 4, true);
+    const { p, edges } = loopRoom(sized, clearBorders(sized, { p: start, edges: route(sized, start) }), spacing.groupPad);
     const result = { placed: normalise({ ...p, edges }), p };
     if (!finished.has(sized)) finished.set(sized, new Map());
     finished.get(sized)!.set(sig, result);
@@ -753,15 +860,15 @@ const VARIANT_LIMIT = 60;
 
 function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<string, PlacedEdge> {
   const { graph } = sized;
+  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const end = (ep: Endpoint, marker: Marker): RouteEnd | undefined => {
     const box = p.nodes.get(ep.node) ?? p.groups.get(ep.node);
     if (!box) return undefined;
     const rowY = ep.row ? sized.nodes.get(ep.node)?.rowY?.[ep.row] : undefined;
-    return { node: ep.node, box, rowY, stub: stubFor(marker) };
+    return { node: ep.node, box, rowY, stub: stubFor(marker), within: groupParent.get(ep.node) ?? nodeParent.get(ep.node), mark: marker };
   };
   // The groups around each end, all the way up: a line is at home in those and a stranger in the rest.
-  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
-  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const home = (...ends: string[]) => {
     const out = new Set<string>();
     for (const id of ends) for (let g = groupParent.has(id) ? id : nodeParent.get(id); g && !out.has(g); g = groupParent.get(g)) out.add(g);
@@ -859,36 +966,41 @@ interface Cut {
   by: number;
   /** The group whose border the label lay on. */
   group: string;
+  /** The line whose label it was. */
+  edge?: string;
 }
 
 /** The first label lying on a group's border or header, as the space to open before that border: the cheapest cut across and the cheapest down, cheapest first. */
 function labelOnBorder(p: Placement, edges: Map<string, PlacedEdge>, header: number): Cut[] {
-  const t = 4;
-  for (const e of edges.values()) {
-    const l = e.label;
-    if (!l) continue;
-    // A label at a group's corner touches two borders at once.
-    const cuts: Partial<Record<'x' | 'y', Cut>> = {};
-    for (const [group, b] of p.groups)
-      for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
-        const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
-        // Within the border's extent, and touching its line.
-        const [o0, o1] = axis === 'x' ? [b.y, b.y + b.height] : [b.x, b.x + b.width];
-        const [l0, l1] = axis === 'x' ? [l.y, l.y + l.height] : [l.x, l.x + l.width];
-        // The top border is as thick as the header: a label may not sit in it either.
-        const after = axis === 'y' && at === b.y ? header : t;
-        if (!(lo < at + after && hi > at - t && l0 < o1 && l1 > o0)) continue;
-        const by = Math.ceil((size + 4 * t) / 8) * 8;
-        // On a group's far border with something beyond it: the room opens outside the group, which
-        // stays snug around what it holds. Otherwise before the border (the group moves on, or grows).
-        const far = at !== b[axis];
-        const beyond = far && [...p.nodes.values(), ...p.groups.values()].some((q) => q[axis] > at);
-        if (!cuts[axis] || by < cuts[axis].by) cuts[axis] = { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
-      }
-    const found = [cuts.x, cuts.y].filter((c): c is Cut => !!c).sort((a, b) => a.by - b.by);
-    if (found.length) return found;
+  for (const [id, e] of edges) {
+    const found = e.label ? borderCuts(p, e.label, header) : [];
+    if (found.length) return found.map((c) => ({ ...c, edge: id }));
   }
   return [];
+}
+
+/** Where one label lies on a group's border or header: the cheapest cut across and the cheapest down, cheapest first. */
+function borderCuts(p: Placement, l: Box, header: number): Cut[] {
+  const t = 4;
+  // A label at a group's corner touches two borders at once.
+  const cuts: Partial<Record<'x' | 'y', Cut>> = {};
+  for (const [group, b] of p.groups)
+    for (const [axis, at] of [['x', b.x], ['x', b.x + b.width], ['y', b.y], ['y', b.y + b.height]] as const) {
+      const [lo, hi, size] = axis === 'x' ? [l.x, l.x + l.width, l.width] : [l.y, l.y + l.height, l.height];
+      // Within the border's extent, and touching its line.
+      const [o0, o1] = axis === 'x' ? [b.y, b.y + b.height] : [b.x, b.x + b.width];
+      const [l0, l1] = axis === 'x' ? [l.y, l.y + l.height] : [l.x, l.x + l.width];
+      // The top border is as thick as the header: a label may not sit in it either.
+      const after = axis === 'y' && at === b.y ? header : t;
+      if (!(lo < at + after && hi > at - t && l0 < o1 && l1 > o0)) continue;
+      const by = Math.ceil((size + 4 * t) / 8) * 8;
+      // On a group's far border with something beyond it: the room opens outside the group, which
+      // stays snug around what it holds. Otherwise before the border (the group moves on, or grows).
+      const far = at !== b[axis];
+      const beyond = far && [...p.nodes.values(), ...p.groups.values()].some((q) => q[axis] > at);
+      if (!cuts[axis] || by < cuts[axis].by) cuts[axis] = { axis, at: beyond ? at + 1 : Math.min(lo, at) - 2 * t, by, group };
+    }
+  return [cuts.x, cuts.y].filter((c): c is Cut => !!c).sort((a, b) => a.by - b.by);
 }
 
 /**

@@ -11,6 +11,8 @@ export interface StepView {
   states: StepState[];
   /** False leaves the title, caption and marker out (a presenter shows them itself). */
   caption?: boolean;
+  /** The steps whose callouts the drawing keeps room for, when not `states`: the whole drawing keeps its steps' room, so it is as large as they are. */
+  room?: StepState[];
 }
 
 const quiet = new WeakMap<Theme, Theme>();
@@ -83,8 +85,8 @@ export function captionBlock(view: StepView, theme: Theme, width: number) {
   const draw = (x: number, y: number) => {
     const s = view.states[view.index]!;
     let cy = y + CAPTION.gap + CAPTION.row / 2;
-    // A hairline with a short accent segment ties the caption to the drawing above it.
-    let out = `<rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 12)}" width="${r1(width)}" height="1" fill="${theme.border}"/><rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 13)}" width="40" height="3" rx="1.5" fill="${theme.accent ?? theme.tones.blue.fg}"/>`;
+    // A hairline ties the caption to the drawing above it ("3 / 7" says where the story is; a bar that never moves would look like progress).
+    let out = `<rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 12)}" width="${r1(width)}" height="1" fill="${theme.border}"/>`;
     out += line(x + width, cy, `${view.index + 1} / ${view.states.length}`, 13, 500, theme.textFaint, 'end');
     for (const l of captionLines(s, width)) {
       out += l.title ? line(x, cy, l.text, CAPTION.title, 600, theme.text) : line(x, cy, l.text, CAPTION.text, 400, s.title ? theme.textMuted : theme.text);
@@ -95,7 +97,8 @@ export function captionBlock(view: StepView, theme: Theme, width: number) {
   return { height, draw };
 }
 
-const NOTE = { size: 12.5, row: 17, padX: 12, padY: 7, max: 220, gap: 10 };
+/** `near`: as close as a callout comes where a gap is narrow, its pointer's length. */
+const NOTE = { size: 12.5, row: 17, padX: 12, padY: 7, max: 220, gap: 10, near: 7 };
 
 export interface PlacedNote {
   box: Box;
@@ -104,19 +107,34 @@ export interface PlacedNote {
   tip: Point;
 }
 
-/** Callouts of one step: next to their element, on the side with the fewest things in the way. */
+const hit = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+const within = (a: Box, b: Box) => a.x >= b.x && a.y >= b.y && a.x + a.width <= b.x + b.width && a.y + a.height <= b.y + b.height;
+
+/** The strip between a callout and its element where the callout stands further out than its own pointer reaches: a line runs there. */
+export function noteStem(n: PlacedNote): Box | undefined {
+  const b = n.box;
+  if (n.tip.y <= b.y || n.tip.y >= b.y + b.height) {
+    const [y0, y1] = n.tip.y <= b.y ? [n.tip.y, b.y] : [b.y + b.height, n.tip.y];
+    return y1 - y0 > NOTE.gap + 1 ? { x: n.tip.x - 3, y: y0 + 2, width: 6, height: y1 - y0 - 4 } : undefined;
+  }
+  const [x0, x1] = n.tip.x <= b.x ? [n.tip.x, b.x] : [b.x + b.width, n.tip.x];
+  return x1 - x0 > NOTE.gap + 1 ? { x: x0 + 2, y: n.tip.y - 3, width: x1 - x0 - 4, height: 6 } : undefined;
+}
+
+/**
+ * Callouts of one step: beside their element where that is clear of cards, line labels, other
+ * callouts and the frames of groups. Where it is not, just past a frame the element sits in, with a
+ * line back to it; failing that, over the inside of a group rather than over words.
+ */
 export function placeNotes(state: StepState, placed: Placed): PlacedNote[] {
   const boxes = [...placed.nodes].filter(([id]) => state.nodes[id] !== 'hidden').map(([, b]) => b);
-  // The strip a group's name is on: better left free, but a callout may cross a frame.
-  const names = [...placed.groups].filter(([id]) => state.groups[id] !== 'hidden').map(([, g]) => ({ x: g.x, y: g.y, width: g.width, height: 44 }));
-  const hit = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-  // Lines that are drawn, as the boxes of their segments and labels: a callout should not sit on the route it explains.
-  const lines = [...placed.edges]
-    .filter(([id]) => state.edges[id] !== 'hidden')
-    .map(([, e]) => [
-      ...e.points.slice(1).map((p, i) => ({ x: Math.min(p.x, e.points[i]!.x) - 2, y: Math.min(p.y, e.points[i]!.y) - 2, width: Math.abs(p.x - e.points[i]!.x) + 4, height: Math.abs(p.y - e.points[i]!.y) + 4 })),
-      ...(e.label ? [e.label] : []),
-    ]);
+  const frames = [...placed.groups].filter(([id]) => state.groups[id] !== 'hidden').map(([, g]) => g);
+  // The strip a group's name is on: better left free.
+  const names = frames.map((g) => ({ x: g.x, y: g.y, width: g.width, height: 44 }));
+  const drawn = [...placed.edges].filter(([id]) => state.edges[id] !== 'hidden').map(([, e]) => e);
+  const labels = drawn.flatMap((e) => (e.label ? [e.label] : []));
+  // Lines that are drawn, as the boxes of their segments: a callout should not sit on the route it explains.
+  const lines = drawn.map((e) => e.points.slice(1).map((p, i) => ({ x: Math.min(p.x, e.points[i]!.x) - 2, y: Math.min(p.y, e.points[i]!.y) - 2, width: Math.abs(p.x - e.points[i]!.x) + 4, height: Math.abs(p.y - e.points[i]!.y) + 4 })));
   const out: PlacedNote[] = [];
   for (const n of state.notes) {
     const target = anchor(n, placed);
@@ -126,14 +144,48 @@ export function placeNotes(state: StepState, placed: Placed): PlacedNote[] {
     const h = words.length * NOTE.row + 2 * NOTE.padY;
     const cx = target.x + target.width / 2;
     const cy = target.y + target.height / 2;
+    // How far out on each side: just beside the element (closer still where a gap is narrow), or just past one of the frames around it.
+    const around = frames.filter((g) => within(target, g));
+    const room = { top: target.y, bottom: -(target.y + target.height), left: target.x, right: -(target.x + target.width) };
+    const edgeOf = { top: (g: Box) => g.y, bottom: (g: Box) => -(g.y + g.height), left: (g: Box) => g.x, right: (g: Box) => -(g.x + g.width) };
+    const reach = (side: keyof typeof room) => [...new Set([NOTE.gap, NOTE.near, ...around.map((g) => room[side] - edgeOf[side](g) + NOTE.gap)].filter((d) => d >= NOTE.near))];
+    // Along the side: centred on the element, or lined up with one of its ends.
+    const across = [cx - w / 2, target.x, target.x + target.width - w];
+    const along = [cy - h / 2, target.y, target.y + target.height - h];
+    const tipX = (x: number) => Math.min(x + w - 14, Math.max(x + 14, cx));
+    const tipY = (y: number) => Math.min(y + h - 12, Math.max(y + 12, cy));
+    // Closer than the usual gap only where nothing else fits.
+    const tight = new Set<PlacedNote>();
+    const spot = (box: Box, tip: Point): PlacedNote => {
+      const s = { box, lines: words, tip };
+      if (Math.max(box.y - tip.y, tip.y - box.y - box.height, box.x - tip.x, tip.x - box.x - box.width) < NOTE.gap) tight.add(s);
+      return s;
+    };
     const spots: PlacedNote[] = [
-      { box: { x: cx - w / 2, y: target.y - NOTE.gap - h, width: w, height: h }, lines: words, tip: { x: cx, y: target.y } },
-      { box: { x: cx - w / 2, y: target.y + target.height + NOTE.gap, width: w, height: h }, lines: words, tip: { x: cx, y: target.y + target.height } },
-      { box: { x: target.x + target.width + NOTE.gap, y: cy - h / 2, width: w, height: h }, lines: words, tip: { x: target.x + target.width, y: cy } },
-      { box: { x: target.x - NOTE.gap - w, y: cy - h / 2, width: w, height: h }, lines: words, tip: { x: target.x, y: cy } },
+      ...reach('top').flatMap((d) => across.map((x) => spot({ x, y: target.y - d - h, width: w, height: h }, { x: tipX(x), y: target.y }))),
+      ...reach('bottom').flatMap((d) => across.map((x) => spot({ x, y: target.y + target.height + d, width: w, height: h }, { x: tipX(x), y: target.y + target.height }))),
+      ...reach('right').flatMap((d) => along.map((y) => spot({ x: target.x + target.width + d, y, width: w, height: h }, { x: target.x + target.width, y: tipY(y) }))),
+      ...reach('left').flatMap((d) => along.map((y) => spot({ x: target.x - d - w, y, width: w, height: h }, { x: target.x, y: tipY(y) }))),
     ];
-    const outside = (b: Box) => b.x < 0 || b.y < 0 || b.x + b.width > placed.width || b.y + b.height > placed.height;
-    const cost = (s: PlacedNote) => boxes.filter((b) => b !== target && hit(s.box, b)).length * 10 + out.filter((o) => hit(s.box, o.box)).length * 10 + names.filter((b) => hit(s.box, b)).length * 3 + lines.filter((l) => l.some((b) => hit(s.box, b))).length * 2 + (outside(s.box) ? 1 : 0);
+    const overflow = (b: Box) => Math.max(0, -b.x) + Math.max(0, -b.y) + Math.max(0, b.x + b.width - placed.width) + Math.max(0, b.y + b.height - placed.height);
+    const cost = (s: PlacedNote) => {
+      const reaching = noteStem(s);
+      const covers = (b: Box) => hit(s.box, b) || (!!reaching && hit(reaching, b));
+      // A frame the callout lies across (its line back to the element may cross one).
+      const straddled = frames.filter((g) => hit(s.box, g) && !within(s.box, g) && !within(g, s.box)).length;
+      const beyond = overflow(s.box);
+      return (
+        boxes.filter((b) => b !== target && covers(b)).length * 10 +
+        out.filter((o) => covers(o.box) || (!!noteStem(o) && hit(s.box, noteStem(o)!))).length * 10 +
+        labels.filter((b) => b !== target && covers(b)).length * 8 +
+        straddled * 6 +
+        names.filter((b) => hit(s.box, b)).length * 6 +
+        lines.filter((l) => l.some((b) => hit(s.box, b))).length * 2 +
+        (beyond > 0 ? 1 + beyond / 40 : 0) +
+        (reaching ? 0.5 + Math.max(reaching.width, reaching.height) / 60 : 0) +
+        (tight.has(s) ? 0.3 : 0)
+      );
+    };
     out.push(spots.reduce((best, s) => (cost(s) < cost(best) ? s : best)));
   }
   return out;
@@ -156,7 +208,7 @@ function anchor(n: StepNote, placed: Placed): Box | undefined {
 /** Room the callouts of all steps need outside the drawing, so its size is the same at every step. */
 export function noteMargins(view: StepView, placed: Placed) {
   const m = { left: 0, top: 0, right: 0, bottom: 0 };
-  for (const s of view.states)
+  for (const s of view.room ?? view.states)
     for (const n of placeNotes(s, placed)) {
       m.left = Math.max(m.left, -n.box.x);
       m.top = Math.max(m.top, -n.box.y);
@@ -175,11 +227,17 @@ export function drawNote(n: PlacedNote, theme: Theme): string {
   const above = n.tip.y >= b.y + b.height;
   const below = n.tip.y <= b.y;
   const left = n.tip.x >= b.x + b.width;
+  const bubble = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="8" fill="${theme.text}" stroke="${theme.canvas}" stroke-width="2"/>`;
+  const words = n.lines.map((l, i) => line(b.x + NOTE.padX, b.y + NOTE.padY + NOTE.row * i + NOTE.row / 2, l, NOTE.size, 500, theme.canvas)).join('');
+  // Further out than the pointer reaches (past a frame): a line back to the element instead, ending in a dot on its edge.
+  if (noteStem(n)) {
+    const from = above || below ? { x: n.tip.x, y: above ? b.y + b.height : b.y } : { x: left ? b.x + b.width : b.x, y: n.tip.y };
+    const d = `M${r1(from.x)} ${r1(from.y)}L${r1(n.tip.x)} ${r1(n.tip.y)}`;
+    return `<path d="${d}" stroke="${theme.canvas}" stroke-width="4" fill="none"/><path d="${d}" stroke="${theme.text}" stroke-width="1.5" fill="none"/><circle cx="${r1(n.tip.x)}" cy="${r1(n.tip.y)}" r="3.5" fill="${theme.text}" stroke="${theme.canvas}" stroke-width="1.5"/>${bubble}${words}`;
+  }
   const d =
     above || below
       ? `M${r1(cx - 6)} ${r1(above ? b.y + b.height : b.y)}L${r1(cx)} ${r1(above ? b.y + b.height + 7 : b.y - 7)}L${r1(cx + 6)} ${r1(above ? b.y + b.height : b.y)}Z`
       : `M${r1(left ? b.x + b.width : b.x)} ${r1(cy - 6)}L${r1(left ? b.x + b.width + 7 : b.x - 7)} ${r1(cy)}L${r1(left ? b.x + b.width : b.x)} ${r1(cy + 6)}Z`;
-  let s = `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="8" fill="${theme.text}" stroke="${theme.canvas}" stroke-width="2"/><path d="${d}" fill="${theme.text}"/>`;
-  for (const [i, l] of n.lines.entries()) s += line(b.x + NOTE.padX, b.y + NOTE.padY + NOTE.row * i + NOTE.row / 2, l, NOTE.size, 500, theme.canvas);
-  return s;
+  return `${bubble}<path d="${d}" fill="${theme.text}"/>${words}`;
 }

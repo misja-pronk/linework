@@ -747,7 +747,7 @@ function stepItem(st: JourneyStep, s: JourneyShape): Item {
     ...(st.thought ? [{ text: `${d('Thinks')}: “${clean(st.thought)}”` }] : []),
     ...(st.says ? [{ text: `${d('Says')}: “${clean(st.says)}”` }] : []),
     ...(st.touchpoints.length ? [{ text: d('Through {names}', { names: listWords(st.touchpoints.map((t) => t.label)) }) }] : []),
-    ...(st.actors.length ? [{ text: d('With {names}', { names: listWords(st.actors) }) }] : []),
+    ...(st.actors.length ? [{ text: d('With: {names}', { names: listWords(st.actors) }) }] : []),
     ...st.pains.map((p) => ({ text: `${d('Pain')}: ${p}` })),
     ...st.gains.map((p) => ({ text: `${d('Works well')}: ${p}` })),
     ...st.ideas.map((p) => ({ text: `${d('Idea')}: ${p}` })),

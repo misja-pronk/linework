@@ -1,4 +1,4 @@
-// Alt text on what leaves as a document: the drawing as a tagged Figure in a PDF, a described group on a slide.
+// Alt text on what leaves as a document: the drawing as a tagged Div with alt text in a PDF, a described group on a slide.
 import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
@@ -13,11 +13,12 @@ const fonts = (): FontBytes => {
 };
 
 describe('alt text in documents', () => {
-  it('pdf: tagged, the drawing a Figure with its description as Alt, frame and footer artifacts', async () => {
+  it('pdf: tagged, the drawing a Div (not a Figure, whose words Preview cannot find) with its description as Alt, frame and footer artifacts', async () => {
     const r = await render(example('systems/web-shop.yaml'), { fonts: 'none' });
     const pdf = Buffer.from(await toPdf(r, { fonts: fonts(), compress: false })).toString('latin1');
     expect(pdf).toContain('/Marked true');
-    expect(pdf).toContain('/S /Figure');
+    expect(pdf).toContain('/S /Div');
+    expect(pdf).not.toContain('/S /Figure');
     expect(pdf).toMatch(/\/Alt \(Web shop\. Architecture diagram: How an order flows through the system\./);
     expect(pdf).toContain('/Artifact');
     expect(pdf).toContain('/Lang (en)');

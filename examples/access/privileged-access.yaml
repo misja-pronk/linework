@@ -66,7 +66,8 @@ assignments:
 
 steps:
   - title: Three tiers
-    caption: Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
+    caption: A role-assignable group per tier. Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
+    focus: [sg-tier0, sg-security, sg-endpoint, sg-helpdesk-nl]
   - title: Break-glass
     caption: Two cloud-only accounts hold Global Administrator permanently, for when sign-in or PIM fails. Excluded from Conditional Access, FIDO2 keys in a safe, and an alert on every sign-in.
     focus: [break-glass, tenant]

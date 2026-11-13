@@ -35,7 +35,7 @@ export interface JourneyScene {
 const ASPECT = 16 / 9;
 const FRAME = { x: 80, y: 136 };
 
-const S = { step: 12.5, body: 11.5, small: 10.5 };
+const S = { step: 12.5, body: 11.5, small: 11 };
 const lh = (size: number) => Math.round(size * 1.4);
 
 export const JOURNEY_ROWS: Record<JourneyRow, { label: string; icon: string; tone: Tone }> = {
@@ -662,7 +662,9 @@ function mapScene(shape: JourneyShape, full: Theme, colW: number, step?: number)
   const { cols, phases, right } = columns(shape, shape.steps, gutter, colW);
   const width = Math.max(right, 560);
   const current = step ? cols.find((c) => c.index === step - 1) : undefined;
-  const phaseTheme = (p: JourneyPhase) => (!current || shape.phases[current.phase] === p ? full : quiet);
+  // A stage's cell holds each of its steps' items under that step: it is lit with the step in focus only
+  // where it is that step's alone, never half lit across a step that stands back.
+  const phaseTheme = (p: JourneyPhase) => (!current || (shape.phases[current.phase] === p && cols.filter((c) => shape.phases[c.phase] === p).length === 1) ? full : quiet);
   const toneOf = (c: Col) => shape.phases[c.phase]!.tone;
 
   let y = 0;
@@ -829,10 +831,11 @@ function storyboardScene(shape: JourneyShape, full: Theme, option: number, step?
     if (touchH) {
       ty += 12;
       const used = touchpoints(pen, s, x + BOARD.pad, ty, inner, t, p?.tone ?? 'blue', 2);
+      // The names as the author wrote them, after a colon: "With: Buddy" reads right whether a name is a person or a role.
       if (s.actors.length) {
         const ay = ty + (used ? used + 8 : 0);
         pen.icon('users', x + BOARD.pad + 4, ay + 1.5, 12, t.textFaint, 1.75);
-        pen.text(x + BOARD.pad + TOUCH.tile + 7, ay, inner - TOUCH.tile - 7, [fitText(tr(t.lang, 'With {names}', { names: s.actors.join(', ') }), S.body, 400, inner - TOUCH.tile - 7)], S.body, 400, t.textMuted, 'l', 15);
+        pen.text(x + BOARD.pad + TOUCH.tile + 7, ay, inner - TOUCH.tile - 7, [fitText(tr(t.lang, 'With: {names}', { names: s.actors.join(', ') }), S.body, 400, inner - TOUCH.tile - 7)], S.body, 400, t.textMuted, 'l', 15);
       }
       ty += touchH;
     }

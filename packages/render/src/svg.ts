@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, rowMarks, SECTION_PX, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -70,7 +70,8 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   const themeOf = (e: string | undefined) => (e === 'dim' ? quiet : theme);
   /** A line as its step draws it: quiet where it stands back, heavier on the route in focus. */
   const lineTheme = (e: GraphEdge) => (state?.edges[e.id] === 'focus' ? strongTheme(theme) : themeOf(state?.edges[e.id]));
-  const margin = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
+  // The whole drawing of a story passes its steps as `room` without a state of its own: it keeps their callouts' room.
+  const margin = view || opts.stepView?.room ? noteMargins(view ?? opts.stepView!, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
   const list = view ? { width: 0, height: 0, draw: () => '' } : stepList(graph, theme);
   // What the page is wide anyway; a legend that is a key wraps to it.
   const room = Math.max(placed.width + margin.left + margin.right + side, brand ? brand.width : titleWidth(graph, theme), list.width);
@@ -512,17 +513,17 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   const grid = tableGrid(shape, theme);
   // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
   for (const c of grid.columns.slice(1)) s += `<line x1="${r1(b.x + c.x)}" y1="${r1(yh)}" x2="${r1(b.x + c.x)}" y2="${r1(b.y + b.height)}" stroke="${theme.border}" stroke-width="1"/>`;
-  const marks = markWidth(shape);
   for (const [i, row] of shape.rows.entries()) {
     const at = grid.rows[i]!;
     const col = grid.columns[at.column]!;
+    const marks = col.marks;
     // The last column reaches the table's right edge (a table may be drawn wider than measured).
     const cx = b.x + col.x;
     const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;
     const y = b.y + at.y;
     if (row.kind === 'section') {
       const sh = at.height;
-      if (row.label) s += textMid(cx + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
+      if (row.label) s += textMid(cx + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), SECTION_PX, 600, theme.textFaint);
       else s += `<line x1="${r1(cx)}" y1="${r1(y + sh / 2)}" x2="${r1(cx + cw)}" y2="${r1(y + sh / 2)}" stroke="${theme.border}" stroke-width="1"/>`;
       continue;
     }

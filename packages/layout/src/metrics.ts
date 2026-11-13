@@ -228,7 +228,6 @@ export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { lab
     return pts.slice(1).map((p, i) => [pts[i]!, p] as Seg);
   };
   let labelFar = 0;
-  let labelTouching = 0;
   let labelStruck = 0;
   // A vertical piece right through a long label, top to bottom, away from its ends.
   const through = (b: Box, [p, q]: Seg) =>
@@ -239,11 +238,38 @@ export function labelMetrics(graph: Graph, placed: Pick<Placed, 'edges'>): { lab
     if (!box) continue;
     if (box.width > STRUCK && lines.some((l) => l.some((s) => through(box, s)))) labelStruck++;
     if (!segsOf(e.id).some((s) => hits(grow(box, LABEL_AIR), s))) labelFar++;
+  }
+  return { labelFar, labelTouching: touchedLabels(graph, placed).length, labelStruck };
+}
+
+/**
+ * Labels with another line running through them or right along them (labelMetrics' `touching`):
+ * per label, its line and the first piece of another line that touches it.
+ */
+export function touchedLabels(graph: Graph, placed: Pick<Placed, 'edges'>): { edge: string; label: Box; by: Seg }[] {
+  const grow = (b: Box, by: number): Box => ({ x: b.x - by, y: b.y - by, width: b.width + 2 * by, height: b.height + 2 * by });
+  const hits = (b: Box, [p, q]: Seg) =>
+    Math.max(p.x, q.x) >= b.x && Math.min(p.x, q.x) <= b.x + b.width && Math.max(p.y, q.y) >= b.y && Math.min(p.y, q.y) <= b.y + b.height;
+  const segsOf = (id: string) => {
+    const pts = placed.edges.get(id)?.points ?? [];
+    return pts.slice(1).map((p, i) => [pts[i]!, p] as Seg);
+  };
+  const out: { edge: string; label: Box; by: Seg }[] = [];
+  for (const e of graph.edges) {
+    const box = placed.edges.get(e.id)?.label;
+    if (!box) continue;
     const near = grow(box, LABEL_AIR - 1);
     // Lines that share this line's ends run into the same card beside it: only lines that pass count.
-    if (graph.edges.some((o) => o.id !== e.id && segsOf(o.id).some((s) => hits(near, s) && !endsAt(s, placed.edges.get(e.id)!.points)))) labelTouching++;
+    for (const o of graph.edges) {
+      if (o.id === e.id) continue;
+      const by = segsOf(o.id).find((s) => hits(near, s) && !endsAt(s, placed.edges.get(e.id)!.points));
+      if (by) {
+        out.push({ edge: e.id, label: box, by });
+        break;
+      }
+    }
   }
-  return { labelFar, labelTouching, labelStruck };
+  return out;
 }
 
 /** A piece that starts or ends where the line does (a sibling leaving the same port). */

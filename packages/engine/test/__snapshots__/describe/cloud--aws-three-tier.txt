@@ -1,13 +1,14 @@
 Web shop on AWS
 
-AWS and Google Cloud diagram: Production, three availability zones. 9 elements in 11 groups, with 10 connections.
+AWS and Google Cloud diagram: Production, three availability zones. 10 elements in 11 groups, with 11 connections.
 
 Groups and elements
 - Users
 - CDN and WAF (CloudFront)
 - shop-prod (123456789012 · eu-west-1)
   - vpc-shop (VPC · 10.0.0.0/16)
-    - Load balancer (Application Load Balancer · public)
+    - Internet gateway
+    - Load balancer (ALB · a public subnet per zone)
     - eu-west-1a (Availability zone)
       - Private subnet (10.0.10.0/24)
         - Web shop (ECS service · 2 tasks)
@@ -26,7 +27,8 @@ Groups and elements
 
 Connections
 - Users send traffic to CDN and WAF.
-- CDN and WAF sends traffic to Load balancer.
+- CDN and WAF sends traffic to Internet gateway.
+- Internet gateway sends traffic to Load balancer.
 - Load balancer connects to Web shop (ECS service) (Private network), connects to Web shop (ECS service) (Private network) and connects to Web shop (ECS service) (Private network).
 - Web shop (ECS service) connects to Orders (writer) (Private network).
 - Web shop (ECS service) connects to Orders (writer) (Private network).

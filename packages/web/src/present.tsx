@@ -58,6 +58,8 @@ interface Deck {
   slides: Slide[];
   /** Steps nobody wrote, made from the drawing's groups so it can still be told in parts. */
   auto?: boolean;
+  /** The slide the editor shows, alone, while the deck around it is made: whether its words get room. */
+  opening?: { band: boolean };
 }
 
 /**
@@ -104,6 +106,10 @@ export function Present(p: PresentProps) {
   /** The drawing on screen and, while it fades, the one before it. */
   const [frames, setFrames] = useState<Frame[]>([]);
   const frameId = useRef(0);
+  /** Slides stepped on (or back) while the opening slide stood alone. */
+  const ahead = useRef(0);
+  /** What makes the deck, waiting for the opening slide to be on screen. */
+  const afterOpening = useRef<() => void>(undefined);
   const cache = useRef(new Map<string, Promise<RenderResult>>());
   /** Where a followed link came from, for Backspace. */
   const [trail, setTrail] = useState<{ deck: Deck; at: number }[]>([]);
@@ -120,10 +126,11 @@ export function Present(p: PresentProps) {
   const [byLayer, setByLayer] = useState(false);
   useRestoreFocus();
 
+  const keyOf = useCallback((d: Deck, i: number, slide = d.slides[i]!) => `${d.id}:${i}${slide.focus !== undefined && !whole ? ':focus' : ''}${slide.layers ? `:@${slide.layers.layers?.join('+')}` : ''}`, [whole]);
   const draw = useCallback(
     (d: Deck, i: number, slide = d.slides[i]!) => {
       const focus = slide.focus !== undefined && !whole ? { focus: slide.focus } : {};
-      const key = `${d.id}:${i}${focus.focus ? ':focus' : ''}${slide.layers ? `:@${slide.layers.layers?.join('+')}` : ''}`;
+      const key = keyOf(d, i, slide);
       let hit = cache.current.get(key);
       if (!hit) {
         hit = render(d.doc.text, { theme: p.theme, themeOverride, ...icons, sidecar: d.doc.sidecar, load: d.doc.load, file: d.doc.file, view: slide.view, step: slide.step, stepCaption: false, fonts: 'none', marks: true, idPrefix: `present-${d.id}-${i}`, ...focus, ...slide.layers }).then(async (r) => {
@@ -135,7 +142,7 @@ export function Present(p: PresentProps) {
       }
       return hit;
     },
-    [p.theme, themeOverride, icons, whole],
+    [p.theme, themeOverride, icons, whole, keyOf],
   );
 
   /**
@@ -181,18 +188,43 @@ export function Present(p: PresentProps) {
     return () => clearTimeout(t);
   }, [flash]);
 
-  // The deck of the open diagram, starting where the editor is.
+  // The deck of the open diagram, starting where the editor is. The slide the editor shows comes first,
+  // alone, so presenting starts at once; the deck around it (every view drawn) follows and takes over
+  // that same drawing, so nothing on screen changes.
   useEffect(() => {
     let live = true;
-    void outline(p.doc).then((d) => {
+    const own = (s: Slide) => ({ ...(p.focus !== undefined ? { focus: p.focus } : {}), ...(p.layers && !s.layer ? { layers: p.layers } : {}) });
+    const opening: Deck = { id: ++decks, doc: p.doc, slides: [{ view: p.view, step: p.step ?? 1 }], opening: { band: false } };
+    Object.assign(opening.slides[0]!, own(opening.slides[0]!));
+    let first: Slide | undefined;
+    const rest = () => void outline(p.doc).then(made);
+    void draw(opening, 0).then((r) => {
+      if (!live) return;
+      if (!r.svg) return rest();
+      // Not the deck's first slide: a sequence whose phases tell it starts on its overview, a drawing
+      // without steps is told group by group. Those wait for the deck.
+      const overview = r.stepsImplied && presentedBy(r).length > 0;
+      if (overview || (!r.steps?.length && !r.views?.length && autoSteps(p.doc.text, r))) return rest();
+      first = { ...opening.slides[0]!, step: r.step };
+      opening.slides[0] = first;
+      opening.opening = { band: !!r.steps?.length || /^\s*steps:/m.test(p.doc.text) };
+      afterOpening.current = rest;
+      setDeck(opening);
+      setAt(0);
+    });
+    const made = (d: Deck | undefined) => {
       if (!live) return;
       if (!d) return say(t('Nothing to present yet: fix the problems in the editor first'));
-      if (p.focus !== undefined) for (const s of d.slides) if (s.view === p.view) s.focus = p.focus;
-      if (p.layers) for (const s of d.slides) if (s.view === p.view && !s.layer) s.layers = p.layers;
+      for (const s of d.slides) if (s.view === p.view) Object.assign(s, own(s));
       const start = d.slides.findIndex((s) => s.view === p.view && (s.step ?? 1) === (p.step ?? 1));
+      const at = Math.max(0, start >= 0 ? start : d.slides.findIndex((s) => s.view === p.view));
+      // The opening slide is this one: the deck takes its drawing as it is.
+      const same = d.slides[at];
+      if (first && same && !d.auto && same.view === first.view && same.step === first.step) cache.current.set(keyOf(d, at), cache.current.get(keyOf(opening, 0))!);
       setDeck(d);
-      setAt(Math.max(0, start >= 0 ? start : d.slides.findIndex((s) => s.view === p.view)));
-    });
+      setAt(Math.min(d.slides.length - 1, Math.max(0, at + ahead.current)));
+      ahead.current = 0;
+    };
     return () => {
       live = false;
     };
@@ -207,8 +239,12 @@ export function Present(p: PresentProps) {
       if (!live) return;
       if (!result.svg) return say(t('This step cannot be drawn: fix the problems in the editor'));
       const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      setFrames((f) => [...(calm ? [] : f.slice(-1)), { id: ++frameId.current, deck, at, result }]);
+      // The same drawing again (the deck taking over the opening slide): it stays as it is, no fade.
+      setFrames((f) => (f.at(-1)?.result === result ? [...f.slice(0, -1), { ...f.at(-1)!, deck, at }] : [...(calm ? [] : f.slice(-1)), { id: ++frameId.current, deck, at, result }]));
       setRing(undefined);
+      // The deck is made once the opening slide is on screen, so making it does not hold that up.
+      const rest = deck.opening && afterOpening.current;
+      if (rest) (afterOpening.current = undefined), requestAnimationFrame(() => setTimeout(rest));
       if (at + 1 < deck.slides.length) void draw(deck, at + 1);
     });
     return () => {
@@ -222,7 +258,8 @@ export function Present(p: PresentProps) {
   }, [frames]);
 
   const top = frames.at(-1);
-  const count = top?.deck.slides.length ?? 0;
+  /** How many slides, once the deck is made (0 while the opening slide stands alone). */
+  const count = top?.deck.opening ? 0 : (top?.deck.slides.length ?? 0);
   const state = top?.result.step ? top.result.steps?.[top.result.step - 1] : undefined;
   // A layer's slide says which layer it is, and what its caption says.
   const shownLayers = top?.deck.slides[top.at]?.layer ? top.result.layers : undefined;
@@ -230,7 +267,7 @@ export function Present(p: PresentProps) {
   const title = state?.title ?? (layer ? t('{name} layer', { name: layer.title ?? layer.name }) : undefined);
   const caption = state?.caption ?? layer?.caption;
   // Room for the words under the drawing wherever the deck has steps, so the drawing keeps its place; a view says its title itself.
-  const band = !!top && top.deck.slides.some((s) => s.step || s.layer);
+  const band = !!top && (top.deck.opening ? top.deck.opening.band : top.deck.slides.some((s) => s.step || s.layer));
 
   /** What can be followed on this slide: linked elements that are drawn at this step. */
   const linked = (): Linked[] => {
@@ -253,6 +290,8 @@ export function Present(p: PresentProps) {
 
   const go = (to: number) => {
     if (!deck) return;
+    // Before the deck is made, a step on is kept for it.
+    if (deck.opening) return void (ahead.current += to - at);
     setAt(Math.min(deck.slides.length - 1, Math.max(0, to)));
   };
 
@@ -458,7 +497,7 @@ export function Present(p: PresentProps) {
           <Icon name="x" size={15} /> {t('Exit')} <kbd>Esc</kbd>
         </button>
       </div>
-      {top && (count <= 1 || top.deck.auto) && (
+      {top && !top.deck.opening && (count <= 1 || top.deck.auto) && (
         <div className="present-about" onClick={(e) => e.stopPropagation()}>
           {count <= 1 ? t('One slide: add steps in the editor (S on a selection) to tell this drawing in parts') : t('Told group by group: write steps: (S in the editor) to tell it your way')}
         </div>
