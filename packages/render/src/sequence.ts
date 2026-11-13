@@ -241,28 +241,59 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   let { centres } = spread(room, K.gap, aparts);
   const cx = (l: number) => centres[l]!;
 
+  // The sides of the boxes around participants, between lane k and k + 1, each with the lane it keeps
+  // its distance to (it moves with that lane when lanes spread). Rows inside a frame have none: a frame
+  // lies over a box's side.
+  const framed = new Set(bands.flatMap((b) => Array.from({ length: b.to - b.from + 1 }, (_, i) => b.from + i)));
+  const sidesBetween = (k: number): { x: number; lane: number }[] => {
+    const out: { x: number; lane: number }[] = [];
+    if (lanes[k]!.box !== undefined && lanes[k]!.box !== lanes[k + 1]!.box) out.push({ x: cx(k) + room[k]! / 2 + K.box.pad, lane: k });
+    if (lanes[k + 1]!.box !== undefined && lanes[k]!.box !== lanes[k + 1]!.box) out.push({ x: cx(k + 1) - room[k + 1]! / 2 - K.box.pad, lane: k + 1 });
+    return out;
+  };
   // The clear gaps along a message between the lifelines it passes, each with the room a label has in
-  // it: the first from the sender, past its number, up to the bar or lifeline of the next lane.
-  const gapsOf = (r: number, ev: Ev<'message'>) => {
+  // it: the first from the sender, past its number, up to the bar or lifeline of the next lane. A box's
+  // side splits a gap too. Each end says the lane it moves with, and whether a label may lie over it
+  // (a bare lifeline) or not (a bar, a box's side).
+  type Gap = { from: number; to: number; room: number; lanes: [number, number]; open: [boolean, boolean] };
+  const gapsOf = (r: number, ev: Ev<'message'>): Gap[] => {
     const a = lane.get(ev.from)!;
     const b = lane.get(ev.to)!;
     const dir = b > a ? 1 : -1;
     const x1 = cx(a) + edgeOffset(a, r, dir as 1 | -1);
     const x2 = cx(b) + edgeOffset(b, r, -dir as 1 | -1);
     const start = x1 + dir * numberRoom(ev);
-    const out: { k: number; from: number; to: number; room: number }[] = [];
+    const bare = (k: number) => k !== a && k !== b && deepest(spans, track, k, r) < 0;
+    const out: Gap[] = [];
     for (let k = a; k !== b; k += dir) {
       const from = k === a ? start : cx(k) + dir * (Math.abs(edgeOffset(k, r, 1)) + K.bar);
       const to = k + dir === b ? x2 : cx(k + dir) - dir * (Math.abs(edgeOffset(k + dir, r, 1)) + K.bar);
-      out.push({ k, from, to, room: Math.abs(to - from) - 24 });
+      const sides = framed.has(r) ? [] : sidesBetween(Math.min(k, k + dir)).sort((p, q) => dir * (p.x - q.x));
+      const stops = [{ x: from, lane: k, open: bare(k) }, ...sides.map((s) => ({ ...s, open: false })), { x: to, lane: k + dir, open: bare(k + dir) }];
+      for (let i = 0; i + 1 < stops.length; i++) {
+        const [p, q] = [stops[i]!, stops[i + 1]!];
+        out.push({ from: p.x, to: q.x, room: Math.abs(q.x - p.x) - 24, lanes: [p.lane, q.lane], open: [p.open, q.open] });
+      }
     }
     return out;
   };
-  // A message that passes an activation bar on its way: its label must not lie on that bar.
+  // The same gaps joined over bare lifelines: where a label may lie, if no single gap holds it.
+  const runsOf = (r: number, ev: Ev<'message'>): Gap[] => {
+    const out: Gap[] = [];
+    for (const g of gapsOf(r, ev)) {
+      const last = out.at(-1);
+      if (last?.open[1] && g.open[0]) Object.assign(last, { to: g.to, room: Math.abs(g.to - last.from) - 24, lanes: [last.lanes[0], g.lanes[1]], open: [last.open[0], g.open[1]] });
+      else out.push({ ...g, lanes: [...g.lanes], open: [...g.open] });
+    }
+    return out;
+  };
+  // A message that passes an activation bar or the side of a box on its way: its label must not lie on it.
   const passesBar = (r: number, ev: Ev<'message'>) => {
     const a = lane.get(ev.from)!;
     const b = lane.get(ev.to)!;
     for (let k = Math.min(a, b) + 1; k < Math.max(a, b); k++) if (deepest(spans, track, k, r) >= 0) return true;
+    if (framed.has(r)) return false;
+    for (let k = Math.min(a, b); k < Math.max(a, b); k++) if (sidesBetween(k).length) return true;
     return false;
   };
   // Where such a label fits no gap, the gap with the most room already widens to hold it: the label
@@ -272,11 +303,13 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     const ev = row.ev;
     if (ev?.kind !== 'message' || ev.from === ev.to || !row.lines?.length || !passesBar(r, ev)) continue;
     const text = widest(row.lines, L.size, 500);
-    const gaps = gapsOf(r, ev);
-    if (gaps.some((g) => g.room >= text)) continue;
-    const best = gaps.reduce((x, y) => (y.room > x.room ? y : x));
-    const dir = lane.get(ev.to)! > lane.get(ev.from)! ? 1 : -1;
-    misfits.push({ a: best.k, b: best.k + dir, min: Math.abs(cx(best.k + dir) - cx(best.k)) + text - best.room });
+    const runs = runsOf(r, ev);
+    if (runs.some((g) => g.room >= text)) continue;
+    // Only a gap whose ends move with two different lanes widens as they spread (one beside a box's side keeps its size).
+    const growing = runs.filter((g) => g.lanes[0] !== g.lanes[1]);
+    const best = (growing.length ? growing : runs).reduce((x, y) => (y.room > x.room ? y : x));
+    const [p, q] = [Math.min(...best.lanes), Math.max(...best.lanes)];
+    if (p !== q) misfits.push({ a: p, b: q, min: cx(q) - cx(p) + text - best.room });
   }
   if (misfits.length) centres = spread(room, K.gap, [...aparts, ...misfits]).centres;
 
@@ -289,7 +322,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
       const b = lane.get(ev.to)!;
       // A label beside a bar it passes keeps to the widest clear gap, narrower if it has to be.
       const bar = passesBar(r, ev);
-      const room = bar ? Math.max(...gapsOf(r, ev).map((g) => g.room)) : Math.abs(cx(b) - cx(a)) - 32 - numberRoom(ev) - Math.abs(edgeOffset(a, r, 1)) - Math.abs(edgeOffset(b, r, 1));
+      const room = bar ? Math.max(...runsOf(r, ev).map((g) => g.room)) : Math.abs(cx(b) - cx(a)) - 32 - numberRoom(ev) - Math.abs(edgeOffset(a, r, 1)) - Math.abs(edgeOffset(b, r, 1));
       if (room <= L.max && !(bar && widest(row.lines!, L.size, 500) > room && room >= L.max / 2)) continue;
       row.lines = wrapLines(ev.label, L.size, 500, Math.min(room, 2 * L.max));
       const text = row.lines.length * L.line + 6;
@@ -338,8 +371,9 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
         const x2 = cx(b) + edgeOffset(b, r, -dir as 1 | -1);
         const half = widest(lines, L.size, 500) / 2;
         // A label across several lifelines sits in the first gap from the sender that holds it, so it
-        // does not lie on a lifeline or bar in between; centred over the whole line otherwise.
-        const gap = gapsOf(r, ev).find((g) => g.room >= 2 * half);
+        // does not lie on a lifeline, bar or box side in between; else over bare lifelines only, else
+        // centred over the whole line.
+        const gap = gapsOf(r, ev).find((g) => g.room >= 2 * half) ?? runsOf(r, ev).find((g) => g.room >= 2 * half);
         const mid = gap ? (gap.from + gap.to) / 2 : (x1 + dir * numberRoom(ev) + x2) / 2;
         messages.push({ ev, y: at(r), x1, x2, mid, lines });
         // Frames hug the lifelines with room for the bars on them, not just the line ends.
@@ -495,24 +529,13 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   const limit = now ? now.y + (now.self?.h ?? 0) + 4 : Infinity;
   const out: string[] = [`<g transform="translate(${r1(at.x)} ${r1(at.y)})">`];
   const tone = (t: Tone) => theme.tones[t];
-  // Under the messages over a frame. A note lies on top of the box like a sticky note: its words stay clear.
-  const sides: string[] = [];
-
+  // A frame that reaches past a box (it spans a participant outside it) lies over the box's side, so
+  // the side never runs through the words in the frame; outside frames, labels keep clear of it.
   for (const b of g.boxes) {
     const t = tone(b.tone);
     const line = groupLine(theme, t);
     const fill = groupFill(theme, 0, t);
     out.push(rect(b.box, theme.radius.group, `fill="${fill}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
-    // A frame that reaches past the box (it spans a participant outside it) lies over its side: the
-    // side is drawn again on top, so the box stays whole and the frame reads as crossing it.
-    if (line)
-      for (const o of g.frames.map((f) => f.box))
-        for (const x of [b.box.x, b.box.x + b.box.width])
-          if (o.x < x - 1 && o.x + o.width > x + 1 && o.y < b.box.y + b.box.height && o.y + o.height > b.box.y) {
-            const y0 = Math.max(b.box.y + theme.radius.group, o.y);
-            const y1 = Math.min(b.box.y + b.box.height - theme.radius.group, o.y + o.height);
-            if (y1 > y0) sides.push(`<path d="M${r1(x)} ${r1(y0)}V${r1(y1)}" stroke="${line}" stroke-width="${theme.stroke.group}" fill="none"/>`);
-          }
     const lab = groupLabel(theme, b.label);
     const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
     out.push(text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitText(lab.text, lab.size, 600, b.box.width - 28, 'sans', lab.tracking), lab.size, 600, groupLabelInk(theme, t), undefined, track));
@@ -555,10 +578,8 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     out.push(rect({ ...b.box, height: Math.min(b.box.height, limit - b.box.y + 6) }, 3, `fill="${t.bg}" stroke="${t.fg}" stroke-opacity="0.55" stroke-width="1"`));
   }
 
-  // A divider's name stays readable where an activation runs on through it; a box's side redrawn over a
-  // frame goes under the frame's tab and branch words.
+  // A divider's name stays readable where an activation runs on through it.
   for (const d of g.dividers) if (d.y <= limit) out.push(drawDivider(d, g.width, theme, ground(g.width / 2, d.y)));
-  out.push(...sides);
   for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
   for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, patch));
   for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme, ground(n.box.x + n.box.width / 2, n.box.y + n.box.height / 2)));

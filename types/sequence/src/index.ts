@@ -291,10 +291,12 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
   if (top === 'steps') ctx.warn(['steps'], 'In a sequence this is now called messages: (steps: are for presenting elsewhere); rename it');
   if (src.messages !== undefined && src.steps !== undefined) ctx.error(['steps'], 'Both messages: and steps: here: steps: is the old name of messages:, keep one');
   walk(src[top], [top]);
+  if (auto) activateOnSignals(events);
   const phases = typeof src.view === 'string' && src.view.startsWith('phase-') ? sequencePhases(src) : [];
   const phase = phases.find((p) => p.name === src.view);
   const drawn = phase ? phaseOf(events, participants, phase, phases, top, wide) : { events, participants };
-  const key = arrowKey(drawn.events);
+  // One key for the whole file: every phase shows the same one, so slides of one sequence read alike.
+  const key = arrowKey(events);
 
   return {
     title: src.title,
@@ -305,6 +307,40 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
     edges: [],
     ...(key.length ? { legend: key } : {}),
   };
+}
+
+/**
+ * A participant that acts on a message it does not answer (a webhook, an event) is busy while it does:
+ * it gets an activation from that message to the last one it sends in turn, as a call's callee does.
+ * Its turn ends where another message (not a reply) reaches it, or at its branch, frame or divider.
+ * Nothing is drawn for a message that is only received.
+ */
+function activateOnSignals(events: SequenceEvent[]): void {
+  const open = new Map<string, number>();
+  const bump = (lane: string, by: number) => open.set(lane, Math.max(0, (open.get(lane) ?? 0) + by));
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.kind === 'activate' || e.kind === 'deactivate') bump(e.lane, e.kind === 'activate' ? 1 : -1);
+    if (e.kind !== 'message') continue;
+    if (e.closes) bump(e.from, -1);
+    if (e.opens && e.from !== e.to) bump(e.to, 1);
+    if (e.opens || e.from === e.to || e.arrow !== 'async' || (open.get(e.to) ?? 0) > 0) continue;
+    let last = -1;
+    let depth = 0;
+    for (let j = i + 1; j < events.length; j++) {
+      const x = events[j]!;
+      if (x.kind === 'frame') depth++;
+      else if (x.kind === 'end' && --depth < 0) break;
+      else if ((x.kind === 'branch' && depth === 0) || x.kind === 'divider') break;
+      else if (x.kind === 'message' && x.to === e.to && x.from !== e.to && x.arrow !== 'reply') break;
+      // What it sends, and the answers to its own calls.
+      else if (x.kind === 'message' && (x.from === e.to || (x.to === e.to && last >= 0))) last = j;
+    }
+    if (last < 0) continue;
+    events[i] = { ...e, opens: true };
+    bump(e.to, 1);
+    events.splice(last + 1, 0, { kind: 'deactivate', lane: e.to, path: events[last]!.path });
+  }
 }
 
 /**
