@@ -24,7 +24,7 @@ layers:
 
 policies:
   # One policy for every admin group: sign in from a PAW, with a phishing-resistant method. Break-glass is left out.
-  ca-admins: { kind: conditional-access, label: CA001 Admins, caption: All cloud apps, targets: [sg-entra-tier0-admins, sg-entra-exchange-admins, sg-entra-sharepoint-admins], excludes: break-glass, requires: [paw, phish-mfa], tags: [tier0, tier1] }
+  ca-admins: { kind: conditional-access, label: CA001 Admins, caption: All cloud apps, targets: [sg-entra-tier0-admins, sg-entra-exo-admins, sg-entra-spo-admins], excludes: break-glass, requires: [paw, phish-mfa], tags: [tier0, tier1] }
   phish-mfa: { kind: authentication-strength, label: Phishing-resistant MFA, caption: Passkeys (FIDO2) or Windows Hello for Business, tags: [tier0, tier1] }
 
 principals:
@@ -36,8 +36,8 @@ principals:
   paw: { kind: paw, label: PAW, caption: Intune-managed · admin use only, tags: [tier0, tier1] }
   # Tier 1: manages one service each. Security Administrator and Intune Administrator are Tier 0 here, not Tier 1:
   # the first can change the Conditional Access that guards Tier 0, the second manages the PAWs Tier 0 signs in on.
-  sg-entra-exchange-admins: { kind: role-assignable-group, caption: Tier 1 · role-assignable group, tags: [tier1] }
-  sg-entra-sharepoint-admins: { kind: role-assignable-group, caption: Tier 1 · role-assignable group, tags: [tier1] }
+  sg-entra-exo-admins: { kind: role-assignable-group, caption: Tier 1 · role-assignable group, tags: [tier1] }
+  sg-entra-spo-admins: { kind: role-assignable-group, caption: Tier 1 · role-assignable group, tags: [tier1] }
   # Tier 2: supports users, within an administrative unit.
   sg-helpdesk-nl: { kind: role-assignable-group, caption: Tier 2 · service desk Netherlands, tags: [tier2] }
 
@@ -61,8 +61,8 @@ assignments:
   - { principal: sg-entra-tier0-admins, role: global-admin, scope: tenant, eligible: true, activation: 2 h, approval: sg-entra-tier0-admins, tags: [tier0] }
   - { principal: sg-entra-tier0-admins, role: pra, scope: tenant, eligible: true, activation: 2 h, approval: sg-entra-tier0-admins, tags: [tier0] }
   # Tier 1: eligible, self-activated with MFA and a reason.
-  - { principal: sg-entra-exchange-admins, role: exchange-admin, scope: tenant, eligible: true, activation: 8 h, tags: [tier1] }
-  - { principal: sg-entra-sharepoint-admins, role: sharepoint-admin, scope: tenant, eligible: true, activation: 8 h, tags: [tier1] }
+  - { principal: sg-entra-exo-admins, role: exchange-admin, scope: tenant, eligible: true, activation: 8 h, tags: [tier1] }
+  - { principal: sg-entra-spo-admins, role: sharepoint-admin, scope: tenant, eligible: true, activation: 8 h, tags: [tier1] }
   # Tier 2: scoped to an administrative unit.
   - sg-helpdesk-nl is helpdesk on au-nl
   - sg-helpdesk-nl is eligible user-admin on au-nl
@@ -70,7 +70,7 @@ assignments:
 steps:
   - title: Three tiers
     caption: A role-assignable group per tier. Tier 0 controls the tenant, Tier 1 manages services such as mail and sites, Tier 2 supports users.
-    focus: [sg-entra-tier0-admins, sg-entra-exchange-admins, sg-entra-sharepoint-admins, sg-helpdesk-nl]
+    focus: [sg-entra-tier0-admins, sg-entra-exo-admins, sg-entra-spo-admins, sg-helpdesk-nl]
   - title: Break-glass
     caption: Two cloud-only accounts hold Global Administrator permanently, for when sign-in or PIM fails. Left out of Conditional Access, FIDO2 keys in a safe.
     focus: [break-glass, tenant]
@@ -84,7 +84,7 @@ steps:
     path: adm-daan -> sg-entra-tier0-admins -> tenant
   - title: Tier 1, just in time
     caption: Exchange and SharePoint admins activate their own role, with MFA and a reason, for at most 8 hours. Security and Intune admins count as Tier 0.
-    focus: [sg-entra-exchange-admins, sg-entra-sharepoint-admins, tenant]
+    focus: [sg-entra-exo-admins, sg-entra-spo-admins, tenant]
   - title: Tier 2, scoped
     caption: The Dutch service desk supports only the users in its unit. Admins are in role-assignable groups, so it cannot reset them.
     focus: [sg-helpdesk-nl, au-nl]
