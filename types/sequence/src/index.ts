@@ -295,8 +295,8 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
   const phases = typeof src.view === 'string' && src.view.startsWith('phase-') ? sequencePhases(src) : [];
   const phase = phases.find((p) => p.name === src.view);
   const drawn = phase ? phaseOf(events, participants, phase, phases, top, wide) : { events, participants };
-  // One key for the whole file: every phase shows the same one, so slides of one sequence read alike.
-  const key = arrowKey(events);
+  // The key names the arrows this drawing has: a phase lists only those drawn in it.
+  const key = arrowKey(drawn.events);
 
   return {
     title: src.title,
@@ -376,10 +376,9 @@ function phaseOf(events: SequenceEvent[], participants: SequenceParticipant[], p
   return { events: [...carried, ...out], participants: kept.length ? kept : participants };
 }
 
-/** The key: what each kind of arrow means, once a signal or a lost message is drawn; calls and replies alone are read without one. */
+/** The key: what each kind of arrow drawn means, in every sequence alike, and nothing that is not drawn. */
 function arrowKey(events: SequenceEvent[]): LegendItem[] {
   const drawn = new Set(events.flatMap((e) => (e.kind === 'message' ? [e.arrow] : [])));
-  if (!drawn.has('async') && !drawn.has('lost')) return [];
   const names: [SequenceArrow, string][] = [['sync', 'Call'], ['reply', 'Reply'], ['async', 'Async message'], ['lost', 'Lost message']];
   return names.filter(([a]) => drawn.has(a)).map(([arrow, label]) => ({ label, swatch: 'message' as const, arrow }));
 }
@@ -567,11 +566,12 @@ messages:
     messages:
       - psp --> orders: succeeded
       - orders --> web: 201 Created
+      - web --> shopper: Confirmation
     else:
       Declined:
         - psp --> orders: card_declined
         - orders --> web: 402 Payment required
-  - web --> shopper: Confirmation
+        - web --> shopper: Card declined, try another
 `,
   build: buildSequence,
   references: sequenceReferences,
