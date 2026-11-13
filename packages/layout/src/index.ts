@@ -68,6 +68,8 @@ const VARIANTS: [string, DotVariant][] = [
  */
 const MOVE_BASE = 16;
 const MOVE_EACH = 60;
+/** Up to this many nodes, a drawing that cannot stay as it was tries staying put with one node free (see choose). */
+const REPAIR_LIMIT = 24;
 /** With only the way it was made remembered (no positions), another way has to be this much better. */
 const SWITCH = 12;
 
@@ -137,7 +139,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // And what is not pinned stays where it was whenever it can: placing things by hand, the rest
     // holding still is worth more than any score.
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
-    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
+    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
     const asked = best;
@@ -181,7 +183,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       if (other && readsBetter(other, best, target)) best = other;
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
-    else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
+    else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   }
 
   const s = best.sized;
@@ -441,7 +443,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
         // Rows turned over only at the top: inside a group they would stand against the order written.
         if (flip && scope) continue;
         const opts: WrapOptions = { scope, chains, loose, ...(flip ? { flip } : {}), ...(transpose ? { transpose } : {}) };
-        const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
+        const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts, (r) => pageScale(r, s.graph, target));
         if (!q) continue;
         const sig = boxesKey(q);
         if (seen.has(sig)) continue;
@@ -475,9 +477,9 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
 }
 
 /** The drawing cut into `parts` rows (columns), its key saying so, so the next drawing can be cut the same way. */
-function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}): Choice | undefined {
+function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}, target?: number): Choice | undefined {
   const s = best.sized;
-  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
+  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts, target == null ? undefined : (r) => pageScale(r, s.graph, target));
   return q && rewrapped(best, spacing, q, parts, opts);
 }
 
@@ -541,18 +543,30 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   // Asked one way only (a drawing before it was stacked) and that way cannot be drawn now: dot's own placement.
   best ??= (await candidates(sized, spacing, { ...tuning, dot: undefined }, 'plain', {}, prev))!;
   if (stay && prev?.nodes?.size) {
-    const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
-    if (kept) {
+    const fresh = best!;
+    // The previous drawing with what it remembers held where it was: routed, weighed, and what moving costs.
+    const keep = (memory: LayoutMemory): Choice | undefined => {
+      const kept = stayPlacement(graph, fresh.p, memory, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
+      if (!kept) return undefined;
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const m = metricsOf({ placed, sized });
-      const sc = score(m);
-      const cost = sc + moveCost(kept, prev);
-      // Staying put never turns a line against the reading direction: a line drawn between two nodes
-      // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
-      const against = upstream(graph, kept, prev) > upstream(graph, best!.p, prev);
-      // Only when it differs: a fresh placement that is exactly the previous one is not "held".
-      if (!against && (hold || cost < best!.cost - 1e-9)) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
-    }
+      const sc = score(metricsOf({ placed, sized }));
+      return { p: kept, placed, score: sc, cost: sc + moveCost(kept, prev), key: prev.variant ?? fresh.key, sized, held: true };
+    };
+    // Staying put never turns a line against the reading direction: a line drawn between two nodes
+    // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
+    const forward = (c: Choice) => upstream(graph, c.p, prev) <= upstream(graph, fresh.p, prev);
+    const kept = keep(prev);
+    // Only when it differs: a fresh placement that is exactly the previous one is not "held".
+    if (kept && forward(kept) && (hold || kept.cost < fresh.cost - 1e-9)) best = kept;
+    // Everything held costs more than drawing afresh (a new line finds no clean way between the boxes
+    // where they stood): held but for one node, which looks for room again, may still read as well
+    // and moves one node instead of most. Each node in turn, in a small drawing: each try is routed in full.
+    else if (!hold && graph.nodes.length <= REPAIR_LIMIT)
+      for (const id of prev.nodes.keys()) {
+        if (!fresh.p.nodes.has(id)) continue;
+        const c = keep({ ...prev, nodes: new Map([...prev.nodes].filter(([k]) => k !== id)) });
+        if (c && forward(c) && c.cost < best!.cost - 1e-9) best = c;
+      }
   }
   return best!;
 }

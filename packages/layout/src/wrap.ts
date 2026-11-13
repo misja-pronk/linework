@@ -67,8 +67,9 @@ export function wrapScopes(p: Placement, graph: Graph): string[] {
 /**
  * The placement in `parts` rows (a left-to-right drawing) or columns (top-down), each part keeping
  * its blocks where they were relative to each other; undefined when there is nothing to cut.
+ * `scale` says how large a placement comes out on the page.
  */
-export function wrap(p: Placement, graph: Graph, parts: number, gap: number, header: number, pad: number, minWidth: Map<string, number>, opts: WrapOptions = {}): Placement | undefined {
+export function wrap(p: Placement, graph: Graph, parts: number, gap: number, header: number, pad: number, minWidth: Map<string, number>, opts: WrapOptions = {}, scale?: (q: Placement) => number): Placement | undefined {
   const down = (graph.direction === 'down') !== !!opts.transpose;
   const parentOf = new Map<string, string | undefined>([...graph.groups.map((g) => [g.id, g.parent] as const), ...graph.nodes.map((n) => [n.id, n.parent] as const)]);
   const inside = (id: string, g: string) => {
@@ -135,61 +136,139 @@ export function wrap(p: Placement, graph: Graph, parts: number, gap: number, hea
   const lengths = rows.map((r) => union(r.map((b) => b.box))[size]);
   if (!opts.chains && !opts.loose && Math.min(...lengths) < BALANCE * Math.max(...lengths)) return undefined;
 
-  // Each part starts at the start of the flow; the next one comes below (beside, top-down).
-  const nodes = new Map(p.nodes);
-  const groups = new Map(p.groups);
   const across = down ? 'x' : 'y';
   const thick = down ? 'width' : 'height';
   const origin = union(blocks.map((b) => b.box));
-  let next = origin[across];
-  for (const [i, row] of rows.entries()) {
-    if (opts.loose) closeAcross(row, nodes, groups, at, size, across, thick, gap);
-    // Only rows of cards (states, steps) turn over: groups turned over would stand against the order they are written in.
-    if (opts.flip && i > 0 && row.every((b) => b.ids.length === 1 && p.nodes.has(b.ids[0]!))) flipAcross(row, nodes, groups, across, thick);
-    const box = union(row.map((b) => b.box));
-    // Whole grid steps, so centres tidied onto the 8px grid stay on it.
-    const dx = grid(down ? next - box.x : origin.x - box.x);
-    const dy = grid(down ? origin.y - box.y : next - box.y);
-    for (const b of row)
-      for (const id of b.ids) {
-        const m = nodes.has(id) ? nodes : groups;
-        const o = m.get(id)!;
-        m.set(id, { ...o, x: o.x + dx, y: o.y + dy });
-      }
-    next = Math.max(next + box[thick] + gap, (down ? box.x + dx : box.y + dy) + box[thick] + gap);
+  // The rows laid out one after the other, each block where it was relative to the rest of its row.
+  const lay = (rows: Block[][], nodes: Map<string, Box>): Placement => {
+    const groups = new Map(p.groups);
+    // Each part starts at the start of the flow; the next one comes below (beside, top-down).
+    let next = origin[across];
+    for (const [i, row] of rows.entries()) {
+      if (opts.loose) closeAcross(row, nodes, groups, at, size, across, thick, gap);
+      // Only rows of cards (states, steps) turn over: groups turned over would stand against the order they are written in.
+      if (opts.flip && i > 0 && row.every((b) => b.ids.length === 1 && p.nodes.has(b.ids[0]!))) flipAcross(row, nodes, groups, across, thick);
+      const box = union(row.map((b) => b.box));
+      // Whole grid steps, so centres tidied onto the 8px grid stay on it.
+      const dx = grid(down ? next - box.x : origin.x - box.x);
+      const dy = grid(down ? origin.y - box.y : next - box.y);
+      for (const b of row)
+        for (const id of b.ids) {
+          const m = nodes.has(id) ? nodes : groups;
+          const o = m.get(id)!;
+          m.set(id, { ...o, x: o.x + dx, y: o.y + dy });
+        }
+      next = Math.max(next + box[thick] + gap, (down ? box.x + dx : box.y + dy) + box[thick] + gap);
+    }
+    // Wrapped inside a group that does not hold everything: what comes after that group along the
+    // flow closes up by what it got shorter, and what lies beyond it across moves out of its way.
+    const own = scope ? groups.get(scope) : undefined;
+    const ancestors = new Set<string>();
+    for (let g = scope; g; g = parentOf.get(g)) ancestors.add(g);
+    if (own && scope) {
+      const moved = new Set(blocks.flatMap((b) => b.ids));
+      const u = union(blocks.map((b) => (nodes.get(b.ids[0]!) ?? groups.get(b.ids[0]!))!));
+      const end0 = own[at] + own[size];
+      const end1 = u[at] + u[size] + pad;
+      const far0 = own[across] + own[thick];
+      const far1 = u[across] + u[thick] + pad;
+      const shrink = Math.floor((end0 - end1) / 8) * 8;
+      const grow = Math.ceil((far1 - far0) / 8) * 8;
+      for (const m of [nodes, groups])
+        for (const [id, b] of m) {
+          if (moved.has(id) || ancestors.has(id)) continue;
+          let o = b;
+          if (o[across] >= far0 - 1 && o[at] < end0 && o[at] + o[size] > own[at]) o = { ...o, [across]: o[across] + grow };
+          if (o[at] >= end0 - 1) o = { ...o, [at]: o[at] - shrink };
+          m.set(id, o);
+        }
+    }
+    // The groups around the wrapped level fit around it again, innermost first.
+    for (let g = scope; g; g = parentOf.get(g)) {
+      const kids = [...graph.groups.filter((c) => c.parent === g && groups.has(c.id)).map((c) => groups.get(c.id)!), ...graph.nodes.filter((n) => n.parent === g && nodes.has(n.id)).map((n) => nodes.get(n.id)!)];
+      const u = union(kids);
+      const width = Math.max(u.width + 2 * pad, minWidth.get(g) ?? 0);
+      groups.set(g, { x: u.x - pad, y: u.y - header, width, height: u.height + header + pad });
+    }
+    const all = union([...nodes.values(), ...groups.values()]);
+    return { nodes, groups, width: all.width, height: all.height };
+  };
+  // Laying out moves the blocks of a row about (closing up, turning over): each try starts from the cut as made.
+  const copy = () => rows.map((r) => r.map((b) => ({ ...b })));
+  const plain = lay(copy(), new Map(p.nodes));
+  // A card outside the groups that stayed behind in another row than the card it is joined to
+  // follows it, where that leaves the drawing as large on the page (no larger, without a page).
+  const asLarge = (q: Placement) => (scale ? scale(q) >= scale(plain) - 1e-9 : q.width <= plain.width + 1 && q.height <= plain.height + 1);
+  for (const way of ['level', 'across'] as const) {
+    const moved = copy();
+    const nodes = new Map(p.nodes);
+    if (!followCards(moved, graph, nodes, p.groups, at, size, gap, way)) break;
+    const q = lay(moved, nodes);
+    if (asLarge(q)) return q;
   }
-  // Wrapped inside a group that does not hold everything: what comes after that group along the
-  // flow closes up by what it got shorter, and what lies beyond it across moves out of its way.
-  const own = scope ? groups.get(scope) : undefined;
-  const ancestors = new Set<string>();
-  for (let g = scope; g; g = parentOf.get(g)) ancestors.add(g);
-  if (own && scope) {
-    const moved = new Set(blocks.flatMap((b) => b.ids));
-    const u = union(blocks.map((b) => (nodes.get(b.ids[0]!) ?? groups.get(b.ids[0]!))!));
-    const end0 = own[at] + own[size];
-    const end1 = u[at] + u[size] + pad;
-    const far0 = own[across] + own[thick];
-    const far1 = u[across] + u[thick] + pad;
-    const shrink = Math.floor((end0 - end1) / 8) * 8;
-    const grow = Math.ceil((far1 - far0) / 8) * 8;
-    for (const m of [nodes, groups])
-      for (const [id, b] of m) {
-        if (moved.has(id) || ancestors.has(id)) continue;
-        let o = b;
-        if (o[across] >= far0 - 1 && o[at] < end0 && o[at] + o[size] > own[at]) o = { ...o, [across]: o[across] + grow };
-        if (o[at] >= end0 - 1) o = { ...o, [at]: o[at] - shrink };
-        m.set(id, o);
-      }
+  return plain;
+}
+
+/**
+ * A card that stands outside the groups (customers, a third party) and whose lines all go into one
+ * group goes to that group's row: left in the row its column fell in, its line would run across the
+ * drawing to the next row. 'level': it stands just before (or after) the row, level with the card it
+ * is joined to, as far from the row as dot put it from the next column. 'across': it stands beside
+ * the row, on the side of that card, in line with it along the flow. Whether anything moved.
+ */
+function followCards(rows: Block[][], graph: Graph, nodes: Map<string, Box>, groups: Map<string, Box>, at: 'x' | 'y', size: 'width' | 'height', gap: number, way: 'level' | 'across'): boolean {
+  const [across, thick] = at === 'x' ? (['y', 'height'] as const) : (['x', 'width'] as const);
+  const blocks = rows.flat();
+  const rowOf = (b: Block) => rows.findIndex((r) => r.includes(b));
+  const blockOf = new Map(blocks.flatMap((b) => b.ids.map((id) => [id, b] as const)));
+  const hit = (a: Box, o: Box) => a.x < o.x + o.width && o.x < a.x + a.width && a.y < o.y + o.height && o.y < a.y + a.height;
+  const mid = (o: Box, k: 'x' | 'y') => o[k] + o[k === 'x' ? 'width' : 'height'] / 2;
+  const follows = new Map<Block, Block>();
+  for (const b of blocks) {
+    const id = b.ids[0]!;
+    if (b.ids.length !== 1 || !nodes.has(id)) continue;
+    const lines = graph.edges.filter((e) => (e.from.node === id) !== (e.to.node === id));
+    const others = new Set(lines.map((e) => blockOf.get(e.from.node === id ? e.to.node : e.from.node)));
+    const home = [...others][0];
+    // Only into a group: a card joined to a card is a chain, cut where it reads best.
+    if (lines.length && others.size === 1 && home && !nodes.has(home.ids[0]!) && rowOf(b) !== rowOf(home)) follows.set(b, home);
   }
-  // The groups around the wrapped level fit around it again, innermost first.
-  for (let g = scope; g; g = parentOf.get(g)) {
-    const kids = [...graph.groups.filter((c) => c.parent === g && groups.has(c.id)).map((c) => groups.get(c.id)!), ...graph.nodes.filter((n) => n.parent === g && nodes.has(n.id)).map((n) => nodes.get(n.id)!)];
-    const u = union(kids);
-    const width = Math.max(u.width + 2 * pad, minWidth.get(g) ?? 0);
-    groups.set(g, { x: u.x - pad, y: u.y - header, width, height: u.height + header + pad });
+  // A row of nothing but such cards stays as it is: the cut was made for them.
+  for (const row of rows) if (row.every((b) => follows.has(b))) for (const b of row) follows.delete(b);
+  let any = false;
+  for (const [b, home] of follows) {
+    const id = b.ids[0]!;
+    const row = rows[rowOf(home)]!;
+    const line = graph.edges.find((e) => (e.from.node === id) !== (e.to.node === id))!;
+    const far = line.from.node === id ? line.to.node : line.from.node;
+    const card = (nodes.get(far) ?? groups.get(far))!;
+    const span = union(row.map((o) => o.box));
+    let to: Box;
+    if (way === 'level') {
+      const mine = b.box[at];
+      const before = mine + b.box[size] <= span[at];
+      // As far from the row as it stood from the next block along the flow.
+      const rest = blocks.filter((o) => o !== b);
+      const room = before
+        ? Math.min(...rest.filter((o) => o.box[at] >= mine + b.box[size]).map((o) => o.box[at] - mine - b.box[size]))
+        : Math.min(...rest.filter((o) => o.box[at] + o.box[size] <= mine).map((o) => mine - o.box[at] - o.box[size]));
+      if (!Number.isFinite(room)) continue;
+      to = { ...b.box, [at]: grid(before ? span[at] - room - b.box[size] : span[at] + span[size] + room), [across]: b.box[across] + grid(mid(card, across) - mid(b.box, across)) };
+    } else {
+      const after = mid(card, across) > mid(span, across);
+      to = { ...b.box, [at]: b.box[at] + grid(mid(card, at) - mid(b.box, at)), [across]: grid(after ? span[across] + span[thick] + gap : span[across] - gap - b.box[thick]) };
+    }
+    // Never onto another card that followed there.
+    if (row.some((o) => hit(to, o.box))) continue;
+    const o = nodes.get(id)!;
+    nodes.set(id, { ...o, x: o.x + to.x - b.box.x, y: o.y + to.y - b.box.y });
+    const left = rows[rowOf(b)]!;
+    left.splice(left.indexOf(b), 1);
+    b.box = to;
+    row.push(b);
+    any = true;
   }
-  const all = union([...nodes.values(), ...groups.values()]);
-  return { nodes, groups, width: all.width, height: all.height };
+  return any;
 }
 
 /**

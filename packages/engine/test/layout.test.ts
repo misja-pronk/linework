@@ -651,6 +651,32 @@ describe('slide shape', () => {
     expect(shape(r)).toBeLessThan(2.4);
     expect(measure(r.graph!, r.placed!).crossings).toBe(0);
   });
+  it('moves a card outside the groups to the row of the card it is joined to', async () => {
+    const stage = (g: string, a: string, b: string) => `  ${g}1: { kind: worker, label: ${a}, in: ${g} }\n  ${g}2: { kind: worker, label: ${b}, in: ${g} }\n`;
+    const text = [
+      'type: systems\ntitle: Stages\ndirection: right\ngroups:\n',
+      ...['a', 'b', 'c', 'd'].map((g) => `  ${g}: { kind: domain, label: Stage ${g} }\n`),
+      'nodes:\n',
+      stage('a', 'Collector API', 'Readings'),
+      stage('b', 'Enrichment', 'Validation'),
+      stage('c', 'Raw zone', 'Curated tables'),
+      stage('d', 'Delivery API', 'Dashboards'),
+      '  customers: { kind: users, label: Customers }\n',
+      'edges:\n  - a1 -> a2\n  - a2 -> b1\n  - b1 -> b2\n  - b2 -> c1\n  - c1 -> c2\n  - c2 -> d1\n  - d1 -> d2\n  - customers -> c1\n',
+    ].join('');
+    const r = await render(text, { fonts: 'none' });
+    // Wrapped into two rows, the third stage starting the second.
+    expect(r.placed!.memory!.variant).toMatch(/w2/);
+    const box = (id: string) => r.placed!.nodes.get(id) ?? r.placed!.groups.get(id)!;
+    const [b, c, customers] = [box('b'), box('c'), box('customers')];
+    expect(c.y).toBeGreaterThan(b.y + b.height);
+    // dot puts the customers in the column of the second stage: they go down to the row of the card they reach.
+    expect(customers.y).toBeGreaterThan(b.y + b.height);
+    const [from, to] = [customers, box('c1')];
+    expect(Math.hypot(from.x - to.x, from.y - to.y)).toBeLessThan(400);
+    // And it costs the page nothing: as large on a slide as with the customers left behind.
+    expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThan(SLIDE_MIN_PT);
+  });
   it('takes the drawing as it comes with aspect: auto', async () => {
     const r = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
     expect(r.diagnostics).toEqual([]);
