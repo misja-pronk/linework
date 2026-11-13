@@ -72,7 +72,7 @@ await wait(500);
   await page.keyboard.type('edges: [ oops');
   await wait(1200);
   const title = await page.locator('.inspector [data-key="title"] input').inputValue();
-  if (title !== 'Northwind finance access packages') fail(`the title field reads "${title}" while the YAML has a mistake`);
+  if (title !== 'Finance access packages') fail(`the title field reads "${title}" while the YAML has a mistake`);
   for (let i = 0; i < 14; i++) await page.keyboard.press('Backspace');
   await wait(800);
   await page.locator('.preview').focus();
