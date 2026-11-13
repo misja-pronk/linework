@@ -50,7 +50,7 @@ flow:
     const lanes = r.graph!.groups.filter((g) => g.lane);
     const drawn = [...lanes].sort((a, b) => r.placed!.groups.get(a.id)!.y - r.placed!.groups.get(b.id)!.y || r.placed!.groups.get(a.id)!.x - r.placed!.groups.get(b.id)!.x).map((g) => g.label);
     expect(drawn).toEqual(['Developer', 'GitHub', 'Actions']);
-    const told = describe({ ...r }).sections[0]!.items.map((i) => i.text.replace(/ \(lane\)$/, ''));
+    const told = describe({ ...r }).sections[0]!.items!.map((i) => i.text.replace(/ \(lane\)$/, ''));
     expect(told).toEqual(drawn);
   });
 

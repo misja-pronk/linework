@@ -404,13 +404,12 @@ class Model {
     const out = new Map<string, Reach[]>();
     const add = (scope: string, r: Reach) => out.set(scope, [...(out.get(scope) ?? []), r]);
     const appRoles: { scope: string; role: string; via: string }[] = [];
-    const pkg = 'package' as const;
     for (const [, pkg] of this.packages.filter(([, x]) => (x.holders ?? []).some((h) => h === p || groups.has(h)))) {
       const via = pkg.label ?? this.word('access package');
       for (const g of this.grants(pkg)) {
         if (this.principal(g.target)) {
-          sources.push({ id: g.target, via, through: pkg });
-          for (const [inner] of this.memberships(g.target)) sources.push({ id: inner, via, through: pkg });
+          sources.push({ id: g.target, via, through: 'package' });
+          for (const [inner] of this.memberships(g.target)) sources.push({ id: inner, via, through: 'package' });
         } else if (this.resource(g.target)) appRoles.push({ scope: g.target, role: g.role, via });
       }
     }
