@@ -338,7 +338,7 @@ describe('pdf', () => {
     expect(pdf).toMatch(/\/BaseFont \/[A-Z]{6}\+GeistMono-/);
     expect(pdf).not.toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-/);
     expect(pdf).toContain('/FontFile2');
-    // svg-to-pdfkit places glyph by glyph, so the pieces join without spaces.
+    // Each text is one run of glyphs (joinGlyphs), so a word with an underscore reads as one word.
     const text = pdfText(pdf).join('');
     for (const s of ['Web shop', 'Storefront', 'OrderPlaced', 'customer_id', '2026-11-09']) expect(text).toContain(s);
   });

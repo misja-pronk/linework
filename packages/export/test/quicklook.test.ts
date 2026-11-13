@@ -1,6 +1,7 @@
-// What Apple's importer (Quick Look, Mail, an iPhone) needs to show a slide as PowerPoint does.
+// What Apple's apps (Quick Look, Mail, an iPhone, Preview) need to show a slide as PowerPoint does, and to read a PDF's words.
 import { describe, expect, it } from 'vitest';
 import { settle, type Para } from '../src/shapes.ts';
+import { joinGlyphs } from '../src/pdf.ts';
 
 const frame = { x: 1000, y: 2000, w: 1000000, h: 500000 };
 const para = (size: number, align?: Para['align'], before?: number): Para => ({ align, before, runs: [{ text: 'x', size, color: '#000' }] });
@@ -34,5 +35,21 @@ describe('settle', () => {
     expect(settle(top, frame).text).toEqual({ ...top, inset: { l: 3000, t: 2000, r: 0, b: 0 } });
     const wrapped = { wrap: true, anchor: 'ctr' as const, inset: { l: 3000, b: 9000 }, paras: [para(10, 'ctr')] };
     expect(settle(wrapped, frame).text).toBe(wrapped);
+  });
+});
+
+describe('joinGlyphs', () => {
+  // Glyph 1 is 500/1000 em wide, glyph 2 is 250.
+  const width = (_: string, g: number) => (g === 1 ? 500 : g === 2 ? 250 : undefined);
+
+  it('writes the glyphs of one baseline as one run, each where it was', () => {
+    const ops = ['BT', '/F1 10 Tf', '0 Tr', '1 0 0 -1 100 50 Tm', '<0001> Tj', '1 0 0 -1 105 50 Tm', '<0002> Tj', '1 0 0 -1 108 50 Tm', '<0001> Tj', 'ET'];
+    // After glyph 2 the pen is at 107.5; the next glyph sits half a point on: -50/1000 em.
+    expect(joinGlyphs(ops, width)).toEqual(['BT', '/F1 10 Tf', '0 Tr', '1 0 0 -1 100 50 Tm', '[<0001> <0002> -50 <0001>] TJ', 'ET']);
+  });
+
+  it('starts a new run on another baseline, a turned glyph, or a glyph of unknown width', () => {
+    const ops = ['BT', '/F1 10 Tf', '1 0 0 -1 100 50 Tm', '<0001> Tj', '1 0 0 -1 105 60 Tm', '<0001> Tj', '0 1 -1 0 110 60 Tm', '<0001> Tj', '1 0 0 -1 120 60 Tm', '<0009> Tj', '1 0 0 -1 125 60 Tm', '<0001> Tj', 'ET'];
+    expect(joinGlyphs(ops, width).filter((o) => o.endsWith('Tj') || o.endsWith('TJ'))).toHaveLength(5);
   });
 });
