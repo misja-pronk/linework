@@ -255,12 +255,12 @@ describe('shapes Quick Look draws', () => {
   });
 
   it('writes no freeform: a long line is straight pieces in a group, its arrowheads only at its ends', async () => {
-    const r = await draw('azure/hub-spoke.yaml');
+    const r = await draw('azure/data-platform.yaml');
     const slide = parts(await toPptx(r, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
     expect(wellFormed(slide)).toBe(true);
     expect(slide).not.toContain('<a:custGeom>');
     expect(slide).not.toContain('prst="bentConnector4"');
-    const line = group(slide, 'Line: afw-hub-weu → vmss-erp-prod (peering)')!;
+    const line = group(slide, 'Line: gold → sql-warehouse')!;
     expect(line).toBeTruthy();
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);
