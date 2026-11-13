@@ -23,6 +23,7 @@
 //   future: { label: With self-service, steps: … } a second journey through the same phases
 import { term } from '@cartography/i18n/drawing';
 import {
+  english,
   journeyAvatars,
   journeyRows,
   journeyViews,
@@ -43,6 +44,7 @@ import {
   type JourneyView,
   type Link,
   type PaletteItem,
+  type Word,
   type Path,
   type Reference,
   type Tone,
@@ -365,7 +367,7 @@ export function buildJourney(src: JourneySource, ctx: BuildContext): Graph {
     ...(Object.keys(rowLabels).length ? { rowLabels } : {}),
     metrics: metricsOf(src.metrics),
     label: src.current ?? term(ctx.lang, 'Today'),
-    ...(futureSteps ? { future: { label: src.future?.label ?? 'Future', steps: byPhase(futureSteps), metrics: metricsOf(src.future?.metrics) } } : {}),
+    ...(futureSteps ? { future: { label: src.future?.label ?? term(ctx.lang, 'Future'), steps: byPhase(futureSteps), metrics: metricsOf(src.future?.metrics) } } : {}),
   };
 
   // The journey draws itself as one node; its steps, phases and persona are nodes on top of it, so
@@ -388,15 +390,15 @@ export function buildJourney(src: JourneySource, ctx: BuildContext): Graph {
 }
 
 /** The ways this journey can be drawn: a blueprint needs stage rows, a comparison a future journey. */
-export function journeyViewsOf(src: JourneySource): { name: JourneyView; title: string; default?: boolean }[] {
+export function journeyViewsOf(src: JourneySource, word: Word = english): { name: JourneyView; title: string; default?: boolean }[] {
   const steps = Object.values(src.steps ?? {});
   const staged = steps.some((s) => s && typeof s === 'object' && (s.frontstage != null || s.backstage != null || s.support != null));
   const future = !!src.future?.steps && Object.keys(src.future.steps).length > 0;
   return [
-    { name: 'map' as const, title: 'Journey map' },
-    { name: 'storyboard' as const, title: 'Storyboard' },
-    ...(staged ? [{ name: 'blueprint' as const, title: 'Service blueprint' }] : []),
-    ...(future ? [{ name: 'compare' as const, title: 'Today and future', default: true }] : []),
+    { name: 'map' as const, title: word('Journey map') },
+    { name: 'storyboard' as const, title: word('Storyboard') },
+    ...(staged ? [{ name: 'blueprint' as const, title: word('Service blueprint') }] : []),
+    ...(future ? [{ name: 'compare' as const, title: word('Today and future'), default: true }] : []),
   ];
 }
 

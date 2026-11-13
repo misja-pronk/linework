@@ -11,8 +11,8 @@ Groups and elements
 - Sales dashboard (Dashboard)
 
 Connections
-- Webshop connects to orders.in:0.
-- orders.out:orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
+- Webshop connects to orders.
+- orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
 
 Key
 - Teal filled pill: Source-aligned

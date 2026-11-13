@@ -121,7 +121,7 @@ function EditorTools(p: Common & Editor) {
   const [toolsMore, setToolsMore] = useState(false);
   return (
     <>
-      <ViewPicker views={drawn?.views} value={drawn?.view} asWritten={!drawn?.onlyViews} written={drawn?.asWritten} onChange={p.pickView} />
+      <ViewPicker drawn={drawn} onChange={p.pickView} />
       {p.layersButton}
       <button className="tool" onClick={p.present} title={t('Present full screen, step by step (P or ⌘↩)')} aria-label={t('Present')} disabled={!drawn?.svg}>
         <Icon name="play" /> <span className="tool-label">{t('Present')}</span> <kbd>{keyHint('present')}</kbd>

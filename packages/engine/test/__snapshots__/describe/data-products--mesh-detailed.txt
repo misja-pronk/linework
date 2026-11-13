@@ -13,11 +13,11 @@ Groups and elements
   - Orders (Source-aligned · v2.1.0 · Sales engineering)
 
 Connections
-- CRM accounts connects to Customers.in:0.
-- Customers.out:customers connects to Customer 360.in:1 and is linked with customers.
-- Customer 360.out:profiles is linked with customer profiles.
-- customer profiles.field:0:customer_id connects to customers.field:0:customer_id.
-- Orders.out:orders connects to Customer 360.in:0.
+- CRM accounts connects to Customers.
+- Customers connects to Customer 360 and is linked with customers.
+- Customer 360.profiles is linked with customer profiles.
+- customer profiles.customer_id connects to customers.customer_id.
+- Orders connects to Customer 360.
 
 Key
 - Teal filled pill: Source-aligned

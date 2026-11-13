@@ -10,8 +10,8 @@ Groups and elements
   - settled payments (Data contract · v3.2.0 · restricted)
 
 Connections
-- Payment provider settlements connects to Payments.in:0.
-- Payments.out:settled-payments connects to Revenue and is linked with settled payments.
+- Payment provider settlements connects to Payments.
+- Payments.settled payments connects to Revenue and is linked with settled payments.
 
 Key
 - Teal filled pill: Source-aligned

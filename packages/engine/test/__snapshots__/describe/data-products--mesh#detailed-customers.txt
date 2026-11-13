@@ -10,8 +10,8 @@ Groups and elements
   - customers (Data contract · v1.4.0 · confidential)
 
 Connections
-- CRM accounts connects to Customers.in:0.
-- Customers.out:customers connects to Customer 360 and is linked with customers.
+- CRM accounts connects to Customers.
+- Customers connects to Customer 360 and is linked with customers.
 
 Key
 - Teal filled pill: Source-aligned

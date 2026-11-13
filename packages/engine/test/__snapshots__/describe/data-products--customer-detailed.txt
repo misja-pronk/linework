@@ -13,10 +13,10 @@ Groups and elements
 - orders (Sales · Source-aligned)
 
 Connections
-- Salesforce connects to customers.in:0.
-- customers.out:customers connects to Customer 360.in:1 and is linked with customers.
-- Customer 360.out:profile connects to Churn risk and connects to Sales dashboard.
-- orders connects to Customer 360.in:0.
+- Salesforce connects to customers.
+- customers connects to Customer 360 and is linked with customers.
+- Customer 360.profiles connects to Churn risk and connects to Sales dashboard.
+- orders connects to Customer 360.
 
 Key
 - Teal filled pill: Source-aligned

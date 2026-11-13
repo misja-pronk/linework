@@ -10,6 +10,7 @@ import { Present } from './present.tsx';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 import { showBuiltin } from './brand.ts';
+import { pickedView, viewChoices } from './view-picker.tsx';
 import { baseName, download, exportPdf, exportPng, exportPptx, exportSvg, yamlName, type ExportInput } from './export.ts';
 
 /** The hash that opens a shared diagram in the editor as a document of its own. */
@@ -61,6 +62,8 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
   const result = rendered?.drawn ?? rendered?.result;
   const errors = rendered?.result.diagnostics.filter((d) => d.severity === 'error') ?? [];
   const title = result?.graph?.title ?? baseName(name);
+  // The views as the editor's picker offers them: a type's own view as written is named, not "As written".
+  const choices = viewChoices(result);
   useEffect(() => {
     document.title = `${title} · Cartography`;
   }, [title]);
@@ -127,10 +130,10 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
           <span className="type-pill">{t('Read-only')}</span>
         </div>
         <div className="actions">
-          {result?.views && result.views.length > 1 && (
-            <select className="viewer-views" aria-label={t('View')} value={result.view ?? ''} onChange={(e) => setView(e.target.value || undefined)}>
-              {!result.view && <option value="">{t('As written')}</option>}
-              {result.views.map((v) => (
+          {choices && choices.views.length > 1 && (
+            <select className="viewer-views" aria-label={t('View')} value={choices.value} onChange={(e) => setView(pickedView(e.target.value, choices.written))}>
+              {choices.asWritten && <option value="">{t('As written')}</option>}
+              {choices.views.map((v) => (
                 <option key={v.name} value={v.name}>
                   {v.title ?? v.name}
                 </option>

@@ -11,9 +11,9 @@ Groups and elements
 - Orders (Sales · Source-aligned)
 
 Connections
-- Customers connects to Customer 360.in:1.
-- Customer 360.out:profiles connects to Campaign tool and is linked with customer profiles.
-- Orders connects to Customer 360.in:0.
+- Customers connects to Customer 360.
+- Customer 360.profiles connects to Campaign tool and is linked with customer profiles.
+- Orders connects to Customer 360.
 
 Key
 - Teal filled pill: Source-aligned

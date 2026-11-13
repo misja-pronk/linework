@@ -2,7 +2,8 @@
 // phase, a data mesh domain by domain. The page frame does not nag about the whole sequence, which
 // is read scrolling; exporting it says the phases follow on their own slides rather than "text too
 // small"; a phase of an untitled sequence says which phase it is; and a hidden view written in the
-// file (view: detailed in a mesh) is what the view picker shows: node e2e/views.mjs <outDir>
+// file (view: detailed in a mesh) is what the view picker shows; the picker, palette and toast name a
+// type's views in the editor's language, the drawing in the diagram's: node e2e/views.mjs <outDir>
 import fs from 'node:fs';
 import { chromium } from '@playwright/test';
 import { unzipSync, strFromU8 } from 'fflate';
@@ -181,6 +182,55 @@ await open(mesh, 'mesh.yaml');
   await page.selectOption('.view-picker select', 'overview');
   await wait(600);
   check('picker after picking the overview', /overview/i.test(await picked()), true);
+}
+
+// 5. The same mesh in Dutch (lang: nl) in an English editor: the picker, the palette and the toast name
+// the type's views in the editor's language; the drawing keeps the diagram's. A Dutch editor names them in Dutch.
+await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
+{
+  const list = await options();
+  check('picker of a Dutch mesh in an English editor', JSON.stringify(list.filter((o) => /\((overview|detailed)\)/.test(o))), JSON.stringify(['Overview (overview)', 'Every product in detail (detailed)']));
+  if (list.some((o) => /Overzicht|Alle producten/.test(o))) fail(`the picker speaks the diagram's language: ${JSON.stringify(list)}`);
+  await page.selectOption('.view-picker select', 'overview');
+  await wait(600);
+  const drawn = await page.locator('.drawing svg').first().innerHTML();
+  if (!drawn.includes('Overzicht')) fail('the drawing of the overview should keep its Dutch title as subtitle');
+  // V goes round the views: the toast names them as the picker does.
+  await page.locator('.preview').focus();
+  const said = [];
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press('v');
+    said.push(await toast());
+    await wait(500);
+  }
+  if (!said.some((s) => s.includes('Overview')) || said.some((s) => /Overzicht|Alle producten/.test(s))) fail(`the next-view toast should name the views in English: ${JSON.stringify(said)}`);
+  await page.selectOption('.view-picker select', 'detailed-sales');
+  await wait(600);
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+k');
+  await page.keyboard.type('overview');
+  await wait(300);
+  const found = await page.locator('.palette').innerText();
+  if (!found.includes('Show the Overview view')) fail(`the palette should offer the view by its English title: ${found.slice(0, 200)}`);
+  await page.keyboard.press('Escape');
+  // The editor in Dutch (seeding clears the choice, so it is made after): the same views in Dutch.
+  const inDutch = async (text, name) => {
+    await open(text, name);
+    await page.evaluate(() => localStorage.setItem('cartography:lang', JSON.stringify('nl')));
+    await page.reload();
+    await page.waitForSelector('.drawing svg', { timeout: 10000 });
+    await wait(600);
+  };
+  await inDutch(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
+  const dutch = await options();
+  check('picker of a Dutch mesh in a Dutch editor', JSON.stringify(dutch.filter((o) => /\((overview|detailed)\)/.test(o))), JSON.stringify(['Overzicht (overview)', 'Alle producten in detail (detailed)']));
+  // An English mesh in the Dutch editor: Dutch names in the picker, the drawing in English.
+  await inDutch(mesh, 'mesh.yaml');
+  check('picker of an English mesh in a Dutch editor', (await options()).includes('Overzicht (overview)'), true);
+  await page.selectOption('.view-picker select', 'overview');
+  await wait(600);
+  if (!(await page.locator('.drawing svg').first().innerHTML()).includes('Overview')) fail('the English drawing should keep its English subtitle in a Dutch editor');
+  await page.evaluate(() => localStorage.removeItem('cartography:lang'));
 }
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all views steps ok');

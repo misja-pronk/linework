@@ -9,6 +9,7 @@ import { hopsBy, nextDirection, type Focus } from '../focus-chip.tsx';
 import { addStep, stepsPath } from '../steps-edit.ts';
 import { folderLoader, readSidecar, type Workspace } from '../files.ts';
 import { setField } from '../builder.ts';
+import { viewsOf } from '../view-picker.tsx';
 import type { PresentDoc } from '../present.tsx';
 import type { Selection } from '../preview.tsx';
 import type { Doc } from './document.ts';
@@ -84,7 +85,12 @@ export function useNavigation(p: Props) {
 
   /** The views to pick from, in the picker's order: as written first where there is such a drawing. */
   const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
-  const viewTitle = (name?: string) => (name === undefined ? t('as written') : (drawn?.views?.find((v) => v.name === name)?.title ?? name));
+  /** A view by the name the picker gives it: a type's own title in the editor's language. */
+  const viewTitle = (name?: string) => {
+    if (name === undefined) return t('as written');
+    const { views, written } = viewsOf(drawn);
+    return [...(views ?? []), ...(written ? [written] : [])].find((v) => v.name === name)?.title ?? name;
+  };
   const showView = (name: string | undefined) => {
     setPicked({ doc: docId, name });
     notify(t('View: {view}', { view: viewTitle(name) }));

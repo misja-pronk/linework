@@ -10,8 +10,8 @@ Groups and elements
   - customers (Data contract · v1.4.0 · confidential)
 
 Connections
-- Salesforce connects to customers.in:0.
-- customers.out:customers connects to Customer 360 and is linked with customers.
+- Salesforce connects to customers.
+- customers connects to Customer 360 and is linked with customers.
 
 Key
 - Teal filled pill: Source-aligned

@@ -11,10 +11,10 @@ Groups and elements
 - Orders (Sales · Source-aligned)
 
 Connections
-- Warehouse management connects to Stock levels.in:0.
-- Stock levels.out:stock connects to Demand forecast.in:1.
-- Demand forecast.out:forecast connects to Replenishment.
-- Orders connects to Demand forecast.in:0.
+- Warehouse management connects to Stock levels.
+- Stock levels connects to Demand forecast.
+- Demand forecast.forecast API connects to Replenishment.
+- Orders connects to Demand forecast.
 
 Key
 - Teal filled pill: Source-aligned

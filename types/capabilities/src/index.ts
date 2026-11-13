@@ -116,6 +116,7 @@ function readCapabilities(src: CapabilitiesSource, ctx: BuildContext): Cap[] {
 const FORMS = ['area', 'capability', 'chip'] as const;
 
 export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): Graph {
+  const word = ctx.word ?? english;
   const roots = readCapabilities(src, ctx);
   const depth = Math.max(1, Math.min(3, Math.round(src.depth ?? 3)));
   const entries = heats(src.heat);
@@ -146,7 +147,7 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
   const entry = entries.find((e) => e.by === view);
   // Systems are counted, none as 0 (the key says "none").
   const valueOf = (c: Cap, by: string) => (by === 'systems' && typeof c.props.systems !== 'number' ? systemsOf(c).length : c.props[by]);
-  const scale: HeatScale | undefined = entry ? heatScale(entry, flat.map((f) => valueOf(f.cap, entry.by))) : undefined;
+  const scale: HeatScale | undefined = entry ? heatScale(entry, flat.map((f) => valueOf(f.cap, entry.by)), ctx.word) : undefined;
   if (entry && !flat.some((f) => valueOf(f.cap, entry.by) != null)) ctx.warn(['heat'], `No capability has "${entry.by}" yet: give some a value, e.g. ${entry.by}: 3`);
 
   const nodes: GraphNode[] = [];
@@ -162,7 +163,7 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
     const links = cap.props.link != null ? [parseLink(cap.props.link)].filter((l): l is Link => !!l) : parseLinks(cap.props.links);
     if (cap.props.link != null && !links?.length) ctx.error([...cap.path, 'link'], 'A link is a URL, another diagram (other.yaml) or a view (other.yaml#view)');
     const tone = tones.includes(cap.props.tone as Tone) ? (cap.props.tone as Tone) : 'slate';
-    const supported = sys.length ? `Supported by ${sys.map((s) => s.label).join(', ')}` : undefined;
+    const supported = sys.length ? word('Supported by {names}', { names: sys.map((s) => s.label).join(', ') }) : undefined;
     const description = [typeof cap.props.description === 'string' ? cap.props.description : undefined, supported].filter(Boolean).join('. ') || undefined;
     const shape: BlockShape = {
       kind: 'block',
@@ -174,14 +175,14 @@ export function buildCapabilities(src: CapabilitiesSource, ctx: BuildContext): G
       ...(kids ? { container: true } : {}),
       ...(cap.parent ? { inside: cap.parent } : {}),
       // In the systems view every capability without children lists what supports it, or says nothing does.
-      ...(showSystems && !kids ? { lines: sys.length ? sys.map((s) => s.label) : ['no system'] } : {}),
+      ...(showSystems && !kids ? { lines: sys.length ? sys.map((s) => s.label) : [word('no system')] } : {}),
     };
     const tags = Array.isArray(cap.props.tags) ? cap.props.tags.map(String) : [];
     nodes.push({ id: cap.id, shape, path: cap.path, kind: shape.form, ...(tags.length ? { tags } : {}), ...(links?.length ? { links } : {}), ...(description ? { description } : {}) });
   }
 
   const legend = scale ? [...scale.legend, ...(missing ? [{ label: scale.missing, swatch: 'block' as const, block: { form: 'chip' as const } }] : [])] : undefined;
-  const subtitle = src.subtitle ?? (showSystems ? 'Supporting systems per capability' : undefined);
+  const subtitle = src.subtitle ?? (showSystems ? word('Supporting systems per capability') : undefined);
   return {
     title: src.title,
     subtitle,
