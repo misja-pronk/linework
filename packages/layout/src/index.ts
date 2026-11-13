@@ -7,7 +7,7 @@ import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
 import { clearAnnexLines, liftAnnexes, stackAnnexes } from './annex.ts';
-import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
+import { disorder, labelMetrics, lineFaults, measure, plainLine, score, touchedLabels, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
@@ -193,6 +193,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   }
 
+  // A label with another line through it gets room, when the drawing comes out no worse for it.
+  if (!best.held && !pinned) best = clearLines(best, target);
   const s = best.sized;
   const memory: LayoutMemory = {
     variant: best.key,
@@ -557,6 +559,46 @@ function clearBorders(sized: Sized, d: Drawn, left = 4, branch = true): Drawn {
     return m.crossings * 1000 + score(m);
   };
   return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
+}
+
+/**
+ * A label with another line through it or right along it: no spot on its own line was clear, the
+ * channel it lies in is too narrow for its words and a neighbour's line (web-app: db_datawriter
+ * across the TDS line; the walkthrough's "create invoice" across Notifier's line). Room is opened
+ * where the label lies, across the line that touches it, and the lines are drawn again; kept when
+ * that label (and no other) is now clear, with no more crossings or errors, and the text on a slide
+ * comes out no smaller in tier (slideTier). At most `left` times.
+ */
+function clearLines(best: Choice, target: number | undefined, left = 3): Choice {
+  const { sized } = best;
+  const before = touchedLabels(sized.graph, best.placed);
+  if (!left || !before.length) return best;
+  const m0 = metricsOf(best);
+  const shift = best.placed.shift ?? { x: 0, y: 0 };
+  for (const t of before) {
+    const [a, b] = t.by;
+    // Across a vertical piece: room left to right; across a horizontal one: room top to bottom.
+    const axis = a.x === b.x ? 'x' : 'y';
+    const l = { ...t.label, x: t.label.x + shift.x, y: t.label.y + shift.y };
+    const line = (axis === 'x' ? a.x : a.y) + (axis === 'x' ? shift.x : shift.y);
+    const size = axis === 'x' ? l.width : l.height;
+    // Before the label and the line (what lies past them moves on), or between them.
+    const by = Math.ceil((size + 16) / 8) * 8;
+    for (const at of [Math.min(l[axis], line) - 4, (Math.min(l[axis] + size, line) + Math.max(l[axis], line)) / 2]) {
+      const q = openSpace(best.p, { axis, at, by, group: '' }, sized.graph);
+      const drawn = clearBorders(sized, { p: q, edges: route(sized, q) });
+      const placed = normalise({ ...drawn.p, edges: drawn.edges });
+      const next: Choice = { ...best, p: drawn.p, placed, score: 0, cost: 0 };
+      const m = metricsOf(next);
+      const after = touchedLabels(sized.graph, placed);
+      if (after.length >= before.length || after.some((x) => x.edge === t.edge)) continue;
+      if (m.crossings > m0.crossings || errors(next) > errors(best) || faultsOf(next) > faultsOf(best)) continue;
+      if (target != null && slideTier(next, target) < slideTier(best, target)) continue;
+      const sc = score(m);
+      return clearLines({ ...next, score: sc, cost: best.cost - best.score + sc }, target, left - 1);
+    }
+  }
+  return best;
 }
 
 /** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, type RouteRequest } from '@cartography/layout';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, touchedLabels, type RouteRequest } from '@cartography/layout';
 import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, budget, race, timed } from './perf.ts';
 
@@ -192,6 +192,9 @@ const bendBudget: Record<string, number> = {
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
   'workspace/containers.yaml': 1,
   'c4/kestrel-bank.yaml#containers': 1,
+  // Given room (no other line through it), the label sits at its line's turn: create invoice; db_datawriter.
+  'systems/invoice-walkthrough.yaml': 1,
+  'azure/web-app.yaml': 1,
 };
 
 // Pairs of groups standing side by side against the order they are written in: none, but for these,
@@ -328,6 +331,31 @@ describe('layout quality', () => {
     expect(said.length).toBeGreaterThan(1);
     // On a shared trunk one label would leave the reader to guess which line it names.
     expect(said.filter((e) => r.placed!.edges.get(e.id)!.label)).toHaveLength(said.length);
+  });
+  it('opens room for a label that has no clear spot, so no other line runs through it', async () => {
+    // Invoicing's "create invoice" lay across Notifier's line to the mail provider: the gap between the
+    // system and the outside services was too narrow for the words and both lines.
+    for (const file of ['systems/invoice-walkthrough.yaml', 'azure/web-app.yaml']) {
+      const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+      expect(touchedLabels(r.graph!, r.placed!)).toEqual([]);
+      expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+    }
+  });
+  it('keeps a label on the middle of its piece of line rather than over the bend at its end', () => {
+    const box = (x: number, y: number) => ({ x, y, width: 120, height: 50 });
+    const r = routeEdges({
+      obstacles: new Map([['a', box(0, 0)], ['b', box(400, 300)]]),
+      soft: [],
+      direction: 'right',
+      edges: [{ id: 'e', from: { node: 'a', box: box(0, 0), stub: 16 }, to: { node: 'b', box: box(400, 300), stub: 18 }, label: { width: 90, height: 16 } }],
+    });
+    const { points, label } = r.get('e')!;
+    // The label lies wholly on one straight piece, clear of both its ends.
+    const on = points.slice(1).some((q, i) => {
+      const p = points[i]!;
+      return p.y === q.y ? label!.x >= Math.min(p.x, q.x) && label!.x + label!.width <= Math.max(p.x, q.x) : label!.y >= Math.min(p.y, q.y) && label!.y + label!.height <= Math.max(p.y, q.y);
+    });
+    expect(on).toBe(true);
   });
   it('draws groups that stand side by side in the order they are written', async () => {
     const text = fs.readFileSync(path.join(examples, 'cloud/aws-three-tier.yaml'), 'utf8');

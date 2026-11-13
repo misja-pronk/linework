@@ -100,6 +100,7 @@ const RING = 1; // per pixel of running that near a card (not on a sibling's tru
 const RUN_ON = 64; // a line starting this near another's end, on its track, reads as that line running on
 const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
 const RUN_ASIDE = 12; // a lane aside: nearer than this
+const OVERHANG = 40; // a label hanging over a bend, past the end of its piece
 const MIXED = 4000; // a line onto a table row's side where another line ends in a different mark: around the table is better
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
@@ -1307,12 +1308,15 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
           const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
           // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
           // some line visible either side, or the line would seem to end in the label.
+          // A pill hanging past the end of its piece lies on the bend: where the piece has room, its middle is better.
+          const half = (horizontal ? width : height) / 2;
+          const hangs = Math.min(t, 1 - t) * len < half + 4 ? OVERHANG : 0;
           if (len >= (horizontal ? width + 16 : height + 16)) {
             const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
             const covers = horizontal && alone && len < width + 28 ? 100 : 0;
             // Words across a vertical line read as struck through: a short label may sit on it, a long one goes beside it.
             const struck = horizontal ? 0 : Math.max(0, width - STRUCK) * 0.5;
-            found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
+            found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + hangs + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
           }
           // Above or below a horizontal line too short for a pill on it (a short hop between layers),
           // or with no room on it: two lines close together get their labels on the far sides.
