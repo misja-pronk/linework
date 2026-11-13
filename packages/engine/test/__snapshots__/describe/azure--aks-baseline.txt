@@ -45,5 +45,5 @@ Ways to look at this drawing by tag.
 
 Key
 - Dashed teal line: Private network
-- Amber badge: Identity badge
+- Amber badge: Reached with its managed identity
 - Dashed indigo line with ticks: Role assignment

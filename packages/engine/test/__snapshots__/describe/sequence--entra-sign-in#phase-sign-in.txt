@@ -18,3 +18,7 @@ In order, top to bottom.
   - 6. Microsoft Entra ID calls Employee: Approve in Authenticator (number match).
   - 7. Employee calls Microsoft Entra ID: Approved.
 - 8. Microsoft Entra ID replies to Orders portal: Redirect to the portal with code and state.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply

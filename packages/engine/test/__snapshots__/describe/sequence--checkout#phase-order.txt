@@ -20,4 +20,3 @@ In order, top to bottom.
 Key
 - Arrow with a filled head: Call
 - Dashed arrow: Reply
-- Arrow with an open head: Async message

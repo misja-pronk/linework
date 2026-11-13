@@ -89,5 +89,5 @@ Lowest at “Connects the database and secrets” (2 of 5); highest at “Create
 
 Metrics
 - Time to first deploy: 2 days
-- Tickets raised: 1
+- Ticket raised: 1
 - Teams on the platform: 14 of 40

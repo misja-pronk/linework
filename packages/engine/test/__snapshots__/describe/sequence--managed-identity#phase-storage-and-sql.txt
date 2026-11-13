@@ -15,3 +15,7 @@ In order, top to bottom.
 - 10. Orders API calls Azure SQL: Connect, token for database.windows.net.
 - 11. Azure SQL replies to Orders API: Rows (database user app-orders-prod, db_datareader).
 - Note over Storage account and Azure SQL: No password, key or connection string in the app: nothing to leak or rotate
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply

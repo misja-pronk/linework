@@ -37,5 +37,5 @@ Ways to look at this drawing by tag.
 Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Amber badge: Identity badge
+- Amber badge: Reached with its managed identity
 - Dashed indigo line with ticks: Role assignment

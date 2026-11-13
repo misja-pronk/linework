@@ -1,6 +1,6 @@
 Campus network
 
-Network diagram: Collapsed core, two buildings, distribution and access layers. 12 elements in 3 groups, with 11 connections.
+Network diagram: Three tiers across two buildings — campus core, distribution per building, access. 12 elements in 3 groups, with 11 connections.
 
 Groups and elements
 - Dual ISP (Internet and WAN)
@@ -20,8 +20,8 @@ Groups and elements
     - Lab racks (Server)
 
 Connections
-- Dual ISP connects to fw-campus (WAN: 2×10G).
-- fw-campus connects to core-01/02 (Trunk: 2×25G).
+- Dual ISP connects to fw-campus (WAN: 10G per ISP).
+- fw-campus connects to core-01/02 (Trunk: 2×10G).
 - core-01/02 connects to dist-north (Fibre: 2×40G) and connects to dist-south (Fibre: 2×40G).
 - dist-north connects to acc-n1 (Fibre: 2×10G) and connects to acc-n2 (Fibre: 2×10G).
 - dist-south connects to acc-s1 (Fibre: 2×10G).

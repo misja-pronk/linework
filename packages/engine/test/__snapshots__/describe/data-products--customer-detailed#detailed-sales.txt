@@ -1,4 +1,4 @@
-The customers product and its contract
+Customer data products
 
 Data products, sales in detail: Sales in detail. 5 elements in 1 group, with 4 connections.
 

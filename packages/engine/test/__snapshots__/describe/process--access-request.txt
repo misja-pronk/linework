@@ -7,7 +7,7 @@ Lanes and steps
   - Start event
   - Request access
   - Confirm access
-  - End event
+  - Access in use (end event)
 - Line manager (lane)
   - Check request
   - Approved? (decision decision)
@@ -23,7 +23,7 @@ Main path
 4. Approved?
 5. Grant access: Approved? yes
 6. Confirm access
-7. End event
+7. Access in use
 
 Connections
 - Start event leads to Request access.
@@ -32,7 +32,7 @@ Connections
 - Approved? leads to Grant access (yes) and leads to Explain why (no).
 - Grant access leads to Confirm access.
 - Explain why leads to Request rejected.
-- Confirm access leads to End event.
+- Confirm access leads to Access in use.
 
 Key
 - Solid line, thick: Happy path

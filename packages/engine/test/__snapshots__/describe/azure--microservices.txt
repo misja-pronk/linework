@@ -28,5 +28,5 @@ Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
 - Solid violet line with ticks: Data flow
-- Amber badge: Identity badge
+- Amber badge: Reached with its managed identity
 - Badge: Management badge

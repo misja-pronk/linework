@@ -1,6 +1,6 @@
-Customer 360 in focus
+Customer data products
 
-Data products diagram: From operational systems to fit-for-purpose products. 8 elements in 3 groups, with 8 connections.
+Data products diagram: Customer 360 in detail, the other products as cards. 8 elements in 3 groups, with 8 connections.
 
 Groups and elements
 - Sales (Domain · Sales engineering)

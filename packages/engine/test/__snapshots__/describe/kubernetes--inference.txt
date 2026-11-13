@@ -26,6 +26,6 @@ Connections
 
 Key
 - Solid blue line: Traffic
-- Badge: Mounts badge
-- Green badge: Scales badge
+- Badge: Mounted config, secret or volume
+- Green badge: Scaled by an autoscaler
 - Rose badge: Network policy badge

@@ -11,14 +11,14 @@ Participants
 
 Message flow
 In order, top to bottom.
-- 1. Orchestrator calls Warehouse: Run quality checks.
-- 2. Warehouse replies to Orchestrator: Results.
+- 11. Orchestrator calls Warehouse: Run quality checks.
+- 12. Warehouse replies to Orchestrator: Results.
 - Alternative: All checks pass
-  - 3. Orchestrator calls Warehouse: Swap staging into production.
-  - 4. Orchestrator sends to Partner SFTP: ACK batch 8812.
+  - 13. Orchestrator calls Warehouse: Swap staging into production.
+  - 14. Orchestrator sends to Partner SFTP: ACK batch 8812.
 - Else: Row counts differ from the manifest
-  - 5. Orchestrator calls Raw zone: Move batch to quarantine.
-  - 6. Orchestrator sends to Partner SFTP: NACK batch 8812, reason.
+  - 15. Orchestrator calls Raw zone: Move batch to quarantine.
+  - 16. Orchestrator sends to Partner SFTP: NACK batch 8812, reason.
 - See Retry and back-off policy (over Partner SFTP and Orchestrator)
 
 Key

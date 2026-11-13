@@ -18,10 +18,10 @@ Connections
 - Storefront calls Orders API (REST).
 - Orders API sends data to Orders DB (SQL), sends OrderPlaced to order-events and calls Stripe (Charges cards).
 - order-events sends messages to Mailer.
-- Mailer connects to SendGrid (Sends receipts).
+- Mailer calls SendGrid (Sends receipts).
 
 Key
-- Solid line: Connection
-- Solid blue line with beads: Request
+- Solid line with beads: Connection
+- Solid blue line: Request
 - Dashed violet line: Async message
 - Solid teal line with ticks: Data flow

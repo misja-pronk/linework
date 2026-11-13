@@ -1,6 +1,6 @@
 E-commerce capabilities
 
-Capability map, map: Map. 5 areas and 18 capabilities.
+Capability map, capabilities by area: Capabilities by area. 5 areas and 18 capabilities.
 
 Areas and capabilities
 - Attract
