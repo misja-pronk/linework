@@ -1,33 +1,58 @@
 // The diagram's views, in the canvas tools: one drawing per view of the same file (context, containers…).
+// viewChoices is what every list of views offers (the picker, the read-only viewer); viewsOf names them.
 import './view-picker.css';
+import type { RenderResult } from '@cartography/engine';
 import { Icon } from './icon.tsx';
-import { t } from './i18n/index.ts';
+import { t, uiLang } from './i18n/index.ts';
+
+export interface ViewChoice {
+  name: string;
+  title?: string;
+}
+
+type Viewed = Pick<RenderResult, 'views' | 'view' | 'asWritten' | 'onlyViews' | 'viewTitles' | 'lang'>;
+
+/**
+ * The diagram's views as the editor's chrome names them: a title the type gives its own view in the
+ * editor's language (the drawing keeps the diagram's `lang:`), one the author wrote as written.
+ * `written` is the type's own view the diagram as written is (data products: the one in `view:`).
+ */
+export function viewsOf(r: Viewed | undefined): { views?: ViewChoice[]; written?: ViewChoice } {
+  const ui = uiLang();
+  const own = r?.viewTitles && ui !== (r.lang ?? 'en') ? r.viewTitles(ui) : undefined;
+  const named = (v: ViewChoice | undefined) => (v && own?.[v.name] ? { ...v, title: own[v.name] } : v);
+  return { views: r?.views?.map((v) => named(v)!), written: named(r?.asWritten) };
+}
+
+/**
+ * What a list of views offers: "As written" (value '') next to the views where there is such a drawing,
+ * except where the diagram as written is one of the type's own views: then that view is named instead,
+ * and listed even when the type does not offer it (a hidden one). `value` is the one drawn now.
+ */
+export function viewChoices(r: Viewed | undefined): { asWritten: boolean; views: ViewChoice[]; value: string; written?: ViewChoice } | undefined {
+  const { views: offered, written } = viewsOf(r);
+  if (!offered?.length) return undefined;
+  const views = written && !offered.some((v) => v.name === written.name) ? [...offered, written] : offered;
+  return { asWritten: !r!.onlyViews && !written, views, value: r!.view ?? written?.name ?? '', written };
+}
+
+/** The view a choice asks for: none for the diagram as written, which a named view as written is too. */
+export const pickedView = (value: string, written?: ViewChoice) => (value === written?.name ? undefined : value || undefined);
 
 export interface ViewPickerProps {
-  views?: { name: string; title?: string }[];
-  /** The view drawn now; none is the diagram as written. */
-  value?: string;
-  /** Whether the diagram has something drawn as written, next to its views. */
-  asWritten: boolean;
-  /**
-   * The type's own view the diagram as written is (data products: the one in `view:`): shown by its
-   * name rather than as "As written", and listed even when the type does not offer it (a hidden one).
-   */
-  written?: { name: string; title?: string };
+  drawn?: Viewed;
   onChange(view: string | undefined): void;
 }
 
-export function ViewPicker({ views: offered, value, asWritten, written, onChange }: ViewPickerProps) {
-  if (!offered?.length) return null;
-  const views = written && !offered.some((v) => v.name === written.name) ? [...offered, written] : offered;
-  if (written) value ??= written.name;
-  asWritten &&= !written;
+export function ViewPicker({ drawn, onChange }: ViewPickerProps) {
+  const c = viewChoices(drawn);
+  if (!c) return null;
   return (
     <label className="tool view-picker" title={t('Views of this diagram (V: next view; pins are kept per view)')}>
       <Icon name="layers" />
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value === written?.name ? undefined : e.target.value || undefined)} aria-label={t('View')}>
-        {asWritten && <option value="">{t('As written')}</option>}
-        {views.map((v) => (
+      <select value={c.value} onChange={(e) => onChange(pickedView(e.target.value, c.written))} aria-label={t('View')}>
+        {c.asWritten && <option value="">{t('As written')}</option>}
+        {c.views.map((v) => (
           <option key={v.name} value={v.name}>
             {v.title ? `${v.title} (${v.name})` : v.name}
           </option>

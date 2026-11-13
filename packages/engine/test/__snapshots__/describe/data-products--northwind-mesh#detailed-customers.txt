@@ -11,8 +11,8 @@ Groups and elements
 - Sales dashboard (Dashboard)
 
 Connections
-- CRM connects to Customers.in:0.
-- Customers.out:customers connects to Revenue, connects to Sales dashboard and is linked with customers.
+- CRM connects to Customers.
+- Customers connects to Revenue, connects to Sales dashboard and is linked with customers.
 
 Key
 - Teal filled pill: Source-aligned

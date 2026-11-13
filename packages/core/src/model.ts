@@ -292,6 +292,11 @@ export interface GraphEdge {
   tags?: string[];
   /** Tags at the ends of the line, drawn on it next to the element: a context map's U and D, ACL, OHS. */
   ends?: { from?: string[]; to?: string[] };
+  /**
+   * An eligible role (PIM) in parts, which its label only says in short ("Owner · 4 h · approval"):
+   * the role, how long one activation lasts at most, who approves it, for describe to say in full.
+   */
+  eligible?: { role: string; activation?: string; approval?: string };
   path: Path;
 }
 

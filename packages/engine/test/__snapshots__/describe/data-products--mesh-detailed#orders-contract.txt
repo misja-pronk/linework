@@ -9,9 +9,9 @@ Groups and elements
   - orders (Data contract · v2.1.0)
 
 Connections
-- Webshop order events connects to Orders.in:0.
-- Orders.out:orders is linked with orders.
-- orders.field:1:order_id connects to orders.field:0:order_id.
+- Webshop order events connects to Orders.
+- Orders is linked with orders.
+- orders.order_id connects to orders.order_id.
 
 Key
 - Teal filled pill: Source-aligned

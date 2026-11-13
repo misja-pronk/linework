@@ -1,6 +1,6 @@
 // Renders docs/comparison/src/<name>.mmd with Mermaid itself (in headless Chromium), <name>.d2 with D2
 // when the d2 binary is installed, and the same diagram in Cartography, side by side in png/.
-// Cartography's YAML in cartography/ was converted from the Mermaid once and is not hand-tuned.
+// Cartography's YAML in cartography/ was converted from the Mermaid once and is not hand-tuned (the card payment's dividers aside).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';

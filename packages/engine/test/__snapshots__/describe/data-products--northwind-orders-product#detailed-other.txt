@@ -8,7 +8,7 @@ Elements
 - Demand forecast (Supply chain)
 
 Connections
-- Orders connects to Revenue.in:0 and connects to Demand forecast.in:0.
+- Orders connects to Revenue and connects to Demand forecast.
 
 Key
 - Teal filled pill: Source-aligned

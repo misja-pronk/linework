@@ -41,7 +41,7 @@ Examples: [systems/invoice-walkthrough.yaml](../examples/systems/invoice-walkthr
 | Key | What it does |
 | --- | --- |
 | `title` | Short name of the step: on its chip in the editor, in bold above the caption |
-| `caption` | The sentence you say, under the drawing and in the speaker notes |
+| `caption` | The sentence you say: under the drawing when presenting (editor, VS Code) and in a picture, under the slide title in PowerPoint, and in the speaker notes |
 | `focus` (or `highlight`) | These at full strength, everything else quiet |
 | `path` | A route `a -> b -> c`: its lines are drawn heavier with a soft band behind them, their ends in focus |
 | `show` | Revealed from this step on |

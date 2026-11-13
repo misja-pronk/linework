@@ -275,8 +275,14 @@ function accessClause(e: GraphEdge, to: string, plural: boolean): string | undef
       return d('is a federated credential of {to}|are federated credentials of {to}', p);
     case 'role assignment':
       return label ? d('is {label} on {to}|are {label} on {to}', p) : d('holds a role on {to}|hold a role on {to}', p);
-    case 'eligible':
-      return label ? d('is eligible for {label} on {to}|are eligible for {label} on {to}', p) : d('is eligible for a role on {to}|are eligible for a role on {to}', p);
+    case 'eligible': {
+      // In full from its parts: the label says "Owner · 4 h · approval" in short.
+      const pim = e.eligible;
+      if (!pim) return label ? d('can activate {label} on {to}|can activate {label} on {to}', p) : d('can activate a role on {to}|can activate a role on {to}', p);
+      const time = pim.activation ? d(' for at most {time}', { time: pim.activation }) : '';
+      const approval = pim.approval ? d(', with approval by {names}', { names: pim.approval }) : '';
+      return d('can activate {label} on {to}{time}{approval}|can activate {label} on {to}{time}{approval}', { ...p, label: pim.role, time, approval });
+    }
     case 'applies to':
       return d('applies to {to}|apply to {to}', p);
     case 'excludes':
@@ -359,11 +365,21 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
   const count = new Map<string, number>();
   for (const x of byId.values()) count.set(nameOf(x), (count.get(nameOf(x)) ?? 0) + 1);
   const kindOf = (x: GraphNode | GraphGroup | undefined) => (x && 'shape' in x && x.shape.kind === 'card' ? x.shape.caption?.split(' · ')[0] : x && !('shape' in x) ? x.caption : undefined);
-  const name = (id: string, row?: string) => {
+  // A line that ends on a table's row (a data product's port) names the row by what it says, not by
+  // its id (in:0); and not at all when that is only the element's name or the other end's again.
+  const rowName = (id: string, row: string | undefined, other?: string) => {
+    const x = byId.get(id);
+    const r = x && 'shape' in x && x.shape.kind === 'table' ? x.shape.rows.find((t) => t.kind === 'row' && t.id === row) : undefined;
+    const text = r?.kind === 'row' ? clean(r.cells[0]?.text) : row;
+    const same = (s: string | undefined) => s?.toLowerCase() === text?.toLowerCase();
+    return text && !same(nameOf(x, id)) && !same(other) ? text : undefined;
+  };
+  const name = (id: string, row?: string, other?: string) => {
     const x = byId.get(id);
     const own = nameOf(x, id);
     const k = (count.get(own) ?? 0) > 1 ? kindOf(x) : undefined;
-    return `${own}${k ? ` (${k})` : ''}${row ? `.${row}` : ''}`;
+    const part = row ? rowName(id, row, other) : undefined;
+    return `${own}${k ? ` (${k})` : ''}${part ? `.${part}` : ''}`;
   };
   const legend = new Map((graph.legend ?? []).flatMap((l) => (l.tag ? [[l.tag, lowerFirst(l.label.replace(/:.*$/, ''))] as const] : [])));
   const edges = graph.edges.filter((e) => byId.has(e.from.node) && byId.has(e.to.node));
@@ -385,8 +401,10 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
       const n = byId.get(id);
       return !!n && 'shape' in n && n.shape.kind === 'flow' && n.shape.form === 'note';
     })();
-    const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row), plural, flow)}${e.marks?.length ? ` [${d('tagged {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
-    items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${listWords(parts)}`) });
+    const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row, nameOf(byId.get(id), id)), plural, flow)}${e.marks?.length ? ` [${d('tagged {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
+    // Clauses with a comma of their own ("for at most 2 h, with approval by …") are kept apart by semicolons.
+    const joined = parts.length > 1 && parts.some((p) => p.replace(/\([^)]*\)|\[[^\]]*\]/g, '').includes(', ')) ? parts.join('; ') : listWords(parts);
+    items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${joined}`) });
   }
   return items;
 }
@@ -893,6 +911,8 @@ function trustSection(graph: Graph): Section[] {
 
 const ENDS: Partial<Record<Marker, string>> = { arrow: 'arrow', one: 'bar', zeroOrOne: 'ring and bar', many: "crow's foot", oneOrMany: "bar and crow's foot", zeroOrMany: "ring and crow's foot", triangle: 'hollow triangle', diamond: 'hollow diamond', filledDiamond: 'filled diamond', open: 'open arrowhead', slash: 'slash' };
 const SWATCH: Record<string, string> = { fill: 'filled pill', outline: 'outlined pill', check: 'check mark', 'check-outline': 'outlined check mark', badge: 'badge', tile: 'icon', boundary: 'boundary box', trust: 'heavy dashed boundary', block: 'block', glyph: 'symbol', focus: 'ring' };
+/** The samples whose Dutch word is a het-word (vinkje, icoon, grenskader, symbool). */
+const NEUTER = new Set(['check mark', 'outlined check mark', 'icon', 'boundary box', 'symbol']);
 
 /** A key entry in words: what the sample looks like, and what it means. */
 function keyText(l: LegendItem, shade?: { n: number; of: number }): string {
@@ -915,12 +935,14 @@ function keyText(l: LegendItem, shade?: { n: number; of: number }): string {
 
 /** keyText in another language than English: the sample's look from the word tables (./nl.ts), adjective first as Dutch says it. */
 function keySaid(l: LegendItem, shade?: { n: number; of: number }): string {
-  const tone = l.tone && l.tone !== 'slate' ? `${w(`tone:${l.tone}`)} ` : '';
+  // Before a het-word Dutch drops the colour's -e: een blauw icoon, but een blauwe pil.
+  const neuter = l.swatch && NEUTER.has(SWATCH[l.swatch] ?? '');
+  const tone = l.tone && l.tone !== 'slate' ? `${w(`tone:${l.tone}${neuter ? '@het' : ''}`)} ` : '';
   let look: string;
   if (l.swatch === 'mark') look = l.tag ? d('tag {tag}', { tag: l.tag }) : d('numbered tag');
   else if (l.swatch === 'message') look = l.arrow === 'reply' ? d('dashed arrow') : l.arrow === 'async' ? d('arrow with an open head') : l.arrow === 'lost' ? d('arrow ending in a cross') : d('arrow with a filled head');
   else if (l.swatch === 'block') look = l.block?.heat && shade ? `${d('shade {n} of {of}', { n: shade.n, of: shade.of })}${shade.n === 1 ? ` (${d('lightest')})` : shade.n === shade.of ? ` (${d('strongest')})` : ''}` : l.block?.heat?.text ? d('block marked {text}', { text: l.block.heat.text }) : d('block');
-  else if (l.swatch === 'glyph' && l.icon) look = d('{tone}{icon} symbol', { tone, icon: l.icon.split('-')[0]! });
+  // The icon's name (key, eye) is an English id: the symbol is said by what it means, after the colon.
   else if (l.swatch) look = `${tone}${w(SWATCH[l.swatch] ?? l.swatch)}${l.muted ? `, ${d('greyed')}` : ''}`;
   else {
     const pattern = l.pattern === 'ticks' ? ` ${d('with ticks')}` : l.pattern === 'beads' ? ` ${d('with beads')}` : l.pattern === 'double' ? `, ${d('double')}` : '';

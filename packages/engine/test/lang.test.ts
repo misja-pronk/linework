@@ -173,5 +173,99 @@ assignments:
     expect(text(teams)).toContain('1 persoon');
     expect(text(teams)).toContain('5 mensen');
   });
+
+  it('writes what an access diagram says about PIM, Conditional Access and a comparison in Dutch', async () => {
+    const access = `type: access
+principals:
+  devs: { kind: group, label: Developers }
+  ops: { kind: group, label: Operations }
+resources:
+  prod: { kind: subscription, label: Production }
+roles:
+  reader: { label: Reader }
+  owner: { label: Owner, inherits: reader }
+policies:
+  ca: { targets: [devs], requires: [MFA, PAW], state: report-only }
+assignments:
+  - devs is reader on prod
+  - { principal: ops, role: owner, scope: prod, eligible: true, activation: 4 h, approval: devs }
+`;
+    const graph = await render(nl(access), { fonts: 'none' });
+    expect(graph.graph!.legend!.map((l) => l.label)).toEqual(expect.arrayContaining(['In aanmerking, geactiveerd via PIM', 'Roltoewijzing']));
+    expect(graph.graph!.edges.map((e) => e.label)).toContain('Owner · 4 h · goedkeuring');
+    expect(card(graph, 'ca')?.caption).toBe('Alleen rapporteren · vereist MFA en PAW');
+    type Matrix = { corner: string; rows: { caption?: string }[]; cells: ({ text?: string; note?: string } | undefined)[][] };
+    const matrix = (r: Awaited<ReturnType<typeof render>>) => r.graph!.nodes.find((n) => n.shape.kind === 'matrix')!.shape as unknown as Matrix;
+    const who = matrix(await render(nl(access), { fonts: 'none', view: 'access' }));
+    expect(who.cells[1]![0]).toMatchObject({ text: 'Owner (in aanmerking)', note: 'max. 4 h, goedkeuring door Developers' });
+    // Against an earlier state: the key, the corner, what is new, what it was.
+    const was = `\nview: access\nwas:\n  principals:\n    devs: { kind: group, label: Developers }\n    gone: { kind: user, label: Gone }\n  resources:\n    prod: { kind: subscription, label: Production }\n  roles:\n    reader: { label: Reader }\n  assignments:\n    - devs is reader on prod\n    - gone is reader on prod\n`;
+    const compared = await render(nl(access + was), { fonts: 'none' });
+    expect(compared.graph!.legend!.map((l) => l.label)).toEqual(['+ erbij', '− kwijt', '~ gewijzigd', 'ongewijzigd']);
+    expect(matrix(compared).corner).toBe('Wie \\ waar');
+    expect(matrix(compared).rows.map((r) => r.caption)).toEqual(['Nieuw · Beveiligingsgroep', 'Weg · Gebruiker']);
+    expect(matrix(compared).cells[0]![0]!.text).toBe('+ Owner (in aanmerking)');
+    // In English as before.
+    const english = await render(access + was, { fonts: 'none' });
+    expect(english.graph!.legend!.map((l) => l.label)).toEqual(['+ gained', '− lost', '~ changed', 'as it was']);
+    expect(matrix(english).cells[0]![0]!.text).toBe('+ Owner (eligible)');
+    expect(card(await render(access, { fonts: 'none' }), 'ca')?.caption).toBe('Report-only · requires MFA and PAW');
+    // Told in a sentence from its parts, not from the short label on the line.
+    expect(toText(tell(graph))).toContain('Operations kan Owner op Production activeren voor maximaal 4 h, met goedkeuring door Developers.');
+    expect(toText(tell(await render(access, { fonts: 'none' })))).toContain('Operations can activate Owner on Production for at most 4 h, with approval by Developers.');
+  });
+
+  it('says the key and the ends of a line in plain Dutch, without ids or internal words', async () => {
+    const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
+    const said = async (text: string, view?: string) => toText(tell(await render(nl(text), { fonts: 'none', view, load: (f) => fs.readFileSync(new URL(`../../../examples/data-products/${f}`, import.meta.url), 'utf8') })));
+    const access = await said(example('access/azure-rbac-pim.yaml'), 'access');
+    expect(access).toContain('Indigo gevulde pil: Direct toegewezen');
+    expect(await said(example('access/azure-rbac-pim.yaml'), 'roles')).toContain('Indigo vinkje: Via de rol toegekend');
+    // Before a het-word the colour has no -e; a symbol is said by what it means, not by its icon's id.
+    const erd = await said(example('erd/orders.yaml'));
+    expect(erd).toContain('Oranjegeel symbool: Primaire sleutel');
+    expect(erd).not.toMatch(/symbool key/);
+    // A data product's ports are rows: a line to one is told by what the row says, not by its id.
+    const mesh = await said(example('data-products/customer-detailed.yaml'));
+    expect(mesh).toContain('Salesforce is verbonden met customers.');
+    expect(mesh).not.toMatch(/\.(in|out):/);
+    // A capability map counts its systems in Dutch.
+    const systems = await said(example('capabilities/enterprise.yaml'), 'systems');
+    expect(systems).toContain('1 systeem');
+    expect(systems).toContain('geen systeem');
+    expect(`${access}${erd}${mesh}${systems}`).not.toMatch(/tone:|Tone:/);
+  });
+
+  it("keeps a name that is the entry's own key, such as a class called Member", async () => {
+    const r = await render(nl('type: class\nclasses:\n  Member: { members: [+name: String] }\n'), { fonts: 'none' });
+    const s = r.graph!.nodes.find((n) => n.id === 'Member')!.shape;
+    expect(s.kind === 'table' && s.title).toBe('Member');
+  });
+
+  it('keeps a name made from the key, and names a kind the key only repeats in Dutch', async () => {
+    const label = (r: Awaited<ReturnType<typeof render>>, id: string) => (r.graph!.nodes.find((n) => n.id === id)!.shape as { label?: string }).label;
+    // A team called payments is Payments, not Betalingen; its kind is told in Dutch, in the tooltip too.
+    const teams = await render(nl('type: teams\nteams:\n  payments: { kind: stream-aligned }\n  search: stream-aligned\n'), { fonts: 'none' });
+    expect(label(teams, 'payments')).toBe('Payments');
+    expect(label(teams, 'search')).toBe('Search');
+    expect(teams.graph!.nodes.find((n) => n.id === 'payments')!.description).toBe('Stroomgericht team');
+    expect(toText(tell(teams))).toContain('- Payments (stroomgericht team)\n');
+    // users: { kind: users } names its kind: Gebruikers. A lane written "actions: Actions" is the author's.
+    expect(card(await render(nl('type: systems\nnodes:\n  users: { kind: users }\n'), { fonts: 'none' }), 'users')?.label).toBe('Gebruikers');
+    const flow = await render(nl('type: process\nlanes:\n  actions: Actions\nnodes:\n  Build: { in: actions }\n'), { fonts: 'none' });
+    expect(flow.graph!.groups.find((g) => g.id === 'actions')!.label).toBe('Actions');
+  });
+
+  it("gives the type's own view titles in another language for the editor, and leaves the author's out", async () => {
+    const mesh = 'type: data-products\nproducts:\n  orders: { outputs: { orders: { kind: table } } }\n';
+    const r = await render(nl(mesh), { fonts: 'none' });
+    expect(r.views![0]!.title).toBe('Overzicht');
+    expect(r.viewTitles!('en')).toMatchObject({ overview: 'Overview' });
+    expect((await render(mesh, { fonts: 'none' })).viewTitles!('nl')).toMatchObject({ overview: 'Overzicht' });
+    // A model's views are the author's: no title of the type's for them.
+    const model = await render(fs.readFileSync(new URL('../../../examples/systems/saas-platform.yaml', import.meta.url), 'utf8'), { fonts: 'none' });
+    expect(model.views![0]).toEqual({ name: 'overview', title: 'Booking platform' });
+    expect(model.viewTitles).toBeUndefined();
+  });
 });
 

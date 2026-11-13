@@ -11,10 +11,10 @@ Groups and elements
 - Finance dashboard (Dashboard)
 
 Connections
-- Core ledger connects to Transactions.in:0.
-- Transactions connects to Daily balances.in:0.
+- Core ledger connects to Transactions.
+- Transactions connects to Daily balances.
 - Daily balances connects to Finance dashboard.
-- Payments hub connects to Transactions.in:1.
+- Payments hub connects to Transactions.
 
 Key
 - Teal filled pill: Source-aligned

@@ -68,6 +68,8 @@ const VARIANTS: [string, DotVariant][] = [
  */
 const MOVE_BASE = 16;
 const MOVE_EACH = 60;
+/** Up to this many nodes, a drawing that cannot stay as it was tries staying put with one node free (see choose). */
+const REPAIR_LIMIT = 24;
 /** With only the way it was made remembered (no positions), another way has to be this much better. */
 const SWITCH = 12;
 
@@ -137,7 +139,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // And what is not pinned stays where it was whenever it can: placing things by hand, the rest
     // holding still is worth more than any score.
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
-    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
+    if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn);
     const asked = best;
@@ -167,8 +169,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       // A shape is no reason to keep a drawing with labels on cards or lines through them that the other is free of.
       else if (errors(best) > errors(alt) && alt.cost < best.cost) best = alt;
       // Tried for its shape alone (the drawing is not a wide chain), a clearly worse shape never wins;
-      // nor, on a first drawing of a few cards (too few to wrap), a worse shape that comes out clearly smaller on the page.
-      else if (!(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
+      // nor, on a first drawing of a few cards (too few to wrap), a worse shape that comes out clearly smaller on the page;
+      // nor, on a first drawing, one whose text a slide shows smaller than 6 pt, or without the margin, where the other's it does not (slideTier).
+      else if (!(target != null && !was && slideTier(alt, target) < slideTier(best, target)) && !(fits(b, a) && noWorse(best, alt)) && !(!was && !wide && stayIn !== other && b < a - NEARER) && alt.cost < best.cost + (was?.direction === graph.direction ? 0 : TIE) - 1e-9 && !(!was && graph.nodes.length <= FEW && target != null && a > b && readsAs(alt, target) < readsAs(best, target) - WRAP_GAIN)) best = alt;
     }
     // Still far too wide (or tall): cut it into rows (or columns) of whole blocks, when that comes nearer.
     if (!was && tuning.wrap !== false && graph.nodes.length <= VARIANT_LIMIT && target != null && off(best.placed, graph, target) > WRAP_OFF) {
@@ -181,7 +184,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       if (other && readsBetter(other, best, target)) best = other;
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
-    else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts) ?? best;
+    else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   }
 
   const s = best.sized;
@@ -364,6 +367,8 @@ function readability(c: Choice, than: Choice, target: number, small = SMALL_COST
 function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // Never further outside the band of slide shapes than the drawing it would replace.
   if (outOfBand(a.placed, a.sized.graph, target) > Math.max(1e-9, outOfBand(b.placed, b.sized.graph, target))) return false;
+  // Nor a drawing whose text comes out at 6 pt or more on a slide by one whose text comes out smaller (slideTier).
+  if (slideTier(a, target) < slideTier(b, target)) return false;
   if (beats(readability(a, b, target, 0), readsAs(b, target, 0))) return true;
   // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
   const crossed = metricsOf(b).crossings;
@@ -374,13 +379,23 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   const [sa, sb] = [pageScale(a.placed, a.sized.graph, target), pageScale(b.placed, b.sized.graph, target)];
   const shaped = outOfBand(a.placed, a.sized.graph, target) < outOfBand(b.placed, b.sized.graph, target) - NEARER && sa >= AS_LARGE * sb;
   if (sb < READABLE_SCALE && (sa >= largerThan(sb) || shaped) && beats(readability(a, b, target), readsAs(b, target))) return true;
-  // Or when it brings text that is too small for a slide up to readable (SLIDE_SCALE) at no cost:
-  // no more crossings, no new flaw, and reading better however weighed.
+  // Or when it brings text that is too small for a slide up to readable (SLIDE_SCALE), or up to the
+  // margin above it (SLIDE_AIM), at no cost: no more crossings, no new flaw, and reading better however weighed.
   const r = readability(a, b, target);
-  return sb < SLIDE_SCALE && sa >= SLIDE_SCALE && metricsOf(a).crossings <= crossed && r != null && r > readsAs(b, target) + 1e-9 && (readability(a, b, target, 0) ?? -Infinity) > readsAs(b, target, 0) + 1e-9;
+  return slideTier(a, target) > slideTier(b, target) && metricsOf(a).crossings <= crossed && r != null && r > readsAs(b, target) + 1e-9 && (readability(a, b, target, 0) ?? -Infinity) > readsAs(b, target, 0) + 1e-9;
 }
 /** The page scale at which the small labels on lines (10 px) come out at 6 pt on the page, the least a slide should have. */
 const SLIDE_SCALE = 0.8;
+/**
+ * And the scale aimed for (6.3 pt): a drawing just at 6 pt goes under it as soon as a label gets a
+ * word longer, so of two drawings a slide reads, the one with this margin is the one kept.
+ */
+const SLIDE_AIM = 0.84;
+/** How a drawing's text comes out on a slide: 2 with the margin (SLIDE_AIM), 1 at 6 pt or more (SLIDE_SCALE), 0 under. */
+function slideTier(c: { placed: Pick<Placed, 'width' | 'height'>; sized: Sized }, target: number): number {
+  const sc = pageScale(c.placed, c.sized.graph, target);
+  return sc >= SLIDE_AIM ? 2 : sc >= SLIDE_SCALE ? 1 : 0;
+}
 /** For larger text a drawing may take on this many more crossings (half as many again as it has when its text is tiny), no more: past that it is a tangle, however large. */
 const SMALL_CROSSINGS = 2;
 const beats = (r: number | undefined, than: number) => r != null && r > than + WRAP_GAIN + 1e-9;
@@ -424,7 +439,9 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   // Each way of weighing has its own bar (readsBetter): a cut is routed when its boxes could clear either.
   const bars = (k: number) => Math.max(...beat.map((b) => readsAs(b, target, k))) + WRAP_GAIN;
   const [plainBar, smallBar] = [bars(0), bars(SMALL_COST)];
-  const could = (c: { bound: number; reach: number }) => c.bound > plainBar - 1e-9 || c.reach > smallBar - 1e-9;
+  // Or that could bring its text up a tier on a slide (readsBetter's last way).
+  const tier = Math.max(...beat.map((b) => slideTier(b, target)));
+  const could = (c: { bound: number; reach: number; tier: number }) => c.bound > plainBar - 1e-9 || c.reach > smallBar - 1e-9 || c.tier > tier;
   // A bigger diagram tries the plain cuts only.
   const small = s.graph.nodes.length <= WRAP_ALL;
   const scopes: (string | undefined)[] = [undefined, ...(small ? wrapScopes(best.p, s.graph) : [])];
@@ -433,7 +450,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   // thick across it (stacked domains), across it (wrap.ts transpose).
   const along = best.sized.graph.direction === 'down' ? best.placed.height / best.placed.width : best.placed.width / best.placed.height;
   const transpose = along < (best.sized.graph.direction === 'down' ? 1 / target : target);
-  const cuts: { q: Placement; parts: number; opts: WrapOptions; bound: number; reach: number; i: number }[] = [];
+  const cuts: { q: Placement; parts: number; opts: WrapOptions; bound: number; reach: number; tier: number; i: number }[] = [];
   const seen = new Set<string>();
   for (const scope of scopes)
     for (const [chains, loose, flip] of modes)
@@ -441,7 +458,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
         // Rows turned over only at the top: inside a group they would stand against the order written.
         if (flip && scope) continue;
         const opts: WrapOptions = { scope, chains, loose, ...(flip ? { flip } : {}), ...(transpose ? { transpose } : {}) };
-        const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
+        const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts, (r) => pageScale(r, s.graph, target));
         if (!q) continue;
         const sig = boxesKey(q);
         if (seen.has(sig)) continue;
@@ -455,7 +472,7 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
           const sb = pageScale(b.placed, s.graph, target);
           return sb < READABLE_SCALE && (sq >= largerThan(sb) || (outOfBand(q, s.graph, target) < outOfBand(b.placed, s.graph, target) - NEARER && sq >= AS_LARGE * sb));
         });
-        cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, i: cuts.length });
+        cuts.push({ q, parts, opts, bound: plain, reach: weighed ? smallText - SHAPE_COST * outOfBand(q, s.graph, target) : -Infinity, tier: slideTier({ placed: q, sized: s }, target), i: cuts.length });
       }
   // The most promising first, so the bar rises early and the rest need not be routed; on a tie the
   // one tried first in the order above wins, as it always did.
@@ -463,21 +480,24 @@ function wrapped(best: Choice, spacing: Spacing, target: number, than?: Choice):
   let routed = 0;
   for (const c of cuts) {
     if (routed >= WRAP_ROUTED) break;
-    if (!could(c) || (found && Math.max(c.bound, c.reach) < readsAs(found, target) - 1e-9)) continue;
+    if (!could(c) || (found && c.tier <= slideTier(found, target) && Math.max(c.bound, c.reach) < readsAs(found, target) - 1e-9)) continue;
     routed++;
     const choice = rewrapped(best, spacing, c.q, c.parts, c.opts);
     // Cut into a strip far wider (or taller) than the drawing was: no shape for a page, however large its text.
     const strip = (c: Choice) => Math.max(c.placed.width / c.placed.height, c.placed.height / c.placed.width);
     const ok = (strip(choice) <= STRIP || strip(choice) <= strip(best)) && beat.every((b) => readsBetter(choice, b, target));
-    if (ok && (!found || readsAs(choice, target) > readsAs(found, target) + 1e-9)) found = choice;
+    // Text at 6 pt or more on a slide wins over text under it, and text with a margin over text just at it
+    // (slideTier), however the two weigh otherwise: under it validate warns, and one word more tips it under.
+    const [t, tf] = [slideTier(choice, target), found ? slideTier(found, target) : -1];
+    if (ok && (!found || (t !== tf ? t > tf : readsAs(choice, target) > readsAs(found, target) + 1e-9))) found = choice;
   }
   return found;
 }
 
 /** The drawing cut into `parts` rows (columns), its key saying so, so the next drawing can be cut the same way. */
-function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}): Choice | undefined {
+function rewrap(best: Choice, spacing: Spacing, parts: number, opts: WrapOptions = {}, target?: number): Choice | undefined {
   const s = best.sized;
-  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts);
+  const q = wrap(best.p, s.graph, parts, spacing.layerGap, s.groupHeader, spacing.groupPad, s.groupMinWidth, opts, target == null ? undefined : (r) => pageScale(r, s.graph, target));
   return q && rewrapped(best, spacing, q, parts, opts);
 }
 
@@ -538,21 +558,41 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     if (!c) continue;
     if (!best || (fits(c) !== fits(best) ? fits(c) : c.cost < best.cost - 1e-9)) best = c;
   }
+  // Every way leaves a label on the cards it joins, longer than the room between their columns (a label
+  // made a word longer): each is drawn again with room for labels between the columns (as labelRoom 'fit').
+  // Only on a first drawing: with one before it, what stays where it was counts for more.
+  if (best && !prev?.nodes?.size && !tuning.labelRoom && graph.direction === 'right' && sized.edgeLabels.size && metricsOf(best).labelOverlaps > 0)
+    for (const [name, variant] of ways) {
+      const c = await candidates(sized, spacing, { ...tuning, labelRoom: 'fit' }, name, variant, prev);
+      if (c && (fits(c) !== fits(best) ? fits(c) : c.cost < best.cost - 1e-9)) best = c;
+    }
   // Asked one way only (a drawing before it was stacked) and that way cannot be drawn now: dot's own placement.
   best ??= (await candidates(sized, spacing, { ...tuning, dot: undefined }, 'plain', {}, prev))!;
   if (stay && prev?.nodes?.size) {
-    const kept = stayPlacement(graph, best!.p, prev, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
-    if (kept) {
+    const fresh = best!;
+    // The previous drawing with what it remembers held where it was: routed, weighed, and what moving costs.
+    const keep = (memory: LayoutMemory): Choice | undefined => {
+      const kept = stayPlacement(graph, fresh.p, memory, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
+      if (!kept) return undefined;
       const placed = normalise({ ...kept, edges: route(sized, kept) });
-      const m = metricsOf({ placed, sized });
-      const sc = score(m);
-      const cost = sc + moveCost(kept, prev);
-      // Staying put never turns a line against the reading direction: a line drawn between two nodes
-      // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
-      const against = upstream(graph, kept, prev) > upstream(graph, best!.p, prev);
-      // Only when it differs: a fresh placement that is exactly the previous one is not "held".
-      if (!against && (hold || cost < best!.cost - 1e-9)) best = { p: kept, placed, score: sc, cost, key: prev.variant ?? best!.key, sized, held: true };
-    }
+      const sc = score(metricsOf({ placed, sized }));
+      return { p: kept, placed, score: sc, cost: sc + moveCost(kept, prev), key: prev.variant ?? fresh.key, sized, held: true };
+    };
+    // Staying put never turns a line against the reading direction: a line drawn between two nodes
+    // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
+    const forward = (c: Choice) => upstream(graph, c.p, prev) <= upstream(graph, fresh.p, prev);
+    const kept = keep(prev);
+    // Only when it differs: a fresh placement that is exactly the previous one is not "held".
+    if (kept && forward(kept) && (hold || kept.cost < fresh.cost - 1e-9)) best = kept;
+    // Everything held costs more than drawing afresh (a new line finds no clean way between the boxes
+    // where they stood): held but for one node, which looks for room again, may still read as well
+    // and moves one node instead of most. Each node in turn, in a small drawing: each try is routed in full.
+    else if (!hold && graph.nodes.length <= REPAIR_LIMIT)
+      for (const id of prev.nodes.keys()) {
+        if (!fresh.p.nodes.has(id)) continue;
+        const c = keep({ ...prev, nodes: new Map([...prev.nodes].filter(([k]) => k !== id)) });
+        if (c && forward(c) && c.cost < best!.cost - 1e-9) best = c;
+      }
   }
   return best!;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findType, render } from '@cartography/engine';
+import { setUiLang } from '../src/i18n/index.ts';
 import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from '../src/builder.ts';
 
 const azure = findType('azure')!;
@@ -91,6 +92,17 @@ describe('connections', () => {
     // "web -> db: SQL" is already there: a second, unlabelled line would be a duplicate.
     expect(connectEntries(shop, azure, 'web', 'db')).toEqual({ error: 'They are already connected' });
     expect(connectEntries(shop, azure, 'web', 'web')).toEqual({ error: 'Pick another element to connect to' });
+  });
+  it("says why not in the editor's language, also when the type says it", () => {
+    setUiLang('nl');
+    try {
+      expect(connectEntries(shop, azure, 'web', 'web')).toEqual({ error: 'Kies een ander element om mee te verbinden' });
+      const acc = 'type: access\nprincipals:\n  alice: user\n';
+      expect(connectEntries(acc, access, 'alice', 'alice')).toEqual({ error: 'Kies een ander element om mee te verbinden' });
+      expect(connectEntries('type: erd\ntables:\n  orders: {}\n', erd, 'x', 'orders')).toEqual({ error: 'Lijnen beginnen bij een tabel: sleep vanaf een tabel' });
+    } finally {
+      setUiLang(undefined);
+    }
   });
   it('follows the type: inputs, member-of, foreign keys', () => {
     const dpText = 'type: data-products\nsources:\n  db: database\nproducts:\n  orders:\n    inputs: [db]\n  revenue: {}\n';
