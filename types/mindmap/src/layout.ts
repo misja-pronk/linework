@@ -121,7 +121,10 @@ function place(centre: Item, arrangement: Arrangement, previous?: LayoutMemory) 
     }
     // The tree centres its root over its branches, so a branch that grew would move the whole side
     // against the centre: the side goes back to where most of its topics were.
-    let shift = 0;
+    // Drawn afresh, the side stands centred on the centre: the tree would put the centre level with its
+    // middle branch, and a side whose lower branches carry more topics then leaves a corner empty.
+    const ys = [...placed.values()].flatMap((b) => [b.y, b.y + b.height]);
+    let shift = ys.length ? -(Math.min(...ys) + Math.max(...ys)) / 2 : 0;
     if (c0 && previous?.nodes) {
       const d = [...placed].flatMap(([id, b]) => {
         const p = previous.nodes!.get(id);

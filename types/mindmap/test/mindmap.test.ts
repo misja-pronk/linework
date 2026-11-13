@@ -55,6 +55,9 @@ describe('mind map', () => {
     const a = await render(example('workshop-agenda.yaml'), { fonts: 'none' });
     const c = a.placed!.nodes.get(CENTER)!;
     for (const [id, b] of a.placed!.nodes) if (id !== CENTER) expect(b.x).toBeGreaterThan(c.x + c.width);
+    // The centre stands level with the middle of its side, not with its middle branch: no corner left empty above it.
+    const ys = [...a.placed!.nodes].filter(([id]) => id !== CENTER).flatMap(([, b]) => [b.y, b.y + b.height]);
+    expect(c.y + c.height / 2).toBeCloseTo((Math.min(...ys) + Math.max(...ys)) / 2, 0);
   });
 
   it('keeps the drawing when a topic is added, and a branch on its side', async () => {
