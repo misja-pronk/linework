@@ -257,6 +257,8 @@ interface LinkExtra {
   flow: boolean;
   width?: number;
   icon?: string;
+  /** Aggregated and drawn heavier for it (not a trunk, whose double line already stands out). */
+  lag?: boolean;
 }
 
 function graphView(src: NetworkSource, ctx: BuildContext): Graph {
@@ -309,7 +311,7 @@ function graphView(src: NetworkSource, ctx: BuildContext): Graph {
     const lag = typeof p.count === 'number' && p.count > 1;
     const end = (x: typeof spec.from) => (x.row ? `${x.node}.${x.row}` : x.node);
     const flow = p.flow === true;
-    extras[i] = { from: spec.from.node, to: spec.to.node, flow: flow || spec.start === 'arrow', width: lag ? Math.max(LAG_WIDTH, extra?.width ?? 0) : extra?.width, icon: extra?.icon };
+    extras[i] = { from: spec.from.node, to: spec.to.node, flow: flow || spec.start === 'arrow', width: lag ? Math.max(LAG_WIDTH, extra?.width ?? 0) : extra?.width, icon: extra?.icon, lag: lag && style !== 'trunk' };
     // Undirected links point down the tiers, so dot ranks them internet first; flows stay as written.
     const [ra, rb] = order(spec.from.node, spec.to.node);
     const turn = !flow && spec.start !== 'arrow' && ra != null && rb != null && ra > rb;
@@ -355,8 +357,9 @@ function graphView(src: NetworkSource, ctx: BuildContext): Graph {
     const w = STYLE_EXTRA[id ?? '']?.width;
     if (w && !l.swatch) l.width = w;
   }
-  // A heavier line says the link is aggregated (2×10G): the key says so too.
-  if (graph.legend.length && extras.some((x) => x?.width === LAG_WIDTH)) graph.legend.push({ label: 'Aggregated link (2× or more)', line: 'solid', width: LAG_WIDTH });
+  // A heavier line says the link is aggregated (2×10G): the key says so too. A trunk already draws as its
+  // own double line, the same with one link or more ("2×1G" on it says how many), so it adds no entry.
+  if (graph.legend.length && extras.some((x) => x?.lag)) graph.legend.push({ label: 'Aggregated link (2× or more)', line: 'solid', width: LAG_WIDTH });
   return graph;
 }
 
@@ -493,16 +496,17 @@ groups:
 nodes:
   isp: { kind: isp, label: Fibre ISP, in: internet }
   fw: { kind: firewall, in: office, model: FortiGate 60F, ip: 10.10.0.1, ha: true }
-  core: { kind: switch, in: office, model: USW Pro 24, ip: 10.10.0.2 }
+  core: { kind: switch, in: office, model: USW Pro 24 PoE, ip: 10.10.0.2 }
   ap: { kind: access-point, label: ap-floor1, in: staff, model: U6 Pro }
   laptops: { kind: clients, label: Laptops, in: staff }
   guests: { kind: clients, label: Guest devices, in: guest }
 
-# Links have no arrowheads: add flow: true for a direction.
+# Links have no arrowheads: add flow: true for a direction. Speeds are what the named hardware has:
+# the FortiGate 60F and the U6 Pro have 1 GbE ports, and the PoE switch powers the access point.
 edges:
   - isp -- fw: { speed: 1G, style: wan }
-  - fw -- core: { style: trunk, vlans: [10, 30], speed: 10G, count: 2 }
-  - core -- ap: { speed: 2.5G, ports: [port 5, eth0] }
+  - fw -- core: { style: trunk, vlans: [10, 30], speed: 1G, count: 2 }
+  - core -- ap: { speed: 1G, ports: [port 5, eth0] }
   - ap -- laptops: { style: wireless }
   - ap -- guests: { style: wireless }
 `,
