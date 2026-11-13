@@ -268,11 +268,52 @@ describe('shapes Quick Look draws', () => {
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);
     expect(pieces.every((s) => s.includes('prst="line"'))).toBe(true);
-    // Every piece the line's colour and width (a dash in front of where a piece starts its pattern is solid); one arrowhead, on the last piece.
+    // Every piece the line's colour and width (a dash in front of where a piece starts its pattern is solid); an arrowhead on the last piece only,
+    // and, the line being dashed, a solid one over it on a piece too short to see: Apple's importer strokes an arrowhead with its line's dashes.
     expect(new Set(pieces.map((s) => /<a:ln [^]*?<\/a:ln>/.exec(s)![0].replace(/<a:(head|tail)End[^>]*\/>|<a:prstDash [^>]*>/g, ''))).size).toBe(1);
-    expect(line.match(/<a:tailEnd /g)).toHaveLength(1);
-    expect(pieces.at(-1)).toContain('<a:tailEnd type="triangle"');
+    expect(line.match(/<a:tailEnd /g)).toHaveLength(2);
+    expect(pieces.at(-2)).toContain('<a:tailEnd type="triangle"');
+    expect(pieces.at(-1)).toContain('name="Arrowhead"');
+    expect(pieces.at(-1)).toContain('<a:prstDash val="solid"/><a:round/><a:tailEnd type="triangle"');
     expect(line).not.toContain('<a:headEnd ');
+  });
+
+  it('draws a line style\'s second mark on the line and in the key, so no two styles differ only by colour', async () => {
+    const slideOf = async (f: string) => parts(await toPptx(await draw(f), { rasterize: () => PNG, steps: false })).text('ppt/slides/slide1.xml');
+    const legend = (slide: string, label: string) => {
+      const at = slide.indexOf(`name="Legend: ${label}"`);
+      // The samples come just before their label.
+      return slide.slice(slide.lastIndexOf('name="Legend', at - 1) > 0 ? slide.lastIndexOf('name="Legend', at - 1) : 0, at);
+    };
+    // Ticks: Management, on its connector (marks drawn over it, as the connector keeps its own place) and in the key.
+    const hub = await slideOf('azure/hub-spoke.yaml');
+    expect(hub).toMatch(/name="Marks: bastion → erp-vm \(RDP\)"[^]*?name="Tick"/);
+    expect(legend(hub, 'Management')).toContain('name="Tick"');
+    expect(legend(hub, 'Public traffic')).not.toContain('name="Tick"');
+    // Beads: the private circuit.
+    const hybrid = await slideOf('network/hybrid-cloud.yaml');
+    expect(hybrid).toContain('name="Bead"');
+    expect(hybrid).toContain('prst="ellipse"');
+    // A double line: wide in its colour, a core in the page's colour along it, small arrowheads; never a compound line or a custom dash.
+    const tiers = await slideOf('access/privileged-access.yaml');
+    expect(tiers).toContain('name="Core"');
+    expect(tiers).toContain('w="sm" len="sm"');
+    for (const s of [hub, hybrid, tiers]) {
+      expect(s).not.toContain('cmpd=');
+      expect(s).not.toContain('<a:custDash>');
+      expect(wellFormed(s)).toBe(true);
+    }
+  });
+
+  it('keys a sequence\'s arrows as it draws them: a call\'s filled head, a reply dashed with a solid open head', async () => {
+    const r = await draw('sequence/service-bus-events.yaml');
+    const phase = await render(example('sequence/service-bus-events.yaml'), { fonts: 'none', view: r.views!.find((v) => v.name.startsWith('phase-'))!.name });
+    const slide = parts(await toPptx(phase, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    const key = slide.slice(slide.indexOf('name="Legend"'));
+    expect(key).toContain('prst="triangle"');
+    expect(key).toContain('<a:prstDash val="dash"/>');
+    expect(key).toContain('name="Arrowhead"');
+    expect(key).toContain('<a:tailEnd type="arrow"');
   });
 
   it('turns a piece so it runs the way the line does, and its arrowhead points the right way', async () => {
