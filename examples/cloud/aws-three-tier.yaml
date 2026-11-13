@@ -30,13 +30,15 @@ nodes:
   web-a: { kind: ecs, label: Web shop, in: app-a, size: 2 tasks }
   web-b: { kind: ecs, label: Web shop, in: app-b, size: 2 tasks }
   web-c: { kind: ecs, label: Web shop, in: app-c, size: 2 tasks }
-  db-a: { kind: aurora, label: Orders (reader), in: data-a }
-  db-b: { kind: aurora, label: Orders (writer), in: data-b }
-  db-c: { kind: aurora, label: Orders (reader), in: data-c }
+  # One Aurora cluster: a writer and two reader instances on the cluster's shared storage, which Aurora
+  # itself keeps in every zone. No lines between them: the instances do not copy data to each other.
+  db-a: { kind: aurora, label: Orders reader, in: data-a, caption: Aurora instance · same cluster }
+  db-b: { kind: aurora, label: Orders writer, in: data-b, caption: Aurora instance · cluster orders }
+  db-c: { kind: aurora, label: Orders reader, in: data-c, caption: Aurora instance · same cluster }
 
 edges:
   # Unlabelled to fit a slide; the key says what each style is. Users reach the CDN over HTTPS,
-  # the web shop talks SQL to the writer, and the writer replicates to the readers in the other zones.
+  # and the web shop talks SQL to the cluster's writer.
   - users -> cdn: { style: public }
   - cdn -> igw: { style: public }
   - igw -> alb: { style: public }
@@ -46,5 +48,3 @@ edges:
   - web-a -> db-b: { style: private }
   - web-b -> db-b: { style: private }
   - web-c -> db-b: { style: private }
-  - db-b -> db-a: { style: data }
-  - db-b -> db-c: { style: data }
