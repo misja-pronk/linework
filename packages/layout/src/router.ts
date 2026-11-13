@@ -371,6 +371,7 @@ function span(e: RouteRequest): number {
 }
 
 const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+const sideMiddle = (b: Box, side: Side): Point => ({ x: b.x + b.width / 2 + (normal[side].x * b.width) / 2, y: b.y + b.height / 2 + (normal[side].y * b.height) / 2 });
 
 // ---------------------------------------------------------------- sides and ports
 
@@ -661,16 +662,17 @@ interface Ports {
 function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: Map<string, string>): Map<string, Ports> {
   // Collect, per node side, the edges that attach there and where their other end is. Siblings
   // sharing a trunk take one slot together, aimed at the middle of their other ends.
-  type Slot = { edge: RouteRequest; end: 'from' | 'to'; other: Point };
+  // `toward`: the middle of the side the line takes at its other end, which tells apart lines to one card.
+  type Slot = { edge: RouteRequest; end: 'from' | 'to'; other: Point; toward: Point };
   const slots = new Map<string, Slot[]>();
   const shared = new Map<string, string>();
   const firstOf = new Map<string, Slot>();
   const spread = new Map<Slot, Point[]>();
   for (const e of input.edges) {
     const [sf, st] = sides.get(e.id)!;
-    for (const [end, side, other] of [
-      ['from', sf, centre(e.to.box)],
-      ['to', st, centre(e.from.box)],
+    for (const [end, side, other, toward] of [
+      ['from', sf, centre(e.to.box), sideMiddle(e.to.box, st)],
+      ['to', st, centre(e.from.box), sideMiddle(e.from.box, sf)],
     ] as const) {
       if (e[end].rowY != null) continue;
       const t = trunk.get(e.id);
@@ -682,7 +684,7 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
         continue;
       }
       const key = `${e[end].node}:${side}`;
-      const slot = { edge: e, end, other };
+      const slot = { edge: e, end, other, toward };
       if (sharedEnd) firstOf.set(t, slot), spread.set(slot, [other]);
       slots.set(key, [...(slots.get(key) ?? []), slot]);
     }
@@ -699,7 +701,9 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     const c = centre(box);
     const n = normal[side];
     const angle = (o: Point) => Math.atan2(along ? o.y - c.y : o.x - c.x, Math.max(1, (o.x - c.x) * n.x + (o.y - c.y) * n.y));
-    list.sort((p, q) => angle(p.other) - angle(q.other));
+    // Two lines to (or from) one card: by the side they take there. A line into this side from the card's
+    // far side and one out of it to the card's near side would cross right here in the other order.
+    list.sort((p, q) => angle(p.other) - angle(q.other) || angle(p.toward) - angle(q.toward));
     // Spread over the part of the side clear of header text when the ports fit there.
     const [lo, hi] = clearSpan(box, side, texts, list.length, Math.max(...list.map((s) => reachTo(box, side, s.edge[s.end === 'from' ? 'to' : 'from'].box))));
     const length = hi - lo + 24;
