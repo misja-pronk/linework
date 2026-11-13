@@ -209,8 +209,16 @@ function place(shape: RoadmapShape, theme: Theme): RoadmapGeometry {
         arrows.push({ d: `M${r1(sx)} ${r1(sy)}H${r1(mx - r)}Q${r1(mx)} ${r1(sy)} ${r1(mx)} ${r1(sy + dir * r)}V${r1(ey - dir * r)}Q${r1(mx)} ${r1(ey)} ${r1(mx + r)} ${r1(ey)}H${r1(ex - 6)}`, tip: { x: ex, y: ey, dx: 1, dy: 0 } });
       } else if (Math.max(sx + 10, into) <= b.box.x + b.box.width - 6) {
         // Starts right when (or before) the other ends: out of its end and down into the top (or up into the bottom).
-        const mx = Math.max(sx + 10, into);
+        // Where a bar in between stands in the way, further along the top, past that bar, while there is room.
         const ty = dir > 0 ? b.box.y - 2 : b.box.y + b.box.height + 2;
+        let mx = Math.max(sx + 10, into);
+        const along = (x2: number) => !out.some((o) => o !== a && o !== b && o.box.y < sy && o.box.y + o.box.height > sy && o.box.x < x2 && o.box.x + o.box.width > sx);
+        if (!clear(mx, sy, ty))
+          for (let x = mx; x <= b.box.x + b.box.width - 8; x += 2)
+            if (clear(x - 6, sy, ty) && clear(x, sy, ty) && clear(x + 6, sy, ty) && along(x)) {
+              mx = x;
+              break;
+            }
         const rr = Math.min(8, mx - sx, Math.abs(ty - sy) / 2);
         arrows.push({ d: `M${r1(sx)} ${r1(sy)}H${r1(mx - rr)}Q${r1(mx)} ${r1(sy)} ${r1(mx)} ${r1(sy + dir * rr)}V${r1(ty - dir * 6)}`, tip: { x: mx, y: ty, dx: 0, dy: dir } });
       } else {
@@ -332,10 +340,20 @@ export function drawRoadmap(shape: RoadmapShape, at: Box, theme: Theme): string 
     } else out.push(text(K.gutter.padX, cy, fitText(l.label, theme.size.label, 600, room), theme.size.label, 600, theme.text));
   }
 
-  // Axis milestones: a dashed line down through every lane.
+  // Axis milestones: a dashed line down through every lane, broken off where it would run through a bar
+  // or along its edge (a milestone at the start of a period stands where the bars of that period begin).
   for (const m of g.marks) {
     const t = tone(m.tone);
-    out.push(`<path d="M${r1(m.x)} ${r1(m.y + K.diamond)}V${r1(g.bottom)}" stroke="${t.fg}" stroke-width="1.3" stroke-dasharray="4 4" stroke-opacity="0.7"/>`);
+    const hit = g.bars.filter((b) => b.box.x - 4 <= m.x && m.x <= b.box.x + b.box.width + 4).map((b) => [b.box.y - 4, b.box.y + b.box.height + 4] as const);
+    hit.sort((p, q) => p[0] - q[0]);
+    let y0 = m.y + K.diamond;
+    let d = '';
+    for (const [a, b] of hit) {
+      if (a > y0 + 4) d += `M${r1(m.x)} ${r1(y0)}V${r1(a)}`;
+      y0 = Math.max(y0, b);
+    }
+    if (g.bottom > y0 + 4) d += `M${r1(m.x)} ${r1(y0)}V${r1(g.bottom)}`;
+    if (d) out.push(`<path d="${d}" stroke="${t.fg}" stroke-width="1.3" stroke-dasharray="4 4" stroke-opacity="0.7"/>`);
   }
 
   // Today runs under the bars, so it never crosses a label.
