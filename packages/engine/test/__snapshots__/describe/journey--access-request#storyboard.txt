@@ -12,7 +12,7 @@ By phase
   - Finds out which access is needed (feels guessing, 2 of 5)
     - Thinks: “Which of these forty groups do I need?”
     - Through Wiki and Slack
-    - With Colleague
+    - With: Colleague
     - Pain: Group names say nothing about what they allow
 - Request
   - Files a ticket with a free-text reason (feels resigned, 2 of 5)
@@ -24,27 +24,27 @@ By phase
   - Waits for the manager to approve (feels blocked, 1 of 5)
     - Thinks: “The shift starts tonight and nobody has answered.”
     - Through Email
-    - With Manager
+    - With: Manager
     - Pain: Approver is on leave, no delegate
     - Pain: No status anywhere
     - Measured: 3 days
   - Chases the system owner for a second approval (feels frustrated, 1 of 5)
     - Says: “Can you please look at ticket 48213?”
     - Through Email and Slack
-    - With System owner
+    - With: System owner
     - Pain: Two approvals in sequence, by hand
     - Measured: 2 days
 - Use
   - Gets permanent access from the service desk (feels relieved, 3 of 5)
     - Says: “It works. I will keep this forever, just in case.”
     - Through Azure portal
-    - With Service desk
+    - With: Service desk
     - Pain: Standing access that nobody takes away
 - Review
   - Is asked a year later why the access exists (feels caught out, 2 of 5)
     - Thinks: “I do not remember. Probably that one shift.”
     - Through Email
-    - With Auditor
+    - With: Auditor
     - Pain: Reviews are yearly spreadsheets
 
 Feeling

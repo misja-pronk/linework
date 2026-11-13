@@ -330,7 +330,8 @@ describe('steps', () => {
     const [x, , w] = at(side, 'Step caption')!;
     expect(x).toBeGreaterThan(captionX! + 12192000 / 3);
     expect(x! + w!).toBeLessThanOrEqual(12192000);
-    expect(side).toContain('name="Step rule"');
+    // No bar over the caption that would read as progress: "3 / 7" says where the story is.
+    expect(side).not.toContain('name="Step rule"');
     const [tallFlat] = await scales(tall, false);
     for (const s of await scales(tall)) expect(s).toBeGreaterThanOrEqual(tallFlat! * 0.999);
   });

@@ -12,7 +12,7 @@ By phase
   - Sees the platform in a guild demo (feels curious, 3 of 5)
     - Thinks: “Looks good in a demo. Will it fit our service?”
     - Through Guild meeting
-    - With Platform team
+    - With: Platform team
   - Reads the getting-started guide (feels hopeful, 4 of 5)
     - Says: “One page, and it starts with a working example.”
     - Through Developer portal and Docs
@@ -27,7 +27,7 @@ By phase
   - Connects the database and secrets (feels stuck, 2 of 5)
     - Thinks: “Which of the three vaults is ours?”
     - Through Terminal and Slack
-    - With Platform support
+    - With: Platform support
     - Pain: Secret names differ per environment
     - Pain: Database needs a ticket
     - Idea: Database as a self-service resource
@@ -40,7 +40,7 @@ By phase
   - Promotes the release to production (feels careful, 3 of 5)
     - Thinks: “Who approves this, and how long does that take?”
     - Through Deploy dashboard
-    - With Product owner
+    - With: Product owner
     - Pain: Approval rule is unclear for new services
     - Idea: Automatic approval when checks are green
     - Measured: 2 hours waiting

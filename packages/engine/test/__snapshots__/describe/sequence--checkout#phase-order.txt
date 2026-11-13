@@ -16,3 +16,8 @@ In order, top to bottom.
 - 3. Orders API does: Validate cart and prices.
 - 4. Orders API calls Orders DB: INSERT order (pending).
 - 5. Orders DB replies to Orders API: order id.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
+- Arrow with an open head: Async message

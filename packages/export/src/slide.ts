@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, smallestTextPx } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
@@ -308,7 +308,7 @@ class SlideDrawing {
   /** A callout of a step: a filled bubble next to its element, its text editable. */
   private note(n: PlacedNote): Item {
     const t = this.theme;
-    return this.sp({
+    const bubble = this.sp({
       name: `Note: ${n.lines.join(' ')}`,
       frame: this.frame(n.box.x, n.box.y, n.box.width, n.box.height),
       geom: this.roundRect(n.box, 8),
@@ -316,6 +316,16 @@ class SlideDrawing {
       line: { color: t.canvas, width: this.L(2) },
       text: { anchor: 'ctr', inset: { l: this.L(10), r: this.L(10) }, paras: n.lines.map((l) => ({ runs: [this.run(l, 12.5, 500, t.canvas)] })) },
     });
+    // Further out than beside its element (past a frame): a line back to it ending in a dot, as in the SVG.
+    const stem = noteStem(n);
+    if (!stem) return bubble;
+    const b = n.box;
+    const upright = n.tip.y <= b.y || n.tip.y >= b.y + b.height;
+    const lead = upright
+      ? this.sp({ name: 'Pointer', frame: this.frame(n.tip.x, Math.min(n.tip.y, b.y + b.height), 0, Math.abs(n.tip.y - (n.tip.y <= b.y ? b.y : b.y + b.height))), geom: { prst: 'line' }, fill: null, line: { color: t.text, width: this.L(1.5) } })
+      : this.sp({ name: 'Pointer', frame: this.frame(Math.min(n.tip.x, b.x + b.width), n.tip.y, Math.abs(n.tip.x - (n.tip.x <= b.x ? b.x : b.x + b.width)), 0), geom: { prst: 'line' }, fill: null, line: { color: t.text, width: this.L(1.5) } });
+    const dot = this.sp({ name: 'Pointer end', frame: this.frame(n.tip.x - 3.5, n.tip.y - 3.5, 7, 7), geom: { prst: 'ellipse' }, fill: { color: t.text }, line: { color: t.canvas, width: this.L(1.5) } });
+    return this.group(`Note: ${n.lines.join(' ')}`, [lead, dot, bubble]);
   }
 
   // ------------------------------------------------------------ groups and cards

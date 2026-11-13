@@ -17,7 +17,7 @@ By phase
   - Asks a colleague which to use (feels unsure, 2 of 5)
     - Says: “Use Customer 360, the others are leftovers.”
     - Through Teams chat
-    - With Senior analyst
+    - With: Senior analyst
     - Pain: The right product is tribal knowledge
     - Measured: Half a day
 - Understand
@@ -35,7 +35,7 @@ By phase
   - Requests access to the output port (feels impatient, 2 of 5)
     - Thinks: “Why explain the purpose three times?”
     - Through Access portal and Email
-    - With Product owner
+    - With: Product owner
     - Pain: Purpose asked in three forms
     - Pain: No status once sent
     - Idea: One request, purpose on the contract
@@ -43,7 +43,7 @@ By phase
   - Gets approval and credentials (feels relieved, 3 of 5)
     - Says: “Finally. Now where do I paste this?”
     - Through Email
-    - With Product owner
+    - With: Product owner
     - Pain: Connection details arrive by email
 - Use
   - Queries it from a notebook (feels productive, 5 of 5)
@@ -61,7 +61,7 @@ By phase
   - Shares and rates the result (feels heard, 4 of 5)
     - Says: “I flagged a missing key. Fixed that day.”
     - Through Dashboard and Data catalogue
-    - With Marketing lead
+    - With: Marketing lead
     - Works well: Feedback reaches the owning team
 
 Feeling

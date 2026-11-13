@@ -223,6 +223,24 @@ describe('journey', () => {
     expect(compare.r.steps![2]!.caption).toContain('Today: ');
   });
 
+  it('lights a stage cell whole or not at all: never half of it beside a step that stands back', async () => {
+    const yaml = example('developer-onboarding');
+    const whole = await draw(yaml);
+    const fourth = await draw(yaml, { step: 4 });
+    // "First commit" holds steps 3 and 4: with 4 in focus its cells take the quiet fill, as the other stages' do.
+    const cells = (s: JourneyScene, stage: string) => s.marks.filter((m): m is Extract<JourneyMark, { t: 'rect' }> => m.t === 'rect' && !!m.name?.endsWith(`: ${stage}`));
+    const fills = (s: JourneyScene, stage: string) => cells(s, stage).map((m) => m.fill);
+    expect(cells(fourth.scene!, 'First commit').length).toBeGreaterThan(0);
+    expect(fills(fourth.scene!, 'First commit')).toEqual(fills(fourth.scene!, 'First day'));
+    expect(fills(fourth.scene!, 'First commit')).not.toEqual(fills(whole.scene!, 'First commit'));
+  });
+
+  it('names who is there after a colon, as the author wrote them', async () => {
+    const { r } = await draw(example('developer-onboarding'), { view: 'storyboard' });
+    expect(r.svg).toContain('With: Buddy');
+    expect(r.svg).not.toContain('With Buddy');
+  });
+
   for (const name of names)
     describe(name, () => {
       const yaml = example(name);
