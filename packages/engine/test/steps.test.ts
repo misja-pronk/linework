@@ -260,6 +260,13 @@ describe('steps: drawing', () => {
     expect(whole).not.toContain('Everything that is there.');
   });
 
+  it('ties the caption to the drawing with a hairline only: no bar that would read as progress', async () => {
+    const at = (await render(text, { fonts: 'none', step: 1 })).svg!;
+    const after = (await render(text, { fonts: 'none', step: 3 })).svg!;
+    expect(at).toContain('1 / 3');
+    for (const svg of [at, after]) expect(svg).not.toMatch(/<rect [^>]*width="40" height="3"/);
+  });
+
   it('is legible in the dark theme too: what stands back keeps its distance from the canvas', async () => {
     const r = await render(text, { fonts: 'none', step: 2, theme: 'dark', marks: true });
     const svg = r.svg!;

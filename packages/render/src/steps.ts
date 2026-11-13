@@ -83,8 +83,8 @@ export function captionBlock(view: StepView, theme: Theme, width: number) {
   const draw = (x: number, y: number) => {
     const s = view.states[view.index]!;
     let cy = y + CAPTION.gap + CAPTION.row / 2;
-    // A hairline with a short accent segment ties the caption to the drawing above it.
-    let out = `<rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 12)}" width="${r1(width)}" height="1" fill="${theme.border}"/><rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 13)}" width="40" height="3" rx="1.5" fill="${theme.accent ?? theme.tones.blue.fg}"/>`;
+    // A hairline ties the caption to the drawing above it ("3 / 7" says where the story is; a bar that never moves would look like progress).
+    let out = `<rect x="${r1(x)}" y="${r1(y + CAPTION.gap - 12)}" width="${r1(width)}" height="1" fill="${theme.border}"/>`;
     out += line(x + width, cy, `${view.index + 1} / ${view.states.length}`, 13, 500, theme.textFaint, 'end');
     for (const l of captionLines(s, width)) {
       out += l.title ? line(x, cy, l.text, CAPTION.title, 600, theme.text) : line(x, cy, l.text, CAPTION.text, 400, s.title ? theme.textMuted : theme.text);

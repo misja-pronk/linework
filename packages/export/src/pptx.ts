@@ -230,9 +230,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       if (lines.length) tree += filled(next(), captionPh, lines, true);
       tree += number({ x: room.x + room.w - INCH, y: bottom - below, w: INCH, h: ROWS.line * INCH }, 't');
     } else if (told && state && side) {
-      // Beside the drawing, from its top down: a short accent rule, the title, the caption.
+      // Beside the drawing, from its top down: the title, the caption.
       const y = side.y + 0.18 * INCH;
-      tree += shape({ id: next(), name: 'Step rule', frame: { x: side.x, y: y - 0.1 * INCH, w: 0.42 * INCH, h: 0.03 * INCH }, geom: { prst: 'rect' }, fill: { color: theme.accent ?? theme.tones.blue.fg }, line: null }, font);
       const paras = [title(state), caption(state)].filter((r) => r.length).map((runs) => ({ runs }));
       if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
       tree += number({ x: room.x + room.w - INCH, y: bottom - ROWS.line * INCH, w: INCH, h: ROWS.line * INCH }, 't');
