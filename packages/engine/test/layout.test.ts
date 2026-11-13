@@ -443,7 +443,7 @@ describe('layout quality', () => {
   it('starts the cards of one column on one line, left to right', async () => {
     // Drawn left to right, the sources share their left edge.
     const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
-    const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
+    const left = ['web-shop', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
   });
 
@@ -764,7 +764,7 @@ describe('lines back and names under shapes', () => {
   it('take the side with fewer bends for a line back to an earlier layer: gold goes down to the warehouse', async () => {
     // Out of gold's left side it ran back under the line in from silver, then down: one bend more for the flow's sake.
     const r = await drawn('azure/data-platform.yaml');
-    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sqlwh')!.id;
+    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sql-warehouse')!.id;
     const [a, b] = r.placed!.edges.get(id)!.points;
     expect(a!.x).toBe(b!.x);
     expect(b!.y).toBeGreaterThan(a!.y);

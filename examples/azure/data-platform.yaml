@@ -49,7 +49,7 @@ edges:
   # The data moves up the medallion on the data lines; the workspace runs the jobs that move it
   - bronze -> silver: { label: clean, style: data }
   - silver -> gold: { label: model, style: data }
-  - dbw-data-prod ..> stdatalakeprod: { label: runs jobs, style: management }
+  - dbw-data-prod ..> stdatalakeprod: { label: jobs, style: management }
   - gold -> sql-warehouse: { style: data }
   - sql-warehouse -> power-bi: { label: DirectQuery, style: data }
 
