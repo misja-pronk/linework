@@ -60,7 +60,8 @@ export async function exportHtmlFile(target: string, out: string | undefined, fl
   };
   const r = await exportHtml(input);
   const file = out ?? (folder ? `${path.resolve(target).replace(/[\\/]+$/, '')}.html` : target.replace(/\.ya?ml$/i, '') + '.html');
-  if (r.stats.drawings) {
+  // -o -: the page goes to standard output; the command writes it.
+  if (r.stats.drawings && file !== '-') {
     fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
     fs.writeFileSync(file, r.html);
   }

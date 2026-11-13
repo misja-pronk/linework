@@ -60,7 +60,7 @@ margins. The drawing is scaled into the room the table above describes, and that
 The editor's PowerPoint export names the slides whose smallest text a reader needs (names on cards, lines and
 groups) comes out under 6 pt, as made in the template. On the command line, `carto validate --template
 customer.potx` (with `--layout` as for `carto render`) says the same per diagram before you make the deck; a
-diagram whose brand theme names a template (`pptx:`) is measured in it without asking. The editor's page frame
+diagram whose brand theme names a template (`pptx:`) is measured in it without asking. `carto render` and `carto deck` say it too when they make a deck, in the template or on a 4:3 slide (`--aspect 4:3`), as a warning per drawing that does not stop the deck. The editor's page frame
 (⇧P) does the same: with a template chosen in the Export menu (or named by the theme) it is that template's
 slide, named after the file, and says the smallest text the deck in it would have. Without a template,
 validate and the page frame measure Cartography's own slide: the title top left, the drawing in

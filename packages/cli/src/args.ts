@@ -48,6 +48,7 @@ const options = {
   base: { type: 'string' },
   to: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
+  version: { type: 'boolean' },
   lang: { type: 'string' },
 } as const;
 
