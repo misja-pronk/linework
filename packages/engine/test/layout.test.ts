@@ -27,9 +27,9 @@ const crossingBudget: Record<string, number> = {
   'access/engineering-roles.yaml': 0,
   'access/access-packages.yaml': 0,
   'access/azure-rbac-pim.yaml': 0,
-  'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
+  'access/privileged-access.yaml': 1, // the break-glass exclusion runs up past admin's line into the Tier 0 group
   'azure/aks-baseline.yaml': 0,
-  'azure/app-landing-zone.yaml': 1, // the route table's dotted line (configuration, not traffic) crosses the app's way out to the hub
+  'azure/app-landing-zone.yaml': 0,
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
   'azure/landing-zone.yaml': 0,
@@ -742,18 +742,71 @@ describe('crowded sides', () => {
     expect(labelMetrics(r.graph!, r.placed!).labelTouching).toBe(0);
     expect(measure(r.graph!, r.placed!).crossings).toBe(0);
   });
-  it('count the lines that pass the side of a group to a card inside it: the service desk comes up into its unit from below', async () => {
-    // Seven lines came in through the tenant's left side, the unit's three among them, 14 px apart.
+  it('count the lines that pass the side of a group to a card inside it, and land those onto the group by its header', async () => {
+    // Seven lines came in through the tenant's left side, the unit's three among them, 14 px apart. Then
+    // the tenant-wide roles ended on the tenant's border right beside the unit, as if on the unit.
     const r = await drawn('access/privileged-access.yaml', 'graph');
     const box = r.placed!.groups.get('tenant')!;
+    const unit = r.placed!.nodes.get('au-nl')!;
     const inside = (p: { x: number; y: number }) => p.x >= box.x - 1 && p.x <= box.x + box.width + 1 && p.y >= box.y - 1 && p.y <= box.y + box.height + 1;
     const through = [...r.placed!.edges.values()]
       .filter((e) => inside(e.points.at(-1)!))
       .flatMap((e) => e.points.slice(1).map((b, i) => [e.points[i]!, b] as const).filter(([a, b]) => a.y === b.y && a.y >= box.y && a.y <= box.y + box.height && Math.min(a.x, b.x) < box.x && Math.max(a.x, b.x) >= box.x).map(([a]) => a.y))
       .sort((a, b) => a - b);
-    expect(through.length).toBeLessThanOrEqual(4);
     for (let i = 1; i < through.length; i++) expect(through[i]! - through[i - 1]!).toBeGreaterThanOrEqual(16);
     expect(labelMetrics(r.graph!, r.placed!).labelTouching).toBe(0);
+    const onto = r.graph!.edges.filter((e) => e.to.node === 'tenant').map((e) => r.placed!.edges.get(e.id)!.points.at(-1)!);
+    expect(onto.length).toBe(5);
+    for (const p of onto) expect(p.y < unit.y - 8 || p.x < box.x || p.x > box.x + box.width || p.y <= box.y + 1).toBe(true);
+  });
+});
+
+describe('flagship lines', () => {
+  const drawn = (file: string) => render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+  const line = (r: Awaited<ReturnType<typeof drawn>>, from: string, to: string) => r.placed!.edges.get(r.graph!.edges.find((e) => e.from.node === from && e.to.node === to)!.id)!;
+
+  it('keep a line onto a group clear of the line through its border into a card inside: the jobs into the lake', async () => {
+    const r = await drawn('azure/data-platform.yaml');
+    const jobs = line(r, 'dbw', 'lake').points.at(-1)!;
+    const bronze = r.placed!.nodes.get('bronze')!;
+    expect(jobs.y).toBeLessThan(bronze.y - 8);
+    expect(line(r, 'adf', 'bronze').points.at(-1)!.y - jobs.y).toBeGreaterThanOrEqual(24);
+  });
+  it('give two lines into one side each the other\'s lane when they cross on the way: next hop and outbound into the firewall', async () => {
+    const r = await drawn('azure/app-landing-zone.yaml');
+    const [a, b] = [line(r, 'rt', 'afw').points, line(r, 'app', 'afw').points];
+    const cross = a.slice(1).some((p, i) => b.slice(1).some((q, j) => {
+      const [p0, q0] = [a[i]!, b[j]!];
+      const v = p0.x === p.x ? [p0, p] : [q0, q];
+      const h = p0.x === p.x ? [q0, q] : [p0, p];
+      return v[0]!.x !== v[1]!.x ? false : h[0]!.y === h[1]!.y && Math.min(h[0]!.x, h[1]!.x) < v[0]!.x && Math.max(h[0]!.x, h[1]!.x) > v[0]!.x && Math.min(v[0]!.y, v[1]!.y) < h[0]!.y && Math.max(v[0]!.y, v[1]!.y) > h[0]!.y;
+    }));
+    expect(cross).toBe(false);
+  });
+  it('slide an office in line with the gateway it joins when the gateway sits deeper in its groups', async () => {
+    const r = await drawn('azure/hub-spoke.yaml');
+    expect(line(r, 'router', 'vpngw').points).toHaveLength(2);
+  });
+  it('take a side with room over steps aside out of a full one: the firewall\'s three lines out', async () => {
+    const r = await drawn('azure/hub-spoke.yaml');
+    for (const to of ['erp-vm', 'web-vm', 'internet']) {
+      const p = line(r, 'afw', to).points;
+      for (let i = 2; i < p.length - 1; i++) expect(Math.abs(p[i]!.x - p[i - 1]!.x) + Math.abs(p[i]!.y - p[i - 1]!.y)).toBeGreaterThanOrEqual(18);
+    }
+  });
+  it('keep a label beside its own line clear of another line near it: peering, not by the RDP line', async () => {
+    const r = await drawn('azure/hub-spoke.yaml');
+    const l = line(r, 'afw', 'erp-vm').label!;
+    const rdp = line(r, 'bastion', 'erp-vm').points;
+    const gap = Math.min(...rdp.slice(1).map((q, i) => {
+      const p = rdp[i]!;
+      return Math.hypot(Math.max(l.x - Math.max(p.x, q.x), Math.min(p.x, q.x) - (l.x + l.width), 0), Math.max(l.y - Math.max(p.y, q.y), Math.min(p.y, q.y) - (l.y + l.height), 0));
+    }));
+    expect(gap).toBeGreaterThanOrEqual(16);
+  });
+  it('put a long label beside a line that runs down, not across it: egress to the firewall', async () => {
+    const r = await drawn('azure/aks-baseline.yaml');
+    expect(labelMetrics(r.graph!, r.placed!).labelStruck).toBe(0);
   });
 });
 
