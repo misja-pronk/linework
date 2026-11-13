@@ -205,7 +205,7 @@ function LayersButton({ list, active, mode, open, setOpen, toggle, only, all, fl
           </button>
           {reset && (
             <button role="menuitem" className="layers-all" onClick={() => (reset(), setOpen(false))} title={t("The layers as the YAML says (the view's own, or none)")}>
-              {t('As written')}
+              {t("The view's own layers")}
             </button>
           )}
         </div>
@@ -240,7 +240,7 @@ function LayersChip({ list, active, mode, info, why, onMode, onLeave, onOpen }: 
         <>
           {mode === 'only' && (
             <span className="focus-chip-count" title={t('{kept} of {total} elements are drawn', { kept: info.kept, total: info.total })}>
-              {t('{kept} of {total}', { kept: info.kept, total: info.total })}
+              {t('{kept} of {total} shown', { kept: info.kept, total: info.total })}
             </span>
           )}
           <button className="tool" onClick={onMode} title={mode === 'only' ? t('Keep everything in its place and fade the rest (D in the panel)') : t('Draw only the layers, laid out on their own (D in the panel)')}>

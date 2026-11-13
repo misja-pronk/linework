@@ -1,4 +1,4 @@
-# Kestrel Bank (fictional): online banking described once as a C4 model, drawn as nine views,
+# Kestrel Bank (fictional): online banking described once as a C4 model, drawn as ten views,
 # each one small enough to read on a slide. `carto render kestrel-bank.yaml --all-views` writes
 # one SVG per view; the cards link down from the landscape to the context, the containers and the
 # components of the banking API.
@@ -108,11 +108,14 @@ views:
       - online.api.events -> online.bus: { label: Publishes PaymentMade, technology: Kafka }
       - online.bus -> online.notifier: Delivers the event
       - online.notifier -> push: { label: Sends a push, technology: HTTPS }
+  # Production on three slides: how customers reach it, what the banking API keeps, how events go out.
   production:
     kind: deployment
     title: Kestrel Online — production
-    subtitle: Live environment, eu-west-1 and the Amsterdam data centre
-    direction: right
+    subtitle: How customers reach it in eu-west-1
+    # The app reaches the API through the load balancer, as the browser reaches web banking: the
+    # model's app → API relation is not drawn straight between the instances here.
+    exclude: [online.app -> online.api]
     nodes:
       phone: { label: Customer's phone, technology: iOS or Android, instances: [online.app] }
       aws:
@@ -126,19 +129,30 @@ views:
             nodes:
               web-pods: { label: web, technology: Docker, count: 3, instances: [online.web] }
               api-pods: { label: banking-api, technology: Docker, count: 4, instances: [online.api] }
-      dc: { label: Kestrel data centre, technology: z/OS mainframe, instances: [ledger] }
     edges:
+      - online.app -> lb: { label: Calls the API, technology: JSON/HTTPS }
       - lb -> online.web: { label: Forwards, technology: HTTPS }
       - lb -> online.api: { label: Forwards, technology: HTTPS }
-      # The app reaches the API through the load balancer, as the browser reaches web banking. A
-      # deployment view draws the model's app → API relation between the instances anyway, so the
-      # line is written here to say so (one line app → load balancer would leave the direct one too).
-      - online.app -> online.api: { label: Calls via the ALB, technology: JSON/HTTPS }
-  # The same account, drawn for what the banking API keeps and announces: one slide each.
   production-data:
     kind: deployment
-    title: Kestrel Online — production, data and events
-    subtitle: The customer store, Kafka and the notifier in eu-west-1
+    title: Kestrel Online — production, data
+    subtitle: The customer store in eu-west-1 and the ledger in the Amsterdam data centre
+    nodes:
+      aws:
+        label: Amazon Web Services
+        technology: eu-west-1
+        nodes:
+          eks:
+            label: EKS cluster
+            technology: Kubernetes 1.31
+            nodes:
+              api-pods: { label: banking-api, technology: Docker, count: 4, instances: [online.api] }
+          rds: { label: Amazon RDS, technology: PostgreSQL 16, instances: [online.db] }
+      dc: { label: Kestrel data centre, technology: z/OS mainframe, instances: [ledger] }
+  production-events:
+    kind: deployment
+    title: Kestrel Online — production, events
+    subtitle: Kafka and the notifier in eu-west-1
     nodes:
       aws:
         label: Amazon Web Services
@@ -151,4 +165,3 @@ views:
               api-pods: { label: banking-api, technology: Docker, count: 4, instances: [online.api] }
               notifier-pods: { label: notifier, technology: Docker, count: 2, instances: [online.notifier] }
           msk: { label: Amazon MSK, technology: Kafka 3.7, instances: [online.bus] }
-          rds: { label: Amazon RDS, technology: PostgreSQL 16, instances: [online.db] }

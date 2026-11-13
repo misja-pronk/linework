@@ -517,6 +517,60 @@ describe('carto errors and help', () => {
   }, 120_000);
 });
 
+describe('carto with a value it does not take', () => {
+  const steps = `${shop}steps:\n  - { title: One, show: [web] }\n  - { title: Two, show: [web, db] }\n`;
+
+  it('says which values there are and exits 1: --step, --aspect, --page', async () => {
+    write('steps.yaml', steps);
+    const step = await carto('render', 'steps.yaml', '--step', '9', '-o', 'nine.svg');
+    expect(step.code).toBe(1);
+    expect(step.err).toContain('--step 9: it has 2 steps; use one of 1–2');
+    expect(exists('nine.svg')).toBe(false);
+    expect((await carto('render', 'steps.yaml', '--step', 'two')).err).toBe('carto: --step two: give a step number from 1, e.g. --step 2\n');
+    const aspect = await carto('deck', 'steps.yaml', '--aspect', '3:2', '-o', 'd.pptx');
+    expect([aspect.code, aspect.err]).toEqual([1, 'carto: --aspect 3:2 is not a slide shape carto makes; use one of: 16:9, 4:3\n']);
+    const page = await carto('deck', 'steps.yaml', '--page', 'letter', '-o', 'd.pdf');
+    expect([page.code, page.err]).toEqual([1, 'carto: --page letter is not a page size carto makes; use one of: fit, a4, a3\n']);
+    expect((await carto('render', 'steps.yaml', '--page', 'letter', '-o', 'd.pdf')).code).toBe(1);
+  }, 60_000);
+
+  it('writes one step to the file named, and says its version', async () => {
+    write('steps.yaml', steps);
+    expect((await carto('render', 'steps.yaml', '--step', '2', '-o', 'two.pptx')).code).toBe(0);
+    expect(exists('two.pptx')).toBe(true);
+    expect(exists('two-step-02.pptx')).toBe(false);
+    const v = await carto('--version');
+    expect(v.code).toBe(0);
+    expect(v.out).toMatch(/^carto \d+\.\d+\.\d+\n$/);
+  }, 60_000);
+
+  it('reads standard input for describe and validate, and export-html -o - writes standard output', async () => {
+    const described = await inProcess(tmp, ['describe', '-'], { input: shop });
+    expect(described.code).toBe(0);
+    expect(described.out).toContain('3 elements');
+    const valid = await inProcess(tmp, ['validate', '-'], { input: shop });
+    expect([valid.code, valid.out]).toEqual([0, 'stdin ok\n']);
+    write('page.yaml', shop);
+    const html = await carto('export-html', 'page.yaml', '-o', '-');
+    expect(html.code).toBe(0);
+    expect(html.out).toMatch(/^<!doctype html>/i);
+    expect(html.err).toContain('→ standard output');
+    expect(exists('-')).toBe(false);
+  }, 60_000);
+
+  it('warns when a deck\'s text is too small, as validate does: 4:3 and a template too', async () => {
+    const chain = Array.from({ length: 12 }, (_, i) => `s${i}`);
+    write('chain.yaml', `type: systems\ntitle: A long chain\nnodes:\n${chain.map((id, i) => `  ${id}: { kind: service, label: Service number ${i + 1} }`).join('\n')}\nedges:\n${chain.slice(1).map((id, i) => `  - ${chain[i]} -> ${id}: calls`).join('\n')}\n`);
+    fs.writeFileSync(path.join(tmp, 'corporate.potx'), corporateTemplate());
+    const four = await carto('deck', 'chain.yaml', '--aspect', '4:3', '-o', 'four.pptx');
+    expect(four.code).toBe(0);
+    expect(four.err).toMatch(/chain\.yaml {2}warning {2}"A long chain" \(slide 1\): on a 4:3 slide its smallest text is [\d.]+ pt, under 6 pt: a 16:9 slide \(--aspect 16:9\)/);
+    const template = await carto('render', 'chain.yaml', '--template', 'corporate.potx', '-o', 'tpl.pptx');
+    expect(template.code).toBe(0);
+    expect(template.err).toMatch(/warning {2}"A long chain" \(slide 1\): on a slide of the template its smallest text is [\d.]+ pt/);
+  }, 60_000);
+});
+
 describe('a sidecar that cannot be read', () => {
   it('leaves out a bad entry with a warning, never a NaN in the drawing', async () => {
     write('odd.yaml', shop);

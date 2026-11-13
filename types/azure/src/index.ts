@@ -150,7 +150,12 @@ export const azure: DiagramType<GraphSource> = {
   ],
   schema: graphSchema('azure', config, 'Cartography Azure diagram'),
   palette,
-  build: (src, ctx) => buildGraph(src, config, ctx),
+  build: (src, ctx) => {
+    const graph = buildGraph(src, config, ctx);
+    // An identity chip names what the card reaches with its managed identity ("Secrets" on the API): the key says so.
+    if (!ctx.lang || ctx.lang === 'en') for (const l of graph.legend ?? []) if (l.swatch === 'badge' && l.label === 'Identity badge') l.label = 'Reached with its managed identity';
+    return graph;
+  },
   references: graphReferences,
   template: `type: azure
 title: Web shop

@@ -132,7 +132,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
         <div className="actions">
           {choices && choices.views.length > 1 && (
             <select className="viewer-views" aria-label={t('View')} value={choices.value} onChange={(e) => setView(pickedView(e.target.value, choices.written))}>
-              {choices.asWritten && <option value="">{t('As written')}</option>}
+              {choices.asWritten && <option value="">{t('Whole diagram')}</option>}
               {choices.views.map((v) => (
                 <option key={v.name} value={v.name}>
                   {v.title ?? v.name}

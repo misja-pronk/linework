@@ -69,6 +69,18 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Folding the panel: at the end of its tabs, quiet until pointed at. */
+.left-tabs .fold-left {
+  align-self: center;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  opacity: 0.5;
+}
+.left-tabs .fold-left:hover,
+.left-tabs .fold-left:focus-visible {
+  opacity: 1;
+}
 .outline-empty {
   margin: 16px;
   font-size: 0.8125rem;

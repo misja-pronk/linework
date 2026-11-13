@@ -136,7 +136,7 @@ export const nlShell = {
   'Export SVG': 'SVG exporteren',
   'Export PNG': 'PNG exporteren',
   'Drawing ↔ YAML (the YAML and the drawing side by side)': 'Tekening ↔ YAML (de YAML en de tekening naast elkaar)',
-  'Next / previous pane: YAML, drawing, properties': 'Volgend / vorig paneel: YAML, tekening, eigenschappen',
+  'Next / previous region: top bar, outline, YAML, drawing, toolbar, steps, properties': 'Volgend / vorig gebied: bovenbalk, overzicht, YAML, tekening, werkbalk, stappen, eigenschappen',
   'This sheet': 'Dit overzicht',
   'Present full screen (not while typing)': 'Schermvullend presenteren (niet tijdens het typen)',
   'Connect the selected element to…': 'Het geselecteerde element verbinden met…',

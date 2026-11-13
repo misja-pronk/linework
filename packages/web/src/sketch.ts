@@ -130,6 +130,22 @@ function parentFor(type: DiagramType, graph: Graph, id: string, collection: stri
   return parentKey(type, collection, String(g.path[0])) ? { collection: String(g.path[0]), id: String(g.path[1]) } : undefined;
 }
 
+/** The innermost group around all of `ids` that a group of `collection` can go in. */
+function sharedParent(type: DiagramType, graph: Graph, ids: string[], collection: string): { collection: string; id: string } | undefined {
+  const chain = (id: string) => {
+    const out: string[] = [];
+    for (let g = graph.nodes.find((x) => x.id === id)?.parent; g; g = graph.groups.find((x) => x.id === g)?.parent) out.push(g);
+    return out;
+  };
+  const [first, ...rest] = ids.map(chain);
+  const shared = (first ?? []).filter((g) => rest.every((c) => c.includes(g)));
+  for (const id of shared) {
+    const g = graph.groups.find((x) => x.id === id);
+    if (g?.path.length === 2 && parentKey(type, collection, String(g.path[0]))) return { collection: String(g.path[0]), id: String(g.path[1]) };
+  }
+  return undefined;
+}
+
 /** Adds a box like `item`, in `parent`, connected from `from` when given (and the type can). */
 function addFrom(text: string, type: DiagramType, item: PaletteItem, parent: { collection: string; id: string } | undefined, from: string | undefined): Sketched | undefined {
   const added = addEntry(text, type, item, parent);
@@ -234,8 +250,10 @@ export function groupInto(text: string, type: DiagramType, graph: Graph, nodes: 
     if (!g || g.path.length !== 2) return undefined;
     target = { collection: String(g.path[0]), id: String(g.path[1]), path: g.path, drawn: g.id };
   } else {
-    const first = nodes[0];
-    const outer = first ? parentFor(type, graph, first, into.item.collection) : undefined;
+    // The new group goes where all of them already are: in the innermost group that holds every one
+    // (two cards in different subnets of one VNet: in the VNet), so nothing leaves the group it was in
+    // for another. None holds them all: at the top.
+    const outer = sharedParent(type, graph, nodes, into.item.collection);
     const added = addEntry(out, type, into.item, outer);
     if (!added) return undefined;
     out = added.text;

@@ -4,7 +4,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { EditorState, Prec, StateEffect, StateField, Transaction, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, drawSelection, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, type DecorationSet } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentLess, indentMore, invertedEffects, redo, undo } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore, invertedEffects, redo, redoDepth, undo, undoDepth } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { autocompletion, closeBrackets, closeBracketsKeymap, closeCompletion, completionKeymap, completionStatus, selectedCompletion } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
@@ -40,6 +40,8 @@ interface Props {
   onChange(text: string): void;
   onCursor(pos: number): void;
   onPins(pins: LayoutSidecar | undefined): void;
+  /** Whether there is anything to undo and to redo, each time that changes. */
+  onHistory?(can: { undo: boolean; redo: boolean }): void;
 }
 
 // Pins (dragged positions) live in the editor state with an inverse, so the one undo history
@@ -182,11 +184,11 @@ const theme = EditorView.theme({
   '.cm-panels': { backgroundColor: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' },
 });
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial, initialPins, diagnostics, source, mark, onChange, onCursor, onPins }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial, initialPins, diagnostics, source, mark, onChange, onCursor, onPins, onHistory }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
-  const callbacks = useRef({ onChange, onCursor, onPins });
-  callbacks.current = { onChange, onCursor, onPins };
+  const callbacks = useRef({ onChange, onCursor, onPins, onHistory });
+  callbacks.current = { onChange, onCursor, onPins, onHistory };
 
   const extensions = (): Extension[] => [
     lineNumbers(),
@@ -218,6 +220,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
       if (u.docChanged) callbacks.current.onChange(u.state.doc.toString());
       if (u.startState.field(pinsField) !== u.state.field(pinsField)) callbacks.current.onPins(u.state.field(pinsField));
       if (u.selectionSet && u.view.hasFocus) callbacks.current.onCursor(u.state.selection.main.head);
+      const can = { undo: undoDepth(u.state) > 0, redo: redoDepth(u.state) > 0 };
+      if (can.undo !== undoDepth(u.startState) > 0 || can.redo !== redoDepth(u.startState) > 0) callbacks.current.onHistory?.(can);
     }),
   ];
 
@@ -265,6 +269,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initial,
       v.dispatch({ effects: setPins.of({ before: undefined, after: pins }), annotations: Transaction.addToHistory.of(false) });
       callbacks.current.onChange(text);
       callbacks.current.onPins(pins);
+      callbacks.current.onHistory?.({ undo: false, redo: false });
     },
     reveal(from) {
       const v = view.current!;

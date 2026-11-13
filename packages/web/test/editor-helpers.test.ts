@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cursorContext } from '../src/yaml-path.ts';
-import { score } from '../src/palette.tsx';
+import { rank, score } from '../src/palette.tsx';
 import { entryAt, entryRanges } from '../src/ranges.ts';
 import { schemasAt } from '../src/complete.ts';
 import { render, findType } from '@cartography/engine';
@@ -29,6 +29,11 @@ describe('palette matching', () => {
   it('prefers word starts', () => {
     expect(score('exp png', 'Export PNG')).toBeGreaterThan(score('exp png', 'Expand open page navigation'));
     expect(score('xyz', 'Export PNG')).toBe(0);
+  });
+  it('ranks a command by its name before its hint', () => {
+    const pdf = rank('pdf', { group: 'Export', label: 'Export PDF' });
+    const describe = rank('pdf', { group: 'Export', label: 'Describe in words…', hint: 'what the diagram shows, for a screen reader or a handout; copy as text or Markdown' });
+    expect(pdf).toBeGreaterThan(describe);
   });
 });
 

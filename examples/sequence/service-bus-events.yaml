@@ -37,6 +37,9 @@ messages:
   - divider: Dead-lettered and resubmitted
   # An Azure Monitor alert on the DeadletteredMessages metric of the subscription.
   - monitor ->> ops: "Alert: dead-lettered > 0"
+  # Service Bus Explorer in the portal, or a small tool: the dead-letter queue says why it gave up.
+  - ops -> dlq: Peek the dead-lettered message
+  - dlq --> ops: "OrderPlaced, reason: MaxDeliveryCountExceeded"
   # Resubmitted to the topic, the message reaches every subscription again: the MessageId check in
   # the handlers absorbs the second copy (and the topic's duplicate detection drops it within its window,
   # so a resubmit after that window, or with a new MessageId, is what gets through).

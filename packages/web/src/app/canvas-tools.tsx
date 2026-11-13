@@ -21,6 +21,9 @@ interface Common {
   group(): void;
   undo(): void;
   redo(): void;
+  /** Something to undo, to redo: greyed out when not. */
+  canUndo: boolean;
+  canRedo: boolean;
   /** How many steps the drawing has (none: no steps in the bar), and the one shown. */
   steps: number;
   step: number | undefined;
@@ -75,10 +78,10 @@ export function CanvasTools(p: Props) {
         <Icon name="square-dashed" /> <span className="tool-label">{t('Group')}</span> <kbd>{keyHint('group')}</kbd>
       </button>
       <span className="tool-sep" aria-hidden="true" />
-      <button className="tool" onClick={p.undo} title={tip(t('Undo'), keyHint('undo'))} aria-label={t('Undo')}>
+      <button className="tool" onClick={p.undo} disabled={!p.canUndo} title={tip(t('Undo'), keyHint('undo'))} aria-label={t('Undo')}>
         <Icon name="undo-2" />
       </button>
-      <button className="tool" onClick={p.redo} title={tip(t('Redo'), keyHint('redo'))} aria-label={t('Redo')}>
+      <button className="tool" onClick={p.redo} disabled={!p.canRedo} title={tip(t('Redo'), keyHint('redo'))} aria-label={t('Redo')}>
         <Icon name="redo-2" />
       </button>
       {session && p.steps > 0 && (

@@ -7,6 +7,7 @@ import { icon } from '@cartography/icons';
 import { inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
+import { describe } from '@cartography/describe';
 import { altOf } from './alt.ts';
 import { drawDiagram, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
 import { CAPTION, fitSlide, INCH, MARGIN, ownRoom, ROWS, words, type SlideRoom } from './fit.ts';
@@ -88,7 +89,7 @@ export interface SlideText {
   title?: string;
   /** The step shown, from 1. */
   step?: number;
-  /** The smallest text a reader needs (points): names on cards, lines and groups, not tags and badges under DETAIL_PX; carto validate says this number. */
+  /** The smallest text a reader needs (points): names on cards, lines and groups, the KEY and tags, not counts and badges under DETAIL_PX; carto validate says this number. */
   smallestPt: number;
   /** Points per drawing pixel: how large the drawing is on this slide. */
   scale: number;
@@ -245,12 +246,14 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     // The number this slide will have: after the template's own slides when they are kept, and any title slide.
     for (const f of plan?.footers ?? []) tree += footer(next(), f, (opts.keepSlides ? tpl!.slides.length : 0) + slides.length + 1);
 
-    const nodes = graph.nodes.filter((n) => !n.folded).length;
     const lang = d.lang;
+    // How big the drawing is, as describe tells it: "4 participants and 13 messages", not the one node a sequence is.
+    const nodes = graph.nodes.filter((n) => !n.folded).length;
+    const size = describe({ lang, graph, type: d.type, name: d.name }).size ?? `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}`;
     const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
-    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(header && graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}${from}.`];
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(header && graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${size.replace(/[.!?]$/, '')}${from}.`];
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 

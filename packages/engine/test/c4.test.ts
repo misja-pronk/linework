@@ -150,6 +150,47 @@ describe('C4 views', () => {
     expect(wrong.diagnostics.map((d) => d.message)).toContain('"nope" is not a deployment node or an element that runs in this view');
   });
 
+  it('deployment: via: keeps a line already there and joins the labels', async () => {
+    const edges = async (lines: string[]) => {
+      const r = await render(model.replace('      - lb -> shop.web: HTTPS\n', lines.map((l) => `      - ${l}\n`).join('')), { fonts: 'none', view: 'prod' });
+      return { edges: ids(r).edges, messages: r.diagnostics.map((d) => d.message) };
+    };
+    // A line written to the node first keeps its label, whichever comes first.
+    const before = await edges(['shop.web -> lb: HTTPS', 'shop.web -> shop.api: { via: lb }']);
+    const after = await edges(['shop.web -> shop.api: { via: lb }', 'shop.web -> lb: HTTPS']);
+    expect(before.edges).toContain('shop.web>lb:HTTPS, Calls [JSON]');
+    expect(after.edges).toContain('shop.web>lb:Calls [JSON], HTTPS');
+    // Two relations through the same node: one line with both labels.
+    const two = await edges(['shop.web -> shop.api: { via: lb, label: Orders }', 'shop.web -> shop.db: { via: lb, label: Reports }']);
+    expect(two.edges).toContain('shop.web>lb:Orders, Reports');
+    // Through an element the source already talks to: the model's label stays.
+    const through = await edges(['shop.web -> shop.db: { via: shop.api, label: Reads }']);
+    expect(through.edges).toContain('shop.web>shop.api:Calls [JSON], Reads');
+    // via: one of the ends: a warning, and the line drawn straight with its label.
+    const end = await edges(['shop.web -> shop.api: { via: shop.api, label: Direct }']);
+    expect(end.edges).toContain('shop.web>shop.api:Direct');
+    expect(end.messages).toContain('"shop.api" is an end of this line, so it is drawn straight. Name the node the line goes through, or leave via: out');
+  });
+
+  it('deployment: exclude: takes out relations between instances, and nodes with what runs in them', async () => {
+    const prod = async (lines: string[], exclude: string) => {
+      const r = await render(model.replace('      - lb -> shop.web: HTTPS\n', lines.map((l) => `      - ${l}\n`).join('')).replace('    kind: deployment\n', `    kind: deployment\n    exclude: ${exclude}\n`), { fonts: 'none', view: 'prod' });
+      expect(r.diagnostics).toEqual([]);
+      return ids(r);
+    };
+    // The model's line is taken out, so a line written through the load balancer is the only one.
+    const through = await prod(['shop.web -> lb: Calls', 'lb -> shop.api: Forwards'], '[shop.web -> shop.api]');
+    expect(through.edges).toEqual(['lb>shop.api:Forwards', 'shop.api>shop.db:Writes [SQL]', 'shop.web>lb:Calls']);
+    // A rule names the elements, or their parents, or the nodes they run in; it takes out written lines too.
+    expect((await prod(['lb -> shop.web: HTTPS'], '[shop -> shop.db]')).edges).toEqual(['lb>shop.web:HTTPS', 'shop.web>shop.api:Calls [JSON]']);
+    expect((await prod(['lb -> shop.web: HTTPS'], '[lb -> eks]')).edges).toEqual(['shop.api>shop.db:Writes [SQL]', 'shop.web>shop.api:Calls [JSON]']);
+    // A node goes with what runs in it and the lines to them; an element takes its instances out.
+    const rds = await prod(['lb -> shop.web: HTTPS'], '[rds, lb]');
+    expect(rds).toEqual({ nodes: ['shop.api', 'shop.web'], groups: ['api-pod', 'aws', 'eks'], edges: ['shop.web>shop.api:Calls [JSON]'] });
+    expect((await prod(['lb -> shop.web: HTTPS'], '[shop.web]')).nodes).toEqual(['lb', 'shop.api', 'shop.db']);
+    expect((await prod(['lb -> shop.web: HTTPS'], '[kind:database]')).nodes).toEqual(['lb', 'shop.api', 'shop.web']);
+  });
+
   it('a model file with C4 views draws in C4 notation', async () => {
     const r = await render(model.replace('type: c4', 'type: model'), { fonts: 'none', view: 'context' });
     expect(r.type!.id).toBe('c4');

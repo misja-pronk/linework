@@ -132,6 +132,16 @@ edges:
     expect(more.text).toContain('c: { kind: service, label: C, in: resource-group }');
   });
 
+  it('puts a new group where all its boxes already are, not where the first one is', async () => {
+    const text = 'type: azure\ngroups:\n  outer: { kind: resource-group, label: Outer }\n  one: { kind: resource-group, label: One, in: outer }\n  two: { kind: resource-group, label: Two, in: outer }\n  other: { kind: resource-group, label: Other }\nnodes:\n  a: { kind: service, label: A, in: one }\n  b: { kind: service, label: B, in: two }\n  c: { kind: service, label: C, in: other }\n';
+    const rg = azure.palette.find((p) => p.kind === 'resource-group')!;
+    const inside = groupInto(text, azure, graphOf(text), ['a', 'b'], { item: rg })!;
+    expect(inside.text).toMatch(/resource-group: \{ kind: resource-group, label: [^}]*in: outer \}/);
+    const top = groupInto(text, azure, graphOf(text), ['a', 'c'], { item: rg })!;
+    expect(top.text).not.toMatch(/resource-group: \{ kind: resource-group, label: [^}]*in: /);
+    expect(await problems(top.text)).toEqual([]);
+  });
+
   it('works for a type whose steps are their names', async () => {
     const text = 'type: process\nflow:\n  - start -> Ask -> end\n';
     const r = addConnected(text, proc, graphOf(text, proc), 'Ask')!;

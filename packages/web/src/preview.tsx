@@ -82,6 +82,8 @@ interface Props {
   result?: RenderResult;
   /** The drawing is from an earlier, valid version of the text. */
   stale?: boolean;
+  /** The text changed a moment ago and its drawing is on the way: a name cannot be typed in place yet. */
+  catchingUp?: boolean;
   /** Everything selected; one element for a plain selection. */
   selection: Selection[];
   /** Changes when another document (or another of its views) is shown: the view fits again. */
@@ -141,6 +143,8 @@ interface Props {
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
   children?: React.ReactNode;
+  /** A word for people about how the drawing works (said once, where it helps). */
+  onHint?(message: string): void;
   /** Pixels at the bottom a fit keeps clear (a session: the toolbar and the keys over it); outgrowing the rest fits it again. */
   clearBottom?: number;
 }
@@ -178,9 +182,12 @@ interface Drag {
   edge?: string;
   pts?: Point[];
   seg?: number;
-  /** The whole drawing was in view when the drag started: if the drop pushes it past an edge, it fits again. */
-  whole?: boolean;
+  /** What a dragged node or group may go no further than (pin space): the drawing as it was, and a margin round it. */
+  bounds?: Box;
 }
+
+/** How to move the view has been said this visit. */
+let panSaid = false;
 
 /** Screen pixels within which a drag snaps to a guide. */
 const SNAP = 6;
@@ -195,6 +202,16 @@ const HEADER = 40;
 
 const toPinSpace = (groups: Map<string, Box>, s: Point = { x: 0, y: 0 }) =>
   new Map([...groups].map(([id, b]) => [id, { ...b, x: b.x + s.x, y: b.y + s.y }]));
+
+/** The drawing's extent in pin space (the sidecar's coordinates, which stay put when the layout's origin moves). */
+function pinExtent(r: RenderResult | undefined): Box | undefined {
+  if (!r?.width || !r.height || !r.origin) return undefined;
+  const s = r.placed?.shift ?? { x: 0, y: 0 };
+  return { x: s.x - r.origin.x, y: s.y - r.origin.y, width: r.width, height: r.height };
+}
+
+/** How far past the drawing a card or group can be dragged (drawing px): a drop far out of it stays near it. */
+const REACH = 160;
 
 /** Smallest group box that holds a point. */
 function groupAt(groups: Map<string, Box>, p: Point): string | null {
@@ -370,17 +387,23 @@ export function Preview(p: Props) {
 
   /** The pane size the view was last placed for (see the resize observer below). */
   const paneSize = useRef({ w: 0, h: 0 });
-  /** The view as fit() last placed it, carried along by moves that keep it so (the layout's origin
-   * moving, the pane changing size); null once people pan or zoom themselves. */
-  const fittedView = useRef<View | null>(null);
+  /** The view is as fit() placed it, or as moves that keep it so carried it (the layout's origin
+   * moving, the pane changing size, a selection brought into view); false once people pan or zoom. */
+  const fittedView = useRef(false);
   /** The pane size fit() last fitted to. */
   const fittedPane = useRef({ w: 0, h: 0 });
   const [easing, setEasing] = useState(false);
-  const fit = useCallback((ease = false) => {
+  /** Counts the pans and zooms people make (wheel, drag, keys, buttons): a view they moved is theirs. */
+  const touched = useRef(0);
+  const byHand = (set: React.SetStateAction<View>) => {
+    touched.current++;
+    fittedView.current = false;
+    setView(set);
+  };
+  /** The view that fits the drawing (and the page, when shown) in the pane, clear of the tools. */
+  const fitView = useCallback((): View | undefined => {
     const f = frame.current;
-    if (!f || !result?.width || !result.height) return;
-    paneSize.current = { w: f.clientWidth, h: f.clientHeight };
-    fittedPane.current = { ...paneSize.current };
+    if (!f || !result?.width || !result.height) return undefined;
     const pad = 32;
     const top = Math.max(pad, floatingTop(f));
     const w = f.clientWidth - 2 * pad;
@@ -406,16 +429,21 @@ export function Preview(p: Props) {
     }
     const label = fr?.offsetWidth ? 22 : 0;
     const scale = clamp(Math.min(w / (x1 - x0), (h - label) / (y1 - y0), 1.25));
-    const next = { scale, x: (f.clientWidth - (x1 - x0) * scale) / 2 - x0 * scale, y: top + Math.max(0, (h - label - (y1 - y0) * scale) / 2) - y0 * scale };
-    fittedView.current = next;
-    setEasing(ease);
-    setView(next);
+    return { scale, x: (f.clientWidth - (x1 - x0) * scale) / 2 - x0 * scale, y: top + Math.max(0, (h - label - (y1 - y0) * scale) / 2) - y0 * scale };
   }, [result?.width, result?.height, p.page, p.clearBottom]);
-  /** A view change that keeps a fitted view fitted (it follows the drawing or the pane, not people). */
-  const carry = (v: View, next: View) => {
-    if (v === fittedView.current) fittedView.current = next;
-    return next;
-  };
+  const fit = useCallback(
+    (ease = false) => {
+      const f = frame.current;
+      const next = fitView();
+      if (!f || !next) return;
+      paneSize.current = { w: f.clientWidth, h: f.clientHeight };
+      fittedPane.current = { ...paneSize.current };
+      fittedView.current = true;
+      setEasing(ease);
+      setView(next);
+    },
+    [fitView],
+  );
 
   // Fit once per document; afterwards keep what is on screen still. When the layout's origin moves
   // (a node dragged past the edge, a title added), shift the view so the drawing does not jump.
@@ -431,13 +459,13 @@ export function Preview(p: Props) {
       // A shape just dropped: it stays under the pointer, whatever else the layout moved, and the view
       // is no longer a fitted one that glides to the centre when the inspector opens for it.
       dropAnchor.current = null;
-      fittedView.current = null;
+      fittedView.current = false;
       const o = result.origin;
       setView((v) => ({ ...v, x: dropped.x - (dropped.pin.x - shift.x + o.x) * v.scale, y: dropped.y - (dropped.pin.y - shift.y + o.y) * v.scale }));
     } else if (anchor.current?.doc === docKey) {
       const dx = zero.x - anchor.current.x;
       const dy = zero.y - anchor.current.y;
-      if (dx || dy) setView((v) => carry(v, { ...v, x: v.x - dx * v.scale, y: v.y - dy * v.scale }));
+      if (dx || dy) setView((v) => ({ ...v, x: v.x - dx * v.scale, y: v.y - dy * v.scale }));
     }
     anchor.current = { doc: docKey, ...zero };
   }, [result, docKey, fit]);
@@ -445,7 +473,7 @@ export function Preview(p: Props) {
   // A drawing that was fitted and that nobody has panned or zoomed since fits again when the pane
   // changed size (the YAML pane, the window). In the editor not when the drawing grows past the edges:
   // the zoom only changes when asked (a new box is brought into view by panning, below), or when a
-  // drop pushed a drawing that was wholly in view past an edge (fitAfterDrop). With a band to
+  // drop pushed a drawing that was wholly in view past an edge (keepInView, below). With a band to
   // keep clear (a session, `clearBottom`) it does: the sheet never runs under the toolbar there. Not
   // under a click in progress: a first click must leave the second of a double-click on the same
   // element, so it waits until the pointer has been still for a moment.
@@ -455,13 +483,13 @@ export function Preview(p: Props) {
   settleState.current = { view, editing: !!editing, fit };
   useEffect(() => {
     const f = frame.current;
-    if (!f || !result?.width || !result.height || view !== fittedView.current) return;
+    if (!f || !result?.width || !result.height || !fittedView.current) return;
     const paneMoved = f.clientWidth !== fittedPane.current.w || f.clientHeight !== fittedPane.current.h;
     const outgrown = p.clearBottom != null && !(view.x >= 0 && view.y >= 0 && view.x + result.width * view.scale <= f.clientWidth && view.y + result.height * view.scale <= f.clientHeight - p.clearBottom);
     if (!paneMoved && !outgrown) return;
     const run = () => {
       const st = settleState.current;
-      if (st.view !== fittedView.current) return;
+      if (!fittedView.current) return;
       const wait = lastDown.current + 550 - performance.now();
       if (wait > 0 || drag.current || st.editing) return void (settle.current = window.setTimeout(run, Math.max(wait, 200)));
       st.fit(true);
@@ -480,7 +508,7 @@ export function Preview(p: Props) {
     const f = frame.current!;
     const px = cx ?? f.clientWidth / 2;
     const py = cy ?? f.clientHeight / 2;
-    setView((v) => {
+    byHand((v) => {
       const scale = clamp(v.scale * factor);
       const k = scale / v.scale;
       return { scale, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
@@ -493,7 +521,7 @@ export function Preview(p: Props) {
     const boxes = selection.map((s) => selectedBox(result, s)).filter((b): b is Box => !!b);
     if (!f || !boxes.length) return fit();
     // Clear of the tools as fit() is: viewFor keeps its own 48 px on top of `top`.
-    setView(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { top: Math.max(0, floatingTop(f) - 48), bottom: BAR, max: 2, min: MIN }));
+    byHand(viewFor(union(boxes), { w: f.clientWidth, h: f.clientHeight }, { top: Math.max(0, floatingTop(f) - 48), bottom: BAR, max: 2, min: MIN }));
   };
   /** A tidy asked for a fit once its drawing is in. */
   const refit = useRef(false);
@@ -513,34 +541,44 @@ export function Preview(p: Props) {
 
   // When the pane changes size (inspector opens, splitter moves): a drawing that was wholly in view
   // fits again, so opening the inspector never crops it; otherwise the centre stays where it was.
-  const latest = useRef({ view, width: result?.width ?? 0, height: result?.height ?? 0, fit });
-  latest.current = { view, width: result?.width ?? 0, height: result?.height ?? 0, fit };
-  /** Whether the whole drawing is on screen as last drawn, clear of the band at the bottom as fit() leaves it. */
-  const wholeInView = () => {
+  const latest = useRef({ view, result, width: result?.width ?? 0, height: result?.height ?? 0, fit, fitView });
+  latest.current = { view, result, width: result?.width ?? 0, height: result?.height ?? 0, fit, fitView };
+
+  // A new drawing keeps the view, with two exceptions, so a drop, an undo, a node added in the YAML or
+  // a layer shown alone never leaves the drawing half out of sight:
+  // - a view fit() placed and nobody has panned or zoomed since fits again when the drawing no longer
+  //   fits it, or when it would come out clearly larger or smaller (an undo after a far drop);
+  // - a drawing that was wholly in view and now runs past an edge fits again, unless people zoomed in.
+  // Checked on every drawing and on every drop, never during a drag (nothing jumps under the pointer)
+  // and not right after a press: a double-click's second click stays on what the first one hit (a
+  // name being typed follows the view). "Was wholly in view" is as last checked, and only while people have not
+  // panned or zoomed since: the app's own moves (a selection brought into view) do not count.
+  const lastSeen = useRef<{ doc: number | string; whole: boolean; touched: number } | null>(null);
+  const followT = useRef(0);
+  const keepInView = () => {
+    window.clearTimeout(followT.current);
+    const wait = lastDown.current + 550 - performance.now();
+    if (wait > 0 || drag.current) return void (followT.current = window.setTimeout(keepInView, Math.max(wait, 120)));
     const f = frame.current;
-    const { view: v, width, height } = latest.current;
-    if (!f || !width || !height) return false;
-    return v.x >= -1 && v.y >= -1 && v.x + width * v.scale <= f.clientWidth + 1 && v.y + height * v.scale <= f.clientHeight - (p.clearBottom ?? BAR) + 1;
-  };
-  // A card or group dropped past the edge, in a drawing that was wholly in view, fits it again: on the
-  // drop and once more when the drawing of the drop is in. Never during the drag, so nothing jumps
-  // under the pointer.
-  const dropFit = useRef(0);
-  const fitIfOut = () => {
-    if (drag.current || performance.now() > dropFit.current || wholeInView()) return;
-    dropFit.current = 0;
-    latest.current.fit(true);
-  };
-  const fitAfterDrop = (d: Drag) => {
-    if (!d.whole) return;
-    dropFit.current = performance.now() + 1500;
-    requestAnimationFrame(fitIfOut);
+    const { view: v, result: r, fit: refit, fitView: fitted } = latest.current;
+    if (!f || !r?.origin || !r.width || !r.height) return;
+    const inView = v.x >= -1 && v.y >= -1 && v.x + r.width * v.scale <= f.clientWidth + 1 && v.y + r.height * v.scale <= f.clientHeight - (p.clearBottom ?? BAR) + 1;
+    const last = lastSeen.current?.doc === docKey ? lastSeen.current : undefined;
+    const next = fitted();
+    let again = false;
+    if (last && next) {
+      const untouched = fittedView.current;
+      again = untouched ? !inView || Math.abs(next.scale / v.scale - 1) > 0.15 : last.whole && last.touched === touched.current && !inView;
+    }
+    if (again) refit(true);
+    lastSeen.current = { doc: docKey, whole: again || inView, touched: touched.current };
   };
   useEffect(() => {
-    if (!dropFit.current) return;
-    const r = requestAnimationFrame(fitIfOut);
-    return () => cancelAnimationFrame(r);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- each drawing after a drop
+    if (!result?.svg) return;
+    // After this drawing's own view changes (the origin carried, a drop anchored) are in.
+    const r = requestAnimationFrame(keepInView);
+    return () => (cancelAnimationFrame(r), window.clearTimeout(followT.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- each drawing
   }, [result]);
   useEffect(() => {
     const f = frame.current!;
@@ -553,14 +591,14 @@ export function Preview(p: Props) {
       paneSize.current = { w: f.clientWidth, h: f.clientHeight };
       const { view: v, width, height, fit: refit } = latest.current;
       const whole = width > 0 && w > 0 && v.x >= -1 && v.y >= -1 && v.x + width * v.scale <= w + 1 && v.y + height * v.scale <= h + 1;
-      if (!whole || (dw >= 0 && dh >= 0)) return setView((v) => carry(v, { ...v, x: v.x + dw / 2, y: v.y + dh / 2 }));
+      if (!whole || (dw >= 0 && dh >= 0)) return setView((v) => ({ ...v, x: v.x + dw / 2, y: v.y + dh / 2 }));
       // Shrinking around a drawing that was wholly in view: move it only as far as needed to keep it in
       // view (what is under the pointer stays put for a double-click), and fit when it no longer fits.
       const m = 16;
       const x = Math.min(v.x, f.clientWidth - m - width * v.scale);
       const y = Math.min(v.y, f.clientHeight - BAR - height * v.scale);
       if (x < m / 2 || y < 0) refit();
-      else setView(carry(v, { ...v, x, y }));
+      else setView(({ ...v, x, y }));
     });
     ro.observe(f);
     return () => ro.disconnect();
@@ -572,8 +610,10 @@ export function Preview(p: Props) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = f.getBoundingClientRect();
-      if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
-      else setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+      // A pinch sends small steps and zooms as the fingers go; a mouse wheel's notch (100 or more) is
+      // one gentle step of about 20%, not ×2.7.
+      if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.01, 0.2)), e.clientX - r.left, e.clientY - r.top);
+      else byHand((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
     };
     f.addEventListener('wheel', onWheel, { passive: false });
     return () => f.removeEventListener('wheel', onWheel);
@@ -622,6 +662,8 @@ export function Preview(p: Props) {
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as Element).closest('.label-editor, .canvas-empty button')) return;
     lastDown.current = performance.now();
+    // Only a field of the panels beside the drawing (properties, outline, YAML): not a name typed in a session.
+    if ((document.activeElement as HTMLElement | null)?.closest?.('.side input, .side textarea, .side select, .shapes input, .editor-pane [contenteditable="true"]')) leftField.current = lastDown.current;
     frame.current?.focus({ preventScroll: true });
     setKb(false);
     // Space-drag and the middle button pan; a plain drag on empty canvas draws a marquee.
@@ -674,6 +716,7 @@ export function Preview(p: Props) {
         shift: result?.placed?.shift ?? { x: 0, y: 0 },
         moving: pinBox(result!.placed!.groups.get(header)!),
         movingIds: [header],
+        bounds: reach(),
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
@@ -696,10 +739,16 @@ export function Preview(p: Props) {
       groups: result?.placed ? toPinSpace(result.placed.groups, result.placed.shift) : undefined,
       parent: id ? result?.graph?.nodes.find((n) => n.id === id)?.parent : undefined,
       ...(box ? movingOf(many ? selection.filter((x) => x.kind === 'node' && !p.locked?.has(x.id)).map((x) => x.id) : [id!]) : {}),
+      bounds: reach(),
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
+  /** Where a drag may take what it moves: the drawing now and REACH round it (pin space). */
+  const reach = (): Box | undefined => {
+    const e = pinExtent(result);
+    return e && { x: e.x - REACH, y: e.y - REACH, width: e.width + 2 * REACH, height: e.height + 2 * REACH };
+  };
   const pinBox = (b: Box): Box => {
     const s = result?.placed?.shift ?? { x: 0, y: 0 };
     return { ...b, x: b.x + s.x, y: b.y + s.y };
@@ -736,6 +785,14 @@ export function Preview(p: Props) {
       y += sn.dy;
       setSnap(sn.guides.length || sn.gaps.length ? sn : undefined);
     } else setSnap(undefined);
+    // Not far out of the drawing: a card let go well past it stays near its edge, so the sheet does
+    // not grow to hold it and the zoom does not drop to keep it in view.
+    if (d.bounds && d.moving) {
+      const ox = d.moving.x - (d.box!.x + d.shift!.x);
+      const oy = d.moving.y - (d.box!.y + d.shift!.y);
+      x = Math.min(Math.max(x + ox, d.bounds.x), d.bounds.x + d.bounds.width - d.moving.width) - ox;
+      y = Math.min(Math.max(y + oy, d.bounds.y), d.bounds.y + d.bounds.height - d.moving.height) - oy;
+    }
     return { x: Math.round(x), y: Math.round(y) };
   };
 
@@ -779,11 +836,10 @@ export function Preview(p: Props) {
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
     if (!d.moved) {
       d.moved = true;
-      d.whole = wholeInView();
       // Selecting happens on release: opening the inspector now would shift the drawing under the pointer.
       setDragging(d.mode);
     }
-    if (d.mode === 'pan') return setView((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
+    if (d.mode === 'pan') return byHand((v) => ({ ...v, x: d.vx + dx, y: d.vy + dy }));
     if (d.mode === 'marquee') {
       const r = frame.current!.getBoundingClientRect();
       return setMarquee({ x0: d.x - r.left, y0: d.y - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top });
@@ -879,7 +935,7 @@ export function Preview(p: Props) {
       setSnap(undefined);
       p.onMoveGroup(d.group!, pin, true);
       p.onSelect({ kind: 'group', id: d.group! });
-      fitAfterDrop(d);
+      requestAnimationFrame(keepInView);
       return;
     }
     const follow = (s: Selection) => (navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey) && !!p.onFollow?.(s);
@@ -897,9 +953,17 @@ export function Preview(p: Props) {
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
         // A moved selection stays selected; a single node becomes the selection.
         if (!d.many) p.onSelect({ kind: 'node', id: d.node! });
-        fitAfterDrop(d);
+        requestAnimationFrame(keepInView);
       }
-      if (d.mode === 'marquee') p.onSelectMany(inMarquee(d.x, d.y, e.clientX, e.clientY), !!d.shiftKey || e.shiftKey);
+      if (d.mode === 'marquee') {
+        const got = inMarquee(d.x, d.y, e.clientX, e.clientY);
+        p.onSelectMany(got, !!d.shiftKey || e.shiftKey);
+        // A drag over empty canvas that caught nothing was most likely meant to move the view: say how, once.
+        if (!got.length && !panSaid) {
+          panSaid = true;
+          p.onHint?.(t('To move the view: hold Space and drag, or scroll. Dragging over empty canvas selects.'));
+        }
+      }
       return;
     }
     if (e.button !== 0) return;
@@ -916,9 +980,24 @@ export function Preview(p: Props) {
   /** Double-click on an element: edit its label right there, or the inspector's field when that cannot be. */
   const editSelected = (s: Selection) => {
     p.onSelect(s);
+    // A field just left by this click: its change is being drawn. The name opens once it is, with
+    // whatever was typed in the meantime.
+    if (p.catchingUp) return void (pendingRename.current = { s, typed: '' });
     if (editLabel(s)) return;
     requestAnimationFrame(() => requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select()));
   };
+  /** A double-click's name editor waiting for the drawing to catch up, and the keys typed meanwhile. */
+  const pendingRename = useRef<{ s: Selection; typed: string } | null>(null);
+  useEffect(() => {
+    const w = pendingRename.current;
+    if (!w || p.catchingUp) return;
+    pendingRename.current = null;
+    if (editLabel(w.s, undefined, w.typed ? { initial: w.typed } : {})) return;
+    requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the drawing has caught up
+  }, [p.catchingUp, result]);
+  /** When a click on the drawing last took the keyboard from a text field (an inspector field, the YAML). */
+  const leftField = useRef(-Infinity);
   const editRef = useRef(editSelected);
   editRef.current = editSelected;
   // The inspector the first click opens can cover the spot of the second one: a press on the inspector
@@ -986,11 +1065,14 @@ export function Preview(p: Props) {
       const s = view.scale;
       return { left: view.x + spot.x * s, top: view.y + spot.y * s, width: spot.width * s, height: spot.height * s, size: spot.size * s, inShape: true, align: spot.align, font: spot.font };
     }
-    const width = Math.max(b.width * view.scale, 180);
     const height = 36;
+    // A group: its name is typed where it is written, at the left of its header, in a field the size
+    // of a name, not one as wide as the group over the boxes in it.
+    if (t.kind === 'group') return { left: view.x + b.x * view.scale + 4, top: view.y + (b.y + 22) * view.scale - height / 2, width: Math.min(Math.max(b.width * view.scale - 8, 180), 280), height, size: 14 };
+    const width = Math.max(b.width * view.scale, 180);
     const cx = view.x + (b.x + b.width / 2) * view.scale;
-    // Nodes and lines: over their middle; groups: over the header strip where the label sits.
-    const cy = t.kind === 'group' ? view.y + (b.y + 22) * view.scale : view.y + (b.y + b.height / 2) * view.scale;
+    // Nodes and lines: over their middle.
+    const cy = view.y + (b.y + b.height / 2) * view.scale;
     return { left: cx - width / 2, top: cy - height / 2, width, height, size: 14 };
   };
 
@@ -1071,7 +1153,7 @@ export function Preview(p: Props) {
     const dx = x0 < m ? m - x0 : x1 > f.clientWidth - m ? Math.max(m - x0, f.clientWidth - m - x1) : 0;
     const dy = y0 < m + 50 ? m + 50 - y0 : y1 > f.clientHeight - m - 50 ? Math.max(m + 50 - y0, f.clientHeight - m - 50 - y1) : 0;
     // The app moved it, not people: a fitted view stays one, so it fits again when the pane changes size.
-    if (dx || dy) setView((v) => carry(v, { ...v, x: v.x + dx, y: v.y + dy }));
+    if (dx || dy) setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
     // Only when the selection changes, not on every view change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.kind, selected?.id, result]);
@@ -1150,7 +1232,7 @@ export function Preview(p: Props) {
       role="application"
       aria-roledescription="drawing"
       aria-activedescendant={selected && box ? 'canvas-focus' : undefined}
-      aria-label={t('Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes.')}
+      aria-label={t('Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes, F6 goes on to the toolbar.')}
       aria-describedby={words ? wordsId : undefined}
       // The pane pans by its transform, never by scrolling: a browser that scrolls it to bring a focused
       // link into view (after an edit, a click on a linked element did) would shift everything off its place.
@@ -1215,6 +1297,14 @@ export function Preview(p: Props) {
           return cancel();
         }
         if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
+        // Letters typed right after a click took the keyboard from a text field are typing, not
+        // shortcuts: into the name editor a double-click is opening, or nowhere while the drawing catches up.
+        const printable = e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey;
+        if (printable && e.target === e.currentTarget && (pendingRename.current || (p.catchingUp && performance.now() - leftField.current < 2000))) {
+          if (pendingRename.current) pendingRename.current.typed += e.key;
+          e.preventDefault();
+          return;
+        }
         p.onKeyDown(e);
         // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
         // After the app's keys: a name being typed (in a session) keeps its "!" and "@".
@@ -1353,14 +1443,14 @@ export function Preview(p: Props) {
           height={result.height!}
           view={view}
           pane={{ w: f!.clientWidth, h: f!.clientHeight }}
-          onCentre={(x, y) => setView((v) => ({ ...v, x: f!.clientWidth / 2 - x * v.scale, y: (f!.clientHeight - BAR) / 2 - y * v.scale }))}
+          onCentre={(x, y) => byHand((v) => ({ ...v, x: f!.clientWidth / 2 - x * v.scale, y: (f!.clientHeight - BAR) / 2 - y * v.scale }))}
         />
       )}
       <div className="zoom" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <button onClick={() => zoomAt(1 / 1.2)} title={t('Zoom out (⌘−)')} aria-label={t('Zoom out')}>
           <Icon name="minus" />
         </button>
-        <button className="zoom-level" onClick={() => setView((v) => ({ ...v, scale: 1 }))} title={t('Actual size')} aria-label={t('Zoom {percent}%, click for actual size', { percent: Math.round(view.scale * 100) })}>
+        <button className="zoom-level" onClick={() => byHand((v) => ({ ...v, scale: 1 }))} title={t('Actual size')} aria-label={t('Zoom {percent}%, click for actual size', { percent: Math.round(view.scale * 100) })}>
           {Math.round(view.scale * 100)}%
         </button>
         <button onClick={() => zoomAt(1.2)} title={t('Zoom in (⌘+)')} aria-label={t('Zoom in')}>
@@ -1371,7 +1461,7 @@ export function Preview(p: Props) {
         </button>
         {/* Zoom to selection (⇧2), snap to grid (⇧G) and the minimap (⇧M) are in the toolbar's ⋯: fewer controls at first sight. */}
         <span className="zoom-sep" />
-        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('The page it is for, a {page}, and text too small on it (⇧P)', { page: result.page.name }) : t('The page it is for, and text too small on it (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
+        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('Show the {page} it goes on, and any text too small to read there (⇧P)', { page: result.page.name }) : t('Show the page it goes on, and any text too small to read there (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
           <Icon name="monitor" />
         </button>
       </div>

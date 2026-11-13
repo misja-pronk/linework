@@ -2,11 +2,11 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, smallestTextPx } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
-import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
+import { connector, group, picture, settle, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 export interface IconRef {
   png?: string;
@@ -106,11 +106,17 @@ class SlideDrawing {
   }
 
   private sp(s: Omit<ShapeSpec, 'id'> & { id?: number }): Item {
-    return { xml: shape({ ...s, id: s.id ?? this.next() }, this.fonts.sans), box: s.frame };
+    const id = s.id ?? this.next();
+    if (!s.text) return { xml: shape({ ...s, id }, this.fonts.sans), box: s.frame };
+    // Set so that Apple's importer puts the text where PowerPoint does (see settle).
+    const { text, apart } = settle(s.text, s.frame);
+    if (!apart) return { xml: shape({ ...s, id, text }, this.fonts.sans), box: s.frame };
+    const label = shape({ id: this.next(), name: `Text: ${s.name}`, frame: apart, geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text }, this.fonts.sans);
+    return { xml: shape({ ...s, id, text: undefined }, this.fonts.sans) + label, box: s.frame };
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {
-    // Detail (a tag, a count, a badge) may get small: only what a reader needs is told, as smallestTextPx counts it.
+    // Detail (a count, a badge) may get small: only what a reader needs is told, as smallestTextPx counts it.
     if (text.trim() && size >= DETAIL_PX) this.at.onText?.(this.pt(size));
     return { text, size: this.pt(size), bold: weight >= 600, color, ...(style.mono ? { font: this.fonts.mono, mono: true } : {}), ...(style.tracking ? { spacing: this.pt(style.tracking) } : {}) };
   }
@@ -220,9 +226,10 @@ class SlideDrawing {
     const weight = (e: GraphEdge) => (state?.edges[e.id] === 'dim' ? 0 : state?.edges[e.id] === 'focus' ? 2 : 1);
     const edges = graph.edges.filter((e) => !badged.has(e.id) && (placed.edges.get(e.id)?.points.length ?? 0) > 1 && state?.edges[e.id] !== 'hidden');
     if (state) edges.sort((a, b) => weight(a) - weight(b));
+    const trunks = this.trunks(edges);
     for (const e of edges) {
       this.theme = state?.edges[e.id] === 'focus' ? strong : as(state?.edges[e.id]);
-      out.push(this.drawEdge(e, toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node)).xml);
+      out.push(this.drawEdge(e, toOutline(placed.edges.get(e.id)!.points, graph, placed, e.from.node, e.to.node), trunks.get(e.id)).xml);
     }
     if (state) {
       this.theme = quiet;
@@ -478,7 +485,7 @@ class SlideDrawing {
         anchor: 'ctr',
         // Centre the title on titleY: trim the bottom of the text area by twice the offset.
         inset: { l: this.L(ts.padX + 24 - 0.5), b: this.L(Math.max(0, head - 2 * titleY)) },
-        paras: [{ runs: [this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text)] }],
+        paras: [{ runs: [{ ...this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text), italic: s.italic }] }],
       }),
     );
     items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
@@ -516,7 +523,7 @@ class SlideDrawing {
           geom: { prst: 'rect' },
           fill: null,
           line: null,
-          text: { anchor: 'ctr', inset: { l: this.L(ts.padX + marks), r: this.L(ts.padX) }, paras: [{ runs: [this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text)] }] },
+          text: { anchor: 'ctr', inset: { l: this.L(ts.padX + marks), r: this.L(ts.padX) }, paras: [{ runs: [{ ...this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text), italic: name?.italic, underline: name?.underline }] }] },
         }),
       );
       // The type column is set in the monospace face where the theme asks, a step smaller.
@@ -701,10 +708,14 @@ class SlideDrawing {
 
   // ------------------------------------------------------------ lines
 
-  private edgeLine(e: GraphEdge): Line {
-    // The theme's arrowhead: filled, slim, or two open strokes.
+  /** The theme's arrowhead: filled, slim, or two open strokes. */
+  private arrow(): End {
     const style = look(this.theme).line.arrow;
-    const arrow: End = style === 'open' ? 'open' : style === 'slim' ? 'slim' : 'triangle';
+    return style === 'open' ? 'open' : style === 'slim' ? 'slim' : 'triangle';
+  }
+
+  private edgeLine(e: GraphEdge): Line {
+    const arrow = this.arrow();
     return {
       color: e.tone ? this.theme.tones[e.tone].fg : this.theme.edge,
       alpha: e.tone ? 0.9 : undefined,
@@ -758,90 +769,129 @@ class SlideDrawing {
     return idx < 0 ? undefined : { id: this.idFor(key), idx };
   }
 
-  private drawEdge(e: GraphEdge, raw: Point[]): Item {
-    const pts = clean(raw);
+  /**
+   * Where a line runs on the same trunk as one drawn before it, in the same style (two lines from one
+   * shape that part at a junction): the point where they part, at its start or its end. The trunk is
+   * drawn once, so two dashed lines over it do not fill each other's gaps.
+   */
+  private trunks(edges: GraphEdge[]): Map<string, { head?: Point; tail?: Point }> {
+    const out = new Map<string, { head?: Point; tail?: Point }>();
+    const look = (e: GraphEdge) => `${e.line ?? 'solid'}|${e.tone ?? ''}|${e.width ?? 1}|${e.pattern ?? ''}|${this.state?.edges[e.id] ?? ''}`;
+    for (const [j, b] of edges.entries())
+      for (const a of edges.slice(0, j)) {
+        if (look(a) !== look(b)) continue;
+        const pa = this.placed.edges.get(a.id)!.points;
+        const pb = this.placed.edges.get(b.id)!.points;
+        const at = out.get(b.id) ?? {};
+        if (!at.head && a.from.node === b.from.node && a.from.row === b.from.row) at.head = split(pa, pb);
+        if (!at.tail && a.to.node === b.to.node && a.to.row === b.to.row) at.tail = split([...pa].reverse(), [...pb].reverse());
+        if (at.head || at.tail) out.set(b.id, at);
+      }
+    return out;
+  }
+
+  private drawEdge(e: GraphEdge, raw: Point[], trunk?: { head?: Point; tail?: Point }): Item {
+    let pts = clean(raw);
     const name = `Line: ${e.from.node} → ${e.to.node}${e.label ? ` (${e.label})` : ''}`;
     const line = this.edgeLine(e);
+    const corner = look(this.theme).line.corner;
     const plain = (m: Marker) => m === 'none' || m === 'arrow';
     if (plain(e.start) && plain(e.end)) {
       const fit = fitConnector(pts.map((p) => ({ x: this.X(p.x), y: this.Y(p.y) })), 0.6 * PX);
-      // Quick Look draws a connector with three bends as one straight stroke from end to end: such a line goes in pieces.
+      // A line with up to two bends is a connector bound to its shapes, so it follows a shape moved in
+      // PowerPoint; its bends are square even where the drawing rounds them. A line with more is drawn
+      // in pieces (Quick Look draws a connector with three bends as one straight stroke end to end).
       if (fit && fit.prst !== 'bentConnector4') {
         const xml = connector({ id: this.next(), name, frame: fit.frame, prst: fit.prst, adj: fit.adj, line, start: this.site(pts[0]!, e.from.node, e.from.row), end: this.site(pts.at(-1)!, e.to.node, e.to.row) });
         return { xml, box: fit.frame };
       }
     }
-    // Long routed paths stay as drawn, with the same bends as the SVG, in pieces Quick Look draws too.
-    const pieces = this.route(pts, this.theme.radius.corner, look(this.theme).line.corner, line);
-    return this.group(name, [...pieces, ...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)]);
+    // A trunk drawn with another line is left out, up to its bend there.
+    const keep = this.theme.radius.corner + 1;
+    if (trunk?.head) pts = trimTo(pts, trunk.head, keep);
+    if (trunk?.tail) pts = trimTo([...pts].reverse(), trunk.tail, keep).reverse();
+    // Routed paths stay as drawn, with the same bends as the SVG, in pieces Quick Look draws too.
+    const pieces = this.route(pts, this.theme.radius.corner, corner, { ...line, head: trunk?.head ? 'none' : line.head, tail: trunk?.tail ? 'none' : line.tail });
+    const ends = [...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)];
+    // A line of one piece is that piece, under the line's name.
+    if (pieces.length === 1 && !ends.length) return this.piece(pieces[0]!.a, pieces[0]!.b, pieces[0]!.line, name);
+    return this.group(name, [...pieces.map((p) => this.piece(p.a, p.b, p.line, p.name)), ...ends]);
   }
 
   /** A straight piece from a to b (layout px): a line shape, flipped so it runs from a to b and its arrowheads sit at the right ends. */
-  private piece(a: Point, b: Point, line: Line, name = 'Segment'): Item {
+  private piece(a: Point, b: Point, line: Line, name = 'Straight'): Item {
     const f = this.frame(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
     return this.sp({ name, frame: { ...f, flipH: b.x < a.x - 0.001, flipV: b.y < a.y - 0.001 }, geom: { prst: 'line' }, fill: null, line });
   }
 
   /**
-   * A routed line as straight pieces joined at its bends: round, cut or square, as the theme draws them. Apple's importer (Quick Look, Mail, an iPhone) leaves out
-   * a freeform in a group, but draws these; in PowerPoint they move with the drawing. Pieces meet end
-   * to end, never overlapping, so a line with some transparency has no darker spots at its bends.
-   * Arrowheads go on the first and the last piece only.
+   * A line drawn in pieces whose joins do not show: in one opaque colour (a line with some
+   * transparency takes the colour it has over the ground under it), so where two round ends overlap
+   * nothing shows twice.
    */
-  private route(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square', line: Line): Item[] {
-    const half = line.width / this.at.k / 2;
-    const parts: { a: Point; b: Point; via?: Point }[] = [];
-    let s = pts[0]!;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const [p, c, n] = [pts[i - 1]!, pts[i]!, pts[i + 1]!];
-      const l1 = Math.hypot(c.x - p.x, c.y - p.y);
-      const l2 = Math.hypot(n.x - c.x, n.y - c.y);
-      const d1 = { x: (c.x - p.x) / l1, y: (c.y - p.y) / l1 };
-      const d2 = { x: (n.x - c.x) / l2, y: (n.y - c.y) / l2 };
-      const along = (d: Point, t: number) => ({ x: c.x + d.x * t, y: c.y + d.y * t });
-      const r = corner === 'square' ? 0 : Math.min(radius, l1 / 2, l2 / 2);
-      if (r >= 0.5) {
-        const [a, b] = [along(d1, -r), along(d2, r)];
-        parts.push({ a: s, b: a }, corner === 'chamfer' ? { a, b } : { a, b, via: c });
-        s = b;
-        continue;
+  private opaque(line: Line, pts: Point[]): Line {
+    if (line.alpha === undefined || line.alpha >= 1 || !pts.length) return line;
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    const box = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+    return { ...line, color: mix(line.color, this.ground.under(box), line.alpha), alpha: undefined };
+  }
+
+  /**
+   * A routed line as straight pieces (layout px): its bends round, cut or square, as the theme draws
+   * them; a line that is not square (a mind map's branch) as its own straight pieces, unrounded.
+   * Apple's importer (Quick Look, Mail, an iPhone) leaves out a freeform in a group, but draws these;
+   * in PowerPoint they move with the drawing. A round bend is the SVG's curve in four short chords
+   * (Quick Look leaves out the preset arc too). Pieces of a round or cut bend have round ends that
+   * close the joins, in one opaque colour; at a square bend the piece before runs on by half the
+   * line's width and the next starts as far along, so the corner is filled whole and once. A dashed
+   * line is cut where its dashes fall (see dashCut), so its dashes run on round bends as on one
+   * line. Arrowheads go on the first and the last piece only.
+   */
+  private route(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square', line: Line): { a: Point; b: Point; line: Line; name: string }[] {
+    const w = line.width / this.at.k;
+    const list = legs(pts, radius, corner, w / 2);
+    const solid: Line = { ...this.opaque(line, pts), head: 'none', tail: 'none' };
+    if (!line.dash || line.dash === 'solid') solid.cap = squarePath(pts) && corner === 'square' ? 'flat' : 'rnd';
+    const dash = pattern(line, w);
+    let cuts = dash ? dashCut(list, ...dash) : list.map((q) => ({ ...q, dashed: true }));
+    const tip = list.at(-1);
+    if (dash && tip && line.tail && line.tail !== 'none' && dist(cuts.at(-1)?.b ?? tip.a, tip.b) > 0.01) {
+      // An arrowhead needs a piece that reaches the end: the last stretch is dashed from where its
+      // first dash starts right to the end, or what is left after its last dash is solid.
+      const len = dist(tip.a, tip.b);
+      const first = Math.ceil(tip.s / dash[0] - 1e-6) * dash[0];
+      const at = (s: number) => ({ x: tip.a.x + ((tip.b.x - tip.a.x) * (s - tip.s)) / len, y: tip.a.y + ((tip.b.y - tip.a.y) * (s - tip.s)) / len });
+      if (first < tip.s + len - 0.01) cuts = [...cuts.filter((q) => q.s < first - 1e-6), { a: at(first), b: tip.b, s: first, dashed: true }];
+      else {
+        const last = cuts.at(-1);
+        cuts.push({ a: last && last.s >= tip.s - 1e-6 ? last.b : tip.a, b: tip.b, s: tip.s, dashed: false });
       }
-      // A square bend: the piece before runs on past the corner by half the line's width and the one
-      // after starts as far along, so the corner is filled whole and once.
-      const right = Math.abs(d1.x * d2.x + d1.y * d2.y) < 0.01;
-      parts.push({ a: s, b: along(d1, right ? half : 0) });
-      s = right ? along(d2, Math.min(half, l2 / 2)) : c;
     }
-    parts.push({ a: s, b: pts.at(-1)! });
-    // A round bend is the SVG's curve in four short chords (Quick Look leaves out the preset arc too);
-    // they turn so little at each join that the gap a flat end leaves there is under a tenth of the line.
-    const flat = parts.flatMap((q) => {
-      if (!q.via) return [q];
-      const c = q.via;
-      const at = (t: number) => ({ x: (1 - t) ** 2 * q.a.x + 2 * (1 - t) * t * c.x + t * t * q.b.x, y: (1 - t) ** 2 * q.a.y + 2 * (1 - t) * t * c.y + t * t * q.b.y });
-      return [0, 1, 2, 3].map((k) => ({ a: at(k / 4), b: at((k + 1) / 4) }));
-    });
-    const last = flat.length - 1;
-    return flat.map((q, i) => this.piece(q.a, q.b, { ...line, head: i === 0 ? line.head : 'none', tail: i === last ? line.tail : 'none' }));
+    const out = cuts.map((q) => ({ a: q.a, b: q.b, line: q.dashed ? solid : { ...solid, dash: 'solid' as const }, name: q.bend ? 'Bend' : 'Straight' }));
+    if (!out.length) return out;
+    out[0] = { ...out[0]!, line: { ...out[0]!.line, head: line.head ?? 'none' } };
+    out[out.length - 1] = { ...out.at(-1)!, line: { ...out.at(-1)!.line, tail: line.tail ?? 'none' } };
+    return out;
   }
 
   /**
    * An open stroke (layout px) as straight pieces, with round ends that close the joins as the SVG's
-   * round joins do (strokes of one colour, so nothing shows twice). A curve is flattened first; a
-   * dashed curve is cut in pieces one dash and gap long, so its dashes run on as on one line.
+   * round joins do, in one opaque colour, so nothing shows twice. A curve is flattened first. A dashed
+   * stroke is cut where its dashes fall (see dashCut), so they run on as on one line.
    */
   private stroke(subpaths: { pts: Point[]; curved: boolean }[], line: Line, name: string): Item | undefined {
     const sw = line.width / this.at.k;
     const pairs: [Point, Point, Line][] = [];
-    for (const { pts, curved } of subpaths) {
-      const dashed = curved && line.dash === 'dashed';
-      // PowerPoint's dash is four line widths drawn and three left out.
-      const list = dashed ? evenly(pts, 7 * sw) : simplify(pts, 0.15);
-      const l: Line = dashed ? line : { ...line, cap: 'rnd' };
-      for (let i = 1; i < list.length; i++) if (Math.hypot(list[i]!.x - list[i - 1]!.x, list[i]!.y - list[i - 1]!.y) > 0.01) pairs.push([list[i - 1]!, list[i]!, l]);
+    const base = this.opaque(line, subpaths.flatMap((s) => s.pts));
+    const dash = pattern(line, sw);
+    for (const { pts } of subpaths) {
+      const list = straight(simplify(pts, 0.15));
+      if (dash) for (const q of dashCut(list, ...dash)) pairs.push([q.a, q.b, q.dashed ? base : { ...base, dash: 'solid' }]);
+      else for (const q of list) pairs.push([q.a, q.b, { ...base, cap: 'rnd' }]);
     }
     if (pairs.length === 1) return this.piece(...pairs[0]!, name);
-    return pairs.length ? this.group(name, pairs.map(([a, b, l]) => this.piece(a, b, l))) : undefined;
+    return pairs.length ? this.group(name, pairs.map(([a, b, l]) => this.piece(a, b, l, 'Part'))) : undefined;
   }
 
   /**
@@ -922,9 +972,10 @@ class SlideDrawing {
       const u = umlEnd(kind);
       const pts = u.points.map(([back, side]) => at(back, side));
       const line: Line = { color, width: this.L(this.theme.stroke.edge) };
-      if (!u.closed) return [this.stroke([{ pts, curved: false }], line, 'End')!];
-      // A triangle or a diamond turned along the line: preset shapes, which Quick Look draws in a group.
-      const fit = polygonPreset(pts)!;
+      // A triangle or a diamond turned along the line: preset shapes, which Quick Look draws in a group;
+      // an open end, or an outline no preset fits, its strokes.
+      const fit = u.closed ? polygonPreset(pts) : undefined;
+      if (!fit) return [this.stroke([{ pts: u.closed ? [...pts, pts[0]!] : pts, curved: false }], line, 'End')].filter((i): i is Item => !!i);
       return [this.sp({ name: 'End', frame: { ...this.frame(fit.x, fit.y, fit.w, fit.h), rot: fit.rot }, geom: { prst: fit.prst, adj: fit.adj }, fill: { color: u.filled ? color : this.theme.surface }, line })];
     }
     const segs: [Point, Point][] = [];
@@ -938,7 +989,7 @@ class SlideDrawing {
     if (kind === 'zeroOrMany') crow(), circles.push(at(20));
     if (kind === 'slash') segs.push([at(12, -5), at(6, 5)]);
     const line: Line = { color, width: this.L(this.theme.stroke.edge) };
-    const out = [this.stroke(segs.map((s) => ({ pts: s, curved: false })), line, 'End')!];
+    const out = [this.stroke(segs.map((s) => ({ pts: s, curved: false })), line, 'End')].filter((i): i is Item => !!i);
     for (const c of circles) out.push(this.sp({ name: 'End', frame: this.frame(c.x - 4, c.y - 4, 8, 8), geom: { prst: 'ellipse' }, fill: { color: this.theme.surface }, line }));
     return out;
   }
@@ -1105,7 +1156,7 @@ class SlideDrawing {
     const first = lay.key ? top + 40 : top + 26;
     if (lay.key) {
       items.push(this.hline(0, Math.max(this.placed.width, lay.width), top + 16, t.border));
-      items.push(this.text(0, first, tr(t.lang, 'KEY'), 9.5, 600, t.textFaint, 'start', 'Legend', { tracking: 1.2 }));
+      items.push(this.text(0, first, tr(t.lang, 'KEY'), SMALL_PX, 600, t.textFaint, 'start', 'Legend', { tracking: 1.2 }));
     }
     for (const [i, row] of lay.rows.entries())
       for (const { item, x } of row) {
@@ -1159,6 +1210,12 @@ class SlideDrawing {
         this.sp({ name: 'Swatch', frame: this.frame(x + 2, cy - 8, 16, 16), geom: { prst: 'ellipse' }, fill: filled ? { color: tone.fg } : null, line: filled ? null : { color: tone.fg, width: this.L(1.2), dash: 'dashed' } }),
         this.icon('check', x + 5, cy - 5, 10, filled ? t.surface : tone.fg, 2),
       ];
+    }
+    if (item.end && item.end !== 'none') {
+      // A relationship's end (a crow's foot, a UML triangle): a longer line with the mark the drawing puts on it.
+      const [from, tip] = [{ x, y: cy }, { x: x + 30, y: cy }];
+      const line: Line = { color, width: this.L(t.stroke.edge), dash: item.line ?? 'solid', tail: item.end === 'arrow' ? this.arrow() : 'none' };
+      return [this.piece(from, tip, line, 'Swatch'), ...this.marker(item.end, tip, from, color)];
     }
     return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color, width: this.L(t.stroke.edge * (item.width ?? 1) + 0.4), dash: item.line ?? 'solid' } })];
   }
@@ -1234,23 +1291,146 @@ export function simplify(pts: Point[], tol: number): Point[] {
   return pts.filter((_, k) => keep[k]);
 }
 
-/** Points every `step` px along a polyline, and its end: pieces of one length, so a dash pattern runs on from one to the next. */
-export function evenly(pts: Point[], step: number): Point[] {
-  const out = [pts[0]!];
-  let left = (step = Math.max(1, step));
+/**
+ * The polyline from `keep` px before the point `at` on it (a vertex where it parts from another
+ * line) to its end; the polyline as it is where `at` is not on it.
+ */
+export function trimTo(pts: Point[], at: Point, keep: number): Point[] {
+  let s = 0;
   for (let i = 1; i < pts.length; i++) {
-    let a = pts[i - 1]!;
-    const z = pts[i]!;
-    let len = dist(a, z);
-    while (len >= left) {
-      const t = left / len;
-      out.push((a = { x: a.x + (z.x - a.x) * t, y: a.y + (z.y - a.y) * t }));
-      len -= left;
-      left = step;
+    const [a, b] = [pts[i - 1]!, pts[i]!];
+    const len = dist(a, b);
+    // Is `at` on this piece?
+    if (Math.abs(dist(a, at) + dist(at, b) - len) < 0.5) {
+      const cut = Math.max(0, s + dist(a, at) - keep);
+      // Walk back to the piece the cut falls on.
+      let k = 1;
+      let t = 0;
+      for (; k < pts.length; k++) {
+        const l = dist(pts[k - 1]!, pts[k]!);
+        if (t + l >= cut) break;
+        t += l;
+      }
+      const [p, q] = [pts[k - 1]!, pts[k]!];
+      const f = (cut - t) / Math.max(1e-9, dist(p, q));
+      return clean([{ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f }, ...pts.slice(k)]);
     }
-    left -= len;
+    s += len;
   }
-  if (dist(out.at(-1)!, pts.at(-1)!) > 0.01) out.push(pts.at(-1)!);
+  return pts;
+}
+
+/** A straight piece of a line (layout px): `s` is how far along the line it starts; `bend` marks a chord of a bend. */
+export interface Leg {
+  a: Point;
+  b: Point;
+  s: number;
+  bend?: boolean;
+}
+
+/** Every piece of this polyline runs across or down: its bends are right angles, or it has none. */
+export function squarePath(pts: Point[]): boolean {
+  return pts.slice(1).every((p, i) => Math.abs(p.x - pts[i]!.x) < 0.5 || Math.abs(p.y - pts[i]!.y) < 0.5);
+}
+
+/** The straight pieces of a polyline as they are, each with how far along it starts; none shorter than 0.01 px. */
+export function straight(pts: Point[]): Leg[] {
+  const out: Leg[] = [];
+  let s = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [a, b] = [pts[i - 1]!, pts[i]!];
+    if (dist(a, b) > 0.01) out.push({ a, b, s });
+    s += dist(a, b);
+  }
+  return out;
+}
+
+/**
+ * A routed line's straight pieces (layout px), with its bends round (the SVG's curve in four
+ * chords), cut, or square, where the piece before a square bend runs on by `half` (half the line's
+ * width) and the one after starts as far along. A line that is not square (a mind map's branch, a
+ * curve in short steps already) is its own pieces, the fewest within 0.15 px, unrounded. No piece is
+ * shorter than 0.01 px: a straight stretch as long as the two bends at its ends takes is left out.
+ */
+export function legs(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square', half: number): Leg[] {
+  if (!squarePath(pts)) return straight(simplify(pts, 0.15));
+  const out: Leg[] = [];
+  let start = pts[0]!;
+  let s = 0;
+  const add = (a: Point, b: Point, bend?: boolean) => {
+    if (dist(a, b) > 0.01) out.push({ a, b, s, ...(bend ? { bend } : {}) });
+    s += dist(a, b);
+  };
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [p, c, n] = [pts[i - 1]!, pts[i]!, pts[i + 1]!];
+    const l1 = dist(p, c);
+    const l2 = dist(c, n);
+    const d1 = { x: (c.x - p.x) / l1, y: (c.y - p.y) / l1 };
+    const d2 = { x: (n.x - c.x) / l2, y: (n.y - c.y) / l2 };
+    const along = (d: Point, t: number) => ({ x: c.x + d.x * t, y: c.y + d.y * t });
+    const r = corner === 'square' ? 0 : Math.min(radius, l1 / 2, l2 / 2);
+    if (r >= 0.5) {
+      const [a, b] = [along(d1, -r), along(d2, r)];
+      add(start, a);
+      if (corner === 'chamfer') add(a, b, true);
+      else {
+        const at = (t: number) => ({ x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * c.y + t * t * b.y });
+        for (let k = 0; k < 4; k++) add(at(k / 4), at((k + 1) / 4), true);
+      }
+      start = b;
+      continue;
+    }
+    // A square bend: run on past it by half the line's width, and start the next piece as far along.
+    const right = Math.abs(d1.x * d2.x + d1.y * d2.y) < 0.01;
+    const over = right ? half : 0;
+    const on = right ? Math.min(half, l2 / 2) : 0;
+    if (dist(start, c) > 0.01) out.push({ a: start, b: along(d1, over), s });
+    s += dist(start, c) + on;
+    start = along(d2, on);
+  }
+  add(start, pts.at(-1)!);
+  return out;
+}
+
+/** A dashed or dotted line's pattern as PowerPoint draws it, in layout px for a line `w` wide: the period, and how much of it is drawn. */
+export function pattern(line: Line, w: number): [number, number] | undefined {
+  // The preset dash is four widths drawn and three left out; the system dot one drawn and one left out.
+  return line.dash === 'dashed' ? [7 * w, 4 * w] : line.dash === 'dotted' ? [2 * w, w] : undefined;
+}
+
+/**
+ * The pieces that draw a dashed line, its dashes running on from piece to piece as on one line,
+ * though each piece starts its pattern afresh. Dashes start every `period` px along the line and are
+ * `on` px long. A dashed piece runs from the start of a dash to the end of a later one, so its
+ * pattern is the same read from either end (Quick Look starts it at the far end of a flipped line);
+ * a part of a dash in front of or after it is a solid piece of its own; the gaps are left out.
+ */
+export function dashCut(list: Leg[], period: number, on: number): (Leg & { dashed: boolean })[] {
+  const out: (Leg & { dashed: boolean })[] = [];
+  for (const q of list) {
+    const len = dist(q.a, q.b);
+    const at = (s: number) => {
+      const t = Math.max(0, Math.min(1, (s - q.s) / len));
+      return { x: q.a.x + (q.b.x - q.a.x) * t, y: q.a.y + (q.b.y - q.a.y) * t };
+    };
+    const solid = (from: number, to: number) => {
+      if (to > from + 0.01) out.push({ a: at(from), b: at(to), s: from, bend: q.bend, dashed: false });
+    };
+    const [s0, s1] = [q.s, q.s + len];
+    const first = Math.ceil(s0 / period - 1e-6) * period;
+    // The end of a dash begun before this piece.
+    solid(s0, Math.min(first - period + on, s1));
+    if (first >= s1 - 0.01) continue;
+    // Whole dashes from `first`; the last one may be cut short by the piece's end.
+    const n = Math.floor((s1 - first) / period + 1e-6);
+    const lastStart = first + n * period;
+    const whole = lastStart + on <= s1 + 1e-6 ? n : n - 1;
+    if (whole >= 0) {
+      const end = first + whole * period + on;
+      out.push({ a: at(first), b: at(end), s: first, bend: q.bend, dashed: true });
+    }
+    if (whole < n) solid(lastStart, s1);
+  }
   return out;
 }
 

@@ -25,7 +25,7 @@ relations:
   - shop.api -> shop.db: { label: SQL, style: data }
   - shop.api -> shop.bus: { label: OrderPlaced, style: async }
   - shop.bus -> shop.worker: { style: async }
-  - shop.worker -> mail: Sends receipts
+  - shop.worker -> mail: { label: Sends receipts, style: sync }
   - shop.api -> stripe: { label: Charges cards, style: sync }
 
 views:

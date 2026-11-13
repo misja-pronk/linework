@@ -1,6 +1,6 @@
 type: network
 title: Campus network
-subtitle: Collapsed core, two buildings, distribution and access layers
+subtitle: Three tiers across two buildings — campus core, distribution per building, access
 
 groups:
   campus: { kind: site, label: Head office campus, cidr: 10.30.0.0/16 }
@@ -22,9 +22,10 @@ nodes:
   lab: { kind: server, label: Lab racks, in: south, tier: endpoint }
 
 edges:
-  - isp -- fw: { style: wan, speed: 10G, count: 2 }
-  # The FortiGate 400F tops out at 25 GbE (SFP28); the Catalyst 9500 has 25G ports to match.
-  - fw -- core: { style: trunk, speed: 25G, count: 2 }
+  # Two separate links, one to each ISP: not a bundle, so no count.
+  - isp -- fw: { style: wan, label: 10G per ISP }
+  # The FortiGate 400F's fastest ports are 10GE SFP+ (no 25G); two of them bundled to the core.
+  - fw -- core: { style: trunk, speed: 10G, count: 2 }
   - core -- dist-n: { style: fiber, speed: 40G, count: 2 }
   - core -- dist-s: { style: fiber, speed: 40G, count: 2 }
   - dist-n -- acc-n1: { style: fiber, speed: 10G, count: 2 }

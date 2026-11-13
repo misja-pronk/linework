@@ -1,6 +1,6 @@
 Enterprise capability map
 
-Capability map, map: Map. 7 areas and 30 capabilities.
+Capability map, capabilities by area: Capabilities by area. 7 areas and 30 capabilities.
 
 Areas and capabilities
 - Strategy

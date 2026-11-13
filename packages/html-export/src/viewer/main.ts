@@ -394,7 +394,8 @@ function show(d: number, step: number, shape?: string) {
   }
   crumbs(drawing);
   stepBar(drawing, step);
-  document.title = `${longTitle(d)} · ${data.title}`;
+  // The drawing, then what it is part of; once when they are the same.
+  document.title = longTitle(d) === data.title ? data.title : `${longTitle(d)} · ${data.title}`;
   markSidebar();
   if (shape && drawing.shapes[shape] !== undefined) {
     select(shape, true);
@@ -914,7 +915,8 @@ function find(query: string): Hit[] {
     if (!s) continue;
     const mine = here ? e.where.find(([d]) => d === here!.d) : undefined;
     const [d, shape] = mine ?? e.where[0]!;
-    hits.push({ title: e.label, detail: [e.kind, e.technology].filter(Boolean).join(' · ') || longTitle(d), href: hrefOf(d, 0, shape), score: s + 10, group: 'Elements' });
+    // In a folder the same element is in several diagrams: each hit says which.
+    hits.push({ title: e.label, detail: [e.kind, e.technology, data.files.length > 1 ? longTitle(d) : undefined].filter(Boolean).join(' · ') || longTitle(d), href: hrefOf(d, 0, shape), score: s + 10, group: 'Elements' });
   }
   for (const [i, d] of data.drawings.entries()) {
     const s = score([[longTitle(i), 1], [d.view, 0.8], [d.kind, 0.5], [d.file, 0.6]]);

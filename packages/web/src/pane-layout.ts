@@ -15,6 +15,9 @@ export const MIN_EDITOR = 280;
 /** Narrower than this, next to the side panel in a folder, the YAML wraps nearly every line: it folds instead. */
 export const READABLE_EDITOR = 400;
 export const SIDE = 300;
+/** Narrower than this, the builder's outline starts folded to its rail: on a 1280 projector the drawing
+ * gets the room, and the toolbar keeps its words. Opened on purpose it stays open. */
+export const OUTLINE_FOLDS_BELOW = 1400;
 const SPLITTER = 1;
 
 export interface PaneWants {
@@ -32,12 +35,16 @@ export interface PaneWants {
   forceEditor?: boolean;
   /** Room is kept for the side panel (properties, Ask). */
   side: boolean;
+  /** The builder's outline as people left it: open or folded; unset, it folds in a window under OUTLINE_FOLDS_BELOW. */
+  outline?: 'open' | 'rail';
 }
 
 export interface Panes {
   files: number;
   filesMode: 'none' | 'list' | 'rail';
   shapes: number;
+  /** The builder's left panel (outline, shapes): open, or folded to a rail. */
+  shapesMode: 'none' | 'open' | 'rail';
   editor: number;
   /** The YAML is folded to a rail: by choice, or because there is no room for it. */
   editorMode: 'none' | 'open' | 'rail';
@@ -50,7 +57,10 @@ export interface Panes {
 export function paneLayout(w: PaneWants): Panes {
   const side = w.side ? SIDE : 0;
   const code = w.view === 'code';
-  const shapes = code ? 0 : SHAPES;
+  // The outline folds by itself in a narrow window, or when the drawing would get less than its least.
+  const outlineOpen = w.outline === 'open' || (!w.outline && w.width >= OUTLINE_FOLDS_BELOW && w.width - side - SHAPES >= MIN_CANVAS);
+  const shapesMode: Panes['shapesMode'] = code ? 'none' : outlineOpen ? 'open' : 'rail';
+  const shapes = shapesMode === 'open' ? SHAPES : shapesMode === 'rail' ? RAIL : 0;
   // What is left for the file list and the YAML once the drawing and the side panel have theirs.
   const room = (filesW: number) => w.width - side - shapes - filesW - MIN_CANVAS;
   let filesMode: Panes['filesMode'] = !w.folder ? 'none' : w.files;
@@ -72,7 +82,7 @@ export function paneLayout(w: PaneWants): Panes {
     } else editor = Math.round(Math.max(MIN_EDITOR, Math.min(w.editor.width, max)));
   }
   const used = side + shapes + filesW() + (editorMode === 'open' ? editor + SPLITTER : editorMode === 'rail' ? RAIL : 0);
-  return { files: filesW(), filesMode, shapes, editor, editorMode, editorSqueezed: squeezed, side, canvas: w.width - used };
+  return { files: filesW(), filesMode, shapes, shapesMode, editor, editorMode, editorSqueezed: squeezed, side, canvas: w.width - used };
 }
 
 /** The grid's columns for a layout, in the order the panes stand in the markup. */

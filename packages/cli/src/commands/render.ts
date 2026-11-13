@@ -6,7 +6,7 @@ import { toSafeSvg } from '@cartography/export/svg-safe';
 import type { Theme } from '@cartography/theme';
 import type { RenderOptions } from '../args.ts';
 import { describedPng } from '../describe.ts';
-import { document, noteLayout, optionsFor, themeFlag } from '../draw.ts';
+import { document, documentFlags, noteLayout, optionsFor, themeFlag } from '../draw.ts';
 import { ttfFiles } from '../fonts.ts';
 import { t } from '../i18n.ts';
 import { outputPath, UsageError, type Ctx } from '../io.ts';
@@ -68,7 +68,7 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
     if (!drawn.length) return false;
     const out = o.out === '-' ? '-' : where(format, o.view);
     // A layer is one slide (its steps are the whole drawing's story, told on its own slides), unless every step is asked for; a view tells its own steps.
-    const data = await document(ctx, o, format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(layered.includes(r) && !o['all-steps'] ? { steps: undefined } : {}) })), first.theme, file);
+    const data = await document(ctx, o, format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(layered.includes(r) && !o['all-steps'] ? { steps: undefined } : {}) })), first.theme, file, out);
     ctx.put(out, data);
     const layers = drawn.filter((r) => layered.includes(r)).length;
     const said = o['all-views'] && !o['all-layers'] ? t('{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views', { all: drawn.length, count: drawn.length - 1 }) : o['all-layers'] && !o['all-views'] ? t('{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers', { all: drawn.length, count: layers }) : t('{all} drawings: the whole, its views and layers', { all: drawn.length });
@@ -78,6 +78,8 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   }
   let ok = true;
   const stdout = o.out === '-' || (shown === 'stdin' && !o.out);
+  // -o names the file: one step goes there as named (a folder, or next to the diagram: <file>-step-03).
+  const namedFile = !!o.out && o.out !== '-' && !o.out.endsWith('/') && !o.out.endsWith(path.sep) && !!path.extname(o.out);
   for (const [i, result] of runs.entries()) {
     const view = named(result, i);
     ctx.report(view && i ? `${shown}${layered.includes(result) ? '@' : '#'}${view}` : shown, i && !o.view ? result.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : result.diagnostics);
@@ -86,6 +88,12 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
       continue;
     }
     if ((o.step || (o['all-steps'] && !o['all-views'])) && !result.steps) ctx.error(`${shown}${view ? `#${view}` : ''}  ${ctx.yellow(t('warning'))}  ${t('no steps here: drawn as a whole')}`);
+    // A step it does not have is a mistake, not the last step.
+    if (o.step && result.steps && Number(o.step) > result.steps.length) {
+      ctx.error(`${shown}${view ? `#${view}` : ''}  ${ctx.red(t('error'))}  --step ${o.step}: it has ${result.steps.length === 1 ? '1 step' : `${result.steps.length} steps`}; use one of 1–${result.steps.length}`);
+      ok = false;
+      continue;
+    }
     // --all-steps: an image per step, numbered; a pptx or pdf holds them all in one file.
     const each = o['all-steps'] && result.steps && (format === 'svg' || format === 'png');
     const shots = each ? await Promise.all(result.steps!.map((_, n) => render(text, { ...opts, view: result.view ?? opts.view, ...(layered.includes(result) ? { layers: result.layers!.active } : {}), step: n + 1 }))) : [result];
@@ -100,12 +108,12 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
     const outline = safe && o['outline-text'] ? await (await import('../outline.ts')).outliner(result.theme) : undefined;
     for (const shot of shots) {
       if (!shot.svg) continue;
-      const out = stdout ? '-' : where(format, view, each || o.step ? shot.step : undefined);
+      const out = stdout ? '-' : where(format, view, each || (o.step && !namedFile) ? shot.step : undefined);
       const data =
         format === 'png' ? await describedPng(shot, file, toPng(shot.svg, Number(o.scale) || 2, await ttfFiles(faces)))
         : safe ? toSafeSvg(shot.svg, { outline })
         : format === 'svg' ? shot.svg
-        : await document(ctx, o, format, [{ ...shot, name: path.basename(file) }], shot.theme, file);
+        : await document(ctx, o, format, [{ ...shot, name: path.basename(file) }], shot.theme, file, out);
       ctx.put(out, data);
       (stdout ? ctx.error : ctx.log)(`${shown}${view ? `${layered.includes(result) ? '@' : '#'}${view}` : ''}${shot.step ? ` ${t('step {n}', { n: shot.step })}` : ''} → ${stdout ? t('standard output') : out} ${ctx.dim(`${shot.width}×${shot.height}`)}`);
     }
@@ -114,11 +122,18 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   return ok;
 }
 
+/** --step, --aspect and --page as render and watch take them: a usage error for a value they do not. */
+export function renderFlags(o: RenderOptions) {
+  if (o.step != null && !/^[1-9]\d*$/.test(o.step)) throw new UsageError(`--step ${o.step}: give a step number from 1, e.g. --step 2`);
+  documentFlags(o);
+}
+
 /** carto render: every file given; `-` is standard input. */
 export async function renderCommand(ctx: Ctx, files: string[], o: RenderOptions, usage: () => number): Promise<number> {
   if (!files.length) return usage();
   if (!formats.includes(o.format as Format)) throw new UsageError(`--format ${o.format} is not one carto render writes; use one of: ${formats.join(', ')}`);
   if (!(Number(o.scale) > 0)) throw new UsageError(`--scale ${o.scale}: give a number above 0, e.g. --scale 2`);
+  renderFlags(o);
   const forced = themeFlag(ctx, o.theme);
   if (forced === false) return 1;
   const job: Job = { o, command: 'render', count: files.length, forced };

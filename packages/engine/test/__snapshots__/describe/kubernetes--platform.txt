@@ -39,4 +39,4 @@ Connections
 
 Key
 - Solid blue line: Traffic
-- Badge: Mounts badge
+- Badge: Mounted config, secret or volume

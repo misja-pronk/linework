@@ -38,6 +38,10 @@ nodes:
   vm-intranet: { kind: server, label: vmss-intranet, in: intranet, model: rt-intranet · propagation off, tier: access, tags: [expressroute, vpn] }
   vm-erp: { kind: server, label: vmss-erp, in: erp, model: rt-erp · propagation off, tier: access, tags: [expressroute, vpn] }
 
+# Plain lines are Ethernet in the data centre and routing inside the hub VNet: the key says both.
+key:
+  solid: Ethernet, or routed in the VNet
+
 edges:
   - dc01 -- rtr-ams: { speed: 10G, count: 2 }
   # Primary: ExpressRoute, two links to the Microsoft edge (primary and secondary)

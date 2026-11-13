@@ -484,20 +484,24 @@ groups:
 nodes:
   users: users
   cdn: { kind: cloudfront, label: CDN and WAF }
-  # One load balancer across the zones (AWS puts its nodes in a public subnet of each zone, left out here).
-  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public }
+  # The internet gateway and one load balancer across the zones sit on the public row. AWS puts a node of
+  # the load balancer in a public subnet of each zone; its caption says so instead of two more boxes.
+  igw: { kind: internet-gateway, label: Internet gateway, in: vpc, tier: public }
+  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public, caption: ALB · a public subnet per zone }
   web-a: { kind: ecs, label: Web shop, in: app-a, size: 2 tasks }
   web-b: { kind: ecs, label: Web shop, in: app-b, size: 2 tasks }
-  db-a: { kind: aurora, label: Orders (reader), in: data-a }
-  db-b: { kind: aurora, label: Orders (writer), in: data-b }
+  # One Aurora cluster: a writer and a reader instance on the cluster's shared storage, which Aurora
+  # itself keeps in every zone. No line between them: they do not copy data to each other.
+  db-a: { kind: aurora, label: Orders reader, in: data-a, caption: Aurora instance · same cluster }
+  db-b: { kind: aurora, label: Orders writer, in: data-b, caption: Aurora instance · cluster orders }
 
 edges:
   - users -> cdn: { label: HTTPS, style: public }
-  - cdn -> alb: { style: public }
+  - cdn -> igw: { style: public }
+  - igw -> alb: { style: public }
   - alb -> web-a: { style: private }
   - alb -> web-b: { style: private }
   - web-a -> db-b: { style: private }
   - web-b -> db-b: { label: SQL, style: private }
-  - db-b -> db-a: { label: replication, style: data }
 `,
 };

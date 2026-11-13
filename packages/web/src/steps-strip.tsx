@@ -24,7 +24,7 @@ export interface StepsStripProps {
   onDelete(step: number): void;
 }
 
-const short = (s: string, max = 28) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
+const short = (s: string, max = 34) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
 
 export function StepsStrip(p: StepsStripProps) {
   const row = useRef<HTMLDivElement>(null);
@@ -94,12 +94,13 @@ export function StepsStrip(p: StepsStripProps) {
       </span>
       {/* The keys come in when a step has the keyboard: the step stays in view beside them. */}
       <div className="steps-row" ref={row} onFocus={(e) => requestAnimationFrame(() => e.target.scrollIntoView({ block: 'nearest', inline: 'nearest' }))}>
-        <button className={p.value ? 'step-chip' : 'step-chip active'} data-step={0} onClick={() => p.onPick(undefined)} onKeyDown={(e) => onKey(e, 0)} aria-pressed={!p.value} title={t('The whole drawing, nothing standing back')}>
+        <button className={p.value ? 'step-chip' : 'step-chip active'} data-step={0} onClick={() => p.onPick(undefined)} onKeyDown={(e) => onKey(e, 0)} aria-pressed={!p.value} title={t('The whole drawing')}>
           {t('All')}
         </button>
         {p.steps.map((s, i) => {
           const n = i + 1;
-          const label = s.title ?? s.caption ?? '';
+          // Steps nobody wrote (a sequence's messages) by what is said, not by who says it to whom.
+          const label = (p.implied ? (s.caption ?? s.title) : (s.title ?? s.caption)) ?? '';
           if (editing?.step === n)
             return (
               <span key={n} className="step-chip editing">

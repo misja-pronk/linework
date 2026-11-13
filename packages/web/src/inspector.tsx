@@ -167,7 +167,8 @@ export function Inspector(p: InspectorProps) {
         </span>
         <div className="inspector-title">
           <strong>{p.title}</strong>
-          <span>{p.id && p.id !== p.title ? `${p.id} · ${p.kindLabel.toLowerCase()}` : p.kindLabel.toLowerCase()}</span>
+          {/* What it is, in words; its id (what the YAML calls it) on hover. */}
+          <span title={p.id && p.id !== p.title ? t('In the YAML: {id}', { id: p.id }) : undefined}>{p.kindLabel.charAt(0).toUpperCase() + p.kindLabel.slice(1)}</span>
         </div>
         <button className="icon-button" onClick={p.onClose} aria-label={t('Close properties')} title={t('Close (Esc)')}>
           <Icon name="x" />

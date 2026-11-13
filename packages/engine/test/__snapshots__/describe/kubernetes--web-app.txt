@@ -30,6 +30,6 @@ Connections
 
 Key
 - Solid blue line: Traffic
-- Badge: Mounts badge
+- Badge: Mounted config, secret or volume
 - Amber badge: Identity badge
-- Green badge: Scales badge
+- Green badge: Scaled by an autoscaler

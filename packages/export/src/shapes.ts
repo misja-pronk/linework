@@ -30,6 +30,9 @@ export interface Run {
   mono?: boolean;
   /** Letter-spacing in points. */
   spacing?: number;
+  /** UML: an abstract name in italics, a static member underlined. */
+  italic?: boolean;
+  underline?: boolean;
 }
 
 export interface Para {
@@ -131,7 +134,7 @@ const effects = (s?: Shadow) =>
   s ? `<a:effectLst><a:outerShdw blurRad="${i(s.blur)}" dist="${i(s.dist)}" dir="5400000" algn="t" rotWithShape="0">${color(s.color, s.alpha)}</a:outerShdw></a:effectLst>` : '';
 
 function runXml(r: Run, font: string): string {
-  const props = `lang="en-US" sz="${Math.max(100, i(r.size * 100))}" b="${r.bold ? 1 : 0}"${r.spacing ? ` spc="${i(r.spacing * 100)}"` : ''} dirty="0"`;
+  const props = `lang="en-US" sz="${Math.max(100, i(r.size * 100))}" b="${r.bold ? 1 : 0}"${r.italic ? ' i="1"' : ''}${r.underline ? ' u="sng"' : ''}${r.spacing ? ` spc="${i(r.spacing * 100)}"` : ''} dirty="0"`;
   // Where the face is not installed, apps pick a substitute from these hints: a proportional sans
   // (pitchFamily 34, Arial's PANOSE) or a fixed-pitch face (pitchFamily 49, Consolas's), never Times.
   const name = esc(r.font ?? font);
@@ -149,6 +152,36 @@ function parasXml(list: Para[], font: string): string {
       return `<a:p><a:pPr marL="0" indent="0" algn="${p.align ?? 'l'}"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="${i((p.before ?? 0) * 100)}"/></a:spcBef><a:buNone/></a:pPr>${p.runs.map((r) => runXml(r, font)).join('')}<a:endParaRPr lang="en-US" sz="${Math.max(100, i(size * 100))}" dirty="0"/></a:p>`;
     })
     .join('');
+}
+
+/** Line height of 100% spacing, in font sizes: what PowerPoint sets Inter's lines in (its ascent and descent). */
+const LINE = 1.21;
+
+/**
+ * The text of a shape as Apple's importer (Quick Look, Mail, an iPhone) sets it where PowerPoint
+ * does: Apple leaves out the bottom inset and moves centred text that does not wrap by the left one.
+ * So text centred over a band of the shape is set from the top, its top inset worked out from its
+ * lines; centred text loses its side insets, and where those differ (or a paragraph is not centred)
+ * it moves to a text box of its own over the room the insets leave (`apart`), set without them.
+ */
+export function settle(t: TextBody, f: Frame): { text: TextBody; apart?: Frame } {
+  if (t.wrap) return { text: t };
+  const ins = { l: 0, t: 0, r: 0, b: 0, ...t.inset };
+  let apart: Frame | undefined;
+  const centred = t.paras.filter((p) => p.align === 'ctr').length;
+  if (centred && (ins.l || ins.r)) {
+    if ((centred < t.paras.length || Math.abs(ins.l - ins.r) > 1) && !f.rot) apart = { x: f.x + ins.l, y: f.y, w: Math.max(0, f.w - ins.l - ins.r), h: f.h };
+    if (apart || centred === t.paras.length) ins.l = ins.r = 0;
+  }
+  let anchor = t.anchor ?? 'ctr';
+  if (anchor !== 't' && (ins.t || ins.b)) {
+    const high = t.paras.reduce((h, p, k) => h + (k ? (p.before ?? 0) : 0) + LINE * Math.max(p.runs[0]?.size ?? 10, ...p.runs.map((r) => r.size)), 0) * 12700;
+    const room = f.h - ins.t - ins.b - high;
+    ins.t = Math.max(0, ins.t + (anchor === 'ctr' ? room / 2 : room));
+    ins.b = 0;
+    anchor = 't';
+  }
+  return { text: { ...t, anchor, inset: ins }, apart };
 }
 
 export function textBody(t: TextBody, font: string): string {

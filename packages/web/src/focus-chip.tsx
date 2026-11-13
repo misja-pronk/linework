@@ -48,7 +48,7 @@ export function FocusChip({ focus, off, onHops, onDirection, onLeave }: FocusChi
         {t('Focused on')} <strong>{focus.names.join(', ') || focus.on.join(', ')}</strong>
       </span>
       <span className="focus-chip-count">
-        {t('{kept} of {total}', { kept: focus.kept, total: focus.total })}
+        {t('{kept} of {total} shown', { kept: focus.kept, total: focus.total })}
       </span>
       <button className="tool" onClick={() => onHops(-1)} disabled={focus.hops === 0} title={t('One hop fewer (−)')} aria-label={t('One hop fewer')}>
         <Icon name="minus" size={14} />

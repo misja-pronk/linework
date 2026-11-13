@@ -1,10 +1,13 @@
 // A cut of the stability lab (stability.ts; `pnpm stability` runs all of it): one line or one
 // element added to an example moves few of the nodes that were already there, as long as the
 // drawing before the edit is known.
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { LayoutMemory, Placed } from '@cartography/core';
 import { measure } from '@cartography/layout';
 import { render } from '../src/index.ts';
-import { lab, moved, summary } from './stability.ts';
+import { exampleFiles, lab, moved, summary } from './stability.ts';
 
 const files = ['azure/hub-spoke', 'network/small-office', 'kubernetes/web-app', 'erd/orders', 'systems/data-pipeline', 'data-products/finance', 'github/setup'].map((f) => `examples/${f}.yaml`);
 const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
@@ -50,4 +53,34 @@ describe('staying put', () => {
     // Left to right: the database right of the app (or below it in the same column), never above.
     expect(b.x >= a.x + a.width || b.y >= a.y + a.height).toBe(true);
   });
+});
+
+describe('drawn again', () => {
+  /** Every box, line and label, in pixels. */
+  const drawing = (p: Placed) =>
+    [
+      `${p.width}x${p.height}`,
+      ...[...p.nodes].map(([id, b]) => `${id}@${b.x},${b.y},${b.width},${b.height}`),
+      ...[...p.groups].map(([id, b]) => `#${id}@${b.x},${b.y},${b.width},${b.height}`),
+      ...[...p.edges].map(([id, e]) => `${id}:${e.points.map((q) => `${q.x},${q.y}`).join(' ')}${e.label ? ` [${e.label.x},${e.label.y}]` : ''}`),
+    ].join('\n');
+
+  it('every example, in every view, comes out the same as drawn the first time (the editor redraws on every edit)', async () => {
+    const root = path.resolve(import.meta.dirname, '../../..');
+    const differ: string[] = [];
+    for (const file of exampleFiles()) {
+      const text = fs.readFileSync(path.join(root, file), 'utf8');
+      const load = (rel: string) => fs.readFileSync(path.resolve(root, path.dirname(file), rel), 'utf8');
+      const draw = (view: string | undefined, previous: LayoutMemory | null) => render(text, { fonts: 'none', load, file: path.basename(file), view, previous });
+      const first = await draw(undefined, null);
+      const views = [...(first.onlyViews ? [] : [undefined]), ...(first.views ?? []).map((v) => v.name)];
+      for (const view of views) {
+        const fresh = view === undefined ? first : await draw(view, null);
+        if (!fresh.placed?.memory) continue;
+        const again = await draw(view, fresh.placed.memory);
+        if (drawing(again.placed!) !== drawing(fresh.placed)) differ.push(`${file}${view ? `#${view}` : ''}`);
+      }
+    }
+    expect(differ).toEqual([]);
+  }, 180_000);
 });

@@ -227,7 +227,7 @@ export const nlDialogs = {
 
   // preview.tsx
   '{count} selected': '{count} geselecteerd',
-  'Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes.': 'Tekening. Tab gaat langs de elementen, ⌥ pijltjes naar het dichtstbijzijnde, pijltjes schuiven, Delete verwijdert.',
+  'Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes, F6 goes on to the toolbar.': 'Tekening. Tab gaat langs de elementen, ⌥ pijltjes naar het dichtstbijzijnde, pijltjes schuiven, Delete verwijdert, F6 gaat naar de werkbalk.',
   'Nothing to draw yet. Fix the problems in the editor, or start from a template.': 'Nog niets te tekenen. Los de problemen in de editor op, of begin met een sjabloon.',
   'Into {group}': 'In {group}',
   'Cannot go in {group}': 'Kan niet in {group}',
@@ -243,8 +243,8 @@ export const nlDialogs = {
   'Fit to screen': 'Passend maken',
   'Zoom to selection': 'Zoomen naar selectie',
   Minimap: 'Minikaart',
-  'The page it is for, a {page}, and text too small on it (⇧P)': 'De pagina waarvoor het is, een {page}, en tekst die daarop te klein is (⇧P)',
-  'The page it is for, and text too small on it (⇧P)': 'De pagina waarvoor het is, en tekst die daarop te klein is (⇧P)',
+  'Show the {page} it goes on, and any text too small to read there (⇧P)': 'De {page} tonen waar het op komt, en tekst die daar te klein is om te lezen (⇧P)',
+  'Show the page it goes on, and any text too small to read there (⇧P)': 'De pagina tonen waar het op komt, en tekst die daar te klein is om te lezen (⇧P)',
 
   // viewer.tsx
   'Opening the shared diagram…': 'Het gedeelde diagram openen…',
@@ -252,7 +252,6 @@ export const nlDialogs = {
   'Open the editor': 'Editor openen',
   'Export failed: {error}': 'Exporteren mislukt: {error}',
   'Read-only': 'Alleen lezen',
-  'As written': 'Zoals geschreven',
   'Present, step by step (P)': 'Presenteren, stap voor stap (P)',
   Present: 'Presenteren',
   'Copy it into a new document in this browser, to change it': 'Kopieer het naar een nieuw document in deze browser om het te wijzigen',

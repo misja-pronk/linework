@@ -189,7 +189,9 @@ button.type-pill[aria-expanded='true'] {
   .brand {
     display: none;
   }
-  /* The YAML / Drawing tabs under the bar are the one switcher here. */
+}
+/* The YAML / Drawing tabs under the bar are the one switcher in a narrow window (app.css). */
+@media (max-width: 999px) {
   .view-switch {
     display: none;
   }

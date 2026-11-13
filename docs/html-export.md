@@ -17,7 +17,7 @@ disk in Chrome, Safari, Firefox and Edge, needs no install and no hosted app, an
 
   | Option | |
   | --- | --- |
-  | `-o out.html` | where to write it; by default next to the diagram (`shop.html`) or the folder (`architecture.html`) |
+  | `-o out.html` | where to write it; by default next to the diagram (`shop.html`) or the folder (`architecture.html`); `-o -` writes it to standard output |
   | `--title "…"` | the page's title; by default the model's title, or the diagram's |
   | `--all-steps` | also the steps nobody wrote (a dynamic view's numbered lines, a sequence's messages) |
   | `--theme`, `--icons`, `--pack` | as for `carto render` |

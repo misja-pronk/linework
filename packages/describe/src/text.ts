@@ -7,6 +7,8 @@ export interface Description {
   title: string;
   /** One or two sentences: what kind of drawing, what it is about, how big. What alt text holds. */
   summary: string;
+  /** How big, in a few words, in the words of its kind: "8 elements in 2 groups, with 7 connections", "4 participants and 13 messages". */
+  size?: string;
   sections: Section[];
 }
 

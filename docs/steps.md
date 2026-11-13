@@ -137,6 +137,7 @@ A file with views is presented view by view, in the order written, and step by s
 
 ```sh
 carto render shop.yaml --step 3              # → shop-step-03.svg, the drawing at step 3
+carto render shop.yaml --step 3 -o s3.png     # → s3.png, as named (a step it does not have is an error)
 carto render shop.yaml --all-steps -f png    # → shop-step-01.png, shop-step-02.png, …
 carto render shop.yaml --view inside --all-steps
 carto render shop.yaml -o shop.pptx          # one slide per step

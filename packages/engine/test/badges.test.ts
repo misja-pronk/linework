@@ -47,7 +47,7 @@ describe('badges', () => {
     expect(r.svg).toContain('<title>Orders → Secrets (Identity)</title>');
     expect(r.svg).toContain('data-edge="e1"><title>');
     expect(r.svg).toContain('>Telemetry</text>');
-    expect(r.svg).toContain('Identity badge');
+    expect(r.svg).toContain('Reached with its managed identity');
     const api = r.placed!.nodes.get('api')!;
     const plain = r.placed!.nodes.get('kv')!;
     expect(api.height).toBeGreaterThan(plain.height);

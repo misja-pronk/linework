@@ -9,9 +9,10 @@ lanes:
 
 nodes:
   Contract signed: { kind: message, in: hr }
-  # Two gateways without a name: the work splits here and comes together there.
+  # Two gateways without a name: the work splits here and comes together there, with the manager,
+  # who starts the first day once both are done.
   Prepare: { kind: parallel, in: hr, label: "" }
-  All ready: { kind: parallel, in: hr, label: "" }
+  All ready: { kind: parallel, in: manager, label: "" }
   Register in HR system: { in: hr, kind: service }
   Order laptop: { in: it, kind: user }
   Create accounts: { in: it, kind: subprocess, caption: "mail, VPN and source control" }

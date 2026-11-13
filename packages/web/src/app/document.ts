@@ -73,6 +73,8 @@ export function useDocument(endUndoOffer: () => void) {
       endUndoOffer();
     }
   };
+  /** Whether there is anything to undo and to redo (the toolbar greys out what there is not). */
+  const [history, setHistory] = useState({ undo: false, redo: false });
   /** Marks what is in the editor now as saved. */
   const markSaved = (savedNow: string, pinsNow: LayoutSidecar | undefined | null = pins) => {
     setSavedText(savedNow);
@@ -98,7 +100,7 @@ export function useDocument(endUndoOffer: () => void) {
     };
   };
 
-  return { text, doc, setDoc, pins, docKey, editor, fileHandle, savedText, setSavedText, savedPins, setSavedPins, dirty, textNow, onChange, onPins, markSaved, replaceWith };
+  return { text, doc, setDoc, pins, docKey, editor, fileHandle, savedText, setSavedText, savedPins, setSavedPins, dirty, textNow, onChange, onPins, history, onHistory: setHistory, markSaved, replaceWith };
 }
 export type DocumentState = ReturnType<typeof useDocument>;
 

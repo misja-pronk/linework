@@ -168,7 +168,8 @@ export const nlHelp: Record<string, string> = {
                [--template customer.potx]       pptx: made in that PowerPoint template, its layouts, master, fonts
                [--layout "Title Only"]          and colours (a brand theme's pptx: names one too); --layout picks the
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
-                                                template's own slides in front`]:
+                                                template's own slides in front
+               [--aspect 16:9|4:3] [--page fit|a4|a3]  pptx: the slide shape; pdf: the page size (default fit)`]:
     `  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme gaat voor theme: in het diagram; -o x.pptx of x.pdf kiest ook het formaat
                [--view name | --all-views]      één weergave van het diagram, of elk naar <file>--<view>.svg; pptx, pdf: een dia (pagina) per weergave
@@ -188,7 +189,8 @@ export const nlHelp: Record<string, string> = {
                [--template customer.potx]       pptx: gemaakt in dat PowerPoint-sjabloon, met zijn indelingen, model,
                [--layout "Title Only"]          lettertypen en kleuren (de pptx: van een huisstijlthema noemt er ook een);
                [--keep-look] [--keep-slides]    --layout kiest de indeling, --keep-look houdt het eigen thema van het
-                                                diagram, --keep-slides de eigen dia's van het sjabloon vooraan`,
+                                                diagram, --keep-slides de eigen dia's van het sjabloon vooraan
+               [--aspect 16:9|4:3] [--page fit|a4|a3]  pptx: de vorm van de dia; pdf: het paginaformaat (standaard fit)`,
   [`  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)

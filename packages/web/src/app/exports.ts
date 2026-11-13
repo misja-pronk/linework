@@ -41,12 +41,20 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
   const exportInput = () => ({ text: textNow(), theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses });
   const attempt = (what: string, run: () => Promise<void>) => () =>
     void (acted(), run()).catch((e: unknown) => notify(t('{what} failed: {error}', { what, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
-  const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
+  /** A file downloaded, and a word that it was: a download shows nothing on the page itself. */
+  const got = (name: string, data: Blob | string, type?: string) => {
+    download(name, data, type);
+    notify(t('Downloaded {file}', { file: name }));
+  };
+  const saveLayout = () => pins && got(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
   // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
   const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
-  const saveSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
-  const savePng = attempt(t('Export'), async () => download(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
-  const saveSlide = attempt(t('Export'), async () => download(`${baseName(doc.name)}-slide.png`, await exportSlide(exportInput())));
+  const saveSvg = attempt(t('Export'), async () => got(`${baseName(doc.name)}.svg`, await svgNow(), 'image/svg+xml'));
+  const savePng = attempt(t('Export'), async () => got(`${baseName(doc.name)}.png`, await exportPng(exportInput(), 2)));
+  const page = (result?.page ?? drawn?.page)?.name;
+  /** The page's picture is named for the page: hub-spoke-slide.png and .svg on a slide, -page on paper. */
+  const pageFile = `${baseName(doc.name)}-${!page || page.endsWith('slide') ? 'slide' : 'page'}`;
+  const saveSlide = attempt(t('Export'), async () => got(`${pageFile}.png`, await exportSlide(exportInput())));
   const pptxTemplate = useTemplateChoice(ws, (m) => notify(m, { tone: 'error' }));
   /** A drawing read scrolling (a whole sequence) goes first, then a slide per view that presents it (its phases): said so, with the offer to leave it out. */
   const scrollSaid = (what: 'slide' | 'page', count: number, by: string[], again: () => void) => ({
@@ -62,7 +70,7 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
     attempt(t('Export'), async () => {
       // In the template chosen in the menu, or the one the theme names.
       const { blob, small, warnings, scroll } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read, withoutScroll });
-      download(`${baseName(doc.name)}.pptx`, blob);
+      got(`${baseName(doc.name)}.pptx`, blob);
       // Every slide is checked for text too small to read from the back of a room.
       const smallSaid = small.length ? t('{count} slide has text under {min} pt (smallest {pt} pt). Split into views or Tidy.|{count} slides have text under {min} pt (smallest {pt} pt). Split into views or Tidy.', { count: small.length, min: SLIDE_MIN_PT, pt: Math.min(...small.map((x) => x.smallestPt)) }) : '';
       if (scroll) {
@@ -73,11 +81,11 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
       if (smallSaid) notify(smallSaid);
     });
   const savePptx = pptxNow();
-  const pageName = (result?.page ?? drawn?.page)?.name ?? t('16:9 slide');
-  const savePageSvg = attempt(t('Export'), async () => download(`${baseName(doc.name)}-page.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
+  const pageName = page ?? t('16:9 slide');
+  const savePageSvg = attempt(t('Export'), async () => got(`${pageFile}.svg`, await exportPageSvg(exportInput()), 'image/svg+xml'));
   const pdfNow = (withoutScroll?: boolean) =>
     attempt(t('Export'), async () => {
-      download(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name), { withoutScroll }));
+      got(`${baseName(doc.name)}.pdf`, await exportPdf(exportInput(), yamlName(doc.name), { withoutScroll }));
       const by = withoutScroll ? [] : presentedBy(result ?? drawn ?? {});
       if (by.length) {
         const said = scrollSaid('page', 1, by.map((v) => v.title ?? v.name), pdfNow(true));
@@ -87,8 +95,8 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
   const savePdf = pdfNow();
   const saveHtml = (folder?: boolean) =>
     attempt(t('Export'), async () => {
-      const page = await (await import('../html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: textNow(), ws, load, pins, folder });
-      download(`${folder && ws ? ws.name : baseName(doc.name)}.html`, page, 'text/html');
+      const html = await (await import('../html-export.ts')).exportPage({ file: ws && doc.path ? doc.path : yamlName(doc.name), text: textNow(), ws, load, pins, folder });
+      got(`${folder && ws ? ws.name : baseName(doc.name)}.html`, html, 'text/html');
     })();
   const copySvg = attempt(t('Copy'), async () => {
     await navigator.clipboard.writeText(await svgNow());

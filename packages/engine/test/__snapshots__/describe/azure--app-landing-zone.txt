@@ -29,7 +29,7 @@ Connections
 - rt-portal connects to afw-hub (next hop).
 - pe-sql-portal connects to sqldb-portal (Private network: TDS).
 - pe-kv-portal connects to kv-portal-prd (Private network: HTTPS).
-- appi-portal connects to log-platform-weu (Management: workspace).
+- appi-portal sends data to log-platform-weu (workspace).
 - sqldb-portal connects to log-platform-weu (Management).
 - kv-portal-prd connects to log-platform-weu (Management).
 - func-portal-jobs connects to pe-sql-portal (Private network) and connects to log-platform-weu (Management).
@@ -44,5 +44,4 @@ Key
 - Dotted line: Route table (configuration, not traffic)
 - Dashed teal line: Private network
 - Solid violet line with ticks: Data flow
-- Dotted line with ticks: Management
 - Badge: Management badge

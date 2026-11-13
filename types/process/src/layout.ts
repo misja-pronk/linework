@@ -322,7 +322,8 @@ function place(sized: Sized, parts: number): { placed: Placed; crossings: number
         if (r.hor === seg.hor) {
           if (r.line !== seg.line || Math.max(lo, rlo) >= Math.min(hi, rhi)) continue;
           // Lines that leave one node together or arrive at one together may share their way; others may not lie on each other.
-          const shared = (i === 0 && (!gate(s) || !(e.label || r.edge.label)) && r.first && r.edge.from.node === s && r.a === seg.a && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a)) || (i === segs.length - 1 && r.last && r.edge.to.node === t && r.b === seg.b && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a));
+          // Not into a gateway that joins: there each way in is seen to arrive on its own, or the join reads as one line.
+          const shared = (i === 0 && (!gate(s) || !(e.label || r.edge.label)) && r.first && r.edge.from.node === s && r.a === seg.a && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a)) || (i === segs.length - 1 && !(gate(t) && joins(t)) && r.last && r.edge.to.node === t && r.b === seg.b && Math.sign(r.b - r.a) === Math.sign(seg.b - seg.a));
           c += channel ? 2 : shared ? -3 : 1000;
         } else if (lo < r.line && r.line < hi && rlo < seg.line && seg.line < rhi) c += 16;
       }

@@ -54,6 +54,8 @@
   color: var(--text);
 }
 .palette-label {
+  flex: 0 1 auto;
+  min-width: 0;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -63,11 +65,21 @@
 .palette-item[aria-selected='true'] .palette-label {
   white-space: normal;
 }
+/* The hint gives way to the name: a long one (a step's caption) is cut, never the name before it. */
 .palette-hint {
+  flex: 0 10 auto;
+  min-width: 0;
+  max-width: 45%;
   margin-left: auto;
   font-size: 0.75rem;
   color: var(--text-faint);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.palette-item > .icon,
+.palette-item > kbd {
+  flex: none;
 }
 .palette-item kbd {
   margin-left: auto;

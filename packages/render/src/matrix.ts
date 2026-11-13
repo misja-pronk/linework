@@ -32,7 +32,7 @@ export interface MatrixGeometry {
   bands: { label: string; x: number; width: number }[];
   /** Wrapped text per cell of a plain table that wraps. */
   lines: (string[] | undefined)[][];
-  /** Each cell's note, on as many lines (up to three) as it needs to stay under NOTE_WRAP wide. */
+  /** Each cell's note, on as many lines as it needs to stay under NOTE_WRAP wide: a fact is never cut. */
   notes: (string[] | undefined)[][];
 }
 
@@ -59,7 +59,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
   const notes = m.cells.map((r) => m.columns.map((_, j) => {
     const c = r[j];
     if (!c?.note || (m.plain && !c.tone)) return undefined;
-    return measureText(c.note, NOTE, 400) > NOTE_WRAP ? wrapText(c.note, NOTE, 400, NOTE_WRAP, 3) : [c.note];
+    return measureText(c.note, NOTE, 400) > NOTE_WRAP ? wrapText(c.note, NOTE, 400, NOTE_WRAP, 8) : [c.note];
   }));
   const cellWidth = (c: MatrixCell | undefined, i: number, j: number) => {
     if (!c) return 0;

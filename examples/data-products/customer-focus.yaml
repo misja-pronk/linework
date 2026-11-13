@@ -1,6 +1,7 @@
 type: data-products
-title: Customer 360 in focus
-subtitle: From operational systems to fit-for-purpose products
+# The title is the file's; each view says what it shows in the subtitle (this one is written for the overview).
+title: Customer data products around Customer 360
+subtitle: Customer 360 in detail, the other products as cards
 view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 detail: [customer-360]
 

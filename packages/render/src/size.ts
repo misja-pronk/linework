@@ -9,6 +9,7 @@ import { roadmapGeometry } from './roadmap.ts';
 import { journeyScene } from './journey.ts';
 import { flowSize, laneHeader } from './flow.ts';
 import { blockSize } from './block.ts';
+import { SMALL_PX } from './readable.ts';
 
 const MARK_WIDTH = 18;
 const MARK_STEP = 15;
@@ -74,17 +75,18 @@ export function size(graph: Graph, theme: Theme): Sized {
   // A lane's name stands in a header at its start: that header's width is what it needs.
   for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g.label, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
 
-  // The smallest words a reader needs (layout's slide sizes go by it): labels on lines, group names, a table's section names (SECTION_PX).
+  // The smallest words a reader needs (layout's slide sizes go by it): labels on lines, group names, a table's section names (SECTION_PX), tags and the word KEY (SMALL_PX).
   const small = [
     ...(graph.edges.some((e) => e.label) ? [theme.size.edgeLabel] : []),
     ...(graph.groups.length ? [look(theme).group.size] : []),
     ...(graph.nodes.some((n) => n.shape.kind === 'table' && n.shape.rows.some((r) => r.kind === 'section' && r.label)) ? [SECTION_PX] : []),
+    ...((graph.legend?.length && look(theme).legend === 'key') || graph.edges.some((e) => e.ends || e.marks?.length) || graph.nodes.some((n) => n.marks?.length) || graph.groups.some((g) => g.marks?.length) ? [SMALL_PX] : []),
   ];
   return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth, ...(small.length ? { smallText: Math.min(...small) } : {}) };
 }
 
 /** A table's section names (INPUT PORTS, SCHEMA) in small capitals: their size (px). */
-export const SECTION_PX = 10.5;
+export const SECTION_PX = SMALL_PX;
 
 /** Room around the words of a label on a line: a pill or plate needs its padding, bare words on a halo only a gap in the line. */
 export const labelPad = (theme: Theme): number => (look(theme).edgeLabel.style === 'halo' ? 10 : 16);

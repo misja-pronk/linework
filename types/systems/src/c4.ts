@@ -243,6 +243,7 @@ title: Web shop
 
 elements:
   customer: { kind: person, label: Customer, description: Buys products online }
+  staff: { kind: person, label: Shop staff, description: Keeps products and prices up to date }
   shop:
     kind: software-system
     label: Web shop
@@ -252,12 +253,15 @@ elements:
       api: { kind: container, label: Orders API, technology: Spring Boot, description: Takes and tracks orders }
       db: { kind: database, label: Orders DB, technology: PostgreSQL, description: Orders and stock }
   payments: { kind: software-system, label: Payment provider, external: true, description: Charges cards }
+  email: { kind: software-system, label: E-mail service, external: true, description: Sends order confirmations }
 
 relations:
   - customer -> shop.web: { label: Browses and orders, technology: HTTPS }
   - shop.web -> shop.api: { label: Places orders, technology: JSON/HTTPS }
   - shop.api -> shop.db: { label: Reads and writes, technology: SQL }
+  - staff -> shop.web: { label: Manages the catalogue, technology: HTTPS }
   - shop.api -> payments: { label: Charges cards, technology: REST }
+  - shop.api -> email: { label: Sends confirmations, technology: SMTP }
 
 views:
   context: { kind: context, of: shop, title: Web shop — system context }
