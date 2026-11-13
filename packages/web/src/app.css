@@ -88,9 +88,22 @@ button.rail.rail-button {
 .pane-tabs {
   display: none;
 }
-@media (max-width: 900px) {
+.workspace.view-visual .editor-pane,
+.workspace.view-visual .splitter {
+  display: none;
+}
+.shapes {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+}
+/* Narrow (under 1000 px): one pane at a time, the drawing or the YAML on the tabs
+   under the bar; the panels beside them fold away, so the drawing has the whole width. */
+@media (max-width: 999px) {
   .app {
-    grid-template-rows: 52px auto 1fr 28px;
+    grid-template-rows: 52px auto minmax(0, 1fr) 28px;
   }
   .pane-tabs {
     display: flex;
@@ -120,47 +133,26 @@ button.rail.rail-button {
     color: var(--ink);
     border-bottom-color: var(--ink);
   }
-  .workspace {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr auto;
+  .workspace,
+  .workspace.view-visual {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
   .splitter,
   .files,
   .rail,
   .yaml-strip,
-  .fold-yaml {
+  .fold-yaml,
+  .workspace .shapes,
+  .workspace .side {
     display: none;
-  }
-  /* One pane at a time here: the YAML shows on its tab even when it is folded on a wide screen. */
-  .workspace.yaml-is-rail.show-yaml .editor-pane {
-    display: block;
   }
   .workspace.show-drawing .editor-pane,
-  .workspace.show-yaml .canvas-pane,
-  .workspace.show-yaml .side {
+  .workspace.show-yaml .canvas-pane {
     display: none;
   }
-}
-.workspace.view-visual .editor-pane,
-.workspace.view-visual .splitter {
-  display: none;
-}
-.shapes {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--paper);
-  border-right: 1px solid var(--rule);
-}
-@media (max-width: 860px) {
-  .workspace.view-visual .shapes {
-    display: none;
-  }
-}
-@media (max-width: 860px) {
-  .workspace.view-visual {
-    grid-template-columns: 1fr;
-  }
+  /* The YAML shows on its tab even when it is folded on a wide screen, or in the builder. */
+  .workspace.show-yaml .editor-pane,
   .workspace.view-visual.show-yaml .editor-pane {
     display: block;
   }

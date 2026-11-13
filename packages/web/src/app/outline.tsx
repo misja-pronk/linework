@@ -203,12 +203,26 @@ type Tab = 'outline' | 'shapes';
 export const openOnShapes = () => store.set('left-tab', 'shapes' satisfies Tab);
 
 /** The left panel of the builder: the outline by default, the shapes on their tab (remembered). */
-export function LeftPanel(p: OutlineProps & { items: PaletteItem[]; onAdd(item: PaletteItem): void }) {
+export function LeftPanel(p: OutlineProps & { items: PaletteItem[]; onAdd(item: PaletteItem): void; folded: boolean; setFolded(on: boolean): void }) {
   const [tab, setTabState] = useState<Tab>(() => store.get<Tab>('left-tab') ?? 'outline');
   const setTab = (v: Tab) => {
     setTabState(v);
     store.set('left-tab', v);
   };
+  // Folded: a strip at the left edge with the panel's two names on it, one click opens it on that tab.
+  if (p.folded)
+    return (
+      <div className="rail left-rail">
+        <button className="rail-button" onClick={() => (setTab('outline'), p.setFolded(false))} title={t('What is in the drawing')} aria-label={t('Show the outline')}>
+          <Icon name="list-tree" size={16} />
+          <span className="rail-label">{t('Outline')}</span>
+        </button>
+        <button className="rail-button" onClick={() => (setTab('shapes'), p.setFolded(false))} title={t('Every shape, to drag onto the drawing')} aria-label={t('Show the shapes')}>
+          <Icon name="boxes" size={16} />
+          <span className="rail-label">{t('Shapes')}</span>
+        </button>
+      </div>
+    );
   return (
     <aside className="shapes" aria-label={tab === 'outline' ? t('Outline') : t('Shapes')}>
       <div className="side-tabs left-tabs" role="tablist" aria-label={t('Left panel')}>
@@ -217,6 +231,9 @@ export function LeftPanel(p: OutlineProps & { items: PaletteItem[]; onAdd(item: 
         </button>
         <button role="tab" aria-selected={tab === 'shapes'} onClick={() => setTab('shapes')} title={t('Every shape, to drag onto the drawing')}>
           <Icon name="boxes" size={14} /> <span className="tab-label">{t('Shapes')}</span>
+        </button>
+        <button className="icon-button small fold-left" onClick={() => p.setFolded(true)} title={t('Fold the panel to the side: more room for the drawing')} aria-label={t('Fold the panel')}>
+          <Icon name="panel-left-close" size={14} />
         </button>
       </div>
       {tab === 'outline' ? <Outline {...p} /> : <AddMenu inline items={p.items} onAdd={p.onAdd} onClose={p.focusDrawing} />}

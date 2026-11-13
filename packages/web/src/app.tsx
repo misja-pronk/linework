@@ -70,10 +70,12 @@ export function App() {
   const navState = useNavigationState(docId);
   const { viewName, stepNo, focusAsked } = navState;
   // The first-visit hint goes with the first thing done: an edit (for good), a view, a step, presenting (for this visit).
-  const looked = useRef(false);
+  // Compared with what was looked at before, not counted: a development build runs each effect twice.
+  const lookedAt = [navState.picked, navState.stepAt, navState.presenting];
+  const looked = useRef(lookedAt);
   useEffect(() => {
-    if (looked.current) prefs.hideHint();
-    looked.current = true;
+    if (looked.current.some((x, i) => x !== lookedAt[i])) prefs.hideHint();
+    looked.current = lookedAt;
   }, [navState.picked, navState.stepAt, navState.presenting]); // eslint-disable-line react-hooks/exhaustive-deps -- on what is looked at changing only
   const side = useSidePanel();
   const [adding, setAdding] = useState(false);
@@ -152,7 +154,7 @@ export function App() {
   /** One panel on the right, with tabs: the selection's properties (the drawing's when nothing is selected), or Your AI. It stays open, so selecting never resizes the drawing. */
   const sideOpen = side.asking || side.inspector;
   const paneWants = { width: prefs.windowWidth, folder: !!ws, view, editor: { width: prefs.split * prefs.windowWidth, folded: prefs.yamlFolded }, forceEditor: prefs.forceYaml, side: side.inspector || sideOpen };
-  const panes = paneLayout({ ...paneWants, files: prefs.filesPref });
+  const panes = paneLayout({ ...paneWants, files: prefs.filesPref, ...(prefs.outlinePref ? { outline: prefs.outlinePref } : {}) });
   /** The focused element as a screen reader says it: name, kind, and whether it is pinned or locked. */
   const describe = (s: Selection) => {
     const g = result?.graph;
@@ -255,6 +257,8 @@ export function App() {
             onKey={(e) => onCanvasKey(e, OUTLINE_KEYS)}
             items={type.palette}
             onAdd={(item) => edits.add(item)}
+            folded={panes.shapesMode === 'rail'}
+            setFolded={(on) => prefs.setOutlinePref(on ? 'rail' : 'open')}
           />
         )}
         <EditorPane

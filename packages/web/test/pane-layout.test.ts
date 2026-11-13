@@ -25,6 +25,16 @@ describe('pane layout', () => {
     expect(folder(1512, true, true).editorMode).toBe('open');
   });
 
+  it('the builder outline folds to its rail under 1400 px, unless opened on purpose', () => {
+    const builder = (width: number, outline?: 'open' | 'rail') => paneLayout({ width, folder: false, files: 'list', view: 'visual', editor: { width: 400, folded: true }, side: true, ...(outline ? { outline } : {}) });
+    expect(builder(1280).shapesMode).toBe('rail');
+    expect(builder(1280).canvas).toBe(1280 - 300 - 40);
+    expect(builder(1440).shapesMode).toBe('open');
+    expect(builder(1280, 'open').shapesMode).toBe('open');
+    expect(builder(1920, 'rail').shapesMode).toBe('rail');
+    expect(paneLayout({ width: 1280, folder: false, files: 'list', view: 'code', editor: { width: 400, folded: true }, side: true }).shapesMode).toBe('none');
+  });
+
   it('a wide window keeps everything open', () => {
     const p = folder(1920, true);
     expect(p.editorMode).toBe('open');
