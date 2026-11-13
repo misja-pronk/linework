@@ -5,7 +5,7 @@ import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/e
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
 import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
-import { clean, evenly, fitConnector, polygonPreset, simplify, subpaths, underCurve } from '../src/slide.ts';
+import { clean, fitConnector, polygonPreset, simplify, subpaths, underCurve } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
 const draw = async (f: string, theme?: string): Promise<RenderResult> => render(example(f), { fonts: 'none', theme, load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
@@ -156,6 +156,12 @@ describe('pptx', () => {
     expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Arial' })).text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
   });
 
+  it("the speaker notes say how big the drawing is in its own terms: a sequence's participants and messages", async () => {
+    const notes = parts(await toPptx(await draw('sequence/checkout.yaml'), { steps: false, rasterize: () => PNG })).text('ppt/notesSlides/notesSlide1.xml');
+    expect(notes).toMatch(/\d+ participants and \d+ messages/);
+    expect(notes).not.toContain('1 element');
+  });
+
   it('one slide per diagram, a title slide on request, notes, 4:3', async () => {
     const list = await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml', 'access/engineering-access.yaml'].map((f) => draw(f)));
     const { files, text } = parts(await toPptx(list, { title: 'Architecture', subtitle: 'Q4', aspect: '4:3' }));
@@ -236,7 +242,7 @@ describe('shapes Quick Look draws', () => {
     expect(underCurve([P(0, 50), P(0, 40), P(10, 60), P(30, 50)])).toBeUndefined();
   });
 
-  it('flattens curves, keeps the fewest points, and cuts a line in even pieces', () => {
+  it('flattens curves and keeps the fewest points', () => {
     const [arc] = subpaths([['M', 0, 0], ['C', 0, 10, 10, 20, 20, 20]]);
     expect(arc!.curved).toBe(true);
     expect(arc!.pts.at(-1)).toEqual(P(20, 20));
@@ -245,8 +251,6 @@ describe('shapes Quick Look draws', () => {
     expect(few.length).toBeLessThan(arc!.pts.length / 2);
     expect(few[0]).toEqual(P(0, 0));
     expect(simplify([P(0, 0), P(5, 0), P(10, 0), P(10, 10)], 0.1)).toEqual([P(0, 0), P(10, 0), P(10, 10)]);
-    const even = evenly([P(0, 0), P(10, 0), P(10, 10)], 7);
-    expect(even.map((p) => [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10])).toEqual([[0, 0], [7, 0], [10, 4], [10, 10]]);
   });
 
   it('writes no freeform: a long line is straight pieces in a group, its arrowheads only at its ends', async () => {
@@ -260,8 +264,8 @@ describe('shapes Quick Look draws', () => {
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);
     expect(pieces.every((s) => s.includes('prst="line"'))).toBe(true);
-    // Every piece the line's colour, width and dashes; one arrowhead, on the last piece.
-    expect(new Set(pieces.map((s) => /<a:ln [^]*?<\/a:ln>/.exec(s)![0].replace(/<a:(head|tail)End[^>]*\/>/g, ''))).size).toBe(1);
+    // Every piece the line's colour and width (a dash in front of where a piece starts its pattern is solid); one arrowhead, on the last piece.
+    expect(new Set(pieces.map((s) => /<a:ln [^]*?<\/a:ln>/.exec(s)![0].replace(/<a:(head|tail)End[^>]*\/>|<a:prstDash [^>]*>/g, ''))).size).toBe(1);
     expect(line.match(/<a:tailEnd /g)).toHaveLength(1);
     expect(pieces.at(-1)).toContain('<a:tailEnd type="triangle"');
     expect(line).not.toContain('<a:headEnd ');
@@ -338,7 +342,7 @@ describe('pdf', () => {
     expect(pdf).toMatch(/\/BaseFont \/[A-Z]{6}\+GeistMono-/);
     expect(pdf).not.toMatch(/\/BaseFont \/[A-Z]{6}\+Inter-/);
     expect(pdf).toContain('/FontFile2');
-    // svg-to-pdfkit places glyph by glyph, so the pieces join without spaces.
+    // Each text is one run of glyphs (joinGlyphs), so a word with an underscore reads as one word.
     const text = pdfText(pdf).join('');
     for (const s of ['Web shop', 'Storefront', 'OrderPlaced', 'customer_id', '2026-11-09']) expect(text).toContain(s);
   });
@@ -531,16 +535,20 @@ describe('process and states', () => {
     for (const s of flowOf(r)) if (s.label) expect(texts, s.label).toContain(s.label.split(' ')[0]);
     for (const g of r.graph!.groups) expect(texts.toLowerCase(), g.label).toContain(g.label.toLowerCase().split(' ')[0]);
     for (const e of r.graph!.edges) if (e.label) expect(texts, e.label).toContain(e.label);
-    // Lines are connectors bound to the shapes they join, so they follow when a shape is moved.
-    expect(slide.match(/<p:cxnSp>/g)!.length).toBeGreaterThanOrEqual(r.graph!.edges.length);
-    expect(slide.match(/<a:stCxn /g)!.length).toBe(r.graph!.edges.length);
+    // A straight line is a connector bound to the shapes it joins, so it follows when a shape is moved;
+    // a bent one has the drawing's round bends, in pieces, as every bent line on the slide.
+    const straightLines = r.graph!.edges.filter((e) => clean(r.placed!.edges.get(e.id)!.points).length === 2).length;
+    expect(slide.match(/<a:stCxn /g)!.length).toBe(straightLines);
+    expect(slide.match(/name="Line: /g)!.length).toBe(r.graph!.edges.length);
+    expect(slide).not.toContain('bentConnector');
   });
 
   it('pptx: a task\'s caption wraps where the drawing wraps it, a paragraph a line, instead of running out of the task', async () => {
     const { r, slide } = await slideOf('process/pull-request.yaml');
     const checks = flowOf(r).find((s) => s.label === 'Required checks')!;
     expect(checks.caption).toBe('build, test, lint, CodeQL');
-    const shape = /<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Required checks"[\s\S]*?<\/p:sp>/.exec(slide)![0];
+    // Beside its icon, the text sits in a box of its own over the room right of it (see settle).
+    const shape = /<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Text: Required checks"[\s\S]*?<\/p:sp>/.exec(slide)![0];
     const paras = [...shape.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)].map((p) => [...p[1]!.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((t) => t[1]).join(''));
     expect(paras).toEqual(['Required checks', 'build, test, lint,', 'CodeQL']);
   });

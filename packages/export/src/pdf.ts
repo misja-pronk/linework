@@ -85,6 +85,84 @@ function inlineImages(svg: string): string {
   });
 }
 
+/**
+ * svg-to-pdfkit places every glyph by itself, each with its own text matrix. Apple's PDFKit (Preview,
+ * Mail, Spotlight) then reads a glyph that stays clear of the others' height (an underscore in most
+ * faces) as a word, or a line, of its own: `customer_id` read as three. So the glyphs of one text
+ * that sit on one baseline are written as one run (TJ), the gaps between them as its adjustments,
+ * which puts every glyph where it was and reads as one word. `width` is a glyph's advance (1/1000 em).
+ */
+export function joinGlyphs(ops: string[], width: (font: string, glyph: number) => number | undefined): string[] {
+  const out: string[] = [];
+  let font = '';
+  let size = 0;
+  let tm: string[] | undefined;
+  let run: { tm: string; key: string; next: number; parts: string[] } | undefined;
+  const flush = () => {
+    if (run) out.push(run.tm, run.parts.length === 1 ? `${run.parts[0]} Tj` : `[${run.parts.join(' ')}] TJ`);
+    run = undefined;
+  };
+  for (const op of ops) {
+    const tf = /^\/(\S+) ([\d.]+) Tf$/.exec(op);
+    const m = /^(\S+) (\S+) (\S+) (\S+) (\S+) (\S+) Tm$/.exec(op);
+    const tj = /^(<[0-9a-fA-F]+>) Tj$/.exec(op);
+    if (m) {
+      tm = m.slice(1);
+      continue;
+    }
+    if (tj && tm) {
+      const [a, b, c, d, e, f] = tm.map(Number) as [number, number, number, number, number, number];
+      const w = width(font, parseInt(tj[1]!.slice(1, -1), 16));
+      // Only upright text on a baseline: no turn or skew, one scale.
+      const key = b === 0 && c === 0 && a > 0 ? `${a} ${d} ${f}` : '';
+      const advance = w == null ? NaN : (w * size * a) / 1000;
+      if (run && key && run.key === key && Number.isFinite(run.next)) {
+        const adj = Math.round((-(e - run.next) * 1000) / (size * a) * 1000) / 1000;
+        if (adj) run.parts.push(String(adj));
+        run.parts.push(tj[1]!);
+        run.next = e + advance;
+      } else {
+        flush();
+        run = { tm: `${tm.join(' ')} Tm`, key: key || `#${out.length}`, next: key ? e + advance : NaN, parts: [tj[1]!] };
+      }
+      tm = undefined;
+      continue;
+    }
+    flush();
+    if (tm) out.push(`${tm.join(' ')} Tm`), (tm = undefined);
+    if (tf) [font, size] = [tf[1]!, Number(tf[2])];
+    out.push(op);
+  }
+  flush();
+  if (tm) out.push(`${tm.join(' ')} Tm`);
+  return out;
+}
+
+/** While `draw` runs, text objects written to `doc` go through joinGlyphs. */
+function joiningGlyphs(doc: PDFKit.PDFDocument, draw: () => void): void {
+  const own = doc as unknown as { addContent(data: string): unknown; _fontFamilies: Record<string, { id: string; widths: number[] }> };
+  const add = own.addContent;
+  const width = (id: string, glyph: number) => Object.values(own._fontFamilies).find((f) => f.id === id)?.widths[glyph];
+  let text: string[] | undefined;
+  own.addContent = function (data: string) {
+    if (text || data === 'BT') {
+      (text ??= []).push(data);
+      if (data === 'ET') {
+        for (const op of joinGlyphs(text, width)) add.call(own, op);
+        text = undefined;
+      }
+      return own;
+    }
+    return add.call(own, data);
+  };
+  try {
+    draw();
+  } finally {
+    if (text) for (const op of text) add.call(own, op);
+    own.addContent = add;
+  }
+}
+
 export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promise<Uint8Array> {
   const drawings = Array.isArray(input) ? input : [input];
   const theme = typeof opts.theme === 'object' ? opts.theme : themes[opts.theme ?? 'light'];
@@ -151,12 +229,14 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
       // A Div, not a Figure: Preview and every app on Apple's PDFKit take a Figure for a picture, and its
       // words could then not be searched, selected or copied. The alternate text is the same.
       doc.struct('Div', { alt: altOf(d, 2000, view) }, () =>
-        SVGtoPDF(doc, svg, x, y, {
-          width: w,
-          height: h,
-          preserveAspectRatio: 'xMidYMid meet',
-          fontCallback: (family: string, bold: boolean) => /carto-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'carto-sans-600' : 'carto-sans-400'),
-        }),
+        joiningGlyphs(doc, () =>
+          SVGtoPDF(doc, svg, x, y, {
+            width: w,
+            height: h,
+            preserveAspectRatio: 'xMidYMid meet',
+            fontCallback: (family: string, bold: boolean) => /carto-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'carto-sans-600' : 'carto-sans-400'),
+          }),
+        ),
       ),
     );
     if (footer) {
