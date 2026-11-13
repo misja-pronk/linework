@@ -114,7 +114,21 @@ try {
     if ((await zoom()) !== z) fail(`a drop after zooming in changed the zoom from ${z}% to ${await zoom()}%`);
   }
 
-  // 6. Data products: ⌘Z after a short drag puts the card back where it stood.
+  // 6. A sequence's last step: its caption strip stays above the toolbar and the zoom.
+  await open('Sequence');
+  {
+    await page.locator('.step-chip').last().click();
+    await wait(900);
+    const r = await page.evaluate(() => {
+      const s = document.querySelector('.drawing svg').getBoundingClientRect();
+      const t = Math.min(...[...document.querySelectorAll('.canvas-tools, .zoom')].map((e) => e.getBoundingClientRect().top));
+      return { bottom: s.bottom, tools: t };
+    });
+    if (r.bottom > r.tools) fail(`the last step's caption runs under the toolbar (${Math.round(r.bottom)} > ${Math.round(r.tools)})`);
+    await page.screenshot({ path: `${out}/follows-sequence-last-step.png` });
+  }
+
+  // 7. Data products: ⌘Z after a short drag puts the card back where it stood.
   await open('Data products');
   {
     const b0 = await box('crm');
@@ -126,7 +140,7 @@ try {
     if (Math.abs(b2.x - b0.x) > 2 || Math.abs(b2.y - b0.y) > 2) fail(`⌘Z left CRM at ${Math.round(b2.x)},${Math.round(b2.y)}, not back at ${Math.round(b0.x)},${Math.round(b0.y)}`);
   }
 
-  // 7. A node added in the YAML that grows the sheet: the drawing stays in view.
+  // 8. A node added in the YAML that grows the sheet: the drawing stays in view.
   {
     await page.locator('.view-switch button', { hasText: 'YAML' }).click();
     await wait(700);
