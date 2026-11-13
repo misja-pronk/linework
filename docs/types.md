@@ -216,7 +216,7 @@ nodes:
   ap: { kind: access-point, in: staff }
 edges:
   - isp -- fw: { style: wan, speed: 1G }
-  - fw -- core: { style: trunk, speed: 10G, count: 2, vlans: [1, 10, 20] }
+  - fw -- core: { style: trunk, speed: 1G, count: 2, vlans: [1, 10, 20] }
   - core -- ap
 ```
 

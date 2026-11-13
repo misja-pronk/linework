@@ -13,6 +13,8 @@ export interface Line extends Fill {
   dash?: 'solid' | 'dashed' | 'dotted';
   head?: End;
   tail?: End;
+  /** Line ends: flat (round when dotted) unless said; round where pieces of one stroke meet, as the SVG's round joins. */
+  cap?: 'flat' | 'rnd';
 }
 
 /** Line ends: a filled triangle, two open strokes, or a long slim triangle. */
@@ -41,6 +43,8 @@ export interface TextBody {
   paras: Para[];
   anchor?: 't' | 'ctr' | 'b';
   inset?: { l?: number; t?: number; r?: number; b?: number };
+  /** Wrapped at the box's width, as a step's caption is planned; else each paragraph is one line. */
+  wrap?: boolean;
 }
 
 export interface Frame {
@@ -73,7 +77,7 @@ function line(l?: Line | null): string {
   if (!l) return '<a:ln><a:noFill/></a:ln>';
   const dash = l.dash === 'dashed' ? '<a:prstDash val="dash"/>' : l.dash === 'dotted' ? '<a:prstDash val="sysDot"/>' : '<a:prstDash val="solid"/>';
   const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e === 'open' ? 'arrow' : 'triangle'}" w="med" len="${e === 'slim' ? 'lg' : 'med'}"/>` : '');
-  return `<a:ln w="${i(l.width)}" cap="${l.dash === 'dotted' ? 'rnd' : 'flat'}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
+  return `<a:ln w="${i(l.width)}" cap="${l.cap ?? (l.dash === 'dotted' ? 'rnd' : 'flat')}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
 }
 
 function xfrm(f: Frame, group = false): string {
@@ -140,15 +144,16 @@ function parasXml(list: Para[], font: string): string {
   return list
     .map((p) => {
       // The empty paragraph end gets the text's size too, or a default 18 pt would set the line height.
+      // No indent either: a template's text style may hang a wrapped line under a bullet that is not there.
       const size = p.runs[0]?.size ?? 10;
-      return `<a:p><a:pPr algn="${p.align ?? 'l'}"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="${i((p.before ?? 0) * 100)}"/></a:spcBef><a:buNone/></a:pPr>${p.runs.map((r) => runXml(r, font)).join('')}<a:endParaRPr lang="en-US" sz="${Math.max(100, i(size * 100))}" dirty="0"/></a:p>`;
+      return `<a:p><a:pPr marL="0" indent="0" algn="${p.align ?? 'l'}"><a:lnSpc><a:spcPct val="100000"/></a:lnSpc><a:spcBef><a:spcPts val="${i((p.before ?? 0) * 100)}"/></a:spcBef><a:buNone/></a:pPr>${p.runs.map((r) => runXml(r, font)).join('')}<a:endParaRPr lang="en-US" sz="${Math.max(100, i(size * 100))}" dirty="0"/></a:p>`;
     })
     .join('');
 }
 
 export function textBody(t: TextBody, font: string): string {
   const ins = t.inset ?? {};
-  const body = `<a:bodyPr wrap="none" lIns="${i(ins.l ?? 0)}" tIns="${i(ins.t ?? 0)}" rIns="${i(ins.r ?? 0)}" bIns="${i(ins.b ?? 0)}" anchor="${t.anchor ?? 'ctr'}" rtlCol="0"><a:noAutofit/></a:bodyPr>`;
+  const body = `<a:bodyPr wrap="${t.wrap ? 'square' : 'none'}" lIns="${i(ins.l ?? 0)}" tIns="${i(ins.t ?? 0)}" rIns="${i(ins.r ?? 0)}" bIns="${i(ins.b ?? 0)}" anchor="${t.anchor ?? 'ctr'}" rtlCol="0"><a:noAutofit/></a:bodyPr>`;
   const paras = parasXml(t.paras, font);
   return `<p:txBody>${body}<a:lstStyle/>${paras || '<a:p><a:endParaRPr lang="en-US"/></a:p>'}</p:txBody>`;
 }

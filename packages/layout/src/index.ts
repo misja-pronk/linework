@@ -11,6 +11,7 @@ import { disorder, labelMetrics, lineFaults, measure, plainLine, score, touchedL
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
+import { tuck } from './tuck.ts';
 
 export * from './dot.ts';
 export * from './pins.ts';
@@ -38,6 +39,8 @@ export interface Tuning {
   aspect?: number | 'auto';
   /** false: never cut into rows or columns for the page (a hierarchy that must read top-down, as UML classes). */
   wrap?: false;
+  /** false: a card outside the groups stays where dot put it, also on an edge of its own (see tuck.ts). */
+  tuck?: false;
   /** 'fit': columns of a left-to-right drawing open up for their longest label (C4's long relationship labels). */
   labelRoom?: 'fit';
   /** With labelRoom 'fit': close each gap between columns to what its own labels need (see squeeze.ts); on unless false. */
@@ -89,13 +92,17 @@ interface VariantKey {
   wrap: number;
   /** How it was cut: a chain too, inside which group. */
   wrapOpts: WrapOptions;
+  /** A card outside the groups was moved into free room (tuck.ts): key ends in "+k". */
+  tuck: boolean;
 }
 
-function parseKey(key: string | undefined): VariantKey | undefined {
+function parseKey(full: string | undefined): VariantKey | undefined {
+  const tucked = !!full?.endsWith('+k');
+  const key = full?.replace(/\+k$/, '');
   const m = /^(right|down)\/([a-z-]+)\/(c?)(a?)(m?)-?(?:w(\d)(c?)(l?)(f?)(t?)(?:@(.+))?)?$/.exec(key ?? '');
   const dot = VARIANTS.find(([name]) => name === m?.[2])?.[1];
   const wrapOpts: WrapOptions = { ...(m?.[7] ? { chains: true } : {}), ...(m?.[8] ? { loose: true } : {}), ...(m?.[9] ? { flip: true } : {}), ...(m?.[10] ? { transpose: true } : {}), ...(m?.[11] ? { scope: m[11] } : {}) };
-  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0), wrapOpts } : undefined;
+  return m && dot ? { direction: m[1] as 'right' | 'down', dot, compact: !!m[3], align: !!m[4], mirror: !!m[5], wrap: Number(m[6] ?? 0), wrapOpts, tuck: tucked } : undefined;
 }
 
 /** One way of placing everything, drawn without pins or lines bent by hand: those never steer the choice. */
@@ -146,6 +153,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     // holding still is worth more than any score.
     best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
+    if (was.tuck && tuning.tuck !== false && !best.held && target != null) best = tucked(best, spacing, target) ?? best;
   } else {
     best = await choose(sized, spacing, tuning, prev, graph.direction === stayIn, undefined, true);
     const asked = best;
@@ -192,6 +200,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     }
     // A drawing that was wrapped is wrapped again the same way (unless it was held as it was).
     else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
+    // A card outside the groups on an edge of its own goes into free room, when the drawing comes out larger for it
+    // (on a drawing with no positions remembered: a view drawn the way the first one was, too).
+    if (tuning.tuck !== false && target != null && !best.held && (was?.tuck ? best.sized.graph.direction === was.direction : !prev?.nodes?.size && graph.nodes.length <= VARIANT_LIMIT)) best = tucked(best, spacing, target) ?? best;
   }
 
   // A label with another line through it gets room, when the drawing comes out no worse for it.
@@ -529,7 +540,31 @@ function rewrapped(best: Choice, spacing: Spacing, wrappedQ: Placement, parts: n
   const { p: q, edges } = clearBorders(s, { p: aligned, edges: route(s, aligned) });
   const placed = normalise({ ...q, edges });
   const sc = score(metricsOf({ placed, sized: s }));
-  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/\+k$/, '').replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+}
+
+/**
+ * The drawing with one card outside the groups moved into free room (tuck.ts), when that reads
+ * better on the page: larger, with no more crossings, no new flaw, no step aside or label on a bend
+ * more and no misleading line more.
+ */
+function tucked(best: Choice, spacing: Spacing, target: number): Choice | undefined {
+  const s = best.sized;
+  let found: Choice | undefined;
+  for (const q of tuck(best.p, s.graph, { along: spacing.layerGap, across: spacing.nodeGap }, (r) => pageScale(r, s.graph, target))) {
+    const { p, edges } = clearBorders(s, { p: q, edges: route(s, q) });
+    const placed = normalise({ ...p, edges });
+    const sc = score(metricsOf({ placed, sized: s }));
+    const c: Choice = { p, placed, score: sc, cost: sc, key: `${best.key.replace(/\+k$/, '')}+k`, sized: s };
+    const r = readability(c, best, target);
+    // One crossing more only for text that comes up a tier on a slide (slideTier), as readsBetter allows.
+    const crossings = metricsOf(best).crossings + (slideTier(c, target) > slideTier(best, target) ? 1 : 0);
+    const [m, m0] = [metricsOf(c), metricsOf(best)];
+    if (r == null || m.crossings > crossings || m.jogs > m0.jogs || m.labelOnBend > m0.labelOnBend || faultsOf(c) > faultsOf(best) || slideTier(c, target) < slideTier(best, target)) continue;
+    if (pageScale(placed, s.graph, target) <= pageScale(best.placed, s.graph, target) || r <= readsAs(best, target) + 1e-9) continue;
+    if (!found || r > readsAs(found, target) + 1e-9) found = c;
+  }
+  return found;
 }
 
 /** A placement and its lines. */
@@ -831,7 +866,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
       const sc = score(m);
       // Close to the previous drawing counts; with only its variant known, being that variant does
       // (in a mirror or not: that follows the order in the source, which may have changed).
-      const way = (k: string) => k.replace(/w\d.*$/, '').replace(/m?-?$/, '');
+      const way = (k: string) => k.replace(/\+k$/, '').replace(/w\d.*$/, '').replace(/m?-?$/, '');
       const cost = sc + (prev?.nodes?.size ? moveCost(drawn.p, prev) : prev?.variant && way(prev.variant) !== way(key) ? SWITCH : 0);
       if (!best || cost < best.cost - 1e-9) best = { ...drawn, score: sc, cost, key, sized };
     }
@@ -908,8 +943,13 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     // As drawn (svg.ts): icon at x + 16, label and kind after it, centred 22px below the top.
     return [titleBox(b, w)];
   });
+  // A name drawn under its shape (a choice's question, a gateway's): lines keep off it as off a title, and so do labels.
+  const names = [...p.nodes].flatMap(([id, b]) => {
+    const l = sized.nodes.get(id)?.label;
+    return l ? [{ x: b.x + b.width / 2 - l.width / 2 - 4, y: b.y + b.height + 3, width: l.width + 8, height: l.height + 4 }] : [];
+  });
   const groups = graph.groups.flatMap((g) => (p.groups.has(g.id) ? [{ id: g.id, box: p.groups.get(g.id)!, parent: g.parent }] : []));
-  return routeEdges({ obstacles: p.nodes, soft, labelZones, texts, groups, header: sized.groupHeader, direction: graph.direction, edges });
+  return routeEdges({ obstacles: p.nodes, soft, labelZones: [...labelZones, ...names], texts: [...texts, ...names], groups, header: sized.groupHeader, direction: graph.direction, edges });
 }
 
 /** Where a group's title is written, with a little air: `minWidth` is the title's width plus the room size.ts keeps around it. */

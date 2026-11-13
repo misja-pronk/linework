@@ -261,6 +261,26 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     }
     const style = typeof spec.props.style === 'string' ? spec.props.style : undefined;
     const label = withTechnology(spec.label, typeof spec.props.technology === 'string' ? spec.props.technology : undefined);
+    const via = typeof spec.props.via === 'string' ? spec.props.via : undefined;
+    if (via) {
+      // The relation goes through a node of this view (a load balancer): from → via, with the
+      // relation's label unless one is written, and via → to, unless a line there is written too.
+      const hop = roots.has(via) ? [{ id: via, root: roots.get(via)! }] : running(via)?.list;
+      if (!hop) {
+        ctx.warn([...at, 'via'], `"${via}" is not a deployment node or an element that runs in this view`);
+        continue;
+      }
+      const direct = new Map<string, { labels: string[]; style?: string }>();
+      pair(ends[0], ends[1], (a, b) => {
+        const d = drawn.get(`${a}\0${b}`);
+        if (d && !direct.has(a)) direct.set(a, d);
+        drawn.delete(`${a}\0${b}`);
+      });
+      const first = [...direct.values()][0];
+      pair(ends[0], hop, (a, b) => drawn.set(`${a}\0${b}`, { labels: label ? [label] : (direct.get(a)?.labels ?? []), style: style ?? direct.get(a)?.style, at, id: `d${i}` }));
+      pair(hop, ends[1], (a, b) => void (drawn.has(`${a}\0${b}`) || drawn.set(`${a}\0${b}`, { labels: [], style: style ?? first?.style, at, id: `d${i}` })));
+      continue;
+    }
     // Written here, so it wins over the model's relation between the same two.
     pair(ends[0], ends[1], (a, b) => drawn.set(`${a}\0${b}`, { labels: label ? [label] : [], style, at, id: `d${i}` }));
   }

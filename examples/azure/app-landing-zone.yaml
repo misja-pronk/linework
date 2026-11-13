@@ -43,6 +43,9 @@ nodes:
 
 # Diagnostic settings to the central workspace: a badge on the card, not a line across the drawing
 badges: [management]
+# The dotted lines have no style of their own: the key says what they are.
+key:
+  dotted: Route table (configuration, not traffic)
 
 edges:
   # The route table is not a hop: it sits on snet-app and names the firewall as next hop for

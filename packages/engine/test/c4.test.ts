@@ -137,6 +137,19 @@ describe('C4 views', () => {
     expect(r.graph!.nodes.find((n) => n.id === 'lb')!.shape).toMatchObject({ caption: '[Infrastructure Node]' });
   });
 
+  it('deployment: a relation written with via: goes through that node instead of straight', async () => {
+    const via = (edge: string) => render(model.replace('      - lb -> shop.web: HTTPS\n', `      - lb -> shop.web: HTTPS\n      - ${edge}\n`), { fonts: 'none', view: 'prod' });
+    const r = await via('shop.web -> shop.api: { via: lb }');
+    expect(r.diagnostics).toEqual([]);
+    // The model's label goes on the first hop.
+    expect(ids(r).edges).toEqual(['lb>shop.api', 'lb>shop.web:HTTPS', 'shop.api>shop.db:Writes [SQL]', 'shop.web>lb:Calls [JSON]']);
+    // A label written with it wins; a line written from the node on stays as written.
+    const own = await via('shop.web -> shop.api: { via: lb, label: Calls via the ALB }\n      - lb -> shop.api: Forwards');
+    expect(ids(own).edges).toEqual(['lb>shop.api:Forwards', 'lb>shop.web:HTTPS', 'shop.api>shop.db:Writes [SQL]', 'shop.web>lb:Calls via the ALB']);
+    const wrong = await via('shop.web -> shop.api: { via: nope }');
+    expect(wrong.diagnostics.map((d) => d.message)).toContain('"nope" is not a deployment node or an element that runs in this view');
+  });
+
   it('a model file with C4 views draws in C4 notation', async () => {
     const r = await render(model.replace('type: c4', 'type: model'), { fonts: 'none', view: 'context' });
     expect(r.type!.id).toBe('c4');

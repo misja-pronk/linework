@@ -7,11 +7,13 @@ Put `tags:` on what belongs to a concern (nodes, groups, lines, model elements a
 ```yaml
 nodes:
   edge: { kind: front-door, label: Front Door, tags: [security, ops] }
-  db: { kind: sql-database, label: Orders, in: data, tags: [data] }
+  pe-sql: { kind: private-endpoint, label: pe-sql-shop, in: pe-snet, tags: [data] }
+  db: { kind: sql-database, label: Orders, in: rg, tags: [data] }
   vault: { kind: key-vault, label: Secrets, in: rg, tags: [security] }
 edges:
   - users -> edge: { label: HTTPS, style: public, tags: [security] }
-  - api -> db: { label: SQL, style: private, tags: [data] }
+  - api -> pe-sql: { style: private, tags: [data] }
+  - pe-sql -> db: { label: TDS, style: private, tags: [data] }
 
 layers:
   security:

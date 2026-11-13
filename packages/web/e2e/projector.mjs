@@ -298,5 +298,49 @@ await cold();
   await page.keyboard.press('Escape');
 }
 
+// 16. A card dragged past the canvas edge: the view holds still while it moves, and on the drop the
+// whole drawing fits again; a card dragged within its group stays in it.
+{
+  const text = 'type: azure\ntitle: Drop past the edge\ngroups:\n  rg: { kind: resource-group, label: rg-shop }\nnodes:\n  users: users\n  web: { kind: app-service, label: Web, in: rg }\n  db: { kind: sql-database, label: Orders, in: rg }\nedges:\n  - users -> web\n  - web -> db\n';
+  await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text, name: 'drop.yaml' }));
+  await page.reload();
+  await page.waitForSelector('.drawing [data-node="db"]');
+  await wait(800);
+  const stage = () => page.locator('.stage').evaluate((e) => e.style.transform);
+  const whole = () =>
+    page.evaluate(() => {
+      const p = document.querySelector('.preview').getBoundingClientRect();
+      const s = document.querySelector('.drawing svg').getBoundingClientRect();
+      return s.left >= p.left - 2 && s.right <= p.right + 2 && s.top >= p.top - 2 && s.bottom <= p.bottom + 2;
+    });
+  if (!(await whole())) fail('the drop drawing is not whole before the drag');
+  const before = await stage();
+  const pane = await page.locator('.preview').boundingBox();
+  const b = await page.locator('.drawing [data-node="db"]').boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  const to = pane.x + pane.width + 60 - (b.x + b.width / 2);
+  for (let i = 1; i <= 12; i++) await page.mouse.move(b.x + b.width / 2 + (to * i) / 12, b.y + b.height / 2 + i * 6);
+  await wait(400);
+  if ((await stage()) !== before) fail('the view moved while the card was still being dragged');
+  if (await whole()) fail('the test drag did not take the drawing past the edge');
+  await page.screenshot({ path: `${out}/projector-drop-dragging.png` });
+  await page.mouse.up();
+  await wait(1200);
+  if (!(await whole())) fail('after a drop past the edge the drawing is not whole in the canvas');
+  await page.screenshot({ path: `${out}/projector-drop-fitted.png` });
+  // A short drag inside its group: it stays there, and nothing refits.
+  const kept = await stage();
+  const w = await page.locator('.drawing [data-node="web"]').boundingBox();
+  await page.mouse.move(w.x + w.width / 2, w.y + w.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(w.x + w.width / 2 + i * 5, w.y + w.height / 2 + i * 3);
+  await page.mouse.up();
+  await wait(800);
+  const yaml = await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').text ?? '');
+  if (yaml && !/web: \{[^}]*in: rg/.test(yaml)) fail('a card dragged a short way in its group left it');
+  if ((await stage()) !== kept && !(await whole())) fail('a short drag inside the drawing left it out of view');
+}
+
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'projector OK');
 await browser.close();
