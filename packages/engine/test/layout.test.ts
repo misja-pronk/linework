@@ -54,7 +54,7 @@ const crossingBudget: Record<string, number> = {
   'cloud/aws-landing-zone-network.yaml': 0,
   'cloud/aws-three-tier.yaml': 0,
   'cloud/gcp-data-platform.yaml': 0,
-  'cloud/multi-cloud.yaml': 2, // left to right for a slide: the interconnect and CDC lines to Google Cloud pass the shop's lines down to the data centre
+  'cloud/multi-cloud.yaml': 3, // left to right for a slide: the interconnect and CDC lines to Google Cloud pass the shop's lines down to the data centre; staff, tucked in above the analytics for text at 6.6 pt instead of 6.0, pass the private line to the interconnect
   'data-products/customer.yaml': 0,
   'data-products/customer-detailed.yaml': 1, // lines keep clear of the cards they pass: the dashboard's line crosses the one from orders
   'data-products/customer-focus.yaml': 0,
@@ -659,7 +659,7 @@ describe('group titles', () => {
   it('take the lane under them: a fan-out into the next row comes in from the top', async () => {
     // The cluster view turned top-down and drawn as it comes (not wrapped for a slide): the fan-outs then run into the row below.
     const text = fs.readFileSync(path.join(examples, 'systems/saas-platform.yaml'), 'utf8').replace('    direction: right\n', '    direction: down\n');
-    const r = await render(text, { fonts: 'none', view: 'cluster', tuning: { wrap: false } });
+    const r = await render(text, { fonts: 'none', view: 'cluster', tuning: { wrap: false, tuck: false } });
     for (const id of ['cloud.edge.lb', 'cloud.data.events']) {
       const lines = r.graph!.edges.filter((e) => e.from.node === id);
       expect(lines, id).toHaveLength(2);
@@ -771,6 +771,24 @@ describe('slide shape', () => {
     expect(Math.hypot(from.x - to.x, from.y - to.y)).toBeLessThan(400);
     // And it costs the page nothing: as large on a slide as with the customers left behind.
     expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThan(SLIDE_MIN_PT);
+  });
+  it('tucks a card at the end of the flow into the free room under the groups', async () => {
+    // Finance in detail: the CFO dashboard stood to the right of the domain, the drawing a strip; under
+    // the domain's right half, beside the sources from other domains, the drawing reads larger on a slide.
+    const file = path.join(examples, 'data-products/northwind-mesh.yaml');
+    const load = (rel: string) => fs.readFileSync(path.resolve(path.dirname(file), rel), 'utf8');
+    const text = fs.readFileSync(file, 'utf8');
+    const r = await render(text, { fonts: 'none', load, view: 'detailed-finance' });
+    expect(r.placed!.memory!.variant).toMatch(/\+k$/);
+    const [finance, cfo, revenue] = [r.placed!.groups.get('domain:finance')!, r.placed!.nodes.get('cfo')!, r.placed!.nodes.get('revenue')!];
+    expect(cfo.y).toBeGreaterThan(finance.y + finance.height);
+    expect(cfo.x + cfo.width).toBeLessThanOrEqual(finance.x + finance.width);
+    // Still after what feeds it: its line runs on, never back.
+    expect(cfo.x).toBeGreaterThan(revenue.x + revenue.width);
+    expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThan(7);
+    // Drawn again from its memory it stays where it was.
+    const again = await render(text, { fonts: 'none', load, view: 'detailed-finance', previous: r.placed!.memory });
+    expect(again.svg).toBe(r.svg);
   });
   it('takes the drawing as it comes with aspect: auto', async () => {
     const r = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
