@@ -2,11 +2,11 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, smallestTextPx } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
-import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type PathCmd, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
+import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 export interface IconRef {
   png?: string;
@@ -183,6 +183,16 @@ class SlideDrawing {
     // Keynote and Quick Look lose freeforms inside a group (they shrink to a dot): keep those flat.
     if (list.some((i) => i.xml.includes('<a:custGeom>'))) return { xml: list.map((i) => i.xml).join(''), box };
     return { xml: group(this.next(), name, box, list.map((i) => i.xml)), box };
+  }
+
+  /**
+   * A band with its top corners rounded (a table's header): a rounded rectangle over a plain one that
+   * squares its bottom corners, since Quick Look leaves out the preset rounded at one end only.
+   */
+  private header(x: number, y: number, w: number, h: number, r: number, fill: Fill | null, text?: TextBody): (Item | undefined)[] {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    const under = fill && rr > 0 ? this.sp({ name: 'Header', frame: this.frame(x, y + rr, w, h - rr), geom: { prst: 'rect' }, fill, line: null }) : undefined;
+    return [under, this.sp({ name: 'Header', frame: this.frame(x, y, w, h), geom: this.roundRect({ x, y, width: w, height: h }, rr), fill, line: null, text })];
   }
 
   private roundRect(b: Box, radius: number): Geometry {
@@ -414,18 +424,12 @@ class SlideDrawing {
     return [box(t.surface, style === 'outline' ? { color: tone.line, width: this.L(1.2) } : { color: tone.fg, alpha: 0.55, width: this.L(1.2) }), at(tone.fg)];
   }
 
-  /** The decision outline: pointed ends with rounded corners, sites placed like a rectangle's. */
+  /**
+   * The decision outline: pointed ends, the preset hexagon (a freeform in a group is lost in Quick
+   * Look). Its corners are sharp where the SVG rounds them a little.
+   */
   private decisionPath(b: Box): Geometry {
-    const T = DECISION_TIP;
-    const pts = [
-      { x: 0, y: b.height / 2 },
-      { x: T, y: 0 },
-      { x: b.width - T, y: 0 },
-      { x: b.width, y: b.height / 2 },
-      { x: b.width - T, y: b.height },
-      { x: T, y: b.height },
-    ].map((p) => ({ x: this.L(p.x), y: this.L(p.y) }));
-    return { path: roundedPolygon(pts, this.L(this.theme.radius.card - 4)), closed: true, sites: true };
+    return { prst: 'hexagon', adj: { adj: (DECISION_TIP / Math.max(1, Math.min(b.width, b.height))) * 100000, vf: 115470 } };
   }
 
   private chip(ch: Chip, x: number, y: number, w: number): Item {
@@ -470,14 +474,11 @@ class SlideDrawing {
     const titleY = s.caption ? head / 2 - 7 : head / 2;
     const r = t.radius.card - 0.5;
     items.push(
-      this.sp({
-        name: 'Header',
-        frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, head - 0.5),
-        geom: { prst: 'round2SameRect', adj: { adj1: (Math.max(0, r) / Math.min(b.width - 1, head - 0.5)) * 100000, adj2: 0 } },
-        fill: headFill ? { color: headFill } : null,
-        line: null,
+      ...this.header(b.x + 0.5, b.y + 0.5, b.width - 1, head - 0.5, r, headFill ? { color: headFill } : null, {
+        anchor: 'ctr',
         // Centre the title on titleY: trim the bottom of the text area by twice the offset.
-        text: { anchor: 'ctr', inset: { l: this.L(ts.padX + 24 - 0.5), b: this.L(Math.max(0, head - 2 * titleY)) }, paras: [{ runs: [this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text)] }] },
+        inset: { l: this.L(ts.padX + 24 - 0.5), b: this.L(Math.max(0, head - 2 * titleY)) },
+        paras: [{ runs: [this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text)] }],
       }),
     );
     items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
@@ -618,7 +619,7 @@ class SlideDrawing {
     // Header band: on a paper look it lies on the paper tint, with the contour under it, like a table's header.
     const paper = look(t).tableHead === 'paper' ? paperTint(t, 0) : undefined;
     const pr = Math.max(0, t.radius.card - 0.5);
-    if (paper) items.push(this.sp({ name: 'Header', frame: this.frame(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5), geom: { prst: 'round2SameRect', adj: { adj1: (pr / Math.min(b.width - 1, HEAD - 0.5)) * 100000, adj2: 0 } }, fill: { color: paper }, line: null }));
+    if (paper) items.push(...this.header(b.x + 0.5, b.y + 0.5, b.width - 1, HEAD - 0.5, pr, { color: paper }));
     items.push(this.hline(b.x, b.x + b.width, b.y + HEAD, paper ? (groupLine(t, t.tones.slate) ?? t.border) : t.border));
     if (m.corner) items.push(m.plain ? this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.cell, 600, t.text) : this.text(b.x + PAD, b.y + HEAD / 2, m.corner, t.size.caption, 500, t.textFaint));
     let x = b.x + g.rowHeader;
@@ -752,6 +753,8 @@ class SlideDrawing {
       return side < 0 ? undefined : { id: this.idFor(key), idx: round ? side * 2 : side };
     }
     const idx = midY && (near(p.x, box.x) || (decision && p.x < box.x + box.width / 2)) ? 1 : midY && (near(p.x, box.x + box.width) || decision) ? 3 : midX && near(p.y, box.y) ? 0 : midX && near(p.y, box.y + box.height) ? 2 : -1;
+    // A decision is the preset hexagon, whose sites start at its right point and go round: the left point is the fourth.
+    if (decision) return idx === 1 || idx === 3 ? { id: this.idFor(key), idx: idx === 1 ? 3 : 0 } : undefined;
     return idx < 0 ? undefined : { id: this.idFor(key), idx };
   }
 
@@ -762,27 +765,149 @@ class SlideDrawing {
     const plain = (m: Marker) => m === 'none' || m === 'arrow';
     if (plain(e.start) && plain(e.end)) {
       const fit = fitConnector(pts.map((p) => ({ x: this.X(p.x), y: this.Y(p.y) })), 0.6 * PX);
-      if (fit) {
+      // Quick Look draws a connector with three bends as one straight stroke from end to end: such a line goes in pieces.
+      if (fit && fit.prst !== 'bentConnector4') {
         const xml = connector({ id: this.next(), name, frame: fit.frame, prst: fit.prst, adj: fit.adj, line, start: this.site(pts[0]!, e.from.node, e.from.row), end: this.site(pts.at(-1)!, e.to.node, e.to.row) });
         return { xml, box: fit.frame };
       }
     }
-    // Long routed paths stay as drawn: a freeform with the same bends as the SVG (round, cut or square).
-    const path = this.freeform(name, bentPath(pts, this.theme.radius.corner, look(this.theme).line.corner), line);
-    if (plain(e.start) && plain(e.end)) return path;
-    return this.group(name, [path, ...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)]);
+    // Long routed paths stay as drawn, with the same bends as the SVG, in pieces Quick Look draws too.
+    const pieces = this.route(pts, this.theme.radius.corner, look(this.theme).line.corner, line);
+    return this.group(name, [...pieces, ...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)]);
   }
 
-  /** An open path in layout px, written as a custom shape whose frame is the path's bounds. */
-  private freeform(name: string, cmds: PxCmd[], line: Line): Item {
-    const xs = cmds.flatMap((c) => c.pts.map((p) => p.x));
-    const ys = cmds.flatMap((c) => c.pts.map((p) => p.y));
-    const x0 = Math.min(...xs);
-    const y0 = Math.min(...ys);
-    const f = this.frame(x0, y0, Math.max(...xs) - x0, Math.max(...ys) - y0);
-    const L = (p: Point): [number, number] => [this.L(p.x - x0), this.L(p.y - y0)];
-    const path: PathCmd[] = cmds.map((c) => (c.op === 'm' ? { m: L(c.pts[0]!) } : c.op === 'l' ? { l: L(c.pts[0]!) } : { q: [...L(c.pts[0]!), ...L(c.pts[1]!)] }));
-    return this.sp({ name, frame: f, geom: { path }, fill: null, line });
+  /** A straight piece from a to b (layout px): a line shape, flipped so it runs from a to b and its arrowheads sit at the right ends. */
+  private piece(a: Point, b: Point, line: Line, name = 'Segment'): Item {
+    const f = this.frame(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+    return this.sp({ name, frame: { ...f, flipH: b.x < a.x - 0.001, flipV: b.y < a.y - 0.001 }, geom: { prst: 'line' }, fill: null, line });
+  }
+
+  /**
+   * A routed line as straight pieces joined at its bends: round, cut or square, as the theme draws them. Apple's importer (Quick Look, Mail, an iPhone) leaves out
+   * a freeform in a group, but draws these; in PowerPoint they move with the drawing. Pieces meet end
+   * to end, never overlapping, so a line with some transparency has no darker spots at its bends.
+   * Arrowheads go on the first and the last piece only.
+   */
+  private route(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square', line: Line): Item[] {
+    const half = line.width / this.at.k / 2;
+    const parts: { a: Point; b: Point; via?: Point }[] = [];
+    let s = pts[0]!;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const [p, c, n] = [pts[i - 1]!, pts[i]!, pts[i + 1]!];
+      const l1 = Math.hypot(c.x - p.x, c.y - p.y);
+      const l2 = Math.hypot(n.x - c.x, n.y - c.y);
+      const d1 = { x: (c.x - p.x) / l1, y: (c.y - p.y) / l1 };
+      const d2 = { x: (n.x - c.x) / l2, y: (n.y - c.y) / l2 };
+      const along = (d: Point, t: number) => ({ x: c.x + d.x * t, y: c.y + d.y * t });
+      const r = corner === 'square' ? 0 : Math.min(radius, l1 / 2, l2 / 2);
+      if (r >= 0.5) {
+        const [a, b] = [along(d1, -r), along(d2, r)];
+        parts.push({ a: s, b: a }, corner === 'chamfer' ? { a, b } : { a, b, via: c });
+        s = b;
+        continue;
+      }
+      // A square bend: the piece before runs on past the corner by half the line's width and the one
+      // after starts as far along, so the corner is filled whole and once.
+      const right = Math.abs(d1.x * d2.x + d1.y * d2.y) < 0.01;
+      parts.push({ a: s, b: along(d1, right ? half : 0) });
+      s = right ? along(d2, Math.min(half, l2 / 2)) : c;
+    }
+    parts.push({ a: s, b: pts.at(-1)! });
+    // A round bend is the SVG's curve in four short chords (Quick Look leaves out the preset arc too);
+    // they turn so little at each join that the gap a flat end leaves there is under a tenth of the line.
+    const flat = parts.flatMap((q) => {
+      if (!q.via) return [q];
+      const c = q.via;
+      const at = (t: number) => ({ x: (1 - t) ** 2 * q.a.x + 2 * (1 - t) * t * c.x + t * t * q.b.x, y: (1 - t) ** 2 * q.a.y + 2 * (1 - t) * t * c.y + t * t * q.b.y });
+      return [0, 1, 2, 3].map((k) => ({ a: at(k / 4), b: at((k + 1) / 4) }));
+    });
+    const last = flat.length - 1;
+    return flat.map((q, i) => this.piece(q.a, q.b, { ...line, head: i === 0 ? line.head : 'none', tail: i === last ? line.tail : 'none' }));
+  }
+
+  /**
+   * An open stroke (layout px) as straight pieces, with round ends that close the joins as the SVG's
+   * round joins do (strokes of one colour, so nothing shows twice). A curve is flattened first; a
+   * dashed curve is cut in pieces one dash and gap long, so its dashes run on as on one line.
+   */
+  private stroke(subpaths: { pts: Point[]; curved: boolean }[], line: Line, name: string): Item | undefined {
+    const sw = line.width / this.at.k;
+    const pairs: [Point, Point, Line][] = [];
+    for (const { pts, curved } of subpaths) {
+      const dashed = curved && line.dash === 'dashed';
+      // PowerPoint's dash is four line widths drawn and three left out.
+      const list = dashed ? evenly(pts, 7 * sw) : simplify(pts, 0.15);
+      const l: Line = dashed ? line : { ...line, cap: 'rnd' };
+      for (let i = 1; i < list.length; i++) if (Math.hypot(list[i]!.x - list[i - 1]!.x, list[i]!.y - list[i - 1]!.y) > 0.01) pairs.push([list[i - 1]!, list[i]!, l]);
+    }
+    if (pairs.length === 1) return this.piece(...pairs[0]!, name);
+    return pairs.length ? this.group(name, pairs.map(([a, b, l]) => this.piece(a, b, l))) : undefined;
+  }
+
+  /**
+   * A rectangle with its top right corner cut off (a document): two rectangles and a right triangle,
+   * overlapping a little so no seam shows, under the outline in pieces. Quick Look leaves out the preset.
+   */
+  private cutCorner(fit: PresetFit, fill: Fill | null, line: Line | null, name: string, id?: number): Item {
+    const { x, y, w, h } = fit;
+    const t = ((fit.adj?.adj ?? 0) * Math.min(w, h)) / 100000;
+    const part = (name: string, f: Frame, prst: string, nid?: number) => this.sp({ id: nid, name, frame: f, geom: { prst }, fill, line: null });
+    const items = fill
+      ? [part(name, this.frame(x, y, w - t + 0.5, h), 'rect', id), part('Fill', this.frame(x + w - t, y + t - 0.5, t, h - t + 0.5), 'rect'), part('Fill', this.frame(x + w - t, y, t, t), 'rtTriangle')]
+      : [];
+    const outline = [
+      { x, y },
+      { x: x + w - t, y },
+      { x: x + w, y: y + t },
+      { x: x + w, y: y + h },
+      { x, y: y + h },
+      { x, y },
+    ];
+    return this.group(name, [...items, line ? this.stroke([{ pts: outline, curved: false }], line, 'Outline') : undefined]);
+  }
+
+  /**
+   * The tint between a curve and a level line (above or below neutral on a feeling chart): a strip
+   * per straight piece of the curve, a rectangle up to the nearer end and a right triangle up to the
+   * farther, overlapping half a pixel so no seam shows. Quick Look leaves out a freeform, and draws a
+   * picture above everything else in the group, which would cover the faces on the curve.
+   */
+  private area(a: { base: number; curve: Point[] }, fill: Fill, name: string): Item {
+    const items: Item[] = [];
+    const curve = simplify(a.curve, 0.3);
+    const o = 0.5;
+    for (let i = 1; i < curve.length; i++) {
+      const [p, q] = [curve[i - 1]!, curve[i]!];
+      const [x0, x1] = [Math.min(p.x, q.x), Math.max(p.x, q.x)];
+      if (x1 - x0 < 0.01) continue;
+      // The end nearer the level line, and the farther.
+      const [near, far] = Math.abs(p.y - a.base) <= Math.abs(q.y - a.base) ? [p, q] : [q, p];
+      const up = near.y < a.base;
+      const [ry0, ry1] = up ? [near.y - o, a.base] : [a.base, near.y + o];
+      items.push(this.sp({ name: 'Fill', frame: this.frame(x0 - o, Math.min(ry0, ry1), x1 - x0 + 2 * o, Math.abs(ry1 - ry0)), geom: { prst: 'rect' }, fill, line: null }));
+      if (Math.abs(far.y - near.y) < 0.05) continue;
+      // The preset's right angle is bottom left, its long side from top left to bottom right: flipped to put it under the far end.
+      const f = this.frame(far.x < near.x ? x0 - o : x0, Math.min(near.y, far.y), x1 - x0 + o, Math.abs(far.y - near.y));
+      items.push(this.sp({ name: 'Fill', frame: { ...f, flipH: far.x > near.x, flipV: far.y > near.y }, geom: { prst: 'rtTriangle' }, fill, line: null }));
+    }
+    return this.group(name, items);
+  }
+
+  /** A filled outline as a picture of it, drawn as the SVG draws it, where no preset shapes draw it. */
+  private pathPicture(m: Extract<JourneyMark, { t: 'path' }>, b: Point): Item | undefined {
+    const pts = m.d.flatMap((c) => (c[0] === 'Z' ? [] : c[0] === 'C' ? [[c[1], c[2]], [c[3], c[4]], [c[5], c[6]]] : [[c[1], c[2]]])) as [number, number][];
+    const pad = (m.stroke ? (m.sw ?? 1) / 2 : 0) + 1;
+    const x = Math.floor(Math.min(...pts.map((p) => p[0])) - pad);
+    const y = Math.floor(Math.min(...pts.map((p) => p[1])) - pad);
+    const w = Math.ceil(Math.max(...pts.map((p) => p[0])) + pad) - x;
+    const h = Math.ceil(Math.max(...pts.map((p) => p[1])) + pad) - y;
+    const stroke = m.stroke ? ` stroke="${m.stroke}" stroke-width="${m.sw ?? 1}" stroke-linejoin="round"${m.dash ? ' stroke-dasharray="4 4"' : ''}` : '';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}"><path d="${journeyPath(m.d)}" fill="${m.fill}"${stroke}/></svg>`;
+    const ref = this.icons(`picture:${svg}`, '', w, 0, { svg, height: h });
+    if (!ref) return undefined;
+    const f = this.frame(b.x + x, b.y + y, w, h);
+    const name = m.name ?? 'Shape';
+    return { xml: picture({ id: this.next(), name, descr: name, frame: f, ...ref }), box: f };
   }
 
   /** Crow's-foot and bar ends: the same strokes as the SVG markers. */
@@ -797,14 +922,10 @@ class SlideDrawing {
       const u = umlEnd(kind);
       const pts = u.points.map(([back, side]) => at(back, side));
       const line: Line = { color, width: this.L(this.theme.stroke.edge) };
-      if (!u.closed) return [this.freeform('End', pts.map((p, i) => ({ op: i ? 'l' : 'm', pts: [p] }) as PxCmd), line)];
-      const xs = pts.map((p) => p.x);
-      const ys = pts.map((p) => p.y);
-      const x0 = Math.min(...xs);
-      const y0 = Math.min(...ys);
-      const L = (p: Point): [number, number] => [this.L(p.x - x0), this.L(p.y - y0)];
-      const path: PathCmd[] = pts.map((p, i) => (i ? { l: L(p) } : { m: L(p) }));
-      return [this.sp({ name: 'End', frame: this.frame(x0, y0, Math.max(...xs) - x0, Math.max(...ys) - y0), geom: { path, closed: true }, fill: { color: u.filled ? color : this.theme.surface }, line })];
+      if (!u.closed) return [this.stroke([{ pts, curved: false }], line, 'End')!];
+      // A triangle or a diamond turned along the line: preset shapes, which Quick Look draws in a group.
+      const fit = polygonPreset(pts)!;
+      return [this.sp({ name: 'End', frame: { ...this.frame(fit.x, fit.y, fit.w, fit.h), rot: fit.rot }, geom: { prst: fit.prst, adj: fit.adj }, fill: { color: u.filled ? color : this.theme.surface }, line })];
     }
     const segs: [Point, Point][] = [];
     const circles: Point[] = [];
@@ -817,7 +938,7 @@ class SlideDrawing {
     if (kind === 'zeroOrMany') crow(), circles.push(at(20));
     if (kind === 'slash') segs.push([at(12, -5), at(6, 5)]);
     const line: Line = { color, width: this.L(this.theme.stroke.edge) };
-    const out = [this.freeform('End', segs.flatMap(([a, b]) => [{ op: 'm', pts: [a] }, { op: 'l', pts: [b] }] as PxCmd[]), line)];
+    const out = [this.stroke(segs.map((s) => ({ pts: s, curved: false })), line, 'End')!];
     for (const c of circles) out.push(this.sp({ name: 'End', frame: this.frame(c.x - 4, c.y - 4, 8, 8), geom: { prst: 'ellipse' }, fill: { color: this.theme.surface }, line }));
     return out;
   }
@@ -902,15 +1023,31 @@ class SlideDrawing {
           out.push(this.sp({ id: own(), name: m.name ?? 'Diamond', frame, geom: { prst: 'diamond' }, ...paint(m) }));
           continue;
         }
-        const path: PathCmd[] = [];
-        const X = (x: number) => this.L(x - x0);
-        const Y = (y: number) => this.L(y - y0);
-        for (const c of m.d) {
-          if (c[0] === 'M') path.push({ m: [X(c[1]), Y(c[2])] });
-          else if (c[0] === 'L') path.push({ l: [X(c[1]), Y(c[2])] });
-          else if (c[0] === 'C') path.push({ c: [X(c[1]), Y(c[2]), X(c[3]), Y(c[4]), X(c[5]), Y(c[6])] });
+        // Apple's importer (Quick Look, Mail, an iPhone) leaves out a freeform in a group, so none is
+        // written: an outline is a preset shape where one fits (a phase's arrow, a team), or is built
+        // of them (a document's cut corner, the tint under a feeling curve); a stroke is straight
+        // pieces; only a filled outline none of that draws is a picture of it.
+        const subs = subpaths(m.d, b);
+        const name = m.name ?? (closed ? 'Shape' : 'Curve');
+        const { line } = paint(m);
+        const fill = m.fill && m.fill !== 'none' ? { color: m.fill } : null;
+        const fit = closed && subs.length === 1 && !subs[0]!.curved ? polygonPreset(subs[0]!.pts) : undefined;
+        if (fit?.prst === 'snip1Rect') {
+          out.push(this.cutCorner(fit, fill, line, name, own()));
+          continue;
         }
-        out.push(this.sp({ id: own(), name: m.name ?? (closed ? 'Shape' : 'Curve'), frame, geom: { path, closed }, ...paint(m) }));
+        if (fit) {
+          out.push(this.sp({ id: own(), name, frame: { ...this.frame(fit.x, fit.y, fit.w, fit.h), rot: fit.rot }, geom: { prst: fit.prst, adj: fit.adj }, ...paint(m) }));
+          continue;
+        }
+        const area = fill && subs.length === 1 ? underCurve(subs[0]!.pts) : undefined;
+        if (fill && !area) {
+          const pic = this.pathPicture(m, b);
+          if (pic) out.push(pic);
+          continue;
+        }
+        const parts = [area && fill ? this.area(area, fill, name) : undefined, line ? this.stroke(subs, line, name) : undefined];
+        if (parts.some(Boolean)) out.push(this.group(name, parts));
       }
     }
     return out;
@@ -988,7 +1125,7 @@ class SlideDrawing {
     const box = (w: number, h: number, rx: number, fill: Fill | null, line: Line | null, dx = 0) => this.sp({ name: 'Swatch', frame: this.frame(x + dx, cy - h / 2, w, h), geom: this.roundRect({ x: 0, y: 0, width: w, height: h }, rx), fill, line });
     if (item.swatch === 'block' && item.block) return this.marks(blockSample(item.block.form, t, x, cy, item.block.heat), { x: 0, y: 0 });
     if (item.swatch === 'badge') {
-      const arrow = this.freeform('Swatch', [{ op: 'm', pts: [{ x: x + 6, y: cy }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'm', pts: [{ x: x + 11, y: cy - 3 }] }, { op: 'l', pts: [{ x: x + 14, y: cy }] }, { op: 'l', pts: [{ x: x + 11, y: cy + 3 }] }], { color: tone.fg, width: this.L(1.4) });
+      const arrow = this.stroke([{ pts: [{ x: x + 6, y: cy }, { x: x + 14, y: cy }], curved: false }, { pts: [{ x: x + 11, y: cy - 3 }, { x: x + 14, y: cy }, { x: x + 11, y: cy + 3 }], curved: false }], { color: tone.fg, width: this.L(1.4) }, 'Swatch');
       const back = lk.chip === 'outline' ? box(19, 13, Math.min(4, t.radius.chip), { color: t.surface }, { color: tone.fg, alpha: 0.55, width: this.L(1) }, 0.5) : box(20, 14, Math.min(4, t.radius.chip), { color: tone.bg }, null);
       return [back, item.icon ? this.icon(item.icon, x + 4, cy - 6, 12, tone.fg, 1.6) : arrow];
     }
@@ -1029,11 +1166,6 @@ class SlideDrawing {
 
 // ------------------------------------------------------------ geometry helpers
 
-interface PxCmd {
-  op: 'm' | 'l' | 'q';
-  pts: Point[];
-}
-
 /** Drop repeated points and the middle of straight runs: connectors count bends. */
 export function clean(points: Point[]): Point[] {
   const out: Point[] = [];
@@ -1047,43 +1179,157 @@ export function clean(points: Point[]): Point[] {
   return out;
 }
 
-/** An orthogonal line whose bends are rounded, cut at 45 degrees, or square. */
-function bentPath(pts: Point[], radius: number, corner: 'round' | 'chamfer' | 'square'): PxCmd[] {
-  const out: PxCmd[] = [{ op: 'm', pts: [pts[0]!] }];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i - 1]!;
-    const c = pts[i]!;
-    const n = pts[i + 1]!;
-    const l1 = Math.hypot(c.x - p.x, c.y - p.y);
-    const l2 = Math.hypot(n.x - c.x, n.y - c.y);
-    const r = corner === 'square' ? 0 : Math.min(radius, l1 / 2, l2 / 2);
-    if (r < 0.5) {
-      out.push({ op: 'l', pts: [c] });
-      continue;
+const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+const mid = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const degrees = (rad: number) => Math.round((((rad * 180) / Math.PI + 360) % 360) * 1000) / 1000 % 360;
+
+/** A path's subpaths as points (layout px, moved by `at`), curves in steps of about a pixel; a closed one ends where it began. */
+export function subpaths(d: JourneySeg[], at: Point = { x: 0, y: 0 }): { pts: Point[]; curved: boolean }[] {
+  const out: { pts: Point[]; curved: boolean }[] = [];
+  let cur: { pts: Point[]; curved: boolean } | undefined;
+  const P = (x: number, y: number) => ({ x: at.x + x, y: at.y + y });
+  for (const c of d) {
+    if (c[0] === 'M') out.push((cur = { pts: [P(c[1], c[2])], curved: false }));
+    else if (!cur) continue;
+    else if (c[0] === 'L') cur.pts.push(P(c[1], c[2]));
+    else if (c[0] === 'Z') cur.pts.push(cur.pts[0]!);
+    else {
+      const p0 = cur.pts.at(-1)!;
+      const [p1, p2, p3] = [P(c[1], c[2]), P(c[3], c[4]), P(c[5], c[6])];
+      const n = Math.max(8, Math.ceil(dist(p0, p1) + dist(p1, p2) + dist(p2, p3)));
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        const u = 1 - t;
+        const [a, b, e, f] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+        cur.pts.push({ x: a * p0.x + b * p1.x + e * p2.x + f * p3.x, y: a * p0.y + b * p1.y + e * p2.y + f * p3.y });
+      }
+      cur.curved = true;
     }
-    const after = { x: c.x + ((n.x - c.x) / l2) * r, y: c.y + ((n.y - c.y) / l2) * r };
-    out.push({ op: 'l', pts: [{ x: c.x - ((c.x - p.x) / l1) * r, y: c.y - ((c.y - p.y) / l1) * r }] });
-    out.push(corner === 'chamfer' ? { op: 'l', pts: [after] } : { op: 'q', pts: [c, after] });
   }
-  out.push({ op: 'l', pts: [pts.at(-1)!] });
   return out;
 }
 
-function roundedPolygon(pts: Point[], radius: number): PathCmd[] {
-  const n = pts.length;
-  const out: PathCmd[] = [];
-  for (let i = 0; i < n; i++) {
-    const p = pts[(i + n - 1) % n]!;
-    const c = pts[i]!;
-    const q = pts[(i + 1) % n]!;
-    const l1 = Math.hypot(c.x - p.x, c.y - p.y);
-    const l2 = Math.hypot(q.x - c.x, q.y - c.y);
-    const r = Math.min(radius, l1 / 2, l2 / 2);
-    const a: [number, number] = [c.x - ((c.x - p.x) / l1) * r, c.y - ((c.y - p.y) / l1) * r];
-    out.push(i ? { l: a } : { m: a });
-    out.push({ q: [c.x, c.y, c.x + ((q.x - c.x) / l2) * r, c.y + ((q.y - c.y) / l2) * r] });
+/** The fewest of these points whose polyline stays within `tol` px of them all (Douglas–Peucker). */
+export function simplify(pts: Point[], tol: number): Point[] {
+  if (pts.length < 3) return pts;
+  const keep = pts.map((_, k) => k === 0 || k === pts.length - 1);
+  const todo: [number, number][] = [[0, pts.length - 1]];
+  while (todo.length) {
+    const [i, j] = todo.pop()!;
+    const [a, z] = [pts[i]!, pts[j]!];
+    const len2 = (z.x - a.x) ** 2 + (z.y - a.y) ** 2;
+    let far = -1;
+    let worst = tol;
+    for (let k = i + 1; k < j; k++) {
+      const p = pts[k]!;
+      const t = len2 ? Math.max(0, Math.min(1, ((p.x - a.x) * (z.x - a.x) + (p.y - a.y) * (z.y - a.y)) / len2)) : 0;
+      const off = dist(p, { x: a.x + t * (z.x - a.x), y: a.y + t * (z.y - a.y) });
+      if (off > worst) [worst, far] = [off, k];
+    }
+    if (far >= 0) {
+      keep[far] = true;
+      todo.push([i, far], [far, j]);
+    }
   }
+  return pts.filter((_, k) => keep[k]);
+}
+
+/** Points every `step` px along a polyline, and its end: pieces of one length, so a dash pattern runs on from one to the next. */
+export function evenly(pts: Point[], step: number): Point[] {
+  const out = [pts[0]!];
+  let left = (step = Math.max(1, step));
+  for (let i = 1; i < pts.length; i++) {
+    let a = pts[i - 1]!;
+    const z = pts[i]!;
+    let len = dist(a, z);
+    while (len >= left) {
+      const t = left / len;
+      out.push((a = { x: a.x + (z.x - a.x) * t, y: a.y + (z.y - a.y) * t }));
+      len -= left;
+      left = step;
+    }
+    left -= len;
+  }
+  if (dist(out.at(-1)!, pts.at(-1)!) > 0.01) out.push(pts.at(-1)!);
   return out;
+}
+
+/**
+ * An outline that runs from a level line up (or down) to a curve, along it, and back to the level
+ * line (the tint above or below neutral on a feeling chart): its level and the curve, left to right
+ * or right to left, never back. Undefined for any other outline.
+ */
+export function underCurve(outline: Point[]): { base: number; curve: Point[] } | undefined {
+  const pts = outline.length > 1 && dist(outline[0]!, outline.at(-1)!) < 0.01 ? outline.slice(0, -1) : outline;
+  if (pts.length < 4) return undefined;
+  const [first, last] = [pts[0]!, pts.at(-1)!];
+  const curve = pts.slice(1, -1);
+  const eq = (a: number, b: number) => Math.abs(a - b) < 0.05;
+  if (!eq(first.y, last.y) || !eq(curve[0]!.x, first.x) || !eq(curve.at(-1)!.x, last.x)) return undefined;
+  const dir = Math.sign(last.x - first.x);
+  if (!dir || curve.some((p, i) => i > 0 && (p.x - curve[i - 1]!.x) * dir < -0.01)) return undefined;
+  const side = curve.every((p) => p.y <= first.y + 0.05) || curve.every((p) => p.y >= first.y - 0.05);
+  return side ? { base: first.y, curve } : undefined;
+}
+
+export interface PresetFit {
+  prst: string;
+  adj?: Record<string, number>;
+  /** The shape's own frame (layout px) before it is turned `rot` degrees about its centre. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rot?: number;
+}
+
+/**
+ * The preset shape that draws this closed outline (layout px), if there is one: a box, an arrow
+ * (a phase, the flow of change), a chevron, a subsystem team's octagon, or a triangle or a diamond
+ * turned any way (a UML line end, a callout's tail). And a document's cut corner, as snip1Rect,
+ * which Quick Look does not draw: the caller builds that one of other shapes.
+ */
+export function polygonPreset(outline: Point[]): PresetFit | undefined {
+  const pts = outline.length > 1 && dist(outline[0]!, outline.at(-1)!) < 0.01 ? outline.slice(0, -1) : outline;
+  const n = pts.length;
+  if (n < 3) return undefined;
+  const eq = (a: number, b: number) => Math.abs(a - b) < 0.05;
+  const [x0, x1] = [Math.min(...pts.map((p) => p.x)), Math.max(...pts.map((p) => p.x))];
+  const [y0, y1] = [Math.min(...pts.map((p) => p.y)), Math.max(...pts.map((p) => p.y))];
+  const ym = (y0 + y1) / 2;
+  const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  const is = (want: [number, number][]) => want.length === n && want.every(([x, y]) => pts.some((p) => eq(p.x, x) && eq(p.y, y)));
+  if (is([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])) return { prst: 'rect', ...box };
+  // How far the top edge stops short of the right side: an arrow's point, a cut corner.
+  const top = Math.max(...pts.filter((p) => eq(p.y, y0)).map((p) => p.x));
+  const t = x1 - top;
+  const adj = { adj: (t / Math.max(1e-6, Math.min(box.w, box.h))) * 100000 };
+  if (Number.isFinite(t) && t > 0.05) {
+    if (is([[x0, y0], [top, y0], [x1, ym], [top, y1], [x0, y1]])) return { prst: 'homePlate', adj, ...box };
+    if (is([[x0, y0], [top, y0], [x1, ym], [top, y1], [x0, y1], [x0 + t, ym]])) return { prst: 'chevron', adj, ...box };
+    if (is([[x0, y0], [top, y0], [x1, y0 + t], [x1, y1], [x0, y1]])) return { prst: 'snip1Rect', adj, ...box };
+    if (is([[x0 + t, y0], [top, y0], [x1, y0 + t], [x1, y1 - t], [top, y1], [x0 + t, y1], [x0, y1 - t], [x0, y0 + t]])) return { prst: 'octagon', adj, ...box };
+  }
+  if (n === 3)
+    for (let k = 0; k < 3; k++) {
+      // An even-sided triangle: the preset's point is up, turned to where this one points.
+      const [a, p, q] = [pts[k]!, pts[(k + 1) % 3]!, pts[(k + 2) % 3]!];
+      const m = mid(p, q);
+      const [base, height] = [dist(p, q), dist(a, m)];
+      if (Math.abs((a.x - m.x) * (q.x - p.x) + (a.y - m.y) * (q.y - p.y)) > 0.01 * base * height) continue;
+      const c = mid(a, m);
+      return { prst: 'triangle', x: c.x - base / 2, y: c.y - height / 2, w: base, h: height, rot: degrees(Math.atan2(a.x - m.x, m.y - a.y)) };
+    }
+  if (n === 4) {
+    // Diagonals that halve each other at right angles: the preset diamond, turned along the first.
+    const [a, b, c, d] = pts as [Point, Point, Point, Point];
+    const [w, h] = [dist(a, c), dist(b, d)];
+    if (dist(mid(a, c), mid(b, d)) < 0.05 && Math.abs((c.x - a.x) * (d.x - b.x) + (c.y - a.y) * (d.y - b.y)) < 0.01 * w * h) {
+      const o = mid(a, c);
+      return { prst: 'diamond', x: o.x - w / 2, y: o.y - h / 2, w, h, rot: degrees(Math.atan2(c.y - a.y, c.x - a.x)) };
+    }
+  }
+  return undefined;
 }
 
 export interface ConnectorFit {

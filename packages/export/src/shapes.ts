@@ -13,6 +13,8 @@ export interface Line extends Fill {
   dash?: 'solid' | 'dashed' | 'dotted';
   head?: End;
   tail?: End;
+  /** Line ends: flat (round when dotted) unless said; round where pieces of one stroke meet, as the SVG's round joins. */
+  cap?: 'flat' | 'rnd';
 }
 
 /** Line ends: a filled triangle, two open strokes, or a long slim triangle. */
@@ -73,7 +75,7 @@ function line(l?: Line | null): string {
   if (!l) return '<a:ln><a:noFill/></a:ln>';
   const dash = l.dash === 'dashed' ? '<a:prstDash val="dash"/>' : l.dash === 'dotted' ? '<a:prstDash val="sysDot"/>' : '<a:prstDash val="solid"/>';
   const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e === 'open' ? 'arrow' : 'triangle'}" w="med" len="${e === 'slim' ? 'lg' : 'med'}"/>` : '');
-  return `<a:ln w="${i(l.width)}" cap="${l.dash === 'dotted' ? 'rnd' : 'flat'}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
+  return `<a:ln w="${i(l.width)}" cap="${l.cap ?? (l.dash === 'dotted' ? 'rnd' : 'flat')}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
 }
 
 function xfrm(f: Frame, group = false): string {
