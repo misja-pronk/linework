@@ -21,8 +21,12 @@ groups:
 nodes:
   users: users
   cdn: { kind: cloudfront, label: CDN and WAF }
-  # One load balancer across the zones (AWS puts its nodes in a public subnet of each zone, left out here).
-  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public }
+  # The public tier: the internet gateway and one load balancer across the zones, both on the public row.
+  # AWS puts a node of the load balancer in a public subnet of each zone (10.0.0.0/24, 10.0.1.0/24,
+  # 10.0.2.0/24); its caption says so. Drawn as boxes, with a NAT gateway in each for the tasks' way
+  # out, they took the slide under 5 pt, so the public subnets and NAT gateways are named, not drawn.
+  igw: { kind: internet-gateway, label: Internet gateway, in: vpc, tier: public }
+  alb: { kind: alb, label: Load balancer, in: vpc, tier: public, exposure: public, caption: ALB · a public subnet per zone }
   web-a: { kind: ecs, label: Web shop, in: app-a, size: 2 tasks }
   web-b: { kind: ecs, label: Web shop, in: app-b, size: 2 tasks }
   web-c: { kind: ecs, label: Web shop, in: app-c, size: 2 tasks }
@@ -34,7 +38,8 @@ edges:
   # Unlabelled to fit a slide; the key says what each style is. Users reach the CDN over HTTPS,
   # the web shop talks SQL to the writer, and the writer replicates to the readers in the other zones.
   - users -> cdn: { style: public }
-  - cdn -> alb: { style: public }
+  - cdn -> igw: { style: public }
+  - igw -> alb: { style: public }
   - alb -> web-a: { style: private }
   - alb -> web-b: { style: private }
   - alb -> web-c: { style: private }

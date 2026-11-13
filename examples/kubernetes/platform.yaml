@@ -3,14 +3,16 @@ title: Platform cluster
 subtitle: Shared ingress, certificates and observability for the app teams
 
 # Sized for a slide: images and versions are left off the app workloads (storefront 5.2, orders 3.0,
-# billing 1.9, postgres 16, prometheus 2.54, grafana 11.2, loki and promtail 3.1). The controller
-# stands for ingress-nginx's Deployment and its LoadBalancer Service; cert-manager gets certificates
+# billing 1.9, postgres 16, prometheus 2.54, grafana 11.2, loki 3.1). The controller stands for
+# Traefik's Deployment and its LoadBalancer Service: it serves the Ingress resources as they are
+# (ingress-nginx was retired upstream in March 2026). Grafana Alloy ships the logs (Promtail reached
+# end of life in March 2026). cert-manager gets certificates
 # from Let's Encrypt over ACME. Not drawn: storefront calls orders through /api like the browser
 # does, and orders charges through billing-api.
 
 groups:
   cluster: { kind: cluster, label: platform-prod }
-  ingress-nginx: { kind: namespace, in: cluster }
+  traefik: { kind: namespace, in: cluster }
   cert-manager: { kind: namespace, in: cluster }
   shop: { kind: namespace, in: cluster }
   billing: { kind: namespace, in: cluster }
@@ -19,7 +21,7 @@ groups:
 nodes:
   internet: internet
 
-  controller: { kind: deployment, label: ingress-nginx, in: ingress-nginx, serviceType: LoadBalancer, replicas: 3 }
+  controller: { kind: deployment, label: traefik, in: traefik, serviceType: LoadBalancer, replicas: 3 }
 
   cm: { kind: deployment, label: cert-manager, in: cert-manager, replicas: 2, caption: "Deployment · ×2 · ACME" }
   issuer-key: { kind: secret, label: letsencrypt-account, in: cert-manager }
@@ -38,7 +40,7 @@ nodes:
   prometheus: { kind: statefulset, in: observability, replicas: 2 }
   grafana: { kind: deployment, in: observability }
   loki: { kind: statefulset, in: observability }
-  promtail: { kind: daemonset, in: observability }
+  alloy: { kind: daemonset, in: observability }
 
 edges:
   - internet -> controller: HTTPS
@@ -54,4 +56,4 @@ edges:
   - cm -> issuer-key
   - grafana -> prometheus
   - grafana -> loki
-  - promtail -> loki: logs
+  - alloy -> loki: logs

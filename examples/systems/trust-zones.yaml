@@ -18,6 +18,8 @@ nodes:
   admin: { kind: user, label: Shop admin, in: internet }
   cdn: { kind: cdn, label: CDN + WAF, in: edge }
   web: { kind: client, label: Storefront, in: edge }
+  # Admins cross the DMZ too: an access proxy that signs them in (SSO with MFA) before the back office.
+  proxy: { kind: gateway, label: Access proxy, caption: SSO · MFA, in: edge }
   api: { kind: gateway, label: API gateway, in: app }
   orders: { kind: service, label: Orders service, in: app }
   backoffice: { kind: service, label: Back office, in: app }
@@ -29,7 +31,8 @@ edges:
   - shopper -> cdn: HTTPS
   - cdn -> web: HTTPS
   - web -> api: REST over TLS
-  - admin -> backoffice: HTTPS
+  - admin -> proxy: HTTPS
+  - proxy -> backoffice: HTTPS
   - api -> orders: gRPC
   - orders -> db: SQL over TLS
   - orders -> sessions: RESP

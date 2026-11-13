@@ -1,6 +1,7 @@
 type: capabilities
 title: E-commerce capabilities
-subtitle: Run cost per capability and the systems behind it
+# The subtitle belongs to the default drawing (the cost heatmap); the fit and systems views say their own.
+subtitle: Run cost per capability, per year
 heat:
   - { by: cost, title: Run cost per year }
   - fit

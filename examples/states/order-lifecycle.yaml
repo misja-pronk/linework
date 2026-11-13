@@ -15,7 +15,8 @@ transitions:
   - Awaiting payment -> Fulfilment: payment received
   - start -> Picking
   - Picking -> Packed: all items scanned
-  - Fulfilment -> Shipped: handed to carrier
+  # Only a packed order can ship, so this leaves from Packed, not from the whole of Fulfilment.
+  - Packed -> Shipped: handed to carrier
   - Shipped -> Delivered: signed for
   - Delivered -> end
   - Awaiting payment -> Cancelled: 30 min without payment
