@@ -18,6 +18,22 @@ describe('kind problems', () => {
     expect(r.diagnostics.find((d) => d.severity === 'error')?.message).toBe('"kind" must be one of: state, choice, final, history (did you mean state?)');
   });
 
+  it('an entry written short with a value that is no kind: about the value, not the name', async () => {
+    const r = await render('type: data-products\nsources:\n  crm: nope\n  erp: 3\n', { fonts: 'none' });
+    expect(r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message)).toEqual([
+      '"crm: nope": "nope" is not a kind. Write a kind after the name (application, database, erp, saas, stream, file, api, device), or the details in { }, like crm: { label: crm }',
+      '"erp: 3": "3" is not a kind. Write a kind after the name (application, database, erp, saas, stream, file, api, device), or the details in { }, like erp: { label: erp }',
+    ]);
+  });
+
+  it('says in plain words what text after a closing } is, and what an unknown type was meant to be', async () => {
+    const stray = await render('type: systems\nnodes:\n  a: { kind: service } x\n', { fonts: 'none' });
+    expect(stray.diagnostics[0]).toMatchObject({ line: 3, message: 'There is text after the closing } on this line: remove it, or move it inside the { }' });
+    const typo = await render('type: sytems\n', { fonts: 'none' });
+    expect(typo.diagnostics[0]).toMatchObject({ line: 1, message: 'Unknown type "sytems": did you mean systems? (completion in the editor and carto types list them all)' });
+    expect(typo.diagnostics[0]!.choices).toContain('systems');
+  });
+
   it('reads "user" as the person kind of a sequence diagram, with a hint', async () => {
     const r = await render('type: sequence\nparticipants:\n  user: User\n  shop: { kind: service }\nmessages:\n  - user -> shop: Order\n', { fonts: 'none' });
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
