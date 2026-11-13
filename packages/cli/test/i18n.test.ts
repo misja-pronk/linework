@@ -65,7 +65,7 @@ describe('carto --lang', () => {
     expect(top).toContain('Usage: carto <command> [files…] [options] [--lang en|nl]\n');
     expect(top).toContain('carto <command> --help: its options · carto help all: everything · - is stdin or stdout\n');
     const render = (await carto({}, '--lang', 'en', 'render', '--help')).out;
-    expect(render).toContain('               [--view name | --all-views]      one of the diagram\'s views, or each to <file>--<view>.svg\n');
+    expect(render).toContain('               [--view name | --all-views]      one of the diagram\'s views, or each to <file>--<view>.svg; pptx, pdf: a slide (page) each\n');
     expect(render.endsWith('\n\nAll commands: carto --help\n')).toBe(true);
   }, 120_000);
 

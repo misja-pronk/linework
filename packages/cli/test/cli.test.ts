@@ -486,6 +486,22 @@ describe('carto errors and help', () => {
     expect((await carto('render', 'views.yaml', '--all-views', '-o', '-')).err).toContain('-o - writes one picture');
   }, 120_000);
 
+  it('puts every view in one deck with --all-views: a slide (page) each after the drawing as written, each drawing once', async () => {
+    write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
+    // As SVG: the drawing as written and a file per view (access.svg and access-access.svg are the same drawing).
+    // In a deck the drawing as written is the access view: not a second time.
+    const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc.pptx');
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('3 drawings: the whole and 2 views');
+    // The part names stand uncompressed in the zip.
+    expect(new Set(fs.readFileSync(path.join(tmp, 'acc.pptx'), 'latin1').match(/ppt\/slides\/slide\d+\.xml/g)).size).toBe(3);
+    expect((await carto('render', 'access.yaml', '--all-views', '-o', 'acc.pdf')).code).toBe(0);
+    expect(fs.readFileSync(path.join(tmp, 'acc.pdf'), 'latin1').match(/\/Type \/Page\b/g)).toHaveLength(3);
+    // A sequence's whole is the drawing as written: the whole, then a slide per phase.
+    const seq = await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pptx');
+    expect(seq.out).toContain('3 drawings: the whole and 2 views');
+  }, 120_000);
+
   it('leaves empty views out of --all-views', async () => {
     write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
     const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc/');

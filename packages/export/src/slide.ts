@@ -25,9 +25,18 @@ export interface Placement {
   onText?(pt: number): void;
   /** Told of every part drawn as one picture, because it has no native slide drawing yet. */
   onPicture?(kind: PictureKind): void;
+  /**
+   * The drawing was laid out in other faces than it is set in here (a template's): a card's name or
+   * caption that is wider than its room takes the card's padding before it is cut, so an address or a
+   * number is not cut short for a few pixels.
+   */
+  refaced?: boolean;
 }
 
 export type PictureKind = 'sequence' | 'gitflow' | 'roadmap';
+
+/** How close (layout px) a card's text set in a template's face may come to the card's border. */
+const EDGE = 6;
 
 interface Item {
   xml: string;
@@ -361,9 +370,11 @@ class SlideDrawing {
     const room = b.width - inset.left - inset.right;
     const caption = cardCaption(s);
     const cy = b.y + top / 2;
-    const paras: Para[] = [{ align: centred ? 'ctr' : 'l', runs: [this.run(fitText(s.label, t.size.label, 600, room), t.size.label, 600, muted ? t.textMuted : t.text)] }];
+    // Set in other faces than laid out in: the padding up to EDGE px from the border may take the text (centred: both sides).
+    const fit = this.at.refaced ? room + Math.max(0, inset.right - EDGE) + (centred ? Math.max(0, inset.left - EDGE) : 0) : room;
+    const paras: Para[] = [{ align: centred ? 'ctr' : 'l', runs: [this.run(fitText(s.label, t.size.label, 600, fit), t.size.label, 600, muted ? t.textMuted : t.text)] }];
     // Label and caption centres sit 17.5 px apart in the SVG; 100% line spacing gives ~15, add the rest above.
-    if (caption) paras.push({ align: centred ? 'ctr' : 'l', before: this.pt(2.4), runs: [this.run(fitText(caption, t.size.caption, 400, room), t.size.caption, 400, muted ? t.textFaint : t.textMuted)] });
+    if (caption) paras.push({ align: centred ? 'ctr' : 'l', before: this.pt(2.4), runs: [this.run(fitText(caption, t.size.caption, 400, fit), t.size.caption, 400, muted ? t.textFaint : t.textMuted)] });
     const text: TextBody = { anchor: 'ctr', inset: { l: this.L(inset.left), r: this.L(inset.right), b: this.L(b.height - top) }, paras };
     // Out of scope (an external system): a flat grey card, so what is in scope stands out.
     const base = { id: this.idFor(`node:${n.id}`), name: s.label, descr: [s.label, caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), fill: { color: muted ? t.tones.slate.bg : t.surface }, shadow: muted ? undefined : this.shadow(), text };
@@ -814,7 +825,11 @@ class SlideDrawing {
     const first = marks[0];
     if (first?.t === 'rect' && !s.lines?.length) {
       const texts = marks.filter((m) => m.t === 'text');
-      const paras: Para[] = texts.map((m, i) => ({ align: 'ctr', before: i ? this.pt(2) : 0, runs: [this.run(m.lines.join(' '), m.size, m.weight, m.fill)] }));
+      // A line each, as the drawing wraps them: the text box does not wrap, so one long line would run out of the task.
+      const paras: Para[] = texts.flatMap((m, i) => {
+        const gap = Math.max(0, this.pt(m.lh - 1.21 * m.size));
+        return m.lines.map((l, j): Para => ({ align: 'ctr', before: j ? gap : i ? this.pt(2) : 0, runs: [this.run(l, m.size, m.weight, m.fill)] }));
+      });
       const body = this.sp({ id, name, descr: [s.label, s.caption].filter(Boolean).join(' — '), frame: this.frame(b.x, b.y, b.width, b.height), geom: this.roundRect(b, first.r ?? 0), fill: { color: t.surface }, line: { color: t.border, width: this.L(t.stroke.card) }, shadow: this.shadow(), text: { anchor: 'ctr', inset: { l: this.L(s.icon ? 31 : 8), r: this.L(8), b: this.L(s.form === 'subprocess' ? 12 : 0) }, paras } });
       return this.group(name, [body, ...this.marks(marks.slice(1).filter((m) => m.t !== 'text'), { x: 0, y: 0 })]);
     }

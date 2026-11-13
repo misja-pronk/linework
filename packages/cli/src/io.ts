@@ -127,10 +127,12 @@ export function outputPath(o: { out?: string; 'all-views'?: boolean; 'all-layers
   if (!o.out) return path.join(path.dirname(file), base);
   // -o is a folder when it ends in / or has no extension.
   const folder = o.out.endsWith('/') || o.out.endsWith(path.sep) || !path.extname(o.out);
-  // A deck holds every layer on a slide of its own: one file.
-  const perLayer = o['all-layers'] && format !== 'pptx' && format !== 'pdf';
-  if (!folder && (count > 1 || o['all-views'] || perLayer))
-    throw new UsageError(t('-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/', { out: o.out, why: o['all-views'] ? t('--all-views writes one per view') : perLayer ? t('--all-layers writes one per layer') : t('several diagrams make several files'), folder: path.join(path.dirname(o.out), path.basename(o.out, path.extname(o.out))) }));
+  // A deck holds every view and every layer on a slide of its own: one file.
+  const deck = format === 'pptx' || format === 'pdf';
+  const perView = o['all-views'] && !deck;
+  const perLayer = o['all-layers'] && !deck;
+  if (!folder && (count > 1 || perView || perLayer))
+    throw new UsageError(t('-o {out} names one file, but {why}: give a folder, e.g. -o {folder}/', { out: o.out, why: perView ? t('--all-views writes one per view') : perLayer ? t('--all-layers writes one per layer') : t('several diagrams make several files'), folder: path.join(path.dirname(o.out), path.basename(o.out, path.extname(o.out))) }));
   if (!folder) return (fs.mkdirSync(path.dirname(o.out), { recursive: true }), nn ? o.out.replace(/(\.\w+)$/, `${nn}$1`) : o.out);
   fs.mkdirSync(o.out, { recursive: true });
   return path.join(o.out, base);

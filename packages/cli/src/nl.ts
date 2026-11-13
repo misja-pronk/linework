@@ -80,6 +80,8 @@ export const nl = {
   '--all-layers: this diagram has no layers: (see docs/layers.md)': '--all-layers: dit diagram heeft geen layers: (zie docs/layers.md)',
   'nothing on this layer, not written': 'niets op deze laag, niet geschreven',
   '{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers': '{all} tekeningen: het geheel en {count} laag|{all} tekeningen: het geheel en {count} lagen',
+  '{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views': '{all} tekeningen: het geheel en {count} weergave|{all} tekeningen: het geheel en {count} weergaven',
+  '{all} drawings: the whole, its views and layers': '{all} tekeningen: het geheel, de weergaven en de lagen',
   'no steps here: drawn as a whole': 'hier zijn geen stappen: als geheel getekend',
   'step {n}': 'stap {n}',
   'layout noted': 'layout onthouden',
@@ -149,7 +151,7 @@ export const nlHelp: Record<string, string> = {
     `carto — architectuurdiagrammen die er goed uitzien`,
   [`  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
-               [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg
+               [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg; pptx, pdf: a slide (page) each
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
@@ -169,7 +171,7 @@ export const nlHelp: Record<string, string> = {
                                                 template's own slides in front`]:
     `  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme gaat voor theme: in het diagram; -o x.pptx of x.pdf kiest ook het formaat
-               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>--<view>.svg
+               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>--<view>.svg; pptx, pdf: een dia (pagina) per weergave
                [--step 3 | --all-steps]         de tekening bij een van zijn steps:, of elke stap naar <file>-step-01.svg;
                                                 pptx en pdf krijgen vanzelf een dia (pagina) per stap
                [--icons official|lucide]        de officiële iconen van de leverancier (carto icons import) of onze lijniconen,

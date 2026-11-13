@@ -51,6 +51,17 @@ describe('pptx', () => {
     expect(guarantee!.x).toBeGreaterThanOrEqual(field!.x + field!.cx);
   });
 
+  it('puts a matrix\'s table under the drawing\'s group, not in it: Quick Look and Mail leave out a grouped table', async () => {
+    const xml = parts(await toPptx(await draw('matrix/raci-migration.yaml'))).text('ppt/slides/slide1.xml');
+    const table = xml.indexOf('<p:graphicFrame>');
+    const drawing = xml.search(/<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="Diagram: /);
+    expect(table).toBeGreaterThan(0);
+    // Right before the group, so the drawing's own shapes (its key) still lie over it.
+    expect(xml.indexOf('</p:graphicFrame>')).toBe(drawing - '</p:graphicFrame>'.length);
+    expect(xml.slice(drawing)).not.toContain('<p:graphicFrame>');
+    expect(wellFormed(xml)).toBe(true);
+  });
+
   it('writes a valid package: content types, relationships, well-formed parts', async () => {
     const r = await draw('systems/web-shop.yaml');
     const { files, text } = parts(await toPptx(r, { rasterize: () => PNG }));
@@ -406,6 +417,15 @@ describe('process and states', () => {
     // Lines are connectors bound to the shapes they join, so they follow when a shape is moved.
     expect(slide.match(/<p:cxnSp>/g)!.length).toBeGreaterThanOrEqual(r.graph!.edges.length);
     expect(slide.match(/<a:stCxn /g)!.length).toBe(r.graph!.edges.length);
+  });
+
+  it('pptx: a task\'s caption wraps where the drawing wraps it, a paragraph a line, instead of running out of the task', async () => {
+    const { r, slide } = await slideOf('process/pull-request.yaml');
+    const checks = flowOf(r).find((s) => s.label === 'Required checks')!;
+    expect(checks.caption).toBe('build, test, lint, CodeQL');
+    const shape = /<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Required checks"[\s\S]*?<\/p:sp>/.exec(slide)![0];
+    const paras = [...shape.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)].map((p) => [...p[1]!.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((t) => t[1]).join(''));
+    expect(paras).toEqual(['Required checks', 'build, test, lint,', 'CodeQL']);
   });
 
   it('pptx: a state machine is native shapes: a box per state with its name inside, a frame around substates, dots for start and end', async () => {

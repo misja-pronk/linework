@@ -45,7 +45,11 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   const opts = optionsFor(ctx, o, file, o['no-fonts'] || safe || format !== 'svg' ? 'none' : 'embed', job.forced);
   const first = await render(text, opts);
   // --all-views: the diagram as written (or its first view) plus every view as <file>--<view>.svg.
-  const views = o['all-views'] && first.views?.length ? await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))) : [];
+  // In a deck (pptx, pdf) the drawing as written is the first slide already: the view it is (a sequence's
+  // whole, a mesh's overview) is not drawn twice, as the editor's view picker lists each drawing once.
+  const deck = format === 'pptx' || format === 'pdf';
+  const again = (name: string) => deck && (name === first.view || name === first.asWritten?.name);
+  const views = o['all-views'] && first.views?.length ? await Promise.all(first.views.filter((v) => !again(v.name)).map((v) => render(text, { ...opts, view: v.name }))) : [];
   // A view with nothing in it is no picture: said, not written.
   for (const v of views) if (v.empty) ctx.error(`${shown}#${v.view}  ${ctx.dim(t('empty: nothing to draw, not written'))}`);
   // --all-layers: the drawing as a whole, then through each of its layers as <file>--<layer>.svg (a slide each in a deck).
@@ -56,15 +60,19 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   /** What a run is called in messages and file names: its view, or its layers. */
   const named = (r: RenderResult, i: number) => (i && layered.includes(r) ? [r.view, r.layers!.active.join('+')].filter(Boolean).join('-') : i ? r.view : o.view);
   const where = (format: string, view?: string, step?: number) => outputPath(o, job.count, file, format, view, step);
-  if (o['all-layers'] && (format === 'pptx' || format === 'pdf')) {
+  // --all-views and --all-layers in a deck: one file, the drawing as written first, then a slide (page) per view and per layer.
+  if ((o['all-layers'] || o['all-views']) && deck) {
     const drawn = runs.filter((r) => r.svg && !r.diagnostics.some((d) => d.severity === 'error'));
-    for (const r of runs) ctx.report(r === first ? shown : `${shown}@${named(r, runs.indexOf(r))}`, r === first ? r.diagnostics : r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)));
+    const mark = (r: RenderResult) => (layered.includes(r) ? '@' : '#');
+    for (const r of runs) ctx.report(r === first ? shown : `${shown}${mark(r)}${named(r, runs.indexOf(r))}`, r === first ? r.diagnostics : r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)));
     if (!drawn.length) return false;
     const out = o.out === '-' ? '-' : where(format, o.view);
-    // A layer is one slide (its steps are the whole drawing's story, told on its own slides), unless every step is asked for.
-    const data = await document(ctx, o, format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(r !== first && !o['all-steps'] ? { steps: undefined } : {}) })), first.theme, file);
+    // A layer is one slide (its steps are the whole drawing's story, told on its own slides), unless every step is asked for; a view tells its own steps.
+    const data = await document(ctx, o, format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(layered.includes(r) && !o['all-steps'] ? { steps: undefined } : {}) })), first.theme, file);
     ctx.put(out, data);
-    ctx.log(`${shown} → ${out === '-' ? t('standard output') : out} ${ctx.dim(t('{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers', { all: drawn.length, count: drawn.length - 1 }))}`);
+    const layers = drawn.filter((r) => layered.includes(r)).length;
+    const said = o['all-views'] && !o['all-layers'] ? t('{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views', { all: drawn.length, count: drawn.length - 1 }) : o['all-layers'] && !o['all-views'] ? t('{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers', { all: drawn.length, count: layers }) : t('{all} drawings: the whole, its views and layers', { all: drawn.length });
+    ctx.log(`${shown} → ${out === '-' ? t('standard output') : out} ${ctx.dim(said)}`);
     if (o.stable) noteLayout(ctx, file, runs);
     return drawn.length === runs.length;
   }
