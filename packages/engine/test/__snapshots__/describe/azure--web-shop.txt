@@ -1,41 +1,45 @@
 Web shop
 
-Azure infrastructure diagram: Production. 6 elements in 5 groups, with 5 connections.
+Azure infrastructure diagram: Front Door is the only public entry; SQL and Key Vault are reached over private endpoints. 8 elements in 6 groups, with 7 connections.
 
 Groups and elements
 - Users
-- Front Door
-- Production (Subscription)
-  - rg-shop-prod (Resource group)
-    - vnet-shop (Virtual network)
-      - snet-apps (Subnet)
+- sub-shop-prd (Subscription)
+  - rg-shop-prd (West Europe)
+    - Front Door (Premium · WAF)
+    - vnet-shop (10.20.0.0/22)
+      - snet-web (Integration)
         - Web shop (App Service)
-        - Orders API (Container App)
-      - snet-data (Subnet)
-        - Orders (SQL Database)
-    - Secrets (Key Vault)
+      - snet-cae (Apps env)
+        - Orders API (Managed identity)
+      - snet-pe (Private endpoints)
+        - pe-sql-shop (Private endpoint)
+        - pe-kv-shop (Private endpoint)
+    - Orders (Entra-only auth)
+    - Secrets (RBAC · private)
 
 Connections
 - Users send traffic to Front Door over HTTPS.
-- Front Door sends traffic to Web shop.
+- Front Door connects to Web shop (Private network: Private Link).
 - Web shop connects to Orders API (Private network: REST).
-- Orders API connects to Orders (Private network: SQL) and signs in with Secrets (secrets).
+- Orders API connects to pe-sql-shop (Private network) and connects to pe-kv-shop (Private network).
+- pe-sql-shop connects to Orders (Private network: TDS).
+- pe-kv-shop connects to Secrets (Private network: secrets).
 
 Walkthrough
 1. The web shop in production. One subscription, and nothing is public except the front door.
-2. A customer opens the shop. Front Door terminates TLS and forwards to the web app.
+2. A customer opens the shop. Front Door terminates TLS and reaches the web app over Private Link.
 3. Placing an order is a private REST call inside the virtual network.
-4. Orders are stored: The Orders API writes to SQL over the data subnet.
-  - Orders: No public endpoint
-5. No secrets in code: The API reads its connection string from Key Vault with its managed identity.
+4. Orders are stored: The Orders API reaches SQL through its private endpoint in snet-pe.
+  - Orders: Public access off
+5. No secrets in code: The API signs in to SQL and Key Vault with its managed identity; Key Vault keeps only the payment provider's key.
 
 Layers
 Ways to look at this drawing by tag.
-- Security: Only the front door is public; the API reads its secrets with its own identity. (tags security; 4 elements).
-- Data: Orders live in SQL on the data subnet, reached only by the API. (tags data; 2 elements).
+- Security: Only the front door is public; the API signs in to SQL and Key Vault with its own identity. (tags security; 6 elements).
+- Data: Orders live in SQL, reached only by the API through its private endpoint. (tags data; 3 elements).
 - Operations: What takes the traffic and runs our code, from the front door to the Orders API. (tags ops; 3 elements).
 
 Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Amber badge: Identity badge

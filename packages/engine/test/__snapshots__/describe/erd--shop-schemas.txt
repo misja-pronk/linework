@@ -1,6 +1,6 @@
 Shop database
 
-Database design: Two schemas, explicit relation labels. 5 tables, with 5 relations.
+Database design: Two schemas, sales and catalog, and the relations between them. 5 tables, with 5 relations.
 
 Tables
 - sales (Schema)

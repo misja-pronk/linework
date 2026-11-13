@@ -6,7 +6,7 @@ Groups and elements
 - Tenant root group (northwind.onmicrosoft.com)
   - Northwind (Allowed regions · Defender for Cloud · diagnostics to Log Analytics)
     - Platform (Run by the platform team)
-      - Management (Nothing added here)
+      - Management (Inherited policy only)
         - sub-management (Log Analytics · Automation)
       - Connectivity (DDoS protection on VNets)
         - sub-connectivity (Hub VNet · firewall · DNS)
@@ -25,7 +25,7 @@ Groups and elements
 
 Walkthrough
 1. The management group hierarchy of the Northwind landing zone, with a subscription per workload.
-2. Policy is inherited: The baseline at Northwind applies to every subscription; each level below only adds to it.
+2. Policy is inherited: sub-erp-prd gets the policy of Northwind, Landing zones and Corp; each level below only adds to it.
 3. Platform: Shared services in their own subscriptions, run by the platform team.
 4. Landing zones: Corp workloads are private and peered to the hub; Online workloads face the internet behind a WAF.
 5. Sandbox and decommissioned: Sandboxes cannot reach the corporate network; a retired subscription accepts no new resources.

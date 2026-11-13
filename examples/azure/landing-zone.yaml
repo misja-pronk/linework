@@ -41,8 +41,8 @@ nodes:
 steps:
   - The management group hierarchy of the Northwind landing zone, with a subscription per workload.
   - title: Policy is inherited
-    caption: The baseline at Northwind applies to every subscription; each level below only adds to it.
-    focus: org
+    caption: sub-erp-prd gets the policy of Northwind, Landing zones and Corp; each level below only adds to it.
+    focus: sub-erp
   - title: Platform
     caption: Shared services in their own subscriptions, run by the platform team.
     focus: platform

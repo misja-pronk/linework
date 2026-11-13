@@ -43,9 +43,10 @@ edges:
   - cdn -> shop: { style: public }
   - shop -> orders: { style: private }
   - shop -> dx: { style: private }
-  - dx -> edge: { style: vpn }
+  # Direct Connect and Partner Interconnect are private circuits, not VPN tunnels: drawn as private lines.
+  - dx -> edge: { style: private }
   - edge -> erp: { style: private }
-  - edge -> interconnect: { style: vpn }
+  - edge -> interconnect: { style: private }
   - interconnect -> cdc: { style: private }
   - orders -> cdc: { style: data }
   - cdc -> warehouse: { style: data }

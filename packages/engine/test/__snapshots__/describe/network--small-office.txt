@@ -21,8 +21,8 @@ Groups and elements
 
 Connections
 - KPN Fibre connects to fw-utr (WAN: PPPoE · 1G).
-- fw-utr connects to sw-core (Trunk: 2×10G · VLAN 1, 10, 20, 30).
-- sw-core is linked with ap-ground (2.5G), is linked with ap-first (2.5G), is linked with nas-01 (10G), is linked with print-01 and is linked with Desk phones.
+- fw-utr connects to sw-core (Trunk: 2×1G · VLAN 1, 10, 20, 30).
+- sw-core is linked with ap-ground (1G), is linked with ap-first (1G), is linked with nas-01 (1G), is linked with print-01 and is linked with Desk phones.
 - ap-ground connects to Laptops (Wireless: Staff SSID).
 - ap-first connects to Guest devices (Wireless: Guest SSID).
 

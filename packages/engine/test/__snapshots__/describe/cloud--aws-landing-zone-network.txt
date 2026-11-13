@@ -20,9 +20,9 @@ Groups and elements
     - Web shop (dev) (EKS)
 
 Connections
-- Core router connects to Direct Connect (VPN / interconnect: BGP).
+- Core router connects to Direct Connect (Private network: BGP).
 - vpc-prod connects to Transit gateway (Private network: attachment).
-- Transit gateway connects to Direct Connect (VPN / interconnect) and connects to Inspection (Private network: 0.0.0.0/0).
+- Transit gateway connects to Direct Connect (Private network) and connects to Inspection (Private network: 0.0.0.0/0).
 - Inspection connects to Central egress (Private network).
 - Central egress sends traffic to Internet.
 - vpc-dev connects to Transit gateway (Private network).
@@ -30,4 +30,3 @@ Connections
 Key
 - Solid sky line: Public traffic
 - Dashed teal line: Private network
-- Dashed orange line with beads: VPN / interconnect

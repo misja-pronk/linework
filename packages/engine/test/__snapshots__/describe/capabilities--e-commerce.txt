@@ -1,6 +1,6 @@
 E-commerce capabilities
 
-Capability map: Run cost per capability and the systems behind it. 5 areas and 18 capabilities.
+Capability map: Run cost per capability, per year. 5 areas and 18 capabilities.
 
 Areas and capabilities
 - Attract

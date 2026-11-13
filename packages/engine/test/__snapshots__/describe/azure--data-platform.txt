@@ -1,9 +1,9 @@
 Data platform
 
-Azure infrastructure diagram: Northwind · from sources to reports through a bronze, silver and gold lake, all on private networking. 11 elements in 7 groups, with 10 connections.
+Azure infrastructure diagram: Northwind · from sources to reports through a bronze, silver and gold lake. 11 elements in 7 groups, with 10 connections.
 
 Groups and elements
-- Sources (Boundary)
+- Sources (Upstream)
   - ERP (SQL Server · nightly)
   - CRM (REST API · hourly)
   - Web shop (Clickstream events)
@@ -12,7 +12,7 @@ Groups and elements
     - adf-nw-data (Managed VNet)
     - evh-clickstream (Event Hubs)
   - rg-data-lake (Resource group)
-    - stnwlakeprd (ADLS Gen2)
+    - stnwlakeprd (ADLS Gen2 · private)
       - bronze (Raw)
       - silver (Cleaned)
       - gold (Business-ready)

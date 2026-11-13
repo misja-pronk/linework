@@ -8,11 +8,11 @@ subtitle: Acme on Control Tower · an account per job, grouped in OUs, logs kept
 
 groups:
   org: { kind: organization, label: Acme }
+  management: { kind: account, label: Management, account: "111111111111", in: org }
   security: { kind: ou, label: Security, in: org }
   infra: { kind: ou, label: Infrastructure, in: org }
   workloads: { kind: ou, label: Workloads, in: org }
 
-  management: { kind: account, label: Management, account: "111111111111", in: org }
   log-archive: { kind: account, label: Log archive, account: "222222222222", in: security }
   audit: { kind: account, label: Audit, account: "333333333333", in: security }
   network: { kind: account, label: Network, account: "444444444444", in: infra, links: [aws-landing-zone-network.yaml] }

@@ -1,19 +1,19 @@
 AWS landing zone
 
-AWS and Google Cloud diagram: Organization and accounts. 9 elements in 10 groups, with 2 connections.
+AWS and Google Cloud diagram: Acme on Control Tower · an account per job, grouped in OUs, logs kept apart from the workloads. 9 elements in 10 groups, with 2 connections.
 
 Groups and elements
 - Acme (Organization)
+  - Management (111111111111)
+    - Organization trail (CloudTrail)
+    - Guardrails (Control Tower)
+    - Single sign-on (IAM Identity Center)
   - Security (Organizational unit)
     - Log archive (222222222222)
-      - Organization trail (CloudTrail)
       - Log bucket (S3 bucket)
     - Audit (333333333333)
       - Threat detection (GuardDuty)
       - Findings (Security Hub)
-  - Management (111111111111)
-    - Guardrails (Control Tower)
-    - Single sign-on (IAM Identity Center)
   - Infrastructure (Organizational unit)
     - Network (444444444444)
       - Transit gateway

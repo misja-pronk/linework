@@ -1,6 +1,6 @@
 Application landing zone
 
-Azure infrastructure diagram: Northwind customer portal · one subscription, a resource group per concern, plugged into the platform. 10 elements in 10 groups, with 13 connections.
+Azure infrastructure diagram: Northwind customer portal · one subscription, a resource group per concern, plugged into the platform. 10 elements in 10 groups, with 14 connections.
 
 Groups and elements
 - sub-portal-prd (Landing zone · Corp)
@@ -19,16 +19,16 @@ Groups and elements
   - rg-portal-data (Resource group)
     - sqldb-portal (SQL Database)
     - kv-portal-prd (Key Vault)
-- sub-management (Platform)
-  - log-platform-weu (Central workspace)
 - sub-connectivity (Platform)
   - afw-hub (Hub firewall · 10.0.0.68)
+- sub-management (Platform)
+  - log-platform-weu (Central workspace)
 
 Connections
-- app-portal connects to rt-portal (Private network: outbound), connects to pe-sql-portal (Private network), connects to pe-kv-portal (Private network), sends data to appi-portal and connects to log-platform-weu (Management).
-- rt-portal connects to afw-hub (Private network: peering).
+- app-portal connects to rt-portal, connects to afw-hub (Private network: outbound), connects to pe-sql-portal (Private network), connects to pe-kv-portal (Private network), sends data to appi-portal and connects to log-platform-weu (Management).
+- rt-portal connects to afw-hub (next hop).
 - pe-sql-portal connects to sqldb-portal (Private network: TDS).
-- pe-kv-portal signs in with kv-portal-prd (secrets).
+- pe-kv-portal connects to kv-portal-prd (Private network: HTTPS).
 - appi-portal connects to log-platform-weu (Management: workspace).
 - sqldb-portal connects to log-platform-weu (Management).
 - kv-portal-prd connects to log-platform-weu (Management).
@@ -41,8 +41,8 @@ Walkthrough
 4. Monitored centrally: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
 
 Key
+- Dotted line: Connection (dotted)
 - Dashed teal line: Private network
 - Solid violet line with ticks: Data flow
-- Dotted amber line: Identity
 - Dotted line with ticks: Management
 - Badge: Management badge

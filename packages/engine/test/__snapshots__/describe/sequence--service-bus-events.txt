@@ -1,6 +1,6 @@
 Events through Service Bus
 
-Sequence diagram: Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 6 participants and 10 messages.
+Sequence diagram: Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 7 participants and 10 messages.
 
 Participants
 - Orders API (App Service)
@@ -9,6 +9,7 @@ Participants
   - Dead-letter queue (per subscription)
 - Invoicing (Azure Function)
 - Warehouse (Container App)
+- Azure Monitor (alert rule)
 - Operations
 
 Message flow
@@ -16,15 +17,15 @@ In order, top to bottom.
 - 1. Orders API sends to order-events: OrderPlaced, MessageId = order id.
 - In parallel: Subscription invoicing
   - 2. order-events sends to Invoicing: OrderPlaced (peek-lock).
-  - 3. Invoicing does: Create invoice, unless MessageId was seen.
+  - 3. Invoicing does: Invoice, unless MessageId seen.
   - 4. Invoicing replies to order-events: Complete.
 - And: Subscription warehouse
   - 5. order-events sends to Warehouse: OrderPlaced (peek-lock).
   - 6. Warehouse replies to order-events: Abandon, stock service down.
   - 7. order-events sends to Warehouse: Redelivered, DeliveryCount 2 to 10.
-  - 8. order-events sends to Dead-letter queue: After the 10th try, to the dead-letter queue.
-- 9. Dead-letter queue sends to Operations: Alert: dead-lettered messages > 0.
-- 10. Operations calls Dead-letter queue: Fix the cause, resubmit.
+  - 8. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
+- 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
+- 10. Operations sends to order-events: Fix the cause, resubmit.
 
 Key
 - Arrow with a filled head: Call

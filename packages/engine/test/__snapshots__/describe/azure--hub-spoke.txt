@@ -36,8 +36,8 @@ Walkthrough
 3. Out to the internet: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
   - vmss-erp: rt-erp: 0.0.0.0/0 → 10.0.0.68
 4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
-5. Admin access: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from its subnet only.
-  - vmss-erp: nsg-app: RDP from Bastion only
+5. Admin access: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from AzureBastionSubnet only.
+  - vmss-erp: nsg-app: RDP from AzureBastionSubnet only
 
 Layers
 Ways to look at this drawing by tag.
