@@ -29,6 +29,7 @@
     "lab": "tsx packages/cli/src/lab.ts",
     "snapshot": "tsx packages/cli/src/snapshot.ts",
     "stability": "tsx packages/engine/test/stability.ts",
+    "margin": "tsx packages/cli/src/margin.ts",
     "web": "pnpm --filter @cartography/web dev",
     "web:build": "pnpm --filter @cartography/web build",
     "docs:build": "pnpm --filter @cartography/web build && pnpm --filter @cartography/site build",
