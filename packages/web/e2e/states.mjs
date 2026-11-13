@@ -68,7 +68,7 @@ await page.screenshot({ path: `${out}/s1-builder.png` });
   await name.press('Enter');
   const t = await yaml();
   if (t.includes('Shipped')) fail('the rename left the old name behind');
-  if (!moves(t).includes('Fulfilment -> Dispatched: handed to carrier') || !moves(t).includes('Dispatched -> Delivered: signed for')) fail(`the rename did not reach the transitions:\n${moves(t).join('\n')}`);
+  if (!moves(t).includes('Packed -> Dispatched: handed to carrier') || !moves(t).includes('Dispatched -> Delivered: signed for')) fail(`the rename did not reach the transitions:\n${moves(t).join('\n')}`);
   if (!(await node('Dispatched').count())) fail('the renamed state is not drawn');
 }
 
