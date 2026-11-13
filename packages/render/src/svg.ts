@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, SECTION_PX, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -522,7 +522,7 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
     const y = b.y + at.y;
     if (row.kind === 'section') {
       const sh = at.height;
-      if (row.label) s += textMid(cx + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, theme.textFaint);
+      if (row.label) s += textMid(cx + t.padX, y + sh / 2 + 2, row.label.toUpperCase(), SECTION_PX, 600, theme.textFaint);
       else s += `<line x1="${r1(cx)}" y1="${r1(y + sh / 2)}" x2="${r1(cx + cw)}" y2="${r1(y + sh / 2)}" stroke="${theme.border}" stroke-width="1"/>`;
       continue;
     }

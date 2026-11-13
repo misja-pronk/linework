@@ -163,7 +163,14 @@ describe('carto validate on a slide', () => {
 
   it('checks the steps as their slides show them, once per drawing, naming the step that takes the room', async () => {
     // Just readable on a slide as a whole, and so are its steps: each title and caption fits on one line.
-    const ok = fs.readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8');
+    // The example has room to spare, so here it has none: group names at 10 px, one more account written
+    // to, and no notes beside the drawing.
+    const ok = fs
+      .readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8')
+      .replace(/^(subtitle: .*)$/m, '$1\ntheme: { extends: survey, group: { labelSize: 10 } }')
+      .replace(/^( {2}blob: .*)$/m, '$1\n  logs: { kind: storage, label: stshoplogs, in: rg }')
+      .replace(/^( {2}- uami -> graph:)/m, '  - uami -> logs: { label: Storage Blob Data Reader, style: role }\n$1')
+      .replace(/^ {4}note: .*\n/gm, '');
     write('ids.yaml', ok);
     const clean = await carto('validate', 'ids.yaml');
     expect(clean.code).toBe(0);

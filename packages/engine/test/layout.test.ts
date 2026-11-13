@@ -184,7 +184,8 @@ const jogBudget: Record<string, number> = {
 const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
   'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
-  'states/device-connection.yaml': 1, // update verified, between two returns
+  'states/device-connection.yaml': 2, // update verified, between two returns; buffer full, on the short hop up into Sending
+  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its turn down to pe-kv
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production': 1, // the same
   'c4/kestrel-bank.yaml#production-data': 1, // Reads logins, on the line down from the banking API past Kafka

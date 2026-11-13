@@ -662,8 +662,8 @@ function hashText(text: string): string {
 const SLIDE = { width: 1280, height: 720 };
 /**
  * The words a reader needs (card names, line labels: the text slideTextPt measures) smaller than
- * this (points) on a slide are hard to read from the back of a room. Line labels are drawn at 10 px,
- * 7.5 pt at full size: under 6 pt the drawing is shrunk to less than four fifths, too much for one page.
+ * this (points) on a slide are hard to read from the back of a room. Line labels are drawn at 10.5 px,
+ * 7.9 pt at full size: under 6 pt the drawing is shrunk to less than three quarters, too much for one page.
  */
 export const SLIDE_MIN_PT = 6;
 

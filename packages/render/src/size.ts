@@ -72,8 +72,17 @@ export function size(graph: Graph, theme: Theme): Sized {
   // A lane's name stands in a header at its start: that header's width is what it needs.
   for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g.label, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
 
-  return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth };
+  // The smallest words a reader needs (layout's slide sizes go by it): labels on lines, group names, a table's section names (SECTION_PX).
+  const small = [
+    ...(graph.edges.some((e) => e.label) ? [theme.size.edgeLabel] : []),
+    ...(graph.groups.length ? [look(theme).group.size] : []),
+    ...(graph.nodes.some((n) => n.shape.kind === 'table' && n.shape.rows.some((r) => r.kind === 'section' && r.label)) ? [SECTION_PX] : []),
+  ];
+  return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth, ...(small.length ? { smallText: Math.min(...small) } : {}) };
 }
+
+/** A table's section names (INPUT PORTS, SCHEMA) in small capitals: their size (px). */
+export const SECTION_PX = 10;
 
 /** Room around the words of a label on a line: a pill or plate needs its padding, bare words on a halo only a gap in the line. */
 export const labelPad = (theme: Theme): number => (look(theme).edgeLabel.style === 'halo' ? 10 : 16);
