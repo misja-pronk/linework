@@ -20,7 +20,7 @@ export const nl = {
   'step {n} of {count}': 'stap {n} van {count}',
   '{names} layer|{names} layers': 'laag {names}|lagen {names}',
   Legend: 'Legenda',
-  'With {names}': 'Met {names}',
+  'With: {names}': 'Met: {names}',
   'Drop shapes here': 'Sleep vormen hierheen',
   Decision: 'Besluit',
   'this view': 'deze weergave',
