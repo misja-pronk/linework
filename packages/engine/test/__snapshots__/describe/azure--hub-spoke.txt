@@ -8,11 +8,11 @@ Groups and elements
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - GatewaySubnet (10.0.0.0/27)
-      - vpng-hub-weu (VpnGw2AZ · AS 65515)
+      - vpng-hub (VpnGw2AZ · AS 65515)
     - AzureFirewallSubnet (10.0.0.64/26)
-      - afw-hub-weu (Azure Firewall Premium · 10.0.0.68)
+      - afw-hub (Premium · 10.0.0.68)
     - AzureBastionSubnet (10.0.0.128/26)
-      - bas-hub-weu (Standard)
+      - bas-hub (Standard)
 - sub-erp-prod (Landing zone · Corp)
   - vnet-erp-prod (10.1.0.0/22)
     - snet-app (10.1.0.0/24)
@@ -24,15 +24,15 @@ Groups and elements
 - Internet
 
 Connections
-- Edge router connects to vpng-hub-weu (Private network).
-- vpng-hub-weu connects to afw-hub-weu (Private network: UDR).
-- afw-hub-weu connects to vmss-erp-prod (Private network: peering), connects to vmss-intranet-prod (Private network: peering) and sends traffic to Internet (SNAT).
-- bas-hub-weu connects to vmss-erp-prod (Management: RDP).
+- Edge router connects to vpng-hub (Private network).
+- vpng-hub connects to afw-hub (Private network: UDR).
+- afw-hub connects to vmss-erp-prod (Private network: peering), connects to vmss-intranet-prod (Private network: peering) and sends traffic to Internet (SNAT).
+- bas-hub connects to vmss-erp-prod (Management: RDP).
 
 Walkthrough
 1. Hub and spokes: The hub holds the shared network services; each workload gets a spoke of its own.
 2. From the office: rt-gateway-weu sends office traffic to the firewall first, which forwards it over the peering.
-  - vpng-hub-weu: rt-gateway-weu: spokes → 10.0.0.68
+  - vpng-hub: rt-gateway-weu: spokes → 10.0.0.68
 3. Out to the internet: Each spoke's route table sends 0.0.0.0/0 to the firewall, which takes it out with SNAT.
   - vmss-erp-prod: rt-erp-prod: 0.0.0.0/0 → 10.0.0.68
 4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.

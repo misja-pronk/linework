@@ -8,7 +8,7 @@ Groups and elements
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - snet-dns-in (10.0.1.0/28)
-      - dnspr-hub-weu (Inbound endpoint · 10.0.1.4)
+      - dnspr-hub (Inbound endpoint · 10.0.1.4)
     - snet-dns-out (10.0.1.16/28)
       - Outbound endpoint (Ruleset · northwind.local → 10.10.0.10)
   - rg-dns-privatelink (Zones linked to the hub)
@@ -26,9 +26,9 @@ Groups and elements
     - stclaimsprod (Storage account)
 
 Connections
-- dc01.northwind.local connects to dnspr-hub-weu.
-- dnspr-hub-weu connects to privatelink.database.windows.net, connects to privatelink.blob.core.windows.net and connects to Outbound endpoint.
-- vmss-claims-prod connects to dnspr-hub-weu, connects to pep-sql-claims-prod (Private network) and connects to pep-st-claims-prod (Private network).
+- dc01.northwind.local connects to dnspr-hub.
+- dnspr-hub connects to privatelink.database.windows.net, connects to privatelink.blob.core.windows.net and connects to Outbound endpoint.
+- vmss-claims-prod connects to dnspr-hub, connects to pep-sql-claims-prod (Private network) and connects to pep-st-claims-prod (Private network).
 - pep-sql-claims-prod connects to sql-claims-prod (Private network: TDS 1433).
 - pep-st-claims-prod connects to stclaimsprod (Private network: HTTPS 443).
 

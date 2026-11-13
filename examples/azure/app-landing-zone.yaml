@@ -38,7 +38,7 @@ nodes:
   kv-portal-prod: { kind: key-vault, label: kv-portal-prod, in: rg-portal-data }
   appi-portal-prod: { kind: app-insights, label: appi-portal-prod, in: rg-portal-monitor }
 
-  afw-hub-weu: { kind: firewall, label: afw-hub-weu, caption: Azure Firewall Premium · 10.0.0.68, in: sub-connectivity }
+  afw-hub: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, in: sub-connectivity }
   log-platform-weu: { kind: log-analytics, label: log-platform-weu, caption: Central workspace, in: sub-management }
 
 # Diagnostic settings to the central workspace: a badge on the card, not a line across the drawing
@@ -52,8 +52,8 @@ edges:
   # 0.0.0.0/0 (the dotted lines: configuration, not traffic); the traffic itself runs
   # app → firewall over the spoke-to-hub peering (the dashed line).
   - app-portal-prod ..> rt-portal-prod
-  - app-portal-prod -> afw-hub-weu: { label: outbound, style: private }
-  - rt-portal-prod ..> afw-hub-weu: { label: next hop }
+  - app-portal-prod -> afw-hub: { label: outbound, style: private }
+  - rt-portal-prod ..> afw-hub: { label: next hop }
   - app-portal-prod -> pep-sql-portal-prod: { style: private }
   - app-portal-prod -> pep-kv-portal-prod: { style: private }
   - func-portal-prod -> pep-sql-portal-prod: { style: private }
@@ -73,8 +73,8 @@ steps:
     caption: The customer portal in a subscription of its own, with a resource group per concern.
   - title: Out through the hub
     caption: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
-    path: app-portal-prod -> afw-hub-weu
-    focus: [app-portal-prod -> rt-portal-prod, rt-portal-prod -> afw-hub-weu]
+    path: app-portal-prod -> afw-hub
+    focus: [app-portal-prod -> rt-portal-prod, rt-portal-prod -> afw-hub]
   - title: Data stays private
     caption: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
     path: [app-portal-prod -> pep-sql-portal-prod -> sql-portal-prod, app-portal-prod -> pep-kv-portal-prod -> kv-portal-prod]

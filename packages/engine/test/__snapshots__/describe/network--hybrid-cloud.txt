@@ -12,10 +12,10 @@ Groups and elements
 - Azure West Europe (Cloud region)
   - vnet-hub-weu (10.0.0.0/22)
     - GatewaySubnet (10.0.0.0/27)
-      - vpng-hub-weu (VpnGw2AZ · AS 65515)
-      - ergw-hub-weu (ErGw1AZ)
+      - vpng-hub (VpnGw2AZ · AS 65515)
+      - ergw-hub (ErGw1AZ)
     - AzureFirewallSubnet (10.0.0.64/26)
-      - afw-hub-weu (Azure Firewall Premium · 10.0.0.68)
+      - afw-hub (Azure Firewall Premium · 10.0.0.68)
   - vnet-erp-prod (10.1.0.0/22)
     - vmss-erp-prod (VM scale set)
   - vnet-intranet-prod (10.1.4.0/22)
@@ -23,11 +23,11 @@ Groups and elements
 
 Connections
 - dc01 is linked with rtr-ams (2×10G).
-- rtr-ams connects to MSEE (Private circuit: eBGP ×2) and connects to vpng-hub-weu (VPN tunnel: IPsec · BGP).
-- MSEE connects to ergw-hub-weu (Private circuit: private peering).
-- vpng-hub-weu is linked with afw-hub-weu.
-- ergw-hub-weu is linked with afw-hub-weu.
-- afw-hub-weu connects to vmss-erp-prod (Peering) and connects to vmss-intranet-prod (Peering).
+- rtr-ams connects to MSEE (Private circuit: eBGP ×2) and connects to vpng-hub (VPN tunnel: IPsec · BGP).
+- MSEE connects to ergw-hub (Private circuit: private peering).
+- vpng-hub is linked with afw-hub.
+- ergw-hub is linked with afw-hub.
+- afw-hub connects to vmss-erp-prod (Peering) and connects to vmss-intranet-prod (Peering).
 
 Walkthrough
 1. Two ways in: Two ways from the data centre into the Azure hub, both through the hub firewall.

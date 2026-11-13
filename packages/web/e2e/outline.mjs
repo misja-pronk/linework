@@ -46,20 +46,20 @@ await page.screenshot({ path: `${out}/2-nested-selected.png` });
 // 3. Selected in the drawing: highlighted in the outline, unfolded to when it was folded away.
 await row('group:sub-connectivity').locator('.outline-fold').click();
 await wait(200);
-if (await row('node:afw-hub-weu').count()) fail('folding the subscription left its contents showing');
-await page.locator('.drawing [data-node="afw-hub-weu"]').click();
+if (await row('node:afw-hub').count()) fail('folding the subscription left its contents showing');
+await page.locator('.drawing [data-node="afw-hub"]').click();
 await wait(400);
-if (!(await row('node:afw-hub-weu').count())) fail('selecting in the drawing did not unfold the outline to it');
-if ((await selectedRows()).join() !== 'node:afw-hub-weu') fail(`selecting in the drawing highlights ${await selectedRows()} in the outline`);
+if (!(await row('node:afw-hub').count())) fail('selecting in the drawing did not unfold the outline to it');
+if ((await selectedRows()).join() !== 'node:afw-hub') fail(`selecting in the drawing highlights ${await selectedRows()} in the outline`);
 
 // 4. The arrows walk the tree and select as they go; Left goes to the parent; Enter goes back to the drawing.
-await row('node:afw-hub-weu').click();
+await row('node:afw-hub').click();
 await page.keyboard.press('ArrowLeft');
 await wait(200);
 if ((await selectedRows()).join() !== 'group:AzureFirewallSubnet') fail(`ArrowLeft selects ${await selectedRows()}, not the subnet`);
 await page.keyboard.press('ArrowDown');
 await wait(200);
-if ((await selectedRows()).join() !== 'node:afw-hub-weu') fail(`ArrowDown selects ${await selectedRows()}`);
+if ((await selectedRows()).join() !== 'node:afw-hub') fail(`ArrowDown selects ${await selectedRows()}`);
 await page.keyboard.press('Enter');
 await wait(200);
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.preview')))) fail('Enter in the outline did not go back to the drawing');
@@ -67,18 +67,18 @@ if (!(await page.evaluate(() => !!document.activeElement?.closest('.preview'))))
 // 5. The drawing's keys for the selection work from the outline: ⌘D, Delete, ⌘C ⌘V; the keyboard stays there.
 const nodes = () => page.locator('.drawing [data-node]').count();
 const n0 = await nodes();
-await row('node:bas-hub-weu').click();
+await row('node:bas-hub').click();
 await page.keyboard.press('Meta+d');
 await wait(800);
 if ((await nodes()) !== n0 + 1) fail('⌘D in the outline did not duplicate');
 const copy = (await selectedRows())[0];
-if (!copy || copy === 'node:bas-hub-weu') fail(`the duplicate is not selected in the outline: ${copy}`);
+if (!copy || copy === 'node:bas-hub') fail(`the duplicate is not selected in the outline: ${copy}`);
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after ⌘D');
 await page.keyboard.press('Delete');
 await wait(800);
 if ((await nodes()) !== n0) fail('Delete in the outline did not delete');
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after Delete');
-await row('node:bas-hub-weu').click();
+await row('node:bas-hub').click();
 await page.keyboard.press('Meta+c');
 await page.keyboard.press('Meta+v');
 await wait(800);

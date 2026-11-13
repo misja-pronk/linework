@@ -34,7 +34,7 @@ nodes:
   kv-orders-prod: { kind: key-vault, label: kv-orders-prod, caption: RBAC · CSI driver, in: rg-orders-shared, tags: [identity] }
   id-orders-prod: { kind: managed-identity, label: id-orders-prod, caption: Workload identity, in: rg-orders-shared, tags: [identity] }
 
-  afw-hub-weu: { kind: firewall, label: afw-hub-weu, caption: Azure Firewall Premium · 10.0.0.68, tags: [egress] }
+  afw-hub: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, tags: [egress] }
 
 edges:
   - agw-orders-prod -> traefik: { style: private, tags: [ingress] }
@@ -45,7 +45,7 @@ edges:
   - pep-kv-orders-prod -> kv-orders-prod: { style: private, tags: [identity] }
   - aks-orders-prod -> pep-cr-orders-prod: { label: image pull, style: private }
   - pep-cr-orders-prod -> crordersprod: { style: private }
-  - aks-orders-prod -> afw-hub-weu: { label: egress · UDR, style: private, tags: [egress] }
+  - aks-orders-prod -> afw-hub: { label: egress · UDR, style: private, tags: [egress] }
 
 layers:
   ingress:
@@ -76,4 +76,4 @@ steps:
     path: aks-orders-prod -> pep-cr-orders-prod -> crordersprod
   - title: Out
     caption: The node subnet's route table sends all egress to the hub firewall, which allows only what is needed.
-    path: aks-orders-prod -> afw-hub-weu
+    path: aks-orders-prod -> afw-hub

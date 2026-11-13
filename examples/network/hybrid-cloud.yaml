@@ -28,9 +28,9 @@ nodes:
 
   msee: { kind: router, label: MSEE, in: expressroute-circuit, model: Microsoft edge · AS 12076, ha: true, tier: edge, tags: [expressroute] }
 
-  ergw-hub-weu: { kind: cloud-gateway, label: ergw-hub-weu, in: GatewaySubnet, model: ErGw1AZ, tags: [expressroute] }
-  vpng-hub-weu: { kind: vpn-gateway, label: vpng-hub-weu, in: GatewaySubnet, model: VpnGw2AZ · AS 65515, tags: [vpn] }
-  afw-hub-weu: { kind: firewall, icon: shield, label: afw-hub-weu, in: AzureFirewallSubnet, model: Azure Firewall Premium, ip: 10.0.0.68, tier: access, tags: [expressroute, vpn] }
+  ergw-hub: { kind: cloud-gateway, label: ergw-hub, in: GatewaySubnet, model: ErGw1AZ, tags: [expressroute] }
+  vpng-hub: { kind: vpn-gateway, label: vpng-hub, in: GatewaySubnet, model: VpnGw2AZ · AS 65515, tags: [vpn] }
+  afw-hub: { kind: firewall, icon: shield, label: afw-hub, in: AzureFirewallSubnet, model: Azure Firewall Premium, ip: 10.0.0.68, tier: access, tags: [expressroute, vpn] }
 
   vmss-erp-prod: { kind: server, icon: server-cog, label: vmss-erp-prod, in: vnet-erp-prod, model: VM scale set, tier: access, tags: [expressroute, vpn] }
   vmss-intranet-prod: { kind: server, icon: server-cog, label: vmss-intranet-prod, in: vnet-intranet-prod, model: VM scale set, tier: access, tags: [expressroute, vpn] }
@@ -43,14 +43,14 @@ edges:
   - dc01 -- rtr-ams: { speed: 10G, count: 2 }
   # Primary: ExpressRoute, two links to the Microsoft edge (primary and secondary)
   - rtr-ams -- msee: { style: circuit, label: eBGP ×2 }
-  - msee -- ergw-hub-weu: { style: circuit, label: private peering }
+  - msee -- ergw-hub: { style: circuit, label: private peering }
   # Failover: IPsec over the internet, BGP with AS-path prepending
-  - rtr-ams -- vpng-hub-weu: { style: vpn, label: IPsec · BGP }
+  - rtr-ams -- vpng-hub: { style: vpn, label: IPsec · BGP }
   # Inside Azure: the gateways hand everything to the firewall, which forwards over the peerings
-  - ergw-hub-weu -- afw-hub-weu
-  - vpng-hub-weu -- afw-hub-weu
-  - afw-hub-weu -- vmss-erp-prod: { style: peering }
-  - afw-hub-weu -- vmss-intranet-prod: { style: peering }
+  - ergw-hub -- afw-hub
+  - vpng-hub -- afw-hub
+  - afw-hub -- vmss-erp-prod: { style: peering }
+  - afw-hub -- vmss-intranet-prod: { style: peering }
 
 layers:
   expressroute:
@@ -67,11 +67,11 @@ steps:
     caption: Two ways from the data centre into the Azure hub, both through the hub firewall.
   - title: Normal operation
     caption: Traffic takes ExpressRoute. Azure prefers it over the VPN for the same prefix; so does the DC router.
-    path: dc01 -> rtr-ams -> msee -> ergw-hub-weu -> afw-hub-weu -> vmss-erp-prod
+    path: dc01 -> rtr-ams -> msee -> ergw-hub -> afw-hub -> vmss-erp-prod
   - title: Circuit down
     caption: BFD notices within a second and BGP withdraws the ExpressRoute routes. The VPN takes over.
-    path: rtr-ams -> vpng-hub-weu -> afw-hub-weu
+    path: rtr-ams -> vpng-hub -> afw-hub
     note: { msee: Down }
   - title: Spokes stay put
     caption: Spoke route tables (gateway routes off) send 0.0.0.0/0 to the firewall, so a failover does not touch them.
-    focus: [afw-hub-weu, vmss-erp-prod, vmss-intranet-prod]
+    focus: [afw-hub, vmss-erp-prod, vmss-intranet-prod]

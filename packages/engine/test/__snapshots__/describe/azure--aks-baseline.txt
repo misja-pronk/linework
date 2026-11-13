@@ -18,7 +18,7 @@ Groups and elements
     - id-orders-prod (Workload identity)
     - kv-orders-prod (RBAC · CSI driver)
     - crordersprod (Premium · private)
-- afw-hub-weu (Azure Firewall Premium · 10.0.0.68)
+- afw-hub (Premium · 10.0.0.68)
 
 Connections
 - agw-orders-prod connects to traefik (Private network).
@@ -26,7 +26,7 @@ Connections
 - orders-api signs in with id-orders-prod and connects to pep-kv-orders-prod (Private network: secrets).
 - id-orders-prod is Key Vault Secrets User on kv-orders-prod.
 - pep-kv-orders-prod connects to kv-orders-prod (Private network).
-- aks-orders-prod connects to pep-cr-orders-prod (Private network: image pull) and connects to afw-hub-weu (Private network: egress · UDR).
+- aks-orders-prod connects to pep-cr-orders-prod (Private network: image pull) and connects to afw-hub (Private network: egress · UDR).
 - pep-cr-orders-prod connects to crordersprod (Private network).
 
 Walkthrough

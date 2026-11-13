@@ -90,7 +90,7 @@ try {
   }
   // A card dragged out of its subnet: the drawing in view after the drop and after ⌘Z.
   {
-    await drag('afw-hub-weu', 0, 200);
+    await drag('afw-hub', 0, 200);
     if (await outOfPane()) fail(`after dragging the firewall out of its subnet the drawing runs ${await outOfPane()} px out of view`);
     await page.screenshot({ path: `${out}/follows-out-of-group.png` });
     await undo();
