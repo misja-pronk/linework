@@ -63,10 +63,12 @@ export function size(graph: Graph, theme: Theme): Sized {
     }
   }
 
-  const edgeLabels = new Map<string, { width: number; height: number }>();
+  const edgeLabels = new Map<string, { width: number; height: number; aside?: number }>();
   for (const e of graph.edges)
-    if (e.label || e.step || e.marks?.length || e.ends)
-      edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0) + (e.marks?.length ? tagsWidth(e.marks) + TAG.GAP : 0) + 2 * endsRoom(e.ends), height: 20 });
+    if (e.label || e.step || e.marks?.length || e.ends) {
+      const aside = 2 * endsRoom(e.ends);
+      edgeLabels.set(e.id, { width: (e.label ? edgeLabelWidth(e.label, theme) + labelPad(theme) + (e.icon ? LABEL_ICON : 0) : 4) + (e.step ? STEP_ROOM : 0) + (e.marks?.length ? tagsWidth(e.marks) + TAG.GAP : 0) + aside, height: 20, ...(aside ? { aside } : {}) });
+    }
 
   const groupMinWidth = new Map<string, number>();
   // A lane's name stands in a header at its start: that header's width is what it needs.

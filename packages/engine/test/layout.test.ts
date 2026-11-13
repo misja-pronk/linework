@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LayoutMemory } from '@cartography/core';
 import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, touchedLabels, type RouteRequest } from '@cartography/layout';
+import { endsRoom } from '@cartography/render';
 import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, budget, race, timed } from './perf.ts';
 
@@ -339,6 +340,23 @@ describe('layout quality', () => {
       const r = await render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
       expect(touchedLabels(r.graph!, r.placed!)).toEqual([]);
       expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+    }
+  });
+  it('puts the words of a label beside a line next to it, whatever room the line keeps for its end tags', async () => {
+    const r = await render(fs.readFileSync(path.join(examples, 'context-map/e-commerce.yaml'), 'utf8'), { fonts: 'none' });
+    for (const e of r.graph!.edges) {
+      const pe = r.placed!.edges.get(e.id)!;
+      const aside = 2 * endsRoom(e.ends);
+      if (!pe.label || !e.label) continue;
+      // The words, as drawn: the box less the room for the end tags, half each side.
+      const w = { x: pe.label.x + aside / 2, y: pe.label.y, width: pe.label.width - aside, height: pe.label.height };
+      const gap = Math.min(...pe.points.slice(1).map((q, i) => {
+        const p = pe.points[i]!;
+        const dx = Math.max(w.x - Math.max(p.x, q.x), Math.min(p.x, q.x) - (w.x + w.width), 0);
+        const dy = Math.max(w.y - Math.max(p.y, q.y), Math.min(p.y, q.y) - (w.y + w.height), 0);
+        return Math.hypot(dx, dy);
+      }));
+      expect(gap).toBeLessThanOrEqual(6);
     }
   });
   it('keeps a label on the middle of its piece of line rather than over the bend at its end', () => {

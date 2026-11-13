@@ -28,7 +28,8 @@ export interface RouteRequest {
   id: string;
   from: RouteEnd;
   to: RouteEnd;
-  label?: { width: number; height: number };
+  /** The label's box; `aside` of its width is room for end tags, not words (Sized.edgeLabels). */
+  label?: { width: number; height: number; aside?: number };
   /** Lower routes first and gets the best paths. */
   order?: number;
   /**
@@ -1267,6 +1268,8 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     if (!e.label || !route) continue;
     own = new Set([e.id]);
     const { width, height } = e.label;
+    // Room for end tags around words; a label of tags alone (no words) is placed as one box.
+    const aside = e.label.aside && e.label.width - e.label.aside >= 16 ? e.label.aside : 0;
     const pts = route.points;
     // A line back to its own node: outside the loop, where it covers neither the node nor the arrowhead.
     if (e.from.node === e.to.node && pts.length === 4) {
@@ -1315,7 +1318,7 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
             const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
             const covers = horizontal && alone && len < width + 28 ? 100 : 0;
             // Words across a vertical line read as struck through: a short label may sit on it, a long one goes beside it.
-            const struck = horizontal ? 0 : Math.max(0, width - STRUCK) * 0.5;
+            const struck = horizontal ? 0 : Math.max(0, width - aside - STRUCK) * 0.5;
             found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + hangs + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
           }
           // Above or below a horizontal line too short for a pill on it (a short hop between layers),
@@ -1328,11 +1331,14 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
               found.push({ box, score: (short ? 95 : 110) + middle * 10 + Math.abs(t - 0.5) * 40 + (side > 0 ? 5 : 0) + hits(box) });
             }
           // Beside a vertical line, when it is too short or crowded for a pill on it.
+          // Only the words stand beside it: the room for end tags (aside) is half each side of them, so the box reaches over the line.
           if (!horizontal && len >= height + 8)
             for (const side of [1, -1]) {
-              const x = side > 0 ? c.x + 3 : c.x - 3 - width;
-              const box = { x, y: c.y - height / 2, width, height };
-              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + hits(box) });
+              const words = { x: side > 0 ? c.x + 3 : c.x - 3 - (width - aside), y: c.y - height / 2, width: width - aside, height };
+              const box = { ...words, x: words.x - aside / 2, width };
+              // The whole box still keeps off cards and other labels: it is what the drawing measures.
+              const covers = aside && taken.some((q) => overlap(box, q)) ? 1000 : 0;
+              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + Math.max(hits(words), covers) });
             }
         }
       });
