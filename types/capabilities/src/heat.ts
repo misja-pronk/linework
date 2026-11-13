@@ -203,7 +203,9 @@ export function heatScale(entry: HeatEntry, values: unknown[], word: Word = engl
   const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(n), tone, text });
   const label = (i: number, s: string) => (e.count ? word(e.count, { count: s }) : i === 0 ? `${title}: ${s}` : s);
   if (e.labels && Object.keys(e.labels).length) {
-    const keys = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    // Only the values on the map: a level no capability has is not in the key (the colours stay those of the whole scale).
+    const all = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    const keys = found.length && all.some((k) => found.includes(k)) ? all.filter((k) => found.includes(k)) : all;
     keys.forEach((k, i) => legend.push({ label: label(i, `${short(k)} ${e.labels![String(k)]}`), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } }));
   } else if (whole && found.length) {
     for (let k = lo, i = 0; k <= hi; k++, i++) legend.push({ label: label(i, String(k)), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } });

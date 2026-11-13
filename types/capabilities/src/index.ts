@@ -353,7 +353,7 @@ capabilities:
   refKeys: { parent: ['capabilities'] },
   views(src, word = english) {
     // The first heat is what the file draws by default. Its scale's title is a word of the type's (Maturity) or the key as written.
-    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: word('Map') }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: word('Heatmap: {scale}', { scale: word(heatScale(h, []).title) }), ...(i ? {} : { default: true }) }))];
+    const out: { name: string; title: string; default?: boolean }[] = [{ name: 'map', title: word('Capabilities by area') }, ...heats(src.heat).map((h, i) => ({ name: h.by, title: word('Heatmap: {scale}', { scale: word(heatScale(h, []).title) }), ...(i ? {} : { default: true }) }))];
     const any = (map: Record<string, Entry> | undefined): boolean => JSON.stringify(map ?? {}).includes('"systems"');
     if (any(src.capabilities) && !out.some((v) => v.name === 'systems')) out.push({ name: 'systems', title: word('Supporting systems') });
     return out.length > 1 ? out : [];
