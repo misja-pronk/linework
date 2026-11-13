@@ -1,6 +1,6 @@
 type: sequence
 title: Managed identity, service to service
-subtitle: "Northwind Orders API on App Service reaches Key Vault, Storage and SQL without a single secret in its configuration"
+subtitle: "Northwind Orders API · on App Service it reaches Key Vault, Storage and SQL without a single secret in its configuration"
 autonumber: true
 
 # The app and the endpoint it asks for tokens run together in the App Service
@@ -13,8 +13,8 @@ participants:
   idep: { kind: gateway, label: Identity endpoint, caption: IDENTITY_ENDPOINT, box: appservice }
   entra: { kind: identity, label: Microsoft Entra ID }
   kv: { kind: key-vault, label: Key Vault, caption: kv-orders-prod }
-  blob: { kind: storage, label: Storage account, caption: stordersexport }
-  sql: { kind: database, label: Azure SQL, caption: sqldb-orders }
+  blob: { kind: storage, label: Storage account, caption: stordersprod }
+  sql: { kind: database, label: Azure SQL, caption: sqldb-orders-prod }
 
 messages:
   - divider: Key Vault
@@ -22,17 +22,19 @@ messages:
   - app -> idep: Token for vault.azure.net
   - idep -> entra: Token request as the managed identity
   - entra --> idep: Access token, aud vault.azure.net
-  - idep --> app: Access token, cached until it expires
+  - idep --> app: Access token; the SDK caches it
   - app -> kv: Get secret orders-signing-key
   # Azure RBAC on the vault: without a role that allows the data action the answer is 403.
   - kv -> kv: "RBAC: Key Vault Secrets User?"
   - kv --> app: Secret value
   # The same for every resource, each with a token for its own audience.
   - divider: Storage and SQL
+  - note: "Tokens as for Key Vault: one per audience"
+    over: [app, entra]
   - app -> blob: Put blob, token for storage.azure.com
   - blob --> app: "201 Created (role: Storage Blob Data Contributor)"
   # SQL does not use Azure RBAC for data: the identity is a contained database user with database roles.
-  - app -> sql: Connect, token for database.windows.net
+  - app -> sql: Connect to sql-orders-prod, token for database.windows.net
   - sql --> app: "Rows (database user app-orders-prod, db_datareader)"
-  - note: "No password, key or connection string in the app: nothing to leak or rotate"
+  - note: "No password, key or secret in any connection string: nothing to leak or rotate"
     over: [blob, sql]
