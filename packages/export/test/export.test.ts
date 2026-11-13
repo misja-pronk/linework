@@ -430,7 +430,8 @@ describe('steps', () => {
       await toPptx(r, { steps, onSlide: (s) => seen.push(s.scale) });
       return seen;
     };
-    // A wide drawing with a subtitle: the step takes the subtitle's place, one line, and the drawing is as large as without steps.
+    // A wide drawing with a subtitle short enough to stand on the title's row: it does, the step under it,
+    // one line, and the drawing is as large as without steps.
     const wide = await draw('network/hybrid-cloud.yaml');
     const slide = parts(await toPptx({ ...wide, step: 3 })).text('ppt/slides/slide1.xml');
     const [, titleY, , titleH] = at(slide, 'Title')!;
@@ -438,6 +439,14 @@ describe('steps', () => {
     expect(captionY).toBe(titleY! + titleH!);
     expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
     expect(slide).not.toContain('name="Subtitle"');
+    expect(/name="Title"[^]*?<\/p:sp>/.exec(slide)![0]).toContain(`<a:t>${wide.graph!.subtitle!}</a:t>`);
+    // A subtitle too long for that keeps its own row under the title, and the step goes under it.
+    const long = await draw('azure/app-landing-zone.yaml');
+    const longSlide = parts(await toPptx({ ...long, step: 2 })).text('ppt/slides/slide1.xml');
+    const [, subY, , subH] = at(longSlide, 'Subtitle')!;
+    expect(subY).toBe(titleY! + titleH!);
+    expect(longSlide).toContain(`<a:t>${long.graph!.subtitle!}</a:t>`);
+    expect(at(longSlide, 'Step caption')![1]).toBe(subY! + subH!);
     expect(at(slide, 'Step number')![1]).toBe(titleY);
     // The caption wraps in its box, as its rows were planned, with no indent a template's text style would hang its second line on.
     expect(/name="Step caption"[^]*?<a:bodyPr wrap="(\w+)"/.exec(slide)![1]).toBe('square');
