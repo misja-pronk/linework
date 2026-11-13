@@ -21,10 +21,10 @@ In order, top to bottom.
   - 4. Invoicing replies to order-events: Complete.
 - And: Subscription warehouse
   - 5. order-events sends to Warehouse: OrderPlaced (peek-lock).
-  - 6. Warehouse replies to order-events: Abandon, stock service down.
+  - 6. Warehouse replies to order-events: Abandon, stock is down.
   - 7. order-events sends to Warehouse: Redelivered, DeliveryCount 2 to 10.
   - 8. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
-- 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
+- 9. Azure Monitor sends to Operations: Alert: dead-lettered.
 - 10. Operations sends to order-events: Fix the cause, resubmit.
 
 Key

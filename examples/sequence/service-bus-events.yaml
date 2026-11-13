@@ -29,12 +29,12 @@ messages:
     and:
       Subscription warehouse:
         - topic ->> warehouse: OrderPlaced (peek-lock)
-        - warehouse -->> topic: Abandon, stock service down
+        - warehouse -->> topic: Abandon, stock is down
         - topic ->> warehouse: Redelivered, DeliveryCount 2 to 10
         # MaxDeliveryCount is 10 on this subscription.
         - topic ->> dlq: "10th try failed: dead-lettered"
   # An Azure Monitor alert on the DeadletteredMessages metric of the subscription.
-  - monitor ->> ops: "Alert: dead-lettered > 0"
+  - monitor ->> ops: "Alert: dead-lettered"
   # Resubmitted to the topic, the message reaches every subscription again: the MessageId check in
   # the handlers absorbs the second copy (and the topic's duplicate detection drops it within its window,
   # so a resubmit after that window, or with a new MessageId, is what gets through).
