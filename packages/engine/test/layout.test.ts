@@ -172,7 +172,7 @@ const jogBudget: Record<string, number> = {
   'mindmap/capability-brainstorm.yaml': 86,
   'mindmap/workshop-agenda.yaml': 72,
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
-  'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
+  'states/device-connection.yaml': 1, // returns to Idle share its side
   'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
   'states/pull-request.yaml': 1, // the return from Changes requested steps into Awaiting review's side
   'systems/data-pipeline.yaml': 1, // two lines into one side
@@ -223,7 +223,6 @@ const touchBudget: Record<string, number> = {
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
-  'states/device-connection.yaml': 1,
   'systems/invoice-walkthrough.yaml': 1,
   'systems/web-shop.yaml': 1,
   'workspace/containers.yaml#payments': 1,
@@ -755,6 +754,31 @@ describe('crowded sides', () => {
     expect(through.length).toBeLessThanOrEqual(4);
     for (let i = 1; i < through.length; i++) expect(through[i]! - through[i - 1]!).toBeGreaterThanOrEqual(16);
     expect(labelMetrics(r.graph!, r.placed!).labelTouching).toBe(0);
+  });
+});
+
+describe('lines back and names under shapes', () => {
+  const drawn = (file: string) => render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+  it('take the side with fewer bends for a line back to an earlier layer: gold goes down to the warehouse', async () => {
+    // Out of gold's left side it ran back under the line in from silver, then down: one bend more for the flow's sake.
+    const r = await drawn('azure/data-platform.yaml');
+    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sqlwh')!.id;
+    const [a, b] = r.placed!.edges.get(id)!.points;
+    expect(a!.x).toBe(b!.x);
+    expect(b!.y).toBeGreaterThan(a!.y);
+  });
+  it('never run a line through the name written under a choice', async () => {
+    for (const file of fs.readdirSync(path.join(examples, 'states')).map((f) => `states/${f}`)) {
+      const r = await drawn(file);
+      for (const n of r.graph!.nodes.filter((n) => n.shape.kind === 'flow' && n.shape.mark === 'choice')) {
+        const b = r.placed!.nodes.get(n.id)!;
+        // The question stands under the diamond, centred (render/flow.ts).
+        const name = { x0: b.x + b.width / 2 - 20, x1: b.x + b.width / 2 + 20, y0: b.y + b.height + 6, y1: b.y + b.height + 18 };
+        for (const e of r.placed!.edges.values())
+          for (const [p, q] of e.points.slice(1).map((q, i) => [e.points[i]!, q] as const))
+            expect(Math.max(p.x, q.x) > name.x0 && Math.min(p.x, q.x) < name.x1 && Math.max(p.y, q.y) > name.y0 && Math.min(p.y, q.y) < name.y1, `${file} ${n.id}`).toBe(false);
+      }
+    }
   });
 });
 

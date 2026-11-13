@@ -434,6 +434,9 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // Into a later layer (the other end wholly further along the flow), a line leaves and enters
     // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
     const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
+    // Back to an earlier layer, a line runs against the flow whichever side it takes: the flow is no
+    // reason to leave along it, and an end on the side the line before came in at turns back on itself.
+    const back = input.direction === 'right' ? e.to.box.x + e.to.box.width < e.from.box.x - 24 : e.to.box.y + e.to.box.height < e.from.box.y - 24;
     // A line that runs mostly across the flow (to a card far below, in a left-to-right drawing) and not
     // on to a later layer leaves and enters across it: out of the side along the flow it would start
     // right beside where the line before it came in, and read as that line running on.
@@ -443,7 +446,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // right beside that one's end: the two read as one line running on through the card.
     const meets = (pair: [Side, Side]) => (ins.get(`${e.from.node}:${pair[0]}`) ?? 0) + (outs.get(`${e.to.node}:${pair[1]}`) ?? 0);
     for (const pair of list) {
-      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + crammed(e, 'from', pair[0]) + crammed(e, 'to', pair[1]) + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
+      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + crammed(e, 'from', pair[0]) + crammed(e, 'to', pair[1]) + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : back ? 0 : 25));
       // Only a way cheaper than the best so far is worth finding.
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
       if (!found) continue;

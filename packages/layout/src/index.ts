@@ -908,8 +908,13 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     // As drawn (svg.ts): icon at x + 16, label and kind after it, centred 22px below the top.
     return [titleBox(b, w)];
   });
+  // A name drawn under its shape (a choice's question, a gateway's): lines keep off it as off a title, and so do labels.
+  const names = [...p.nodes].flatMap(([id, b]) => {
+    const l = sized.nodes.get(id)?.label;
+    return l ? [{ x: b.x + b.width / 2 - l.width / 2 - 4, y: b.y + b.height + 3, width: l.width + 8, height: l.height + 4 }] : [];
+  });
   const groups = graph.groups.flatMap((g) => (p.groups.has(g.id) ? [{ id: g.id, box: p.groups.get(g.id)!, parent: g.parent }] : []));
-  return routeEdges({ obstacles: p.nodes, soft, labelZones, texts, groups, header: sized.groupHeader, direction: graph.direction, edges });
+  return routeEdges({ obstacles: p.nodes, soft, labelZones: [...labelZones, ...names], texts: [...texts, ...names], groups, header: sized.groupHeader, direction: graph.direction, edges });
 }
 
 /** Where a group's title is written, with a little air: `minWidth` is the title's width plus the room size.ts keeps around it. */
