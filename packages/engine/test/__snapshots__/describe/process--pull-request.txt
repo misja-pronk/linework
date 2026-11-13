@@ -1,11 +1,11 @@
 Pull request to main
 
-Process diagram: Northwind Orders API, part 1 of 2: nothing reaches main without green checks and a reviewer's approval. 10 elements in 4 lanes, with 11 connections.
+Process diagram: Northwind Orders API · part 1 of 2: nothing reaches main without green checks and a reviewer's approval. 10 elements in 4 lanes, with 11 connections.
 
 Lanes and steps
 - Developer (lane)
   - Push to a branch (feature/order-export)
-  - Open pull request (code owners requested)
+  - Open pull request (ready for review)
   - Fix what failed
   - Address feedback
 - Actions (lane)
@@ -41,7 +41,7 @@ Connections
 
 Walkthrough
 1. The change: A developer pushes a short-lived branch and opens a pull request; GitHub asks the code owners to review.
-2. Required checks: GitHub Actions builds, tests, lints and scans the change. Branch protection will not merge it while one is red.
+2. Required checks: GitHub Actions builds, tests, lints and scans the change. The ruleset on main will not merge it while one is red.
 3. A failing check: A red check goes back to the developer; the next push runs every check again.
 4. Waiting for review: Here the change waits for a person. Often the longest stop on the way to production.
 5. Changes requested: The reviewer asks for changes; the fix is pushed to the same branch, and checks and review run again.

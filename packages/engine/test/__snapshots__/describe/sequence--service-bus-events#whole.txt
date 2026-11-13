@@ -1,6 +1,6 @@
 Events through Service Bus
 
-Sequence, whole sequence: Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 7 participants and 12 messages.
+Sequence, whole sequence: Northwind orders · one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 7 participants and 17 messages.
 
 Participants
 - Orders API (App Service)
@@ -18,18 +18,23 @@ In order, top to bottom.
 - 1. Orders API sends to order-events: OrderPlaced, MessageId = order id.
 - In parallel: Subscription invoicing
   - 2. order-events sends to Invoicing: OrderPlaced (peek-lock).
-  - 3. Invoicing does: Invoice, unless MessageId seen.
+  - 3. Invoicing does: Invoice, unless order id seen.
   - 4. Invoicing replies to order-events: Complete.
 - And: Subscription warehouse
   - 5. order-events sends to Warehouse: OrderPlaced (peek-lock).
-  - 6. Warehouse replies to order-events: Abandon, stock service down.
-  - 7. order-events sends to Warehouse: Redelivered, DeliveryCount 2 to 10.
-  - 8. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
+  - 6. Warehouse does: Stock down, retry with backoff.
+  - 7. Warehouse replies to order-events: Abandon.
+  - 8. order-events sends to Warehouse: Redelivered, DeliveryCount 2 to 10.
+  - 9. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
 - Dead-lettered and resubmitted:
-- 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
-- 10. Operations calls Dead-letter queue: Peek the dead-lettered message.
-- 11. Dead-letter queue replies to Operations: OrderPlaced, reason: MaxDeliveryCountExceeded.
-- 12. Operations sends to order-events: Fix the cause, resubmit.
+- 10. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
+- 11. Operations calls Dead-letter queue: Peek the dead-lettered message.
+- 12. Dead-letter queue replies to Operations: OrderPlaced, reason: MaxDeliveryCountExceeded.
+- 13. Operations sends to order-events: Fix the cause, resubmit with a new MessageId.
+- 14. order-events sends to Invoicing: OrderPlaced again.
+- 15. Invoicing replies to order-events: Complete, invoiced already.
+- 16. order-events sends to Warehouse: OrderPlaced again.
+- 17. Warehouse replies to order-events: Complete, stock reserved.
 
 Key
 - Arrow with a filled head: Call

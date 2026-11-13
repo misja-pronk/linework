@@ -1,4 +1,4 @@
-Northwind data mesh
+Data mesh
 
 Data products, supply chain in detail: Supply chain in detail. 5 elements in 1 group, with 4 connections.
 

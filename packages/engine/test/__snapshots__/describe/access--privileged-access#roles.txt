@@ -1,15 +1,15 @@
-Northwind privileged access
+Privileged access
 
 Roles, groups and access packages, roles × permissions: Roles × permissions. A table of 6 rows by 6 columns.
 
 By row (Role by permission)
-Columns: reset passwords, manage users, manage devices, manage security policies, assign roles and PIM and everything else.
+Columns: reset passwords, manage users, manage mail, manage sites, assign roles and PIM and everything else.
 - Helpdesk Administrator: reset passwords: yes
 - User Administrator (includes Helpdesk Administrator): reset passwords: yes, inherited; manage users: yes
-- Intune Administrator: manage devices: yes
-- Security Administrator: manage security policies: yes
+- Exchange Administrator: manage mail: yes
+- SharePoint Administrator: manage sites: yes
 - Privileged Role Administrator: assign roles and PIM: yes
-- Global Administrator (includes Privileged Role Administrator, Security Administrator, Intune Administrator, User Administrator): reset passwords: yes, inherited; manage users: yes, inherited; manage devices: yes, inherited; manage security policies: yes, inherited; assign roles and PIM: yes, inherited; everything else: yes
+- Global Administrator (includes Privileged Role Administrator, Exchange Administrator, SharePoint Administrator, User Administrator): reset passwords: yes, inherited; manage users: yes, inherited; manage mail: yes, inherited; manage sites: yes, inherited; assign roles and PIM: yes, inherited; everything else: yes
 
 Layers
 Ways to look at this drawing by tag.

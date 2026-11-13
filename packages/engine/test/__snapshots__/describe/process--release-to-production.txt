@@ -1,6 +1,6 @@
 Release to production
 
-Process diagram: Northwind Orders API, part 2 of 2: one build goes through dev and test, and a person opens the gate to production. 13 elements in 4 lanes, with 12 connections.
+Process diagram: Northwind Orders API · part 2 of 2: one build goes through dev and test, and a person opens the gate to production. 13 elements in 4 lanes, with 12 connections.
 
 Lanes and steps
 - GitHub (lane)
@@ -8,15 +8,15 @@ Lanes and steps
   - Waiting for approval (timer intermediate event)
 - Actions (lane)
   - Build once (one artifact for all stages)
-  - Integration tests
+  - Integration tests (a red test stops the run)
 - Azure (lane)
   - Deploy to dev (rg-orders-dev)
   - Deploy to test (rg-orders-test)
-  - Deploy to production (staging slot, then swap)
+  - Deploy to production (rg-orders-prod)
   - Healthy? (decision)
   - Live in production (end event)
   - Swap back
-  - Rolled back (error end event)
+  - Rolled back (end event)
 - Reviewer (lane)
   - Release approved? (decision)
   - Release stopped (end event)
@@ -50,7 +50,7 @@ Walkthrough
 2. Dev and test: The workflow signs in to Azure with OIDC, so GitHub holds no secret, and deploys to dev, then to test, where the integration tests run. A red test stops the run.
 3. The gate: The production environment has required reviewers. The run waits here until one of them approves.
 4. Production: The release goes to the staging slot, is warmed up and checked, and the slots are swapped.
-5. Roll back: Unhealthy after the swap? Swap back. The previous version is live again within a minute.
+5. Roll back: Unhealthy after the swap? Swap back. The previous version is live again within minutes.
 
 Key
 - Solid line, thick: Happy path
