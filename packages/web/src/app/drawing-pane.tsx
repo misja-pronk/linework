@@ -2,7 +2,7 @@
 // focus and layers chips and notes at the top, the toolbar at the bottom, the hint, the empty state, the
 // add popup), the comparison over it, and the steps strip under it.
 import './drawing-pane.css';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { AddMenu } from '../add-menu.tsx';
@@ -197,7 +197,7 @@ export function DrawingPane(p: Props) {
           <span className="zoom-room" aria-hidden="true" />
         </div>
         {p.hint && !adding && !p.modalOpen && (
-          <div className="hint" role="note">
+          <Hint>
             <span>
               {p.view === 'visual' ? (
                 <>
@@ -212,7 +212,7 @@ export function DrawingPane(p: Props) {
             <button className="icon-button small" onClick={p.dismissHint} aria-label={t('Dismiss hint')}>
               <Icon name="x" size={14} />
             </button>
-          </div>
+          </Hint>
         )}
         {empty && type && !adding && (
           <div className="canvas-empty">
@@ -259,5 +259,40 @@ export function DrawingPane(p: Props) {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * The first-visit hint, only where it is clear of the drawing (its step caption is in it, and the page
+ * when that is shown): over the drawing it would hide what it explains, so then it is not shown.
+ */
+function Hint({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [clear, setClear] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const pane = el?.parentElement;
+    if (!el || !pane) return;
+    const check = () => {
+      const h = el.getBoundingClientRect();
+      const over = [...pane.querySelectorAll('.drawing svg, .page-frame')].some((x) => {
+        const r = x.getBoundingClientRect();
+        return r.width > 0 && r.left < h.right && r.right > h.left && r.top < h.bottom && r.bottom > h.top;
+      });
+      setClear(!over);
+    };
+    check();
+    // Again whenever the drawing moves under it: a new drawing, a pan or zoom (and its glide), the pane.
+    const ro = new ResizeObserver(check);
+    ro.observe(pane);
+    const mo = new MutationObserver(check);
+    mo.observe(pane, { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
+    pane.addEventListener('transitionend', check);
+    return () => (ro.disconnect(), mo.disconnect(), pane.removeEventListener('transitionend', check));
+  }, []);
+  return (
+    <div className="hint" role="note" ref={ref} style={clear ? undefined : { visibility: 'hidden' }}>
+      {children}
+    </div>
   );
 }

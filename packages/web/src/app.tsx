@@ -53,6 +53,10 @@ export function App() {
   const modals = useModals(toasts.clear);
   const { modal, setModal } = modals;
   const document_ = useDocument(toasts.endUndoOffer);
+  // An edit: the first-visit hint has done its job.
+  useEffect(() => {
+    if (document_.dirty) prefs.acted();
+  }, [document_.dirty]); // eslint-disable-line react-hooks/exhaustive-deps -- on the first edit only
   const { text, doc, pins, docKey, editor, textNow } = document_;
   const workspace = useWorkspace();
   const { ws } = workspace;
@@ -65,6 +69,12 @@ export function App() {
   }, [theme, prefs.theme]);
   const navState = useNavigationState(docId);
   const { viewName, stepNo, focusAsked } = navState;
+  // The first-visit hint goes with the first thing done: an edit (for good), a view, a step, presenting (for this visit).
+  const looked = useRef(false);
+  useEffect(() => {
+    if (looked.current) prefs.hideHint();
+    looked.current = true;
+  }, [navState.picked, navState.stepAt, navState.presenting]); // eslint-disable-line react-hooks/exhaustive-deps -- on what is looked at changing only
   const side = useSidePanel();
   const [adding, setAdding] = useState(false);
   /** On narrow screens one pane shows at a time. */
@@ -108,7 +118,7 @@ export function App() {
   const disk = useDiskSync({ ws, setWs: workspace.setWs, document: document_, notify, show: side.askWith, served: live.served });
   const pinning = pinActions({ drawing, pins, editor, previewControl, selection, notify, acted: prefs.acted });
   const files = useFileIO({ document: document_, workspace, notify, ask: confirmer.ask, setSelected: selState.setSelected, closeModal: modals.closeModal, dropModal, setView: prefs.openView, focusDrawing, pinsToSave: pinning.pinsToSave });
-  const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify });
+  const exports = useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses: layering.options, drawing, safeSvg: prefs.safeSvg, notify, acted: prefs.hideHint });
   const edits = useEdits({ drawing, selection: selState, select: sel, pins: pinning, editor, textNow, notify, showInspector, closeAdding: () => setAdding(false) });
   const endSession = () => {
     session.end();

@@ -2,16 +2,30 @@
 // tools side by side with the YAML open, the menus within the window, the view picker saying the view
 // as V does, the palette's headings once each, a message moving clear of a chip that comes after it,
 // the drawing's title kept while the YAML has a mistake, and a blank sequence saying how to start.
+// Then what a demo runs into: presenting starts at once, the first-visit hint keeps off the drawing and
+// goes with the first thing done, a short message after a deck with small text, the views by their
+// titles, the steps given the strip's room, the drawing fitted again after the YAML closes, and a card
+// kept in its group by a short drag.
 // node e2e/projector.mjs <outDir>
+import fs from 'node:fs';
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, acceptDownloads: true });
 const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
 const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+// A diagram of the test's own (sessionStorage `seed`), opened as the editor keeps one between visits.
+await page.addInitScript(() => {
+  const next = sessionStorage.getItem('seed');
+  if (!next) return;
+  sessionStorage.removeItem('seed');
+  localStorage.clear();
+  const { text, name } = JSON.parse(next);
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+});
 /** A first visit, and the start card at that place opened (none: the start screen stays). */
 const cold = async (card) => {
   await page.goto(url);
@@ -126,6 +140,149 @@ await cold(0);
   await wait(900);
   if (!(await page.locator('.canvas-empty').isVisible())) fail('a blank sequence shows no way to start');
   await page.screenshot({ path: `${out}/projector-sequence.png` });
+}
+
+// 9. P shows the slide on screen at once, and the deck made after takes it over without a second frame.
+await cold(2);
+{
+  await page.locator('.preview').focus();
+  await page.evaluate(() => {
+    window.__added = 0;
+    window.__first = new Promise((ok) => {
+      const t0 = performance.now();
+      new MutationObserver((ms, o) => {
+        for (const m of ms) for (const n of m.addedNodes) if (n.classList?.contains('present-frame')) window.__added++;
+        if (document.querySelector('.present-frame svg') && !window.__at) (window.__at = performance.now() - t0), ok(window.__at), setTimeout(() => o.disconnect(), 2000);
+      }).observe(document.body, { subtree: true, childList: true });
+    });
+  });
+  await page.keyboard.press('p');
+  const ms = await page.evaluate(() => window.__first);
+  await wait(1500);
+  const added = await page.evaluate(() => window.__added);
+  const count = await page.locator('.present-count').innerText().catch(() => '');
+  console.log(`present: first slide after ${Math.round(ms)} ms`);
+  if (ms > 250) fail(`the first slide took ${Math.round(ms)} ms to show`);
+  if (added !== 1) fail(`presenting put ${added} frames up before the first step on, not one`);
+  if (!/^1 \/ \d+$/.test(count) || count === '1 / 1') fail(`the deck did not come in under the first slide: count "${count}"`);
+  await page.keyboard.press('ArrowRight');
+  await wait(600);
+  if (!(await page.locator('.present-count').innerText()).startsWith('2 /')) fail('→ did not go on after the first slide');
+  await page.keyboard.press('Escape');
+  await wait(400);
+}
+
+// 10. The first-visit hint: never over the drawing, and gone with the first thing done (here a step on).
+for (const card of [0, 2, 6]) {
+  await cold(card);
+  const over = await page.evaluate(() => {
+    const h = document.querySelector('.hint');
+    if (!h || getComputedStyle(h).visibility === 'hidden') return false;
+    const a = h.getBoundingClientRect();
+    return [...document.querySelectorAll('.drawing svg, .page-frame')].some((x) => {
+      const r = x.getBoundingClientRect();
+      return r.left < a.right && r.right > a.left && r.top < a.bottom && r.bottom > a.top;
+    });
+  });
+  if (over) fail(`card ${card}: the first-visit hint lies over the drawing`);
+}
+await cold(0);
+{
+  if (!(await page.locator('.hint').count())) fail('no first-visit hint on a first visit');
+  await page.locator('.preview').focus();
+  await page.keyboard.press(']');
+  await wait(400);
+  if (await page.locator('.hint').count()) fail('the first-visit hint stays after a step on');
+}
+
+// 11. The view picker says each view by its title, without its name in brackets.
+await cold(2);
+{
+  const said = await page.locator('.view-picker select option').allInnerTexts();
+  if (said.some((o) => /\(\w[\w-]*\)$/.test(o))) fail(`the view picker says names in brackets: ${said.join(' | ')}`);
+}
+
+// 12. The steps' keys come only while a step has the keyboard; until then the steps have the room.
+await page.setViewportSize({ width: 1440, height: 900 });
+await cold(0);
+{
+  if (await page.locator('.steps-keys').isVisible()) fail('the steps strip shows its keys without a step having the keyboard');
+  const cut = await page.evaluate(() => {
+    const row = document.querySelector('.steps-row').getBoundingClientRect();
+    return [...document.querySelectorAll('.steps-row .step-chip')].slice(0, 4).filter((c) => c.getBoundingClientRect().right > row.right + 1).length;
+  });
+  if (cut) fail(`${cut} of the first four step chips are cut off at 1440`);
+  await page.locator('.steps-row .step-chip').first().focus();
+  await page.keyboard.press('ArrowRight');
+  await wait(200);
+  if (!(await page.locator('.steps-keys').isVisible())) fail('a step has the keyboard, and the keys do not show');
+  const seen = await page.evaluate(() => {
+    const row = document.querySelector('.steps-row').getBoundingClientRect();
+    const c = document.activeElement.getBoundingClientRect();
+    return c.left >= row.left - 1 && c.right <= row.right + 1;
+  });
+  if (!seen) fail('the step with the keyboard is pushed out of view by the keys');
+  await page.screenshot({ path: `${out}/projector-steps-keys.png` });
+  await page.keyboard.press('Escape');
+}
+await page.setViewportSize({ width: 1280, height: 720 });
+
+// 13. A card dragged a short way in its subnet stays in it; after a shape is added and the YAML opened
+// and closed, the drawing is fitted again, whole in the canvas.
+await page.setViewportSize({ width: 1440, height: 900 });
+await cold(0);
+{
+  await page.locator('.preview').focus();
+  await page.keyboard.press('a');
+  await wait(300);
+  await page.keyboard.type('virtual machine');
+  await wait(200);
+  await page.keyboard.press('Enter');
+  await wait(800);
+  const vm = page.locator('.drawing [data-node="erp-vm"]');
+  const b = await vm.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(b.x + b.width / 2 + i * 8, b.y + b.height / 2 + i * 4);
+  await page.mouse.up();
+  await wait(800);
+  const inside = await page.locator('.inspector select').nth(1).inputValue().catch(() => '');
+  if (inside !== 'erp-app') fail(`a card dragged 80 px inside its subnet left it: now in "${inside}"`);
+  await page.screenshot({ path: `${out}/projector-drag.png` });
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+Backslash');
+  await wait(900);
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Meta+Backslash');
+  await wait(900);
+  const whole = await page.evaluate(() => {
+    const p = document.querySelector('.preview').getBoundingClientRect();
+    const s = document.querySelector('.drawing svg').getBoundingClientRect();
+    return s.left >= p.left - 2 && s.right <= p.right + 2 && s.top >= p.top - 2 && s.bottom <= p.bottom + 2;
+  });
+  if (!whole) fail('after the YAML opened and closed the drawing is not whole in the canvas');
+  await page.screenshot({ path: `${out}/projector-yaml-closed.png` });
+}
+await page.setViewportSize({ width: 1280, height: 720 });
+
+// 14. A deck with text under 6 pt: one short line in the usual tone, no list of every slide.
+{
+  const wide = `type: systems\ntitle: A long chain\nnodes:\n${Array.from({ length: 30 }, (_, i) => `  n${i}: { kind: service, label: Service number ${i} }`).join('\n')}\nedges:\n${Array.from({ length: 29 }, (_, i) => `  - n${i} -> n${i + 1}`).join('\n')}\n`;
+  await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text: wide, name: 'chain.yaml' }));
+  await page.reload();
+  await page.waitForSelector('.drawing svg', { timeout: 10000 });
+  await wait(600);
+  await page.click('button:has-text("Export")');
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('[role=menuitem]:has-text("PowerPoint")')]);
+  await download.saveAs(`${out}/projector-chain.pptx`);
+  await page.waitForFunction(() => /under 6 pt/.test(document.querySelector('.toast')?.textContent ?? ''), null, { timeout: 10000 }).catch(() => {});
+  const toast = page.locator('.toast');
+  const said = await toast.innerText().catch(() => '');
+  if (!/^\d+ slides? ha(s|ve) text under 6 pt \(smallest [\d.]+ pt\)\. Split into views or Tidy\.$/.test(said)) fail(`the small-text message reads "${said}"`);
+  if (await toast.evaluate((e) => e.classList.contains('error')).catch(() => true)) fail('the small-text message is shown as an error');
+  if (!(await page.locator('.drawing [data-node="n29"]').count())) fail('the long chain did not open');
+  await page.screenshot({ path: `${out}/projector-small-text.png` });
+  fs.rmSync(`${out}/projector-chain.pptx`, { force: true });
 }
 
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'projector OK');

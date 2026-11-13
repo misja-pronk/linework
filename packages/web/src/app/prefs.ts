@@ -59,6 +59,8 @@ export function usePrefs() {
   };
   /** The hint has done its job once something is built. */
   const acted = () => hint && dismissHint();
+  /** Something else done (a view, a step, presenting, an export): the hint goes for this visit. */
+  const hideHint = () => setHint(false);
   const [split, setSplit] = useState(() => Math.min(0.7, Math.max(0.2, Number(store.get('split')) || 0.4)));
   /** The file list and the YAML as people left them: open, or folded to a rail (pane-layout.ts). */
   const [filesPref, setFilesPrefState] = useState<'list' | 'rail'>(() => (store.get('files') === 'rail' ? 'rail' : 'list'));
@@ -82,6 +84,6 @@ export function usePrefs() {
   useEffect(() => store.set('theme', pref), [pref]);
   useEffect(() => store.set('split', split), [split]);
 
-  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
+  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, hideHint, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
 }
 export type Prefs = ReturnType<typeof usePrefs>;

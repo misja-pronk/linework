@@ -32,13 +32,15 @@ interface Props {
   drawing: Drawing;
   safeSvg: boolean;
   notify: Notify;
+  /** An export was asked for (the first-visit hint has done its job). */
+  acted(): void;
 }
 
-export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses, drawing, safeSvg, notify }: Props) {
+export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewName, stepNo, focusAsked, lenses, drawing, safeSvg, notify, acted }: Props) {
   const { result, drawn, drawnLayout } = drawing;
   const exportInput = () => ({ text: textNow(), theme, load, sidecar: pins, view: viewName, file: docFile, previous: drawnLayout, step: stepNo, focus: focusAsked, ...lenses });
   const attempt = (what: string, run: () => Promise<void>) => () =>
-    void run().catch((e: unknown) => notify(t('{what} failed: {error}', { what, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
+    void (acted(), run()).catch((e: unknown) => notify(t('{what} failed: {error}', { what, error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
   const saveLayout = () => pins && download(`${baseName(doc.name)}.layout.json`, JSON.stringify(pins, null, 2) + '\n', 'application/json');
   // SVG for Office: the same drawing without what PowerPoint and Word drop. The choice is remembered.
   const svgNow = () => (safeSvg ? exportSafeSvg(exportInput()) : exportSvg(exportInput()));
@@ -62,13 +64,13 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
       const { blob, small, warnings, scroll } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read, withoutScroll });
       download(`${baseName(doc.name)}.pptx`, blob);
       // Every slide is checked for text too small to read from the back of a room.
-      const smallSaid = small.length ? t('{count} slide with text under {min} pt ({list}): split into views, or Tidy for the page|{count} slides with text under {min} pt ({list}): split into views, or Tidy for the page', { count: small.length, min: SLIDE_MIN_PT, list: small.map((x) => t('slide {n}: {pt} pt', { n: x.slide, pt: x.smallestPt })).join(', ') }) : '';
+      const smallSaid = small.length ? t('{count} slide has text under {min} pt (smallest {pt} pt). Split into views or Tidy.|{count} slides have text under {min} pt (smallest {pt} pt). Split into views or Tidy.', { count: small.length, min: SLIDE_MIN_PT, pt: Math.min(...small.map((x) => x.smallestPt)) }) : '';
       if (scroll) {
         const said = scrollSaid('slide', scroll.slides, scroll.by, pptxNow(true));
-        return notify(smallSaid ? `${said.message}. ${smallSaid}` : said.message, { action: said.action, ...(smallSaid ? { tone: 'error' as const } : {}) });
+        return notify(smallSaid ? `${said.message}. ${smallSaid}` : said.message, { action: said.action });
       }
       if (warnings.length && !small.length) notify(warnings.length > 1 ? t('In the template: {warning} (and {count} more)', { warning: warnings[0]!, count: warnings.length - 1 }) : t('In the template: {warning}', { warning: warnings[0]! }));
-      if (smallSaid) notify(smallSaid, { tone: 'error' });
+      if (smallSaid) notify(smallSaid);
     });
   const savePptx = pptxNow();
   const pageName = (result?.page ?? drawn?.page)?.name ?? t('16:9 slide');

@@ -54,7 +54,8 @@ export function ViewPicker({ drawn, onChange }: ViewPickerProps) {
         {c.asWritten && <option value="">{t('As written')}</option>}
         {c.views.map((v) => (
           <option key={v.name} value={v.name}>
-            {v.title ? `${v.title} (${v.name})` : v.name}
+            {/* The view's name in brackets only where two views share a title, to tell them apart. */}
+            {v.title ? (c.views.some((o) => o !== v && o.title === v.title) ? `${v.title} (${v.name})` : v.title) : v.name}
           </option>
         ))}
       </select>

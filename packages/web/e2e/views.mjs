@@ -35,6 +35,8 @@ const picked = () => page.evaluate(() => {
   return s ? s.options[s.selectedIndex]?.textContent ?? '' : '';
 });
 const options = () => page.evaluate(() => [...document.querySelectorAll('.view-picker select option')].map((o) => o.textContent));
+/** The picker's views as `name: what it says`, for the views named. */
+const offered = (...names) => page.evaluate((names) => [...document.querySelectorAll('.view-picker select option')].filter((o) => names.includes(o.value)).map((o) => `${o.value}: ${o.textContent}`), names);
 const toast = async () => {
   await page.waitForSelector('.toast', { timeout: 20000 });
   return (await page.locator('.toast').innerText()).replace(/\s+/g, ' ').trim();
@@ -176,7 +178,9 @@ await open(mesh, 'mesh.yaml');
   const now = await picked();
   if (!/detailed/i.test(now) || /overview/i.test(now)) fail(`the view picker shows ${JSON.stringify(now)} for a mesh drawn as view: detailed`);
   const list = await options();
-  if (list.filter((o) => /\(detailed\)/.test(o)).length !== 1) fail(`the hidden view should be listed once while drawn: ${JSON.stringify(list)}`);
+  if ((await offered('detailed')).length !== 1) fail(`the hidden view should be listed once while drawn: ${JSON.stringify(list)}`);
+  // A view's name is not said next to its title: no two views here share one.
+  if (list.some((o) => /\(\w+\)$/.test(o))) fail(`the picker says a view's name in brackets: ${JSON.stringify(list)}`);
   await page.screenshot({ path: `${out}/views-hidden.png` });
   // Another view picked: the hidden one is no longer offered, and the picker follows.
   await page.selectOption('.view-picker select', 'overview');
@@ -189,7 +193,7 @@ await open(mesh, 'mesh.yaml');
 await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
 {
   const list = await options();
-  check('picker of a Dutch mesh in an English editor', JSON.stringify(list.filter((o) => /\((overview|detailed)\)/.test(o))), JSON.stringify(['Overview (overview)', 'Every product in detail (detailed)']));
+  check('picker of a Dutch mesh in an English editor', JSON.stringify(await offered('overview', 'detailed')), JSON.stringify(['overview: Overview', 'detailed: Every product in detail']));
   if (list.some((o) => /Overzicht|Alle producten/.test(o))) fail(`the picker speaks the diagram's language: ${JSON.stringify(list)}`);
   await page.selectOption('.view-picker select', 'overview');
   await wait(600);
@@ -222,11 +226,10 @@ await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
     await wait(600);
   };
   await inDutch(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
-  const dutch = await options();
-  check('picker of a Dutch mesh in a Dutch editor', JSON.stringify(dutch.filter((o) => /\((overview|detailed)\)/.test(o))), JSON.stringify(['Overzicht (overview)', 'Alle producten in detail (detailed)']));
+  check('picker of a Dutch mesh in a Dutch editor', JSON.stringify(await offered('overview', 'detailed')), JSON.stringify(['overview: Overzicht', 'detailed: Alle producten in detail']));
   // An English mesh in the Dutch editor: Dutch names in the picker, the drawing in English.
   await inDutch(mesh, 'mesh.yaml');
-  check('picker of an English mesh in a Dutch editor', (await options()).includes('Overzicht (overview)'), true);
+  check('picker of an English mesh in a Dutch editor', (await offered('overview'))[0], 'overview: Overzicht');
   await page.selectOption('.view-picker select', 'overview');
   await wait(600);
   if (!(await page.locator('.drawing svg').first().innerHTML()).includes('Overview')) fail('the English drawing should keep its English subtitle in a Dutch editor');

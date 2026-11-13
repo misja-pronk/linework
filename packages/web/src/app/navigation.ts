@@ -33,7 +33,7 @@ export function useNavigationState(docId: string) {
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
   /** A step just made from the selection: the strip asks for its name. */
   const [naming, setNaming] = useState<number>();
-  return { docId, picked, setPicked, viewName, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming };
+  return { docId, picked, setPicked, viewName, stepAt, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming };
 }
 export type NavigationState = ReturnType<typeof useNavigationState>;
 
