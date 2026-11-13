@@ -34,7 +34,7 @@ A YAML file is a diagram when it has a top-level `type:` that names a diagram ty
 
 ## Present
 
-**Cartography: Present** (or **Present** in the preview's toolbar) opens the diagram on its own, the editor maximized: → / Space / Page Down for the next step, ← for the previous, Home / End, Esc to stop. The step's title and caption show under the drawing. `cartography.present.fullScreen` also turns VS Code full screen.
+**Cartography: Present** (or **Present** in the preview's toolbar) opens the diagram on its own, the editor maximized: → / Space / Page Down for the next step, ← for the previous, Home / End, Esc to stop. The step's title and caption show under the drawing, as in the web editor (on an exported PowerPoint slide they sit under the slide title). `cartography.present.fullScreen` also turns VS Code full screen.
 
 ## Your AI
 
