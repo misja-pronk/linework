@@ -51,7 +51,7 @@ const specific: Record<string, (type: DiagramType) => Question[]> = {
   kubernetes: (t) => [
     { ...about, label: 'Which workloads?', placeholder: 'E.g. a shop: web and API deployments behind an ingress, a worker, Postgres as a StatefulSet.' },
     parts(t, 'What should appear?', 'Pick what you know; the AI adds what is clearly missing.'),
-    { id: 'namespaces', label: 'Namespaces', kind: 'text', placeholder: 'shop, monitoring, ingress-nginx' },
+    { id: 'namespaces', label: 'Namespaces', kind: 'text', placeholder: 'shop, monitoring, traefik' },
     { id: 'traffic', label: 'How does traffic get in?', kind: 'choice', options: ['Ingress', 'Gateway API', 'LoadBalancer service', 'Internal only'], initial: 'Ingress' },
     { id: 'focus', label: 'Show', kind: 'choice', options: ['Traffic path', 'Config and storage too', 'Security (service accounts, network policies)'], initial: 'Traffic path' },
   ],
