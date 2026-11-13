@@ -18,6 +18,10 @@ export interface RouteEnd {
   rowY?: number;
   /** Straight piece at the end, room for the marker. */
   stub: number;
+  /** The innermost group holding the node (for a group, the one holding it): lines share a trunk only to cards that stand together. */
+  within?: string;
+  /** The mark drawn at this end (arrow, crow's foot): two different marks never share one row's port. */
+  mark?: string;
 }
 
 export interface RouteRequest {
@@ -96,6 +100,7 @@ const RING = 1; // per pixel of running that near a card (not on a sibling's tru
 const RUN_ON = 64; // a line starting this near another's end, on its track, reads as that line running on
 const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
 const RUN_ASIDE = 12; // a lane aside: nearer than this
+const MIXED = 4000; // a line onto a table row's side where another line ends in a different mark: around the table is better
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -298,7 +303,10 @@ function trunkGroups(input: RouterInput, sides: Map<string, [Side, Side]>): Map<
   const add = (key: string, id: string) => groups.set(key, [...(groups.get(key) ?? []), id]);
   // Lines with labels keep their own path: on a shared trunk a label could not say which line it names.
   const usable = input.edges.filter((e) => e.style && !e.label && e.from.node !== e.to.node);
-  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}`, e.id);
+  // Out of one side only to cards that stand together (in one group): a trunk to cards in different places would
+  // branch beside one of them and read as running on through it (resolver -> ruleset -> zones).
+  // A table row's port is one point whatever its lines share, so there a trunk stays the neater way.
+  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}|${e.from.rowY == null ? (e.to.within ?? '') : ''}`, e.id);
   const out = new Map<string, string>();
   for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
   groups.clear();
@@ -341,9 +349,15 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
   // Per node side, how many lines chosen so far come in there (ins) and go out there (outs).
   const ins = new Map<string, number>();
   const outs = new Map<string, number>();
+  // Per table row side, the marks drawn there so far: a row's port is one point, and two different
+  // marks on it (a crow's foot over a bar) say neither.
+  const rowMarks = new Map<string, Set<string>>();
+  const rowKey = (r: RouteEnd, side: Side) => `${r.node}:${r.rowY}:${side}`;
+  const clash = (r: RouteEnd, side: Side) => r.rowY != null && [...(rowMarks.get(rowKey(r, side)) ?? [])].some((m) => m !== (r.mark ?? ''));
   const add = (e: RouteRequest, [f, t]: [Side, Side]) => {
     ins.set(`${e.to.node}:${t}`, (ins.get(`${e.to.node}:${t}`) ?? 0) + 1);
     outs.set(`${e.from.node}:${f}`, (outs.get(`${e.from.node}:${f}`) ?? 0) + 1);
+    for (const [r, side] of [[e.from, f], [e.to, t]] as const) if (r.rowY != null) rowMarks.set(rowKey(r, side), (rowMarks.get(rowKey(r, side)) ?? new Set()).add(r.mark ?? ''));
   };
   for (const e of input.edges) {
     const list = options.get(e.id)!;
@@ -366,7 +380,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // right beside that one's end: the two read as one line running on through the card.
     const meets = (pair: [Side, Side]) => (ins.get(`${e.from.node}:${pair[0]}`) ?? 0) + (outs.get(`${e.to.node}:${pair[1]}`) ?? 0);
     for (const pair of list) {
-      const sideways = meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
+      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
       // Only a way cheaper than the best so far is worth finding.
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
       if (!found) continue;

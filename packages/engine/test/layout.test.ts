@@ -74,7 +74,7 @@ const crossingBudget: Record<string, number> = {
   'deployment/model.yaml#context': 0,
   'deployment/model.yaml#containers': 0,
   'erd/orders.yaml': 0,
-  'erd/saas.yaml': 2,
+  'erd/saas.yaml': 3, // the nullable assignee comes into users.id from the far side, so its ring and bar are not drawn over the others' bars
   'erd/shop-schemas.yaml': 0,
   'model/containers.yaml': 0,
   'model/context.yaml': 0,
@@ -163,7 +163,7 @@ const jogBudget: Record<string, number> = {
   'data-products/northwind-mesh.yaml': 1, // Customers' line steps into Revenue beside the one from Orders
   'data-products/northwind-orders-product.yaml': 2, // the sources' lines step into their input ports
   'deployment/azure.yaml': 2, // drawn left to right for a slide (it was three times taller): the ways in from Users step aside into Front Door and Storefront
-  'deployment/aws.yaml#prod': 1, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title
+  'deployment/aws.yaml#prod': 2, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title; the site files stand by the storefront, a step up
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
   'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
@@ -624,6 +624,29 @@ describe('shared trunks', () => {
       const r = fan(a!, b!);
       expect(start(r, 'x')).not.toBe(start(r, 'y'));
     }
+  });
+  it('join only lines to cards that stand together: a branch beside a card of another group reads as running on through it', () => {
+    const to = (node: string, x: number, y: number, within: string) => ({ ...end(node, x, y), within });
+    const together = fan({ to: to('a', 300, 0, 'g') }, { to: to('b', 300, 200, 'g') });
+    expect(start(together, 'x')).toBe(start(together, 'y'));
+    const apart = fan({ to: to('a', 300, 0, 'g') }, { to: to('b', 300, 200, 'h') });
+    expect(start(apart, 'x')).not.toBe(start(apart, 'y'));
+  });
+  it('never draw two different marks on one table row: the second line comes in on the other side', () => {
+    // Two tables left, one right; both point at the right table's key row, one ending in a bar, one in a ring and bar.
+    const row = (node: string, x: number, y: number, mark: string) => ({ node, box: { x, y, width: 160, height: 120 }, rowY: 50, stub: 30, mark });
+    const key = (mark: string) => row('k', 400, 100, mark);
+    const r = routeEdges({
+      obstacles: new Map([['p', row('p', 0, 0, '').box], ['q', row('q', 0, 260, '').box], ['k', key('').box]]),
+      soft: [],
+      direction: 'right',
+      edges: [
+        { id: 'one', from: row('p', 0, 0, 'many'), to: key('one'), style: 'solid||many|one|1' },
+        { id: 'maybe', from: row('q', 0, 260, 'many'), to: key('zeroOrOne'), style: 'solid||many|zeroOrOne|1' },
+      ],
+    });
+    const last = (id: string) => r.get(id)!.points.at(-1)!.x;
+    expect(new Set([last('one'), last('maybe')]).size).toBe(2);
   });
   it('never draw a link the source does not have: a context map keeps every relation on its own line', async () => {
     const r = await render(fs.readFileSync(path.join(examples, 'context-map/e-commerce.yaml'), 'utf8'), { fonts: 'none' });

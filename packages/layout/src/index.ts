@@ -785,15 +785,15 @@ const VARIANT_LIMIT = 60;
 
 function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<string, PlacedEdge> {
   const { graph } = sized;
+  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const end = (ep: Endpoint, marker: Marker): RouteEnd | undefined => {
     const box = p.nodes.get(ep.node) ?? p.groups.get(ep.node);
     if (!box) return undefined;
     const rowY = ep.row ? sized.nodes.get(ep.node)?.rowY?.[ep.row] : undefined;
-    return { node: ep.node, box, rowY, stub: stubFor(marker) };
+    return { node: ep.node, box, rowY, stub: stubFor(marker), within: groupParent.get(ep.node) ?? nodeParent.get(ep.node), mark: marker };
   };
   // The groups around each end, all the way up: a line is at home in those and a stranger in the rest.
-  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
-  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const home = (...ends: string[]) => {
     const out = new Set<string>();
     for (const id of ends) for (let g = groupParent.has(id) ? id : nodeParent.get(id); g && !out.has(g); g = groupParent.get(g)) out.add(g);
