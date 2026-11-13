@@ -484,7 +484,7 @@ class SlideDrawing {
         anchor: 'ctr',
         // Centre the title on titleY: trim the bottom of the text area by twice the offset.
         inset: { l: this.L(ts.padX + 24 - 0.5), b: this.L(Math.max(0, head - 2 * titleY)) },
-        paras: [{ runs: [this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text)] }],
+        paras: [{ runs: [{ ...this.run(fitText(s.title, t.size.label, 600, b.width - 2 * ts.padX - 24), t.size.label, 600, t.text), italic: s.italic }] }],
       }),
     );
     items.push(this.hline(b.x, b.x + b.width, b.y + head, rule));
@@ -522,7 +522,7 @@ class SlideDrawing {
           geom: { prst: 'rect' },
           fill: null,
           line: null,
-          text: { anchor: 'ctr', inset: { l: this.L(ts.padX + marks), r: this.L(ts.padX) }, paras: [{ runs: [this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text)] }] },
+          text: { anchor: 'ctr', inset: { l: this.L(ts.padX + marks), r: this.L(ts.padX) }, paras: [{ runs: [{ ...this.run(name?.text ?? '', t.size.cell, name?.strong ? 600 : 400, t.text), italic: name?.italic, underline: name?.underline }] }] },
         }),
       );
       // The type column is set in the monospace face where the theme asks, a step smaller.
@@ -707,10 +707,14 @@ class SlideDrawing {
 
   // ------------------------------------------------------------ lines
 
-  private edgeLine(e: GraphEdge): Line {
-    // The theme's arrowhead: filled, slim, or two open strokes.
+  /** The theme's arrowhead: filled, slim, or two open strokes. */
+  private arrow(): End {
     const style = look(this.theme).line.arrow;
-    const arrow: End = style === 'open' ? 'open' : style === 'slim' ? 'slim' : 'triangle';
+    return style === 'open' ? 'open' : style === 'slim' ? 'slim' : 'triangle';
+  }
+
+  private edgeLine(e: GraphEdge): Line {
+    const arrow = this.arrow();
     return {
       color: e.tone ? this.theme.tones[e.tone].fg : this.theme.edge,
       alpha: e.tone ? 0.9 : undefined,
@@ -1165,6 +1169,12 @@ class SlideDrawing {
         this.sp({ name: 'Swatch', frame: this.frame(x + 2, cy - 8, 16, 16), geom: { prst: 'ellipse' }, fill: filled ? { color: tone.fg } : null, line: filled ? null : { color: tone.fg, width: this.L(1.2), dash: 'dashed' } }),
         this.icon('check', x + 5, cy - 5, 10, filled ? t.surface : tone.fg, 2),
       ];
+    }
+    if (item.end && item.end !== 'none') {
+      // A relationship's end (a crow's foot, a UML triangle): a longer line with the mark the drawing puts on it.
+      const [from, tip] = [{ x, y: cy }, { x: x + 30, y: cy }];
+      const line: Line = { color, width: this.L(t.stroke.edge), dash: item.line ?? 'solid', tail: item.end === 'arrow' ? this.arrow() : 'none' };
+      return [this.piece(from, tip, line, 'Swatch'), ...this.marker(item.end, tip, from, color)];
     }
     return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color, width: this.L(t.stroke.edge * (item.width ?? 1) + 0.4), dash: item.line ?? 'solid' } })];
   }

@@ -21,6 +21,27 @@ describe('class diagrams and mind maps on a slide', () => {
     expect(xml).toMatch(/name="End"\/>[^]*?prst="diamond"/);
     expect(xml).not.toContain('<a:custGeom>');
   });
+  it('an abstract name in italics, a static member underlined, as the drawing marks them', async () => {
+    const xml = await slide('class/domain-model.yaml');
+    const props = (word: string) => new RegExp(`<a:rPr ([^>]*)>(?:(?!</a:rPr>).)*</a:rPr><a:t>${word}</a:t>`).exec(xml)?.[1] ?? '';
+    expect(props('Item')).toContain('i="1"');
+    expect(props('loanPeriod\\(\\)')).toContain('i="1"');
+    expect(props('MAX_LOANS')).toContain('u="sng"');
+    expect(props('Member')).not.toMatch(/ i=| u=/);
+  });
+
+  it("the key's samples carry the ends they stand for: a class's triangle and diamond, an entity's bars and crow's foot", async () => {
+    const key = (xml: string) => xml.slice(xml.indexOf('name="Legend"'));
+    const uml = key(await slide('class/domain-model.yaml'));
+    expect(uml).toMatch(/name="End"\/>[^]*?prst="triangle"/);
+    expect(uml).toMatch(/name="End"\/>[^]*?prst="diamond"/);
+    expect(uml.match(/name="End"/g)!.length).toBe(3);
+    const erd = key(await slide('erd/orders.yaml'));
+    // Exactly one: two bars; zero or many: a crow's foot and a ring.
+    expect(erd.match(/name="End"/g)!.length).toBeGreaterThanOrEqual(3);
+    expect(erd).toMatch(/name="End"\/>[^]*?prst="ellipse"/);
+  });
+
   it('a mind map: every topic a shape with its words', async () => {
     const xml = await slide('mindmap/capability-brainstorm.yaml');
     for (const word of ['Data platform', 'Ingest', 'Feature store', '+3']) expect(xml).toContain(word);
