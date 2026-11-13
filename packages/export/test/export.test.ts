@@ -260,7 +260,7 @@ describe('shapes Quick Look draws', () => {
     expect(wellFormed(slide)).toBe(true);
     expect(slide).not.toContain('<a:custGeom>');
     expect(slide).not.toContain('prst="bentConnector4"');
-    const line = group(slide, 'Line: afw → erp-vm (peering)')!;
+    const line = group(slide, 'Line: afw-hub-weu → vmss-erp-prod (peering)')!;
     expect(line).toBeTruthy();
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);

@@ -80,7 +80,7 @@ try {
   // 3. A card dropped far out: it stays near the sheet, the view fits, ⌘Z gives the zoom back.
   {
     const z0 = await zoom();
-    await drag('erp-vm', 400, 600);
+    await drag('vmss-erp-prod', 400, 600);
     if (await outOfPane()) fail(`after a far drop the drawing runs ${await outOfPane()} px out of view`);
     if ((await zoom()) < z0 * 0.65) fail(`a far drop took the zoom from ${z0}% to ${await zoom()}%`);
     await page.screenshot({ path: `${out}/follows-far-drop.png` });
@@ -90,7 +90,7 @@ try {
   }
   // A card dragged out of its subnet: the drawing in view after the drop and after ⌘Z.
   {
-    await drag('afw', 0, 200);
+    await drag('afw-hub-weu', 0, 200);
     if (await outOfPane()) fail(`after dragging the firewall out of its subnet the drawing runs ${await outOfPane()} px out of view`);
     await page.screenshot({ path: `${out}/follows-out-of-group.png` });
     await undo();
@@ -112,7 +112,7 @@ try {
     await page.locator('button[aria-label="Zoom in"]').click();
     await wait(300);
     const z = await zoom();
-    await drag('router', 0, 40);
+    await drag('edge-router', 0, 40);
     if ((await zoom()) !== z) fail(`a drop after zooming in changed the zoom from ${z}% to ${await zoom()}%`);
   }
 
