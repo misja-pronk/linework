@@ -23,9 +23,9 @@ await page.evaluate(() => {
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');
-// The detailed customer example: many connections for the inspector.
+// The detailed customer example (the Customers product, its contract and who reads it): connections for the inspector.
 await page.keyboard.press('Meta+k');
-await page.keyboard.type('customer data products and their contracts');
+await page.keyboard.type('the customers product and its contract');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
 // Overlays never cover each other: the "Opened … Undo" toast stands clear of the hint and its close button.
@@ -45,7 +45,7 @@ if (!(await page.locator('.shortcuts').isVisible())) problems.push('? did not op
 if (await page.locator('.toast').count()) problems.push('a toast from before stays on top of the shortcuts');
 await page.screenshot({ path: `${out}/p-shortcuts.png` });
 await page.keyboard.press('Escape');
-await page.click('.drawing [data-node="customer-360"]', { position: { x: 30, y: 20 } });
+await page.click('.drawing [data-node="customers"]', { position: { x: 30, y: 20 } });
 await page.waitForTimeout(300);
 const conns = await page.locator('.connections li').count();
 if (conns < 3) problems.push(`expected connections in the inspector, got ${conns}`);
