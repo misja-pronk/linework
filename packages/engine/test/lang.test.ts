@@ -197,7 +197,7 @@ assignments:
     type Matrix = { corner: string; rows: { caption?: string }[]; cells: ({ text?: string; note?: string } | undefined)[][] };
     const matrix = (r: Awaited<ReturnType<typeof render>>) => r.graph!.nodes.find((n) => n.shape.kind === 'matrix')!.shape as unknown as Matrix;
     const who = matrix(await render(nl(access), { fonts: 'none', view: 'access' }));
-    expect(who.cells[1]![0]).toMatchObject({ text: 'Owner (in aanmerking)', note: 'max. 4 h, goedkeuring door Developers' });
+    expect(who.cells[1]![0]).toMatchObject({ text: 'Owner (in aanmerking)', note: 'max. 4\u00a0h, goedkeuring door Developers' });
     // Against an earlier state: the key, the corner, what is new, what it was.
     const was = `\nview: access\nwas:\n  principals:\n    devs: { kind: group, label: Developers }\n    gone: { kind: user, label: Gone }\n  resources:\n    prod: { kind: subscription, label: Production }\n  roles:\n    reader: { label: Reader }\n  assignments:\n    - devs is reader on prod\n    - gone is reader on prod\n`;
     const compared = await render(nl(access + was), { fonts: 'none' });

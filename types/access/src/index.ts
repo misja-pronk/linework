@@ -318,9 +318,9 @@ class Model {
       .join(' → ');
   }
 
-  /** How an eligible assignment is activated, in words: "max 4 h, approval by sg-platform-admins". */
+  /** How an eligible assignment is activated, in words: "max 4 h, approval by sg-platform-admins". "4 h" never breaks over two lines. */
   activation(a: Assignment): string | undefined {
-    const parts = [a.activation && this.word('max {time}', { time: a.activation }), list(a.approval).length && this.word('approval by {names}', { names: this.approvers(a.approval) })].filter(Boolean);
+    const parts = [a.activation && this.word('max {time}', { time: a.activation.replace(/ /g, '\u00a0') }), list(a.approval).length && this.word('approval by {names}', { names: this.approvers(a.approval) })].filter(Boolean);
     return parts.length ? parts.join(', ') : undefined;
   }
 
@@ -679,17 +679,23 @@ function accessView(m: Model, was?: Model): Graph {
     const reach = m.reach(p);
     return columns.map((scope) => {
       if (groups.includes(scope)) return membership(m, p, scope);
-      const all = reach.get(scope) ?? [];
+      // What is assigned on this very scope goes on the pill, ahead of what is inherited from above it.
+      const all = [...(reach.get(scope) ?? [])].sort((a, b) => +!!a.from - +!!b.from);
       const [best, ...others] = all;
       if (!best) return undefined;
       const cell = cellOf(best, m.word);
       if (!others.length) return cell;
       // Every other role there too, before where the pill's role comes from: a note too long to draw in
       // full loses the tail, never a role. Each says where it comes from when that is not the pill's way.
+      // What it shares with the pill's way (the same group, the same scope above) is said once, after the pill.
+      const parts = (r: Reach) => [r.via && m.word('via {name}', { name: r.via }), r.from && m.word('from {name}@scope', { name: r.from }), r.activation].filter((x): x is string => !!x);
+      const own = new Set(parts(best));
       const name = (r: Reach) => {
-        const note = reachNote(r, m.word) ?? m.word('assigned directly');
         const label = r.role ? m.label(r.role) : r.text;
-        return note !== (cell.note ?? m.word('assigned directly')) ? `${label} (${note})` : label;
+        const mine = parts(r);
+        const left = mine.filter((x) => !own.has(x));
+        if (!mine.length) return own.size ? `${label} (${m.word('assigned directly')})` : label;
+        return left.length ? `${label} (${left.join(', ')})` : label;
       };
       // Held now, and more on activation: the cell says both.
       const pending = best.eligible ? [] : others.filter((r) => r.eligible);
