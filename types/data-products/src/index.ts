@@ -190,6 +190,27 @@ function detailParts(src: DataProductSource, word: Word = english): Part[] {
   return parts;
 }
 
+/**
+ * The overview as written draws just what this part does: its products, and only they, in detail
+ * (`detail:`), everything else one line from them, and nothing in another domain. Then the part is
+ * the same drawing under another name, and only the overview is offered.
+ */
+function sameAsOverview(src: DataProductSource, part: Part): boolean {
+  const products = Object.entries(src.products ?? {}).map(([id, p]) => [id, p ?? {}] as const);
+  const domains = src.domains ?? {};
+  const known = (d: string | undefined) => (d && Object.hasOwn(domains, d) ? d : undefined);
+  const members = new Set(products.filter(([id, p]) => (part.product ? id === part.product : known(p.domain) === part.domain)).map(([id]) => id));
+  const detail = new Set([...(src.detail ?? []), ...products.filter(([, p]) => p.detail).map(([id]) => id)]);
+  if (detail.size !== members.size || [...detail].some((id) => !members.has(id))) return false;
+  const lines: [string, string][] = [
+    ...products.flatMap(([id, p]) => (p.inputs ?? []).map((r): [string, string] => [refOf(r).from.split('.')[0]!, id])),
+    ...Object.entries(src.consumers ?? {}).flatMap(([id, c]) => (c && typeof c === 'object' ? (c.uses ?? []) : []).map((r): [string, string] => [refOf(r).from.split('.')[0]!, id])),
+  ];
+  const near = new Set([...members, ...lines.flatMap(([a, b]) => (members.has(a) ? [b] : members.has(b) ? [a] : []))]);
+  const everything = [...products, ...Object.entries(src.sources ?? {}), ...Object.entries(src.consumers ?? {})].map(([id, e]) => [id, e && typeof e === 'object' ? e.domain : undefined] as const);
+  return everything.every(([id, d]) => near.has(id) && (!known(d) || known(d) === part.domain));
+}
+
 const entry = <T extends object>(v: T | string | null | undefined): T => (typeof v === 'string' ? ({ kind: v } as unknown as T) : (v ?? ({} as T)));
 const port = (v: string | Port | null): Port => (typeof v === 'string' ? { kind: v } : (v ?? {}));
 const refOf = (r: Ref) => (typeof r === 'string' ? { from: r } : r);
@@ -287,15 +308,17 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     if (p.inputs?.length) rows.push({ kind: 'section', label: word('Input ports') });
     for (const [i, r] of (p.inputs ?? []).entries()) {
       const ref = refOf(r);
-      const name = ref.name ?? refLabel(ref.from);
-      const from = ref.label ?? refKind(ref.from);
+      // One reading for every input port: what it reads from, then how (or which of its ports, or what kind of system).
+      const from = refLabel(ref.from);
+      const written = ref.label ?? ref.name;
+      // "Orders · orders" says nothing twice; the port of a product with several is said, whatever its name.
+      const how = written && written.toLowerCase() === from.toLowerCase() ? '' : (written ?? refDetail(ref.from));
       rows.push({
         kind: 'row',
         id: `in:${i}`,
         icon: 'arrow-right-to-line',
         tone: 'slate',
-        // "orders · orders" says nothing twice: the product name only shows when the port is named otherwise.
-        cells: [{ text: name }, { text: from === name ? '' : from, muted: true }],
+        cells: [{ text: from }, { text: how, muted: true }],
       });
     }
     const outs = outputsOf(p);
@@ -310,7 +333,7 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
         cells: [{ text: o.label ?? pid, strong: true }, { text: o.caption ?? pk?.label ?? o.kind ?? '', muted: true }],
       });
     }
-    nodes.push({ id, parent, shape: { kind: 'table', title: p.label ?? id, caption, icon: k.icon, tone: k.tone, rows }, path: ['products', id] });
+    nodes.push({ id, parent, shape: { kind: 'table', title: p.label ?? id, caption, icon: k.icon, tone: k.tone, rows, ports: true }, path: ['products', id] });
   }
 
   for (const [id, c] of consumers) {
@@ -341,18 +364,20 @@ function build(src: DataProductSource, ctx: BuildContext): Graph {
     }
     return `There is no source or product "${ref}"`;
   }
+  /** What a reference reads from: the source or the product, by its name. */
   function refLabel(ref: string): string {
     const r = resolve(ref);
     if (typeof r === 'string') return ref;
-    if (r.port) return port(productMap.get(r.node)!.outputs![r.port]!).label ?? r.port;
     return sourceMap.get(r.node)?.label ?? productMap.get(r.node)?.label ?? r.node;
   }
-  function refKind(ref: string): string {
+  /** Beside it: a source's kind of system, or the port it reads of a product that has several. */
+  function refDetail(ref: string): string {
     const r = resolve(ref);
     if (typeof r === 'string') return '';
     const s = sourceMap.get(r.node);
     if (s) return (sourceKinds[s.kind ?? ''] ?? sourceKinds.application!).label;
-    return productMap.get(r.node)?.label ?? r.node;
+    const outputs = productMap.get(r.node)?.outputs ?? {};
+    return r.port && Object.keys(outputs).length > 1 ? (port(outputs[r.port]!).label ?? r.port) : '';
   }
 
   let edges: GraphEdge[] = [];
@@ -697,6 +722,8 @@ export const dataProducts: DiagramType<DataProductSource> = {
   schema,
   palette,
   build,
+  // Lineage reads from where data comes from to who uses it: left to right, never turned for its shape (a long one is cut into rows).
+  tuning: { autoDirection: false },
   references(src) {
     const out: Reference[] = [];
     const products = src.products ?? {};
@@ -724,15 +751,16 @@ export const dataProducts: DiagramType<DataProductSource> = {
   views(src, word = english) {
     if (!src.products || !Object.keys(src.products).length) return [];
     const overview = { name: 'overview', title: word('Overview') };
-    const parts = detailParts(src, word);
+    // A part that draws just what the overview as written draws is not offered twice.
+    const parts = detailParts(src, word).map((p) => (!p.hidden && src.detail?.length && sameAsOverview(src, p) ? { ...p, hidden: true } : p));
     // One domain (or none) drawn whole: one detailed drawing. Else one per domain or product, the whole mesh in detail only when asked for.
     if (parts.length < 2) return [overview, { name: 'detailed', title: word('Detailed') }];
     return [
       overview,
-      // One product reads from left to right: what it reads, the product and its contract, who reads it.
-      ...parts.filter((p) => !p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, ...(p.product ? { steady: true } : {}) })),
+      // A product or a domain in detail reads from left to right in one band: what it reads, the products and their contracts, who reads them.
+      ...parts.filter((p) => !p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, steady: true })),
       { name: 'detailed', title: word('Every product in detail'), hidden: true },
-      ...parts.filter((p) => p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, hidden: true })),
+      ...parts.filter((p) => p.hidden).map((p) => ({ name: p.view, title: p.title, part: true, steady: true, hidden: true })),
     ];
   },
   connect(src, from, to) {
@@ -763,12 +791,14 @@ sources:
 
 products:
   orders:
+    label: Orders
     class: source-aligned
     domain: sales
     inputs: [{ from: shop, label: CDC }]
     outputs:
       orders: { kind: table, contract: orders }
   customers:
+    label: Customers
     class: source-aligned
     domain: customer
     inputs: [{ from: crm, label: daily }]

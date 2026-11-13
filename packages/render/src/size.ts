@@ -82,7 +82,7 @@ export function size(graph: Graph, theme: Theme): Sized {
 }
 
 /** A table's section names (INPUT PORTS, SCHEMA) in small capitals: their size (px). */
-export const SECTION_PX = 10;
+export const SECTION_PX = 10.5;
 
 /** Room around the words of a label on a line: a pill or plate needs its padding, bare words on a halo only a gap in the line. */
 export const labelPad = (theme: Theme): number => (look(theme).edgeLabel.style === 'halo' ? 10 : 16);
@@ -237,7 +237,8 @@ export function tableColumns(shape: TableShape, theme: Theme) {
 export interface TableGrid {
   width: number;
   height: number;
-  columns: { x: number; width: number }[];
+  /** Each column of rows, with the room its rows' marks take before their names (a column of guarantees has none of the schema's keys). */
+  columns: { x: number; width: number; marks: number }[];
   rows: { column: number; y: number; height: number }[];
 }
 
@@ -248,16 +249,16 @@ export function tableGrid(shape: TableShape, theme: Theme): TableGrid {
   const captionWidth = shape.caption ? measureText(shape.caption, theme.size.caption, 400) : 0;
   const at = shape.split != null && shape.split > 0 && shape.split < shape.rows.length ? shape.split : shape.rows.length;
   const parts = at < shape.rows.length ? [shape.rows.slice(0, at), shape.rows.slice(at)] : [shape.rows];
-  const marks = markWidth(shape);
-  const widths = parts.map((rows) => {
+  const marks = parts.map((rows) => markWidth({ ...shape, rows }));
+  const widths = parts.map((rows, i) => {
     const cols = tableColumns({ ...shape, rows }, theme);
-    return 2 * t.padX + marks + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
+    return 2 * t.padX + marks[i]! + cols.name + (cols.type ? CELL_GAP + cols.type : 0);
   });
   // The header spans the columns: a title wider than they are widens the last one.
   const need = Math.max(t.minWidth, 2 * t.padX + Math.max(titleWidth, captionWidth));
   const sum = widths.reduce((a, b) => a + b, 0);
   if (sum < need) widths[widths.length - 1]! += need - sum;
-  const columns = widths.map((w, i) => ({ x: Math.round(widths.slice(0, i).reduce((a, b) => a + b, 0)), width: Math.round(w) }));
+  const columns = widths.map((w, i) => ({ x: Math.round(widths.slice(0, i).reduce((a, b) => a + b, 0)), width: Math.round(w), marks: marks[i]! }));
   const rows: TableGrid['rows'] = [];
   let bottom = tableHeader(shape, theme);
   for (const [column, part] of parts.entries()) {

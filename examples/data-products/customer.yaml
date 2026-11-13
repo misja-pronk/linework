@@ -15,12 +15,14 @@ sources:
 
 products:
   orders:
+    label: Orders
     class: source-aligned
     domain: sales
     inputs: [{ from: shop, label: CDC }]
     outputs:
       orders: { kind: table, contract: orders }
   customers:
+    label: Customers
     class: source-aligned
     domain: customer
     inputs: [{ from: crm, label: daily }]

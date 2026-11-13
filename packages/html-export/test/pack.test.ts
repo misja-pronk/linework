@@ -129,7 +129,7 @@ edges:
   }, 30_000);
 
   it("lists each of a type's own views once, by name, the diagram as written among them", async () => {
-    const views = async (dir: string, file: string) => payloadOf((await exportHtml({ entries: [file], read: reader(dir) })).html).drawings.filter((d) => d.file === file).map((d) => [d.view ?? '', d.title]);
+    const views = async (dir: string, file: string, read = reader(dir)) => payloadOf((await exportHtml({ entries: [file], read })).html).drawings.filter((d) => d.file === file).map((d) => [d.view ?? '', d.title]);
     // finance.yaml is written as its payments product in detail: that view, not a copy of it without a name.
     expect(await views('examples/data-products', 'finance.yaml')).toEqual([
       ['overview', 'Overview'],
@@ -139,7 +139,9 @@ edges:
     // A sequence is its whole, then its phases.
     expect((await views('examples/sequence', 'checkout.yaml')).map(([v]) => v)).toEqual(['whole', 'phase-order', 'phase-payment', 'phase-confirmation']);
     // A hidden view as written is there too, first: the picker names it, and a link to the file opens it.
-    const hidden = await views('examples/data-products', 'customer-detailed.yaml');
+    // (customer.yaml written as its Customer domain, offered product by product: a view that is drawn only when named.)
+    const domain = (p: string) => (p === 'customer.yaml' ? reader('examples/data-products')(p)?.replace(/^view: .*$/m, 'view: detailed-customer') : reader('examples/data-products')(p));
+    const hidden = await views('examples/data-products', 'customer.yaml', domain);
     expect(hidden[0]).toEqual(['detailed-customer', 'Customer in detail']);
     expect(new Set(hidden.map(([v]) => v)).size).toBe(hidden.length);
     // A diagram as written that is no view of its type stays unnamed in front of its views.

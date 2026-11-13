@@ -17,6 +17,7 @@ export * from './pins.ts';
 export * from './router.ts';
 export * from './metrics.ts';
 export * from './stay.ts';
+export * from './ports.ts';
 
 export interface Tuning {
   /** Override the diagram's direction. */
@@ -559,6 +560,35 @@ function clearBorders(sized: Sized, d: Drawn, left = 4, branch = true): Drawn {
   return worth(ends[1]!) < worth(ends[0]!) - 1e-9 ? ends[1]! : ends[0]!;
 }
 
+/**
+ * A line that belongs inside one group: a key from a table's row back to another row of the same
+ * table (inside one data contract), or the line from a table's row to its annex (a contract under its
+ * product). Where it leaves the group both ends are in, it runs along the group's border, its marks
+ * on it, or outside and back in: the group grows on that side to hold it.
+ */
+function loopRoom(sized: Sized, d: Drawn, pad: number): Drawn {
+  const { graph } = sized;
+  const parent = new Map([...graph.nodes, ...graph.groups].map((x) => [x.id, x.parent]));
+  let cut: Cut | undefined;
+  for (const e of graph.edges) {
+    const own = e.from.row && (e.from.node === e.to.node || e.annex) ? d.edges.get(e.id)?.points : undefined;
+    const g = parent.get(e.from.node);
+    const n = d.p.nodes.get(e.from.node);
+    const b = g && parent.get(e.to.node) === g ? d.p.groups.get(g) : undefined;
+    if (!own || !g || !b || !n) continue;
+    const xs = own.map((q) => q.x);
+    const right = Math.max(...xs) + pad - (b.x + b.width);
+    const left = b.x + pad - Math.min(...xs);
+    // On the right the room opens past the table, on the left before it (the group's border stays, what it holds moves on).
+    const c: Cut | undefined =
+      right > 0 && Math.max(...xs) > n.x + n.width ? { axis: 'x', at: n.x + n.width + 1, by: Math.ceil(right / 8) * 8, group: g } : left > 0 && Math.min(...xs) < n.x ? { axis: 'x', at: b.x + 1, by: Math.ceil(left / 8) * 8, group: g } : undefined;
+    if (c && (!cut || c.by > cut.by)) cut = c;
+  }
+  if (!cut) return d;
+  const p = openSpace(d.p, cut, graph);
+  return { p, edges: route(sized, p) };
+}
+
 /** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */
 function errors(c: Choice): number {
   const m = metricsOf(c);
@@ -730,7 +760,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     const sig = boxesKey(start);
     const done = finished.get(sized)?.get(sig);
     if (done) return done;
-    const { p, edges } = clearBorders(sized, { p: start, edges: route(sized, start) });
+    const { p, edges } = loopRoom(sized, clearBorders(sized, { p: start, edges: route(sized, start) }), spacing.groupPad);
     const result = { placed: normalise({ ...p, edges }), p };
     if (!finished.has(sized)) finished.set(sized, new Map());
     finished.get(sized)!.set(sig, result);

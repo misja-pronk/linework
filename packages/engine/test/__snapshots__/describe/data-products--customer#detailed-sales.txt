@@ -5,14 +5,14 @@ Data products, sales in detail: Sales in detail. 5 elements in 1 group, with 4 c
 Groups and elements
 - Sales (Domain · Sales engineering)
   - Webshop (Source · Application)
-  - orders (Source-aligned)
+  - Orders (Source-aligned)
   - orders (Data contract · v2.1.0 · internal)
 - Customer 360 (Customer · Aggregate)
 - Sales dashboard (Dashboard)
 
 Connections
-- Webshop connects to orders.
-- orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
+- Webshop connects to Orders.
+- Orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
 
 Key
 - Teal filled pill: Source-aligned

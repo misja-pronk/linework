@@ -177,6 +177,11 @@ export interface TableShape {
    * column's rows only.
    */
   split?: number;
+  /**
+   * Its rows have no order of their own (a data product's ports): within a section, the rows fed by
+   * one line each stand in the order those lines come in (layout ports.ts), so they do not cross.
+   */
+  ports?: boolean;
 }
 
 /** A grid with row and column headers: access matrices, role × permission tables. */
