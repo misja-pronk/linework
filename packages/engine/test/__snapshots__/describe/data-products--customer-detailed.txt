@@ -1,4 +1,4 @@
-Customer data products
+Customer data products in detail
 
 Data products diagram: The customers product and its contract. 4 elements in 1 group, with 3 connections.
 
