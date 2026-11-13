@@ -6,9 +6,12 @@ subtitle: Front Door is the only public entry; SQL and Key Vault are reached ove
 # secrets in config. The API runs with a managed identity; SQL allows Entra authentication only,
 # and Key Vault holds only what has no Entra sign-in (here the payment provider's API key).
 # Each subnet does one job: App Service VNet integration and a Container Apps environment each need
-# a subnet delegated to them alone, and private endpoints get a subnet of their own. Captions stay
-# short for a slide: snet-web is the App Service VNet integration subnet, snet-cae holds the
-# Container Apps environment. Front Door is global but, like any resource, sits in a resource group.
+# a subnet delegated to them alone, and private endpoints get a subnet of their own. VNet integration
+# carries only the web app's outbound traffic, so the web app is not drawn inside snet-web: its
+# caption names the subnet its calls leave from. Inbound, Front Door Premium reaches the app over
+# Private Link, through a private endpoint Front Door manages itself (not one in this VNet), and the
+# app takes no public traffic. snet-cae holds the Container Apps environment. Front Door is global
+# but, like any resource, sits in a resource group.
 # SQL and Key Vault are PaaS: they sit in the resource group, not in a subnet, with public network
 # access off; the private endpoints in snet-pe are their only way in.
 
@@ -16,14 +19,13 @@ groups:
   prod: { kind: subscription, label: sub-shop-prd }
   rg: { kind: resource-group, label: rg-shop-prd, caption: West Europe, in: prod }
   vnet: { kind: vnet, label: vnet-shop, caption: 10.20.0.0/22, in: rg }
-  web-snet: { kind: subnet, label: snet-web, caption: Integration, in: vnet }
   cae-snet: { kind: subnet, label: snet-cae, caption: Apps env, in: vnet }
   pe-snet: { kind: subnet, label: snet-pe, caption: Private endpoints, in: vnet }
 
 nodes:
   users: users
   edge: { kind: front-door, label: Front Door, caption: Premium · WAF, in: rg, tags: [security, ops] }
-  web: { kind: app-service, label: Web shop, in: web-snet, tags: [ops] }
+  web: { kind: app-service, label: Web shop, caption: Out via snet-web, in: rg, tags: [ops] }
   api: { kind: container-app, label: Orders API, caption: Managed identity, in: cae-snet, tags: [ops, security] }
   pe-sql: { kind: private-endpoint, label: pe-sql-shop, in: pe-snet, tags: [data] }
   pe-kv: { kind: private-endpoint, label: pe-kv-shop, in: pe-snet, tags: [security] }
