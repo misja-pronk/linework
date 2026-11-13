@@ -1,6 +1,6 @@
 type: process
 title: Pull request to main
-subtitle: "Northwind Orders API, part 1 of 2: nothing reaches main without green checks and a reviewer's approval"
+subtitle: "Northwind Orders API · part 1 of 2: nothing reaches main without green checks and a reviewer's approval"
 
 # One lane per actor, in the order the change passes through them. Part 2
 # (release-to-production.yaml) picks up where this one ends.
@@ -13,18 +13,18 @@ lanes:
 # Only what the flow cannot say itself: the lane, the kind and a caption.
 nodes:
   Push to a branch: { in: dev, kind: user, caption: feature/order-export }
-  # The developer opens it; GitHub then requests a review from the code owners.
-  Open pull request: { in: dev, kind: user, caption: code owners requested }
-  # The checks branch protection requires; a red one blocks the merge.
+  # Ready for review (not a draft): GitHub then asks the code owners for a review.
+  Open pull request: { in: dev, kind: user, caption: ready for review }
+  # The checks the ruleset on main requires; a red one blocks the merge.
   Required checks: { in: actions, kind: script, caption: "build, test, lint, CodeQL" }
   Checks green?: actions
   # Where the change waits: until a reviewer picks it up. The review is the decision after it.
-  Waiting for review: { kind: timer, in: reviewer }
+  Waiting for review: { in: reviewer, kind: timer }
   Approved?: reviewer
   Fix what failed: { in: dev, kind: user }
   Address feedback: { in: dev, kind: user }
   Squash and merge: { in: github, kind: service, caption: branch deleted }
-  Merged to main: { kind: end, in: github }
+  Merged to main: { in: github, kind: end }
 
 # The first line is the happy path; the lines after it are the ways back.
 flow:
@@ -39,7 +39,7 @@ steps:
     caption: A developer pushes a short-lived branch and opens a pull request; GitHub asks the code owners to review.
     path: Push to a branch -> Open pull request
   - title: Required checks
-    caption: GitHub Actions builds, tests, lints and scans the change. Branch protection will not merge it while one is red.
+    caption: GitHub Actions builds, tests, lints and scans the change. The ruleset on main will not merge it while one is red.
     path: Open pull request -> Required checks -> Checks green?
   - title: A failing check
     caption: A red check goes back to the developer; the next push runs every check again.
