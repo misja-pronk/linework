@@ -80,6 +80,7 @@ export const nl = {
   '--all-layers: this diagram has no layers: (see docs/layers.md)': '--all-layers: dit diagram heeft geen layers: (zie docs/layers.md)',
   'nothing on this layer, not written': 'niets op deze laag, niet geschreven',
   '{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers': '{all} tekeningen: het geheel en {count} laag|{all} tekeningen: het geheel en {count} lagen',
+  '{count} drawing: a view of the whole, which is read scrolling|{count} drawings: the views of the whole, which is read scrolling': '{count} tekening: een weergave van het geheel, dat scrollend gelezen wordt|{count} tekeningen: de weergaven van het geheel, dat scrollend gelezen wordt',
   '{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views': '{all} tekeningen: het geheel en {count} weergave|{all} tekeningen: het geheel en {count} weergaven',
   '{all} drawings: the whole, its views and layers': '{all} tekeningen: het geheel, de weergaven en de lagen',
   'no steps here: drawn as a whole': 'hier zijn geen stappen: als geheel getekend',
