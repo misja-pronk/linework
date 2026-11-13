@@ -116,13 +116,14 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   // another side is only worth it when the drawing reads better for it: no more crossings and no more
   // labels that cover something, and fewer of either. The sides were weighed on an empty grid, where
   // a long way round crosses nothing.
-  const roomy = chooseSides(input, strange, true);
+  const at = sideGrid(input);
+  const roomy = chooseSides(input, strange, true, at);
   if (!roomy.pressed) return routeSides(input, strange, roomy.sides);
-  const sides = chooseSides(input, strange, false).sides;
+  const sides = chooseSides(input, strange, false, at).sides;
   const out = routeSides(input, strange, roomy.sides);
   if ([...sides].every(([id, [f, t]]) => roomy.sides.get(id)![0] === f && roomy.sides.get(id)![1] === t)) return out;
   const plain = routeSides(input, strange, sides);
-  const covered = (r: Map<string, PlacedEdge>) => placeLabels(input, new Map([...r].map(([k, v]) => [k, { points: v.points }])));
+  const covered = (r: Map<string, PlacedEdge>) => covering.get(r) ?? placeLabels(input, new Map([...r].map(([k, v]) => [k, { points: v.points }])));
   const [a, b] = [[crossings(out), covered(out)], [crossings(plain), covered(plain)]] as const;
   return a[0] <= b[0] && a[1] <= b[1] && (a[0] < b[0] || a[1] < b[1]) ? out : plain;
 }
@@ -208,8 +209,10 @@ function routeWith(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: 
 
   const order = [...input.edges].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || span(a) - span(b));
   // First pass routes against what is already there; later passes re-route every line knowing
-  // all the others (rip-up and re-route), which removes most needless crossings.
-  for (let pass = 0; pass < PASSES; pass++)
+  // all the others (rip-up and re-route), which removes most needless crossings. A pass that finds
+  // every line where it was finds the same again: the next one would too, so routing stops there.
+  for (let pass = 0, settled = false; pass < PASSES && !settled; pass++) {
+    settled = pass > 0;
     for (const e of order) {
       const p = ports.get(e.id)!;
       const previous = used.get(e.id);
@@ -236,11 +239,13 @@ function routeWith(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: 
           mark(grid, found.cells, 1);
           used.set(e.id, found.cells);
         }
+        if (!found || !previous || !sameCells(previous, found.cells)) settled = false;
         points = found?.points ?? fallback(p);
         if (found) loose.add(e.id);
       }
       out.set(e.id, { points: unloop(simplify(points)) });
     }
+  }
   slideEnds(input, out, sides, trunk, loose);
   if (input.nudge !== false) {
     const list = input.edges.filter((e) => out.has(e.id));
@@ -264,12 +269,28 @@ function routeWith(input: RouterInput, sides: Map<string, [Side, Side]>, trunk: 
     const nudged = new Map(out);
     list.forEach((e, i) => nudged.set(e.id, { points: moved[i]! }));
     // Spreading lines can shorten the pieces labels sat on: keep the spread only when every label still fits.
-    const before = placeLabels(input, new Map([...out].map(([k, v]) => [k, { points: v.points }])));
+    const unspread = new Map([...out].map(([k, v]) => [k, { points: v.points } as PlacedEdge]));
+    const before = placeLabels(input, unspread);
     const after = placeLabels(input, nudged);
-    if (after <= before) return nudged;
+    if (after <= before) return labelled(nudged, after);
+    // Not spread: the labels as they were just placed on the same lines.
+    for (const [k, v] of unspread) if (v.label) out.get(k)!.label = v.label;
+    return labelled(out, before);
   }
-  placeLabels(input, out);
-  return out;
+  return labelled(out, placeLabels(input, out));
+}
+
+function sameCells(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** How many labels of a routing could not avoid covering something (placeLabels), as found when it was routed. */
+const covering = new WeakMap<Map<string, PlacedEdge>, number>();
+function labelled(routes: Map<string, PlacedEdge>, bad: number): Map<string, PlacedEdge> {
+  covering.set(routes, bad);
+  return routes;
 }
 
 /**
@@ -354,15 +375,22 @@ const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2
 // ---------------------------------------------------------------- sides and ports
 
 /**
- * Pick the sides each line leaves and enters by trying the plausible combinations (sides that face
- * the other end) on an empty grid and keeping the cheapest. The layout direction gets a small
- * preference, so most lines still run left to right.
+ * What the sides are weighed on (chooseSides): each line's candidate pairs of sides, an empty grid
+ * with the stub ends of every one of them, and what each way was found to cost there. Nothing is ever
+ * routed on that grid, so a way costs the same every time it is weighed: each is searched once, and
+ * again only when asked to look further than it did (a search stops at the cost of the best way so far).
  */
-function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined, roomy: boolean): { sides: Map<string, [Side, Side]>; pressed: boolean } {
-  const out = new Map<string, [Side, Side]>();
+interface SideGrid {
+  options: Map<string, [Side, Side][]>;
+  probe: Map<string, Ports>;
+  grid: Grid;
+  /** Per line and pair of sides: the cost found (undefined: none under `limit`, the cost it was searched up to). */
+  weighed: Map<string, { cost: number | undefined; limit: number }>;
+}
+
+function sideGrid(input: RouterInput): SideGrid {
   const options = new Map<string, [Side, Side][]>();
   for (const e of input.edges) options.set(e.id, candidates(e, input.direction));
-
   // A grid with the stub ends of every candidate side, at the side's centre.
   const probe = new Map<string, Ports>();
   const points: Point[] = [];
@@ -372,7 +400,28 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
       probe.set(`${e.id}|${f}${t}`, p);
       points.push(p.start, p.goal);
     }
-  const grid = buildGrid(input, points);
+  return { options, probe, grid: buildGrid(input, points), weighed: new Map() };
+}
+
+/**
+ * Pick the sides each line leaves and enters by trying the plausible combinations (sides that face
+ * the other end) on an empty grid and keeping the cheapest. The layout direction gets a small
+ * preference, so most lines still run left to right.
+ */
+function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined, roomy: boolean, at = sideGrid(input)): { sides: Map<string, [Side, Side]>; pressed: boolean } {
+  const out = new Map<string, [Side, Side]>();
+  const { options, probe, grid, weighed } = at;
+  // What the way from one pair of sides costs on the empty grid, when it can come under `limit`. A way
+  // searched before is not searched again: its cost is known, or known to be no less than its limit then.
+  // (A search that stops at a limit finds what one without it finds, up to there.)
+  const weigh = (e: RouteRequest, pair: [Side, Side], limit: number): number | undefined => {
+    const key = `${e.id}|${pair[0]}${pair[1]}`;
+    const known = weighed.get(key);
+    if (known && (known.cost != null || known.limit >= limit)) return known.cost;
+    const cost = search(grid, probe.get(key)!, strange(e), SHARE, limit, [e.from.node, e.to.node])?.cost;
+    weighed.set(key, { cost, limit });
+    return cost;
+  };
   const across = input.direction === 'right' ? ['N', 'S'] : ['E', 'W'];
   // Per node side, how many lines chosen so far come in there (ins) and go out there (outs).
   const ins = new Map<string, number>();
@@ -448,9 +497,9 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     for (const pair of list) {
       const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + crammed(e, 'from', pair[0]) + crammed(e, 'to', pair[1]) + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : back ? 0 : 25));
       // Only a way cheaper than the best so far is worth finding.
-      const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
-      if (!found) continue;
-      const cost = found.cost + sideways;
+      const found = weigh(e, pair, bestCost - sideways);
+      if (found == null) continue;
+      const cost = found + sideways;
       if (cost < bestCost) [best, bestCost] = [pair, cost];
     }
     return best;
@@ -1057,20 +1106,30 @@ function mark(g: Grid, cells: number[], delta: 1 | -1, friend = false) {
  * past each end of a line's straight pieces is marked, and another line pays for starting there.
  */
 function markRunOn(g: Grid, cells: number[], delta: 1 | -1) {
+  // Plain loops, no closures or arrays per piece: this runs for every line on every pass.
+  const W = g.W;
   for (let i = 2; i < cells.length; i += 2) {
-    const [ax, ay, bx, by] = [cells[i - 2]!, cells[i - 1]!, cells[i]!, cells[i + 1]!];
+    const ax = cells[i - 2]!;
+    const ay = cells[i - 1]!;
+    const bx = cells[i]!;
+    const by = cells[i + 1]!;
     if (ax === bx && ay === by) continue;
     const flat = ay === by;
-    const [vals, at, lo, hi] = flat ? [g.xs, ay, Math.min(ax, bx), Math.max(ax, bx)] : [g.ys, ax, Math.min(ay, by), Math.max(ay, by)];
+    const vals = flat ? g.xs : g.ys;
+    const at = flat ? ay : ax;
+    const lo = flat ? Math.min(ax, bx) : Math.min(ay, by);
+    const hi = flat ? Math.max(ax, bx) : Math.max(ay, by);
     const arr = flat ? g.hRun : g.vRun;
     // On its own track, and (half as dear) on the tracks right beside it: a lane aside it still runs on.
     const across = flat ? g.ys : g.xs;
+    // Index of grid edge k on track t: along a row (flat) or down a column.
+    const step = flat ? 1 : W;
     for (let t = at - 1; t <= at + 1; t++) {
       if (t < 0 || t >= across.length || Math.abs(across[t]! - across[at]!) >= RUN_ASIDE) continue;
       const d = t === at ? 2 * delta : delta;
-      const idx = (k: number) => (flat ? t * g.W + k : k * g.W + t);
-      for (let k = lo - 1; k >= 0 && vals[lo]! - vals[k + 1]! < RUN_ON; k--) arr[idx(k)] = arr[idx(k)]! + d;
-      for (let k = hi; k < vals.length - 1 && vals[k]! - vals[hi]! < RUN_ON; k++) arr[idx(k)] = arr[idx(k)]! + d;
+      const origin = flat ? t * W : t;
+      for (let k = lo - 1; k >= 0 && vals[lo]! - vals[k + 1]! < RUN_ON; k--) arr[origin + k * step] = arr[origin + k * step]! + d;
+      for (let k = hi; k < vals.length - 1 && vals[k]! - vals[hi]! < RUN_ON; k++) arr[origin + k * step] = arr[origin + k * step]! + d;
     }
   }
 }
