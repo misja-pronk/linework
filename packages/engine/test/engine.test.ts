@@ -13,6 +13,23 @@ describe('edges', () => {
   });
 });
 
+describe('key: naming lines without a style', () => {
+  const doc = (key: string) => `type: systems\nnodes:\n  a: { kind: service }\n  b: { kind: service }\n  c: { kind: service }\nedges:\n  - a ..> b\n  - b ..> c\nkey: ${key}\n`;
+  it('shows a name written there even when it is the only entry', async () => {
+    const r = await render(doc('{ dotted: Configuration }'), { fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    expect(r.graph!.legend).toEqual([{ label: 'Configuration', line: 'dotted' }]);
+  });
+  it('says when a name is empty or names a look that is not drawn', async () => {
+    const empty = await render(doc('{ dotted: "" }'), { fonts: 'none' });
+    expect(empty.graph!.legend).toEqual([]);
+    expect(empty.diagnostics.map((d) => d.message)).toEqual(['The key name for dotted lines is empty: write what they mean, or leave dotted: out']);
+    const unused = await render(doc('{ dotted: Configuration, dashed: Replication }'), { fonts: 'none' });
+    expect(unused.graph!.legend).toEqual([{ label: 'Configuration', line: 'dotted' }]);
+    expect(unused.diagnostics.map((d) => d.message)).toEqual(['No line without a style is drawn dashed, so "Replication" is not in the key: draw one with -->, or leave dashed: out']);
+  });
+});
+
 describe('erd columns', () => {
   it('reads type and flags', () => {
     expect(parseColumn('uuid pk fk orders')).toEqual({ type: 'uuid', pk: true, fk: 'orders' });
