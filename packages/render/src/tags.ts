@@ -3,8 +3,9 @@
 import type { Box, Marker, Point } from '@cartography/core';
 import { baselineOffset, measureText, type Theme } from '@cartography/theme';
 import { esc, r1 } from './paint.ts';
+import { SMALL_PX } from './readable.ts';
 
-export const TAG = { H: 16, PAD: 5, SIZE: 9.5, GAP: 3 } as const;
+export const TAG = { H: 16, PAD: 5, SIZE: SMALL_PX, GAP: 3 } as const;
 
 /** At most three numbers, then "+2": a card never grows a row of tags. */
 export function shownTags(tags: string[]): string[] {

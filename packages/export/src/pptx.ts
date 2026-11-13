@@ -89,7 +89,7 @@ export interface SlideText {
   title?: string;
   /** The step shown, from 1. */
   step?: number;
-  /** The smallest text a reader needs (points): names on cards, lines and groups, not tags and badges under DETAIL_PX; carto validate says this number. */
+  /** The smallest text a reader needs (points): names on cards, lines and groups, the KEY and tags, not counts and badges under DETAIL_PX; carto validate says this number. */
   smallestPt: number;
   /** Points per drawing pixel: how large the drawing is on this slide. */
   scale: number;

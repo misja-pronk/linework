@@ -9,6 +9,7 @@ import { blockSample } from './block.ts';
 import { drawMarks } from './flow.ts';
 import { messageSample } from './sequence.ts';
 import { tr } from '@cartography/i18n/drawing';
+import { SMALL_PX } from './readable.ts';
 
 /** Sample, gap, label, then the gap to the next item. */
 const SAMPLE = 28;
@@ -49,7 +50,7 @@ export interface LegendBlock {
 const NONE: LegendBlock = { width: 0, height: 0, draw: () => '' };
 
 /** The room the KEY heading takes before the first sample: more for a longer word (LEGENDA). */
-export const keyHead = (theme: Pick<Theme, 'lang'>) => Math.max(KEY, Math.ceil(measureText(tr(theme.lang, 'KEY'), 9.5, 600, 'sans', 1.2)) + 14);
+export const keyHead = (theme: Pick<Theme, 'lang'>) => Math.max(KEY, Math.ceil(measureText(tr(theme.lang, 'KEY'), SMALL_PX, 600, 'sans', 1.2)) + 14);
 
 /** Row pitch of a wrapped KEY, and the room its heading takes (in English; see keyHead). */
 export const LEGEND = { ROW, KEY } as const;
@@ -132,7 +133,7 @@ export function legendBlock(items: LegendItem[], theme: Theme, where: 'top' | 'b
     const first = where === 'bottom' ? y0 + 40 : y0 + 8;
     const rule = where === 'bottom' ? y0 + 16 : y0 + 8 + (count - 1) * ROW + 20;
     let s = `<rect x="${r1(x0)}" y="${r1(rule)}" width="${r1(total)}" height="1" fill="${theme.border}"/>`;
-    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(9.5))}" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}" data-aside="">${tr(theme.lang, 'KEY')}</text>`;
+    if (items.length) s += `<text x="${r1(x0)}" y="${r1(first + baselineOffset(SMALL_PX))}" font-size="${SMALL_PX}" font-weight="600" letter-spacing="1.2" fill="${theme.textFaint}">${tr(theme.lang, 'KEY')}</text>`;
     for (const [i, row] of rows.entries()) for (const p of row) s += legendItem(p.item, theme, x0 + p.x, first + i * ROW);
     if (imprint) s += mark(x0 + total, first + (count - 1) * ROW);
     return s;
