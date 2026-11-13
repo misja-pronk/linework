@@ -135,7 +135,7 @@ export const nlShell = {
   'Open a file': 'Een bestand openen',
   'Export SVG': 'SVG exporteren',
   'Export PNG': 'PNG exporteren',
-  'Builder ↔ YAML (the YAML and the drawing side by side)': 'Builder ↔ YAML (de YAML en de tekening naast elkaar)',
+  'Drawing ↔ YAML (the YAML and the drawing side by side)': 'Tekening ↔ YAML (de YAML en de tekening naast elkaar)',
   'Next / previous pane: YAML, drawing, properties': 'Volgend / vorig paneel: YAML, tekening, eigenschappen',
   'This sheet': 'Dit overzicht',
   'Present full screen (not while typing)': 'Schermvullend presenteren (niet tijdens het typen)',

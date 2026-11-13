@@ -163,10 +163,10 @@ function EditorTools(p: Common & Editor) {
               <Icon name="focus" /> {t('Zoom to the selection')} <kbd>{keyHint('zoom-selection')}</kbd>
             </button>
             <button role="menuitemcheckbox" aria-checked={!!craft.grid} onClick={() => (setToolsMore(false), craft.toggle('grid'))}>
-              <Icon name="grid-3x3" /> Snap to grid {craft.grid && <Icon name="check" size={14} />} <kbd>{keyHint('grid')}</kbd>
+              <Icon name="grid-3x3" /> {t('Snap to grid')} {craft.grid && <Icon name="check" size={14} />} <kbd>{keyHint('grid')}</kbd>
             </button>
             <button role="menuitemcheckbox" aria-checked={!!craft.minimap} onClick={() => (setToolsMore(false), craft.toggle('minimap'))}>
-              <Icon name="map" /> Minimap {craft.minimap && <Icon name="check" size={14} />} <kbd>{keyHint('minimap')}</kbd>
+              <Icon name="map" /> {t('Minimap')} {craft.minimap && <Icon name="check" size={14} />} <kbd>{keyHint('minimap')}</kbd>
             </button>
           </Menu>
         )}

@@ -108,7 +108,8 @@ export function SidePanel(p: Props) {
   );
   const { textNow } = p;
   // The title and subtitle as drawn, unless a view is: a view's own (or its name) stands there, and the fields edit the file's.
-  const shown = result ?? drawing.drawn;
+  // While the YAML has a mistake, the last drawing that worked (as the canvas shows it), not empty fields.
+  const shown = result?.graph ? result : (drawing.drawn ?? result);
   const written = useMemo(() => {
     if (!shown?.view) return undefined;
     try {

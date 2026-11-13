@@ -11,6 +11,7 @@ import { Preview, type DeckTemplate, type PreviewControl, type Selection } from 
 import { StepsStrip } from '../steps-strip.tsx';
 import { deleteStep, moveStep, renameStep, stepsPath } from '../steps-edit.ts';
 import { parentKey } from '../builder.ts';
+import { drawnFields } from './names.ts';
 import type { useCraftPrefs } from '../craft-actions.tsx';
 import type { View } from '../start.tsx';
 import type { Drawing } from './drawing.ts';
@@ -71,7 +72,8 @@ export function DrawingPane(p: Props) {
   const { stepList } = nav;
   const { pathOf, select, toggle } = p.select;
   /** A diagram with nothing in it yet: the canvas says how to start. */
-  const empty = !!result?.graph && current && !result.graph.nodes.length && !result.graph.groups.length;
+  // Counted as the status bar counts it: a sequence with no participants is empty too, though drawn as one shape.
+  const empty = !!result?.graph && current && drawnFields(result.graph).every(([, n]) => !n);
   const quick = useMemo(() => {
     const items = type?.palette ?? [];
     // Shapes first (not containers), then whatever there is.

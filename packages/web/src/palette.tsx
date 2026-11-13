@@ -50,7 +50,12 @@ export function Palette({ commands, onClose, placeholder = t('Type a command or 
     const { tag, rest } = tagQuery(query);
     const pool = tag === undefined ? commands : commands.filter((c) => c.tags?.some((t) => t.toLowerCase().startsWith(tag)));
     const scored = pool.map((c) => ({ c, s: score(rest, `${c.group} ${c.label} ${c.hint ?? ''}`) })).filter((x) => x.s > 0);
+    // Typed: the best match first. Not typed: by group, each group once, in the order the groups first come.
     if (rest) scored.sort((a, b) => b.s - a.s);
+    else {
+      const order = [...new Set(scored.map((x) => x.c.group))];
+      scored.sort((a, b) => order.indexOf(a.c.group) - order.indexOf(b.c.group));
+    }
     return scored.slice(0, 60).map((x) => x.c);
   }, [commands, query]);
 

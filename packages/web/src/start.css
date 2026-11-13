@@ -403,6 +403,29 @@
   background: var(--sheet);
 }
 
+/* ------------------------------------------------------------- low */
+
+/* A projector (1280×720): every card, the blank sheet and the search on the screen at once, with
+   smaller pictures and four cards to a row. */
+@media (max-height: 800px) and (min-width: 861px) {
+  .home {
+    gap: 16px;
+    padding: 16px 24px;
+  }
+  .scenario-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+  }
+  .scenario-thumb {
+    height: 76px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+  }
+  .home-foot {
+    padding-top: 14px;
+  }
+}
+
 /* ------------------------------------------------------------- narrow */
 
 @media (max-width: 860px) {
