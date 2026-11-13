@@ -306,6 +306,12 @@ function textMid(x: number, cy: number, s: string, size: number, weight: number,
   return text(x, cy + baselineOffset(size, face), s, size, weight, fill, anchor, extra);
 }
 
+/**
+ * Italics (an abstract class or member) as a slant about the baseline at y: no italic face is
+ * bundled, and the PNG and PDF renderers draw `font-style="italic"` upright where the face has none.
+ */
+const slant = (y: number) => ` transform="matrix(1 0 -0.2 1 ${r1(0.2 * y)} 0)"`;
+
 /** The title as the theme sets it: its size and weight, in capitals or the monospace face where asked. */
 function drawTitle(x: number, y: number, title: string, theme: Theme): string {
   const t = look(theme).title;
@@ -505,7 +511,7 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   s += `<line x1="${r1(b.x)}" y1="${r1(yh)}" x2="${r1(b.x + b.width)}" y2="${r1(yh)}" stroke="${rule}" stroke-width="1"/>`;
   const titleY = shape.caption ? b.y + head / 2 - 7 : b.y + head / 2;
   s += img ? image(img, b.x + t.padX - 1, titleY - 9, 18, 18) : drawIcon(shape.icon, b.x + t.padX, titleY - 8, 16, tone.fg, 1.75);
-  s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text, undefined, shape.italic ? ' font-style="italic"' : '');
+  s += textMid(b.x + t.padX + 24, titleY, fitText(shape.title, theme.size.label, 600, b.width - 2 * t.padX - 24), theme.size.label, 600, theme.text, undefined, shape.italic ? slant(titleY + baselineOffset(theme.size.label)) : '');
   // A table as wide as its caption was rounded to whole pixels: half a pixel short is not a reason to cut it.
   if (shape.caption)
     s += textMid(b.x + t.padX, titleY + 17, fitText(shape.caption, theme.size.caption, 400, b.width - 2 * t.padX + 1), theme.size.caption, 400, theme.textMuted);
@@ -533,7 +539,7 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
     for (const [k, m] of rowMarks(row).entries()) s += drawIcon(m.icon, cx + t.padX + k * 15, cy - 6.5, 13, theme.tones[m.tone].fg, 1.75);
     if (row.sign) s += textMid(cx + t.padX, cy, row.sign, monoCell(theme), 500, theme.textMuted, undefined, monoAttr(theme), 'mono');
     const [name, type] = row.cells;
-    const style = (c: { italic?: boolean; underline?: boolean }) => (c.italic ? ' font-style="italic"' : '') + (c.underline ? ' text-decoration="underline"' : '');
+    const style = (c: { italic?: boolean; underline?: boolean }) => (c.italic ? slant(cy + baselineOffset(theme.size.cell)) : '') + (c.underline ? ' text-decoration="underline"' : '');
     if (name) s += textMid(cx + t.padX + marks, cy, name.text, theme.size.cell, name.strong ? 600 : 400, theme.text, undefined, style(name));
     if (type?.text)
       s += lk.mono.type
