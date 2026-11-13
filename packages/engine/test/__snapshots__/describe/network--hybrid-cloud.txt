@@ -42,7 +42,7 @@ Ways to look at this drawing by tag.
 - VPN failover: Only used when ExpressRoute is down. Same prefixes, but Azure prefers ExpressRoute and the DC prepends its AS on the VPN. (tags vpn; 6 elements).
 
 Key
-- Solid line: Ethernet
+- Solid line: Ethernet, or routed in the VNet
 - Solid teal line with beads, thick: Private circuit
 - Dashed teal line: VPN tunnel
 - Dashed blue line with ticks: Peering

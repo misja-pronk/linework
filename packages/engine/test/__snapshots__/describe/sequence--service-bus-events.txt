@@ -1,6 +1,6 @@
 Events through Service Bus
 
-Sequence diagram: Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 7 participants and 10 messages.
+Sequence diagram: Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue. 7 participants and 12 messages.
 
 Participants
 - Orders API (App Service)
@@ -27,7 +27,9 @@ In order, top to bottom.
   - 8. order-events sends to Dead-letter queue: 10th try failed: dead-lettered.
 - Dead-lettered and resubmitted:
 - 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
-- 10. Operations sends to order-events: Fix the cause, resubmit.
+- 10. Operations calls Dead-letter queue: Peek the dead-lettered message.
+- 11. Dead-letter queue replies to Operations: OrderPlaced, reason: MaxDeliveryCountExceeded.
+- 12. Operations sends to order-events: Fix the cause, resubmit.
 
 Key
 - Arrow with a filled head: Call

@@ -20,12 +20,12 @@ Groups and elements
 
 Connections
 - deploy.yml signs in with github-prod (OIDC token).
-- github-prod connects to app-shop-deploy (App registration) (Management).
+- github-prod connects to app-shop-deploy (App registration) (Management: set on).
 - app-shop-deploy (App registration) connects to app-shop-deploy (Service principal (enterprise app)) (Management: service principal).
 - app-shop-deploy (Service principal (enterprise app)) is Contributor on rg-shop-prod.
 - app-shop-web is Key Vault Secrets User on kv-shop-prod.
 - func-shop-jobs signs in with id-shop-jobs (signs in as).
-- id-shop-jobs is Storage Blob Data Contributor on stshopexports and signs in with Microsoft Graph (User.Read.All (application)).
+- id-shop-jobs is Storage Blob Data Contributor on stshopexports and is User.Read.All (application) on Microsoft Graph.
 
 Walkthrough
 1. Three kinds: An app registration for code outside Azure, managed identities for code inside it. None has a secret to leak.

@@ -76,9 +76,10 @@ describe('access view', () => {
     expect(r.graph!.legend!.map((l) => l.label)).toContain('Eligible, activated through PIM');
     const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
     const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
-    // Reader on prod (through the package) is held now; Owner on rg only once activated.
-    // Every other role there is named, before where the pill's comes from, each with its own way when that differs.
-    expect(cell('alice', 'rg')).toMatchObject({ text: 'Reader', note: 'eligible for Owner (assigned directly); via Developer access, from prod' });
+    // Owner is assigned on rg itself (eligible: once activated), so it takes the pill; Reader on prod (through
+    // the package) is held now and named too. Every other role there is named, before where the pill's comes
+    // from, each with its own way when that differs.
+    expect(cell('alice', 'rg')).toMatchObject({ text: 'Owner (eligible)', note: 'also Reader (via Developer access, from prod)' });
     expect(cell('sg-ops', 'prod')).toMatchObject({ text: 'Reader (eligible)', inherited: false });
   });
 
@@ -97,7 +98,7 @@ assignments:
   - { principal: sg, role: pra, scope: tenant, eligible: true, activation: 2 h }
 `;
     const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
-    expect(m.cells[0]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'also Privileged Role Administrator; max 2 h' });
+    expect(m.cells[0]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'also Privileged Role Administrator; max 2\u00a0h' });
   });
 
   it('draws a group a package hands out as somewhere to get to, and keys only what is drawn', async () => {
@@ -313,7 +314,7 @@ assignments:
     const m = r.graph!.nodes[0]!.shape as MatrixShape;
     expect(m.rows.map((x) => x.label)).toEqual(['Break-glass', 'sg-admins', 'app-deploy']);
     // Nobody holds Admin access: no column for the sg-admins it hands out.
-    expect(m.cells[1]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'max 2 h, approval by sg-admins' });
+    expect(m.cells[1]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'max 2\u00a0h, approval by sg-admins' });
   });
 
   it('checks what the new fields name', async () => {

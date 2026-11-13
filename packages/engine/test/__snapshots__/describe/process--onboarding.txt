@@ -7,11 +7,11 @@ Lanes and steps
   - Contract signed (start event)
   - Prepare (parallel split or join)
   - Register in HR system
-  - All ready (parallel split or join)
 - IT (lane)
   - Order laptop
   - Create accounts (subprocess, mail, VPN and source control)
 - Manager (lane)
+  - All ready (parallel split or join)
   - First day (timer intermediate event)
   - Plan the first week
   - Welcome and hand over laptop
@@ -38,7 +38,3 @@ Connections
 - Plan the first week leads to All ready.
 - Welcome and hand over laptop leads to Onboarded.
 - A buddy from the team is named in the plan is a note on Plan the first week.
-
-Key
-- Solid line, thick: Happy path
-- Solid line: Other paths

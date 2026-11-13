@@ -1,15 +1,14 @@
 Web shop
 
-Azure infrastructure diagram: Front Door is the only public entry; SQL and Key Vault are reached over private endpoints. 8 elements in 6 groups, with 7 connections.
+Azure infrastructure diagram: Front Door is the only public entry; SQL and Key Vault are reached over private endpoints. 8 elements in 5 groups, with 7 connections.
 
 Groups and elements
 - Users
 - sub-shop-prd (Subscription)
   - rg-shop-prd (West Europe)
     - Front Door (Premium · WAF)
+    - Web shop (Out via snet-web)
     - vnet-shop (10.20.0.0/22)
-      - snet-web (Integration)
-        - Web shop (App Service)
       - snet-cae (Apps env)
         - Orders API (Managed identity)
       - snet-pe (Private endpoints)

@@ -1,6 +1,6 @@
 Order to cash
 
-Process diagram: A customer order from the moment it arrives until the money is booked. 12 elements in 3 lanes, with 13 connections.
+Process diagram: A customer order from the moment it arrives until the money is booked. 13 elements in 3 lanes, with 14 connections.
 
 Lanes and steps
 - Sales (lane)
@@ -16,6 +16,7 @@ Lanes and steps
   - Paid? (decision)
   - Book payment
   - Send reminder
+  - Closed (end event)
 - Warehouse (lane)
   - Pick, pack and ship
 
@@ -29,6 +30,7 @@ Main path
 7. 30 days
 8. Paid?
 9. Book payment (Paid?: yes)
+10. Closed
 
 Connections
 - Order received leads to Check credit.
@@ -40,8 +42,10 @@ Connections
 - Send invoice leads to 30 days and leads to Invoice.
 - 30 days leads to Paid?
 - Paid? leads to Book payment (yes) and leads to Send reminder (no).
+- Book payment leads to Closed.
 - Send reminder leads to 30 days.
 
 Key
 - Solid line, thick: Happy path
 - Solid line: Other paths
+- Dotted line: Document link

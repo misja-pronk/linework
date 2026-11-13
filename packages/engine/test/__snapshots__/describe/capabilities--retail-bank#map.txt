@@ -1,6 +1,6 @@
 Retail bank capability map
 
-Capability map, map: Map. 6 areas and 26 capabilities.
+Capability map, capabilities by area: Capabilities by area. 6 areas and 26 capabilities.
 
 Areas and capabilities
 - Channels

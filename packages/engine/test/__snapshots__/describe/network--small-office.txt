@@ -31,4 +31,3 @@ Key
 - Solid indigo line, double, thick: Trunk
 - Solid sky line with ticks: WAN
 - Dotted sky line: Wireless
-- Solid line, thick: Aggregated link (2× or more)

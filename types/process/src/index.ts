@@ -258,7 +258,19 @@ export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
     main.push(next);
     stops.add(next.to);
   }
-  const onMain = new Set(main);
+  // Every way out of a parallel split on it is on it too, up to where it meets the happy path again:
+  // all of them are walked, so none is another path. In such a way a decision follows its first way out.
+  const heavy = new Set(main);
+  const along = (from: string) => {
+    for (const h of outs(from).filter((x) => !heavy.has(x))) {
+      if (heavy.has(h)) continue;
+      heavy.add(h);
+      if (!stops.has(h.to)) along(h.to);
+      if (kind.get(from) !== 'parallel') break;
+    }
+  };
+  for (const h of main) if (kind.get(h.from) === 'parallel') along(h.from);
+  const onMain = heavy;
   const marked = src.happy !== false && seq.some((h) => !onMain.has(h));
 
   // ---------------------------------------------------------------- checks
@@ -326,7 +338,8 @@ export function buildProcess(src: ProcessSource, ctx: BuildContext): Graph {
     ? [{ title: title(main[0]!.from), nodes: [main[0]!.from], edges: [] }, ...main.map((h) => ({ title: title(h.to), ...(h.label ? { caption: `${title(h.from)} ${h.label}` } : {}), nodes: [h.to], edges: [edgeId(h)] }))]
     : [];
   // The heavier happy path only means something next to the other ways through: the key names both.
-  const legend: LegendItem[] = [...(marked ? [{ label: 'Happy path', line: 'solid' as const, width: HAPPY }, { label: 'Other paths', line: 'solid' as const }] : []), ...(hops.some((h) => h.message && !assoc(h)) ? [{ label: 'Message', line: 'dashed' as const }] : [])];
+  // A dotted line to a document says what a step writes or reads; a note's line is plain enough by itself.
+  const legend: LegendItem[] = [...(marked ? [{ label: 'Happy path', line: 'solid' as const, width: HAPPY }, { label: 'Other paths', line: 'solid' as const }] : []), ...(hops.some((h) => h.message && !assoc(h)) ? [{ label: 'Message', line: 'dashed' as const }] : []), ...(hops.some((h) => form(h.from) === 'document' || form(h.to) === 'document') ? [{ label: 'Document link', line: 'dotted' as const }] : [])];
 
   return {
     ...(src.title ? { title: src.title } : {}),

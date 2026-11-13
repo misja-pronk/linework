@@ -349,8 +349,8 @@ today: 2026-04-15
 
 lanes:
   platform: Platform
-  data: Data
   apps: Applications
+  data: Data
 
 phases:
   Wave 1: { from: 2026-01, to: 2026-04, tone: sky }

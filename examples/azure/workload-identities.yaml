@@ -33,7 +33,7 @@ nodes:
 edges:
   # GitHub's OIDC token is exchanged for an Entra token: the federated credential trusts this repo and environment only.
   - workflow -> fic: { label: OIDC token, style: identity }
-  - fic -> app-reg: { style: management }
+  - fic -> app-reg: { label: set on, style: management }
   - app-reg -> sp: { label: service principal, style: management }
   - sp -> rg: { label: Contributor, style: role }
   # The web app's own identity reads secrets.
@@ -41,7 +41,7 @@ edges:
   # The function signs in as the shared identity, which writes exports and reads users from Graph.
   - jobs -> uami: { label: signs in as, style: identity }
   - uami -> blob: { label: Storage Blob Data Contributor, style: role }
-  - uami -> graph: { label: User.Read.All (application), style: identity }
+  - uami -> graph: { label: User.Read.All (application), style: role }
 
 steps:
   - title: Three kinds

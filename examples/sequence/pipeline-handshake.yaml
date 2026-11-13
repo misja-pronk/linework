@@ -1,7 +1,7 @@
 type: sequence
 title: Nightly export handshake
 subtitle: A partner drops a file; we load it in parallel and confirm or reject the batch
-footers: true
+autonumber: true
 
 boxes:
   platform: { label: Data platform, tone: teal }

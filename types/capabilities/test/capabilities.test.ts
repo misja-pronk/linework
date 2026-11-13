@@ -52,6 +52,11 @@ capabilities:
     expect(r.svg).toBeTruthy();
   });
 
+  it('keys only the levels the map has', async () => {
+    const r = await render('type: capabilities\nheat: maturity\ncapabilities:\n  Sales:\n    - A: { maturity: 2 }\n    - B: { maturity: 4 }\n', { fonts: 'none' });
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Maturity: 2 Developing', '4 Managed']);
+  });
+
   it('tells a name used twice apart by where it stands', async () => {
     const r = await render('type: capabilities\ncapabilities:\n  Sales: [Reporting]\n  Finance: [Reporting]\n', { fonts: 'none' });
     expect(r.graph!.nodes.map((n) => n.id)).toEqual(['Sales', 'Reporting', 'Finance', 'Finance › Reporting']);
@@ -69,7 +74,7 @@ capabilities:
   });
 
   it('says its own words in Dutch: the fit scale, the systems it counts, what has none', async () => {
-    const fit = 'type: capabilities\nheat: fit\ncapabilities:\n  Sales: { fit: 2 }\n';
+    const fit = 'type: capabilities\nheat: fit\ncapabilities:\n  Sales:\n    - A: { fit: 1 }\n    - B: { fit: 2 }\n    - C: { fit: 3 }\n    - D: { fit: 4 }\n    - E: { fit: 5 }\n';
     const key = async (text: string, view?: string) => (await render(text, { fonts: 'none', view })).graph!.legend!.map((l) => l.label);
     expect(await key(`lang: nl\n${fit}`)).toEqual(['Geschiktheid: 1 Slecht', '2 Zwak', '3 Voldoende', '4 Goed', '5 Uitstekend']);
     const r = await render(`lang: nl\n${example('enterprise.yaml')}`, { fonts: 'none', view: 'systems' });

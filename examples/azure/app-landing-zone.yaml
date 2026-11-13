@@ -60,8 +60,9 @@ edges:
   - pe-sql -> sql: { label: TDS, style: private }
   - pe-kv -> kv: { label: HTTPS, style: private }
   - app -> appi: { style: data }
-  # App Insights is workspace-based: its data lives in the central workspace
-  - appi -> law: { label: workspace, style: management, badge: false }
+  # App Insights is workspace-based: its telemetry is stored in the central workspace, a data flow
+  # (violet) that the dotted route-table lines cannot be taken for
+  - appi -> law: { label: workspace, style: data }
   - sql -> law: { style: management }
   - kv -> law: { style: management }
   - app -> law: { style: management }

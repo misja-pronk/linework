@@ -94,7 +94,15 @@ function clamp(text: string, size: number, weight: Weight, width: number, max: n
     .split(' ')
     .map((w) => (measureText(w, size, weight) > width ? w.replace(/([-/])(?=.)/g, '$1 ') : w))
     .join(' ');
-  const all = wrap(loose, size, weight, width);
+  let all = wrap(loose, size, weight, width);
+  // One word left alone on the last line ("queue", "script.”"): the same number of lines, narrower, so it has company.
+  if (all.length > 1 && all.length <= max && !all.at(-1)!.includes(' '))
+    for (let w = width - 4; w > width / 2; w -= 4) {
+      const tried = wrap(loose, size, weight, w);
+      if (tried.length !== all.length) break;
+      all = tried;
+      if (all.at(-1)!.includes(' ')) break;
+    }
   const kept = all.length > max ? [...all.slice(0, max - 1), all.slice(max - 1).join(' ')] : all;
   return kept.map((l) => fitText(l, size, weight, width));
 }

@@ -397,7 +397,7 @@ messages:
     expect(g.bars.some((b) => Math.abs(b.box.x + b.box.width / 2 - g.headers.find((h) => h.p.id === 'bus')!.x) < 8)).toBe(false);
   });
 
-  it('shows the same key in every phase of a file', async () => {
+  it('keys each phase with the arrows drawn in it, and a sequence of calls and replies too', async () => {
     const yaml = `type: sequence
 participants:
   a: { label: Shop }
@@ -409,10 +409,10 @@ messages:
   - divider: Publish
   - a ->> b: OrderPlaced
 `;
-    for (const view of ['phase-order', 'phase-publish']) {
-      const r = await render(yaml, { fonts: 'none', view });
-      expect(r.graph!.legend?.map((l) => l.label), view).toEqual(['Call', 'Reply', 'Async message']);
-    }
+    const key = async (view?: string) => (await render(yaml, { fonts: 'none', ...(view ? { view } : {}) })).graph!.legend?.map((l) => l.label);
+    expect(await key('phase-order')).toEqual(['Call', 'Reply']);
+    expect(await key('phase-publish')).toEqual(['Async message']);
+    expect(await key('whole')).toEqual(['Call', 'Reply', 'Async message']);
   });
 
   it('renders the examples cleanly in both themes', async () => {

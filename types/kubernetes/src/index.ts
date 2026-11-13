@@ -177,6 +177,9 @@ export function buildKubernetes(src: GraphSource, ctx: Parameters<DiagramType['b
     if (kinds.get(n.id) === 'hpa') n.shape.label = ['HPA', ...extra].join(' ');
     else if (extra.length) n.shape.label = `${n.shape.label} · ${extra.join(' · ')}`;
   }
+  // The key says what a chip is in plain words, not which style it stands for.
+  const plain: Record<string, string> = { 'Mounts badge': 'Mounted config, secret or volume', 'Scales badge': 'Scaled by an autoscaler' };
+  if (!ctx.lang || ctx.lang === 'en') for (const l of graph.legend ?? []) if (l.swatch === 'badge' && plain[l.label]) l.label = plain[l.label]!;
   return graph;
 }
 

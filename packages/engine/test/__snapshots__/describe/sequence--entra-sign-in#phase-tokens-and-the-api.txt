@@ -14,3 +14,7 @@ In order, top to bottom.
 - 11. Orders portal calls Orders API: GET /orders with the access token.
 - 12. Orders API does: Validate signature, iss, aud, exp, scp.
 - 13. Orders API replies to Orders portal: 200 OK, orders.
+
+Key
+- Arrow with a filled head: Call
+- Dashed arrow: Reply
