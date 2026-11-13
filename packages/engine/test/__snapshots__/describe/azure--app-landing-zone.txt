@@ -3,39 +3,39 @@ Application landing zone
 Azure infrastructure diagram: Northwind customer portal · one subscription, a resource group per concern, plugged into the platform. 10 elements in 10 groups, with 14 connections.
 
 Groups and elements
-- sub-portal-prd (Landing zone · Corp)
+- sub-portal-prod (Landing zone · Corp)
   - rg-portal-app (Resource group)
-    - app-portal (Managed identity)
-    - func-portal-jobs (Managed identity)
+    - app-portal-prod (Managed identity)
+    - func-portal-prod (Jobs · managed identity)
   - rg-portal-network (Resource group)
-    - vnet-portal-weu (10.1.12.0/22)
+    - vnet-portal-prod (10.1.12.0/22)
       - snet-app (10.1.12.0/24 · VNet integration)
-        - rt-portal (0.0.0.0/0 → 10.0.0.68)
+        - rt-portal-prod (0.0.0.0/0 → 10.0.0.68)
       - snet-pe (10.1.13.0/24)
-        - pe-sql-portal (10.1.13.4)
-        - pe-kv-portal (10.1.13.5)
+        - pep-sql-portal-prod (10.1.13.4)
+        - pep-kv-portal-prod (10.1.13.5)
   - rg-portal-monitor (Resource group)
-    - appi-portal (Application Insights)
+    - appi-portal-prod (Application Insights)
   - rg-portal-data (Resource group)
-    - sqldb-portal (SQL Database)
-    - kv-portal-prd (Key Vault)
+    - sql-portal-prod (Database sqldb-portal-prod)
+    - kv-portal-prod (Key Vault)
 - sub-connectivity (Platform)
-  - afw-hub (Hub firewall · 10.0.0.68)
+  - afw-hub-weu (Azure Firewall Premium · 10.0.0.68)
 - sub-management (Platform)
   - log-platform-weu (Central workspace)
 
 Connections
-- app-portal connects to rt-portal, connects to afw-hub (Private network: outbound), connects to pe-sql-portal (Private network), connects to pe-kv-portal (Private network), sends data to appi-portal and connects to log-platform-weu (Management).
-- rt-portal connects to afw-hub (next hop).
-- pe-sql-portal connects to sqldb-portal (Private network: TDS).
-- pe-kv-portal connects to kv-portal-prd (Private network: HTTPS).
-- appi-portal sends data to log-platform-weu (workspace).
-- sqldb-portal connects to log-platform-weu (Management).
-- kv-portal-prd connects to log-platform-weu (Management).
-- func-portal-jobs connects to pe-sql-portal (Private network) and connects to log-platform-weu (Management).
+- app-portal-prod connects to rt-portal-prod, connects to afw-hub-weu (Private network: outbound), connects to pep-sql-portal-prod (Private network), connects to pep-kv-portal-prod (Private network), sends data to appi-portal-prod and connects to log-platform-weu (Management).
+- rt-portal-prod connects to afw-hub-weu (next hop).
+- pep-sql-portal-prod connects to sql-portal-prod (Private network: TDS).
+- pep-kv-portal-prod connects to kv-portal-prod (Private network: HTTPS).
+- appi-portal-prod sends data to log-platform-weu (workspace).
+- sql-portal-prod connects to log-platform-weu (Management).
+- kv-portal-prod connects to log-platform-weu (Management).
+- func-portal-prod connects to pep-sql-portal-prod (Private network) and connects to log-platform-weu (Management).
 
 Walkthrough
-1. One subscription for the customer portal, with a resource group per concern.
+1. One subscription: The customer portal in a subscription of its own, with a resource group per concern.
 2. Out through the hub: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
 3. Data stays private: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
 4. Monitored centrally: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).

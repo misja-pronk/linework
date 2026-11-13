@@ -1,6 +1,6 @@
 Hub and spoke
 
-Azure infrastructure diagram: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall. 7 elements in 12 groups, with 6 connections.
+Azure infrastructure diagram: Northwind · traffic between on-premises, the spokes and the internet passes the hub firewall; admins use Bastion. 7 elements in 12 groups, with 6 connections.
 
 Groups and elements
 - Head office (10.10.0.0/16)
@@ -8,41 +8,41 @@ Groups and elements
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - GatewaySubnet (10.0.0.0/27)
-      - vpng-hub (VpnGw2AZ · AS 65515)
+      - vpng-hub-weu (VpnGw2AZ · AS 65515)
     - AzureFirewallSubnet (10.0.0.64/26)
-      - afw-hub (Premium · 10.0.0.68)
+      - afw-hub-weu (Azure Firewall Premium · 10.0.0.68)
     - AzureBastionSubnet (10.0.0.128/26)
-      - bas-hub (Standard)
-- sub-erp-prd (Landing zone · Corp)
-  - vnet-erp-weu (10.1.0.0/22)
+      - bas-hub-weu (Standard)
+- sub-erp-prod (Landing zone · Corp)
+  - vnet-erp-prod (10.1.0.0/22)
     - snet-app (10.1.0.0/24)
-      - vmss-erp (VM scale set)
-- sub-intranet-prd (Landing zone · Corp)
-  - vnet-intranet-weu (10.1.4.0/22)
+      - vmss-erp-prod (VM scale set)
+- sub-intranet-prod (Landing zone · Corp)
+  - vnet-intranet-prod (10.1.4.0/22)
     - snet-web (10.1.4.0/24)
-      - vmss-intranet (VM scale set)
+      - vmss-intranet-prod (VM scale set)
 - Internet
 
 Connections
-- Edge router connects to vpng-hub (Private network).
-- vpng-hub connects to afw-hub (Private network: UDR).
-- afw-hub connects to vmss-erp (Private network: peering), connects to vmss-intranet (Private network: peering) and sends traffic to Internet (SNAT).
-- bas-hub connects to vmss-erp (Management: RDP).
+- Edge router connects to vpng-hub-weu (Private network).
+- vpng-hub-weu connects to afw-hub-weu (Private network: UDR).
+- afw-hub-weu connects to vmss-erp-prod (Private network: peering), connects to vmss-intranet-prod (Private network: peering) and sends traffic to Internet (SNAT).
+- bas-hub-weu connects to vmss-erp-prod (Management: RDP).
 
 Walkthrough
-1. The hub holds the shared network services; each workload gets its own spoke.
-2. From the office: The office reaches the spokes over the VPN; route table rt-gateway sends it to the firewall, not the peering.
-  - vpng-hub: rt-gateway: spokes → 10.0.0.68
-3. Out to the internet: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
-  - vmss-erp: rt-erp: 0.0.0.0/0 → 10.0.0.68
+1. Hub and spokes: The hub holds the shared network services; each workload gets a spoke of its own.
+2. From the office: rt-gateway-weu sends office traffic to the firewall first, which forwards it over the peering.
+  - vpng-hub-weu: rt-gateway-weu: spokes → 10.0.0.68
+3. Out to the internet: Each spoke's route table sends 0.0.0.0/0 to the firewall, which takes it out with SNAT.
+  - vmss-erp-prod: rt-erp-prod: 0.0.0.0/0 → 10.0.0.68
 4. Spoke to spoke: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
-5. Admin access: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from AzureBastionSubnet only.
-  - vmss-erp: nsg-app: RDP from AzureBastionSubnet only
+5. Admin access: No public IPs on VMs. Bastion reaches them over the peering; the NSG lets RDP in from Bastion only.
+  - vmss-erp-prod: nsg-erp-prod: RDP from AzureBastionSubnet only
 
 Layers
 Ways to look at this drawing by tag.
-- Routing: Route tables rt-erp and rt-intranet send 0.0.0.0/0 to the firewall; rt-gateway sends the spoke ranges there too. (tags routing; 6 elements).
-- Security: One way out to the internet, admin access only through Bastion. NSGs nsg-app and nsg-web guard the spoke subnets. (tags security; 4 elements).
+- Routing: Route tables rt-erp-prod and rt-intranet-prod send 0.0.0.0/0 to the firewall; rt-gateway-weu sends the spoke ranges there too. (tags routing; 6 elements).
+- Security: One way out to the internet, admin access only through Bastion. NSGs nsg-erp-prod and nsg-intranet-prod guard the spoke subnets. (tags security; 4 elements).
 
 Key
 - Solid sky line: Public traffic
