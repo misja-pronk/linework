@@ -242,6 +242,36 @@ try {
     const picked = await page.evaluate(() => window.getSelection()?.toString().length ?? 0);
     if (picked) fail(`⌘A on a status bar button selected ${picked} characters of the page`);
   }
+  // 7. Plain words: the add menu's shapes are "Shapes", the properties say what a card is (its id on
+  //    hover), the page frame names the page and its smallest text, a sequence's steps are its messages.
+  {
+    const b = await box('router');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await wait(300);
+    const sub = await page.locator('.inspector-title span').innerText();
+    if (/·/.test(sub) || sub !== sub.charAt(0).toUpperCase() + sub.slice(1)) fail(`the properties call the card "${sub}"`);
+    await page.locator('.preview').focus();
+    await page.keyboard.press('a');
+    await wait(300);
+    const heads = await page.locator('.add-menu .palette-group').allInnerTexts();
+    if (heads.some((h) => /^nodes$/i.test(h.trim()))) fail(`the add menu has a heading "${heads.find((h) => /nodes/i.test(h))}"`);
+    await page.keyboard.press('Escape');
+    await page.locator('.preview').focus();
+    await page.keyboard.press('Shift+P');
+    await wait(1200);
+    const frame = await page.locator('.page-label').innerText().catch(() => '');
+    if (!/smallest text/i.test(frame) || /^page:/i.test(frame)) fail(`the page frame says "${frame}"`);
+    await page.keyboard.press('Shift+P');
+  }
+  await open('Sequence');
+  {
+    const chip = await page.locator('.step-chip[data-step="1"]').innerText();
+    if (/→/.test(chip)) fail(`a sequence's first step is called "${chip}"`);
+    await page.locator('.left-rail button[aria-label="Show the outline"]').click();
+    await wait(300);
+    const rows = await page.locator('.outline [role="treeitem"]').allInnerTexts();
+    if (rows.some((r) => /^(sequence|matrix)$/.test(r.trim()))) fail(`the outline lists "${rows.join(', ')}"`);
+  }
 } catch (e) {
   fail(String(e?.stack ?? e));
 }

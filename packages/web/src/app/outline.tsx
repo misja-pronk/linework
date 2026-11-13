@@ -2,7 +2,7 @@
 // selects what it names) or the type's shapes to browse and drag, on two tabs. Adding is the A popup.
 import './outline.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Graph, PaletteItem, Tone } from '@cartography/core';
+import type { Graph, GraphNode, PaletteItem, Tone } from '@cartography/core';
 import type { Selection } from '../preview.tsx';
 import { AddMenu } from '../add-menu.tsx';
 import { Icon } from '../icon.tsx';
@@ -24,6 +24,12 @@ interface Row {
 }
 
 const keyOf = (s: Selection) => `${s.kind}:${s.id}`;
+
+/** A shape that is the whole drawing (a sequence, a matrix, a roadmap) by what it is, not by its id. */
+function wholeName(n: GraphNode): string | undefined {
+  const k = n.shape.kind;
+  return k === 'sequence' ? t('The sequence') : k === 'matrix' ? t('The table') : k === 'roadmap' ? t('The roadmap') : k === 'gitflow' ? t('The branches') : k === 'journey' ? t('The journey') : undefined;
+}
 const LINES = 'lines';
 
 /** The tree as rows: groups in their parents (groups first, then the elements), the lines last under a heading of their own. */
@@ -40,7 +46,7 @@ function outlineRows(g: Graph, nodeName: (id: string) => string): Row[] {
     }
     for (const n of g.nodes.filter((n) => !n.folded && under(n.parent) === parent)) {
       const tone = n.shape.kind === 'card' ? n.shape.tone : undefined;
-      rows.push({ key: keyOf({ kind: 'node', id: n.id }), sel: { kind: 'node', id: n.id }, depth, label: label(n), icon: iconOf(n) ?? 'box', ...(tone ? { tone } : {}), parent: false, ...(up ? { up } : {}) });
+      rows.push({ key: keyOf({ kind: 'node', id: n.id }), sel: { kind: 'node', id: n.id }, depth, label: wholeName(n) ?? label(n), icon: iconOf(n) ?? 'box', ...(tone ? { tone } : {}), parent: false, ...(up ? { up } : {}) });
     }
   };
   walk(undefined, 0, undefined);

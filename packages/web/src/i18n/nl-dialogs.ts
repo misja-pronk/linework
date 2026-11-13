@@ -243,8 +243,8 @@ export const nlDialogs = {
   'Fit to screen': 'Passend maken',
   'Zoom to selection': 'Zoomen naar selectie',
   Minimap: 'Minikaart',
-  'The page it is for, a {page}, and text too small on it (⇧P)': 'De pagina waarvoor het is, een {page}, en tekst die daarop te klein is (⇧P)',
-  'The page it is for, and text too small on it (⇧P)': 'De pagina waarvoor het is, en tekst die daarop te klein is (⇧P)',
+  'Show the {page} it goes on, and any text too small to read there (⇧P)': 'De {page} tonen waar het op komt, en tekst die daar te klein is om te lezen (⇧P)',
+  'Show the page it goes on, and any text too small to read there (⇧P)': 'De pagina tonen waar het op komt, en tekst die daar te klein is om te lezen (⇧P)',
 
   // viewer.tsx
   'Opening the shared diagram…': 'Het gedeelde diagram openen…',

@@ -1460,7 +1460,7 @@ export function Preview(p: Props) {
         </button>
         {/* Zoom to selection (⇧2), snap to grid (⇧G) and the minimap (⇧M) are in the toolbar's ⋯: fewer controls at first sight. */}
         <span className="zoom-sep" />
-        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('The page it is for, a {page}, and text too small on it (⇧P)', { page: result.page.name }) : t('The page it is for, and text too small on it (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
+        <button className={p.page ? 'on' : ''} onClick={() => p.onToggle?.('page')} title={result?.page ? t('Show the {page} it goes on, and any text too small to read there (⇧P)', { page: result.page.name }) : t('Show the page it goes on, and any text too small to read there (⇧P)')} aria-label={t('Page')} aria-pressed={!!p.page}>
           <Icon name="monitor" />
         </button>
       </div>

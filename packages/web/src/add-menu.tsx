@@ -54,7 +54,7 @@ export function AddMenu({ items, onAdd, onClose, inline, into }: { items: Palett
         {shown.length === 0 && <div className="palette-empty">{t('Nothing matches “{query}”', { query })}</div>}
         {shown.map(({ item, i }, n) => (
           <div key={i}>
-            {!query && (n === 0 || shown[n - 1]!.item.collection !== item.collection) && <div className="palette-group">{say(titleCase(item.collection))}</div>}
+            {!query && (n === 0 || shown[n - 1]!.item.collection !== item.collection) && <div className="palette-group">{item.collection === 'nodes' ? t('Shapes') : say(titleCase(item.collection))}</div>}
             <div
               id={`add-${i}`}
               role="option"

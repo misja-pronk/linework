@@ -105,7 +105,7 @@ export function PageFrame(p: { width: number; height: number; page: { name: stri
     <>
       <div className={small ? 'page-frame small' : scroll ? 'page-frame scroll' : 'page-frame'} data-page={p.page.name} data-pt={p.pt.toFixed(1)} style={{ left: x, top: y, width: w, height: h, borderWidth: line }} aria-hidden="true">
         <span className="page-label" style={{ transform: `scale(${1 / p.scale})` }}>
-          {t('Page: {name} · {pt} pt', { name: p.page.name, pt: p.pt.toFixed(1) })}
+          {t('{name} · smallest text {pt} pt', { name: p.page.name.charAt(0).toUpperCase() + p.page.name.slice(1), pt: p.pt.toFixed(1) })}
           {small && (
             <>
               {', '}
