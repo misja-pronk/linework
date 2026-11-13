@@ -16,6 +16,7 @@ import {
   type GraphNode,
   type KindTable,
   type LegendItem,
+  type LinePattern,
   type MatrixCell,
   type MatrixHeader,
   type PaletteItem,
@@ -70,23 +71,28 @@ export const policyKinds: KindTable = {
   'compliance-policy': { label: 'Device compliance policy', icon: 'badge-check', tone: 'green', keywords: ['compliance', 'compliant', 'intune'] },
 };
 
-/** Each kind of line: its entry in the key, and (as the line's kind) what describe says it does. */
+/**
+ * Each kind of line: its entry in the key, and (as the line's kind) what describe says it does. Its
+ * second mark (pattern) is fixed, so a package's grant looks the same in every access diagram: the most
+ * common line of each kind (a role assignment, a request, a membership) is plain. The rare ones without
+ * a pattern get one only when they meet a line they would be told apart from by colour alone.
+ */
 const edgeStyles = {
-  holds: { label: 'Holds package', line: 'solid', tone: 'green', kind: 'Holds' },
+  holds: { label: 'Holds package', line: 'solid', tone: 'green', kind: 'Holds', pattern: 'beads' },
   request: { label: 'Can request', line: 'dashed', tone: 'slate' },
-  grant: { label: 'Package grants', line: 'solid', tone: 'violet', kind: 'Grants' },
+  grant: { label: 'Package grants', line: 'solid', tone: 'violet', kind: 'Grants', pattern: 'ticks' },
   member: { label: 'Member of', line: 'dotted', tone: 'slate', kind: 'Member of' },
-  owns: { label: 'Owns', line: 'dashed', tone: 'amber', kind: 'Owns' },
+  owns: { label: 'Owns', line: 'dashed', tone: 'amber', kind: 'Owns', pattern: 'beads' },
   instance: { label: 'App and its service principal', line: 'solid', tone: 'indigo', kind: 'Service principal' },
-  federated: { label: 'Federated credential of the app', line: 'dotted', tone: 'indigo', kind: 'Federated credential of' },
+  federated: { label: 'Federated credential of the app', line: 'dotted', tone: 'indigo', kind: 'Federated credential of', pattern: 'beads' },
   role: { label: 'Role assignment', line: 'solid', tone: 'sky', kind: 'Role assignment' },
-  eligible: { label: 'Eligible, activated through PIM', line: 'dashed', tone: 'sky', kind: 'Eligible' },
-  applies: { label: 'Policy applies to', line: 'solid', tone: 'rose', kind: 'Applies to' },
-  excludes: { label: 'Excluded from the policy', line: 'dotted', tone: 'rose', kind: 'Excludes', loose: true },
-  requires: { label: 'Policy requires', line: 'dashed', tone: 'rose', kind: 'Requires', loose: true },
-  location: { label: 'Location condition', line: 'dotted', tone: 'teal', kind: 'Location condition', loose: true },
+  eligible: { label: 'Eligible, activated through PIM', line: 'dashed', tone: 'sky', kind: 'Eligible', pattern: 'ticks' },
+  applies: { label: 'Policy applies to', line: 'solid', tone: 'rose', kind: 'Applies to', pattern: 'double' },
+  excludes: { label: 'Excluded from the policy', line: 'dotted', tone: 'rose', kind: 'Excludes', loose: true, pattern: 'ticks' },
+  requires: { label: 'Policy requires', line: 'dashed', tone: 'rose', kind: 'Requires', loose: true, pattern: 'double' },
+  location: { label: 'Location condition', line: 'dotted', tone: 'teal', kind: 'Location condition', loose: true, pattern: 'double' },
   covers: { label: 'Policy covers app', line: 'solid', tone: 'slate', kind: 'Covers' },
-} as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean }>;
+} as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean; pattern?: LinePattern }>;
 
 interface Principal {
   kind?: string;
@@ -480,7 +486,7 @@ function graphView(m: Model): Graph {
   const used = new Set<keyof typeof edgeStyles>();
   const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[], eligible?: GraphEdge['eligible']) => {
     used.add(style);
-    const s: { line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean } = edgeStyles[style];
+    const s: { line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean; pattern?: LinePattern } = edgeStyles[style];
     edges.push({
       id: `e${edges.length}`,
       from: { node: from },
@@ -491,6 +497,7 @@ function graphView(m: Model): Graph {
       start: 'none',
       end: 'arrow',
       ...(s.kind ? { kind: s.kind } : {}),
+      ...(s.pattern ? { pattern: s.pattern } : {}),
       ...(s.loose ? { loose: true } : {}),
       ...(tags?.length ? { tags } : {}),
       ...(eligible ? { eligible } : {}),
@@ -583,7 +590,10 @@ function graphView(m: Model): Graph {
 
   const legend: LegendItem[] = (Object.keys(edgeStyles) as (keyof typeof edgeStyles)[])
     .filter((k) => used.has(k))
-    .map((k) => ({ label: edgeStyles[k].label, line: edgeStyles[k].line, tone: edgeStyles[k].tone }));
+    .map((k) => {
+      const s: { label: string; line: GraphEdge['line']; tone: Tone; pattern?: LinePattern } = edgeStyles[k];
+      return { label: s.label, line: s.line, tone: s.tone, ...(s.pattern ? { pattern: s.pattern } : {}) };
+    });
   return { title: m.src.title, subtitle: m.src.subtitle, direction: m.src.direction ?? 'right', groups, nodes, edges, legend };
 }
 
@@ -617,9 +627,10 @@ function matrixGraph(m: Model, shape: GraphNode['shape'], legend: LegendItem[]):
   };
 }
 
-const pillLegend = (direct: string, inherited: string, checks = false): LegendItem[] => [
-  { label: direct, swatch: checks ? 'check' : 'fill', tone: 'indigo' },
-  { label: inherited, swatch: checks ? 'check-outline' : 'outline', tone: 'indigo' },
+/** The key of a matrix: filled and outlined, each only when a cell is drawn that way. */
+const pillLegend = (cells: (MatrixCell | undefined)[][], direct: string, inherited: string, checks = false): LegendItem[] => [
+  ...(cells.some((r) => r.some((c) => c && !c.inherited)) ? [{ label: direct, swatch: checks ? ('check' as const) : ('fill' as const), tone: 'indigo' as Tone }] : []),
+  ...(cells.some((r) => r.some((c) => c?.inherited)) ? [{ label: inherited, swatch: checks ? ('check-outline' as const) : ('outline' as const), tone: 'indigo' as Tone }] : []),
 ];
 
 /** Who the who × where matrix has a row for: not who only requests, and not what never holds a role itself (an app registration, a device). */
@@ -642,27 +653,55 @@ function scopesInOrder(m: Model): string[] {
 
 const cellOf = (r: Reach, word: Word = english): MatrixCell => ({ text: r.text, inherited: !r.direct, note: reachNote(r, word), tone: r.tone });
 
-/** Who × where: the strongest effective role per cell, and where it comes from. With an earlier state: what was gained and lost since. */
+/** Groups an access package hands out: being in one is somewhere to get to, as a role on a site is. */
+const grantedGroups = (m: Model) => [...new Set(m.packages.flatMap(([, p]) => m.grants(p).map((g) => g.target)))].filter((t) => m.principal(t));
+
+/** How a principal is in a group: itself, through another group, or through an access package it holds. */
+function membership(m: Model, p: string, group: string): MatrixCell | undefined {
+  const groups = m.memberships(p);
+  const cell = (via?: string): MatrixCell => ({ text: m.word('Member'), inherited: !!via, ...(via ? { note: m.word('via {name}', { name: via }) } : {}), tone: 'indigo' });
+  if (list(m.principal(p)?.['member-of']).includes(group)) return cell();
+  if (groups.has(group)) return cell(m.label(groups.get(group)!));
+  const pkg = m.packages.find(([, x]) => (x.holders ?? []).some((h) => h === p || groups.has(h)) && m.grants(x).some((g) => g.target === group));
+  return pkg ? cell(pkg[1].label ?? m.word('access package')) : undefined;
+}
+
+/** Who × where: every effective role per cell, the strongest on the pill, and where it comes from. With an earlier state: what was gained and lost since. */
 function accessView(m: Model, was?: Model): Graph {
   if (was) return compareView(was, m);
-  const rows = inMatrix(m);
-  const columns = scopesInOrder(m);
+  // A group a package hands out is a column once someone is in it; it is a row as well only when it reaches something itself.
+  const granted = grantedGroups(m);
+  const rows = inMatrix(m).filter((id) => !granted.includes(id) || m.reach(id).size);
+  const groups = granted.filter((g) => rows.some((p) => membership(m, p, g)));
+  const scopes = scopesInOrder(m);
+  const columns = [...groups, ...scopes];
   const cells = rows.map((p) => {
     const reach = m.reach(p);
     return columns.map((scope) => {
+      if (groups.includes(scope)) return membership(m, p, scope);
       const all = reach.get(scope) ?? [];
-      const best = all[0];
+      const [best, ...others] = all;
       if (!best) return undefined;
-      // Held now, and more on activation: the cell says both.
-      const more = best.eligible ? [] : all.filter((r) => r.eligible && r.role && !(best.role && m.includes(best.role, r.role)));
       const cell = cellOf(best, m.word);
-      return more.length ? { ...cell, note: [cell.note, m.word('eligible for {roles}', { roles: more.map((r) => m.label(r.role!)).join(', ') })].filter(Boolean).join('; ') } : cell;
+      if (!others.length) return cell;
+      // Every other role there too, before where the pill's role comes from: a note too long to draw in
+      // full loses the tail, never a role. Each says where it comes from when that is not the pill's way.
+      const name = (r: Reach) => {
+        const note = reachNote(r, m.word) ?? m.word('assigned directly');
+        const label = r.role ? m.label(r.role) : r.text;
+        return note !== (cell.note ?? m.word('assigned directly')) ? `${label} (${note})` : label;
+      };
+      // Held now, and more on activation: the cell says both.
+      const pending = best.eligible ? [] : others.filter((r) => r.eligible);
+      const also = others.filter((r) => !pending.includes(r));
+      const more = [also.length && m.word('also {roles}', { roles: also.map(name).join(', ') }), pending.length && m.word('eligible for {roles}', { roles: pending.map(name).join(', ') })];
+      return { ...cell, note: [...more, cell.note].filter(Boolean).join('; ') };
     });
   });
   return matrixGraph(
     m,
-    { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => resourceHeader(m, id)), cells },
-    pillLegend('Assigned directly', 'Through a group, access package or parent scope'),
+    { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => (groups.includes(id) ? principalHeader(m, id) : resourceHeader(m, id))), cells },
+    pillLegend(cells, 'Assigned directly', 'Through a group, access package or parent scope'),
   );
 }
 
@@ -894,7 +933,7 @@ function rolesView(m: Model): Graph {
   return matrixGraph(
     m,
     { kind: 'matrix', corner: m.word('Role \\ permission'), rows, columns: perms.map((p) => ({ label: p })), cells },
-    pillLegend('Granted by the role', 'Included from another role', true),
+    pillLegend(cells, 'Granted by the role', 'Included from another role', true),
   );
 }
 
