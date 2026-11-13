@@ -7,18 +7,18 @@
 # Switch the view (graph, access, roles) to see the same file as a who × where matrix
 # (effective access, with where it is inherited from) or as roles × permissions.
 type: access
-title: Northwind Azure access
-subtitle: Azure roles from management group to resource, standing and eligible through PIM
+title: Azure access
+subtitle: Northwind shop · Azure roles from management group to resource, standing and eligible through PIM
 view: graph   # graph, access or roles
 
 principals:
   # People are in groups; groups hold the roles.
-  priya: { kind: user, label: Priya Shah, caption: Developer, member-of: sg-shop-devs }
-  daan: { kind: user, label: Daan Visser, caption: Platform engineer, member-of: sg-platform-admins }
-  sg-platform-admins: { kind: group, label: sg-azure-platform-admins }
-  sg-azure-readers: { kind: group, label: sg-azure-readers, caption: Security and finance }
-  sg-shop-devs: { kind: group, label: sg-shop-developers }
-  sg-shop-ops: { kind: group, label: sg-shop-operations }
+  priya: { kind: user, label: Priya Shah, caption: Developer, member-of: sg-shop-developers }
+  daan: { kind: user, label: Daan Visser, caption: Platform engineer, member-of: sg-azure-platform-admins }
+  sg-azure-platform-admins: { kind: group }
+  sg-azure-readers: { kind: group, caption: Security group · security and finance }
+  sg-shop-developers: { kind: group }
+  sg-shop-operations: { kind: group }
 
 resources:
   # The scope tree. Add a subscription or resource group by giving it an `in:`.
@@ -32,7 +32,7 @@ resources:
 roles:
   # Built-in roles, one custom role and a data-plane role. permissions feed the roles view.
   reader: { label: Reader, permissions: [read] }
-  contributor: { label: Contributor, inherits: reader, permissions: [create and change] }
+  contributor: { label: Contributor, inherits: reader, permissions: [create, change and delete] }
   owner: { label: Owner, inherits: contributor, permissions: [assign roles] }
   app-operator: { label: Shop App Operator (custom), inherits: reader, permissions: [restart apps] }
   kv-secrets-officer: { label: Key Vault Secrets Officer, permissions: [manage secrets] }
@@ -40,12 +40,12 @@ roles:
 assignments:
   # Broad and read-only at the top; anything that changes production is eligible, not standing.
   - sg-azure-readers is reader on mg-northwind
-  - { principal: sg-platform-admins, role: owner, scope: mg-northwind, eligible: true, activation: 4 h, approval: sg-platform-admins }
-  - sg-shop-devs is contributor on sub-shop-dev
-  - sg-shop-devs is reader on sub-shop-prod
-  - { principal: sg-shop-devs, role: contributor, scope: rg-shop-prod, eligible: true, activation: 8 h }
-  - sg-shop-ops is app-operator on rg-shop-prod
-  - sg-shop-ops is eligible kv-secrets-officer on kv-shop-prod
+  - { principal: sg-azure-platform-admins, role: owner, scope: mg-northwind, eligible: true, activation: 4 h, approval: sg-azure-platform-admins }
+  - sg-shop-developers is contributor on sub-shop-dev
+  - sg-shop-developers is reader on sub-shop-prod
+  - { principal: sg-shop-developers, role: contributor, scope: rg-shop-prod, eligible: true, activation: 8 h }
+  - sg-shop-operations is app-operator on rg-shop-prod
+  - sg-shop-operations is eligible kv-secrets-officer on kv-shop-prod
 
 # For presenting: one point per step.
 steps:
@@ -54,15 +54,15 @@ steps:
     focus: [mg-northwind]
   - title: Standing access
     caption: Read-only at the top for security and finance. Developers can change dev and read production.
-    path: [sg-azure-readers -> mg-northwind, sg-shop-devs -> sub-shop-dev, sg-shop-devs -> sub-shop-prod]
+    path: [sg-azure-readers -> mg-northwind, sg-shop-developers -> sub-shop-dev, sg-shop-developers -> sub-shop-prod]
   - title: Production through PIM
-    caption: Developers are eligible for Contributor on rg-shop-prod. They activate it for a few hours, with a reason, and it ends by itself.
-    path: [priya -> sg-shop-devs -> rg-shop-prod]
-    note: { sg-shop-devs: "MFA and a reason" }
+    caption: Developers are eligible for Contributor on rg-shop-prod. They activate it for up to 8 hours, with MFA and a reason, and it ends by itself.
+    path: [priya -> sg-shop-developers -> rg-shop-prod]
+    note: { sg-shop-developers -> rg-shop-prod: "MFA and a reason" }
   - title: Operations, least privilege
     caption: Operations gets a custom role that can restart the apps and nothing more, and can activate secret management on the vault when needed.
-    path: [sg-shop-ops -> rg-shop-prod, sg-shop-ops -> kv-shop-prod]
+    path: [sg-shop-operations -> rg-shop-prod, sg-shop-operations -> kv-shop-prod]
   - title: No standing Owner
-    caption: Platform admins are eligible for Owner on the management group. Activation needs approval, and every activation is logged and reviewed.
-    path: [daan -> sg-platform-admins -> mg-northwind]
-    note: { sg-platform-admins: "A second admin approves" }
+    caption: Platform admins are eligible for Owner on the management group. Activation needs another admin's approval, and every activation is in the audit log.
+    path: [daan -> sg-azure-platform-admins -> mg-northwind]
+    note: { sg-azure-platform-admins: "A second admin approves" }
