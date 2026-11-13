@@ -1,4 +1,4 @@
-// A small dropdown: focus moves in, arrows move between items, Escape or a click outside closes it.
+// A small dropdown: focus moves in, arrows (and Home, End) move between items, Escape or a click outside closes it.
 import './menu.css';
 import { useEffect, useRef, useState } from 'react';
 
@@ -27,6 +27,8 @@ export function Menu({ onClose, children }: { onClose(): void; children: React.R
     if (e.key === 'Escape') onClose();
     else if (e.key === 'ArrowDown') items[(i + 1) % items.length]?.focus();
     else if (e.key === 'ArrowUp') items[(i - 1 + items.length) % items.length]?.focus();
+    else if (e.key === 'Home') items[0]?.focus();
+    else if (e.key === 'End') items.at(-1)?.focus();
     else if (e.key === 'Tab') onClose();
     else return;
     if (e.key !== 'Tab') e.preventDefault();

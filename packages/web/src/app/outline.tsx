@@ -121,7 +121,9 @@ export function Outline(p: OutlineProps) {
     tree.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`)?.focus();
   };
   const onKey = (e: React.KeyboardEvent) => {
-    const i = shown.findIndex((r) => r.key === focusKey);
+    // From the row that has the keyboard, which need not be the one selected.
+    const from = (e.target as HTMLElement).closest<HTMLElement>('[data-key]')?.dataset.key ?? focusKey;
+    const i = shown.findIndex((r) => r.key === from);
     const r = shown[i];
     if (!r) return;
     if (e.key === 'ArrowDown') go(shown[i + 1]?.key);

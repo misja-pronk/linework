@@ -227,7 +227,7 @@ export const nlDialogs = {
 
   // preview.tsx
   '{count} selected': '{count} geselecteerd',
-  'Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes.': 'Tekening. Tab gaat langs de elementen, ⌥ pijltjes naar het dichtstbijzijnde, pijltjes schuiven, Delete verwijdert.',
+  'Drawing. Tab moves between elements, ⌥ arrows to the nearest one, arrows nudge, Delete removes, F6 goes on to the toolbar.': 'Tekening. Tab gaat langs de elementen, ⌥ pijltjes naar het dichtstbijzijnde, pijltjes schuiven, Delete verwijdert, F6 gaat naar de werkbalk.',
   'Nothing to draw yet. Fix the problems in the editor, or start from a template.': 'Nog niets te tekenen. Los de problemen in de editor op, of begin met een sjabloon.',
   'Into {group}': 'In {group}',
   'Cannot go in {group}': 'Kan niet in {group}',

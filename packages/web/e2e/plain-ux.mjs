@@ -199,6 +199,49 @@ try {
     await page.screenshot({ path: `${out}/ux-group-name.png` });
     await page.keyboard.press('Escape');
   }
+  // 6. The keyboard: F6 goes round every region, End in a menu goes to its last item, an element
+  //    picked in ⌘K leaves the keyboard on the drawing, ↓ in the outline goes on from the row that has
+  //    the keyboard, ⌘A on a status bar button selects no page text.
+  await open('Azure network');
+  {
+    const where = () =>
+      page.evaluate(() => {
+        const a = document.activeElement;
+        return ['.topbar', '.left-rail', '.shapes', '.canvas-tools', '.steps-strip', '.side', '.statusbar', '.preview'].find((q) => a?.closest(q)) ?? a?.tagName;
+      });
+    await page.locator('.preview').focus();
+    const seen = [];
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press('F6');
+      seen.push(await where());
+    }
+    for (const region of ['.canvas-tools', '.steps-strip', '.side', '.statusbar', '.topbar', '.left-rail', '.preview'])
+      if (!seen.includes(region)) fail(`F6 never reaches ${region}: ${seen.join(' → ')}`);
+    await page.locator('.topbar button:has-text("Export")').click();
+    await page.waitForSelector('.topbar .menu [role="menuitem"]');
+    await page.keyboard.press('End');
+    const last = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    if (!/Describe/.test(last ?? '')) fail(`End in the Export menu went to "${last}"`);
+    await page.keyboard.press('Escape');
+    await page.locator('.topbar button[aria-label="Commands"]').click();
+    await page.keyboard.type('edge router');
+    await page.keyboard.press('Enter');
+    await wait(300);
+    if ((await where()) !== '.preview') fail(`after ⌘K → an element → Enter the keyboard is on ${await where()}`);
+    await page.locator('.left-rail button[aria-label="Show the outline"]').click();
+    await wait(300);
+    const rows = page.locator('.outline [role="treeitem"]');
+    await rows.nth(0).click();
+    await rows.nth(3).focus();
+    await page.keyboard.press('ArrowDown');
+    const key4 = await rows.nth(4).getAttribute('data-key');
+    const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-key'));
+    if (focused !== key4) fail(`↓ from the fourth row went to ${focused}, not the fifth (${key4})`);
+    await page.locator('.statusbar button').first().focus();
+    await page.keyboard.press('ControlOrMeta+a');
+    const picked = await page.evaluate(() => window.getSelection()?.toString().length ?? 0);
+    if (picked) fail(`⌘A on a status bar button selected ${picked} characters of the page`);
+  }
 } catch (e) {
   fail(String(e?.stack ?? e));
 }
