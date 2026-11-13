@@ -2,6 +2,58 @@
 import { describe, expect, it } from 'vitest';
 import { settle, type Para } from '../src/shapes.ts';
 import { joinGlyphs } from '../src/pdf.ts';
+import { dashCut, legs, trimTo, type Leg } from '../src/slide.ts';
+
+const P = (x: number, y: number) => ({ x, y });
+const len = (q: { a: { x: number; y: number }; b: { x: number; y: number } }) => Math.hypot(q.b.x - q.a.x, q.b.y - q.a.y);
+
+describe('lines in pieces', () => {
+  it('leaves out a straight stretch no longer than the two round bends at its ends take', () => {
+    // A jog of 16 px between two bends of radius 8: nothing is left of it but the bends.
+    const list = legs([P(0, 0), P(50, 0), P(50, 16), P(100, 16)], 8, 'round', 1);
+    expect(list.every((q) => len(q) > 0.01)).toBe(true);
+    expect(list.filter((q) => q.bend)).toHaveLength(8);
+    expect(list.filter((q) => !q.bend)).toHaveLength(2);
+  });
+
+  it('keeps a line that is not square as its own straight pieces, unrounded', () => {
+    const curve = Array.from({ length: 41 }, (_, i) => P(i * 2.5, 40 * Math.sin(i / 13)));
+    const list = legs(curve, 8, 'round', 1);
+    expect(list.some((q) => q.bend)).toBe(false);
+    expect(list.length).toBeLessThan(40);
+    expect(list[0]!.a).toEqual(curve[0]);
+    expect(list.at(-1)!.b).toEqual(curve.at(-1));
+  });
+
+  it('cuts a dashed line where its dashes fall, each dashed piece from the start of a dash to the end of one', () => {
+    // Period 7, dashes 4 long. A piece from 0 to 20, then one from 20 to 33.
+    const list: Leg[] = [
+      { a: P(0, 0), b: P(20, 0), s: 0 },
+      { a: P(20, 0), b: P(20, 13), s: 20 },
+    ];
+    const cut = dashCut(list, 7, 4);
+    const span = (q: Leg) => [Math.round((q.a.x + q.a.y) * 100) / 100, Math.round((q.b.x + q.b.y) * 100) / 100];
+    // 0–18 holds dashes 0–4, 7–11, 14–18; 20 is in a gap; 21–33 holds dashes 21–25, 28–32 and a gap.
+    expect(cut.map((q) => [q.dashed, ...span(q)])).toEqual([
+      [true, 0, 18],
+      [true, 21, 32],
+    ]);
+    // A piece that starts inside a dash begins with the rest of it, solid; one that ends inside a dash ends with its start, solid.
+    const mid = dashCut([{ a: P(2, 0), b: P(16, 0), s: 2 }], 7, 4);
+    expect(mid.map((q) => [q.dashed, ...span(q)])).toEqual([
+      [false, 2, 4],
+      [true, 7, 11],
+      [false, 14, 16],
+    ]);
+    for (const q of [...cut, ...mid].filter((q) => q.dashed)) expect(((len(q) - 4) / 7) % 1).toBeCloseTo(0);
+  });
+
+  it('trims a line to the bend where it leaves a trunk it shares, keeping the bend', () => {
+    const pts = [P(0, 100), P(50, 100), P(50, 20), P(120, 20)];
+    expect(trimTo(pts, P(50, 20), 9)).toEqual([P(50, 29), P(50, 20), P(120, 20)]);
+    expect(trimTo(pts, P(500, 20), 9)).toBe(pts);
+  });
+});
 
 const frame = { x: 1000, y: 2000, w: 1000000, h: 500000 };
 const para = (size: number, align?: Para['align'], before?: number): Para => ({ align, before, runs: [{ text: 'x', size, color: '#000' }] });

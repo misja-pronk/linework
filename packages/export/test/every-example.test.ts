@@ -30,6 +30,11 @@ describe('pptx of every example', () => {
         const drawing = xml.slice(from, legend < 0 ? undefined : legend);
         const tables = (xml.match(/<p:graphicFrame>/g) ?? []).length;
         expect((drawing.match(/<p:(sp|pic|cxnSp)>/g) ?? []).length + tables, s).toBeGreaterThan(0);
+        // What Apple's importer leaves out or trips on: a freeform, a line of no length, an id twice.
+        expect(xml, s).not.toContain('<a:custGeom>');
+        expect(xml, s).not.toMatch(/<a:ext cx="0" cy="0"\/><\/a:xfrm><a:prstGeom prst="line">/);
+        const ids = [...xml.matchAll(/<p:cNvPr id="(\d+)"/g)].map((m) => m[1]);
+        expect(ids.length - new Set(ids).size, s).toBe(0);
       }
       // What has no native drawing is a picture, and the export says so.
       const pictured = r.graph.nodes.some((n) => ['sequence', 'gitflow', 'roadmap'].includes(n.shape.kind));
