@@ -535,12 +535,12 @@ describe('process and states', () => {
     for (const s of flowOf(r)) if (s.label) expect(texts, s.label).toContain(s.label.split(' ')[0]);
     for (const g of r.graph!.groups) expect(texts.toLowerCase(), g.label).toContain(g.label.toLowerCase().split(' ')[0]);
     for (const e of r.graph!.edges) if (e.label) expect(texts, e.label).toContain(e.label);
-    // A straight line is a connector bound to the shapes it joins, so it follows when a shape is moved;
-    // a bent one has the drawing's round bends, in pieces, as every bent line on the slide.
-    const straightLines = r.graph!.edges.filter((e) => clean(r.placed!.edges.get(e.id)!.points).length === 2).length;
-    expect(slide.match(/<a:stCxn /g)!.length).toBe(straightLines);
+    // A line with up to two bends is a connector bound to the shapes it joins, so it follows when a
+    // shape is moved; one with more is drawn in pieces.
+    const bound = r.graph!.edges.filter((e) => clean(r.placed!.edges.get(e.id)!.points).length <= 4).length;
+    expect(slide.match(/<a:stCxn /g)!.length).toBe(bound);
     expect(slide.match(/name="Line: /g)!.length).toBe(r.graph!.edges.length);
-    expect(slide).not.toContain('bentConnector');
+    expect(slide).not.toContain('bentConnector4');
   });
 
   it('pptx: a task\'s caption wraps where the drawing wraps it, a paragraph a line, instead of running out of the task', async () => {

@@ -798,11 +798,10 @@ class SlideDrawing {
     const plain = (m: Marker) => m === 'none' || m === 'arrow';
     if (plain(e.start) && plain(e.end)) {
       const fit = fitConnector(pts.map((p) => ({ x: this.X(p.x), y: this.Y(p.y) })), 0.6 * PX);
-      // A straight line, or one with square bends where the theme draws them so, is a connector bound
-      // to its shapes. Where the drawing rounds or cuts its bends, every bent line is drawn in pieces
-      // with those bends, so all lines on the slide look alike. (Quick Look also draws a connector with
-      // three bends as one straight stroke from end to end.)
-      if (fit && (fit.prst === 'straightConnector1' || (corner === 'square' && fit.prst !== 'bentConnector4'))) {
+      // A line with up to two bends is a connector bound to its shapes, so it follows a shape moved in
+      // PowerPoint; its bends are square even where the drawing rounds them. A line with more is drawn
+      // in pieces (Quick Look draws a connector with three bends as one straight stroke end to end).
+      if (fit && fit.prst !== 'bentConnector4') {
         const xml = connector({ id: this.next(), name, frame: fit.frame, prst: fit.prst, adj: fit.adj, line, start: this.site(pts[0]!, e.from.node, e.from.row), end: this.site(pts.at(-1)!, e.to.node, e.to.row) });
         return { xml, box: fit.frame };
       }
