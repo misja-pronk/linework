@@ -87,7 +87,7 @@ export function buildCommands(c: CommandsContext): Command[] {
       : []),
     ...(stepList.length
       ? [
-          { id: 'step-next', group: t('Present'), label: t('Next step'), icon: 'layers', shortcut: keyHint('step-by'), run: () => nav.stepBy(1) },
+          { id: 'step-next', group: t('Present'), label: t('Next step'), icon: 'layers', shortcut: ']', run: () => nav.stepBy(1) },
           { id: 'step-previous', group: t('Present'), label: t('Previous step'), icon: 'layers', shortcut: '[', run: () => nav.stepBy(-1) },
           ...(drawn?.step ? [{ id: 'step-none', group: t('Present'), label: t('Show the whole drawing'), hint: t('no step'), icon: 'layers', run: () => nav.pickStep(undefined) }] : []),
           ...stepList.map((s, i) => ({ id: `step:${i + 1}`, group: t('Steps'), label: `${i + 1}. ${s.title ?? s.caption ?? t('Step')}`, hint: s.title ? s.caption : undefined, icon: 'layers', run: () => nav.pickStep(i + 1) })),
