@@ -64,7 +64,7 @@ try {
     await wait(400);
     if (!(await page.locator('.cm-editor').isVisible())) fail('the YAML tab at 900 px does not show the YAML');
     if (await page.locator('.outline').isVisible().catch(() => false)) fail('the YAML tab at 900 px shows the outline');
-    const toast = await page.locator('.toast').boundingBox();
+    const toast = (await page.locator('.toast').count()) ? await page.locator('.toast').boundingBox() : null;
     if (toast && toast.height > 80) fail(`a message on the YAML tab is ${Math.round(toast.height)} px high`);
     await page.screenshot({ path: `${out}/follows-900-yaml.png` });
   }

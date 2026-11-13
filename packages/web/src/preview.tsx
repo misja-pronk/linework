@@ -662,7 +662,8 @@ export function Preview(p: Props) {
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as Element).closest('.label-editor, .canvas-empty button')) return;
     lastDown.current = performance.now();
-    if ((document.activeElement as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]') && !frame.current?.contains(document.activeElement)) leftField.current = lastDown.current;
+    // Only a field of the panels beside the drawing (properties, outline, YAML): not a name typed in a session.
+    if ((document.activeElement as HTMLElement | null)?.closest?.('.side input, .side textarea, .side select, .shapes input, .editor-pane [contenteditable="true"]')) leftField.current = lastDown.current;
     frame.current?.focus({ preventScroll: true });
     setKb(false);
     // Space-drag and the middle button pan; a plain drag on empty canvas draws a marquee.
@@ -996,7 +997,7 @@ export function Preview(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- when the drawing has caught up
   }, [p.catchingUp, result]);
   /** When a click on the drawing last took the keyboard from a text field (an inspector field, the YAML). */
-  const leftField = useRef(0);
+  const leftField = useRef(-Infinity);
   const editRef = useRef(editSelected);
   editRef.current = editSelected;
   // The inspector the first click opens can cover the spot of the second one: a press on the inspector
