@@ -236,12 +236,14 @@ describe('steps: drawing', () => {
     // The route does not lean on colour alone: a halo under it and a heavier line.
     const edge = r.graph!.edges.find((e) => e.to.node === 'stripe')!.id;
     const line = part(two, 'edge', edge);
-    expect(line).toContain('stroke-opacity="0.22"');
+    expect(line).toContain('data-halo');
+    // One calm halo for every line in focus: a shade of the text colour, never a tone or the accent.
+    expect(line).toContain(`stroke="${r.theme!.text}" stroke-opacity="0.13"`);
     const widths = [...line.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1]));
     const other = r.graph!.edges.find((e) => e.to.node === 'db')!.id;
     const quiet = part(two, 'edge', other);
     expect(Math.max(...widths.slice(1))).toBeGreaterThan(Math.max(...[...quiet.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1]))));
-    expect(quiet).not.toContain('stroke-opacity="0.22"');
+    expect(quiet).not.toContain('data-halo');
     // The callout, the words and the place in the story.
     expect(two).toContain('Card data leaves here');
     expect(two).toContain('>Paying<');

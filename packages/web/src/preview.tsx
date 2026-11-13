@@ -1176,7 +1176,7 @@ export function Preview(p: Props) {
     for (const id of ids)
       for (const g of root.querySelectorAll(`[data-edge="${CSS.escape(id)}"]`)) {
         // What is drawn in the line's own colour (the line, its ends): not a double line's light core, nor a focus halo.
-        const color = g.querySelector(':scope > path[fill="none"]:not([stroke="transparent"]):not([stroke-opacity="0.22"])')?.getAttribute('stroke');
+        const color = g.querySelector(':scope > path[fill="none"]:not([stroke="transparent"]):not([data-halo])')?.getAttribute('stroke');
         if (!color) continue;
         for (const el of g.children) {
           // A little heavier too: on a shared screen a change of colour alone is easily missed.
