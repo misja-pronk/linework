@@ -2,44 +2,44 @@ type: azure
 title: Application landing zone
 subtitle: Northwind customer portal · one subscription, a resource group per concern, plugged into the platform
 
-# The workload's own subscription (sub-portal-prd) with a resource group per concern:
+# The workload's own subscription (sub-portal-prod) with a resource group per concern:
 #   rg-portal-app       what runs the code
 #   rg-portal-network   the spoke VNet, peered to the hub; NSG and route table on each subnet
 #   rg-portal-data      what holds the data, reached only through private endpoints
 #   rg-portal-monitor   the workload's own telemetry
 # Around it the platform it plugs into: the hub firewall and the central Log Analytics workspace.
-# Diagnostic settings are badges on the cards (badges: [management]) instead of a line each.
+# Diagnostic settings to log-platform-weu are badges on the cards (badges: [management]) instead of a line each.
 # Adding a resource: a card in its resource group; if it is PaaS, a private endpoint in snet-pe
 # and a line app → endpoint → resource.
 
 groups:
-  sub: { kind: subscription, label: sub-portal-prd, caption: Landing zone · Corp }
-  rg-app: { kind: resource-group, label: rg-portal-app, in: sub }
-  rg-network: { kind: resource-group, label: rg-portal-network, in: sub }
-  vnet: { kind: vnet, label: vnet-portal-weu, caption: 10.1.12.0/22, in: rg-network }
-  snet-pe: { kind: subnet, label: snet-pe, caption: 10.1.13.0/24, in: vnet }
-  snet-app: { kind: subnet, label: snet-app, caption: 10.1.12.0/24 · VNet integration, in: vnet }
-  rg-monitor: { kind: resource-group, label: rg-portal-monitor, in: sub }
-  rg-data: { kind: resource-group, label: rg-portal-data, in: sub }
+  sub-portal-prod: { kind: subscription, label: sub-portal-prod, caption: Landing zone · Corp }
+  rg-portal-app: { kind: resource-group, label: rg-portal-app, in: sub-portal-prod }
+  rg-portal-network: { kind: resource-group, label: rg-portal-network, in: sub-portal-prod }
+  vnet-portal-prod: { kind: vnet, label: vnet-portal-prod, caption: 10.1.12.0/22, in: rg-portal-network }
+  snet-pe: { kind: subnet, label: snet-pe, caption: 10.1.13.0/24, in: vnet-portal-prod }
+  snet-app: { kind: subnet, label: snet-app, caption: 10.1.12.0/24 · VNet integration, in: vnet-portal-prod }
+  rg-portal-monitor: { kind: resource-group, label: rg-portal-monitor, in: sub-portal-prod }
+  rg-portal-data: { kind: resource-group, label: rg-portal-data, in: sub-portal-prod }
 
   # The platform, run by the platform team in its own subscriptions
-  conn: { kind: subscription, label: sub-connectivity, caption: Platform }
-  mgmt: { kind: subscription, label: sub-management, caption: Platform }
+  sub-connectivity: { kind: subscription, label: sub-connectivity, caption: Platform }
+  sub-management: { kind: subscription, label: sub-management, caption: Platform }
 
 nodes:
-  app: { kind: app-service, label: app-portal, caption: Managed identity, in: rg-app }
-  func: { kind: function-app, label: func-portal-jobs, caption: Managed identity, in: rg-app }
+  app-portal-prod: { kind: app-service, label: app-portal-prod, caption: Managed identity, in: rg-portal-app }
+  func-portal-prod: { kind: function-app, label: func-portal-prod, caption: Jobs · managed identity, in: rg-portal-app }
 
-  rt: { kind: route-table, label: rt-portal, caption: 0.0.0.0/0 → 10.0.0.68, in: snet-app }
-  pe-sql: { kind: private-endpoint, label: pe-sql-portal, caption: 10.1.13.4, in: snet-pe }
-  pe-kv: { kind: private-endpoint, label: pe-kv-portal, caption: 10.1.13.5, in: snet-pe }
+  rt-portal-prod: { kind: route-table, label: rt-portal-prod, caption: 0.0.0.0/0 → 10.0.0.68, in: snet-app }
+  pep-sql-portal-prod: { kind: private-endpoint, label: pep-sql-portal-prod, caption: 10.1.13.4, in: snet-pe }
+  pep-kv-portal-prod: { kind: private-endpoint, label: pep-kv-portal-prod, caption: 10.1.13.5, in: snet-pe }
 
-  sql: { kind: sql-database, label: sqldb-portal, in: rg-data }
-  kv: { kind: key-vault, label: kv-portal-prd, in: rg-data }
-  appi: { kind: app-insights, label: appi-portal, in: rg-monitor }
+  sql-portal-prod: { kind: sql-database, label: sql-portal-prod, caption: Database sqldb-portal-prod, in: rg-portal-data }
+  kv-portal-prod: { kind: key-vault, label: kv-portal-prod, in: rg-portal-data }
+  appi-portal-prod: { kind: app-insights, label: appi-portal-prod, in: rg-portal-monitor }
 
-  afw: { kind: firewall, label: afw-hub, caption: Hub firewall · 10.0.0.68, in: conn }
-  law: { kind: log-analytics, label: log-platform-weu, caption: Central workspace, in: mgmt }
+  afw-hub-weu: { kind: firewall, label: afw-hub-weu, caption: Azure Firewall Premium · 10.0.0.68, in: sub-connectivity }
+  log-platform-weu: { kind: log-analytics, label: log-platform-weu, caption: Central workspace, in: sub-management }
 
 # Diagnostic settings to the central workspace: a badge on the card, not a line across the drawing
 badges: [management]
@@ -51,32 +51,33 @@ edges:
   # The route table is not a hop: it sits on snet-app and names the firewall as next hop for
   # 0.0.0.0/0 (the dotted lines: configuration, not traffic); the traffic itself runs
   # app → firewall over the spoke-to-hub peering (the dashed line).
-  - app ..> rt
-  - app -> afw: { label: outbound, style: private }
-  - rt ..> afw: { label: next hop }
-  - app -> pe-sql: { style: private }
-  - app -> pe-kv: { style: private }
-  - func -> pe-sql: { style: private }
-  - pe-sql -> sql: { label: TDS, style: private }
-  - pe-kv -> kv: { label: HTTPS, style: private }
-  - app -> appi: { style: data }
+  - app-portal-prod ..> rt-portal-prod
+  - app-portal-prod -> afw-hub-weu: { label: outbound, style: private }
+  - rt-portal-prod ..> afw-hub-weu: { label: next hop }
+  - app-portal-prod -> pep-sql-portal-prod: { style: private }
+  - app-portal-prod -> pep-kv-portal-prod: { style: private }
+  - func-portal-prod -> pep-sql-portal-prod: { style: private }
+  - pep-sql-portal-prod -> sql-portal-prod: { label: TDS, style: private }
+  - pep-kv-portal-prod -> kv-portal-prod: { label: HTTPS, style: private }
+  - app-portal-prod -> appi-portal-prod: { style: data }
   # App Insights is workspace-based: its telemetry is stored in the central workspace, a data flow
   # (violet) that the dotted route-table lines cannot be taken for
-  - appi -> law: { label: workspace, style: data }
-  - sql -> law: { style: management }
-  - kv -> law: { style: management }
-  - app -> law: { style: management }
-  - func -> law: { style: management }
+  - appi-portal-prod -> log-platform-weu: { label: workspace, style: data }
+  - sql-portal-prod -> log-platform-weu: { style: management }
+  - kv-portal-prod -> log-platform-weu: { style: management }
+  - app-portal-prod -> log-platform-weu: { style: management }
+  - func-portal-prod -> log-platform-weu: { style: management }
 
 steps:
-  - One subscription for the customer portal, with a resource group per concern.
+  - title: One subscription
+    caption: The customer portal in a subscription of its own, with a resource group per concern.
   - title: Out through the hub
     caption: Outbound traffic leaves through the integration subnet; its route table sends it to the hub firewall.
-    path: app -> afw
-    focus: [app -> rt, rt -> afw]
+    path: app-portal-prod -> afw-hub-weu
+    focus: [app-portal-prod -> rt-portal-prod, rt-portal-prod -> afw-hub-weu]
   - title: Data stays private
     caption: SQL and Key Vault have no public access; the app uses private endpoints and its managed identity.
-    path: [app -> pe-sql -> sql, app -> pe-kv -> kv]
+    path: [app-portal-prod -> pep-sql-portal-prod -> sql-portal-prod, app-portal-prod -> pep-kv-portal-prod -> kv-portal-prod]
   - title: Monitored centrally
     caption: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
-    focus: [law, appi, app, func, sql, kv]
+    focus: [log-platform-weu, appi-portal-prod, app-portal-prod, func-portal-prod, sql-portal-prod, kv-portal-prod]

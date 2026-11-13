@@ -275,7 +275,7 @@ describe('shapes Quick Look draws', () => {
   it('turns a piece so it runs the way the line does, and its arrowhead points the right way', async () => {
     // Outbound runs up from the app to the firewall: its pieces upward are flipped.
     const slide = parts(await toPptx(await draw('azure/app-landing-zone.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
-    const out = shapes(group(slide, 'Line: app → afw (outbound)') ?? '');
+    const out = shapes(group(slide, 'Line: app-portal-prod → afw-hub-weu (outbound)') ?? '');
     expect(out.length).toBeGreaterThan(5);
     expect(out.some((s) => s.includes('flipV="1"'))).toBe(true);
     expect(out.at(-1)).toContain('<a:tailEnd ');
