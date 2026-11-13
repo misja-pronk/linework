@@ -41,6 +41,21 @@ export function score(query: string, text: string): number {
   return s - t.length * 0.01;
 }
 
+/**
+ * How well a command answers what is typed: its name first ("pdf" is Export PDF, not a command whose
+ * hint has a p, a d and an f in it), the words typed as they stand most of all; then its group and hint.
+ */
+export function rank(query: string, c: Pick<Command, 'label' | 'group' | 'hint'>): number {
+  const q = query.trim().toLowerCase();
+  if (!q) return 1;
+  const label = c.label.toLowerCase();
+  const at = label.indexOf(q);
+  const whole = at < 0 ? 0 : 40 + (at === 0 || /[\s/·._-]/.test(label[at - 1]!) ? 20 : 0);
+  const named = score(q, c.label);
+  if (whole || named) return whole + named + 20;
+  return score(q, `${c.group} ${c.label} ${c.hint ?? ''}`);
+}
+
 export function Palette({ commands, onClose, placeholder = t('Type a command or an element…') }: { commands: Command[]; onClose(): void; placeholder?: string }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -49,7 +64,7 @@ export function Palette({ commands, onClose, placeholder = t('Type a command or 
   const shown = useMemo(() => {
     const { tag, rest } = tagQuery(query);
     const pool = tag === undefined ? commands : commands.filter((c) => c.tags?.some((t) => t.toLowerCase().startsWith(tag)));
-    const scored = pool.map((c) => ({ c, s: score(rest, `${c.group} ${c.label} ${c.hint ?? ''}`) })).filter((x) => x.s > 0);
+    const scored = pool.map((c) => ({ c, s: rank(rest, c) })).filter((x) => x.s > 0);
     // Typed: the best match first. Not typed: by group, each group once, in the order the groups first come.
     if (rest) scored.sort((a, b) => b.s - a.s);
     else {

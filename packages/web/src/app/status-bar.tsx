@@ -1,5 +1,5 @@
 // The status bar, drawn as a map's title block: the sheet, its type and what is on it, problems, pins,
-// where a dragged element is while it moves, the selection, the keys, the theme.
+// where a dragged element is while it moves, the selection, the keys, and light or dark to switch.
 import './status-bar.css';
 import type { GraphNode } from '@cartography/core';
 import { t } from '../i18n/index.ts';
@@ -13,12 +13,12 @@ interface Props {
   warnings: number;
   ms: number | undefined;
   graph: { title?: string; nodes: GraphNode[]; edges: unknown[]; groups: unknown[] } | undefined;
-  /** The type as the YAML writes it. */
-  typeId: string | undefined;
   pinCount: number;
   selection: Selection[];
   selected: Selection | undefined;
   theme: 'light' | 'dark';
+  /** Light or dark, switched from the bar. */
+  onTheme(): void;
   onProblems(): void;
   onShortcuts(): void;
 }
@@ -33,7 +33,7 @@ function Cell({ label, children, className }: { label: string; children: React.R
   );
 }
 
-export function StatusBar({ errors, warnings, ms, graph, typeId, pinCount, selection, selected, theme, onProblems, onShortcuts }: Props) {
+export function StatusBar({ errors, warnings, ms, graph, pinCount, selection, selected, theme, onTheme, onProblems, onShortcuts }: Props) {
   const readout = useReadout();
   return (
     <footer className="statusbar">
@@ -42,7 +42,6 @@ export function StatusBar({ errors, warnings, ms, graph, typeId, pinCount, selec
           {graph.title}
         </Cell>
       )}
-      {typeId && <Cell label={t('Type')}>{typeId}</Cell>}
       {graph &&
         drawnFields(graph).map(([label, n]) => (
           <Cell key={label} label={label} className="status-count">
@@ -77,7 +76,9 @@ export function StatusBar({ errors, warnings, ms, graph, typeId, pinCount, selec
       <button className="status-link" onClick={onShortcuts} title={t('Keyboard shortcuts')}>
         <Icon name="keyboard" size={13} /> ?
       </button>
-      <span className="status-theme">{theme === 'dark' ? t('Dark') : t('Light')}</span>
+      <button className="status-link status-theme" onClick={onTheme} title={theme === 'dark' ? t('Light theme') : t('Dark theme')} aria-label={theme === 'dark' ? t('Light theme') : t('Dark theme')}>
+        <Icon name={theme === 'dark' ? 'moon' : 'sun'} size={13} /> {theme === 'dark' ? t('Dark') : t('Light')}
+      </button>
     </footer>
   );
 }

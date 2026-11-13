@@ -30,20 +30,42 @@ interface GlobalKeys {
   toggleSession(): void;
 }
 
-/** The window's keys: F6 between the panes, and those that work anywhere (⌘K, ⌘S, P…). */
+/** The regions F6 goes round, in order: each as its box and what in it takes the focus. */
+const REGIONS: [string, string][] = [
+  ['.topbar', '.view-switch button, button'],
+  ['.workspace .shapes, .workspace .left-rail', '.outline [tabindex="0"], [role="tab"][aria-selected="true"], button'],
+  ['.editor-pane', '.cm-content'],
+  ['.preview', '.preview'],
+  ['.canvas-tools', 'button'],
+  ['.steps-strip', '.step-chip.active, .step-chip'],
+  ['.workspace .side', 'input, select, textarea, [role="tab"][aria-selected="true"], button'],
+  ['.statusbar', 'button'],
+];
+
+/** The window's keys: F6 round the regions, and those that work anywhere (⌘K, ⌘S, P…). */
 export function useGlobalKeys(k: GlobalKeys) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // F6 moves between the editor, the drawing and the properties, like panes in other apps.
+      // F6 goes round the regions, like panes in other apps: the top bar, the outline, the YAML, the
+      // drawing, its toolbar, the steps, the properties and the status bar (those on screen).
       if (is(e, 'next-pane')) {
-        const panes = ['.cm-content', '.preview', '.side input, .side select, .side textarea'].map((q) => document.querySelector(q) as HTMLElement | null).filter((x): x is HTMLElement => !!x?.offsetParent);
-        const at = panes.findIndex((p) => p.contains(document.activeElement) || p === document.activeElement || (p.closest('.side') && p.closest('.side')!.contains(document.activeElement)));
-        panes[(at + (e.shiftKey ? panes.length - 1 : 1)) % panes.length]?.focus();
+        const regions = REGIONS.map(([box, target]) => {
+          const el = document.querySelector<HTMLElement>(box);
+          const to = el && [...el.querySelectorAll<HTMLElement>(target)].find((x) => !!x.offsetParent && !(x as HTMLButtonElement).disabled);
+          return el?.offsetParent && (to ?? (el.matches(target) ? el : undefined)) ? { el, to: to ?? el } : undefined;
+        }).filter((x) => !!x);
+        const now = document.activeElement;
+        // The innermost region holding the focus (the toolbar is inside the drawing's pane).
+        const at = regions.reduce((best, r, i) => (r.el.contains(now) && (best < 0 || regions[best]!.el.contains(r.el)) ? i : best), -1);
+        regions[(at + (e.shiftKey ? regions.length - 1 : 1)) % regions.length]?.to.focus();
         return e.preventDefault();
       }
       // Keys from keys.ts: those with ⌘ (or F6) work while typing too; the others only outside text fields.
       const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, .cm-content, [contenteditable="true"]');
       if (e.defaultPrevented) return;
+      // ⌘A outside a text field and the drawing (a button in the status bar) would select the page's
+      // words, the editor's chrome and all: it does nothing there.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'a' && !typing) return e.preventDefault();
       const id = shortcutFor(e, typing || k.modal || k.presenting ? ['anywhere'] : ['anywhere', 'not-typing']);
       if (!id || (k.modal && id !== 'palette') || k.presenting) return;
       if (k.session && ['present', 'ask', 'switch-view'].includes(id)) return;

@@ -49,9 +49,9 @@ export function ViewPicker({ drawn, onChange }: ViewPickerProps) {
   if (!c) return null;
   return (
     <label className="tool view-picker" title={t('Views of this diagram (V: next view; pins are kept per view)')}>
-      <Icon name="layers" />
+      <Icon name="eye" />
       <select value={c.value} onChange={(e) => onChange(pickedView(e.target.value, c.written))} aria-label={t('View')}>
-        {c.asWritten && <option value="">{t('As written')}</option>}
+        {c.asWritten && <option value="">{t('Whole diagram')}</option>}
         {c.views.map((v) => (
           <option key={v.name} value={v.name}>
             {/* The view's name in brackets only where two views share a title, to tell them apart. */}

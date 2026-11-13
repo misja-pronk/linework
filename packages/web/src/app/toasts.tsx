@@ -20,8 +20,8 @@ export function useToasts() {
   const notify = useCallback<Notify>((message, opts = {}) => setToast({ message, ...opts }), []);
   useEffect(() => {
     if (!toast) return;
-    // Gone within five seconds; one with an action to take waits a little longer for it.
-    const t = setTimeout(() => setToast(undefined), toast.action ? 8000 : toast.tone ? 5000 : 3500);
+    // A plain message goes in two and a half seconds (it sits over the drawing); a mistake stays five, one with an action to take eight.
+    const t = setTimeout(() => setToast(undefined), toast.action ? 8000 : toast.tone ? 5000 : 2500);
     return () => clearTimeout(t);
   }, [toast]);
   const clear = () => setToast(undefined);
@@ -39,7 +39,13 @@ export function useToasts() {
 function dockToast(el: HTMLDivElement | null) {
   if (!el) return;
   const pane = document.querySelector('.canvas-pane')?.getBoundingClientRect();
-  if (!pane?.width) return el.classList.remove('docked');
+  // No drawing on screen: back at the bottom, with nothing left of where it was docked (a top and a
+  // bottom both set made it a tall black block on a narrow window's YAML tab).
+  if (!pane?.width) {
+    el.classList.remove('docked');
+    el.style.top = el.style.left = el.style.bottom = el.style.maxWidth = '';
+    return;
+  }
   if (document.querySelector('.app.in-session')) {
     el.classList.remove('docked');
     el.style.top = el.style.left = '';

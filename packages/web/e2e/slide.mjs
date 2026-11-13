@@ -46,7 +46,7 @@ await open('type: azure\ntitle: Small\nnodes:\n  app: { kind: app-service, label
   else {
     if (f.name !== '16:9 slide' || Math.abs(f.shape - 16 / 9) > 0.02) fail(`the frame is not a 16:9 slide: ${JSON.stringify(f)}`);
     if (f.small || f.pt < 9) fail(`a small drawing is flagged as too small: ${JSON.stringify(f)}`);
-    if (!/^Page: 16:9 slide · [\d.]+ pt/.test(f.label)) fail(`the frame does not say its page and text size: "${f.label}"`);
+    if (!/^16:9 slide · smallest text [\d.]+ pt/.test(f.label)) fail(`the frame does not say its page and text size: "${f.label}"`);
   }
   if (await page.locator('[data-overflow]').count()) fail('a small drawing has elements flagged');
   await page.screenshot({ path: `${out}/s1-small.png` });
@@ -76,7 +76,7 @@ await open(tooBig, 'long-chain.yaml');
   await page.screenshot({ path: `${out}/s2-too-full.png` });
   // The page export: an SVG of the page's shape.
   await page.click('button:has-text("Export")');
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[role="menuitem"]:has-text("SVG of the page")')]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[role="menuitem"]:has-text("The slide as SVG")')]);
   const svg = fs.readFileSync(await dl.path(), 'utf8');
   const [, w, h] = /<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/.exec(svg) ?? [];
   if (!w || Math.abs(Number(w) / Number(h) - 16 / 9) > 0.01) fail(`the page SVG is not 16:9: ${w}×${h}`);

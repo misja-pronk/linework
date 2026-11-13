@@ -145,7 +145,7 @@ if (!aria.includes('img "Web shop"')) fail(`aria snapshot of the inline SVG: ${a
 await shown.close();
 
 // 5. The PNG carries its title and description as text chunks.
-const png = await save('PNG 2×');
+const png = await save('PNG');
 const latin = png.toString('latin1');
 if (!latin.includes('iTXtTitle\0\0\0\0\0Web shop')) fail('the PNG has no Title');
 if (!png.toString('utf8').includes('Description\0\0\0\0\0Architecture diagram: How an order flows.')) fail('the PNG has no Description');

@@ -65,6 +65,9 @@ export function usePrefs() {
   /** The file list and the YAML as people left them: open, or folded to a rail (pane-layout.ts). */
   const [filesPref, setFilesPrefState] = useState<'list' | 'rail'>(() => (store.get('files') === 'rail' ? 'rail' : 'list'));
   const setFilesPref = (v: 'list' | 'rail') => (setFilesPrefState(v), store.set('files', v));
+  /** The builder's outline as people left it (pane-layout.ts): unset, it folds in a narrow window. */
+  const [outlinePref, setOutlinePrefState] = useState<'open' | 'rail' | undefined>(() => store.get<'open' | 'rail'>('outline') ?? undefined);
+  const setOutlinePref = (v: 'open' | 'rail') => (setOutlinePrefState(v), store.set('outline', v));
   // The YAML stays out of sight until it is opened: folded to its rail unless people left it open.
   const [yamlFolded, setYamlFoldedState] = useState(() => store.get<boolean>('yaml-folded') !== false);
   const setYamlFolded = (v: boolean) => (setYamlFoldedState(v), store.set('yaml-folded', v), setForceYaml(false));
@@ -84,6 +87,6 @@ export function usePrefs() {
   useEffect(() => store.set('theme', pref), [pref]);
   useEffect(() => store.set('split', split), [split]);
 
-  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, hideHint, split, setSplit, filesPref, setFilesPref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
+  return { safeSvg, toggleSafeSvg, pref, setPref, theme, view, setView, hint, dismissHint, acted, hideHint, split, setSplit, filesPref, setFilesPref, outlinePref, setOutlinePref, yamlFolded, setYamlFolded, forceYaml, setForceYaml, showYaml, showDrawing, openView, windowWidth };
 }
 export type Prefs = ReturnType<typeof usePrefs>;

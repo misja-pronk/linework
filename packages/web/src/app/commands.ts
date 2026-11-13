@@ -54,6 +54,11 @@ export function buildCommands(c: CommandsContext): Command[] {
   const { drawing, selection, selected, ws, doc, files, exports: x, edits, pinning, nav, modals, craft } = c;
   const { type, drawn, result, vpins, drawnLayout, locked, bent } = drawing;
   const { stepList, written, viewList, viewTitle } = nav;
+  /** An element picked: selected, and the keyboard on the drawing with it (not back on the button that opened ⌘K). */
+  const goTo = (s: Selection) => {
+    c.select(s);
+    (document.querySelector('.preview') as HTMLElement | null)?.focus({ preventScroll: true });
+  };
   return [
     { id: 'ask', group: t('Your AI'), label: c.asking ? t('Close Your AI') : t('Your AI…'), hint: t('proposals from your own AI agent, through the MCP server'), icon: 'sparkles', shortcut: keyHint('ask'), run: c.toggleAsk },
     ...(type ? [{ id: 'copy-for-ai', group: t('Your AI'), label: t('Copy for your AI'), hint: t('the YAML, its schema and instructions, to paste into any chat'), icon: 'copy', run: () => void c.copyForAi() }] : []),
@@ -87,7 +92,7 @@ export function buildCommands(c: CommandsContext): Command[] {
       : []),
     ...(stepList.length
       ? [
-          { id: 'step-next', group: t('Present'), label: t('Next step'), icon: 'layers', shortcut: keyHint('step-by'), run: () => nav.stepBy(1) },
+          { id: 'step-next', group: t('Present'), label: t('Next step'), icon: 'layers', shortcut: ']', run: () => nav.stepBy(1) },
           { id: 'step-previous', group: t('Present'), label: t('Previous step'), icon: 'layers', shortcut: '[', run: () => nav.stepBy(-1) },
           ...(drawn?.step ? [{ id: 'step-none', group: t('Present'), label: t('Show the whole drawing'), hint: t('no step'), icon: 'layers', run: () => nav.pickStep(undefined) }] : []),
           ...stepList.map((s, i) => ({ id: `step:${i + 1}`, group: t('Steps'), label: `${i + 1}. ${s.title ?? s.caption ?? t('Step')}`, hint: s.title ? s.caption : undefined, icon: 'layers', run: () => nav.pickStep(i + 1) })),
@@ -131,8 +136,8 @@ export function buildCommands(c: CommandsContext): Command[] {
     ...(selected?.kind === 'node'
       ? [{ id: 'connect', group: t('Edit'), label: t('Connect {name} to…', { name: edits.nodeName(selected.id) }), icon: 'arrow-right-from-line', shortcut: keyHint('connect'), run: () => setTimeout(() => modals.setModal('connect')) }]
       : []),
-    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: t('Go to'), label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => c.select({ kind: 'group', id: g.id }) })),
-    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: t('Go to'), label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => c.select({ kind: 'node', id: n.id }) })),
+    ...(result?.graph?.groups ?? []).map((g) => ({ id: `group:${g.id}`, group: t('Go to'), label: g.label, hint: g.caption ?? g.id, icon: g.icon ?? 'square-dashed', ...(g.tags ? { tags: g.tags } : {}), run: () => goTo({ kind: 'group', id: g.id }) })),
+    ...(result?.graph?.nodes ?? []).map((n) => ({ id: `node:${n.id}`, group: t('Go to'), label: label(n), hint: n.id, icon: iconOf(n) ?? 'box', ...(n.tags ? { tags: n.tags } : {}), run: () => goTo({ kind: 'node', id: n.id }) })),
     ...starters.map((s) => ({
       id: `starter:${s.id}`,
       group: t('Start from'),

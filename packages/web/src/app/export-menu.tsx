@@ -10,18 +10,19 @@ import type { Exports } from './exports.ts';
 export interface ExportMenuProps {
   exports: Exports;
   safeSvg: boolean;
-  toggleSafeSvg(): void;
   /** Steps somebody wrote: a slide or page for each. */
   written: boolean;
-  hasPins: boolean;
   onDescribe(): void;
-  saveYaml(): void;
-  downloadYaml(): void;
 }
 
-export function ExportMenu({ exports: x, safeSvg, toggleSafeSvg, written, hasPins, onDescribe, saveYaml, downloadYaml }: ExportMenuProps) {
+/**
+ * Pictures, the deck and pages, and ways to share: what goes out. Saving the YAML is under ⋯ (and ⌘S);
+ * copying as SVG and the SVG for Office switch are in ⌘K.
+ */
+export function ExportMenu({ exports: x, safeSvg, written, onDescribe }: ExportMenuProps) {
   const [menu, setMenu] = useState(false);
   const tpl = x.pptxTemplate;
+  const slide = x.pageName.endsWith('slide');
   return (
     <div className="menu-anchor">
       {tpl.picker}
@@ -30,32 +31,17 @@ export function ExportMenu({ exports: x, safeSvg, toggleSafeSvg, written, hasPin
       </button>
       {menu && (
         <Menu onClose={() => setMenu(false)}>
-          <div className="menu-heading">{t('Image')}</div>
-          <button role="menuitem" onClick={x.saveSvg}>
+          <div className="menu-heading">{t('Picture')}</div>
+          <button role="menuitem" onClick={x.savePng}>
+            <Icon name="image" /> PNG <kbd>{keyHint('export-png')}</kbd>
+          </button>
+          <button role="menuitem" onClick={x.saveSvg} title={safeSvg ? t('SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node') : undefined}>
             <Icon name="download" /> {safeSvg ? t('SVG for PowerPoint / Word') : 'SVG'} <kbd>{keyHint('export-svg')}</kbd>
           </button>
-          <button role="menuitem" onClick={x.savePng}>
-            <Icon name="image" /> PNG 2× <kbd>{keyHint('export-png')}</kbd>
-          </button>
           <button role="menuitem" onClick={x.copyPng}>
-            <Icon name="copy" /> {t('Copy as PNG')}
+            <Icon name="copy" /> {t('Copy the picture')}
           </button>
-          <button role="menuitem" onClick={x.copySvg}>
-            <Icon name="copy" /> {t('Copy as SVG')}
-          </button>
-          <button
-            role="menuitemcheckbox"
-            aria-checked={safeSvg}
-            title={t('SVG without what PowerPoint, Word and Keynote drop: no CSS or effects, system fonts, one group per node')}
-            onClick={(e) => {
-              // A switch: the menu stays open, the SVG rows above follow it.
-              e.stopPropagation();
-              toggleSafeSvg();
-            }}
-          >
-            <Icon name={safeSvg ? 'check' : 'square'} /> {t('SVG for PowerPoint / Word')}
-          </button>
-          <div className="menu-heading">{t('Document, on the page ({page})', { page: x.pageName })}</div>
+          <div className="menu-heading">{slide ? t('On a {page}', { page: x.pageName }) : t('On paper ({page})', { page: x.pageName })}</div>
           <button role="menuitem" onClick={x.savePptx}>
             <Icon name="layout-template" /> {tpl.chosen ? `${t('PowerPoint in {template}', { template: tpl.chosen.name.split('/').pop()! })}${written ? t(', a slide per step') : ''}` : written ? t('PowerPoint, a slide per step (.pptx)') : 'PowerPoint (.pptx)'}
           </button>
@@ -64,13 +50,10 @@ export function ExportMenu({ exports: x, safeSvg, toggleSafeSvg, written, hasPin
             <Icon name="file-text" /> {written ? t('PDF, a page per step') : 'PDF'}
           </button>
           <button role="menuitem" onClick={x.saveSlide}>
-            <Icon name="monitor" /> {t('PNG of the page')}
+            <Icon name="monitor" /> {slide ? t('The slide as PNG') : t('The page as PNG')}
           </button>
           <button role="menuitem" onClick={x.savePageSvg}>
-            <Icon name="monitor" /> {t('SVG of the page')}
-          </button>
-          <button role="menuitem" onClick={onDescribe} title={t('What the diagram shows, in words: for a screen reader, a handout or a wiki')}>
-            <Icon name="scroll-text" /> {t('Describe in words…')}
+            <Icon name="monitor" /> {slide ? t('The slide as SVG') : t('The page as SVG')}
           </button>
           <div className="menu-heading">{t('Share')}</div>
           <button role="menuitem" onClick={x.copyShare} title={t('The diagram goes in the link itself: nothing is uploaded')}>
@@ -82,18 +65,9 @@ export function ExportMenu({ exports: x, safeSvg, toggleSafeSvg, written, hasPin
           <button role="menuitem" onClick={x.copyForWiki} title={t('The picture and the description in one paste, for Confluence, Notion or Google Docs')}>
             <Icon name="book-open" /> {t('Copy for Confluence / Notion')}
           </button>
-          <hr />
-          <button role="menuitem" onClick={saveYaml}>
-            <Icon name="save" /> {t('Save')} <kbd>{keyHint('save')}</kbd>
+          <button role="menuitem" onClick={onDescribe} title={t('What the diagram shows, in words: for a screen reader, a handout or a wiki')}>
+            <Icon name="scroll-text" /> {t('Describe in words…')}
           </button>
-          <button role="menuitem" onClick={downloadYaml}>
-            <Icon name="download" /> {t('Download YAML')}
-          </button>
-          {hasPins && (
-            <button role="menuitem" onClick={x.saveLayout}>
-              <Icon name="pin" /> {t('Save layout')}
-            </button>
-          )}
         </Menu>
       )}
     </div>

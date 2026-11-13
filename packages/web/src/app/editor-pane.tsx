@@ -20,6 +20,7 @@ interface Props {
   onChange(text: string): void;
   onCursor(pos: number): void;
   onPins(p: LayoutSidecar | undefined): void;
+  onHistory(can: { undo: boolean; redo: boolean }): void;
   split: number;
   setSplit(f: (s: number) => number): void;
   setYamlFolded(v: boolean): void;
@@ -71,7 +72,7 @@ export function EditorPane(p: Props) {
             <Icon name="panel-left-close" size={14} />
           </button>
         )}
-        <Editor ref={p.editor} initial={p.initial} initialPins={p.initialPins} diagnostics={p.diagnostics} source={p.source} mark={p.mark} onChange={p.onChange} onCursor={p.onCursor} onPins={p.onPins} />
+        <Editor ref={p.editor} initial={p.initial} initialPins={p.initialPins} diagnostics={p.diagnostics} source={p.source} mark={p.mark} onChange={p.onChange} onCursor={p.onCursor} onPins={p.onPins} onHistory={p.onHistory} />
       </section>
       <div
         className="splitter"
