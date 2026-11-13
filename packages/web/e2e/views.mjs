@@ -175,8 +175,8 @@ products:
 `;
 await open(mesh, 'mesh.yaml');
 {
-  const now = await picked();
-  if (!/detailed/i.test(now) || /overview/i.test(now)) fail(`the view picker shows ${JSON.stringify(now)} for a mesh drawn as view: detailed`);
+  const now = await page.locator('.view-picker select').inputValue();
+  if (now !== 'detailed') fail(`the view picker shows ${JSON.stringify(now)} for a mesh drawn as view: detailed`);
   const list = await options();
   if ((await offered('detailed')).length !== 1) fail(`the hidden view should be listed once while drawn: ${JSON.stringify(list)}`);
   // A view's name is not said next to its title: no two views here share one.
