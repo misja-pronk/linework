@@ -168,8 +168,8 @@ describe('carto validate on a slide', () => {
     const ok = fs
       .readFileSync(path.join(root, 'examples/azure/workload-identities.yaml'), 'utf8')
       .replace(/^(subtitle: .*)$/m, '$1\ntheme: { extends: survey, group: { labelSize: 10 } }')
-      .replace(/^( {2}blob: .*)$/m, '$1\n  logs: { kind: storage, label: stshoplogs, in: rg }')
-      .replace(/^( {2}- uami -> graph:)/m, '  - uami -> logs: { label: Storage Blob Data Reader, style: role }\n$1')
+      .replace(/^( {2}stshopexportsprod: .*)$/m, '$1\n  logs: { kind: storage, label: stshoplogs, in: rg-shop-prod }')
+      .replace(/^( {2}- id-shop-jobs-prod -> microsoft-graph:)/m, '  - id-shop-jobs-prod -> logs: { label: Storage Blob Data Reader, style: role }\n$1')
       .replace(/^ {4}note: .*\n/gm, '');
     write('ids.yaml', ok);
     const clean = await carto('validate', 'ids.yaml');

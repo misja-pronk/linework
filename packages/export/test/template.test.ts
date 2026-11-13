@@ -236,7 +236,7 @@ describe('writing into a template', () => {
     const r = await draw('azure/hub-spoke.yaml');
     const inTemplate = parts(await toPptx(r, { template: corporate, steps: false })).text('ppt/slides/slide1.xml');
     expect(inTemplate).toContain('<a:t>IPsec · BGP AS 65010</a:t>');
-    expect(inTemplate).toContain('<a:t>Premium · 10.0.0.68</a:t>');
+    expect(inTemplate).toContain('<a:t>Azure Firewall Premium · 10.0.0.68</a:t>');
     expect(inTemplate).not.toMatch(/<a:t>[^<]*…<\/a:t>/);
     // Without a template the text is measured in the faces it was laid out in: nothing changes there.
     expect(parts(await toPptx(r, { steps: false })).text('ppt/slides/slide1.xml')).toContain('<a:t>IPsec · BGP AS 65010</a:t>');

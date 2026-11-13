@@ -258,12 +258,12 @@ describe('shapes Quick Look draws', () => {
   });
 
   it('writes no freeform: a long line is straight pieces in a group, its arrowheads only at its ends', async () => {
-    const r = await draw('azure/hub-spoke.yaml');
+    const r = await draw('azure/data-platform.yaml');
     const slide = parts(await toPptx(r, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
     expect(wellFormed(slide)).toBe(true);
     expect(slide).not.toContain('<a:custGeom>');
     expect(slide).not.toContain('prst="bentConnector4"');
-    const line = group(slide, 'Line: afw → erp-vm (peering)')!;
+    const line = group(slide, 'Line: gold → sql-warehouse')!;
     expect(line).toBeTruthy();
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);
@@ -319,7 +319,7 @@ describe('shapes Quick Look draws', () => {
   it('turns a piece so it runs the way the line does, and its arrowhead points the right way', async () => {
     // Outbound runs up from the app to the firewall: its pieces upward are flipped.
     const slide = parts(await toPptx(await draw('azure/app-landing-zone.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
-    const out = shapes(group(slide, 'Line: app → afw (outbound)') ?? '');
+    const out = shapes(group(slide, 'Line: app-portal-prod → afw-hub-weu (outbound)') ?? '');
     expect(out.length).toBeGreaterThan(5);
     expect(out.some((s) => s.includes('flipV="1"'))).toBe(true);
     expect(out.at(-1)).toContain('<a:tailEnd ');

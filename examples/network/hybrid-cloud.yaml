@@ -2,58 +2,55 @@ type: network
 title: Hybrid connectivity
 subtitle: Northwind · ExpressRoute to the Azure hub, a site-to-site VPN over the internet as failover
 
-# Top: the data centre and, beside it, the ExpressRoute circuit (both on the edge tier, one row);
-# below: the Azure hub and its spokes. The VPN runs from the DC router over the internet.
-# The firewall and the spokes share a tier, so the spokes stand beside the hub instead of under it.
-# Both paths run BGP. Azure prefers ExpressRoute over VPN for the same prefix, and the data centre
-# prepends its AS three times on the VPN, so traffic only takes the VPN when the circuit is down.
-# The circuit is 1 Gbps private peering at Equinix AM with two links (primary and secondary);
-# the VPN gateway runs active-active.
-# Spokes use the hub's gateways (gateway transit) but do not learn the on-premises routes:
-# their route tables have gateway route propagation off and send everything to the firewall.
+# Top: the data centre and, beside it, the ExpressRoute circuit (both on the edge tier); below: the Azure hub and its spokes.
+# The circuit is 1 Gbps private peering at Equinix AM with two links; BFD on both, so a failed link is noticed within a second.
+# Both paths run BGP. Azure prefers ExpressRoute over the VPN for the same prefix; the DC router prefers it by local
+# preference and prepends its AS on the VPN (which only steers Azure's choice). The VPN gateway runs active-active.
+# Spokes use the hub's gateways (gateway transit), but their route tables (rt-erp-prod, rt-intranet-prod) have
+# gateway route propagation off and send 0.0.0.0/0 to the firewall.
 # Address plan: data centre 10.10.0.0/16, hub 10.0.0.0/22, spokes 10.1.0.0/16 (a /22 each).
 
 groups:
-  provider: { kind: wan, label: ExpressRoute circuit, caption: 1 Gbps · Equinix AM }
-  dc: { kind: datacenter, label: Amsterdam DC, cidr: 10.10.0.0/16 }
-  servers: { kind: vlan, label: Servers, in: dc, vlan: 100, cidr: 10.10.100.0/24 }
+  expressroute-circuit: { kind: wan, label: ExpressRoute circuit, caption: 1 Gbps · Equinix AM }
+  amsterdam-dc: { kind: datacenter, label: Amsterdam DC, cidr: 10.10.0.0/16 }
+  servers: { kind: vlan, label: Servers, in: amsterdam-dc, vlan: 100, cidr: 10.10.100.0/24 }
 
-  azure: { kind: region, label: Azure West Europe }
-  hub: { kind: vnet, label: vnet-hub-weu, in: azure, cidr: 10.0.0.0/22 }
-  gw: { kind: subnet, label: GatewaySubnet, in: hub, cidr: 10.0.0.0/27 }
-  afw: { kind: subnet, label: AzureFirewallSubnet, in: hub, cidr: 10.0.0.64/26 }
-  intranet: { kind: vnet, label: vnet-intranet-weu, in: azure, cidr: 10.1.4.0/22 }
-  erp: { kind: vnet, label: vnet-erp-weu, in: azure, cidr: 10.1.0.0/22 }
+  west-europe: { kind: region, label: Azure West Europe }
+  vnet-hub-weu: { kind: vnet, label: vnet-hub-weu, in: west-europe, cidr: 10.0.0.0/22 }
+  GatewaySubnet: { kind: subnet, label: GatewaySubnet, in: vnet-hub-weu, cidr: 10.0.0.0/27 }
+  AzureFirewallSubnet: { kind: subnet, label: AzureFirewallSubnet, in: vnet-hub-weu, cidr: 10.0.0.64/26 }
+  vnet-erp-prod: { kind: vnet, label: vnet-erp-prod, in: west-europe, cidr: 10.1.0.0/22 }
+  vnet-intranet-prod: { kind: vnet, label: vnet-intranet-prod, in: west-europe, cidr: 10.1.4.0/22 }
 
 nodes:
-  rtr-ams: { kind: router, in: dc, model: BGP AS 65010, ha: true, tier: edge, tags: [expressroute, vpn] }
+  rtr-ams: { kind: router, in: amsterdam-dc, model: BGP AS 65010 · BFD, ha: true, tier: edge, tags: [expressroute, vpn] }
   dc01: { kind: dns, in: servers, model: AD DS + DNS, ip: 10.10.100.10, tier: edge, tags: [expressroute, vpn] }
 
-  msee: { kind: router, label: MSEE, in: provider, model: Microsoft edge · AS 12076, ha: true, tier: edge, tags: [expressroute] }
+  msee: { kind: router, label: MSEE, in: expressroute-circuit, model: Microsoft edge · AS 12076, ha: true, tier: edge, tags: [expressroute] }
 
-  ergw: { kind: cloud-gateway, label: ergw-hub, in: gw, model: ErGw1AZ, tags: [expressroute] }
-  vpngw: { kind: vpn-gateway, label: vpng-hub, in: gw, model: VpnGw2AZ · AS 65515, tags: [vpn] }
-  fw: { kind: firewall, label: afw-hub, in: afw, model: Azure Firewall Premium, ip: 10.0.0.68, tier: access, tags: [expressroute, vpn] }
+  ergw-hub-weu: { kind: cloud-gateway, label: ergw-hub-weu, in: GatewaySubnet, model: ErGw1AZ, tags: [expressroute] }
+  vpng-hub-weu: { kind: vpn-gateway, label: vpng-hub-weu, in: GatewaySubnet, model: VpnGw2AZ · AS 65515, tags: [vpn] }
+  afw-hub-weu: { kind: firewall, icon: shield, label: afw-hub-weu, in: AzureFirewallSubnet, model: Azure Firewall Premium, ip: 10.0.0.68, tier: access, tags: [expressroute, vpn] }
 
-  vm-intranet: { kind: server, label: vmss-intranet, in: intranet, model: rt-intranet · propagation off, tier: access, tags: [expressroute, vpn] }
-  vm-erp: { kind: server, label: vmss-erp, in: erp, model: rt-erp · propagation off, tier: access, tags: [expressroute, vpn] }
+  vmss-erp-prod: { kind: server, icon: server-cog, label: vmss-erp-prod, in: vnet-erp-prod, model: VM scale set, tier: access, tags: [expressroute, vpn] }
+  vmss-intranet-prod: { kind: server, icon: server-cog, label: vmss-intranet-prod, in: vnet-intranet-prod, model: VM scale set, tier: access, tags: [expressroute, vpn] }
 
-# Plain lines are Ethernet in the data centre and routing inside the hub VNet: the key says both.
+# Plain lines are Ethernet in the data centre and routing inside the hub VNet.
 key:
-  solid: Ethernet, or routed in the VNet
+  solid: Link
 
 edges:
   - dc01 -- rtr-ams: { speed: 10G, count: 2 }
   # Primary: ExpressRoute, two links to the Microsoft edge (primary and secondary)
   - rtr-ams -- msee: { style: circuit, label: eBGP ×2 }
-  - msee -- ergw: { style: circuit, label: private peering }
+  - msee -- ergw-hub-weu: { style: circuit, label: private peering }
   # Failover: IPsec over the internet, BGP with AS-path prepending
-  - rtr-ams -- vpngw: { style: vpn, label: IPsec · BGP }
+  - rtr-ams -- vpng-hub-weu: { style: vpn, label: IPsec · BGP }
   # Inside Azure: the gateways hand everything to the firewall, which forwards over the peerings
-  - ergw -- fw
-  - vpngw -- fw
-  - fw -- vm-erp: { style: peering }
-  - fw -- vm-intranet: { style: peering }
+  - ergw-hub-weu -- afw-hub-weu
+  - vpng-hub-weu -- afw-hub-weu
+  - afw-hub-weu -- vmss-erp-prod: { style: peering }
+  - afw-hub-weu -- vmss-intranet-prod: { style: peering }
 
 layers:
   expressroute:
@@ -63,17 +60,18 @@ layers:
   vpn:
     tags: [vpn]
     title: VPN failover
-    caption: Only used when ExpressRoute is down. Same prefixes, but Azure prefers ExpressRoute and the DC prepends its AS on the VPN.
+    caption: Only used when ExpressRoute is down. Azure prefers ExpressRoute for the same prefix; the DC router prefers it by local preference.
 
 steps:
-  - Two ways from the data centre into the Azure hub, both through the hub firewall.
+  - title: Two ways in
+    caption: Two ways from the data centre into the Azure hub, both through the hub firewall.
   - title: Normal operation
-    caption: Traffic takes ExpressRoute. Azure prefers it over the VPN for the same prefix.
-    path: dc01 -> rtr-ams -> msee -> ergw -> fw -> vm-erp
+    caption: Traffic takes ExpressRoute. Azure prefers it over the VPN for the same prefix; so does the DC router.
+    path: dc01 -> rtr-ams -> msee -> ergw-hub-weu -> afw-hub-weu -> vmss-erp-prod
   - title: Circuit down
-    caption: BGP withdraws the ExpressRoute routes within seconds. The VPN, until now the longer path, takes over.
-    path: rtr-ams -> vpngw -> fw
+    caption: BFD notices within a second and BGP withdraws the ExpressRoute routes. The VPN takes over.
+    path: rtr-ams -> vpng-hub-weu -> afw-hub-weu
     note: { msee: Down }
   - title: Spokes stay put
-    caption: Spokes send 0.0.0.0/0 to the firewall and never learn on-premises routes, so a failover does not touch them.
-    focus: [fw, vm-erp, vm-intranet]
+    caption: Spoke route tables (gateway routes off) send 0.0.0.0/0 to the firewall, so a failover does not touch them.
+    focus: [afw-hub-weu, vmss-erp-prod, vmss-intranet-prod]

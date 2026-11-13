@@ -1,38 +1,40 @@
-Web application
+Web shop on App Service
 
-Azure infrastructure diagram: Northwind web shop · Front Door with WAF in front, no secrets in code, nothing else public. 8 elements in 5 groups, with 9 connections.
+Azure infrastructure diagram: Northwind web shop · Front Door with WAF in front, no secrets in code, nothing else public. 9 elements in 5 groups, with 9 connections.
 
 Groups and elements
-- Customers (Users)
-- sub-webshop-prd (Landing zone · Online)
+- Customers (Internet)
+- sub-shop-prod (Landing zone · Online)
   - rg-shop-edge (Global)
-    - afd-shop (Premium · WAF)
+    - afd-shop-prod (Premium · WAF)
   - rg-shop-app (West Europe)
-    - app-shop-web (Storefront)
-    - cae-shop (Internal)
-      - ca-shop-orders (Orders API)
-    - id-shop (User-assigned)
+    - app-shop-web-prod (Storefront · public access off)
+    - cae-shop-prod (Internal)
+      - ca-shop-orders-prod (Orders API)
+    - id-shop-web-prod (User-assigned)
+    - id-shop-orders-prod (User-assigned)
   - rg-shop-data (West Europe)
-    - stshopmedia (Product images)
-    - sqldb-shop (Entra-only auth)
-    - kv-shop-prd (RBAC · private)
+    - stshopmediaprod (Product images)
+    - sqldb-shop-prod (Entra-only · private)
+    - kv-shop-prod (RBAC · private)
 
 Connections
-- Customers send traffic to afd-shop over HTTPS.
-- afd-shop connects to app-shop-web (Private network: Private Link) and connects to stshopmedia (Private network: /media).
-- app-shop-web connects to ca-shop-orders (Private network: REST) and signs in with id-shop.
-- ca-shop-orders signs in with id-shop and connects to sqldb-shop (Private network: TDS).
-- id-shop is db_datawriter on sqldb-shop and is Secrets User on kv-shop-prd.
+- Customers send traffic to afd-shop-prod over HTTPS.
+- afd-shop-prod connects to app-shop-web-prod (Private network: Private Link) and connects to stshopmediaprod (Private network: /media).
+- app-shop-web-prod connects to ca-shop-orders-prod (Private network: REST) and signs in with id-shop-web-prod.
+- ca-shop-orders-prod connects to sqldb-shop-prod (Private network: TDS) and signs in with id-shop-orders-prod.
+- id-shop-web-prod is Key Vault Secrets User on kv-shop-prod.
+- id-shop-orders-prod is db_datareader · db_datawriter on sqldb-shop-prod.
 
 Walkthrough
-1. The web shop in one subscription. Front Door is the only thing with a public address.
+1. One public entry: The web shop in one subscription. Front Door is the only thing with a public address.
 2. A customer opens the shop: Front Door terminates TLS, the WAF filters the request, and it reaches the storefront over Private Link.
 3. Placing an order: The storefront calls the Orders API inside an internal Container Apps environment; the API writes to SQL.
-4. No secrets in code: Both apps run as id-shop. Its roles on Key Vault and SQL replace passwords and connection strings.
+4. No secrets in code: Each app runs as its own identity. Its roles on Key Vault or SQL replace passwords and connection strings.
 
 Layers
 Ways to look at this drawing by tag.
-- Security: One public entry, behind a WAF; the apps sign in to Key Vault and SQL with a managed identity. (tags security; 7 elements).
+- Security: One public entry, behind a WAF; each app signs in to Key Vault or SQL with its own managed identity. (tags security; 8 elements).
 
 Key
 - Solid sky line: Public traffic

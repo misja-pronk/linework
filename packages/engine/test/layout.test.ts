@@ -150,6 +150,8 @@ const jogBudget: Record<string, number> = {
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'azure/hub-spoke.yaml': 1,
+  'azure/aks-baseline.yaml': 1, // with -prod names the gateway's card is taller in its column than traefik: its line steps down into it
+  'azure/app-landing-zone.yaml': 1, // with -prod names one line into the endpoints steps a lane aside
   'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
@@ -185,7 +187,7 @@ const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
   'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
   'states/device-connection.yaml': 2, // update verified, between two returns; buffer full, on the short hop up into Sending
-  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its turn down to pe-kv
+  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its endpoint pep-kv-orders-prod
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production-events': 1, // Publishes, at the turn down from the banking API into Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
@@ -441,7 +443,7 @@ describe('layout quality', () => {
   it('starts the cards of one column on one line, left to right', async () => {
     // Drawn left to right, the sources share their left edge.
     const r = await render(fs.readFileSync(path.join(examples, 'azure/data-platform.yaml'), 'utf8'), { fonts: 'none', tuning: { direction: 'right' } });
-    const left = ['web', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
+    const left = ['web-shop', 'crm', 'erp'].map((id) => r.placed!.nodes.get(id)!.x);
     expect(new Set(left).size).toBe(1);
   });
 
@@ -762,7 +764,7 @@ describe('lines back and names under shapes', () => {
   it('take the side with fewer bends for a line back to an earlier layer: gold goes down to the warehouse', async () => {
     // Out of gold's left side it ran back under the line in from silver, then down: one bend more for the flow's sake.
     const r = await drawn('azure/data-platform.yaml');
-    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sqlwh')!.id;
+    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sql-warehouse')!.id;
     const [a, b] = r.placed!.edges.get(id)!.points;
     expect(a!.x).toBe(b!.x);
     expect(b!.y).toBeGreaterThan(a!.y);

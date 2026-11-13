@@ -1,62 +1,63 @@
 type: azure
-title: Web application
+title: Web shop on App Service
 subtitle: Northwind web shop · Front Door with WAF in front, no secrets in code, nothing else public
 
-# Left to right: customers → edge (Front Door) → app (App Service, Container Apps) → data.
-# Resource groups by lifecycle: the edge is global, app and data are regional (West Europe).
-# Identity: one user-assigned managed identity (id-shop) used by the storefront and the API;
-# it holds the roles on Key Vault and SQL, so there are no passwords or connection strings in config.
-# cae-shop is an internal Container Apps environment (no public ingress); kv-shop-prd uses RBAC and
-# has public network access off, reached over a private endpoint.
-# Adding a service: a card in rg-shop-app, a line from whoever calls it, and an identity line from
-# id-shop for each role it needs.
+# Left to right: customers → edge (Front Door) → apps (App Service, Container Apps) → data.
+# Resource groups by lifecycle: the edge is global, apps and data are in West Europe.
+# Each app has its own user-assigned managed identity holding only the roles it needs: no passwords or
+# connection strings in config. The storefront has public network access off (Front Door reaches it over
+# Private Link); cae-shop-prod is internal; Key Vault (RBAC) and SQL (Entra-only) have public access off.
+# Adding a service: a card in rg-shop-app, a line from whoever calls it, its own identity and a role line per role.
 
 groups:
-  sub: { kind: subscription, label: sub-webshop-prd, caption: Landing zone · Online }
-  rg-edge: { kind: resource-group, label: rg-shop-edge, caption: Global, in: sub }
-  rg-app: { kind: resource-group, label: rg-shop-app, caption: West Europe, in: sub }
-  cae: { kind: boundary, label: cae-shop, caption: Internal, in: rg-app }
-  rg-data: { kind: resource-group, label: rg-shop-data, caption: West Europe, in: sub }
+  sub-shop-prod: { kind: subscription, label: sub-shop-prod, caption: Landing zone · Online }
+  rg-shop-edge: { kind: resource-group, label: rg-shop-edge, caption: Global, in: sub-shop-prod }
+  # Written before rg-shop-app: the drawing comes out compact enough for a slide
+  rg-shop-data: { kind: resource-group, label: rg-shop-data, caption: West Europe, in: sub-shop-prod }
+  rg-shop-app: { kind: resource-group, label: rg-shop-app, caption: West Europe, in: sub-shop-prod }
+  cae-shop-prod: { kind: boundary, label: cae-shop-prod, caption: Internal, in: rg-shop-app }
 
 nodes:
-  customers: { kind: users, label: Customers }
+  customers: { kind: users, label: Customers, caption: Internet }
 
-  afd: { kind: front-door, label: afd-shop, caption: Premium · WAF, in: rg-edge, tags: [security] }
+  afd-shop-prod: { kind: front-door, label: afd-shop-prod, caption: Premium · WAF, in: rg-shop-edge, tags: [security] }
 
-  web: { kind: app-service, label: app-shop-web, caption: Storefront, in: rg-app }
-  api: { kind: container-app, label: ca-shop-orders, caption: Orders API, in: cae }
-  id: { kind: managed-identity, label: id-shop, caption: User-assigned, in: rg-app, tags: [security] }
+  app-shop-web-prod: { kind: app-service, label: app-shop-web-prod, caption: Storefront · public access off, in: rg-shop-app }
+  ca-shop-orders-prod: { kind: container-app, label: ca-shop-orders-prod, caption: Orders API, in: cae-shop-prod }
+  id-shop-web-prod: { kind: managed-identity, label: id-shop-web-prod, caption: User-assigned, in: rg-shop-app, tags: [security] }
+  id-shop-orders-prod: { kind: managed-identity, label: id-shop-orders-prod, caption: User-assigned, in: rg-shop-app, tags: [security] }
 
-  sql: { kind: sql-database, label: sqldb-shop, caption: Entra-only auth, in: rg-data }
-  kv: { kind: key-vault, label: kv-shop-prd, caption: RBAC · private, in: rg-data, tags: [security] }
-  st: { kind: storage, label: stshopmedia, caption: Product images, in: rg-data }
+  sqldb-shop-prod: { kind: sql-database, label: sqldb-shop-prod, caption: Entra-only · private, in: rg-shop-data }
+  kv-shop-prod: { kind: key-vault, label: kv-shop-prod, caption: RBAC · private, in: rg-shop-data, tags: [security] }
+  stshopmediaprod: { kind: storage, label: stshopmediaprod, caption: Product images, in: rg-shop-data }
 
 edges:
-  - customers -> afd: { label: HTTPS, style: public, tags: [security] }
-  - afd -> web: { label: Private Link, style: private, tags: [security] }
-  - afd -> st: { label: /media, style: private }
-  - web -> api: { label: REST, style: private }
-  - api -> sql: { label: TDS, style: private }
-  # The identity and the roles it holds
-  - web -> id: { style: identity, badge: true, tags: [security] }
-  - api -> id: { style: identity, badge: true, tags: [security] }
-  - id -> kv: { label: Secrets User, style: role, tags: [security] }
-  - id -> sql: { label: db_datawriter, style: role, tags: [security] }
+  - customers -> afd-shop-prod: { label: HTTPS, style: public, tags: [security] }
+  - afd-shop-prod -> app-shop-web-prod: { label: Private Link, style: private, tags: [security] }
+  - afd-shop-prod -> stshopmediaprod: { label: /media, style: private }
+  - app-shop-web-prod -> ca-shop-orders-prod: { label: REST, style: private }
+  - ca-shop-orders-prod -> sqldb-shop-prod: { label: TDS, style: private }
+  # Each app runs as its own identity; each identity holds only the roles its app needs
+  - app-shop-web-prod -> id-shop-web-prod: { style: identity, badge: true, tags: [security] }
+  - ca-shop-orders-prod -> id-shop-orders-prod: { style: identity, badge: true, tags: [security] }
+  - id-shop-web-prod -> kv-shop-prod: { label: Key Vault Secrets User, style: role, tags: [security] }
+  - id-shop-orders-prod -> sqldb-shop-prod: { label: db_datareader · db_datawriter, style: role, tags: [security] }
 
 layers:
   security:
     tags: [security]
     title: Security
-    caption: One public entry, behind a WAF; the apps sign in to Key Vault and SQL with a managed identity.
+    caption: One public entry, behind a WAF; each app signs in to Key Vault or SQL with its own managed identity.
 
 steps:
-  - The web shop in one subscription. Front Door is the only thing with a public address.
+  - title: One public entry
+    caption: The web shop in one subscription. Front Door is the only thing with a public address.
   - title: A customer opens the shop
     caption: Front Door terminates TLS, the WAF filters the request, and it reaches the storefront over Private Link.
-    path: customers -> afd -> web
+    path: customers -> afd-shop-prod -> app-shop-web-prod
   - title: Placing an order
     caption: The storefront calls the Orders API inside an internal Container Apps environment; the API writes to SQL.
-    path: web -> api -> sql
+    path: app-shop-web-prod -> ca-shop-orders-prod -> sqldb-shop-prod
   - title: No secrets in code
-    caption: Both apps run as id-shop. Its roles on Key Vault and SQL replace passwords and connection strings.
-    path: [web -> id, api -> id, id -> kv, id -> sql]
+    caption: Each app runs as its own identity. Its roles on Key Vault or SQL replace passwords and connection strings.
+    path: [app-shop-web-prod -> id-shop-web-prod -> kv-shop-prod, ca-shop-orders-prod -> id-shop-orders-prod -> sqldb-shop-prod]
