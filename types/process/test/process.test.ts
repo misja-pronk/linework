@@ -288,6 +288,35 @@ describe('the layout', () => {
     }
   });
 
+  it('sizes a lane to what is in it: the words on a way out of a decision use the room a taller card beside it leaves', async () => {
+    const yaml = `type: process
+lanes:
+  dev: Developer
+  ci: Actions
+  rev: Reviewer
+nodes:
+  Push: dev
+  Checks: { in: ci, kind: script, caption: "build, test, lint, CodeQL and a long list of more" }
+  Green?: ci
+  Fix: dev
+  Review: rev
+flow:
+  - start -> Push -> Checks -> Green? -yes-> Review -> end
+  - Green? -no-> Fix -> Push
+`;
+    const { r, at, lane } = await boxes(yaml);
+    const [band, checks, green] = [lane('ci'), at('Checks'), at('Green?')];
+    // Room once: the lane's padding and what the "no" and "yes" need beyond the taller card, not that on top of it.
+    const room = (band.height - checks.height) / 2;
+    expect(room).toBeLessThanOrEqual(14 + 20);
+    for (const e of r.graph!.edges.filter((x) => x.from.node === 'Green?')) {
+      const l = r.placed!.edges.get(e.id)!.label!;
+      expect(l.y, e.label).toBeGreaterThanOrEqual(band.y);
+      expect(l.y + l.height, e.label).toBeLessThanOrEqual(band.y + band.height);
+      expect(l.y + l.height <= green.y || l.y >= green.y + green.height, e.label).toBe(true);
+    }
+  });
+
   it('keeps the happy path in order, and straight where it stays in one lane', async () => {
     const { r, at } = await boxes(leave);
     const walk = r.graph!.walk!.map((b) => b.nodes[0]!);
