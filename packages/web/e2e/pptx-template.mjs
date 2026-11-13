@@ -64,6 +64,29 @@ const menu = async () => {
   await page.click('button:has-text("Export")');
   await page.waitForSelector('.menu [role="menuitem"]');
 };
+// The page frame (shift-P) in a template: its slide, and the smallest text the deck in it reports, as carto validate --template does.
+const measure = (template, keepLook) => {
+  const code = `const fs = require('node:fs'); Promise.all([import('@cartography/engine'), import('@cartography/export')]).then(async ([{ render }, { toPptx }]) => { const r = await render(fs.readFileSync(${JSON.stringify(path.join(root, 'examples/systems/web-shop.yaml'))}, 'utf8'), { fonts: 'none' }); let pt; await toPptx({ ...r, name: 'shop' }, { theme: r.theme, template: new Uint8Array(fs.readFileSync(${JSON.stringify(template)})), keepLook: ${!!keepLook}, steps: false, onSlide: (s) => (pt ??= s.smallestPt), onWarning: () => {} }); console.log(pt.toFixed(1)); });`;
+  const r = spawnSync(tsx, ['-e', code], { cwd: path.join(root, 'packages/cli'), encoding: 'utf8' });
+  if (r.status) throw new Error(r.stderr);
+  return r.stdout.trim();
+};
+async function pageFrame(name, chosen, shape, template, keepLook) {
+  await page.locator('.preview').focus();
+  await page.keyboard.press('Shift+P');
+  await page.waitForTimeout(800);
+  const f = page.locator('.page-frame');
+  if (!(await f.count())) return fail(`${name}: no page frame`);
+  const b = await f.boundingBox();
+  const got = { page: await f.getAttribute('data-page'), pt: await f.getAttribute('data-pt'), shape: b.width / b.height };
+  const want = measure(template, keepLook);
+  if (got.page !== chosen) fail(`${name}: the frame is not the template's slide: ${JSON.stringify(got)}`);
+  if (Math.abs(got.shape - shape) > 0.02) fail(`${name}: the frame is not the template's shape (${shape.toFixed(2)}): ${JSON.stringify(got)}`);
+  if (got.pt !== want) fail(`${name}: the frame says ${got.pt} pt, the deck in the template ${want} pt`);
+  await page.screenshot({ path: path.join(out, `${name}-frame.png`) });
+  await page.keyboard.press('Shift+P');
+  await page.waitForTimeout(300);
+}
 async function savePptx(name) {
   await menu();
   const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('[role=menuitem]:has-text("PowerPoint")')]);
@@ -96,6 +119,7 @@ if (!d.text('ppt/slides/slide1.xml').includes('typeface="Arial"')) fail('in-temp
 if (d.text('ppt/presentation.xml').includes('sectionLst')) fail('in-template: sample sections left behind');
 if (!d.text('[Content_Types].xml').includes('presentation.main+xml')) fail('in-template: still a template content type');
 if (!Object.keys(d.parts).some((p) => p.startsWith('ppt/media/cartography-icon') && p.endsWith('.png'))) fail('in-template: icons have no PNG fallback');
+await pageFrame('in-template', 'template.potx', 16 / 9, path.join(out, 'exemplar.potx'));
 
 // 2. Remembered for this folder after a reload.
 await page.reload();
@@ -122,6 +146,7 @@ d = await savePptx('dutch');
 if (!d.text('ppt/presentation.xml').includes('<p:sldSz cx="9144000" cy="6858000"')) fail('dutch: not 4:3');
 if (!d.text('ppt/slides/slide1.xml').includes('typeface="Verdana"')) fail('dutch: not in Verdana');
 if (!d.text('ppt/slides/slide1.xml').includes('Polder Advies')) fail('dutch: no footer from the layout');
+await pageFrame('dutch', 'polder.pptx', 4 / 3, path.join(out, 'polder.pptx'));
 
 // 4. The diagram's own look on the template's slides.
 await menu();

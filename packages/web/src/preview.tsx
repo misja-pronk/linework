@@ -5,6 +5,7 @@ import { is } from './keys.ts';
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Box, PaletteItem, Point } from '@cartography/core';
 import { readableArea, SLIDE_MIN_PT, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
+import type { PptxTemplate, SlideText } from '@cartography/export';
 import { Icon } from './icon.tsx';
 import { setReadout } from './readout.ts';
 import { t } from './i18n/index.ts';
@@ -18,6 +19,36 @@ import { matchKinds } from './sketch.ts';
 export interface Selection {
   kind: 'node' | 'group' | 'edge';
   id: string;
+}
+
+/** The template the Export menu makes decks in (its name and bytes), or `read` for the one a theme names (pptx:). */
+export interface DeckTemplate {
+  name?: string;
+  bytes?: Uint8Array;
+  keepLook?: boolean;
+  read?(path: string): Promise<Uint8Array | undefined>;
+}
+
+/** A template read once per file: the page frame measures in it on every drawing. */
+const readTemplates = new WeakMap<Uint8Array, PptxTemplate>();
+
+/**
+ * How large the drawing comes out on its slide in a PowerPoint template, asked of the PowerPoint export
+ * itself as carto validate --template does: the smallest text (pt), the scale (pt per drawing px) and
+ * the template's slide (px). Undefined without a template.
+ */
+async function inTemplate(r: RenderResult, d: DeckTemplate | undefined): Promise<{ pt: number; k: number; page: { name: string; width: number; height: number } } | undefined> {
+  const named = r.theme?.pptx;
+  const bytes = d?.bytes ?? (named && d?.read ? await d.read(named.template) : undefined);
+  if (!bytes) return undefined;
+  const { toPptx, readTemplate } = await import('@cartography/export');
+  let tpl = readTemplates.get(bytes);
+  if (!tpl) readTemplates.set(bytes, (tpl = readTemplate(bytes)));
+  const keepLook = d?.bytes ? !!d.keepLook : !!named?.keepLook;
+  let first: SlideText | undefined;
+  await toPptx({ ...r, name: '' }, { ...(r.theme ? { theme: r.theme } : {}), template: tpl, keepLook, ...(!d?.bytes && named?.layout ? { layout: named.layout } : {}), steps: false, onSlide: (s) => (first ??= s), onWarning: () => {} });
+  const name = (d?.bytes ? d.name : named?.template)?.split('/').pop() ?? 'template';
+  return first && { pt: first.smallestPt, k: first.scale, page: { name, width: tpl.width / 9525, height: tpl.height / 9525 } };
 }
 
 /** Zoom commands the app's palette can run. */
@@ -99,6 +130,8 @@ interface Props {
   minimap?: boolean;
   /** Show the page the drawing is for, and flag what makes its text too small. */
   page?: boolean;
+  /** The PowerPoint template decks are made in: on a slide the page is that template's slide, measured in its room. */
+  deckTemplate?: DeckTemplate;
   /** Elements placed by hand (pinned): a small pin shows on each that is not locked. */
   pinned?: Set<string>;
   onToggle?(what: 'grid' | 'minimap' | 'page'): void;
@@ -180,19 +213,26 @@ export function Preview(p: Props) {
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 });
   // With the page shown and the page a slide: how large the drawing comes out on the slide the
   // PowerPoint export makes (points per drawing px), for the drawing it was measured on. Loaded on first use.
-  const [slideK, setSlideK] = useState<{ svg: string; k: number }>();
+  // In a template, its slide and the room its layout leaves, with the smallest text the deck reports.
+  const [slideK, setSlideK] = useState<{ svg: string; k: number; pt?: number; page?: { name: string; width: number; height: number } }>();
+  const deck = p.deckTemplate;
   useEffect(() => {
     const r = result;
     if (!p.page || !r?.svg || !r.theme || !r.page?.name.endsWith('slide')) return;
     let live = true;
-    void import('@cartography/export/fit')
-      .then(({ slideScale }) => slideScale(r, r.theme!, r.page!.name.startsWith('4:3') ? '4:3' : '16:9'))
-      .then((k) => live && k && setSlideK({ svg: r.svg!, k }))
+    void inTemplate(r, deck)
+      .then(async (tpl) => {
+        if (tpl) return { svg: r.svg!, ...tpl };
+        const { slideScale } = await import('@cartography/export/fit');
+        const k = await slideScale(r, r.theme!, r.page!.name.startsWith('4:3') ? '4:3' : '16:9');
+        return k ? { svg: r.svg!, k } : undefined;
+      })
+      .then((s) => live && setSlideK(s))
       .catch(() => {});
     return () => {
       live = false;
     };
-  }, [p.page, result]);
+  }, [p.page, result, deck]);
   const [dragging, setDragging] = useState<Drag['mode']>();
   /** The marquee while it is dragged, in pixels relative to the frame. */
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number }>();
@@ -1035,12 +1075,15 @@ export function Preview(p: Props) {
   // On a slide that is the slide the PowerPoint export makes (its margins and title row: slideScale),
   // as carto validate measures it; on a sheet of paper the drawing fitted onto it. Until the slide's
   // scale is known (a moment, the first time), the drawing fitted onto the page.
-  const onSlide = slideK && slideK.svg === result?.svg ? slideK.k : undefined;
+  const measured = slideK && slideK.svg === result?.svg ? slideK : undefined;
+  const onSlide = measured?.k;
+  const page = measured?.page ?? result?.page;
   const pageInfo =
-    p.page && result?.page && result.svg && result.width && result.height
+    p.page && page && result?.svg && result.width && result.height
       ? {
-          pt: onSlide ? textPtAt(result.svg, onSlide) : slideTextPt(result.svg, result.width, result.height, result.page),
-          readable: readableArea(result.svg, result.page, onSlide ? { width: result.width, height: result.height, ptPerPx: onSlide } : undefined),
+          page,
+          pt: measured?.pt ?? (onSlide ? textPtAt(result.svg, onSlide) : slideTextPt(result.svg, result.width, result.height, page)),
+          readable: readableArea(result.svg, page, onSlide ? { width: result.width, height: result.height, ptPerPx: onSlide } : undefined),
           presentedBy: presentedBy(result).map((v) => v.title ?? v.name),
         }
       : undefined;
@@ -1205,7 +1248,7 @@ export function Preview(p: Props) {
             <PageFrame
               width={result!.width!}
               height={result!.height!}
-              page={result!.page!}
+              page={pageInfo.page}
               pt={pageInfo.pt}
               minPt={SLIDE_MIN_PT}
               readable={pageInfo.readable}

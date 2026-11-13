@@ -2,13 +2,14 @@
 
 Eleven everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
 The Cartography column is **not hand-tuned**: it is the Mermaid source converted to YAML once, by the
-importer Cartography had then, and rendered as is. The YAML is in [`cartography/`](cartography/).
+importer Cartography had then, and rendered as is. The YAML is in [`cartography/`](cartography/). One thing
+was added by hand since: the card payment's three `divider:` lines, so that it goes on slides phase by phase.
 
 | Source | What |
 | --- | --- |
 | [`src/*.mmd`](src/) | Mermaid, rendered with the `mermaid` npm package (default theme) in headless Chromium |
 | [`src/*.d2`](src/) | D2 0.9, default layout (dagre) and theme |
-| [`cartography/*.yaml`](cartography/) | `src/<name>.mmd` converted, untouched, default light theme |
+| [`cartography/*.yaml`](cartography/) | `src/<name>.mmd` converted, untouched (but for the card payment's dividers), default light theme |
 
 Regenerate everything with `pnpm compare` (needs `d2` on the PATH for the D2 column: `brew install d2`).
 
@@ -123,10 +124,12 @@ Imported as a `sequence` diagram: the actor became a person, "Orders DB" a datab
 queue" a queue, each with its icon; `->>` became a call, `-->>` a reply and `-)` an async message
 (violet, open head); the `box` became a tinted participant box, the `+`/`-` activations stay exactly as
 written (`activations: explicit`). Every message owns its row and each gap between lifelines is as
-wide as its widest label, so no label crosses a lifeline or a number badge. Mermaid's labels sit on
+wide as its widest label, so no label crosses a lifeline or a number badge. The three phases
+(Payment, Webhook, Confirmation) are the `divider:` lines added by hand: Mermaid has no dividers, and
+fifteen messages are too many for one readable slide, so PowerPoint gets a slide per phase. Mermaid's labels sit on
 the lifelines they cross ("Check stock and prices", "Create payment intent") and its loop condition
 wraps into the frame; D2 keeps labels clear by cutting the line around them, but has no participant
-boxes or numbering and comes out almost twice as tall. Mermaid still has the stick-figure actor that
+boxes or numbering and comes out half as tall again. Mermaid still has the stick-figure actor that
 people recognise at once, and repeats the headers at the bottom by default (`footers: true` here).
 
 ## Release with a hotfix (gitGraph)
