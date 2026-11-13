@@ -363,7 +363,11 @@ const viewSchema = {
       description: 'Steps for presenting this view ({ caption, show, focus, path, hide, note }); in a dynamic view its numbered interactions, e.g. "customer -> shop.web: Browses"',
     },
     nodes: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: deploymentNodeSchema(4), description: 'Deployment view: deployment nodes, nested, with instances of model elements' },
-    edges: { type: 'array', items: edgeItemSchema(relationProps), description: 'Deployment view: lines between deployment nodes or instances' },
+    edges: {
+      type: 'array',
+      items: edgeItemSchema({ ...relationProps, via: { type: 'string', description: 'A deployment node the relation goes through, e.g. lb: drawn from → via → to instead of straight' } }),
+      description: 'Deployment view: lines between deployment nodes or instances',
+    },
     environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
     layers: viewLayersSchema,
     complete: {

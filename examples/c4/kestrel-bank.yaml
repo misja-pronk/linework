@@ -130,10 +130,9 @@ views:
     edges:
       - lb -> online.web: { label: Forwards, technology: HTTPS }
       - lb -> online.api: { label: Forwards, technology: HTTPS }
-      # The app reaches the API through the load balancer, as the browser reaches web banking. A
-      # deployment view draws the model's app → API relation between the instances anyway, so the
-      # line is written here to say so (one line app → load balancer would leave the direct one too).
-      - online.app -> online.api: { label: Calls via the ALB, technology: JSON/HTTPS }
+      # The app reaches the API through the load balancer, as the browser reaches web banking: the
+      # model's app → API relation is drawn app → load balancer → API here.
+      - online.app -> online.api: { via: lb }
   # The same account, drawn for what the banking API keeps and announces: one slide each.
   production-data:
     kind: deployment
