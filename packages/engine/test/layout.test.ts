@@ -789,4 +789,10 @@ describe('slide shape', () => {
     const wide = await render(pipeline.replace('direction: right', 'direction: right\naspect: auto'), { fonts: 'none' });
     expect(slideTextPt(wide.svg!, wide.width!, wide.height!)).toBeLessThan(SLIDE_MIN_PT);
   });
+  it('takes a crossing or two for a slide at 6 pt rather than a staircase under it', async () => {
+    // A group name a word longer: two rows reach 6 pt with three crossings; three rows stayed at 5.1 pt with one.
+    const text = fs.readFileSync(path.join(examples, 'cloud/multi-cloud.yaml'), 'utf8').replace('label: Analytics,', 'label: Analytics extra +,');
+    const r = await render(text, { fonts: 'none' });
+    expect(slideTextPt(r.svg!, r.width!, r.height!)).toBeGreaterThanOrEqual(SLIDE_MIN_PT);
+  });
 });

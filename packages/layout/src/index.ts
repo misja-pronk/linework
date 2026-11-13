@@ -381,7 +381,10 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
   const crossed = metricsOf(b).crossings;
   const tiny = pageScale(b.placed, b.sized.graph, target) < READABLE_SCALE / 2;
-  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0)) return false;
+  // And twice as many for text that a slide shows at 6 pt where the other's it does not: a crossing or
+  // two is no reason to show a slide under 6 pt (multi-cloud with a longer group name: 3.9 pt unwrapped).
+  const lifts = slideTier(a, target) > 0 && slideTier(b, target) === 0;
+  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0, lifts ? 2 * SMALL_CROSSINGS : 0)) return false;
   // A drawing whose text a slide already shows with the margin (slideTier 2) takes on no crossing for larger text.
   if (slideTier(b, target) === 2 && metricsOf(a).crossings > crossed) return false;
   // Weighed with small text double, for text too small to read: only for text clearly larger, or for a
