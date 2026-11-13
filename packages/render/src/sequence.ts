@@ -97,6 +97,16 @@ export function boxLabel(theme: Theme, label: string): ReturnType<typeof groupLa
   return { ...lab, text: label.split(/(\s+)/).map((w) => (/^[^\sA-Z]*[a-z][^\sA-Z]*$/.test(w) && /[-_.\d]/.test(w) ? w : w.toUpperCase())).join('') };
 }
 
+/**
+ * A message's label, wrapped narrow to ask for room; one only a little wider than that stays on one
+ * line (its gap widens a little), so no second line holds just a word or two.
+ */
+function labelLines(label: string): string[] {
+  const L = K.label;
+  const lines = wrapLines(label, L.size, 500, L.max);
+  return lines.length === 2 && measureText(label, L.size, 500) <= L.max * 1.3 ? [label] : lines;
+}
+
 const widest = (lines: string[], size: number, weight: 400 | 500 | 600) => Math.max(0, ...lines.map((l) => measureText(l, size, weight)));
 
 const cache = new WeakMap<SequenceShape, Map<Theme, SequenceGeometry>>();
@@ -143,7 +153,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const open: { index: number; first: number; branches: { row: number; label?: string }[] }[] = [];
   for (const ev of shape.events) {
     if (ev.kind === 'message') {
-      const lines = ev.label ? wrapLines(ev.label, L.size, 500, L.max) : [];
+      const lines = ev.label ? labelLines(ev.label) : [];
       const text = lines.length * L.line;
       if (ev.from === ev.to) {
         const h = Math.max(22, text);

@@ -400,6 +400,54 @@ messages: [ app -> kv: Get secret ]
     expect(r.svg).not.toContain('APP-ORDERS-PROD');
   });
 
+  it('gives a system that starts a conversation itself a bar until its last answer, but not a person', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  app: { kind: service, label: Orders API }
+  kv: { kind: key-vault, label: Key Vault }
+  sql: { kind: database, label: Azure SQL }
+messages:
+  - app -> kv: Get secret
+  - kv --> app: Secret value
+  - app -> sql: Connect
+  - sql --> app: Rows
+  - divider: Later
+  - app -> kv: Get secret again
+  - kv --> app: Secret value
+`);
+    const x = g.headers[0]!.x;
+    const own = g.bars.filter((b) => b.box.x < x && b.box.x + b.box.width > x);
+    // One bar from the first call to the last answer, a new one after the divider.
+    expect(own).toHaveLength(2);
+    const ys = g.messages.map((m) => m.y);
+    expect(own[0]!.box.y).toBeCloseTo(ys[0]!, 0);
+    expect(own[0]!.box.y + own[0]!.box.height).toBeCloseTo(ys[3]!, 0);
+    const person = await geometry(`type: sequence
+participants:
+  you: person
+  app: { kind: service, label: Orders API }
+messages:
+  - you -> app: Open
+  - app --> you: Page
+`);
+    const px = person.g.headers[0]!.x;
+    expect(person.g.bars.filter((b) => b.box.x < px && b.box.x + b.box.width > px)).toHaveLength(0);
+  });
+
+  it('keeps a label only a little wider than the wrap width on one line', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  app: { label: Orders API, box: appservice }
+  blob: { label: Storage account }
+boxes:
+  appservice: { label: App Service }
+messages:
+  - app -> blob: Put blob
+  - blob --> app: "201 Created (role: Storage Blob Data Contributor)"
+`);
+    expect(g.messages[1]!.lines).toEqual(['201 Created (role: Storage Blob Data Contributor)']);
+  });
+
   it('gives a participant that acts on a message it does not answer an activation for as long as it does', async () => {
     const yaml = `type: sequence
 participants:
