@@ -1,14 +1,14 @@
 Orders data product
 
-Data products, overview: Sources, ports, contract and consumers of one data product. 8 elements in 1 group, with 7 connections.
+Data products, overview: Northwind sales · sources, ports, contract and consumers of one data product. 8 elements in 1 group, with 7 connections.
 
 Groups and elements
-- ERP (Orders and order lines)
-- Sales (Domain · Order management team)
-  - Orders (Source-aligned · v2.3.0)
+- ERP (Source · ERP)
+- Sales (Domain · Sales analytics)
+  - Orders (Source-aligned · v2.3.0 · Order management team)
   - orders (Data contract · v2.3.0 · internal)
-- Revenue (Finance)
-- Demand forecast (Supply chain)
+- Revenue (Aggregate · v3.0.0 · Finance data team)
+- Demand forecast (Consumer-aligned · beta · v0.4.0 · Planning analytics)
 - Sales dashboard (Dashboard)
 - Loyalty app (Application)
 - Webshop events (Event Hubs)
@@ -20,8 +20,7 @@ Connections
 
 Walkthrough
 1. One product, one team: Orders belongs to the order management team. They run it, version it and answer for it.
-2. Input ports: Changes come from the ERP through change data capture, web orders as a stream. Nobody else reads these systems.
-  - Orders: Deduplicated, joined, amounts in euros
+2. Input ports: Changes come from the ERP through change data capture, webshop events as a stream. Nobody else reads these systems.
 3. The contract: The orders table promises a schema, freshness within 15 minutes and checks that run on every load. A breaking change is a new major version.
 4. Lineage onwards: Revenue, the demand forecast, the sales dashboard and the loyalty app depend on it. They are told before the contract changes.
 

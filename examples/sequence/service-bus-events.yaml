@@ -1,6 +1,6 @@
 type: sequence
 title: Events through Service Bus
-subtitle: "Northwind orders: one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue"
+subtitle: "Northwind orders · one event, two subscribers, each retried on its own, and what fails for good waits in the dead-letter queue"
 autonumber: true
 
 # The topic, its subscriptions and their dead-letter queues live in one namespace.
@@ -8,39 +8,44 @@ boxes:
   bus: { label: Service Bus sb-northwind-prod, tone: violet }
 
 participants:
-  api: { kind: service, label: Orders API, caption: App Service }
+  api: { kind: api, label: Orders API, caption: App Service }
   topic: { kind: topic, label: order-events, caption: topic, box: bus }
-  dlq: { kind: queue, label: Dead-letter queue, caption: per subscription, box: bus }
+  dlq: { kind: queue, icon: triangle-exclamation-point, label: Dead-letter queue, caption: per subscription, box: bus }
   invoicing: { kind: function, label: Invoicing, caption: Azure Function }
   warehouse: { kind: worker, label: Warehouse, caption: Container App }
-  monitor: { kind: service, label: Azure Monitor, caption: alert rule }
+  monitor: { kind: service, icon: activity, label: Azure Monitor, caption: alert rule }
   ops: { kind: person, label: Operations }
 
 messages:
   - divider: Publish and deliver
-  # MessageId is the order id: duplicate detection drops a second send of the same order.
+  # MessageId is the order id: duplicate detection drops a second send of the same order within its window.
   - api ->> topic: OrderPlaced, MessageId = order id
   # Each subscription gets its own copy and is retried on its own: one slow consumer holds up no one.
   - par: Subscription invoicing
     messages:
       - topic ->> invoicing: OrderPlaced (peek-lock)
-      # At-least-once delivery: the same message can come twice, so the handler checks first.
-      - invoicing -> invoicing: Invoice, unless MessageId seen
+      # At-least-once delivery: the same order can come twice, so the handler checks the order id first.
+      - invoicing -> invoicing: Invoice, unless order id seen
       - invoicing -->> topic: Complete
     and:
       Subscription warehouse:
         - topic ->> warehouse: OrderPlaced (peek-lock)
-        - warehouse -->> topic: Abandon, stock service down
+        # An abandoned message comes back at once, so the handler waits and retries before it gives up.
+        - warehouse -> warehouse: Stock down, retry with backoff
+        - warehouse -->> topic: Abandon
         - topic ->> warehouse: Redelivered, DeliveryCount 2 to 10
         # MaxDeliveryCount is 10 on this subscription.
         - topic ->> dlq: "10th try failed: dead-lettered"
   - divider: Dead-lettered and resubmitted
-  # An Azure Monitor alert on the DeadletteredMessages metric of the subscription.
+  # An Azure Monitor alert on the namespace's DeadletteredMessages metric, split by entity: the topic.
   - monitor ->> ops: "Alert: dead-lettered > 0"
   # Service Bus Explorer in the portal, or a small tool: the dead-letter queue says why it gave up.
   - ops -> dlq: Peek the dead-lettered message
   - dlq --> ops: "OrderPlaced, reason: MaxDeliveryCountExceeded"
-  # Resubmitted to the topic, the message reaches every subscription again: the MessageId check in
-  # the handlers absorbs the second copy (and the topic's duplicate detection drops it within its window,
-  # so a resubmit after that window, or with a new MessageId, is what gets through).
-  - ops ->> topic: Fix the cause, resubmit
+  # With the same MessageId the topic's duplicate detection would drop it, so it goes back with a new one.
+  # Every subscription gets it again; the handlers check the order id, so nothing is invoiced twice.
+  - ops ->> topic: Fix the cause, resubmit with a new MessageId
+  - topic ->> invoicing: OrderPlaced again
+  - invoicing -->> topic: Complete, invoiced already
+  - topic ->> warehouse: OrderPlaced again
+  - warehouse -->> topic: Complete, stock reserved

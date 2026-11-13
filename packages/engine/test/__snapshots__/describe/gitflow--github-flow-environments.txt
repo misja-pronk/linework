@@ -1,21 +1,21 @@
 GitHub flow with environments
 
-Git branching diagram: Northwind Orders API: short-lived branches into main, every merge to dev and test, a tagged release to production. 4 branches and 9 commits.
+Git branching diagram: Northwind Orders API · squash-merged pull requests; every merge goes through dev and test to an approval gate before production. 4 branches and 9 commits.
 
 Branches
 - main (long-lived, 4 commits)
 - feature/order-export (feature, 3 commits)
 - fix/vat-rounding (feature, 1 commit)
-- dependabot/azure-identity (feature, 1 commit)
+- dependabot/nuget/Azure.Identity-1.14.0 (feature, 1 commit)
 
 History
 Oldest first.
-1. main: Release 1.3, tagged v1.3.0, deployed to production.
+1. main: commit, tagged v1.3.0, deployed to production.
 2. feature/order-export: Export endpoint, branches off main.
 3. fix/vat-rounding: Round VAT per line, branches off main.
 4. feature/order-export: Fix lint, Checks red, then green.
-5. main: merges fix/vat-rounding, deployed to dev and test, Squash merge.
+5. main: merges fix/vat-rounding, deployed to dev and test.
 6. feature/order-export: Review fixes, Changes requested.
-7. main: merges feature/order-export, deployed to dev and test, Approved.
-8. dependabot/azure-identity: Bump Azure.Identity, branches off main.
-9. main: merges dependabot/azure-identity, tagged v1.4.0, deployed to dev, test and production, Approval gate.
+7. main: merges feature/order-export, deployed to dev and test, Review approved.
+8. dependabot/nuget/Azure.Identity-1.14.0: Bump Azure.Identity, branches off main.
+9. main: merges dependabot/nuget/Azure.Identity-1.14.0, tagged v1.4.0, deployed to dev, test and production, Approval gate.
