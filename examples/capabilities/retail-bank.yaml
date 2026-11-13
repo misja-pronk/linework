@@ -2,6 +2,8 @@ type: capabilities
 title: Retail bank capability map
 subtitle: Investment decisions per capability, 2026–2028 plan
 layout: bands
+# Five capabilities to a row in every view: the map and the heatmap line up, card for card.
+columns: 5
 heat:
   by: investment
   values:
