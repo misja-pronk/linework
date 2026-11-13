@@ -198,7 +198,7 @@ describe('links', () => {
     expect(parseLink('https://x.org')).toEqual({ kind: 'url', target: 'https://x.org' });
     expect(parseLink('c.yaml#containers')).toEqual({ kind: 'view', target: 'c.yaml#containers', file: 'c.yaml', view: 'containers' });
     expect(linkHref(parseLink('adr/7.md')!)).toBe('adr/7.md');
-    expect(linkHref(parseLink('#v')!, 'me.yaml')).toBe('me-v.svg');
+    expect(linkHref(parseLink('#v')!, 'me.yaml')).toBe('me--v.svg');
     expect(parseLink({ to: '#context', label: 'Up' })).toEqual({ kind: 'view', target: '#context', file: '', view: 'context', label: 'Up' });
   });
 
@@ -206,8 +206,8 @@ describe('links', () => {
     const text = "type: systems\nnodes:\n  a: { kind: service, links: ['https://x.org'] }\n  b: { kind: service, links: ['other.yaml#v'], description: Bee }\n  c: { kind: service, links: ['#v'] }\n";
     const out = await render(text, { fonts: 'none', file: 'me.yaml' });
     expect(out.svg).toContain('<a href="https://x.org" target="_blank">');
-    expect(out.svg).toContain('<a href="other-v.svg">');
-    expect(out.svg).toContain('<a href="me-v.svg">');
+    expect(out.svg).toContain('<a href="other--v.svg">');
+    expect(out.svg).toContain('<a href="me--v.svg">');
     expect(out.svg).toContain('<title>Bee</title>');
     const live = await render(text, { fonts: 'none', interactive: true });
     expect(live.svg).not.toContain('<a href');

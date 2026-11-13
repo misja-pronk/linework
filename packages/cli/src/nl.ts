@@ -149,12 +149,12 @@ export const nlHelp: Record<string, string> = {
     `carto — architectuurdiagrammen die er goed uitzien`,
   [`  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
-               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
                                                 whatever the diagram's icons: says
-               [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>-<layer>.svg;
+               [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>--<layer>.svg;
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there
@@ -169,12 +169,12 @@ export const nlHelp: Record<string, string> = {
                                                 template's own slides in front`]:
     `  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme gaat voor theme: in het diagram; -o x.pptx of x.pdf kiest ook het formaat
-               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>-<view>.svg
+               [--view name | --all-views]      één weergave van het diagram, of elk naar <file>--<view>.svg
                [--step 3 | --all-steps]         de tekening bij een van zijn steps:, of elke stap naar <file>-step-01.svg;
                                                 pptx en pdf krijgen vanzelf een dia (pagina) per stap
                [--icons official|lucide]        de officiële iconen van de leverancier (carto icons import) of onze lijniconen,
                                                 wat icons: in het diagram ook zegt
-               [--layer security | --all-layers] door één (of meer) van zijn layers:, of elke laag naar <file>-<layer>.svg;
+               [--layer security | --all-layers] door één (of meer) van zijn layers:, of elke laag naar <file>--<layer>.svg;
                [--dim]                          pptx en pdf: een dia (pagina) per laag. --dim laat de rest vervaagd staan
                [--stable]                       onthoudt in <file>.layout.json waar alles stond, zodat de
                                                 volgende render na een wijziging het daar laat

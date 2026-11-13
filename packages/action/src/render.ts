@@ -2,7 +2,7 @@
 // committed back, so the pictures in the repository are never older than the YAML.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Diagnostic } from '@cartography/core';
+import { pictureName, type Diagnostic } from '@cartography/core';
 import { ttfFiles } from '@cartography/cli/fonts';
 import { toPng } from '@cartography/cli/png';
 import { git, versionOnDisk } from '@cartography/diff/node';
@@ -16,7 +16,7 @@ export interface RenderAllOptions {
   formats?: Format[];
   /** A folder (repository path) for the pictures, keeping each diagram's own folders under it; without it they go next to the diagram. */
   output?: string;
-  /** Also every view, as <name>-<view>.svg. */
+  /** Also every view, as <name>--<view>.svg. */
   views?: boolean;
   scale?: number;
 }
@@ -45,7 +45,7 @@ export async function renderAll(root: string, opts: RenderAllOptions = {}): Prom
         if (format === formats[0] && r.diagnostics.length) out.reports.push({ file, ...(view ? { view } : {}), diagnostics: i ? r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)) : r.diagnostics });
         if (r.diagnostics.some((d) => d.severity === 'error')) out.failed = true;
         if (!r.svg) continue;
-        const name = file.replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + `.${format}`;
+        const name = `${pictureName(file.replace(/\.ya?ml$/, ''), view)}.${format}`;
         const target = opts.output ? path.posix.join(opts.output, name) : name;
         fs.mkdirSync(path.dirname(path.join(root, target)), { recursive: true });
         fs.writeFileSync(path.join(root, target), format === 'png' ? toPng(r.svg, opts.scale ?? 2, await ttfFiles(r.theme?.font.faces ?? [])) : r.svg);

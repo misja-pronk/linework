@@ -78,7 +78,7 @@ Comparing versions wins over a focus, and a focus wins over layers. A focus is a
 carto render web-shop.yaml --layer security -o security.png      # one layer
 carto render web-shop.yaml --layer security,data                  # several (or --layer twice)
 carto render web-shop.yaml --layer security --dim                 # faded, whatever the layer says
-carto render web-shop.yaml --all-layers -o out/                   # the whole and out/web-shop-<layer>.svg each
+carto render web-shop.yaml --all-layers -o out/                   # the whole and out/web-shop--<layer>.svg each
 carto render web-shop.yaml --all-layers -o deck.pptx              # one deck: the whole, then a slide per layer
 ```
 

@@ -2,7 +2,7 @@
 // the files a diagram refers to, its layout sidecar, and where pictures go.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSidecar, type Diagnostic, type LayoutSidecar } from '@cartography/core';
+import { parseSidecar, pictureName, type Diagnostic, type LayoutSidecar } from '@cartography/core';
 import { t, type Lang } from './i18n.ts';
 
 /** The terminal of a run: process.stdout and friends for the real CLI, buffers in tests. */
@@ -123,7 +123,7 @@ export function writeSidecar(file: string, sidecar: LayoutSidecar | undefined) {
 export function outputPath(o: { out?: string; 'all-views'?: boolean; 'all-layers'?: boolean }, count: number, file: string, format: string, view?: string, step?: number): string {
   // Steps are numbered with two digits so the files sort in the order they are told.
   const nn = step ? `-step-${String(step).padStart(2, '0')}` : '';
-  const base = path.basename(file).replace(/\.ya?ml$/, '') + (view ? `-${view}` : '') + nn + '.' + format;
+  const base = pictureName(path.basename(file).replace(/\.ya?ml$/, ''), view) + nn + '.' + format;
   if (!o.out) return path.join(path.dirname(file), base);
   // -o is a folder when it ends in / or has no extension.
   const folder = o.out.endsWith('/') || o.out.endsWith(path.sep) || !path.extname(o.out);

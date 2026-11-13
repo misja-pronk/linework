@@ -335,7 +335,7 @@ layers:
     expect(read('one.svg')).not.toContain('Key Vault');
     const all = await carto('render', 'layered.yaml', '--all-layers', '-o', 'layers/');
     expect(all.code).toBe(0);
-    expect(['layered.svg', 'layered-data.svg', 'layered-security.svg'].every((f) => exists(`layers/${f}`))).toBe(true);
+    expect(['layered.svg', 'layered--data.svg', 'layered--security.svg'].every((f) => exists(`layers/${f}`))).toBe(true);
     expect(all.out).toContain('layered.yaml@security →');
     expect((await carto('render', 'layered.yaml', '--all-layers', '-o', 'x.png')).err).toContain('--all-layers writes one per layer');
     const deck = await carto('render', 'layered.yaml', '--all-layers', '-o', 'layers.pptx');
@@ -447,9 +447,17 @@ describe('carto errors and help', () => {
     expect(r.err).toMatch(/^carto: -o x\.png names one file, but --all-views writes one per view: give a folder, e\.g\. -o x\//);
     expect(exists('x.png')).toBe(false);
     expect((await carto('render', 'views.yaml', '--all-views', '-o', 'pics/')).code).toBe(0);
-    expect(exists('pics/views-data.svg')).toBe(true);
+    expect(exists('pics/views--data.svg')).toBe(true);
     expect((await carto('render', 'views.yaml', '-o', 'one.svg')).code).toBe(0);
     expect(fs.statSync(path.join(tmp, 'one.svg')).isFile()).toBe(true);
+  }, 120_000);
+
+  it('names a view so that it is never another file’s view', async () => {
+    // views.yaml#data-x and views-data.yaml#x were both views-data-x.svg.
+    write('views.yaml', shop.replace('  data: {', '  data-x: {'));
+    write('views-data.yaml', shop.replace('  data: {', '  x: {'));
+    expect((await carto('render', 'views.yaml', 'views-data.yaml', '--all-views', '-o', 'apart/')).code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'apart')).sort()).toEqual(['views--data-x.svg', 'views-data--x.svg', 'views-data.svg', 'views.svg']);
   }, 120_000);
 
   it('writes nothing when the drawing has errors', async () => {
@@ -482,7 +490,7 @@ describe('carto errors and help', () => {
     write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
     const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc/');
     expect(r.code).toBe(0);
-    expect(fs.readdirSync(path.join(tmp, 'acc')).sort()).toEqual(['access-access.svg', 'access-graph.svg', 'access-roles.svg', 'access.svg']);
+    expect(fs.readdirSync(path.join(tmp, 'acc')).sort()).toEqual(['access--access.svg', 'access--graph.svg', 'access--roles.svg', 'access.svg']);
   }, 120_000);
 });
 
