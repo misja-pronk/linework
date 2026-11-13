@@ -13,7 +13,8 @@ lanes:
 # Only what the flow cannot say itself: the lane, the kind and a caption.
 nodes:
   Push to a branch: { in: dev, kind: user, caption: feature/order-export }
-  Open pull request: { in: github, kind: user, caption: asks the code owners }
+  # The developer opens it; GitHub then requests a review from the code owners.
+  Open pull request: { in: dev, kind: user, caption: code owners requested }
   # The checks branch protection requires; a red one blocks the merge.
   Required checks: { in: actions, kind: script, caption: "build, test, lint, CodeQL" }
   Checks green?: actions
@@ -28,8 +29,9 @@ nodes:
 # The first line is the happy path; the lines after it are the ways back.
 flow:
   - Push to a branch -> Open pull request -> Required checks -> Checks green? -yes-> Waiting for review -> Approved? -yes-> Squash and merge -> Merged to main
-  - Checks green? -no-> Fix what failed -> Push to a branch
-  - Approved? -changes requested-> Address feedback -> Push to a branch
+  # A push to the open pull request's branch runs the checks again; the pull request is not reopened.
+  - Checks green? -no-> Fix what failed -> Required checks
+  - Approved? -changes requested-> Address feedback -> Required checks
 
 # Presenting (P): one stop on the way per step, with what to say.
 steps:
@@ -41,13 +43,13 @@ steps:
     path: Open pull request -> Required checks -> Checks green?
   - title: A failing check
     caption: A red check goes back to the developer; the next push runs every check again.
-    path: Checks green? -> Fix what failed -> Push to a branch
+    path: Checks green? -> Fix what failed -> Required checks
   - title: Waiting for review
     caption: Here the change waits for a person. Often the longest stop on the way to production.
     focus: [Waiting for review, Approved?]
   - title: Changes requested
     caption: The reviewer asks for changes; the fix is pushed to the same branch, and checks and review run again.
-    path: Approved? -> Address feedback -> Push to a branch
+    path: Approved? -> Address feedback -> Required checks
   - title: Merge
     caption: "Green checks and one approval: the pull request is squashed into one commit on main and the branch is deleted."
     path: Approved? -> Squash and merge -> Merged to main

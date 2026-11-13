@@ -77,6 +77,6 @@ steps:
     caption: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
     path: [afw -> erp-vm, afw -> web-vm]
   - title: Admin access
-    caption: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from its subnet only.
+    caption: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from AzureBastionSubnet only.
     path: bastion -> erp-vm
-    note: { erp-vm: "nsg-app: RDP from Bastion only" }
+    note: { erp-vm: "nsg-app: RDP from AzureBastionSubnet only" }

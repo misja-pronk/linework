@@ -13,7 +13,7 @@ groups:
   org: { kind: management-group, label: Northwind, caption: Allowed regions · Defender for Cloud · diagnostics to Log Analytics, in: tenant }
 
   platform: { kind: management-group, label: Platform, caption: Run by the platform team, in: org }
-  management: { kind: management-group, label: Management, caption: Nothing added here, in: platform }
+  management: { kind: management-group, label: Management, caption: Inherited policy only, in: platform }
   connectivity: { kind: management-group, label: Connectivity, caption: DDoS protection on VNets, in: platform }
   identity: { kind: management-group, label: Identity, caption: No public IPs · VM backup, in: platform }
 

@@ -1,30 +1,41 @@
 type: azure
 title: Web shop
-subtitle: Production
+subtitle: Front Door is the only public entry; SQL and Key Vault are reached over private endpoints
+
+# The small version of azure/web-app.yaml, told the same way: no passwords or connection-string
+# secrets in config. The API runs with a managed identity; SQL allows Entra authentication only,
+# and Key Vault holds only what has no Entra sign-in (here the payment provider's API key).
+# Each subnet does one job: App Service VNet integration and a Container Apps environment each need
+# a subnet delegated to them alone, and private endpoints get a subnet of their own.
+# SQL and Key Vault are PaaS: they sit in the resource group, not in a subnet, with public network
+# access off; the private endpoints in snet-pe are their only way in.
 
 groups:
-  prod: { kind: subscription, label: Production }
-  rg: { kind: resource-group, label: rg-shop-prod, in: prod }
-  vnet: { kind: vnet, label: vnet-shop, in: rg }
-  apps: { kind: subnet, label: snet-apps, in: vnet }
-  data: { kind: subnet, label: snet-data, in: vnet }
+  prod: { kind: subscription, label: sub-shop-prd }
+  rg: { kind: resource-group, label: rg-shop-prd, caption: West Europe, in: prod }
+  vnet: { kind: vnet, label: vnet-shop, caption: 10.20.0.0/22, in: rg }
+  web-snet: { kind: subnet, label: snet-web, caption: VNet integration, in: vnet }
+  cae-snet: { kind: subnet, label: snet-cae, caption: Container Apps env, in: vnet }
+  pe-snet: { kind: subnet, label: snet-pe, caption: Private endpoints, in: vnet }
 
 nodes:
   users: users
-  edge: { kind: front-door, label: Front Door, tags: [security, ops] }
-  web: { kind: app-service, label: Web shop, in: apps, tags: [ops] }
-  api: { kind: container-app, label: Orders API, in: apps, tags: [ops] }
-  db: { kind: sql-database, label: Orders, in: data, tags: [data] }
-  vault: { kind: key-vault, label: Secrets, in: rg, tags: [security] }
-
-badges: [identity]
+  edge: { kind: front-door, label: Front Door, caption: Premium · WAF, tags: [security, ops] }
+  web: { kind: app-service, label: Web shop, in: web-snet, tags: [ops] }
+  api: { kind: container-app, label: Orders API, caption: Managed identity, in: cae-snet, tags: [ops, security] }
+  pe-sql: { kind: private-endpoint, label: pe-sql-shop, in: pe-snet, tags: [data] }
+  pe-kv: { kind: private-endpoint, label: pe-kv-shop, in: pe-snet, tags: [security] }
+  db: { kind: sql-database, label: Orders, caption: Entra-only auth, in: rg, tags: [data] }
+  vault: { kind: key-vault, label: Secrets, caption: RBAC · private, in: rg, tags: [security] }
 
 edges:
   - users -> edge: { label: HTTPS, style: public, tags: [security] }
-  - edge -> web: { style: public }
+  - edge -> web: { label: Private Link, style: private, tags: [security] }
   - web -> api: { label: REST, style: private }
-  - api -> db: { label: SQL, style: private, tags: [data] }
-  - api -> vault: { label: secrets, style: identity, tags: [security] }
+  - api -> pe-sql: { style: private, tags: [data] }
+  - pe-sql -> db: { label: TDS, style: private, tags: [data] }
+  - api -> pe-kv: { style: private, tags: [security] }
+  - pe-kv -> vault: { label: secrets, style: private, tags: [security] }
 
 # One drawing, three ways to look at it: the Layers control in the editor (L), or
 # carto render web-shop.yaml --layer security (--all-layers -o out/ for one picture each)
@@ -32,11 +43,11 @@ layers:
   security:
     tags: [security]
     title: Security
-    caption: Only the front door is public; the API reads its secrets with its own identity.
+    caption: Only the front door is public; the API signs in to SQL and Key Vault with its own identity.
   data:
     tags: [data]
     title: Data
-    caption: Orders live in SQL on the data subnet, reached only by the API.
+    caption: Orders live in SQL, reached only by the API through its private endpoint.
   ops:
     tags: [ops]
     title: Operations
@@ -46,12 +57,12 @@ layers:
 # Told in steps: Present in the editor, or carto render web-shop.yaml --all-steps
 steps:
   - The web shop in production. One subscription, and nothing is public except the front door.
-  - users -> edge -> web: A customer opens the shop. Front Door terminates TLS and forwards to the web app.
+  - users -> edge -> web: A customer opens the shop. Front Door terminates TLS and reaches the web app over Private Link.
   - web -> api: Placing an order is a private REST call inside the virtual network.
   - title: Orders are stored
-    caption: The Orders API writes to SQL over the data subnet.
-    path: api -> db
-    note: { db: No public endpoint }
+    caption: The Orders API reaches SQL through its private endpoint in snet-pe.
+    path: api -> pe-sql -> db
+    note: { db: Public access off }
   - title: No secrets in code
-    caption: The API reads its connection string from Key Vault with its managed identity.
-    path: api -> vault
+    caption: The API signs in to SQL and Key Vault with its managed identity; Key Vault keeps only the payment provider's key.
+    path: [api -> pe-sql -> db, api -> pe-kv -> vault]
