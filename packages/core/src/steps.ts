@@ -148,6 +148,13 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
     };
   });
 
+  // A card that belongs to a table (a data contract on its product's port) is part of it: a step
+  // that puts the table in focus lights the card and the line between them too.
+  const withAnnexes = (p: Picked): Picked => {
+    const annex = graph.edges.filter((e) => e.annex && p.nodes.includes(e.from.node) && nodes.has(e.to.node));
+    return annex.length ? merge(p, { nodes: annex.map((e) => e.to.node), groups: [], edges: annex.map((e) => e.id) }) : p;
+  };
+
   // With a show anywhere the drawing builds up: what no step has shown yet is absent.
   const reveal = items.some((s) => s.show);
   const hiddenNodes = new Set(reveal ? nodes.keys() : []);
@@ -162,7 +169,7 @@ export function resolveSteps(raw: unknown, graph: Graph, at: Path, report: Repor
   return items.map((s) => {
     const all = (list: Sel[] | undefined, withEnds: boolean) => merge(...(list ?? []).map((x) => pick(x.v, x.p, withEnds)));
     const shown = all(s.show, true);
-    const focus = all(s.focus, true);
+    const focus = withAnnexes(all(s.focus, true));
     const route = all(s.path, true);
     const gone = all(s.hide, false);
     showAll(shown);

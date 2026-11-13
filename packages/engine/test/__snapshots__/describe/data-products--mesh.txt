@@ -1,6 +1,6 @@
 Web shop data mesh
 
-Data products diagram: Six data products over three domains, with their ODCS contracts. 11 elements in 3 groups, with 10 connections.
+Data products diagram: Six data products over three domains; their ODCS contracts are in the detailed views. 11 elements in 3 groups, with 10 connections.
 
 Groups and elements
 - CRM accounts (Outside the mesh)

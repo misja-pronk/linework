@@ -1,4 +1,4 @@
-Customer data products and their contracts
+The customers product and its contract
 
 Data products, marketing in detail: Marketing in detail. 3 elements in 1 group, with 2 connections.
 
@@ -9,7 +9,7 @@ Groups and elements
 - Campaign tool (Application)
 
 Connections
-- Customer 360 connects to Churn risk.profiles.
+- Customer 360 connects to Churn risk.
 - Churn risk.churn scores connects to Campaign tool.
 
 Key

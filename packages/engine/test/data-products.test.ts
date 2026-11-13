@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { TableShape } from '@cartography/core';
 import { tableGrid } from '@cartography/render';
@@ -241,5 +242,102 @@ contracts:
     for (const e of lines) for (const p of r.placed!.edges.get(e.id)!.points) expect(p.y).toBeLessThan(contract.y);
     // One of them level with the port (to the 8 px grid).
     expect(Math.min(...['bi', 'app'].map((id) => Math.abs(box(id).y + box(id).height / 2 - port)))).toBeLessThan(5);
+  });
+});
+
+describe('data products, read as a practitioner reads them', () => {
+  const dir = new URL('../../../examples/data-products/', import.meta.url);
+  const file = (f: string) => fs.readFileSync(new URL(f, dir), 'utf8');
+  const draw = (f: string, opts: Parameters<typeof render>[1] = {}) => render(file(f), { fonts: 'none', load: (p) => fs.readFileSync(new URL(p, dir), 'utf8'), file: f, ...opts });
+
+  it('lights the contract with its product when a step puts the product in focus', async () => {
+    const r = await draw('northwind-orders-product.yaml', { step: 3 });
+    const step = r.steps![2]!;
+    expect(step.nodes.orders).toBe('focus');
+    expect(step.nodes['contract:orders']).toBe('focus');
+    const link = r.graph!.edges.find((e) => e.annex && e.to.node === 'contract:orders')!;
+    expect(step.edges[link.id]).toBe('focus');
+    // What the step is not about stays quiet.
+    expect(step.nodes.erp).toBe('dim');
+  });
+
+  it('puts input ports in the order of what feeds them, so their lines do not cross', async () => {
+    for (const [f, view] of [['customer.yaml', 'detailed-customer-360'], ['mesh.yaml', 'detailed-customer-360'], ['northwind-mesh.yaml', 'detailed-supply']] as const) {
+      const r = await draw(f, { view });
+      for (const n of r.graph!.nodes) {
+        if (n.shape.kind !== 'table' || !n.shape.ports) continue;
+        const inputs = n.shape.rows.filter((row) => row.kind === 'row' && row.id.startsWith('in:')).map((row) => (row as { id: string }).id);
+        const from = inputs.map((row) => {
+          const e = r.graph!.edges.find((x) => x.to.node === n.id && x.to.row === row)!;
+          const b = r.placed!.nodes.get(e.from.node)!;
+          return b.y + b.height / 2;
+        });
+        expect(from, `${f}#${view} ${n.id}`).toEqual([...from].sort((a, b) => a - b));
+      }
+    }
+    // Where the sources stand in the order written, the ports keep it.
+    const written = await draw('northwind-orders-product.yaml');
+    const rows = (written.graph!.nodes.find((n) => n.id === 'orders')!.shape as TableShape).rows.filter((row) => row.kind === 'row').map((row) => (row as { id: string }).id);
+    expect(rows.slice(0, 2)).toEqual(['in:0', 'in:1']);
+  });
+
+  it('reads every input port the same way: what it reads from, then how', async () => {
+    const r = await draw('mesh.yaml', { view: 'detailed-revenue' });
+    const revenue = r.graph!.nodes.find((n) => n.id === 'revenue')!.shape as TableShape;
+    const cells = revenue.rows.filter((row) => row.kind === 'row' && row.id.startsWith('in:')).map((row) => (row as { cells: { text: string }[] }).cells.map((c) => c.text));
+    // Orders has two output ports: which one it reads is said beside it.
+    expect(cells).toEqual(expect.arrayContaining([['Payments', ''], ['Exchange rates', ''], ['Orders', 'orders']]));
+    const product = await draw('northwind-orders-product.yaml');
+    const orders = product.graph!.nodes.find((n) => n.id === 'orders')!.shape as TableShape;
+    expect(orders.rows.filter((row) => row.kind === 'row' && row.id.startsWith('in:')).map((row) => (row as { cells: { text: string }[] }).cells.map((c) => c.text))).toEqual([
+      ['ERP', 'CDC every 5 min'],
+      ['Webshop events', 'stream'],
+    ]);
+  });
+
+  it('draws a domain in detail in one band, an output port leaving on the output side', async () => {
+    const r = await draw('northwind-mesh.yaml', { view: 'detailed-supply' });
+    const box = (id: string) => r.placed!.nodes.get(id)!;
+    expect(box('replenish').x).toBeGreaterThan(box('forecast').x + box('forecast').width);
+    const api = r.graph!.edges.find((e) => e.from.row === 'out:forecast')!;
+    expect(r.placed!.edges.get(api.id)!.points[0]!.x).toBeGreaterThanOrEqual(box('forecast').x + box('forecast').width - 1);
+  });
+
+  it('fills the column of a wide contract under its product instead of leaving it empty', async () => {
+    const r = await draw('finance.yaml', { view: 'detailed-payments' });
+    const box = (id: string) => r.placed!.nodes.get(id)!;
+    const [product, contract, revenue] = [box('payments'), box('contract:settled-payments'), box('revenue')];
+    expect(contract.x).toBe(product.x);
+    expect(contract.y).toBeGreaterThan(product.y + product.height);
+    // Revenue stands beside the product, over the contract, not past the contract's right edge.
+    expect(revenue.x).toBeLessThan(contract.x + contract.width);
+    expect(revenue.y + revenue.height).toBeLessThan(contract.y);
+  });
+
+  it("keeps a contract's own keys and its line to the product inside the domain box", async () => {
+    for (const [f, view] of [['mesh.yaml', 'detailed-sales'], ['mesh-detailed.yaml', 'orders-contract'], ['northwind-orders-product.yaml', undefined]] as const) {
+      const r = await draw(f, { view });
+      const domain = r.placed!.groups.get('domain:sales')!;
+      const own = r.graph!.edges.filter((e) => (e.from.node === e.to.node && e.from.row) || e.annex);
+      expect(own.length, `${f}#${view}`).toBeGreaterThan(0);
+      for (const e of own)
+        for (const p of r.placed!.edges.get(e.id)!.points) {
+          expect(p.x, `${f}#${view} ${e.id}`).toBeGreaterThan(domain.x + 8);
+          expect(p.x, `${f}#${view} ${e.id}`).toBeLessThan(domain.x + domain.width - 8);
+        }
+    }
+  });
+
+  it('offers a drawing once: a part the overview as written already draws is not offered again', async () => {
+    const r = await draw('northwind-orders-product.yaml');
+    expect(r.views!.map((v) => v.name)).toEqual(['overview', 'detailed-other']);
+    // Still drawn when asked for by name.
+    expect((await draw('northwind-orders-product.yaml', { view: 'detailed-sales' })).diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    // Without detail: written, the domain's view is a drawing of its own.
+    const plain = await render(file('northwind-orders-product.yaml').replace('detail: [orders]\n', ''), { fonts: 'none' });
+    expect(plain.views!.map((v) => v.name)).toContain('detailed-sales');
+    // The customer files open on views their picker offers.
+    const detailed = await draw('customer-detailed.yaml');
+    expect(detailed.views!.map((v) => v.name)).toContain(detailed.asWritten?.name);
   });
 });

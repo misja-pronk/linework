@@ -1,6 +1,6 @@
 type: data-products
 title: Web shop data mesh
-subtitle: Six data products over three domains, with their ODCS contracts
+subtitle: Six data products over three domains; their ODCS contracts are in the detailed views
 
 domains:
   customer: { label: Customer }

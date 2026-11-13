@@ -8,7 +8,7 @@ import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
 import { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 import { legendBlock, legendColumn } from './legend.ts';
-import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, markWidth, rowMarks, SECTION_PX, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
+import { BODY, bodyLines, cardCaption, cardInsets, CHIP, chipRows, DECISION_TIP, groupIconRoom, groupLabelWidth, LABEL_ICON, labelPad, LINK_ROOM, rowMarks, SECTION_PX, STACK, STEP_ROOM, tableGrid, tableHeader } from './size.ts';
 import { drawMatrix } from './matrix.ts';
 import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
@@ -513,10 +513,10 @@ function drawTable(shape: TableShape, b: Box, theme: Theme, id: string, img?: st
   const grid = tableGrid(shape, theme);
   // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
   for (const c of grid.columns.slice(1)) s += `<line x1="${r1(b.x + c.x)}" y1="${r1(yh)}" x2="${r1(b.x + c.x)}" y2="${r1(b.y + b.height)}" stroke="${theme.border}" stroke-width="1"/>`;
-  const marks = markWidth(shape);
   for (const [i, row] of shape.rows.entries()) {
     const at = grid.rows[i]!;
     const col = grid.columns[at.column]!;
+    const marks = col.marks;
     // The last column reaches the table's right edge (a table may be drawn wider than measured).
     const cx = b.x + col.x;
     const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;

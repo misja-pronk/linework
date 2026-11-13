@@ -11,10 +11,10 @@ Groups and elements
 - Orders (Sales · Source-aligned)
 
 Connections
-- Exchange rates connects to Revenue.Rates API.
+- Exchange rates connects to Revenue.
 - Revenue.revenue by day connects to CFO dashboard.
 - Orders connects to Revenue.
-- Payments connects to Revenue.settled payments.
+- Payments connects to Revenue.
 
 Key
 - Teal filled pill: Source-aligned

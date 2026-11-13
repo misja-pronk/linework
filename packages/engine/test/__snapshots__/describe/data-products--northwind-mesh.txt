@@ -34,8 +34,8 @@ Walkthrough
 1. Domains own their data: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
 2. Source-aligned products: Each operational system is read once, by the team that knows it, and published under a contract.
 3. Products built on products: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
-4. Self-serve platform: One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
-5. Federated governance: The domains agree on the rules that every contract follows, such as classification, PII and freshness. The platform checks them automatically.
+4. Served from a self-serve platform: Dashboards and applications read the products too. One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+5. Federated governance: Orders, Customers and Revenue publish under a data contract. The domains agree on the rules every contract follows, such as classification, PII and freshness, and the platform checks them automatically. The detailed views show each contract.
 
 Key
 - Teal filled pill: Source-aligned

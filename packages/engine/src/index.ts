@@ -45,11 +45,12 @@ import {
   type ModelContext,
   type Path,
   type Placed,
+  type Sized,
   type Source,
   type StepState,
   type Word,
 } from '@cartography/core';
-import { layout, type Tuning } from '@cartography/layout';
+import { layout, portOrder, withPortOrder, type Tuning } from '@cartography/layout';
 import { drawSvg, size, smallestTextPx, type SvgOptions } from '@cartography/render';
 import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
@@ -444,8 +445,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const fonts = themeTextFonts(theme, brandFaces?.length ? opts.fontScale?.(brandFaces) : undefined);
   await loadFonts([fonts.sans, fonts.mono]);
   // Cards are sized with their badge chips; layout and routing never see the badged edges.
-  const measured = withTextFonts(fonts, () => size(graph, theme));
-  const sized = { ...measured, graph: withoutBadges(graph), near: badgePairs(graph) };
+  const sizedOf = (g: Graph) => ({ ...withTextFonts(fonts, () => size(g, theme)), graph: withoutBadges(g), near: badgePairs(g) });
+  let sized = sizedOf(graph);
   const spacing = { nodeGap: theme.space.nodeGap, layerGap: theme.space.layerGap, groupPad: theme.space.group.pad };
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
@@ -479,7 +480,17 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // (the editor's memory, or its own note in the sidecar), never from the whole drawing's note or a view's.
   const only = lens.info?.mode === 'only' && !!lens.info.active.length;
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
-  let placed = type.layout ? await type.layout(sized, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(sized, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  const place = async (at: Sized, previous: LayoutMemory | null | undefined) =>
+    type.layout ? await type.layout(at, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(at, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  let placed = await place(sized, previous);
+  // Ports that may stand in any order (a data product's) follow where what feeds them was placed, so
+  // their lines do not cross; drawn once more from there, everything else holding where it was.
+  const order = portOrder({ ...sized, graph: { ...sized.graph, direction: placed.direction ?? sized.graph.direction } }, placed);
+  if (order) {
+    graph = withPortOrder(graph, order);
+    sized = sizedOf(graph);
+    placed = await place(sized, placed.memory ?? previous);
+  }
   if (firstView && thisView === firstView && opts.previous === undefined && !opts.tuning && !opts.focus && !only) {
     if (seeds.size > 64) seeds.clear();
     seeds.set(seedKey, { variant: placed.memory?.variant, nodes: new Set(graph.nodes.map((n) => n.id)) });

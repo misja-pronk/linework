@@ -5,23 +5,23 @@ Data products diagram: From operational systems to fit-for-purpose products. 8 e
 Groups and elements
 - Sales (Domain · Sales engineering)
   - Webshop (Source · Application)
-  - orders (Source-aligned)
+  - Orders (Source-aligned)
 - Customer (Domain · CRM team)
   - Customer 360 (Aggregate)
   - Salesforce (Source · SaaS)
-  - customers (Source-aligned)
+  - Customers (Source-aligned)
 - Sales dashboard (Dashboard)
 - Marketing (Domain)
   - Churn risk (Consumer-aligned)
 - Campaign tool (Application)
 
 Connections
-- Webshop connects to orders (CDC).
-- orders connects to Customer 360 and connects to Sales dashboard.
+- Webshop connects to Orders (CDC).
+- Orders connects to Customer 360 and connects to Sales dashboard.
 - Customer 360 connects to Sales dashboard and connects to Churn risk.
 - Churn risk connects to Campaign tool.
-- Salesforce connects to customers (daily).
-- customers connects to Customer 360.
+- Salesforce connects to Customers (daily).
+- Customers connects to Customer 360.
 
 Walkthrough
 1. Four data products between two operational systems and the people who use the data.

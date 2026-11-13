@@ -6,7 +6,8 @@
 #               outputs: output ports; contract: the data contract that port promises
 #   contracts   schema, guarantees (sla) and quality checks: written inline here, or file: an ODCS file next to this one
 #   consumers   who reads the products
-# The self-serve platform and federated governance are told in the steps: the diagram shows what they produce.
+# The self-serve platform and federated governance are told in the steps: the diagram shows what they produce
+# (the products and who reads them; the contracts are in the detailed views).
 type: data-products
 title: Northwind data mesh
 subtitle: Data products owned by the domains, from operational systems to the people who use them
@@ -114,14 +115,16 @@ contracts:
 steps:
   - title: Domains own their data
     caption: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
+    focus: [orders, customers, stock, forecast, revenue]
   - title: Source-aligned products
     caption: Each operational system is read once, by the team that knows it, and published under a contract.
     path: [erp -> orders, crm -> customers, wms -> stock]
   - title: Products built on products
     caption: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
     path: [orders -> forecast, stock -> forecast, orders -> revenue, customers -> revenue]
-  - title: Self-serve platform
-    caption: One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+  - title: Served from a self-serve platform
+    caption: Dashboards and applications read the products too. One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.
+    path: [orders -> sales-bi, customers -> sales-bi, revenue -> cfo, forecast -> replenish]
   - title: Federated governance
-    caption: The domains agree on the rules that every contract follows, such as classification, PII and freshness. The platform checks them automatically.
+    caption: Orders, Customers and Revenue publish under a data contract. The domains agree on the rules every contract follows, such as classification, PII and freshness, and the platform checks them automatically. The detailed views show each contract.
     focus: [orders, customers, revenue]

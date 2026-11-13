@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, markWidth, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, smallestTextPx } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, smallestTextPx } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
@@ -486,17 +486,17 @@ class SlideDrawing {
     const grid = tableGrid(s, t);
     // A second column of rows (a contract's guarantees beside its schema) stands behind a rule.
     for (const c of grid.columns.slice(1)) items.push(this.vline(b.x + c.x, b.y + head, b.y + b.height, t.border));
-    const marks = markWidth(s);
     for (const [i, row] of s.rows.entries()) {
       const at = grid.rows[i]!;
       const col = grid.columns[at.column]!;
+      const marks = col.marks;
       const cx = b.x + col.x;
       const cw = at.column === grid.columns.length - 1 ? b.width - col.x : col.width;
       const y = b.y + at.y;
       if (row.kind === 'section') {
         const sh = at.height;
         // Without a label: the rule between a class's attributes and its operations.
-        items.push(row.label ? this.text(cx + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), 10, 600, t.textFaint) : this.hline(cx, cx + cw, y + sh / 2, t.border));
+        items.push(row.label ? this.text(cx + ts.padX, y + sh / 2 + 2, row.label.toUpperCase(), SECTION_PX, 600, t.textFaint) : this.hline(cx, cx + cw, y + sh / 2, t.border));
         continue;
       }
       const rh = at.height;

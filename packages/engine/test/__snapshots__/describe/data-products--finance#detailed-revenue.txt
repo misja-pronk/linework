@@ -12,7 +12,7 @@ Groups and elements
 Connections
 - General ledger connects to Revenue.
 - Revenue.revenue per day connects to CFO dashboard.
-- Payments connects to Revenue.settlements.
+- Payments connects to Revenue.
 
 Key
 - Teal filled pill: Source-aligned

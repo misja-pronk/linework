@@ -51,6 +51,18 @@ describe('pptx', () => {
     expect(guarantee!.x).toBeGreaterThanOrEqual(field!.x + field!.cx);
   });
 
+  it("sets a table's section names as large as the drawing does, as large as a group's name", async () => {
+    const r = await draw('data-products/finance.yaml');
+    const xml = parts(await toPptx(r)).text('ppt/slides/slide1.xml');
+    const size = (word: string) => {
+      const at = xml.indexOf(`>${word}</a:t>`);
+      return at < 0 ? undefined : Number(/sz="(\d+)"[^]*$/.exec(xml.slice(Math.max(0, at - 400), at))?.[1]);
+    };
+    const section = size('SCHEMA');
+    expect(section).toBeGreaterThan(0);
+    expect(section).toBe(size('FINANCE') ?? size('Finance'));
+  });
+
   it('puts a matrix\'s table under the drawing\'s group, not in it: Quick Look and Mail leave out a grouped table', async () => {
     const xml = parts(await toPptx(await draw('matrix/raci-migration.yaml'))).text('ppt/slides/slide1.xml');
     const table = xml.indexOf('<p:graphicFrame>');
