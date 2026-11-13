@@ -16,7 +16,7 @@ principals:
   priya: { kind: user, label: Priya Shah, caption: Developer, member-of: sg-shop-developers }
   daan: { kind: user, label: Daan Visser, caption: Platform engineer, member-of: sg-azure-platform-admins }
   sg-azure-platform-admins: { kind: group }
-  sg-azure-readers: { kind: group, caption: Security group · security and finance }
+  sg-azure-readers: { kind: group }   # security and finance: read-only everywhere
   sg-shop-developers: { kind: group }
   sg-shop-operations: { kind: group }
 
