@@ -1,6 +1,9 @@
 type: systems
 title: Web shop trust zones
 subtitle: Checkout across five trust boundaries
+# Top-down, the zones sit beside each other and the text stays near 7 pt on a slide; left to right
+# the zones run in one long row and it comes out under 6 pt.
+direction: down
 
 groups:
   internet: { kind: trust-boundary, label: Internet }

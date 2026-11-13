@@ -29,7 +29,8 @@ relations:
   - shop.api -> stripe: { label: Charges cards, style: sync }
 
 views:
-  landscape: { title: Web shop landscape, subtitle: Who uses the shop and what it depends on }
+  # Left to right: top-down the four cards come out in two rows, with a step in the line to Stripe.
+  landscape: { title: Web shop landscape, subtitle: Who uses the shop and what it depends on, direction: right }
   data:
     title: Where order data goes
     include: ['shop.api -> *', 'shop.bus -> *']

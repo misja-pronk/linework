@@ -35,7 +35,7 @@ export interface JourneyScene {
 const ASPECT = 16 / 9;
 const FRAME = { x: 80, y: 136 };
 
-const S = { step: 12.5, body: 11.5, small: 10.5 };
+const S = { step: 12.5, body: 11.5, small: 11 };
 const lh = (size: number) => Math.round(size * 1.4);
 
 export const JOURNEY_ROWS: Record<JourneyRow, { label: string; icon: string; tone: Tone }> = {

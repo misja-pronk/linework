@@ -22,7 +22,9 @@ const surveyShape = {
     monoFace: 'Geist Mono',
     monoFor: ['edgeLabel', 'type'],
   },
-  size: { ...shared.size, group: 10.5, edgeLabel: 10 },
+  // Labels on lines as large as group names: the smallest words a reader needs, so a slide that shrinks
+  // the drawing to four fifths still shows them at 6.3 pt, not just at 6.
+  size: { ...shared.size, group: 10.5, edgeLabel: 10.5 },
   // Line labels in the monospace face run a little wider than Inter did: two pixels more between layers keeps a label on a short hop clear of both cards.
   space: { ...shared.space, layerGap: 74 },
   radius: { card: 6, group: 8, tile: 6, chip: 4, pill: 999, corner: 8 },
@@ -209,7 +211,7 @@ const draftingShape = {
     monoFace: 'IBM Plex Mono',
     monoFor: ['edgeLabel', 'type', 'title'],
   },
-  size: { ...shared.size, title: 16, group: 10.5, edgeLabel: 10 },
+  size: { ...shared.size, title: 16, group: 10.5, edgeLabel: 10.5 },
   // A plate around a monospace label needs more room on a short hop than a pill did.
   space: { ...shared.space, layerGap: 80 },
   radius: { card: 2, group: 2, tile: 2, chip: 2, pill: 999, corner: 0 },

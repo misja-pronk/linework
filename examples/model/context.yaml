@@ -3,6 +3,8 @@
 type: systems
 title: Web shop
 subtitle: System context
+# Left to right: top-down the four cards come out in two rows, with a step in the line to Stripe.
+direction: right
 include: [model.yaml]
 
 nodes:

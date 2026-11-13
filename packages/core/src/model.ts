@@ -373,6 +373,11 @@ export interface Sized {
   groupMinWidth: Map<string, number>;
   /** Pairs that belong together without a line between them (a relation shown as a badge). */
   near?: [string, string][];
+  /**
+   * The size (px) of the smallest words a reader needs that the drawing has: labels on lines, group
+   * names, a table's section names. How large the drawing may be on a slide goes by it (10 when not said).
+   */
+  smallText?: number;
 }
 
 export interface NodeSize {
