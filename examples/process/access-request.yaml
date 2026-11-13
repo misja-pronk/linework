@@ -14,7 +14,8 @@ nodes:
   Confirm access: employee
   Explain why: manager
   Request rejected: end
+  Access in use: end
 
 flow:
-  - start -> Request access -> Check request -> Approved? -yes-> Grant access -> Confirm access -> end
+  - start -> Request access -> Check request -> Approved? -yes-> Grant access -> Confirm access -> Access in use
   - Approved? -no-> Explain why -> Request rejected
