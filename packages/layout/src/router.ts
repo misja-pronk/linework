@@ -126,8 +126,17 @@ export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   if ([...sides].every(([id, [f, t]]) => roomy.sides.get(id)![0] === f && roomy.sides.get(id)![1] === t)) return out;
   const plain = routeSides(input, strange, sides);
   const covered = (r: Map<string, PlacedEdge>) => covering.get(r) ?? placeLabels(input, new Map([...r].map(([k, v]) => [k, { points: v.points }])));
-  const [a, b] = [[crossings(out), covered(out)], [crossings(plain), covered(plain)]] as const;
-  return a[0] <= b[0] && a[1] <= b[1] && (a[0] < b[0] || a[1] < b[1]) ? out : plain;
+  // With the same crossings and covered labels, the one with fewer steps aside (lines squeezed out of a full side) reads better.
+  const [a, b] = [[crossings(out), covered(out), steps(out)], [crossings(plain), covered(plain), steps(plain)]] as const;
+  return a[0] <= b[0] && a[1] <= b[1] && (a[0] < b[0] || a[1] < b[1] || a[2] < b[2]) ? out : plain;
+}
+
+/** A step aside: a piece between two bends shorter than two lanes. */
+const STEP = 2 * LANE;
+function steps(routes: Map<string, PlacedEdge>): number {
+  let n = 0;
+  for (const { points: p } of routes.values()) for (let i = 2; i < p.length - 1; i++) if (Math.abs(p[i]!.x - p[i - 1]!.x) + Math.abs(p[i]!.y - p[i - 1]!.y) < STEP) n++;
+  return n;
 }
 
 function routeSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined, sides: Map<string, [Side, Side]>): Map<string, PlacedEdge> {
