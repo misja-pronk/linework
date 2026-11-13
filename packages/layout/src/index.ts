@@ -540,7 +540,7 @@ function rewrapped(best: Choice, spacing: Spacing, wrappedQ: Placement, parts: n
   const { p: q, edges } = clearBorders(s, { p: aligned, edges: route(s, aligned) });
   const placed = normalise({ ...q, edges });
   const sc = score(metricsOf({ placed, sized: s }));
-  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/\+k$/, '').replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
+  return { p: q, placed, score: sc, cost: sc, key: `${best.key.replace(/w\d.*$/, '')}w${parts}${opts.chains ? 'c' : ''}${opts.loose ? 'l' : ''}${opts.flip ? 'f' : ''}${opts.transpose ? 't' : ''}${opts.scope ? `@${opts.scope}` : ''}`, sized: s };
 }
 
 /**

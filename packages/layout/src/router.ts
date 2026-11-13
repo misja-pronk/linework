@@ -102,8 +102,8 @@ const RUN_ON = 64; // a line starting this near another's end, on its track, rea
 const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
 const RUN_ASIDE = 12; // a lane aside: nearer than this
 const OVERHANG = 40; // a label hanging over a bend, past the end of its piece
-const PORT = 24; // ports on one side this far apart at least: nearer, the arrowheads crowd and the lines run too close for their labels
-const LABELLED = 28; // and this far for a line with a label
+const PORT = 24; // room a line takes on a side: one more fits while the side, clear of its corners, has this much for each line already there (placePorts then spreads them evenly, so two on a short side can sit nearer)
+const LABELLED = 28; // and this much for a line with a label
 const CRAMMED = 250; // a line onto a side that has no room left for one more port: around the card, or into another side, is better
 const MIXED = 4000; // a line onto a table row's side where another line ends in a different mark: around the table is better
 
