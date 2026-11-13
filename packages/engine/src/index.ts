@@ -503,10 +503,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const step = opts.step != null && steps.length ? Math.min(steps.length, Math.max(1, Math.round(opts.step))) : undefined;
   // No step asked for: the drawing as the steps leave it, not every step's lines on top of each other.
   const end = !step && told ? finalState(steps, !!opts.interactive) : undefined;
-  const at = step ? { index: step - 1, states: steps, caption: opts.stepCaption } : end ? { index: 0, states: [end], caption: false } : undefined;
+  // The whole drawing keeps the room its steps' notes take outside it, so it is as large as each step and nothing jumps.
+  const room = !step && told && steps.length ? steps : undefined;
+  const at = step ? { index: step - 1, states: steps, caption: opts.stepCaption } : end ? { index: 0, states: [end], caption: false, room } : undefined;
   // A dim layer draws the rest quietly at every step; what a step hides stays hidden.
   const faded = lens.faded;
-  const stepView = faded ? (at ? { ...at, states: at.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false }) : at;
+  const stepView = faded ? (at ? { ...at, states: at.states.map((s) => fadeState(s, faded)) } : { index: 0, states: [fadeState(undefined, faded)], caption: false, room }) : (at ?? (room ? { index: 0, states: [], caption: false, room } : undefined));
   const images = resolveIcons(graph, rest, iconsRef, opts, (path, message) => diagnostics.push(source.at(path, message, 'warning')), type.id);
   const out = withTextFonts(fonts, () => drawSvg(graph, placed, theme, { ...opts, images: images ?? opts.images, stepView }));
   // A drawing that leaves the editor carries its text alternative (see docs/describe.md): screen readers

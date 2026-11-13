@@ -70,7 +70,8 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   const themeOf = (e: string | undefined) => (e === 'dim' ? quiet : theme);
   /** A line as its step draws it: quiet where it stands back, heavier on the route in focus. */
   const lineTheme = (e: GraphEdge) => (state?.edges[e.id] === 'focus' ? strongTheme(theme) : themeOf(state?.edges[e.id]));
-  const margin = view ? noteMargins(view, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
+  // The whole drawing of a story passes its steps as `room` without a state of its own: it keeps their callouts' room.
+  const margin = view || opts.stepView?.room ? noteMargins(view ?? opts.stepView!, placed) : { left: 0, top: 0, right: 0, bottom: 0 };
   const list = view ? { width: 0, height: 0, draw: () => '' } : stepList(graph, theme);
   // What the page is wide anyway; a legend that is a key wraps to it.
   const room = Math.max(placed.width + margin.left + margin.right + side, brand ? brand.width : titleWidth(graph, theme), list.width);

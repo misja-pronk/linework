@@ -260,6 +260,19 @@ describe('steps: drawing', () => {
     expect(whole).not.toContain('Everything that is there.');
   });
 
+  it('keeps the room a note needs outside the drawing in the whole drawing too, so it does not jump to the first step', async () => {
+    const hub = example('azure/hub-spoke.yaml');
+    const whole = await render(hub, { fonts: 'none' });
+    const placed = whole.placed!;
+    // A step whose note stands past the drawing's edge.
+    const out = whole.steps!.findIndex((s) => placeNotes(s, placed).some((n) => n.box.y + n.box.height > placed.height || n.box.x + n.box.width > placed.width || n.box.x < 0 || n.box.y < 0));
+    expect(out).toBeGreaterThanOrEqual(0);
+    for (let i = 1; i <= whole.steps!.length; i++) {
+      const s = await render(hub, { fonts: 'none', step: i, stepCaption: false });
+      expect([s.width, s.height, s.origin], `step ${i}`).toEqual([whole.width, whole.height, whole.origin]);
+    }
+  });
+
   it('ties the caption to the drawing with a hairline only: no bar that would read as progress', async () => {
     const at = (await render(text, { fonts: 'none', step: 1 })).svg!;
     const after = (await render(text, { fonts: 'none', step: 3 })).svg!;

@@ -11,6 +11,8 @@ export interface StepView {
   states: StepState[];
   /** False leaves the title, caption and marker out (a presenter shows them itself). */
   caption?: boolean;
+  /** The steps whose callouts the drawing keeps room for, when not `states`: the whole drawing keeps its steps' room, so it is as large as they are. */
+  room?: StepState[];
 }
 
 const quiet = new WeakMap<Theme, Theme>();
@@ -206,7 +208,7 @@ function anchor(n: StepNote, placed: Placed): Box | undefined {
 /** Room the callouts of all steps need outside the drawing, so its size is the same at every step. */
 export function noteMargins(view: StepView, placed: Placed) {
   const m = { left: 0, top: 0, right: 0, bottom: 0 };
-  for (const s of view.states)
+  for (const s of view.room ?? view.states)
     for (const n of placeNotes(s, placed)) {
       m.left = Math.max(m.left, -n.box.x);
       m.top = Math.max(m.top, -n.box.y);
