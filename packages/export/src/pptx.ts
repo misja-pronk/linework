@@ -233,12 +233,12 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       // Beside the drawing, from its top down: the title, the caption.
       const y = side.y + 0.18 * INCH;
       const paras = [title(state), caption(state)].filter((r) => r.length).map((runs) => ({ runs }));
-      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras } }, font);
+      if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', wrap: true, paras } }, font);
       tree += number({ x: room.x + room.w - INCH, y: bottom - ROWS.line * INCH, w: INCH, h: ROWS.line * INCH }, 't');
     } else if (told && state) {
       // Under the title, where the subtitle would be: the title in bold, the caption after it.
       const runs = [...title(state), ...(state.title && state.caption ? [{ text: '  ', size: CAPTION.text, color: theme.text }] : []), ...caption(state)];
-      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: titleTop, w: room.w - (titled ? 0 : INCH), h: capTop - titleTop }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs }] } }, font);
+      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: titleTop, w: room.w - (titled ? 0 : INCH), h: capTop - titleTop }, geom: { prst: 'rect' }, text: { anchor: 't', wrap: true, paras: [{ runs }] } }, font);
       tree += number(titled ? { x: room.x + room.w - INCH, y: room.y, w: INCH, h: ROWS.title * INCH } : { x: room.x + room.w - INCH, y: titleTop, w: INCH, h: ROWS.line * INCH }, titled ? 'ctr' : 't');
     }
     // The template's footer and slide number, as its layout shows them.

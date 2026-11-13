@@ -431,6 +431,9 @@ describe('steps', () => {
     expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
     expect(slide).not.toContain('name="Subtitle"');
     expect(at(slide, 'Step number')![1]).toBe(titleY);
+    // The caption wraps in its box, as its rows were planned, with no indent a template's text style would hang its second line on.
+    expect(/name="Step caption"[^]*?<a:bodyPr wrap="(\w+)"/.exec(slide)![1]).toBe('square');
+    expect(/name="Step caption"[^]*?<a:pPr ([^>]*)>/.exec(slide)![1]).toContain('marL="0" indent="0"');
     const [flat] = await scales(wide, false);
     for (const s of await scales(wide)) expect(s).toBeGreaterThanOrEqual(flat!);
     // The subtitle is not lost: it is in the speaker notes.
