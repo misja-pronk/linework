@@ -49,6 +49,7 @@ const crossingBudget: Record<string, number> = {
   'c4/kestrel-bank.yaml#payment-notice': 0,
   'c4/kestrel-bank.yaml#production': 0,
   'c4/kestrel-bank.yaml#production-data': 0,
+  'c4/kestrel-bank.yaml#production-events': 0,
   'cloud/aws-data-lake.yaml': 1, // wrapped into two rows for a slide (4.55:1 at 3.7 pt -> 1.84:1 at 6.3 pt): the stream's line down to the raw zone passes the change data capture's
   'cloud/aws-landing-zone.yaml': 0,
   'cloud/aws-landing-zone-network.yaml': 0,
@@ -186,8 +187,7 @@ const bendBudget: Record<string, number> = {
   'states/device-connection.yaml': 2, // update verified, between two returns; buffer full, on the short hop up into Sending
   'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its turn down to pe-kv
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
-  'c4/kestrel-bank.yaml#production': 1, // the same
-  'c4/kestrel-bank.yaml#production-data': 1, // Reads logins, on the line down from the banking API past Kafka
+  'c4/kestrel-bank.yaml#production-events': 1, // Publishes, at the turn down from the banking API into Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
   'workspace/containers.yaml': 1,
   'c4/kestrel-bank.yaml#containers': 1,

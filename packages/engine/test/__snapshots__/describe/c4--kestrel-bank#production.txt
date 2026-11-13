@@ -1,8 +1,10 @@
 Kestrel Online — production
 
-C4 model: Live environment, eu-west-1 and the Amsterdam data centre. 5 elements in 6 groups, with 5 connections.
+C4 model: How customers reach it in eu-west-1. 4 elements in 5 groups, with 4 connections.
 
 Groups and elements
+- Customer's phone (Deployment Node: iOS or Android)
+  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards
 - Amazon Web Services (Deployment Node: eu-west-1)
   - Load balancer (Infrastructure Node: ALB)
   - EKS cluster (Deployment Node: Kubernetes 1.31)
@@ -10,19 +12,13 @@ Groups and elements
       - Web banking (Container: Next.js): Online banking in the browser
     - banking-api ([Deployment Node: Docker] ×4)
       - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
-- Kestrel data centre (Deployment Node: z/OS mainframe)
-  - Core ledger (Software System): Holds every account and booking
-- Customer's phone (Deployment Node: iOS or Android)
-  - Mobile app (Container: Kotlin and Swift): Balances, transfers and cards
 
 Connections
+- Mobile app connects to Load balancer (Calls the API [JSON/HTTPS]).
 - Load balancer connects to Web banking (Forwards [HTTPS]) and connects to Banking API (Forwards [HTTPS]).
 - Web banking connects to Banking API (Calls [JSON/HTTPS]).
-- Banking API connects to Core ledger (Reads and books [ISO 20022 over MQ]).
-- Mobile app connects to Banking API (Calls via the ALB [JSON/HTTPS]).
 
 Key
-- Blue icon: Software system
 - Sky icon: Container
 - Sky icon: Web app
 - Sky icon: Mobile app
