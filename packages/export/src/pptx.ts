@@ -106,6 +106,13 @@ export function iconSvg(name: string, color: string, size: number, stroke: numbe
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24"><g fill="none" stroke="${color}" stroke-width="${Math.round((stroke / s) * 100) / 100}" stroke-linecap="round" stroke-linejoin="round">${markup}</g></svg>`;
 }
 
+/** The tables (graphic frames) of a drawing's shapes, taken out of them, in order. */
+export function liftTables(xml: string): { tables: string; rest: string } {
+  const tables: string[] = [];
+  const rest = xml.replace(/<p:graphicFrame>[\s\S]*?<\/p:graphicFrame>/g, (t) => (tables.push(t), ''));
+  return { tables: tables.join(''), rest };
+}
+
 export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {}): Promise<Uint8Array> {
   const drawings = Array.isArray(input) ? input : [input];
   const tpl = opts.template ? ('files' in opts.template ? opts.template : readTemplate(opts.template)) : undefined;
@@ -206,10 +213,13 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
         if (!pictured.has(said)) opts.onWarning?.(said);
         pictured.add(said);
       };
-      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: y + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)), onPicture };
+      const at = { k, x: area.x + (area.w - c.width * k) / 2 + c.left * k, y: y + c.top * k, onText: (pt: number) => (smallest = Math.min(smallest, pt)), onPicture, refaced: !!tpl && !opts.keepLook };
       return drawDiagram(graph, placed, theme, at, fonts, icons, next, view, d.images);
     });
-    tree += group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [drawing], altOf(d, 1500, view));
+    // A table goes under the group, not in it: PowerPoint never groups a table, and Apple's importer
+    // (Quick Look, Mail and Files on a Mac or an iPhone) leaves out a table it finds in a group.
+    const { tables, rest } = liftTables(drawing);
+    tree += tables + group(whole, `Diagram: ${graph.title ?? d.name ?? 'Diagram'}`, { x: 0, y: 0, w: W, h: H }, [rest], altOf(d, 1500, view));
     // Only what a reader needs counts (render's DETAIL_PX and smallestTextPx: the rule validate and the editor use too).
     if (Number.isFinite(smallest)) opts.onSlide?.({ slide: slides.length + 1, ...(graph.title ? { title: graph.title } : {}), ...(told ? { step: view!.index + 1 } : {}), smallestPt: Math.round(smallest * 10) / 10, scale: k / 12700 });
     const title = (s: StepState): Run[] => (s.title ? [{ text: s.title, size: CAPTION.title, bold: true, color: theme.text }] : []);
@@ -233,7 +243,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       tree += number(titled ? { x: room.x + room.w - INCH, y: room.y, w: INCH, h: ROWS.title * INCH } : { x: room.x + room.w - INCH, y: titleTop, w: INCH, h: ROWS.line * INCH }, titled ? 'ctr' : 't');
     }
     // The template's footer and slide number, as its layout shows them.
-    for (const f of plan?.footers ?? []) tree += footer(next(), f);
+    // The number this slide will have: after the template's own slides when they are kept, and any title slide.
+    for (const f of plan?.footers ?? []) tree += footer(next(), f, (opts.keepSlides ? tpl!.slides.length : 0) + slides.length + 1);
 
     const nodes = graph.nodes.filter((n) => !n.folded).length;
     const lang = d.lang;
