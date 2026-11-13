@@ -150,6 +150,28 @@ describe('C4 views', () => {
     expect(wrong.diagnostics.map((d) => d.message)).toContain('"nope" is not a deployment node or an element that runs in this view');
   });
 
+  it('deployment: via: keeps a line already there and joins the labels', async () => {
+    const edges = async (lines: string[]) => {
+      const r = await render(model.replace('      - lb -> shop.web: HTTPS\n', lines.map((l) => `      - ${l}\n`).join('')), { fonts: 'none', view: 'prod' });
+      return { edges: ids(r).edges, messages: r.diagnostics.map((d) => d.message) };
+    };
+    // A line written to the node first keeps its label, whichever comes first.
+    const before = await edges(['shop.web -> lb: HTTPS', 'shop.web -> shop.api: { via: lb }']);
+    const after = await edges(['shop.web -> shop.api: { via: lb }', 'shop.web -> lb: HTTPS']);
+    expect(before.edges).toContain('shop.web>lb:HTTPS, Calls [JSON]');
+    expect(after.edges).toContain('shop.web>lb:Calls [JSON], HTTPS');
+    // Two relations through the same node: one line with both labels.
+    const two = await edges(['shop.web -> shop.api: { via: lb, label: Orders }', 'shop.web -> shop.db: { via: lb, label: Reports }']);
+    expect(two.edges).toContain('shop.web>lb:Orders, Reports');
+    // Through an element the source already talks to: the model's label stays.
+    const through = await edges(['shop.web -> shop.db: { via: shop.api, label: Reads }']);
+    expect(through.edges).toContain('shop.web>shop.api:Calls [JSON], Reads');
+    // via: one of the ends: a warning, and the line drawn straight with its label.
+    const end = await edges(['shop.web -> shop.api: { via: shop.api, label: Direct }']);
+    expect(end.edges).toContain('shop.web>shop.api:Direct');
+    expect(end.messages).toContain('"shop.api" is an end of this line, so it is drawn straight. Name the node the line goes through, or leave via: out');
+  });
+
   it('a model file with C4 views draws in C4 notation', async () => {
     const r = await render(model.replace('type: c4', 'type: model'), { fonts: 'none', view: 'context' });
     expect(r.type!.id).toBe('c4');

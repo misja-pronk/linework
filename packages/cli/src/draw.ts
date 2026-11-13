@@ -2,8 +2,8 @@
 // --focus, the deck or PDF of drawings (and its PowerPoint template), and the --stable layout note.
 import fs from 'node:fs';
 import path from 'node:path';
-import { layerKey, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { readTemplate, toPdf, toPptx, type Drawing, type PptxOptions } from '@cartography/export';
+import { layerKey, SLIDE_MIN_PT, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { readTemplate, toPdf, toPptx, type Drawing, type PptxOptions, type SlideText } from '@cartography/export';
 import { isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
 import { packLayout, sameLayoutNote, viewPins, withViewPins } from '@cartography/core';
 import type { DocumentOptions, DrawOptions } from './args.ts';
@@ -69,13 +69,57 @@ export function optionsFor(ctx: Ctx, o: DrawOptions, file: string, fonts: Render
 /** --all-steps: also steps nobody wrote; --no-steps: one slide per drawing; else a slide per written step. */
 export const stepsFlag = (o: Pick<DocumentOptions, 'all-steps' | 'no-steps'>) => (o['no-steps'] ? false : o['all-steps'] ? true : undefined);
 
-/** Slides and PDF pages, from one or many drawings; a brand theme carries over. */
-export function document(ctx: Ctx, o: DocumentOptions, format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme'], diagram?: string): Promise<Uint8Array> {
+const aspects = ['16:9', '4:3'];
+const pageSizes = ['fit', 'a4', 'a3'];
+
+/** --aspect and --page: one of the values each takes, else a usage error that lists them. */
+export function documentFlags(o: Pick<DocumentOptions, 'aspect' | 'page'>) {
+  if (o.aspect != null && !aspects.includes(o.aspect)) throw new UsageError(`--aspect ${o.aspect} is not a slide shape carto makes; use one of: ${aspects.join(', ')}`);
+  if (o.page != null && !pageSizes.includes(o.page)) throw new UsageError(`--page ${o.page} is not a page size carto makes; use one of: ${pageSizes.join(', ')}`);
+}
+
+/**
+ * Slides and PDF pages, from one or many drawings; a brand theme carries over. `diagram`: the file a
+ * single drawing comes from; `out`: the file written, whose name titles a PDF of several drawings.
+ */
+export async function document(ctx: Ctx, o: DocumentOptions, format: 'pptx' | 'pdf', drawings: Drawing[], theme: RenderResult['theme'], diagram?: string, out?: string): Promise<Uint8Array> {
   const th = theme ?? (o.theme === 'dark' ? 'dark' : 'light');
-  if (format === 'pptx')
-    return toPptx(drawings, { theme: th, aspect: o.aspect === '4:3' ? '4:3' : '16:9', font: o.font, title: o.title, subtitle: o.subtitle, steps: stepsFlag(o), rasterize: (svg, w) => iconPng(svg, w), onWarning: (w) => ctx.error(`${ctx.yellow(t('warning'))}  ${w}`), ...templateFlags(ctx, o, theme, diagram) });
+  if (format === 'pptx') {
+    const slides: SlideText[] = [];
+    const aspect = o.aspect === '4:3' ? '4:3' : '16:9';
+    const template = templateFlags(ctx, o, theme, diagram);
+    const data = await toPptx(drawings, { theme: th, aspect, font: o.font, title: o.title, subtitle: o.subtitle, steps: stepsFlag(o), rasterize: (svg, w) => iconPng(svg, w), onWarning: (w) => ctx.error(`${ctx.yellow(t('warning'))}  ${w}`), onSlide: (s) => slides.push(s), ...template });
+    smallSlides(ctx, slides, template.template ? undefined : aspect, drawings.length === 1 ? (diagram ?? out) : (out ?? diagram));
+    return data;
+  }
   const page = o.page === 'a4' || o.page === 'a3' ? o.page : 'fit';
-  return toPdf(drawings, { theme: th, page, fonts: interTtf(), families: themeTtf(typeof th === 'object' ? th : themes[th]), title: o.title, steps: stepsFlag(o) });
+  // A PDF of several drawings is not the first one's: its title is the deck's, or the file's name.
+  const title = o.title ?? (drawings.length > 1 && out && out !== '-' ? readableName(out) : undefined);
+  return toPdf(drawings, { theme: th, page, fonts: interTtf(), families: themeTtf(typeof th === 'object' ? th : themes[th]), title, steps: stepsFlag(o) });
+}
+
+/** "architecture-review.pdf" as a title: "Architecture review". */
+const readableName = (file: string) => {
+  const words = path.basename(file, path.extname(file)).replace(/[-_]+/g, ' ').trim();
+  return words ? words[0]!.toUpperCase() + words.slice(1) : 'Diagrams';
+};
+
+/**
+ * The slides of a deck whose smallest text is under SLIDE_MIN_PT, as carto validate says it of one
+ * drawing: a warning per drawing (its step slides share its layout), on standard error. `aspect`:
+ * our own slides; undefined for a template's.
+ */
+function smallSlides(ctx: Ctx, slides: SlideText[], aspect: string | undefined, file: string | undefined) {
+  const byTitle = new Map<string, SlideText[]>();
+  for (const s of slides.filter((x) => x.smallestPt < SLIDE_MIN_PT)) byTitle.set(s.title ?? '', [...(byTitle.get(s.title ?? '') ?? []), s]);
+  const page = aspect ? `${aspect} slide` : 'slide of the template';
+  const advice = aspect === '4:3' ? 'a 16:9 slide (--aspect 16:9) gives it more room, or split it into views' : aspect ? 'split it into views, or let it wrap (aspect: 16:9)' : 'a layout with more room (--layout), or split it into views';
+  for (const [title, list] of byTitle) {
+    const pt = Math.min(...list.map((s) => s.smallestPt));
+    const n = list.map((s) => s.slide);
+    const where = n.length === 1 ? `slide ${n[0]}` : `slides ${n[0]}–${n.at(-1)}`;
+    ctx.error(`${file && file !== '-' ? `${file}  ` : ''}${ctx.yellow(t('warning'))}  ${title ? `"${title}" (${where})` : where[0]!.toUpperCase() + where.slice(1)}: on a ${page} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: ${advice}`);
+  }
 }
 
 /**

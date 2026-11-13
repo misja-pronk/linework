@@ -504,7 +504,7 @@ Key
 `;
 
 exports[`templates > process renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1111" height="506" viewBox="0 0 1111 506" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1fke3qa911-title" aria-describedby="carto-1fke3qa911-desc" lang="en" xml:lang="en"><title id="carto-1fke3qa911-title">Access request</title><desc id="carto-1fke3qa911-desc">Process diagram: From request to access, approved by the line manager. 9 elements in 3 lanes, with 8 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1111" height="506" viewBox="0 0 1111 506" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-p6mspt904-title" aria-describedby="carto-p6mspt904-desc" lang="en" xml:lang="en"><title id="carto-p6mspt904-title">Access request</title><desc id="carto-p6mspt904-desc">Process diagram: From request to access, approved by the line manager. 9 elements in 3 lanes, with 8 connections.
 
 Lanes and steps
 - Employee (lane)
@@ -514,7 +514,7 @@ Lanes and steps
   - End event
 - Line manager (lane)
   - Check request
-  - Approved? (decision decision)
+  - Approved? (decision)
   - Explain why
   - Request rejected (end event)
 - IT service desk (lane)
@@ -525,7 +525,7 @@ Main path
 2. Request access
 3. Check request
 4. Approved?
-5. Grant access: Approved? yes
+5. Grant access (Approved?: yes)
 6. Confirm access
 7. End event
 

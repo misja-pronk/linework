@@ -363,7 +363,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   const DEPLOY = new Set(['azure', 'cloud', 'kubernetes', 'network', 'deployment']);
   const rank = (f: PFile) => Math.min(DEPLOY.has(f.type) ? 4 : 5, ...ix.views.filter((v) => v.file === f.path).map((v) => LEVEL[v.kind ?? ''] ?? 5));
   const order = files.map((f, i) => ({ f, i, r: rank(f) }));
-  if (input.site ?? files.length > 1) order.sort((a, b) => a.r - b.r || a.i - b.i);
+  // Within a level a folder is listed by the names it shows, not its file names; a file keeps the diagrams it brings after it.
+  if (input.site ?? files.length > 1) order.sort((a, b) => a.r - b.r || (input.site ? a.f.title.localeCompare(b.f.title) : a.i - b.i));
   files.splice(0, files.length, ...order.map((o) => o.f));
 
   const site = input.site ?? files.length > 1;

@@ -19,6 +19,8 @@ export async function exportHtmlCommand(ctx: Ctx, files: string[], o: ExportHtml
   for (const p of r.problems) ctx.error(`${path.join(r.root, p.file)}${p.line ? `:${p.line}` : ''}  ${ctx.red(t('error'))}  ${p.message}`);
   if (!r.stats.drawings) return (ctx.error(t('{file}: nothing to draw', { file: f })), 1);
   const s = r.stats;
-  ctx.log(`${f} → ${r.file} ${ctx.dim(`${t('{count} drawing|{count} drawings', { count: s.drawings })}${s.steps ? `, ${t('{count} step|{count} steps', { count: s.steps })}` : ''}, ${t('{count} element|{count} elements', { count: s.elements })}, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
+  const stdout = r.file === '-';
+  if (stdout) ctx.write(r.html);
+  (stdout ? ctx.error : ctx.log)(`${f} → ${stdout ? t('standard output') : r.file} ${ctx.dim(`${t('{count} drawing|{count} drawings', { count: s.drawings })}${s.steps ? `, ${t('{count} step|{count} steps', { count: s.steps })}` : ''}, ${t('{count} element|{count} elements', { count: s.elements })}, ${(s.bytes / 1024).toFixed(0)} kB`)}`);
   return r.problems.length ? 1 : 0;
 }

@@ -59,6 +59,7 @@ carto describe shop.yaml                     # plain text on standard output
 carto describe shop.yaml -o shop.md          # Markdown (-o x.html: HTML; --format text|md|html says it outright)
 carto describe model.yaml --view containers  # one view
 carto describe teams.yaml --all-views        # the drawing as written and each view after it
+carto describe - < shop.yaml                 # the diagram from standard input (carto validate - too)
 ```
 
 It exits 1 when the diagram has errors and writes nothing then.

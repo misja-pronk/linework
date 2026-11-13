@@ -7,9 +7,9 @@ Lanes and steps
   - Alert fires (signal start event)
 - On-call engineer (lane)
   - Triage (acknowledge, assess impact)
-  - Major incident? (decision decision)
+  - Major incident? (decision)
   - Mitigate (roll back or fail over)
-  - Service restored? (decision decision)
+  - Service restored? (decision)
   - Close incident
 - Incident lead (lane)
   - Declare incident
@@ -23,9 +23,9 @@ Main path
 1. Alert fires
 2. Triage
 3. Major incident?
-4. Mitigate: Major incident? no
+4. Mitigate (Major incident?: no)
 5. Service restored?
-6. Close incident: Service restored? yes
+6. Close incident (Service restored?: yes)
 7. Write review
 8. Incident closed
 

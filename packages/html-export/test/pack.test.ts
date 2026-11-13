@@ -187,6 +187,14 @@ edges:
     expect(p.files.slice(0, 3).map((f) => f.path)).toEqual(['model.yaml', 'context.yaml', 'containers.yaml']);
   }, 30_000);
 
+  it('lists a folder by the names it shows, not its file names', async () => {
+    const entries = fs.readdirSync(path.join(root, 'examples/azure')).filter((f) => f.endsWith('.yaml'));
+    const p = payloadOf((await exportHtml({ entries, read: reader('examples/azure'), site: true })).html);
+    const titles = p.files.map((f) => f.title);
+    expect(titles.length).toBeGreaterThan(3);
+    expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
+  }, 60_000);
+
   it('brings along what a single diagram drills into, and only that', async () => {
     const nearby = fs.readdirSync(path.join(root, 'examples/workspace')).filter((f) => f.endsWith('.yaml'));
     const { html } = await exportHtml({ entries: ['context.yaml'], nearby, read: reader('examples/workspace') });

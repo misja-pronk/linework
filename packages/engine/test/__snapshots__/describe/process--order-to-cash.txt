@@ -9,11 +9,11 @@ Lanes and steps
   - Ask for prepayment
 - Finance (lane)
   - Check credit
-  - Credit ok? (decision decision)
+  - Credit ok? (decision)
   - Send invoice
   - 30 days (timer intermediate event)
   - Invoice (document)
-  - Paid? (decision decision)
+  - Paid? (decision)
   - Book payment
   - Send reminder
 - Warehouse (lane)
@@ -23,12 +23,12 @@ Main path
 1. Order received
 2. Check credit
 3. Credit ok?
-4. Confirm order: Credit ok? yes
+4. Confirm order (Credit ok?: yes)
 5. Pick, pack and ship
 6. Send invoice
 7. 30 days
 8. Paid?
-9. Book payment: Paid? yes
+9. Book payment (Paid?: yes)
 
 Connections
 - Order received leads to Check credit.

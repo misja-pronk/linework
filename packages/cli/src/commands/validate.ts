@@ -83,8 +83,12 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
   let ok = true;
   // A folder: each diagram in it.
   const folders = files.filter(isFolder);
-  for (const f of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
-    const text = fs.readFileSync(f, 'utf8');
+  for (const given of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
+    // `-` reads the diagram from standard input, as carto render - does.
+    const stdin = given === '-';
+    const f = stdin ? path.resolve('stdin.yaml') : given;
+    const shown = stdin ? 'stdin' : given;
+    const text = stdin ? ctx.io.stdin() : fs.readFileSync(f, 'utf8');
     const opts = { fonts: 'none' as const, load: ctx.loaderFor(f), file: path.basename(f), ...langOption(ctx) };
     const r = await render(text, { ...opts, view: o.view });
     // Without --view every view is checked too: what a view says about itself (complete: true for
@@ -117,11 +121,11 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
       const small = sheet ? undefined : await smallSteps(x, path.basename(f), deck, pt);
       if (small) diagnostics.push({ severity: 'warning', message: small });
     }
-    ctx.report(f, diagnostics);
-    for (const h of hints) ctx.error(`${f}  ${ctx.dim(t('hint'))}  ${h}`);
-    const drifted = o.drift && !(await checkDrift(ctx, o, f));
+    ctx.report(shown, diagnostics);
+    for (const h of hints) ctx.error(`${shown}  ${ctx.dim(t('hint'))}  ${h}`);
+    const drifted = o.drift && !stdin && !(await checkDrift(ctx, o, f));
     if (diagnostics.some((d) => d.severity === 'error') || drifted) ok = false;
-    else ctx.log(`${f} ${ctx.dim(t('ok'))}`);
+    else ctx.log(`${shown} ${ctx.dim(t('ok'))}`);
   }
   return ok ? 0 : 1;
 }

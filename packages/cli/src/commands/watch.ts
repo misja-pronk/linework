@@ -5,9 +5,10 @@ import type { RenderOptions } from '../args.ts';
 import { themeFlag } from '../draw.ts';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';
-import { renderFile, type Job } from './render.ts';
+import { renderFile, renderFlags, type Job } from './render.ts';
 
 export async function watchCommand(ctx: Ctx, files: string[], o: RenderOptions): Promise<number> {
+  renderFlags(o);
   const forced = themeFlag(ctx, o.theme);
   if (forced === false) return 1;
   const job: Job = { o, command: 'watch', count: files.length, forced };
