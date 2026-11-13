@@ -136,7 +136,6 @@ export async function placeWithDot(sized: Sized, s: Spacing, extraLayerGap = 0, 
   }
   lines.push('}');
 
-  if (process.env.DOTDUMP && variant.stack) console.error(lines.join('\n'));
   const gv = await load();
   const out = JSON.parse(gv.layout(lines.join('\n'), 'json', 'dot', { yInvert: true })) as DotJson;
   const nodes = new Map<string, Box>();
