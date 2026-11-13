@@ -84,6 +84,7 @@ export function DrawingPane(p: Props) {
       <Preview
         result={drawn}
         stale={!!rendered && drawn !== result}
+        catchingUp={!current}
         selection={p.selection}
         docKey={`${rendered?.docKey ?? -1}:${drawn?.view ?? ''}:${drawn?.focus ? `${drawn.focus.on.join(' ')} ${drawn.focus.hops} ${drawn.focus.direction}` : ''}`}
         onSelect={(s, add) => (add && s ? toggle(s) : select(s))}

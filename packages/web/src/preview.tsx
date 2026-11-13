@@ -82,6 +82,8 @@ interface Props {
   result?: RenderResult;
   /** The drawing is from an earlier, valid version of the text. */
   stale?: boolean;
+  /** The text changed a moment ago and its drawing is on the way: a name cannot be typed in place yet. */
+  catchingUp?: boolean;
   /** Everything selected; one element for a plain selection. */
   selection: Selection[];
   /** Changes when another document (or another of its views) is shown: the view fits again. */
@@ -653,6 +655,7 @@ export function Preview(p: Props) {
     if (e.button !== 0 && e.button !== 1) return;
     if ((e.target as Element).closest('.label-editor, .canvas-empty button')) return;
     lastDown.current = performance.now();
+    if ((document.activeElement as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]') && !frame.current?.contains(document.activeElement)) leftField.current = lastDown.current;
     frame.current?.focus({ preventScroll: true });
     setKb(false);
     // Space-drag and the middle button pan; a plain drag on empty canvas draws a marquee.
@@ -961,9 +964,24 @@ export function Preview(p: Props) {
   /** Double-click on an element: edit its label right there, or the inspector's field when that cannot be. */
   const editSelected = (s: Selection) => {
     p.onSelect(s);
+    // A field just left by this click: its change is being drawn. The name opens once it is, with
+    // whatever was typed in the meantime.
+    if (p.catchingUp) return void (pendingRename.current = { s, typed: '' });
     if (editLabel(s)) return;
     requestAnimationFrame(() => requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select()));
   };
+  /** A double-click's name editor waiting for the drawing to catch up, and the keys typed meanwhile. */
+  const pendingRename = useRef<{ s: Selection; typed: string } | null>(null);
+  useEffect(() => {
+    const w = pendingRename.current;
+    if (!w || p.catchingUp) return;
+    pendingRename.current = null;
+    if (editLabel(w.s, undefined, w.typed ? { initial: w.typed } : {})) return;
+    requestAnimationFrame(() => (document.querySelector('.inspector .field:nth-child(2) input') as HTMLInputElement | null)?.select());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the drawing has caught up
+  }, [p.catchingUp, result]);
+  /** When a click on the drawing last took the keyboard from a text field (an inspector field, the YAML). */
+  const leftField = useRef(0);
   const editRef = useRef(editSelected);
   editRef.current = editSelected;
   // The inspector the first click opens can cover the spot of the second one: a press on the inspector
@@ -1260,6 +1278,14 @@ export function Preview(p: Props) {
           return cancel();
         }
         if (e.target === e.currentTarget && ['Tab', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) setKb(true);
+        // Letters typed right after a click took the keyboard from a text field are typing, not
+        // shortcuts: into the name editor a double-click is opening, or nowhere while the drawing catches up.
+        const printable = e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey;
+        if (printable && e.target === e.currentTarget && (pendingRename.current || (p.catchingUp && performance.now() - leftField.current < 2000))) {
+          if (pendingRename.current) pendingRename.current.typed += e.key;
+          e.preventDefault();
+          return;
+        }
         p.onKeyDown(e);
         // ⇧1 fits everything, ⇧2 the selection (as in Figma); by key code, since ⇧ changes the character.
         // After the app's keys: a name being typed (in a session) keeps its "!" and "@".
