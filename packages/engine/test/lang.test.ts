@@ -210,6 +210,9 @@ assignments:
     expect(english.graph!.legend!.map((l) => l.label)).toEqual(['+ gained', '− lost', '~ changed', 'as it was']);
     expect(matrix(english).cells[0]![0]!.text).toBe('+ Owner (eligible)');
     expect(card(await render(access, { fonts: 'none' }), 'ca')?.caption).toBe('Report-only · requires MFA and PAW');
+    // Told in a sentence from its parts, not from the short label on the line.
+    expect(toText(tell(graph))).toContain('Operations kan Owner op Production activeren voor maximaal 4 h, met goedkeuring door Developers.');
+    expect(toText(tell(await render(access, { fonts: 'none' })))).toContain('Operations can activate Owner on Production for at most 4 h, with approval by Developers.');
   });
 
   it('says the key and the ends of a line in plain Dutch, without ids or internal words', async () => {
@@ -237,6 +240,20 @@ assignments:
     const r = await render(nl('type: class\nclasses:\n  Member: { members: [+name: String] }\n'), { fonts: 'none' });
     const s = r.graph!.nodes.find((n) => n.id === 'Member')!.shape;
     expect(s.kind === 'table' && s.title).toBe('Member');
+  });
+
+  it('keeps a name made from the key, and names a kind the key only repeats in Dutch', async () => {
+    const label = (r: Awaited<ReturnType<typeof render>>, id: string) => (r.graph!.nodes.find((n) => n.id === id)!.shape as { label?: string }).label;
+    // A team called payments is Payments, not Betalingen; its kind is told in Dutch, in the tooltip too.
+    const teams = await render(nl('type: teams\nteams:\n  payments: { kind: stream-aligned }\n  search: stream-aligned\n'), { fonts: 'none' });
+    expect(label(teams, 'payments')).toBe('Payments');
+    expect(label(teams, 'search')).toBe('Search');
+    expect(teams.graph!.nodes.find((n) => n.id === 'payments')!.description).toBe('Stroomgericht team');
+    expect(toText(tell(teams))).toContain('- Payments (stroomgericht team)\n');
+    // users: { kind: users } names its kind: Gebruikers. A lane written "actions: Actions" is the author's.
+    expect(card(await render(nl('type: systems\nnodes:\n  users: { kind: users }\n'), { fonts: 'none' }), 'users')?.label).toBe('Gebruikers');
+    const flow = await render(nl('type: process\nlanes:\n  actions: Actions\nnodes:\n  Build: { in: actions }\n'), { fonts: 'none' });
+    expect(flow.graph!.groups.find((g) => g.id === 'actions')!.label).toBe('Actions');
   });
 
   it("gives the type's own view titles in another language for the editor, and leaves the author's out", async () => {

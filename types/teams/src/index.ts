@@ -240,6 +240,7 @@ function buildTopology(src: TeamsSource, ctx: BuildContext): Graph {
   const edges: GraphEdge[] = [];
   const kinds = new Set<TeamKind>();
   const ids = new Set<string>();
+  const word = ctx.word ?? english;
   for (const [id, raw] of Object.entries(src.teams ?? {})) {
     const e = teamShorthand(raw);
     const path = ['teams', id];
@@ -251,9 +252,9 @@ function buildTopology(src: TeamsSource, ctx: BuildContext): Graph {
     const size = e.size ?? (e.members?.length || undefined);
     const lead = e.lead ? personShorthand(src.people?.[e.lead]).name ?? e.lead : undefined;
     const caption = [e.caption, lead ? `Lead: ${lead}` : undefined].filter(Boolean).join(' · ');
-    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: (ctx.word ?? english)('{count} person|{count} people', { count: String(size) }) } : {}) };
+    const shape: BlockShape = { kind: 'block', form: KIND_FORM[k], label: e.label ?? humane(id), ...(caption ? { caption } : {}), tone: 'slate', ...(size ? { badge: word('{count} person|{count} people', { count: String(size) }) } : {}) };
     const links = linksOf(e, path, ctx);
-    nodes.push({ id, shape, path, kind: k, ...(links?.length ? { links } : {}), description: [KIND_NAME[k], e.description].filter(Boolean).join('. ') });
+    nodes.push({ id, shape, path, kind: k, ...(links?.length ? { links } : {}), description: [word(KIND_NAME[k]), e.description].filter(Boolean).join('. ') });
   }
   if (src.flow !== false && nodes.some((n) => n.kind === 'stream-aligned'))
     nodes.push({ id: 'flow of change', shape: { kind: 'block', form: 'flow', label: typeof src.flow === 'string' ? src.flow : 'Flow of change', tone: 'slate' }, path: ['flow'], kind: 'flow' });
@@ -267,7 +268,7 @@ function buildTopology(src: TeamsSource, ctx: BuildContext): Graph {
     used.add(t.mode);
     const style: Pick<GraphEdge, 'line' | 'tone' | 'end' | 'width'> = t.mode === 'collaboration' ? { line: 'solid', tone: 'indigo', end: 'none', width: 1.5 } : t.mode === 'facilitating' ? { line: 'dotted', tone: 'green', end: 'arrow', width: 1.3 } : { line: 'solid', tone: 'slate', end: 'arrow' };
     edges.push({ id: `interaction:${i}`, from: { node: t.from }, to: { node: t.to }, ...style, start: 'none', kind: t.mode, path: t.path });
-    nodes.push({ id: `${t.from} ${t.mode} ${t.to}`, shape: { kind: 'block', form: MODE_FORM[t.mode], label: t.label ?? '', tone: 'slate', between: [t.from, t.to] }, path: t.path, kind: t.mode, description: `${MODE_NAME[t.mode]}: ${t.from} and ${t.to}${t.label ? ` (${t.label})` : ''}` });
+    nodes.push({ id: `${t.from} ${t.mode} ${t.to}`, shape: { kind: 'block', form: MODE_FORM[t.mode], label: t.label ?? '', tone: 'slate', between: [t.from, t.to] }, path: t.path, kind: t.mode, description: `${word('{mode}: {a} and {b}', { mode: word(MODE_NAME[t.mode]), a: t.from, b: t.to })}${t.label ? ` (${t.label})` : ''}` });
   }
   const legend: LegendItem[] = [
     ...teamKinds.filter((k) => kinds.has(k)).map((k): LegendItem => ({ label: KIND_NAME[k], swatch: 'block', block: { form: KIND_FORM[k] } })),

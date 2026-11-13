@@ -10,11 +10,19 @@ const catalog: Record<string, string> = nl;
 const fromTable = new Set(SHORTCUTS.flatMap((s) => [s.what, s.group, ...(s.show ? [s.show] : [])]));
 /** A field name in the inspector: a YAML key in title case ("Technology"), shown with say(). */
 const fieldName = (id: string) => /^[A-Z][a-z]+$/.test(id);
+/** Why a type cannot connect two elements: the sentences its connect() returns, which the builder shows with say(). */
+const connectMessages = new Set(
+  [...sourceText(['types']).matchAll(/^ {2}connect\([\s\S]*?^ {2}\},?$/gm)].flatMap((m) => [...m[0].matchAll(/(['"`])([A-Z][^'"`]* [^'"`]*)\1/g)].map((q) => q[2]!)),
+);
 
 describe("the editor's Dutch", () => {
   it('has every shortcut and every heading of the sheet', () => {
     expect(SHORTCUTS.flatMap((s) => [s.what, s.group]).filter((x) => !(x in catalog))).toEqual([]);
     expect(SHORTCUTS.flatMap((s) => (s.show && /[a-z]{2}/i.test(s.show.replace(/Tab|Esc|Home|End|F\d/g, '')) ? [s.show] : [])).filter((x) => !(x in catalog))).toEqual([]);
+  });
+  it("has every type's reason why two elements cannot be connected", () => {
+    expect(connectMessages.size).toBeGreaterThan(20);
+    expect([...connectMessages].filter((x) => !(x in catalog))).toEqual([]);
   });
   it('keeps the placeholders and plural forms of the English', () => {
     expect(badMessages(nl)).toEqual([]);
@@ -22,7 +30,7 @@ describe("the editor's Dutch", () => {
   it('has no message the editor no longer says', () => {
     // The start dialog's questions live in core, and are asked through say().
     const source = sourceText(['packages/web/src'], (f) => f.includes('/i18n/')) + sourceText(['packages/core/src'], (f) => !f.endsWith('questions.ts'));
-    expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id) || id in nlCollections)).toEqual([]);
+    expect(unusedIds(nl, source, (id) => fromTable.has(id) || fieldName(id) || connectMessages.has(id) || id in nlCollections)).toEqual([]);
   });
   it('switches, and gives a new diagram lang: nl in Dutch', () => {
     setUiLang('nl');

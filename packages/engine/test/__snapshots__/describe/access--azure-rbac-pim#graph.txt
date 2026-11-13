@@ -18,11 +18,11 @@ Groups and elements
 
 Connections
 - Priya Shah is a member of sg-shop-developers.
-- sg-shop-developers is Contributor on sub-shop-dev, is Reader on sub-shop-prod and is eligible for Contributor · 8 h on rg-shop-prod.
+- sg-shop-developers is Contributor on sub-shop-dev, is Reader on sub-shop-prod and can activate Contributor on rg-shop-prod for at most 8 h.
 - Daan Visser is a member of sg-azure-platform-admins.
-- sg-azure-platform-admins is eligible for Owner · 4 h · approval on Northwind.
+- sg-azure-platform-admins can activate Owner on Northwind for at most 4 h, with approval by sg-azure-platform-admins.
 - sg-azure-readers is Reader on Northwind.
-- sg-shop-operations is Shop App Operator (custom) on rg-shop-prod and is eligible for Key Vault Secrets Officer on kv-shop-prod.
+- sg-shop-operations is Shop App Operator (custom) on rg-shop-prod and can activate Key Vault Secrets Officer on kv-shop-prod.
 
 Walkthrough
 1. Scopes: Management group, subscription, resource group, resource. A role assigned on a scope is inherited by everything below it.

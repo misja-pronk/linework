@@ -478,7 +478,7 @@ function graphView(m: Model): Graph {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const used = new Set<keyof typeof edgeStyles>();
-  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[]) => {
+  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[], eligible?: GraphEdge['eligible']) => {
     used.add(style);
     const s: { line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean } = edgeStyles[style];
     edges.push({
@@ -493,6 +493,7 @@ function graphView(m: Model): Graph {
       ...(s.kind ? { kind: s.kind } : {}),
       ...(s.loose ? { loose: true } : {}),
       ...(tags?.length ? { tags } : {}),
+      ...(eligible ? { eligible } : {}),
       path,
     });
   };
@@ -576,7 +577,8 @@ function graphView(m: Model): Graph {
   for (const a of m.assignments) {
     // On the line, PIM's settings in short: how long at most, and whether someone approves (who, the matrix and describe say).
     const pim = a.eligible ? [a.activation, list(a.approval).length && m.word('approval')].filter(Boolean).join(' · ') : '';
-    edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', pim ? `${m.label(a.role)} · ${pim}` : m.label(a.role), a.path, a.tags);
+    const parts = a.eligible ? { role: m.label(a.role), ...(a.activation ? { activation: a.activation } : {}), ...(list(a.approval).length ? { approval: m.approvers(a.approval) } : {}) } : undefined;
+    edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', pim ? `${m.label(a.role)} · ${pim}` : m.label(a.role), a.path, a.tags, parts);
   }
 
   const legend: LegendItem[] = (Object.keys(edgeStyles) as (keyof typeof edgeStyles)[])
