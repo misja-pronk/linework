@@ -172,6 +172,25 @@ describe('C4 views', () => {
     expect(end.messages).toContain('"shop.api" is an end of this line, so it is drawn straight. Name the node the line goes through, or leave via: out');
   });
 
+  it('deployment: exclude: takes out relations between instances, and nodes with what runs in them', async () => {
+    const prod = async (lines: string[], exclude: string) => {
+      const r = await render(model.replace('      - lb -> shop.web: HTTPS\n', lines.map((l) => `      - ${l}\n`).join('')).replace('    kind: deployment\n', `    kind: deployment\n    exclude: ${exclude}\n`), { fonts: 'none', view: 'prod' });
+      expect(r.diagnostics).toEqual([]);
+      return ids(r);
+    };
+    // The model's line is taken out, so a line written through the load balancer is the only one.
+    const through = await prod(['shop.web -> lb: Calls', 'lb -> shop.api: Forwards'], '[shop.web -> shop.api]');
+    expect(through.edges).toEqual(['lb>shop.api:Forwards', 'shop.api>shop.db:Writes [SQL]', 'shop.web>lb:Calls']);
+    // A rule names the elements, or their parents, or the nodes they run in; it takes out written lines too.
+    expect((await prod(['lb -> shop.web: HTTPS'], '[shop -> shop.db]')).edges).toEqual(['lb>shop.web:HTTPS', 'shop.web>shop.api:Calls [JSON]']);
+    expect((await prod(['lb -> shop.web: HTTPS'], '[lb -> eks]')).edges).toEqual(['shop.api>shop.db:Writes [SQL]', 'shop.web>shop.api:Calls [JSON]']);
+    // A node goes with what runs in it and the lines to them; an element takes its instances out.
+    const rds = await prod(['lb -> shop.web: HTTPS'], '[rds, lb]');
+    expect(rds).toEqual({ nodes: ['shop.api', 'shop.web'], groups: ['api-pod', 'aws', 'eks'], edges: ['shop.web>shop.api:Calls [JSON]'] });
+    expect((await prod(['lb -> shop.web: HTTPS'], '[shop.web]')).nodes).toEqual(['lb', 'shop.api', 'shop.db']);
+    expect((await prod(['lb -> shop.web: HTTPS'], '[kind:database]')).nodes).toEqual(['lb', 'shop.api', 'shop.web']);
+  });
+
   it('a model file with C4 views draws in C4 notation', async () => {
     const r = await render(model.replace('type: c4', 'type: model'), { fonts: 'none', view: 'context' });
     expect(r.type!.id).toBe('c4');

@@ -1,26 +1,22 @@
-Kestrel Online — production, data and events
+Kestrel Online — production, data
 
-C4 model: The customer store, Kafka and the notifier in eu-west-1. 4 elements in 6 groups, with 3 connections.
+C4 model: The customer store in eu-west-1 and the ledger in the Amsterdam data centre. 3 elements in 5 groups, with 2 connections.
 
 Groups and elements
 - Amazon Web Services (Deployment Node: eu-west-1)
   - EKS cluster (Deployment Node: Kubernetes 1.31)
     - banking-api ([Deployment Node: Docker] ×4)
       - Banking API (Container: Spring Boot): Sign-in, accounts and payments as JSON
-    - notifier ([Deployment Node: Docker] ×2)
-      - Notifier (Container: Go): Turns account events into emails and push messages
   - Amazon RDS (Deployment Node: PostgreSQL 16)
     - Customer store (Container: PostgreSQL 16): Logins, devices and sessions
-  - Amazon MSK (Deployment Node: Kafka 3.7)
-    - Account events (Container: Kafka): Payments and sign-ins as they happen
+- Kestrel data centre (Deployment Node: z/OS mainframe)
+  - Core ledger (Software System): Holds every account and booking
 
 Connections
-- Banking API connects to Customer store (Reads logins [JDBC]) and sends messages to Account events (Publishes [Kafka]).
-- Account events sends messages to Notifier (Delivers).
+- Banking API connects to Customer store (Reads logins [JDBC]) and connects to Core ledger (Reads and books [ISO 20022 over MQ]).
 
 Key
+- Blue icon: Software system
 - Sky icon: Container
 - Violet icon: Database
-- Violet icon: Queue
 - Solid line: Relationship
-- Dashed line: Asynchronous
