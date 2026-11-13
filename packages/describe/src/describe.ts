@@ -275,8 +275,14 @@ function accessClause(e: GraphEdge, to: string, plural: boolean): string | undef
       return d('is a federated credential of {to}|are federated credentials of {to}', p);
     case 'role assignment':
       return label ? d('is {label} on {to}|are {label} on {to}', p) : d('holds a role on {to}|hold a role on {to}', p);
-    case 'eligible':
-      return label ? d('is eligible for {label} on {to}|are eligible for {label} on {to}', p) : d('is eligible for a role on {to}|are eligible for a role on {to}', p);
+    case 'eligible': {
+      // In full from its parts: the label says "Owner · 4 h · approval" in short.
+      const pim = e.eligible;
+      if (!pim) return label ? d('can activate {label} on {to}|can activate {label} on {to}', p) : d('can activate a role on {to}|can activate a role on {to}', p);
+      const time = pim.activation ? d(' for at most {time}', { time: pim.activation }) : '';
+      const approval = pim.approval ? d(', with approval by {names}', { names: pim.approval }) : '';
+      return d('can activate {label} on {to}{time}{approval}|can activate {label} on {to}{time}{approval}', { ...p, label: pim.role, time, approval });
+    }
     case 'applies to':
       return d('applies to {to}|apply to {to}', p);
     case 'excludes':
@@ -396,7 +402,9 @@ function connectionItems(graph: Graph, order: Map<string, number>, flow?: 'proce
       return !!n && 'shape' in n && n.shape.kind === 'flow' && n.shape.form === 'note';
     })();
     const parts = rest.map((e) => `${note ? d('is a note on {name}', { name: name(e.to.node) }) : clause(e, name(e.to.node, e.to.row, nameOf(byId.get(id), id)), plural, flow)}${e.marks?.length ? ` [${d('tagged {ids}', { ids: e.marks.join(', ') })}]` : ''}`);
-    items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${listWords(parts)}`) });
+    // Clauses with a comma of their own ("for at most 2 h, with approval by …") are kept apart by semicolons.
+    const joined = parts.length > 1 && parts.some((p) => p.replace(/\([^)]*\)|\[[^\]]*\]/g, '').includes(', ')) ? parts.join('; ') : listWords(parts);
+    items.push({ text: sentence(`${name(id, rest.every((e) => e.from.row === rest[0]!.from.row) ? rest[0]!.from.row : undefined)} ${joined}`) });
   }
   return items;
 }

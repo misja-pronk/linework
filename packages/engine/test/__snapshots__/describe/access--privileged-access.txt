@@ -17,12 +17,12 @@ Groups and elements
 
 Connections
 - CA001 Admins applies to sg-entra-tier0-admins, applies to sg-entra-security-admins, applies to sg-entra-endpoint-admins, excludes Break-glass accounts, requires PAW and requires Phishing-resistant MFA.
-- sg-entra-tier0-admins is eligible for Global Administrator · 2 h · approval on Northwind and is eligible for Privileged Role Administrator · 2 h · approval on Northwind.
-- sg-entra-security-admins is eligible for Security Administrator · 8 h on Northwind.
-- sg-entra-endpoint-admins is eligible for Intune Administrator · 8 h on Northwind.
+- sg-entra-tier0-admins can activate Global Administrator on Northwind for at most 2 h, with approval by sg-entra-tier0-admins; can activate Privileged Role Administrator on Northwind for at most 2 h, with approval by sg-entra-tier0-admins.
+- sg-entra-security-admins can activate Security Administrator on Northwind for at most 8 h.
+- sg-entra-endpoint-admins can activate Intune Administrator on Northwind for at most 8 h.
 - Break-glass accounts is Global Administrator on Northwind.
 - adm-daan is a member of sg-entra-tier0-admins.
-- sg-helpdesk-nl is Helpdesk Administrator on AU Netherlands and is eligible for User Administrator on AU Netherlands.
+- sg-helpdesk-nl is Helpdesk Administrator on AU Netherlands and can activate User Administrator on AU Netherlands.
 
 Walkthrough
 1. Three tiers: Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.

@@ -201,6 +201,7 @@ export const terms: Record<string, string> = {
   Collaboration: 'Samenwerking',
   Facilitating: 'Faciliteren',
   'X-as-a-Service': 'X-as-a-Service',
+  '{mode}: {a} and {b}': '{mode}: {a} en {b}',
   Vacancy: 'Vacature',
   'Reports to': 'Rapporteert aan',
   'Dotted-line report': 'Functionele lijn',

@@ -190,7 +190,7 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   await page.click('.panel li a:has-text("Production"), .panel li a:has-text("Azure")');
   await page.waitForFunction(() => decodeURIComponent(location.hash).startsWith('#deployment.yaml'));
   await page.waitForSelector('.panel .open-btn[href*="model.yaml"]', { timeout: 5000 }).catch(() => fail('site: the deployment card has no way into the model'));
-  // Print: a page per drawing and the contents in front, all in the light look.
+  // Print: a page per drawing (11: each once, a view the diagram is written as among them) and the contents in front, all in the light look.
   await page.focus('.stage');
   await page.keyboard.press('d');
   await page.waitForSelector('body[data-print=ready]');
@@ -198,7 +198,7 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
   check(pdf.toString('latin1').startsWith('%PDF-'), 'site: print gave no PDF');
   const drawings = await page.locator('.print .page[data-d]').count();
-  check(drawings >= 12 && pages === drawings + 1, `site: ${pages} printed pages for ${drawings} drawings and the contents`);
+  check(drawings >= 11 && pages === drawings + 1, `site: ${pages} printed pages for ${drawings} drawings and the contents`);
   await done();
 }
 

@@ -128,6 +128,24 @@ edges:
     expect(d.steps![1]!.light).not.toContain('The order itself is quick');
   }, 30_000);
 
+  it("lists each of a type's own views once, by name, the diagram as written among them", async () => {
+    const views = async (dir: string, file: string) => payloadOf((await exportHtml({ entries: [file], read: reader(dir) })).html).drawings.filter((d) => d.file === file).map((d) => [d.view ?? '', d.title]);
+    // finance.yaml is written as its payments product in detail: that view, not a copy of it without a name.
+    expect(await views('examples/data-products', 'finance.yaml')).toEqual([
+      ['overview', 'Overview'],
+      ['detailed-payments', 'Payments in detail'],
+      ['detailed-revenue', 'Revenue in detail'],
+    ]);
+    // A sequence is its whole, then its phases.
+    expect((await views('examples/sequence', 'checkout.yaml')).map(([v]) => v)).toEqual(['whole', 'phase-order', 'phase-payment', 'phase-confirmation']);
+    // A hidden view as written is there too, first: the picker names it, and a link to the file opens it.
+    const hidden = await views('examples/data-products', 'customer-detailed.yaml');
+    expect(hidden[0]).toEqual(['detailed-customer', 'Customer in detail']);
+    expect(new Set(hidden.map(([v]) => v)).size).toBe(hidden.length);
+    // A diagram as written that is no view of its type stays unnamed in front of its views.
+    expect((await views('examples/deployment', 'aws.yaml')).map(([v]) => v)).toEqual(['', 'prod', 'test', 'dev']);
+  }, 60_000);
+
   it('lets the steps, phases and persona of a journey be clicked, with what the journey says about them', async () => {
     const p = payloadOf((await exportHtml({ entries: ['first-deploy.yaml'], read: reader('examples/journey') })).html);
     const shapes = p.drawings[0]!.shapes;

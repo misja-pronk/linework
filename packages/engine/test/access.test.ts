@@ -290,7 +290,7 @@ assignments:
     expect(text).toContain('requires PAW');
     expect(text).toContain('app-deploy (App registration) has the service principal app-deploy (Service principal)');
     expect(text).toContain('app-deploy (Service principal) is Global Administrator on tenant');
-    expect(text).toContain('sg-admins is eligible for Global Administrator · 2 h · approval on tenant');
+    expect(text).toContain('sg-admins can activate Global Administrator on tenant for at most 2 h, with approval by');
   });
 });
 

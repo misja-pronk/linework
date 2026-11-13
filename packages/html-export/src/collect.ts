@@ -145,6 +145,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   const pendingTrail: { drawing: number; crumbs: { label: string; key?: string }[] }[] = [];
 
   const subtitles = new Map<string, string>();
+  /** The drawing each file is as written, where that is one of its type's views: a link to the file opens it. */
+  const writtenAt = new Map<string, number>();
   const exportSet: string[] = [];
   const want = (p: string) => !exportSet.includes(p) && read(p) !== undefined && exportSet.push(p);
   input.entries.forEach(want);
@@ -234,10 +236,16 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     const pfile: PFile = { path: file, title: ix.files.get(file)?.title ?? first.graph?.title ?? baseOf(file), type: ix.files.get(file)?.type ?? first.type?.id ?? '', drawings: [] };
     files.push(pfile);
     if (first.graph?.subtitle) subtitles.set(file, first.graph.subtitle);
-    const views: (string | undefined)[] = first.onlyViews ? (first.views ?? []).map((v) => v.name) : [undefined, ...(first.views ?? []).map((v) => v.name)];
+    // Each drawing once, as the editor's view picker lists them: where the diagram as written is one of
+    // the type's own views (a sequence's whole, a mesh's overview), it is that view, by its name; a
+    // hidden one (a mesh written view: detailed) comes first, as the drawing a link to the file opens.
+    const written = first.asWritten;
+    const offered = (first.views ?? []).map((v) => v.name);
+    const views: (string | undefined)[] = written ? (offered.includes(written.name) ? offered : [written.name, ...offered]) : first.onlyViews ? offered : [undefined, ...offered];
     for (const [vi, view] of views.entries()) {
       const idPrefix = `${prefix}v${vi}`;
-      const light = vi === 0 ? first : await render(text, { ...common, theme: 'light', view, idPrefix });
+      const asWritten = view === undefined || view === written?.name;
+      const light = vi === 0 && (asWritten || first.view === view) ? first : await render(text, { ...common, theme: 'light', ...(asWritten ? {} : { view }), idPrefix });
       if (!light.svg || !light.graph) {
         for (const d of light.diagnostics) if (d.severity === 'error') problems.push({ file: `${file}${view ? `#${view}` : ''}`, line: d.line, message: d.message });
         continue;
@@ -245,12 +253,13 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       // A view that picks nothing is left out, as --all-views and decks leave it out.
       if (light.empty) continue;
       const viewName = light.view ?? view;
-      const dark = await render(text, { ...common, theme: 'dark', view: viewName, idPrefix });
+      const dark = await render(text, { ...common, theme: 'dark', ...(asWritten ? {} : { view: viewName }), idPrefix });
+      if (asWritten && viewName) writtenAt.set(file, n);
       addTheme(light.theme);
       addTheme(dark.theme);
       const pic = picture(light, dark);
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
-      const title = (viewName ? first.views?.find((v) => v.name === viewName)?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
+      const title = (viewName ? (first.views?.find((v) => v.name === viewName) ?? (viewName === written?.name ? written : undefined))?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
       const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
       const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? tr(first.lang, '{kind} view', { kind: wsView.kind }) : viewName ? tr(first.lang, 'view of {type}', { type: typeName }) : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
       const index = n++;
@@ -262,8 +271,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         const steps: PStep[] = [];
         for (let s = 1; s <= light.steps.length; s++) {
           const [l, d] = await Promise.all([
-            render(text, { ...common, theme: 'light', view: viewName, idPrefix: `${idPrefix}s${s}`, step: s, stepCaption: false }),
-            render(text, { ...common, theme: 'dark', view: viewName, idPrefix: `${idPrefix}s${s}`, step: s, stepCaption: false }),
+            render(text, { ...common, theme: 'light', ...(asWritten ? {} : { view: viewName }), idPrefix: `${idPrefix}s${s}`, step: s, stepCaption: false }),
+            render(text, { ...common, theme: 'dark', ...(asWritten ? {} : { view: viewName }), idPrefix: `${idPrefix}s${s}`, step: s, stepCaption: false }),
           ]);
           const state = light.steps[s - 1]!;
           if (l.svg) steps.push({ ...(state.title ? { title: state.title } : {}), ...(state.caption ? { caption: state.caption } : {}), ...picture(l, d) });
@@ -330,8 +339,8 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   }
 
   const byKey = new Map(drawings.map((d, i) => [d.key, i]));
-  // A link to a diagram (no view) opens the first drawing of it.
-  for (const f of files) if (f.drawings.length && !byKey.has(f.path)) byKey.set(f.path, f.drawings[0]!);
+  // A link to a diagram (no view) opens the drawing as written, else the first drawing of it.
+  for (const f of files) if (f.drawings.length && !byKey.has(f.path)) byKey.set(f.path, writtenAt.get(f.path) ?? f.drawings[0]!);
   for (const p of pendingDrill) {
     const to = byKey.get(p.key);
     if (to !== undefined && to !== p.drawing) drawings[p.drawing]!.drill[p.shape] = to;

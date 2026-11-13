@@ -330,8 +330,8 @@ export const erd: DiagramType<ErdSource> = {
   connect(src, from, to) {
     // A table written without columns yet ("orders:") is a table too: its first column is the key.
     const has = (id: string) => !!src.tables && Object.hasOwn(src.tables, id);
-    if (!has(from)) return `Lines start at a table: "${from}" is not one`;
-    if (!has(to)) return `Lines end at a table: "${to}" is not one`;
+    if (!has(from)) return 'Lines start at a table: drag from one';
+    if (!has(to)) return 'Lines end at a table: drop the line on one';
     const target = src.tables![to] ?? {};
     const pk = Object.entries(target.columns ?? {}).find(([, c]) => parseColumn(c).pk);
     const key = `${to.replace(/s$/, '')}_${pk?.[0] ?? 'id'}`;

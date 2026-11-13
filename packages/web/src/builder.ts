@@ -7,7 +7,7 @@ import { printPreserving } from './yaml-print.ts';
 import { deleteEntryUnsafe, isEntryPath, renameEntryUnsafe } from '@cartography/core';
 import { iconNames } from '@cartography/icons';
 import { schemasAt } from './complete.ts';
-import { t } from './i18n/index.ts';
+import { say, t } from './i18n/index.ts';
 
 type Schema = Record<string, any>;
 type Path = (string | number)[];
@@ -528,7 +528,8 @@ function connectEntriesUnsafe(text: string, type: DiagramType, from: string, to:
       : hasEdges(type)
         ? { path: ['edges'], value: `${from} -> ${to}` }
         : t('This diagram type has no connections');
-  if (typeof plan === 'string') return { error: plan };
+  // A type says why not in English; the editor says it in its own language.
+  if (typeof plan === 'string') return { error: say(plan) };
 
   // The entry that holds the list may still be shorthand ("alice: user").
   if (plan.path.length > 2 || (plan.key != null && plan.path.length === 2)) entryMap(doc, type, plan.path.slice(0, 2));

@@ -34,12 +34,14 @@ nodes:
   die een type zelf aan zijn weergaven geeft (Overzicht, Hele sequence, Klantreis, *Orders in
   detail*), de tekstbeschrijving (`carto describe`, alt-tekst) en de knoppen van de interactieve
   HTML-viewer. Een naam die gelijk is aan zijn sleutel in de YAML (een klasse `Member`) is van jou en
-  blijft staan.
+  blijft staan, ook als Cartography hem van de sleutel maakt: een team `payments` heet Payments, niet
+  Betalingen. Alleen een sleutel die zijn soort herhaalt (`users: { kind: users }`) noemt de soort, en
+  die wordt Gebruikers.
 - **Bewust Engels in de tekening**: de vaste woorden van een notatie, zoals ALT, LOOP en REF in een
   sequence, «interface» en «enumeration» in UML, entry / do in een toestandsdiagram, de patronen van
   een context map (Customer/Supplier, Partnership, ACL) en Flow of change uit Team Topologies.
-- **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
-  van sneltoetsen en de inspector. De weergavekiezer, het commandopalet, de melding bij V en de
+- **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen (ook waarom twee elementen niet
+  te verbinden zijn), het commandopalet, het overzicht van sneltoetsen en de inspector. De weergavekiezer, het commandopalet, de melding bij V en de
   alleen-lezen-viewer van een deellink noemen de weergaven die een type zelf maakt in de taal van de
   editor; de tekening en de exports houden de `lang:` van het diagram. Een naam die je zelf aan een
   weergave gaf, blijft zoals je hem schreef.
