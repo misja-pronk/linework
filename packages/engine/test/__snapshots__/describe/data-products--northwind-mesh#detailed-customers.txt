@@ -15,7 +15,7 @@ Connections
 - Customers connects to Revenue, connects to Sales dashboard and is linked with customers.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
 - Solid line: Data flow
 - Dashed violet line: Data contract

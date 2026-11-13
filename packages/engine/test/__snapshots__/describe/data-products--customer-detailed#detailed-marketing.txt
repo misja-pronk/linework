@@ -13,6 +13,6 @@ Connections
 - Churn risk.churn scores connects to Campaign tool.
 
 Key
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow

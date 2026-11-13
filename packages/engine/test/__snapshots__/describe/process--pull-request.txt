@@ -8,15 +8,15 @@ Lanes and steps
   - Open pull request (code owners requested)
   - Fix what failed
   - Address feedback
+- GitHub (lane)
+  - Squash and merge (branch deleted)
+  - Merged to main (end event)
 - Actions (lane)
   - Required checks (build, test, lint, CodeQL)
   - Checks green? (decision)
 - Reviewer (lane)
   - Waiting for review (timer intermediate event)
   - Approved? (decision)
-- GitHub (lane)
-  - Squash and merge (branch deleted)
-  - Merged to main (end event)
 
 Main path
 1. Push to a branch

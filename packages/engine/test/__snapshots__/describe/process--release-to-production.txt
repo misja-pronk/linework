@@ -9,6 +9,9 @@ Lanes and steps
 - Actions (lane)
   - Build once (one artifact for all stages)
   - Integration tests
+- Reviewer (lane)
+  - Release approved? (decision)
+  - Release stopped (end event)
 - Azure (lane)
   - Deploy to dev (rg-orders-dev)
   - Deploy to test (rg-orders-test)
@@ -17,9 +20,6 @@ Lanes and steps
   - Live in production (end event)
   - Swap back
   - Rolled back (error end event)
-- Reviewer (lane)
-  - Release approved? (decision)
-  - Release stopped (end event)
 
 Main path
 1. Merged to main

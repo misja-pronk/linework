@@ -12,4 +12,4 @@ Columns: sg-developers, Production, rg-shop, Test and GitHub Enterprise.
 
 Key
 - Indigo filled pill: Assigned directly
-- Indigo outlined pill: Through a group, access package or parent scope
+- Indigo outlined pill: Through an access package or parent scope

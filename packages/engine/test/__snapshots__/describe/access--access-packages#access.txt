@@ -8,4 +8,4 @@ Columns: Finance team, Finance team site, Northwind ERP and Finance reports.
 - Sam Okafor (Guest · Fabrikam): Finance team site: Visitor, inherited (via Year-end audit); Finance reports: Viewer, inherited (via Year-end audit)
 
 Key
-- Indigo outlined pill: Through a group, access package or parent scope
+- Indigo outlined pill: Through an access package

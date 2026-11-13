@@ -239,7 +239,8 @@ function elementTree(graph: Graph, order: Map<string, number>): Item[] {
   const groups = new Set(graph.groups.map((g) => g.id));
   const level = (parent: string | undefined): Item[] => {
     const here: { at: number; item: Item }[] = [
-      ...graph.groups.filter((g) => (g.parent && groups.has(g.parent) ? g.parent : undefined) === parent).map((g) => ({ at: at(g.id), item: { text: groupText(g), items: level(g.id) } })),
+      // Lanes are told in the order they are drawn (as written), not where their first step is met.
+      ...graph.groups.filter((g) => (g.parent && groups.has(g.parent) ? g.parent : undefined) === parent).map((g, i) => ({ at: g.lane ? i - 1e9 : at(g.id), item: { text: groupText(g), items: level(g.id) } })),
       ...nodes.filter((n) => (n.parent && groups.has(n.parent) ? n.parent : undefined) === parent).map((n) => ({ at: order.get(n.id) ?? Infinity, item: { text: elementText(n) } })),
     ];
     return here.sort((a, b) => a.at - b.at).map((x) => (x.item.items?.length ? x.item : { text: x.item.text }));
@@ -926,6 +927,8 @@ const NEUTER = new Set(['check mark', 'outlined check mark', 'icon', 'boundary b
 
 /** A key entry in words: what the sample looks like, and what it means. */
 function keyText(l: LegendItem, shade?: { n: number; of: number }): string {
+  // A kind with an icon (a data product's class) is drawn in the key as that icon, not as a pill.
+  if (l.swatch === 'fill' && l.icon) l = { ...l, swatch: 'tile' };
   if (L !== 'en') return keySaid(l, shade);
   const tone = l.tone && l.tone !== 'slate' ? `${l.tone} ` : '';
   let look: string;
