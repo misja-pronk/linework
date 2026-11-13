@@ -18,13 +18,18 @@ export interface RouteEnd {
   rowY?: number;
   /** Straight piece at the end, room for the marker. */
   stub: number;
+  /** The innermost group holding the node (for a group, the one holding it): lines share a trunk only to cards that stand together. */
+  within?: string;
+  /** The mark drawn at this end (arrow, crow's foot): two different marks never share one row's port. */
+  mark?: string;
 }
 
 export interface RouteRequest {
   id: string;
   from: RouteEnd;
   to: RouteEnd;
-  label?: { width: number; height: number };
+  /** The label's box; `aside` of its width is room for end tags, not words (Sized.edgeLabels). */
+  label?: { width: number; height: number; aside?: number };
   /** Lower routes first and gets the best paths. */
   order?: number;
   /**
@@ -96,6 +101,8 @@ const RING = 1; // per pixel of running that near a card (not on a sibling's tru
 const RUN_ON = 64; // a line starting this near another's end, on its track, reads as that line running on
 const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
 const RUN_ASIDE = 12; // a lane aside: nearer than this
+const OVERHANG = 40; // a label hanging over a bend, past the end of its piece
+const MIXED = 4000; // a line onto a table row's side where another line ends in a different mark: around the table is better
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
 const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
@@ -298,7 +305,10 @@ function trunkGroups(input: RouterInput, sides: Map<string, [Side, Side]>): Map<
   const add = (key: string, id: string) => groups.set(key, [...(groups.get(key) ?? []), id]);
   // Lines with labels keep their own path: on a shared trunk a label could not say which line it names.
   const usable = input.edges.filter((e) => e.style && !e.label && e.from.node !== e.to.node);
-  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}`, e.id);
+  // Out of one side only to cards that stand together (in one group): a trunk to cards in different places would
+  // branch beside one of them and read as running on through it (resolver -> ruleset -> zones).
+  // A table row's port is one point whatever its lines share, so there a trunk stays the neater way.
+  for (const e of usable) add(`out|${e.from.node}|${e.from.rowY ?? ''}|${sides.get(e.id)![0]}|${e.style}|${e.from.rowY == null ? (e.to.within ?? '') : ''}`, e.id);
   const out = new Map<string, string>();
   for (const [k, ids] of groups) if (ids.length > 1) for (const id of ids) out.set(id, k);
   groups.clear();
@@ -341,9 +351,15 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
   // Per node side, how many lines chosen so far come in there (ins) and go out there (outs).
   const ins = new Map<string, number>();
   const outs = new Map<string, number>();
+  // Per table row side, the marks drawn there so far: a row's port is one point, and two different
+  // marks on it (a crow's foot over a bar) say neither.
+  const rowMarks = new Map<string, Set<string>>();
+  const rowKey = (r: RouteEnd, side: Side) => `${r.node}:${r.rowY}:${side}`;
+  const clash = (r: RouteEnd, side: Side) => r.rowY != null && [...(rowMarks.get(rowKey(r, side)) ?? [])].some((m) => m !== (r.mark ?? ''));
   const add = (e: RouteRequest, [f, t]: [Side, Side]) => {
     ins.set(`${e.to.node}:${t}`, (ins.get(`${e.to.node}:${t}`) ?? 0) + 1);
     outs.set(`${e.from.node}:${f}`, (outs.get(`${e.from.node}:${f}`) ?? 0) + 1);
+    for (const [r, side] of [[e.from, f], [e.to, t]] as const) if (r.rowY != null) rowMarks.set(rowKey(r, side), (rowMarks.get(rowKey(r, side)) ?? new Set()).add(r.mark ?? ''));
   };
   for (const e of input.edges) {
     const list = options.get(e.id)!;
@@ -366,7 +382,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // right beside that one's end: the two read as one line running on through the card.
     const meets = (pair: [Side, Side]) => (ins.get(`${e.from.node}:${pair[0]}`) ?? 0) + (outs.get(`${e.to.node}:${pair[1]}`) ?? 0);
     for (const pair of list) {
-      const sideways = meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
+      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
       // Only a way cheaper than the best so far is worth finding.
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
       if (!found) continue;
@@ -1252,6 +1268,8 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     if (!e.label || !route) continue;
     own = new Set([e.id]);
     const { width, height } = e.label;
+    // Room for end tags around words; a label of tags alone (no words) is placed as one box.
+    const aside = e.label.aside && e.label.width - e.label.aside >= 16 ? e.label.aside : 0;
     const pts = route.points;
     // A line back to its own node: outside the loop, where it covers neither the node nor the arrowhead.
     if (e.from.node === e.to.node && pts.length === 4) {
@@ -1293,12 +1311,15 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
           const c = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
           // On the line: prefer horizontal, long, central segments. A pill on a horizontal line keeps
           // some line visible either side, or the line would seem to end in the label.
+          // A pill hanging past the end of its piece lies on the bend: where the piece has room, its middle is better.
+          const half = (horizontal ? width : height) / 2;
+          const hangs = Math.min(t, 1 - t) * len < half + 4 ? OVERHANG : 0;
           if (len >= (horizontal ? width + 16 : height + 16)) {
             const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
             const covers = horizontal && alone && len < width + 28 ? 100 : 0;
             // Words across a vertical line read as struck through: a short label may sit on it, a long one goes beside it.
-            const struck = horizontal ? 0 : Math.max(0, width - STRUCK) * 0.5;
-            found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
+            const struck = horizontal ? 0 : Math.max(0, width - aside - STRUCK) * 0.5;
+            found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + hangs + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
           }
           // Above or below a horizontal line too short for a pill on it (a short hop between layers),
           // or with no room on it: two lines close together get their labels on the far sides.
@@ -1310,11 +1331,14 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
               found.push({ box, score: (short ? 95 : 110) + middle * 10 + Math.abs(t - 0.5) * 40 + (side > 0 ? 5 : 0) + hits(box) });
             }
           // Beside a vertical line, when it is too short or crowded for a pill on it.
+          // Only the words stand beside it: the room for end tags (aside) is half each side of them, so the box reaches over the line.
           if (!horizontal && len >= height + 8)
             for (const side of [1, -1]) {
-              const x = side > 0 ? c.x + 3 : c.x - 3 - width;
-              const box = { x, y: c.y - height / 2, width, height };
-              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + hits(box) });
+              const words = { x: side > 0 ? c.x + 3 : c.x - 3 - (width - aside), y: c.y - height / 2, width: width - aside, height };
+              const box = { ...words, x: words.x - aside / 2, width };
+              // The whole box still keeps off cards and other labels: it is what the drawing measures.
+              const covers = aside && taken.some((q) => overlap(box, q)) ? 1000 : 0;
+              found.push({ box, score: 90 + middle * 10 + Math.abs(t - 0.5) * 40 + (side < 0 ? 5 : 0) + Math.max(hits(words), covers) });
             }
         }
       });

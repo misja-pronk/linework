@@ -371,7 +371,11 @@ export interface PlacedEdge {
 export interface Sized {
   graph: Graph;
   nodes: Map<string, NodeSize>;
-  edgeLabels: Map<string, { width: number; height: number }>;
+  /**
+   * Each line's label box. `aside`: of its width, the room kept for the tags at the line's ends (U, D,
+   * ACL), half each side of the words, which are drawn in the middle: beside a line only the words count.
+   */
+  edgeLabels: Map<string, { width: number; height: number; aside?: number }>;
   /** Space above a group's children for its label. */
   groupHeader: number;
   /** Width a group needs at least to show its label. */

@@ -7,7 +7,7 @@ import { alignLoners, alignPorts } from './align.ts';
 import { evenGroups, tidy } from './tidy.ts';
 import { squeeze } from './squeeze.ts';
 import { clearAnnexLines, liftAnnexes, stackAnnexes } from './annex.ts';
-import { disorder, labelMetrics, lineFaults, measure, plainLine, score, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
+import { disorder, labelMetrics, lineFaults, measure, plainLine, score, touchedLabels, voidShare, boxOverlaps, type LayoutMetrics } from './metrics.ts';
 import { routeEdges, type RouteEnd, type RouteRequest } from './router.ts';
 import { movedShare, stayPlacement } from './stay.ts';
 import { wrap, wrapScopes, type WrapOptions } from './wrap.ts';
@@ -194,6 +194,8 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     else if (tuning.wrap !== false && was?.wrap && !best.held && best.sized.graph.direction === was.direction) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
   }
 
+  // A label with another line through it gets room, when the drawing comes out no worse for it.
+  if (!best.held && !pinned) best = clearLines(best, target);
   const s = best.sized;
   const memory: LayoutMemory = {
     variant: best.key,
@@ -380,7 +382,10 @@ function readsBetter(a: Choice, b: Choice, target: number): boolean {
   // Half as many again as it has only for text far too small (under half the readable size): a dense drawing at 2 pt.
   const crossed = metricsOf(b).crossings;
   const tiny = pageScale(b.placed, b.sized.graph, target) < READABLE_SCALE / 2;
-  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0)) return false;
+  // And twice as many for text that a slide shows at 6 pt where the other's it does not: a crossing or
+  // two is no reason to show a slide under 6 pt (multi-cloud with a longer group name: 3.9 pt unwrapped).
+  const lifts = slideTier(a, target) > 0 && slideTier(b, target) === 0;
+  if (metricsOf(a).crossings > crossed + Math.max(SMALL_CROSSINGS, tiny ? Math.ceil(crossed / 2) : 0, lifts ? 2 * SMALL_CROSSINGS : 0)) return false;
   // A drawing whose text a slide already shows with the margin (slideTier 2) takes on no crossing for larger text.
   if (slideTier(b, target) === 2 && metricsOf(a).crossings > crossed) return false;
   // Weighed with small text double, for text too small to read: only for text clearly larger, or for a
@@ -587,6 +592,46 @@ function loopRoom(sized: Sized, d: Drawn, pad: number): Drawn {
   if (!cut) return d;
   const p = openSpace(d.p, cut, graph);
   return { p, edges: route(sized, p) };
+}
+
+/**
+ * A label with another line through it or right along it: no spot on its own line was clear, the
+ * channel it lies in is too narrow for its words and a neighbour's line (web-app: db_datawriter
+ * across the TDS line; the walkthrough's "create invoice" across Notifier's line). Room is opened
+ * where the label lies, across the line that touches it, and the lines are drawn again; kept when
+ * that label (and no other) is now clear, with no more crossings or errors, and the text on a slide
+ * comes out no smaller in tier (slideTier). At most `left` times.
+ */
+function clearLines(best: Choice, target: number | undefined, left = 3): Choice {
+  const { sized } = best;
+  const before = touchedLabels(sized.graph, best.placed);
+  if (!left || !before.length) return best;
+  const m0 = metricsOf(best);
+  const shift = best.placed.shift ?? { x: 0, y: 0 };
+  for (const t of before) {
+    const [a, b] = t.by;
+    // Across a vertical piece: room left to right; across a horizontal one: room top to bottom.
+    const axis = a.x === b.x ? 'x' : 'y';
+    const l = { ...t.label, x: t.label.x + shift.x, y: t.label.y + shift.y };
+    const line = (axis === 'x' ? a.x : a.y) + (axis === 'x' ? shift.x : shift.y);
+    const size = axis === 'x' ? l.width : l.height;
+    // Before the label and the line (what lies past them moves on), or between them.
+    const by = Math.ceil((size + 16) / 8) * 8;
+    for (const at of [Math.min(l[axis], line) - 4, (Math.min(l[axis] + size, line) + Math.max(l[axis], line)) / 2]) {
+      const q = openSpace(best.p, { axis, at, by, group: '' }, sized.graph);
+      const drawn = clearBorders(sized, { p: q, edges: route(sized, q) });
+      const placed = normalise({ ...drawn.p, edges: drawn.edges });
+      const next: Choice = { ...best, p: drawn.p, placed, score: 0, cost: 0 };
+      const m = metricsOf(next);
+      const after = touchedLabels(sized.graph, placed);
+      if (after.length >= before.length || after.some((x) => x.edge === t.edge)) continue;
+      if (m.crossings > m0.crossings || errors(next) > errors(best) || faultsOf(next) > faultsOf(best)) continue;
+      if (target != null && slideTier(next, target) < slideTier(best, target)) continue;
+      const sc = score(m);
+      return clearLines({ ...next, score: sc, cost: best.cost - best.score + sc }, target, left - 1);
+    }
+  }
+  return best;
 }
 
 /** What no shape makes up for: lines through boxes, covered labels, boxes on each other. */
@@ -815,15 +860,15 @@ const VARIANT_LIMIT = 60;
 
 function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<string, PlacedEdge> {
   const { graph } = sized;
+  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
+  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const end = (ep: Endpoint, marker: Marker): RouteEnd | undefined => {
     const box = p.nodes.get(ep.node) ?? p.groups.get(ep.node);
     if (!box) return undefined;
     const rowY = ep.row ? sized.nodes.get(ep.node)?.rowY?.[ep.row] : undefined;
-    return { node: ep.node, box, rowY, stub: stubFor(marker) };
+    return { node: ep.node, box, rowY, stub: stubFor(marker), within: groupParent.get(ep.node) ?? nodeParent.get(ep.node), mark: marker };
   };
   // The groups around each end, all the way up: a line is at home in those and a stranger in the rest.
-  const groupParent = new Map(graph.groups.map((g) => [g.id, g.parent]));
-  const nodeParent = new Map(graph.nodes.map((n) => [n.id, n.parent]));
   const home = (...ends: string[]) => {
     const out = new Set<string>();
     for (const id of ends) for (let g = groupParent.has(id) ? id : nodeParent.get(id); g && !out.has(g); g = groupParent.get(g)) out.add(g);
