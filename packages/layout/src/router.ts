@@ -22,6 +22,8 @@ export interface RouteEnd {
   within?: string;
   /** The mark drawn at this end (arrow, crow's foot): two different marks never share one row's port. */
   mark?: string;
+  /** For a group: the boxes it holds directly. A line lands on the group clear of them (see landing). */
+  inner?: Box[];
 }
 
 export interface RouteRequest {
@@ -456,8 +458,12 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     e[end].rowY == null &&
     sidesAt(e, end, side).some(({ key, box }) => {
       const taken = ports.get(key);
-      if (!taken || taken.has(portOf(e, end))) return false;
-      const [lo, hi] = clearSpan(box, side, input.texts ?? [], 1);
+      if (taken?.has(portOf(e, end))) return false;
+      const span = clearSpan(box, side, input.texts ?? [], 1);
+      // A group's own side: only where a line lands clear of what the group holds (none such: no room at all).
+      const [lo, hi] = key === `${e[end].node}:${side}` ? (landing(e[end], side, span, 1) ?? [0, -1]) : span;
+      if (hi < lo) return true;
+      if (!taken) return false;
       let need = room.get(portOf(e, end))! - PORT;
       for (const id of taken.keys()) need += room.get(id)!;
       return need > hi - lo;
@@ -563,7 +569,8 @@ function centrePorts(e: RouteRequest, f: Side, t: Side, texts: Box[] = []): Port
     const b = r.box;
     if (r.rowY != null) return { x: side === 'E' ? b.x + b.width : b.x, y: b.y + r.rowY };
     // The middle of the part of the side a line can leave straight from (clear of header text): where its port will be.
-    const [lo, hi] = clearSpan(b, side, texts, 1, reachTo(b, side, (r === e.from ? e.to : e.from).box));
+    const span = clearSpan(b, side, texts, 1, reachTo(b, side, (r === e.from ? e.to : e.from).box));
+    const [lo, hi] = landing(r, side, span, 1) ?? span;
     const mid = (lo + hi) / 2;
     return side === 'E' ? { x: b.x + b.width, y: mid }
       : side === 'W' ? { x: b.x, y: mid }
@@ -621,6 +628,39 @@ function clearStretch(box: Box, side: Side, texts: Box[], n: number, reach: numb
 function reachTo(box: Box, side: Side, other: Box): number {
   const gap = side === 'N' ? box.y - (other.y + other.height) : side === 'S' ? other.y - (box.y + box.height) : side === 'W' ? box.x - (other.x + other.width) : other.x - (box.x + box.width);
   return gap > 0 ? gap : REACH;
+}
+
+/** A card this near a group's side stands beside it there (see landing). */
+const BESIDE = 48;
+/** A line that steps aside less than this right before its end has a kink (metrics.ts: JOG). */
+const KINK = 40;
+/** And a line lands this far clear of the card's corners. */
+const LAND_AIR = 8;
+
+/**
+ * Where on a group's left or right side arrowheads land clear of the cards it holds: on the border
+ * right beside a card inside, an arrowhead reads as pointing at that card, not at the group. The
+ * stretch of the side (within `span`) nearest the header that is beside no card and where `n` ends
+ * fit two lanes apart; undefined when there is none. Elsewhere (a card, the top: the header, the
+ * bottom, an end without a mark, a group beside no card) the whole `span`. Cards only: beside a
+ * smaller scope inside it, a line still reads as onto the outer one.
+ */
+function landing(r: RouteEnd, side: Side, span: [number, number], n: number): [number, number] | undefined {
+  if (!r.inner?.length || (side !== 'W' && side !== 'E') || (r.mark ?? 'none') === 'none') return span;
+  const b = r.box;
+  const gap = (c: Box) => (side === 'W' ? c.x - b.x : b.x + b.width - (c.x + c.width));
+  const blocked = r.inner
+    .filter((c) => gap(c) <= BESIDE)
+    .map((c) => [c.y - LAND_AIR, c.y + c.height + LAND_AIR] as [number, number])
+    .sort((p, q) => p[0] - q[0]);
+  if (!blocked.length) return span;
+  const [lo, hi] = span;
+  let at = lo;
+  for (const [a, z] of [...blocked, [hi, hi] as [number, number]]) {
+    if (Math.min(a, hi) - at >= Math.max(1, n - 1) * 2 * LANE) return [at, Math.min(a, hi)];
+    at = Math.max(at, z);
+  }
+  return undefined;
 }
 
 /**
@@ -705,34 +745,45 @@ function placePorts(input: RouterInput, sides: Map<string, [Side, Side]>, trunk:
     // far side and one out of it to the card's near side would cross right here in the other order.
     list.sort((p, q) => angle(p.other) - angle(q.other) || angle(p.toward) - angle(q.toward));
     // Spread over the part of the side clear of header text when the ports fit there.
-    const [lo, hi] = clearSpan(box, side, texts, list.length, Math.max(...list.map((s) => reachTo(box, side, s.edge[s.end === 'from' ? 'to' : 'from'].box))));
-    const length = hi - lo + 24;
-    const room = length - 24;
-    const step = Math.min(28, room / Math.max(1, list.length));
-    const first = (length - step * (list.length - 1)) / 2;
-    const offset = lo - 12 - (along ? box.y : box.x);
-    list.forEach((s, i) => {
-      const t = offset + first + i * step;
+    const span = clearSpan(box, side, texts, list.length, Math.max(...list.map((s) => reachTo(box, side, s.edge[s.end === 'from' ? 'to' : 'from'].box))));
+    const axis = along ? 'y' : 'x';
+    const group = !input.obstacles.has(list[0]!.edge[list[0]!.end].node);
+    // Evenly over [lo, hi], in that order.
+    const spread = (lo: number, hi: number) => {
+      const length = hi - lo + 24;
+      const step = Math.min(28, (length - 24) / Math.max(1, list.length));
+      const first = (length - step * (list.length - 1)) / 2;
+      const at = list.map((_, i) => lo - 12 + first + i * step);
+      // A group's side is long: there a line leaves in line with its other end when that end lies
+      // along the side, and the lines beside it make room, as long as all keep their order and stay
+      // on the side. A line straight out of a group has room for its label; one that jogs a few
+      // pixels has not.
+      if (list.length > 1 && group) {
+        const straight = list.map((s) => s.other[axis] >= lo && s.other[axis] <= hi);
+        const wanted = list.map((s, i) => (straight[i] ? s.other[axis] : at[i]!));
+        for (let i = 1; i < list.length; i++) if (!straight[i]) wanted[i] = Math.max(wanted[i]!, wanted[i - 1]! + 2 * LANE);
+        for (let i = list.length - 2; i >= 0; i--) if (!straight[i]) wanted[i] = Math.min(wanted[i]!, wanted[i + 1]! - 2 * LANE);
+        if (straight.includes(true) && wanted.every((v, i) => v >= lo && v <= hi && (!i || v - wanted[i - 1]! >= 2 * LANE))) return wanted;
+      }
+      return at;
+    };
+    // On a group, by its header, clear of what it holds (landing); unless that leaves fewer lines
+    // straight, or bends more a little right before the group (a kink), than the whole side does.
+    const off = (at: number[]) => list.map((s, i) => Math.abs(at[i]! - s.other[axis]));
+    const straights = (at: number[]) => off(at).filter((d) => d <= 0.5).length;
+    const kinks = (at: number[]) => off(at).filter((d) => d > 0.5 && d < KINK).length;
+    const landed = group ? landing(list[0]!.edge[list[0]!.end], side, span, list.length) : undefined;
+    const [here, whole] = [landed && spread(...landed), spread(...span)];
+    const at = here && straights(here) >= straights(whole) && kinks(here) <= kinks(whole) ? here : whole;
+    at.forEach((v, i) => {
+      const s = list[i]!;
       const p =
-        side === 'E' ? { x: box.x + box.width, y: box.y + t }
-        : side === 'W' ? { x: box.x, y: box.y + t }
-        : side === 'N' ? { x: box.x + t, y: box.y }
-        : { x: box.x + t, y: box.y + box.height };
+        side === 'E' ? { x: box.x + box.width, y: v }
+        : side === 'W' ? { x: box.x, y: v }
+        : side === 'N' ? { x: v, y: box.y }
+        : { x: v, y: box.y + box.height };
       pos.set(`${s.edge.id}:${s.end}`, p);
     });
-    // A group's side is long: there a line leaves in line with its other end when that end lies
-    // along the side, and the lines beside it make room, as long as all keep their order and stay
-    // on the side. A line straight out of a group has room for its label; one that jogs a few
-    // pixels has not.
-    if (list.length > 1 && !input.obstacles.has(list[0]!.edge[list[0]!.end].node)) {
-      const axis = along ? 'y' : 'x';
-      const straight = list.map((s) => s.other[axis] >= lo && s.other[axis] <= hi);
-      const wanted = list.map((s, i) => (straight[i] ? s.other[axis] : pos.get(`${s.edge.id}:${s.end}`)![axis]));
-      for (let i = 1; i < list.length; i++) if (!straight[i]) wanted[i] = Math.max(wanted[i]!, wanted[i - 1]! + 2 * LANE);
-      for (let i = list.length - 2; i >= 0; i--) if (!straight[i]) wanted[i] = Math.min(wanted[i]!, wanted[i + 1]! - 2 * LANE);
-      if (straight.includes(true) && wanted.every((v, i) => v >= lo && v <= hi && (!i || v - wanted[i - 1]! >= 2 * LANE)))
-        list.forEach((s, i) => pos.set(`${s.edge.id}:${s.end}`, { ...pos.get(`${s.edge.id}:${s.end}`)!, [axis]: wanted[i]! }));
-    }
   }
   for (const [member, first] of shared) pos.set(member, pos.get(first)!);
 

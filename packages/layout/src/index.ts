@@ -853,7 +853,7 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
     const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     const opened = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
-    const start = tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap);
+    const start = landingRoom(tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap), graph, spacing.groupPad);
     // Ways of asking dot, mirrors, packing and straightening often come to the very same boxes:
     // those are routed once (routing is most of what a layout costs).
     const sig = boxesKey(start);
@@ -920,7 +920,9 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
     const box = p.nodes.get(ep.node) ?? p.groups.get(ep.node);
     if (!box) return undefined;
     const rowY = ep.row ? sized.nodes.get(ep.node)?.rowY?.[ep.row] : undefined;
-    return { node: ep.node, box, rowY, stub: stubFor(marker), within: groupParent.get(ep.node) ?? nodeParent.get(ep.node), mark: marker };
+    // A group: what it holds, which the line lands clear of.
+    const inner = p.nodes.has(ep.node) ? undefined : cards(graph, p, ep.node);
+    return { node: ep.node, box, rowY, stub: stubFor(marker), within: groupParent.get(ep.node) ?? nodeParent.get(ep.node), mark: marker, ...(inner?.length ? { inner } : {}) };
   };
   // The groups around each end, all the way up: a line is at home in those and a stranger in the rest.
   const home = (...ends: string[]) => {
@@ -969,6 +971,72 @@ function route(sized: Sized, p: Placement, via?: Map<string, Point[]>): Map<stri
   });
   const groups = graph.groups.flatMap((g) => (p.groups.has(g.id) ? [{ id: g.id, box: p.groups.get(g.id)!, parent: g.parent }] : []));
   return routeEdges({ obstacles: p.nodes, soft, labelZones: [...labelZones, ...names], texts: [...texts, ...names], groups, header: sized.groupHeader, direction: graph.direction, edges });
+}
+
+/** Room a line takes where it lands on a group's side (the router's PORT), and air above what the group holds (LAND_AIR). */
+const LANDING = 24;
+const LAND_AIR = 8;
+
+/**
+ * Lines that end on a group, from cards before it along the flow, land on its side by the header,
+ * clear of what it holds (router.ts, landing): beside a card inside, an arrowhead seems to point at
+ * that card. Two or more need lanes there: what the group holds moves down to make that room, the
+ * group (and those around it) growing, when nothing outside them is in the way.
+ */
+function landingRoom(p: Placement, graph: Graph, pad: number): Placement {
+  if (graph.direction !== 'right') return p;
+  let out = p;
+  for (const g of graph.groups) {
+    const b = out.groups.get(g.id);
+    const inner = cards(graph, out, g.id);
+    if (!b || !inner.length) continue;
+    const before = (id: string) => {
+      const o = out.nodes.get(id) ?? out.groups.get(id);
+      return !!o && o.x + o.width < b.x;
+    };
+    // Lines with an arrowhead on the group (router.ts: landing), from cards before it.
+    const from = graph.edges.filter((e) => e.to.node === g.id && e.end !== 'none' && before(e.from.node)).map((e) => (out.nodes.get(e.from.node) ?? out.groups.get(e.from.node))!);
+    if (!from.length) continue;
+    const top = Math.min(...inner.map((c) => c.y));
+    // Room for them all one above the other, and for each that could run straight in (its card level
+    // with the group) to do so above what the group holds.
+    const lanes = (from.length - 1) * LANDING - (top - LAND_AIR - (b.y + 12));
+    const reach = b.y + b.height + Math.max(0, lanes);
+    const level = Math.max(0, ...from.map((o) => o.y + o.height / 2).filter((y) => y > b.y + 12 && y < reach).map((y) => y + LAND_AIR + 12 - top));
+    const by = Math.ceil(Math.max(lanes, level) / 8) * 8;
+    if (by <= 0) continue;
+    const parent = new Map<string, string | undefined>([...graph.groups.map((x) => [x.id, x.parent] as const), ...graph.nodes.map((x) => [x.id, x.parent] as const)]);
+    const within = (id: string) => {
+      for (let q = parent.get(id); q; q = parent.get(q)) if (q === g.id) return true;
+      return false;
+    };
+    const around = new Set<string>();
+    for (let q = g.parent; q; q = parent.get(q)) around.add(q);
+    const nodes = new Map([...out.nodes].map(([id, n]) => [id, within(id) ? { ...n, y: n.y + by } : n]));
+    const groups = new Map([...out.groups].map(([id, n]) => [id, within(id) ? { ...n, y: n.y + by } : id === g.id ? { ...n, height: n.height + by } : n]));
+    // The groups around it reach as far down as it does, and their padding.
+    for (let q = g.parent, inside = groups.get(g.id)!; q; q = parent.get(q)) {
+      const o = groups.get(q);
+      if (!o) break;
+      const bottom = Math.max(o.y + o.height, inside.y + inside.height + pad);
+      groups.set(q, { ...o, height: bottom - o.y });
+      inside = groups.get(q)!;
+    }
+    const grown = [g.id, ...around].map((id) => groups.get(id)!).filter(Boolean);
+    const clear = [...nodes, ...groups].every(([id, o]) => id === g.id || around.has(id) || within(id) || grown.every((x) => o.x >= x.x + x.width || x.x >= o.x + o.width || o.y >= x.y + x.height || x.y >= o.y + o.height));
+    if (!clear) continue;
+    const all = [...nodes.values(), ...groups.values()];
+    out = { nodes, groups, width: Math.max(...all.map((x) => x.x + x.width)) - Math.min(...all.map((x) => x.x)), height: Math.max(...all.map((x) => x.y + x.height)) - Math.min(...all.map((x) => x.y)) };
+  }
+  return out;
+}
+
+/**
+ * The cards a group holds directly. (Not the groups in it: a line onto a scope beside a smaller
+ * scope inside it reads as on the outer one, and there it may run straight.)
+ */
+function cards(graph: Graph, p: Placement, id: string): Box[] {
+  return graph.nodes.filter((n) => n.parent === id).flatMap((n) => p.nodes.get(n.id) ?? []);
 }
 
 /** Where a group's title is written, with a little air: `minWidth` is the title's width plus the room size.ts keeps around it. */
