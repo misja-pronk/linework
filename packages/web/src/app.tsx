@@ -267,6 +267,7 @@ export function App() {
         />
         <DrawingPane
           drawing={drawing}
+          deckTemplate={exports.deckTemplate}
           selection={selection}
           select={sel}
           edits={edits}

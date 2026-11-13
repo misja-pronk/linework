@@ -1,5 +1,6 @@
 // Export and share: pictures, slides and pages, interactive HTML, a share link, copies for the
 // clipboard, the description in words. All from the document as it is in the editor now.
+import { useMemo } from 'react';
 import { SLIDE_MIN_PT } from '@cartography/engine';
 import { SHARE_LIMIT, shareLink, type LayoutSidecar } from '@cartography/core';
 import { themes } from '@cartography/theme';
@@ -53,10 +54,11 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
         : t('The first page is the whole drawing, too long to read on a page; the pages after it show it as {views}', { views: listWords(uiLang(), by) }),
     action: { label: t('Leave it out'), run: again },
   });
+  // A template the theme names (pptx:), read from the open folder, next to the diagram.
+  const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
   const pptxNow = (withoutScroll?: boolean) =>
     attempt(t('Export'), async () => {
-      // In the template chosen in the menu, or the one the theme names (read from the open folder, next to the diagram).
-      const read = async (p: string) => (ws ? ((await folderBytes(ws, [...(doc.path?.split('/').slice(0, -1) ?? []), p].join('/'))) ?? (await folderBytes(ws, p))) : undefined);
+      // In the template chosen in the menu, or the one the theme names.
       const { blob, small, warnings, scroll } = await exportPptx(exportInput(), yamlName(doc.name), { bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read, withoutScroll });
       download(`${baseName(doc.name)}.pptx`, blob);
       // Every slide is checked for text too small to read from the back of a room.
@@ -114,6 +116,8 @@ export function useExports({ textNow, theme, load, pins, doc, docFile, ws, viewN
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': exportPng(exportInput(), 2) })]);
     notify(t('PNG copied, paste it into slides or docs'));
   });
-  return { exportInput, saveLayout, saveSvg, savePng, saveSlide, pptxTemplate, savePptx, pageName, savePageSvg, savePdf, saveHtml, copySvg, copyShare, description, copyForWiki, copyPng };
+  // The template decks are made in, as the page frame measures its room: the one chosen, else the one the theme names.
+  const deckTemplate = useMemo(() => ({ name: pptxTemplate.chosen?.name, bytes: pptxTemplate.chosen?.bytes, keepLook: pptxTemplate.chosen?.keepLook, read }), [pptxTemplate.chosen, ws, doc.path]); // eslint-disable-line react-hooks/exhaustive-deps -- read is new each render; it follows the folder and the diagram's path
+  return { exportInput, saveLayout, saveSvg, savePng, saveSlide, pptxTemplate, deckTemplate, savePptx, pageName, savePageSvg, savePdf, saveHtml, copySvg, copyShare, description, copyForWiki, copyPng };
 }
 export type Exports = ReturnType<typeof useExports>;

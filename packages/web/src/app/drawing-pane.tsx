@@ -7,7 +7,7 @@ import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { AddMenu } from '../add-menu.tsx';
 import { FocusChip } from '../focus-chip.tsx';
-import { Preview, type PreviewControl, type Selection } from '../preview.tsx';
+import { Preview, type DeckTemplate, type PreviewControl, type Selection } from '../preview.tsx';
 import { StepsStrip } from '../steps-strip.tsx';
 import { deleteStep, moveStep, renameStep, stepsPath } from '../steps-edit.ts';
 import { parentKey } from '../builder.ts';
@@ -52,6 +52,8 @@ interface Props {
   onNamed(): void;
   notify: Notify;
   sketching: Sketching;
+  /** The PowerPoint template decks are made in: the page frame measures its room. */
+  deckTemplate?: DeckTemplate;
   /** Only the sheet on screen (a session, or its end): no page frame, no minimap. */
   sheetOnly: boolean;
   /** In a session: only the sheet, the toolbar, and a menu over the selection. */
@@ -155,6 +157,7 @@ export function DrawingPane(p: Props) {
         grid={craft.grid}
         minimap={craft.minimap && !p.sheetOnly}
         page={craft.page && !p.sheetOnly}
+        deckTemplate={p.deckTemplate}
         clearBottom={p.session ? 88 : undefined}
         pinned={drawing.pinnedIds}
         onToggle={craft.toggle}
